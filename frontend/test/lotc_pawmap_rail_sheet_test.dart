@@ -11,6 +11,7 @@
 //   · feuille : 3 crans, bouton principal, sélecteur « Je cherche » (re-toucher
 //     = « tout »), carte vide = une action ;
 //   · découverte guidée : Suivant → Suivant → Compris.
+import 'package:hopetsit/localization/v565/pawmap589_i18n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,6 +33,7 @@ class _T extends Translations {
           l: {
             ...mapI18n[l] ?? const <String, String>{},
             ...lotC584I18n[l]!,
+            ...pawmap589I18n[l] ?? const <String, String>{},
             'pawmap_btn_around': 'Autour de moi',
             'pawmap_btn_directions': 'Itinéraire',
             'pawmap_btn_circle_chat': 'Chat du cercle',
@@ -352,7 +354,7 @@ void main() {
       expect(step, 2);
       await tester.pumpWidget(build());
       await tester.pump(const Duration(milliseconds: 60));
-      expect(find.textContaining('panneau'), findsOneWidget);
+      expect(find.textContaining('roue orange'), findsOneWidget); // v589 : roue en haut à droite
       expect(find.text('Compris'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey<String>('coach_next')));
       await tester.pump(const Duration(milliseconds: 100));

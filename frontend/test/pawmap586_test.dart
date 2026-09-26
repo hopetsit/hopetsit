@@ -220,7 +220,9 @@ void main() {
         ),
       )));
       expect(find.byIcon(Icons.campaign_rounded), findsOneWidget);
-      expect(find.text('Publier'), findsNothing); // après 3 ouvertures
+      // v589 — « Publier » TOUJOURS écrit, et un « + » sur le mégaphone.
+      expect(find.text('Publier'), findsOneWidget);
+      expect(find.byIcon(Icons.add_rounded), findsOneWidget);
       await t.tap(find.byKey(const ValueKey('pawmap_action_publish')));
       await t.longPress(find.byKey(const ValueKey('pawmap_action_publish')));
       expect([taps, longs], [1, 1]);

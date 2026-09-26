@@ -911,25 +911,41 @@ class PawMapPinPainter {
 
 /// Rendu d'un peintre en image PNG (2×) — partagé par la carte (BitmapDescriptor)
 /// et par la légende « ? » / les tests (Image.memory).
+/// v589 — Daniel : « que les icônes des utilisateurs apparaissent nettes, HD,
+/// pas de flou ». Les épingles étaient dessinées à 2× puis AGRANDIES par les
+/// téléphones à ~3× (Samsung, iPhone) : photos floues. On dessine désormais
+/// à la densité RÉELLE de l'écran (bornée 2×–4×).
+double pawPinRenderScale() {
+  try {
+    final views = ui.PlatformDispatcher.instance.views;
+    final dpr = views.isEmpty ? 3.0 : views.first.devicePixelRatio;
+    return dpr.clamp(2.0, 4.0).toDouble();
+  } catch (_) {
+    return 3.0;
+  }
+}
+
 Future<Uint8List> renderPinPng(
   double logicalW,
   double logicalH,
   void Function(Canvas canvas) paint,
 ) async {
+  final double sc = pawPinRenderScale();
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
-  canvas.scale(2, 2);
+  canvas.scale(sc, sc);
   paint(canvas);
   final img = await recorder
       .endRecording()
-      .toImage((logicalW * 2).ceil(), (logicalH * 2).ceil());
+      .toImage((logicalW * sc).ceil(), (logicalH * sc).ceil());
   final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
   img.dispose();
   return bytes!.buffer.asUint8List();
 }
 
 /// Décode une photo (bytes) en `ui.Image` carrée redimensionnée.
-Future<ui.Image?> decodeAvatar(Uint8List? bytes, {int target = 128}) async {
+// v589 — 320 px : une photo nette même à 4× (rond « Moi » 56 dp ≈ 224 px).
+Future<ui.Image?> decodeAvatar(Uint8List? bytes, {int target = 320}) async {
   if (bytes == null || bytes.isEmpty) return null;
   try {
     final codec = await ui.instantiateImageCodec(bytes, targetWidth: target);

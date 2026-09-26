@@ -147,7 +147,7 @@ void main() {
     testWidgets('libellés : arrêté, à l\'instant, durée, sans GPS', (t) async {
       await t.pumpWidget(lotdApp(const SizedBox()));
       final t0 = DateTime(2026, 9, 25, 12);
-      expect(pawDirectPillLabel(live: false, startedAt: null, now: t0), 'Direct');
+      expect(pawDirectPillLabel(live: false, startedAt: null, now: t0), 'Direct off'); // v589
       expect(pawDirectPillLabel(live: true, startedAt: t0, now: t0.add(const Duration(seconds: 30))), 'En direct');
       expect(pawDirectPillLabel(live: true, startedAt: t0, now: t0.add(const Duration(minutes: 12))), 'En direct · 12 min');
       expect(pawDirectPillLabel(live: true, startedAt: t0, now: t0, noGps: true), 'Direct · pas de GPS');

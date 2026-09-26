@@ -23,7 +23,6 @@ import 'package:get/get.dart';
 import '../../../utils/pawmap_theme.dart';
 import 'paw_rail_button.dart';
 import 'pawmap_buttons.dart';
-import 'pawmap_pins.dart';
 
 // v561 — handoff « Paw Buttons » (Daniel, 12/09) : icônes SVG blanches
 // pleines des boutons ronds (dégradé 165°, bord blanc, aucun libellé visible).
@@ -269,7 +268,12 @@ class PawMapRail extends StatelessWidget {
     required this.onLongPress,
     required this.onCustomize,
     this.active = const <String>{},
+    this.gap,
   });
+
+  /// v589 — écart entre les boutons (resserré quand la barre est complète,
+  /// pour qu'elle tienne entière sous la pilule Direct). Null = standard.
+  final double? gap;
 
   /// Ids des boutons à afficher, dans l'ordre.
   final List<String> order;
@@ -291,7 +295,7 @@ class PawMapRail extends StatelessWidget {
         for (final id in order)
           if (pawRailSpecOf(id) case final PawRailSpec spec)
             Padding(
-              padding: EdgeInsets.only(top: PawMapTheme.railGap.h),
+              padding: EdgeInsets.only(top: gap ?? PawMapTheme.railGap.h),
               child: PawRailButton(
                 key: ValueKey<String>('rail_$id'),
                 color: spec.color,
@@ -305,22 +309,65 @@ class PawMapRail extends StatelessWidget {
                 onLongPress: () => onLongPress(id),
               ),
             ),
-        // Bouton « personnaliser » : plus petit, encre, en bas du rail.
+        // v589 — Daniel : « le bouton en bas est noir, faire un design mieux
+        // pour comprendre qu'on peut régler les boutons et les déplacer ».
+        // Plus de rond noir : une pastille blanche au liseré orange, flèches
+        // haut/bas + crayon = « modifier et déplacer mes boutons ».
         Padding(
-          padding: EdgeInsets.only(top: PawMapTheme.railGap.h),
-          child: PawRailButton(
-            key: const ValueKey<String>('rail_customize'),
-            color: PawMapLegend.ink,
-            label: 'pawmap_rail_customize'.tr,
-            icon: Icons.tune_rounded,
-            gradientTop: const Color(0xFF3A2F2A),
-            gradientBottom: PawMapLegend.ink,
-            size: PawMapTheme.railButtonSize - 8,
-            onTap: onCustomize,
-            onLongPress: onCustomize,
-          ),
+          padding: EdgeInsets.only(top: gap ?? PawMapTheme.railGap.h),
+          child: PawRailEditButton(onTap: onCustomize),
         ),
       ],
+      ),
+    );
+  }
+}
+
+/// v589 — bouton « Modifier ma barre » en bas du rail gauche : pastille
+/// blanche (encre chaude en sombre), liseré orange PawMap, flèches haut/bas
+/// et crayon orange — on comprend qu'on règle ET qu'on déplace. Jamais noir,
+/// jamais gris.
+class PawRailEditButton extends StatelessWidget {
+  const PawRailEditButton({super.key, required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool dark = PawMapTheme.isDark(context);
+    const Color accent = PawMapTheme.accent;
+    return PawPressable(
+      key: const ValueKey<String>('rail_customize'),
+      label: 'pawmap_rail_customize'.tr,
+      onTap: onTap,
+      onLongPress: onTap,
+      child: Container(
+        width: PawMapTheme.railButtonSize.w,
+        height: (PawMapTheme.railButtonSize * 0.8).w,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: dark
+                ? const [Color(0xFF3A2620), Color(0xFF2A1B17)]
+                : const [Colors.white, Color(0xFFFFEDE7)],
+          ),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(color: accent, width: 1.6),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withValues(alpha: 0.28),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.swap_vert_rounded, size: 17.sp, color: accent),
+            Icon(Icons.edit_rounded, size: 12.sp, color: accent),
+          ],
+        ),
       ),
     );
   }
@@ -423,8 +470,8 @@ class PawRailHelpSheet extends StatelessWidget {
                 key: const ValueKey<String>('rail_help_customize'),
                 kind: PawButtonKind.link,
                 label: 'pawmap_rail_customize'.tr,
-                icon: Icons.tune_rounded,
-                color: PawMapLegend.ink,
+                icon: Icons.swap_vert_rounded,
+                color: PawMapTheme.accent,
                 expand: false,
                 onTap: onCustomize,
               ),
@@ -487,6 +534,22 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
                       size: 12.sp,
                       weight: FontWeight.w500,
                       color: PawMapTheme.subOn(context))),
+              // v589 — le geste pour déplacer, dit clairement.
+              SizedBox(height: 6.h),
+              Row(
+                children: [
+                  Icon(Icons.swap_vert_rounded,
+                      size: 16.sp, color: PawMapTheme.accent),
+                  SizedBox(width: 4.w),
+                  Expanded(
+                    child: Text('rail589_drag_hint'.tr,
+                        style: PawMapTheme.fontOn(context,
+                            size: 12.sp,
+                            weight: FontWeight.w700,
+                            color: PawMapTheme.accent)),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -542,9 +605,11 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
               final shown = i < _shown.length;
               // v587 — chaque ligne isolée : le glisser ne redessine que la
               // ligne déplacée, jamais toute la liste.
-              return RepaintBoundary(
-                key: ValueKey<String>('rail_row_$id'),
-                child: Container(
+              // v589 — Daniel : « au lieu de rester appuyé tout à gauche,
+              // juste en restant appuyé sur la barre entière ça déplace le
+              // bouton ». Toute la ligne d'un bouton affiché se prend par un
+              // appui long (la poignée reste en repère visuel).
+              final Widget row = Container(
                 margin: EdgeInsets.only(bottom: 6.h),
                 padding: EdgeInsets.fromLTRB(8.w, 8.h, 6.w, 8.h),
                 decoration: BoxDecoration(
@@ -564,7 +629,7 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
                         child: Padding(
                           padding: EdgeInsets.symmetric(horizontal: 4.w),
                           child: Icon(Icons.drag_indicator_rounded,
-                              size: 22.sp, color: PawMapTheme.subOn(context)),
+                              size: 22.sp, color: spec.color),
                         ),
                       )
                     else
@@ -621,7 +686,16 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
                     ),
                   ],
                 ),
-              ));
+              );
+              return RepaintBoundary(
+                key: ValueKey<String>('rail_row_$id'),
+                child: shown
+                    ? ReorderableDelayedDragStartListener(
+                        index: i,
+                        child: row,
+                      )
+                    : row,
+              );
             },
           ),
         ),

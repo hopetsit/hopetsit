@@ -497,8 +497,13 @@ class PawMapDockRow extends StatelessWidget {
     required this.onHistory,
     this.onLongPress,
     this.wrap = false,
+    this.grid = false,
     this.leftPadding = 0,
   });
+
+  /// v589 — rangée de 5 icônes colorées avec leur nom dessous (panneau des
+  /// options, carte « Raccourcis ») : plus compact que 5 grosses pilules.
+  final bool grid;
 
   final bool nightMode;
   final VoidCallback onSos;
@@ -564,6 +569,69 @@ class PawMapDockRow extends StatelessWidget {
       );
     }
 
+    if (grid) {
+      final bool dark = PawMapTheme.isDark(context);
+      Widget tile(String id, IconData icon, String label, Color c, VoidCallback onTap,
+          {bool filled = false}) {
+        return Expanded(
+          child: PawPressable(
+            key: ValueKey<String>('dock_$id'),
+            label: label,
+            onTap: onTap,
+            onLongPress: onLongPress == null ? null : () => onLongPress!(id),
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 6.h, horizontal: 2.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40.w,
+                    height: 40.w,
+                    decoration: BoxDecoration(
+                      color: filled ? c : c.withValues(alpha: dark ? 0.22 : 0.12),
+                      borderRadius: BorderRadius.circular(14.r),
+                      border: filled ? null : Border.all(color: c.withValues(alpha: 0.35)),
+                    ),
+                    child: Icon(icon,
+                        size: 19.sp,
+                        color: filled ? Colors.white : PawMapTheme.toneOn(context, c)),
+                  ),
+                  SizedBox(height: 6.h),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: PawMapTheme.fontOn(context, size: 10.sp, weight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          tile('sos', Icons.sos_rounded, 'pawmap_dock_sos'.tr, PawMapTheme.danger, onSos,
+              filled: true),
+          tile('share', Icons.ios_share_rounded, 'pawmap_dock_share_map'.tr,
+              const Color(0xFF2563EB), onShare),
+          tile('layers', Icons.layers_rounded, 'pawmap_dock_layers'.tr,
+              const Color(0xFF0E7490), onLayers),
+          tile(
+              'night',
+              nightMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              'pawmap_dock_night'.tr,
+              nightMode ? PawMapTheme.accent : const Color(0xFF4F46E5),
+              onNight),
+          tile('history', Icons.timeline_rounded, 'pawmap_dock_history'.tr,
+              PawMapTheme.pawFollow, onHistory),
+        ],
+      );
+    }
+
     final pills = [
       pill(id: 'sos', icon: Icons.sos_rounded, label: 'pawmap_dock_sos'.tr, filled: true, onTap: onSos),
       pill(id: 'share', icon: Icons.ios_share_rounded, label: 'pawmap_dock_share_map'.tr, onTap: onShare),
@@ -625,8 +693,9 @@ class PawMapCoach extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final texts = ['pawmap_coach_1'.tr, 'pawmap_coach_2'.tr, 'pawmap_coach_3'.tr];
-    final icons = [Icons.question_mark_rounded, Icons.view_column_rounded, Icons.swipe_up_rounded];
+    final texts = ['pawmap_coach_1'.tr, 'pawmap_coach_2'.tr, 'pawmap589_coach_3'.tr];
+    // v589 — la 3e bulle montre la roue « Options » en haut à droite.
+    final icons = [Icons.question_mark_rounded, Icons.view_column_rounded, Icons.settings_rounded];
     final last = step >= steps - 1;
     // La bulle se pose près de sa cible : haut-droite (« ? »), gauche (rail),
     // bas (feuille).
@@ -634,7 +703,7 @@ class PawMapCoach extends StatelessWidget {
       // Sous la rangée Partager/Agrandir (≈ 110 px), à droite près du « ? ».
       0 => const Alignment(0.6, -0.5),
       1 => const Alignment(-0.2, 0.15),
-      _ => const Alignment(0, 0.55),
+      _ => const Alignment(0.6, -0.5),
     };
     return Positioned.fill(
       key: const ValueKey<String>('pawmap_coach'),

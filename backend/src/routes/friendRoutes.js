@@ -107,9 +107,39 @@ function me(req) {
 // v589 — état du direct de la personne (3 profils, tous appareils). L'app le
 // lit à l'ouverture et au retour au premier plan : un direct lancé sur un
 // autre téléphone s'affiche allumé, un arrêt fait ailleurs s'affiche éteint.
+// v589 — « qui suit mon direct » : le téléphone qui suit le signale et le
+// rafraîchit (toutes les ~60 s) ; la personne suivie reçoit le NOMBRE
+// (`map:followers`). Voir utils/followers589.js.
+router.post('/follow-presence', requireAuth, async (req, res) => {
+  try {
+    const targetId = String((req.body && req.body.targetId) || '').trim();
+    const on = !(req.body && (req.body.on === false || req.body.on === 'false'));
+    if (!/^[a-f0-9]{24}$/i.test(targetId)) return res.status(400).json({ error: 'targetId required.' });
+    const f = require('../utils/followers589');
+    const [targetIds, myIds] = await Promise.all([personIds(targetId), personIds(me(req).id)]);
+    const n = f.touch(f.personKey(targetIds), f.personKey(myIds), on);
+    try {
+      const { emitToUser } = require('../sockets/emitter');
+      const g = await identityGroup(targetId);
+      for (const d of g.docs) {
+        emitToUser(String(d.model || 'Owner').toLowerCase(), d.id, 'map:followers', { count: n });
+      }
+    } catch (_) {/* prévenir est un plus, pas une condition */}
+    return res.json({ ok: true, count: n });
+  } catch (e) {
+    logger.error('[friends/follow-presence]', e);
+    return res.status(500).json({ error: 'Unable to record follow presence.' });
+  }
+});
+
 router.get('/live-state', requireAuth, async (req, res) => {
   try {
     const state = await require('../utils/liveDevices589').getMyLiveState(me(req).id);
+    // v589 — nombre de personnes qui suivent mon direct en ce moment.
+    try {
+      const f = require('../utils/followers589');
+      state.followers = f.count(f.personKey(await personIds(me(req).id)));
+    } catch (_) { state.followers = 0; }
     return res.json(state);
   } catch (e) {
     logger.error('[friends/live-state]', e);
@@ -2524,6 +2554,47 @@ router.get('/live-positions', requireAuth, async (req, res) => {
         // perdu » à un direct parfaitement vivant).
         ageMs: lastSeenMs == null ? null : Math.max(0, now - lastSeenMs),
       });
+    }
+
+    // v589 — prestataire EN SERVICE pour moi (propriétaire d'une garde ou
+    // d'une promenade en cours) : son direct, amis ou non
+    // (utils/bookingLive589.js).
+    try {
+      const { activeServiceProvidersFor } = require('../utils/bookingLive589');
+      const provs = await activeServiceProvidersFor(g.ids);
+      if (provs.length) {
+        const { getLiveSessionForIds, LIVE_STALE_MS } = require('../sockets/mapSocket');
+        const pIdx = await personIndex(provs.map((p) => p.id));
+        for (const pv of provs) {
+          const grp = pIdx.get(pv.id) || { ids: [pv.id] };
+          const gIds = (grp.ids || [pv.id]).map(String);
+          if (positions.some((x) => gIds.includes(String(x.userId)))) continue;
+          const sess = getLiveSessionForIds(gIds);
+          if (!sess) continue;
+          const lastSeen = new Date(sess.lastSeenAt);
+          const state = liveState({ sharing: true, lastSeenAt: lastSeen, now });
+          if (state === 'seen') continue;
+          positions.push({
+            userId: pv.id,
+            role: pv.role,
+            lat: Number(sess.lat),
+            lng: Number(sess.lng),
+            at: new Date(sess.at).toISOString(),
+            city: sess.city || '',
+            lastSeenAt: lastSeen.toISOString(),
+            stale: (now - lastSeen.getTime()) > LIVE_STALE_MS,
+            sharing: true,
+            state,
+            live: state === 'live',
+            ageMs: Math.max(0, now - lastSeen.getTime()),
+            personIds: gIds,
+            bookingId: pv.bookingId,
+            booking: true,
+          });
+        }
+      }
+    } catch (e) {
+      logger.warn(`[friends/live-positions] prestation en cours : ${e.message}`);
     }
 
     res.json({ positions });

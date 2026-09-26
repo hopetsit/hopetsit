@@ -15,6 +15,10 @@ import 'package:hopetsit/widgets/service_confirmation_card.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/submit_review_dialog.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/services/live_map_service.dart';
+import 'package:hopetsit/utils/map_ui_state.dart';
+import 'package:hopetsit/views/map/pawmap_friend_focus.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
 
 /// Detail screen for a booking (owner view).
 /// Shows: Service Provider (sitter card), Pets, Note, Pay/Chat/Cancel actions.
@@ -713,6 +717,27 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                   child: _buildSelfCancelButton(context, booking),
                 ),
 
+              // v589 — prestation EN COURS (animal récupéré, pas encore
+              // rendu) : suivre la balade / la garde en direct sur la PawMap,
+              // avec le tracé. Le serveur envoie le direct du prestataire au
+              // propriétaire de la réservation, amis ou non.
+              if (isPaid &&
+                  statusLower != 'cancelled' &&
+                  statusLower != 'refunded' &&
+                  _serviceInProgress(_liveBooking ?? booking))
+                Padding(
+                  padding: EdgeInsets.only(top: 12.h),
+                  child: PawSignatureButton(
+                    key: const ValueKey<String>('booking_follow_live'),
+                    label: (booking.providerRole ?? '').toLowerCase() == 'sitter'
+                        ? 'booking589_follow_sitting'.tr
+                        : 'booking589_follow_walk'.tr,
+                    icon: Icons.podcasts_rounded,
+                    color: const Color(0xFF7C3AED),
+                    onTap: () => _followProviderLive(_liveBooking ?? booking),
+                  ),
+                ),
+
               // v23.1.259 — Carte de confirmation de service (owner).
               if (isPaid && statusLower != 'cancelled' && statusLower != 'refunded')
                 ServiceConfirmationCard(
@@ -736,6 +761,50 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
       ),
         ),
     );
+  }
+
+  /// v589 — animal récupéré et pas encore rendu.
+  bool _serviceInProgress(BookingModel b) {
+    final h = b.handover;
+    if (h != null && h.pickedUp && !h.returned) return true;
+    return _confirmationStatus == 'in_progress';
+  }
+
+  /// v589 — ouvre la PawMap sur le prestataire et le suit (tracé violet).
+  Future<void> _followProviderLive(BookingModel b) async {
+    final pid = b.sitter.id;
+    FriendPosition? fp;
+    if (Get.isRegistered<LiveMapService>()) {
+      final live = Get.find<LiveMapService>();
+      await live.refreshFriendPositions();
+      fp = live.friendPositions[pid];
+      if (fp == null) {
+        for (final v in live.friendPositions.values) {
+          if (v.allIds.contains(pid.trim().toLowerCase())) {
+            fp = v;
+            break;
+          }
+        }
+      }
+    }
+    if (fp == null || fp.liveState == FriendLiveState.seen) {
+      CustomSnackbar.showInfo(
+        title: 'booking589_follow_title'.tr,
+        message: 'booking589_follow_not_live'.tr,
+      );
+      return;
+    }
+    openPawMapOnFriend(PawMapFriendFocus(
+      userId: fp.userId,
+      role: (b.providerRole ?? 'walker').toLowerCase(),
+      name: b.sitter.name,
+      avatar: b.sitter.avatar.url,
+      lat: fp.latitude,
+      lng: fp.longitude,
+      live: true,
+      online: true,
+      personIds: fp.personIds,
+    ));
   }
 
   Widget _buildSelfCancelButton(BuildContext context, BookingModel booking) {

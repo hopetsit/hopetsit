@@ -284,79 +284,14 @@ class PawMapMemberSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _Avatar(
-                url: member.avatar,
-                ring: member.isFriend ? PawMapLegend.friend : roleColor,
-                icon: PawMapLegend.roleIcon(member.role),
-                crown: member.premium,
-                online: member.online && !member.approx,
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      member.name.isNotEmpty
-                          ? member.name
-                          : (member.role == 'walker'
-                              ? 'pawmap_default_walker'.tr
-                              : 'pawmap_default_sitter'.tr),
-                      maxLines: 2,
-                      style: PawMapTheme.fontOn(context,
-                          size: 17.sp, weight: FontWeight.w800),
-                    ),
-                    SizedBox(height: 2.h),
-                    Text(
-                      member.approx
-                          ? '$_roleLabel · ${'pawmap_member_approx'.tr.replaceAll('{km}', member.approxKm >= 1 && member.approxKm == member.approxKm.roundToDouble() ? member.approxKm.toStringAsFixed(0) : member.approxKm.toStringAsFixed(1))}'
-                          : '$_roleLabel${member.distanceLabel.isNotEmpty ? ' · ${member.distanceLabel}' : ''} · ${member.online ? 'pawmap_member_online'.tr : 'pawmap_member_offline'.tr}',
-                      maxLines: 2,
-                      style: PawMapTheme.fontOn(context,
-                          size: 12.sp,
-                          weight: FontWeight.w600,
-                          color: PawMapTheme.subOn(context)),
-                    ),
-                    if (member.isProvider &&
-                        (member.rating > 0 || priceLabel.isNotEmpty)) ...[
-                      SizedBox(height: 6.h),
-                      Row(
-                        children: [
-                          if (member.rating > 0) ...[
-                            Icon(Icons.star_rounded,
-                                size: 16.sp, color: PawMapLegend.gold),
-                            SizedBox(width: 2.w),
-                            Text(
-                              '${member.rating.toStringAsFixed(1)}'
-                              '${member.reviewsCount > 0 ? ' (${member.reviewsCount})' : ''}',
-                              style: PawMapTheme.fontOn(context,
-                                  size: 12.5.sp, weight: FontWeight.w800),
-                            ),
-                            SizedBox(width: 10.w),
-                          ],
-                          if (priceLabel.isNotEmpty)
-                            Flexible(
-                              child: Text(
-                                '${'pawmap_member_price_from'.tr} $priceLabel',
-                                maxLines: 1,
-                                style: PawMapTheme.fontOn(
-                                  context,
-                                  size: 13.sp,
-                                  weight: FontWeight.w800,
-                                  color: AppColors.accentOn(context, roleColor),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
+          // v589 (26/09, Daniel : « moderniser, que tout soit HD ») — en-tête
+          // HD : grande photo nette à l'anneau du rôle (rose pour un ami),
+          // couronne Premium, badge vérifié, nom, pastille du rôle, étoiles,
+          // prix. Habillage seul : mêmes données, mêmes rappels.
+          _MemberHeader(
+            member: member,
+            roleLabel: _roleLabel,
+            priceLabel: priceLabel,
           ),
           if (member.verified || member.availableToday || member.boosted) ...[
             SizedBox(height: 10.h),
@@ -427,15 +362,18 @@ class PawMapMemberSheet extends StatelessWidget {
           ],
           // v585 — la rangée Ami / Message, sauf quand « Message » est déjà
           // le bouton principal (ami propriétaire).
-          if (!primaryIsMessage) ...[
-          SizedBox(height: 8.h),
-          Row(
-            children: [
-              if (member.isProvider || member.hasOpenRequest)
-                Expanded(
-                  child: PawSignatureButton(
+          // v589 (26/09) — actions secondaires en PASTILLES (Ami · Message ·
+          // Itinéraire) sous le bouton principal plein : même logique, mêmes
+          // clés, mêmes rappels qu'avant. Les pastilles passent à la ligne
+          // (Wrap) : aucun libellé coupé, même en allemand à 360 dp.
+          if (!primaryIsMessage || onDirections != null) ...[
+            SizedBox(height: 10.h),
+            _ActionPillsWrap(
+              children: [
+                if (!primaryIsMessage &&
+                    (member.isProvider || member.hasOpenRequest))
+                  _ActionPill(
                     key: const ValueKey<String>('member_friend'),
-                    kind: PawButtonKind.secondary,
                     label: _friendLabel(),
                     icon: friendState == PawFriendState.friends
                         ? Icons.check_rounded
@@ -445,34 +383,26 @@ class PawMapMemberSheet extends StatelessWidget {
                     enabled: !friendBusy || friendState == PawFriendState.friends,
                     onTap: viewerLoggedIn ? onFriend : onSignup,
                   ),
-                ),
-              if (member.isProvider || member.hasOpenRequest)
-                SizedBox(width: 8.w),
-              Expanded(
-                child: PawSignatureButton(
-                  key: const ValueKey<String>('member_message'),
-                  kind: PawButtonKind.secondary,
-                  label: 'pawmap_member_message'.tr,
-                  icon: Icons.chat_bubble_rounded,
-                  color: viewerColor,
-                  onTap: viewerLoggedIn ? onMessage : onSignup,
-                ),
-              ),
-            ],
-          ),
-          ],
-          if (onDirections != null) ...[
-            SizedBox(height: 8.h),
-            PawSignatureButton(
-              key: const ValueKey<String>('member_directions'),
-              kind: PawButtonKind.secondary,
-              label: 'pawmap_btn_directions'.tr,
-              icon: Icons.directions_rounded,
-              color: PawMapLegend.walker,
-              onTap: onDirections,
+                if (!primaryIsMessage)
+                  _ActionPill(
+                    key: const ValueKey<String>('member_message'),
+                    label: 'pawmap_member_message'.tr,
+                    icon: Icons.chat_bubble_rounded,
+                    color: viewerColor,
+                    onTap: viewerLoggedIn ? onMessage : onSignup,
+                  ),
+                if (onDirections != null)
+                  _ActionPill(
+                    key: const ValueKey<String>('member_directions'),
+                    label: 'pawmap_btn_directions'.tr,
+                    icon: Icons.directions_rounded,
+                    color: PawMapLegend.walker,
+                    onTap: onDirections,
+                  ),
+              ],
             ),
           ],
-          SizedBox(height: 4.h),
+          SizedBox(height: 6.h),
           Center(
             child: PawSignatureButton(
               key: const ValueKey<String>('member_profile'),
@@ -490,6 +420,454 @@ class PawMapMemberSheet extends StatelessWidget {
   }
 }
 
+/// Taille de décodage d'une photo ronde : DEUX fois la taille affichée en
+/// pixels réels (la photo est recadrée en `cover` : même une photo paysage
+/// 2:1 garde assez de pixels sur sa petite dimension), bornée 96–1600.
+/// Jamais plus grand que l'original (`Image.network` n'agrandit pas).
+int _photoDecodeWidth(BuildContext context, double logical) {
+  final double dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 3.0;
+  return (logical * dpr * 2).round().clamp(96, 1600);
+}
+
+/// v589 (26/09) — en-tête HD de la fiche membre : carte teintée à la couleur
+/// du rôle (rose pour un ami), grande photo nette, nom, pastilles (rôle,
+/// Premium), état (distance · en ligne, ou position approximative), étoiles
+/// et prix. Aucun rappel ici : l'en-tête ne fait qu'afficher.
+class _MemberHeader extends StatelessWidget {
+  const _MemberHeader({
+    required this.member,
+    required this.roleLabel,
+    required this.priceLabel,
+  });
+
+  final PawMapMemberData member;
+  final String roleLabel;
+  final String priceLabel;
+
+  String get _approxKm => member.approxKm >= 1 &&
+          member.approxKm == member.approxKm.roundToDouble()
+      ? member.approxKm.toStringAsFixed(0)
+      : member.approxKm.toStringAsFixed(1);
+
+  @override
+  Widget build(BuildContext context) {
+    final bool dark = PawMapTheme.isDark(context);
+    final Color roleColor = PawMapLegend.roleColor(member.role);
+    final Color tone = member.isFriend ? PawMapLegend.friend : roleColor;
+    final String name = member.name.isNotEmpty
+        ? member.name
+        : (member.role == 'walker'
+            ? 'pawmap_default_walker'.tr
+            : 'pawmap_default_sitter'.tr);
+    final String status = member.approx
+        ? 'pawmap_member_approx'.tr.replaceAll('{km}', _approxKm)
+        : [
+            if (member.distanceLabel.isNotEmpty) member.distanceLabel,
+            member.online
+                ? 'pawmap_member_online'.tr
+                : 'pawmap_member_offline'.tr,
+          ].join(' · ');
+    final bool showRating = member.isProvider && member.rating > 0;
+    final bool showNew = member.isProvider && member.rating <= 0;
+
+    return Container(
+      key: const ValueKey<String>('member_header'),
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 14.h),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20.r),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            tone.withValues(alpha: dark ? 0.26 : 0.14),
+            tone.withValues(alpha: dark ? 0.10 : 0.035),
+          ],
+        ),
+        border: Border.all(color: tone.withValues(alpha: dark ? 0.40 : 0.24)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _Avatar(
+            url: member.avatar,
+            ring: tone,
+            icon: PawMapLegend.roleIcon(member.role),
+            crown: member.premium,
+            online: member.online && !member.approx,
+            verified: member.verified,
+            size: 84,
+          ),
+          SizedBox(width: 14.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: PawMapTheme.fontOn(context,
+                      size: 19.sp, weight: FontWeight.w800, height: 1.15),
+                ),
+                SizedBox(height: 6.h),
+                Wrap(
+                  spacing: 6.w,
+                  runSpacing: 5.h,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _TonePill(
+                      label: roleLabel,
+                      icon: PawMapLegend.roleIcon(member.role),
+                      color: roleColor,
+                      filled: true,
+                    ),
+                    if (member.isFriend)
+                      _TonePill(
+                        label: 'profile589_friend'.tr,
+                        icon: Icons.favorite_rounded,
+                        color: PawMapLegend.friend,
+                      ),
+                    if (member.premium)
+                      _TonePill(
+                        label: 'profile589_premium_member'.tr,
+                        icon: Icons.workspace_premium_rounded,
+                        color: PawMapLegend.gold,
+                        gold: true,
+                      ),
+                  ],
+                ),
+                SizedBox(height: 6.h),
+                Row(
+                  children: [
+                    if (!member.approx) ...[
+                      Container(
+                        width: 8.w,
+                        height: 8.w,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: member.online
+                              ? PawMapLegend.online
+                              : tone.withValues(alpha: 0.45),
+                        ),
+                      ),
+                      SizedBox(width: 6.w),
+                    ] else ...[
+                      Icon(Icons.blur_on_rounded,
+                          size: 14.sp, color: AppColors.accentOn(context, tone)),
+                      SizedBox(width: 4.w),
+                    ],
+                    Expanded(
+                      child: Text(
+                        status,
+                        maxLines: 2,
+                        style: PawMapTheme.fontOn(context,
+                            size: 12.sp,
+                            weight: FontWeight.w600,
+                            color: PawMapTheme.subOn(context)),
+                      ),
+                    ),
+                  ],
+                ),
+                if (showRating || showNew || priceLabel.isNotEmpty) ...[
+                  SizedBox(height: 8.h),
+                  Wrap(
+                    spacing: 8.w,
+                    runSpacing: 6.h,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (showRating)
+                        _StarLine(
+                          rating: member.rating,
+                          reviews: member.reviewsCount,
+                        ),
+                      if (showNew)
+                        _TonePill(
+                          label: 'profile589_new_member'.tr,
+                          icon: Icons.auto_awesome_rounded,
+                          color: roleColor,
+                        ),
+                      if (member.isProvider && priceLabel.isNotEmpty)
+                        _PricePill(
+                          text: '${'pawmap_member_price_from'.tr} $priceLabel',
+                          color: roleColor,
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Cinq étoiles or (demi-étoile comprise) + « 4,8 · 12 avis ».
+class _StarLine extends StatelessWidget {
+  const _StarLine({required this.rating, required this.reviews});
+  final double rating;
+  final int reviews;
+
+  @override
+  Widget build(BuildContext context) {
+    final double r = rating.clamp(0, 5).toDouble();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < 5; i++)
+          Icon(
+            i < r.floor()
+                ? Icons.star_rounded
+                : (i == r.floor() && r - r.floor() >= 0.25
+                    ? Icons.star_half_rounded
+                    : Icons.star_outline_rounded),
+            size: 15.sp,
+            color: PawMapLegend.gold,
+          ),
+        SizedBox(width: 5.w),
+        Text(
+          r.toStringAsFixed(1),
+          style: PawMapTheme.fontOn(context, size: 12.5.sp, weight: FontWeight.w800),
+        ),
+        if (reviews > 0) ...[
+          Flexible(
+            child: Text(
+              ' · ${'profile589_reviews'.trParams({'n': '$reviews'})}',
+              style: PawMapTheme.fontOn(context,
+                  size: 12.sp,
+                  weight: FontWeight.w600,
+                  color: PawMapTheme.subOn(context)),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Petite pastille teintée (rôle, ami, Premium, nouveau).
+class _TonePill extends StatelessWidget {
+  const _TonePill({
+    required this.label,
+    required this.icon,
+    required this.color,
+    this.filled = false,
+    this.gold = false,
+  });
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool filled;
+  final bool gold;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool dark = PawMapTheme.isDark(context);
+    final Color bg;
+    final Color fg;
+    final Color border;
+    if (gold) {
+      // Premium : noir encre et or (jamais un or illisible sur blanc).
+      bg = PawMapLegend.ink;
+      fg = PawMapLegend.gold;
+      border = PawMapLegend.gold.withValues(alpha: 0.85);
+    } else if (filled) {
+      bg = color;
+      fg = Colors.white;
+      border = color;
+    } else {
+      bg = color.withValues(alpha: dark ? 0.22 : 0.12);
+      fg = AppColors.accentOn(context, dark ? color : Color.lerp(color, Colors.black, 0.18)!);
+      border = color.withValues(alpha: 0.45);
+    }
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.5.h),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12.sp, color: fg),
+          SizedBox(width: 4.w),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w800,
+                color: fg,
+                height: 1.15,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Prix « dès 25 € » : pastille à la couleur du rôle, bien lisible.
+class _PricePill extends StatelessWidget {
+  const _PricePill({required this.text, required this.color});
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool dark = PawMapTheme.isDark(context);
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: dark ? color.withValues(alpha: 0.24) : Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.55), width: 1.2),
+      ),
+      child: Text(
+        text,
+        style: PawMapTheme.fontOn(context,
+            size: 12.5.sp,
+            weight: FontWeight.w800,
+            color: AppColors.accentOn(context, color)),
+      ),
+    );
+  }
+}
+
+/// Rangée de pastilles d'action : elles se partagent la largeur quand elles
+/// tiennent sur une ligne, sinon elles passent à la ligne (jamais coupées).
+class _ActionPillsWrap extends StatelessWidget {
+  const _ActionPillsWrap({required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    if (children.isEmpty) return const SizedBox.shrink();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double gap = 8.w;
+        final double maxW = constraints.maxWidth;
+        final double each = (maxW - gap * (children.length - 1)) / children.length;
+        // Largeur minimale confortable d'une pastille : sous ce seuil (textes
+        // longs, petit écran), on laisse le Wrap les placer sur 2 lignes.
+        final bool oneRow = each >= 96.w;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          alignment: WrapAlignment.center,
+          children: [
+            for (final c in children)
+              SizedBox(width: oneRow ? each : (maxW - gap) / 2, child: c),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Pastille d'action secondaire : icône dans un rond teinté + libellé sur une
+/// ou deux lignes (jamais d'ellipse), fond teinté, liseré de la couleur.
+class _ActionPill extends StatelessWidget {
+  const _ActionPill({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.loading = false,
+    this.enabled = true,
+  });
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+  final bool loading;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool dark = PawMapTheme.isDark(context);
+    final bool active = enabled && !loading && onTap != null;
+    final Color fg = AppColors.accentOn(
+        context, dark ? color : Color.lerp(color, Colors.black, 0.20)!);
+    return Semantics(
+      button: true,
+      enabled: active,
+      label: label,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.6,
+        child: Material(
+          color: color.withValues(alpha: dark ? 0.20 : 0.09),
+          borderRadius: BorderRadius.circular(18.r),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: active ? onTap : null,
+            child: Container(
+              constraints: BoxConstraints(minHeight: 64.h),
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 9.h),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18.r),
+                border: Border.all(
+                    color: color.withValues(alpha: dark ? 0.55 : 0.40), width: 1.2),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 30.w,
+                    height: 30.w,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          PawMapLegend.lighten(color, 0.12),
+                          PawMapLegend.darken(color, 0.12),
+                        ],
+                      ),
+                    ),
+                    child: Center(
+                      child: loading
+                          ? SizedBox(
+                              width: 15.w,
+                              height: 15.w,
+                              child: const CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : Icon(icon, size: 16.sp, color: Colors.white),
+                    ),
+                  ),
+                  SizedBox(height: 6.h),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w800,
+                      color: fg,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Photo ronde HD : anneau dégradé à la couleur [ring], liseré clair, photo
+/// décodée à la bonne définition ; repli sur l'icône du rôle tant que la
+/// photo n'est pas là (absente, en chargement ou en erreur).
 class _Avatar extends StatelessWidget {
   const _Avatar({
     required this.url,
@@ -497,6 +875,8 @@ class _Avatar extends StatelessWidget {
     required this.icon,
     required this.crown,
     required this.online,
+    this.verified = false,
+    this.size = 62,
   });
 
   final String url;
@@ -504,69 +884,148 @@ class _Avatar extends StatelessWidget {
   final IconData icon;
   final bool crown;
   final bool online;
+  final bool verified;
+
+  /// Diamètre logique (dp avant `.w`).
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     final bool hasUrl = url.startsWith('http');
+    final double d = size.w;
+    final double ringW = (size >= 80 ? 3.5 : 3).w;
+    final double gapW = 2.5.w;
+    final double inner = d - 2 * (ringW + gapW);
+    final double iconSize = inner * 0.44;
+    final Widget fallback = Container(
+      width: inner,
+      height: inner,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [PawMapLegend.lighten(ring, 0.10), PawMapLegend.darken(ring, 0.14)],
+        ),
+      ),
+      child: Icon(icon, color: Colors.white, size: iconSize),
+    );
+    final double badge = (size * 0.30).clamp(16, 26).toDouble().w;
     return SizedBox(
-      width: 62.w,
-      height: 62.w,
+      width: d + 4.w,
+      height: d + 4.w,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
-            width: 58.w,
-            height: 58.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: ring,
-              border: Border.all(color: ring, width: 3),
-            ),
-            // BOB 25/09 — une photo absente ou qui ne charge pas laissait un
-            // disque de couleur vide (vu sur la fiche « Rhoda Mia ») : l'icône
-            // du rôle reste affichée tant que la photo n'est pas là.
-            child: ClipOval(
-              child: hasUrl
-                  ? Image.network(
-                      url,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          Icon(icon, color: Colors.white, size: 26.sp),
-                      loadingBuilder: (_, child, progress) => progress == null
-                          ? child
-                          : Icon(icon, color: Colors.white, size: 26.sp),
-                    )
-                  : Icon(icon, color: Colors.white, size: 26.sp),
+          Positioned(
+            left: 0,
+            top: 2.w,
+            child: Container(
+              width: d,
+              height: d,
+              padding: EdgeInsets.all(ringW),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: SweepGradient(
+                  colors: [
+                    PawMapLegend.lighten(ring, 0.18),
+                    ring,
+                    PawMapLegend.darken(ring, 0.16),
+                    ring,
+                    PawMapLegend.lighten(ring, 0.18),
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: ring.withValues(alpha: PawMapTheme.isDark(context) ? 0.40 : 0.32),
+                    blurRadius: 16,
+                    spreadRadius: -2,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Container(
+                padding: EdgeInsets.all(gapW),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: PawMapTheme.panelOn(context),
+                ),
+                // BOB 25/09 — une photo absente ou qui ne charge pas laissait
+                // un disque de couleur vide (fiche « Rhoda Mia ») : l'icône
+                // du rôle reste affichée tant que la photo n'est pas là.
+                child: ClipOval(
+                  child: hasUrl
+                      ? Image.network(
+                          url,
+                          width: inner,
+                          height: inner,
+                          fit: BoxFit.cover,
+                          cacheWidth: _photoDecodeWidth(context, inner),
+                          filterQuality: FilterQuality.high,
+                          gaplessPlayback: true,
+                          errorBuilder: (_, __, ___) => fallback,
+                          loadingBuilder: (_, child, progress) =>
+                              progress == null ? child : fallback,
+                        )
+                      : fallback,
+                ),
+              ),
             ),
           ),
           if (online)
             Positioned(
-              right: 2,
-              bottom: 2,
+              right: d * 0.04,
+              bottom: d * 0.04,
               child: Container(
-                width: 14.w,
-                height: 14.w,
+                width: badge * 0.72,
+                height: badge * 0.72,
                 decoration: BoxDecoration(
                   color: PawMapLegend.online,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: PawMapTheme.panelOn(context), width: 2.5),
                 ),
+              ),
+            ),
+          if (verified)
+            Positioned(
+              left: d * 0.02,
+              bottom: d * 0.02,
+              child: Container(
+                key: const ValueKey<String>('member_avatar_verified'),
+                width: badge,
+                height: badge,
+                decoration: BoxDecoration(
+                  color: PawMapLegend.sitter,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: PawMapTheme.panelOn(context), width: 2),
+                ),
+                child: Icon(Icons.check_rounded, size: badge * 0.62, color: Colors.white),
               ),
             ),
           if (crown)
             Positioned(
-              right: -2,
-              top: -4,
+              right: -2.w,
+              top: -2.w,
               child: Container(
-                width: 22.w,
-                height: 22.w,
+                width: badge + 2.w,
+                height: badge + 2.w,
                 decoration: BoxDecoration(
-                  color: PawMapLegend.gold,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFFFD978), PawMapLegend.gold, Color(0xFFD9A21E)],
+                  ),
                   shape: BoxShape.circle,
                   border: Border.all(color: PawMapLegend.ink, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: PawMapLegend.gold.withValues(alpha: 0.45),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Icon(Icons.workspace_premium_rounded,
-                    size: 14.sp, color: PawMapLegend.ink),
+                    size: badge * 0.62, color: PawMapLegend.ink),
               ),
             ),
         ],

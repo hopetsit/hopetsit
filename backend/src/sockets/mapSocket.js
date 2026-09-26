@@ -264,9 +264,29 @@ async function listPositionListeners(userId, role) {
   // v586 — « Masqué » sur la carte (preferences.mapVisibility = 'hidden') :
   // ma position n'est relayée à AUCUN ami. Le suivi d'une prestation payée
   // passe par /bookings/:id/provider-location, il n'est pas concerné.
+  // v589 — propriétaires d'une prestation EN COURS avec cette personne : ils
+  // suivent la balade / la garde, amis ou non (utils/bookingLive589.js).
+  let bookingListeners = [];
+  try {
+    const owners = await require('../utils/bookingLive589').activeServiceOwnersFor(g.ids);
+    bookingListeners = owners.map((o) => ({
+      userId: o.userId,
+      role: 'owner',
+      viewAsId: o.providerId || String(userId),
+      booking: true,
+    }));
+  } catch (_) {/* sans réservation lisible : comportement d'avant */}
+  const withPersonIds = (arr) => {
+    Object.defineProperty(arr, 'personIds', { value: g.ids.map(String), enumerable: false });
+    return arr;
+  };
   try {
     const { personMapVisibility } = require('../utils/mapVisibility');
-    if ((await personMapVisibility(g.ids)) === 'hidden') return [];
+    if ((await personMapVisibility(g.ids)) === 'hidden') {
+      // « Masqué » vaut pour la carte communautaire, pas pour le suivi du
+      // service payé : seuls les propriétaires en cours de prestation.
+      return withPersonIds(await expandListenerRooms(bookingListeners));
+    }
   } catch (_) {/* lecture impossible : comportement d'avant */}
   const friendships = require('../utils/friendshipOrder589').friendshipsPreferredFirst(await Friendship.find({
     status: 'accepted',
@@ -369,6 +389,16 @@ async function listPositionListeners(userId, role) {
     });
   }
 
+  // v589 — les propriétaires en cours de prestation (voir plus haut).
+  {
+    const already = new Set(listeners.map((l) => String(l.userId)));
+    for (const b of bookingListeners) {
+      if (already.has(String(b.userId))) continue;
+      already.add(String(b.userId));
+      listeners.push(b);
+    }
+  }
+
   // v23.1.297 — Daniel : "jai 5 amis/famille en direct et le cercle compte 2 ;
   // il faut compter famille ET amis". Les co-membres famille qui ne sont PAS
   // aussi des amis acceptés n'apparaissaient jamais ici → leur position
@@ -393,12 +423,10 @@ async function listPositionListeners(userId, role) {
     logger.warn(`[mapSocket:listPositionListeners] family merge failed : ${e.message}`);
   }
 
-  const out = await expandListenerRooms(listeners);
   // v589 — tous les ids de la personne qui diffuse : l'app de l'ami range
   // le direct PAR PERSONNE (jamais deux ronds pour la même personne).
   // Propriété non énumérable : la liste reste une liste de destinataires.
-  Object.defineProperty(out, 'personIds', { value: g.ids.map(String), enumerable: false });
-  return out;
+  return withPersonIds(await expandListenerRooms(listeners));
 }
 
 

@@ -111,24 +111,25 @@ class PawMapHelpScreen extends StatelessWidget {
     );
   }
 
-  Widget _capsuleRow(BuildContext context, String id, {String? helpKey}) {
+  Widget _capsuleRow(BuildContext context, String id,
+      {String? helpKey, String? extraKey}) {
     final c = pawCapsuleSpecOf(id)!;
     final strong = id == 'publish' || id == 'direct';
     return _ButtonRow(
       key: ValueKey<String>('help_capsule_$id'),
       icon: _RoundIcon(icon: c.icon, color: c.color, filled: strong),
       title: id == 'fade' ? 'help587_t_fade'.tr : c.label,
-      help: (helpKey ?? 'help587_b_$id').tr,
+      help: (helpKey ?? 'help587_b_$id').tr + (extraKey == null ? '' : extraKey.tr),
     );
   }
 
   Widget _plainRow(String id, IconData icon, Color color,
-      {String? titleKey, bool filled = false}) {
+      {String? titleKey, String? helpKey, bool filled = false}) {
     return _ButtonRow(
       key: ValueKey<String>('help_x_$id'),
       icon: _RoundIcon(icon: icon, color: color, filled: filled),
       title: (titleKey ?? 'help587_t_$id').tr,
-      help: 'help587_b_$id'.tr,
+      help: (helpKey ?? 'help587_b_$id').tr,
     );
   }
 
@@ -197,7 +198,14 @@ class PawMapHelpScreen extends StatelessWidget {
           _plainRow('locate', Icons.my_location_rounded, roleColor, filled: true),
           _plainRow('zoom', Icons.zoom_in_rounded, PawMapLegend.ink),
           _plainRow('sat', Icons.satellite_alt_rounded, PawMapTheme.accent),
-          _plainRow('search', Icons.search_rounded, PawMapTheme.sitter),
+          // v589 — les 4 ronds orange du haut, dans l'ordre de l'écran.
+          _plainRow('legendbtn', Icons.question_mark_rounded, PawMapTheme.accent,
+              filled: true, titleKey: 'help589_t_legendbtn', helpKey: 'help589_b_legendbtn'),
+          _plainRow('search', Icons.search_rounded, PawMapTheme.accent, filled: true),
+          _plainRow('refresh', Icons.refresh_rounded, PawMapTheme.accent,
+              filled: true, titleKey: 'help589_t_refresh', helpKey: 'help589_b_refresh'),
+          _plainRow('options', Icons.settings_rounded, PawMapTheme.accent,
+              filled: true, titleKey: 'pawmap589_options', helpKey: 'help589_b_options'),
           _railRow(context, 'around'),
           _railRow(context, 'directions'),
           _capsuleRow(context, 'fade'),
@@ -223,7 +231,8 @@ class PawMapHelpScreen extends StatelessWidget {
           // v587 — Daniel : les 3 réglages expliqués, mêmes phrases que le réglage.
           const _VisibilityCard(key: ValueKey<String>('help_visibility')),
           // v587 — le Direct existe pour les 3 profils (Daniel, 25/09).
-          _capsuleRow(context, 'direct'),
+          _capsuleRow(context, 'direct',
+              helpKey: 'help589_b_direct', extraKey: 'help589_followers'),
           // v584 (25/09, point 14) — « Suivre ma promenade : Daniel ne sait
           // pas comment faire » : l'explication vit aussi ici.
           _LiveShareCard(key: const ValueKey<String>('help_live_share')),
@@ -235,6 +244,7 @@ class PawMapHelpScreen extends StatelessWidget {
           _SectionTitle('help587_sec_act'.tr,
               key: const ValueKey<String>('help_sec_act')),
           if (!provider) _capsuleRow(context, 'publish'),
+          if (provider) _capsuleRow(context, 'requests', helpKey: 'pawmap589_requests_help'),
           _railRow(context, 'chat'),
           _railRow(context, 'photo'),
           _railRow(context, 'tag'),
@@ -246,9 +256,11 @@ class PawMapHelpScreen extends StatelessWidget {
           // ── 5. Réglages ────────────────────────────────────────────────
           _SectionTitle('help587_sec_set'.tr,
               key: const ValueKey<String>('help_sec_set')),
-          _capsuleRow(context, 'handle'),
+          _plainRow('options2', Icons.settings_rounded, PawMapTheme.accent,
+              filled: true, titleKey: 'pawmap589_options', helpKey: 'help589_b_options'),
           _plainRow('bars', Icons.chevron_left_rounded, PawMapLegend.ink),
-          _plainRow('custom', Icons.tune_rounded, PawMapTheme.pawFollow),
+          _plainRow('custom', Icons.swap_vert_rounded, PawMapTheme.accent,
+              helpKey: 'help589_b_custom'),
           _dockRow(context, 'layers'),
           _dockRow(context, 'night'),
           _dockRow(context, 'history'),

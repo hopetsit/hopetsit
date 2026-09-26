@@ -91,10 +91,19 @@ class PawCapsuleSpec {
 const List<PawCapsuleSpec> kPawCapsuleSpecs = <PawCapsuleSpec>[
   PawCapsuleSpec(
     id: 'handle',
-    icon: Icons.pets_rounded,
+    // v589 — la roue orange de l'en-tête remplace la languette du bas.
+    icon: Icons.settings_rounded,
     color: PawMapLegend.owner,
     labelKey: 'pawmap586_handle_label',
-    helpKey: 'pawmap586_help_handle_body',
+    helpKey: 'pawmap589_help_options',
+  ),
+  // v589 — gardien / promeneur : les demandes autour.
+  PawCapsuleSpec(
+    id: 'requests',
+    icon: Icons.assignment_rounded,
+    color: PawMapLegend.walker,
+    labelKey: 'pawmap589_requests',
+    helpKey: 'pawmap589_requests_help',
   ),
   PawCapsuleSpec(
     id: 'publish',
@@ -474,7 +483,8 @@ class PawCapsuleEyeButton extends StatelessWidget {
 
 // ─── Action du rôle : Publier / Direct ────────────────────────────────────
 
-enum PawRoleActionKind { publish, direct }
+/// v589 — `requests` : gardien / promeneur, « Demandes » autour (nombre).
+enum PawRoleActionKind { publish, direct, requests }
 
 class PawCapsuleRoleAction extends StatefulWidget {
   const PawCapsuleRoleAction({
@@ -484,7 +494,14 @@ class PawCapsuleRoleAction extends StatefulWidget {
     required this.showLabel,
     required this.onTap,
     this.onLongPress,
+    this.count = 0,
+    this.color,
   });
+
+  /// v589 — « Demandes » : nombre de demandes autour (pastille) et couleur du
+  /// rôle du prestataire.
+  final int count;
+  final Color? color;
 
   final PawRoleActionKind kind;
 
@@ -541,13 +558,17 @@ class _PawCapsuleRoleActionState extends State<PawCapsuleRoleAction>
   @override
   Widget build(BuildContext context) {
     final bool publish = widget.kind == PawRoleActionKind.publish;
+    final bool requests = widget.kind == PawRoleActionKind.requests;
+    final Color reqColor = widget.color ?? PawMapLegend.walker;
     final bool reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final String label = publish
         ? 'pawmap586_publish_short'.tr
-        : 'pawmap586_direct_short'.tr;
+        : (requests ? 'pawmap589_requests'.tr : 'pawmap586_direct_short'.tr);
     final Gradient gradient = publish
         ? pawRoleGradient(PawMapLegend.owner)
-        : (widget.live
+        : requests
+            ? pawRoleGradient(reqColor)
+            : (widget.live
             ? const LinearGradient(
                 colors: [Color(0xFF22C55E), PawCapsuleRoleAction.green],
                 begin: Alignment.topLeft,
@@ -560,7 +581,9 @@ class _PawCapsuleRoleActionState extends State<PawCapsuleRoleAction>
               ));
     final Color glow = publish
         ? PawMapLegend.owner
-        : (widget.live ? PawCapsuleRoleAction.green : PawCapsuleRoleAction.ink);
+        : requests
+            ? reqColor
+            : (widget.live ? PawCapsuleRoleAction.green : PawCapsuleRoleAction.ink);
     // L'état (arrêté / en direct) passe par `toggled` ; en direct, le
     // libellé le dit aussi.
     final String semantic = publish || !widget.live
@@ -573,7 +596,9 @@ class _PawCapsuleRoleActionState extends State<PawCapsuleRoleAction>
       child: GestureDetector(
         key: ValueKey<String>(publish
             ? 'pawmap_action_publish'
-            : (widget.live ? 'pawmap_action_direct_on' : 'pawmap_action_direct_off')),
+            : requests
+                ? 'pawmap_action_requests'
+                : (widget.live ? 'pawmap_action_direct_on' : 'pawmap_action_direct_off')),
         behavior: HitTestBehavior.opaque,
         onTap: () {
           HapticFeedback.selectionClick();
@@ -610,13 +635,74 @@ class _PawCapsuleRoleActionState extends State<PawCapsuleRoleAction>
                     child: child,
                   );
                 },
-                child: Icon(
-                  publish ? Icons.campaign_rounded : Icons.podcasts_rounded,
-                  color: Colors.white,
-                  size: 22.sp,
-                ),
+                // v589 — Daniel : « améliorer ce mini haut-parleur qu'on
+                // comprenne publier ». Le mégaphone porte un « + » (créer une
+                // annonce), et « Publier » est TOUJOURS écrit dessous.
+                child: publish
+                    ? Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(Icons.campaign_rounded,
+                              color: Colors.white, size: 22.sp),
+                          Positioned(
+                            right: -9.w,
+                            top: -9.w,
+                            child: Container(
+                              width: 17.w,
+                              height: 17.w,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                                border: Border.all(
+                                    color: PawMapLegend.owner, width: 1.4),
+                              ),
+                              child: Icon(Icons.add_rounded,
+                                  size: 13.sp, color: PawMapLegend.owner),
+                            ),
+                          ),
+                        ],
+                      )
+                    : requests
+                        ? Stack(
+                            clipBehavior: Clip.none,
+                            alignment: Alignment.center,
+                            children: [
+                              Icon(Icons.assignment_rounded,
+                                  color: Colors.white, size: 21.sp),
+                              if (widget.count > 0)
+                                Positioned(
+                                  right: -10.w,
+                                  top: -10.w,
+                                  child: Container(
+                                    constraints: BoxConstraints(minWidth: 18.w),
+                                    height: 18.w,
+                                    padding: EdgeInsets.symmetric(horizontal: 4.w),
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(color: reqColor, width: 1.4),
+                                    ),
+                                    child: Text(
+                                      widget.count > 99 ? '99+' : '${widget.count}',
+                                      style: TextStyle(
+                                        color: reqColor,
+                                        fontSize: 10.sp,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          )
+                        : Icon(
+                            Icons.podcasts_rounded,
+                            color: Colors.white,
+                            size: 22.sp,
+                          ),
               ),
-              if (widget.showLabel) ...[
+              if (widget.showLabel || publish || requests) ...[
                 SizedBox(height: 3.h),
                 SizedBox(
                   width: 50.w,
@@ -752,18 +838,27 @@ class PawMapSeeSection extends StatelessWidget {
         ),
         if (counter != null) ...[SizedBox(height: 4.h), counter!],
         SizedBox(height: 10.h),
-        Wrap(
-          spacing: 8.w,
-          runSpacing: 8.h,
-          children: [
-            for (final f in kPawSeeFamilies)
-              _SeePill(
-                family: f,
-                on: on.contains(f.id),
-                onTap: () => onToggle(f.id),
-              ),
-          ],
-        ),
+        // v589 — Daniel : « le menu paramètre, plus beau, réorganisé ».
+        // Grille régulière de 2 colonnes, pastilles de même largeur et plus
+        // basses (avant : des pastilles de largeurs inégales sur 4 lignes).
+        LayoutBuilder(builder: (ctx, box) {
+          final double w = (box.maxWidth - 8.w) / 2;
+          return Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
+            children: [
+              for (final f in kPawSeeFamilies)
+                SizedBox(
+                  width: w,
+                  child: _SeePill(
+                    family: f,
+                    on: on.contains(f.id),
+                    onTap: () => onToggle(f.id),
+                  ),
+                ),
+            ],
+          );
+        }),
         SizedBox(height: 6.h),
         Text(
           'pawmap586_see_hint'.tr,
@@ -813,12 +908,12 @@ class _SeePill extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
-          constraints: BoxConstraints(minHeight: 38.h),
-          padding: EdgeInsets.fromLTRB(6.w, 4.h, 12.w, 4.h),
+          constraints: BoxConstraints(minHeight: 40.h),
+          padding: EdgeInsets.fromLTRB(5.w, 4.h, 10.w, 4.h),
           decoration: BoxDecoration(
             gradient: g,
             color: on ? null : c.withValues(alpha: dark ? 0.14 : 0.07),
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(14.r),
             border: Border.all(
               color: on
                   ? Colors.white.withValues(alpha: 0.6)
@@ -837,7 +932,6 @@ class _SeePill extends StatelessWidget {
                 : null,
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 28.w,
@@ -851,11 +945,14 @@ class _SeePill extends StatelessWidget {
                 child: Icon(family.icon, size: 16.sp, color: fg),
               ),
               SizedBox(width: 6.w),
-              Text(
-                family.labelKey.tr,
-                maxLines: 1,
-                style: PawMapTheme.font(
-                    size: 12.5.sp, weight: FontWeight.w800, color: fg),
+              Expanded(
+                child: Text(
+                  family.labelKey.tr,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: PawMapTheme.font(
+                      size: 12.5.sp, weight: FontWeight.w800, color: fg),
+                ),
               ),
               SizedBox(width: 4.w),
               AnimatedSwitcher(
@@ -907,9 +1004,13 @@ class PawMapDirectPill extends StatefulWidget {
     required this.onTap,
     this.noGps = false,
     this.elsewhere = false,
+    this.followers = 0,
     this.onLongPress,
     this.now,
   });
+
+  /// v589 — personnes qui suivent mon direct (œil + nombre sur la pilule).
+  final int followers;
 
   final bool live;
   final DateTime? startedAt;
@@ -1071,6 +1172,33 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
                   ),
                 ),
               ),
+              // v589 — « qui suit mon direct » : un œil et le nombre.
+              if (widget.live && widget.followers > 0) ...[
+                SizedBox(width: 7.w),
+                Container(
+                  key: const ValueKey<String>('pawmap_direct_followers'),
+                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.visibility_rounded, size: 13.sp, color: Colors.white),
+                      SizedBox(width: 3.w),
+                      Text(
+                        '${widget.followers}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1175,7 +1303,11 @@ class PawCollapsibleBar extends StatefulWidget {
     required this.onToggle,
     required this.child,
     this.edgeGap = 12,
+    this.tabBottom = 18,
   });
+
+  /// v589 — distance fixe entre le bas de la barre et sa flèche.
+  final double tabBottom;
 
   final bool left;
   final bool collapsed;
@@ -1225,10 +1357,17 @@ class _PawCollapsibleBarState extends State<PawCollapsibleBar> {
         offset: Offset((widget.left ? -shift : shift) * t, 0),
         child: child,
       ),
+      // v589 — Daniel : « les deux flèches qui masquent les barres à droite
+      // et à gauche : alignées même si j'enlève des icônes de la barre de
+      // gauche ». Centrées, elles suivaient la hauteur de CHAQUE barre ; les
+      // deux barres partagent la même ligne de base (bas), donc une flèche
+      // posée à une distance FIXE du bas est toujours à la même hauteur.
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: widget.left ? [bar, tab] : [tab, bar],
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: widget.left
+            ? [bar, Padding(padding: EdgeInsets.only(bottom: widget.tabBottom), child: tab)]
+            : [Padding(padding: EdgeInsets.only(bottom: widget.tabBottom), child: tab), bar],
       ),
     );
   }

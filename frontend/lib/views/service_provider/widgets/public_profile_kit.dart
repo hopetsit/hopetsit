@@ -45,6 +45,57 @@ import 'package:hopetsit/widgets/role_chip.dart';
 /// Rayon des cartes de section.
 const double kPublicProfileRadius = 20;
 
+/// v589 (26/09, Daniel : « moderniser, comme ça tout est HD ») — bandeau plus
+/// haut et grande photo nette : mêmes valeurs pour l'en-tête et le squelette.
+const double kPublicProfileBannerH = 128;
+const double kPublicProfileAvatarD = 124;
+
+bool _isDarkCtx(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark;
+
+/// Encre chaude des titres (jamais le noir pur ni un gris).
+Color _inkOn(BuildContext context) => _isDarkCtx(context)
+    ? AppColors.textPrimaryDark
+    : const Color(0xFF17141F);
+
+/// Liseré teinté à la couleur du rôle.
+Color _tintBorder(BuildContext context, Color accent) =>
+    accent.withValues(alpha: _isDarkCtx(context) ? 0.32 : 0.16);
+
+/// Ombre teintée à la couleur du rôle (clair) / ombre chaude profonde (sombre).
+List<BoxShadow> _tintShadow(BuildContext context, Color accent) =>
+    _isDarkCtx(context)
+        ? const <BoxShadow>[
+            BoxShadow(
+              color: Color(0x660B0706),
+              blurRadius: 16,
+              spreadRadius: -4,
+              offset: Offset(0, 6),
+            ),
+          ]
+        : <BoxShadow>[
+            BoxShadow(
+              color: accent.withValues(alpha: 0.12),
+              blurRadius: 20,
+              spreadRadius: -6,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: AppColors.shadow(0.05),
+              blurRadius: 3,
+              offset: const Offset(0, 1),
+            ),
+          ];
+
+/// Définition de décodage d'une photo ronde : DEUX fois la taille affichée en
+/// pixels réels (recadrage `cover` : même une photo paysage garde assez de
+/// pixels), bornée 96–1600. Le cache ne l'agrandit jamais au-delà de
+/// l'original.
+int publicProfileDecodeWidth(BuildContext context, double logical) {
+  final double dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 3.0;
+  return (logical * dpr * 2).round().clamp(96, 1600);
+}
+
 /// Palette d'une fiche publique : couleur d'accent (texte, icônes, prix) et
 /// dégradé du bandeau héro / de la barre de titre.
 class PublicProfilePalette {
@@ -158,12 +209,21 @@ class PublicProfileAvatar extends StatelessWidget {
   final Color accent;
   final double diameter;
 
+  /// v589 — anneau dégradé à la couleur du rôle (null = liseré blanc simple,
+  /// comme avant : avatars des avis).
+  final List<Color>? ringColors;
+
+  /// Petit badge « vérifié » posé sur la photo (en plus de la pastille).
+  final bool verified;
+
   const PublicProfileAvatar({
     super.key,
     required this.name,
     required this.accent,
     this.imageUrl,
-    this.diameter = 104,
+    this.diameter = kPublicProfileAvatarD,
+    this.ringColors,
+    this.verified = false,
   });
 
   bool get _hasPhoto {
@@ -180,7 +240,16 @@ class PublicProfileAvatar extends StatelessWidget {
   Widget _fallback(BuildContext context) {
     final String letter = _initial;
     return Container(
-      color: accent.withValues(alpha: 0.16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[
+            accent.withValues(alpha: 0.12),
+            accent.withValues(alpha: 0.26),
+          ],
+        ),
+      ),
       alignment: Alignment.center,
       child: letter.isEmpty
           ? Icon(
@@ -200,36 +269,92 @@ class PublicProfileAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double d = diameter.r;
-    return Container(
+    final bool ring = ringColors != null && ringColors!.isNotEmpty;
+    final double ringW = ring ? (diameter >= 90 ? 4.0 : 3.0).r : 0;
+    final double gap = (diameter >= 90 ? 3.5 : 2.5).r;
+    final double inner = d - 2 * (ringW + gap);
+    final Widget photo = ClipOval(
+      child: _hasPhoto
+          ? CachedNetworkImage(
+              imageUrl: imageUrl!.trim(),
+              width: inner,
+              height: inner,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
+              memCacheWidth: publicProfileDecodeWidth(context, inner),
+              fadeInDuration: const Duration(milliseconds: 180),
+              placeholder: (_, __) => Container(
+                color: accent.withValues(alpha: 0.14),
+              ),
+              errorWidget: (_, __, ___) => _fallback(context),
+            )
+          : SizedBox(width: inner, height: inner, child: _fallback(context)),
+    );
+    final Widget disc = Container(
       width: d,
       height: d,
+      padding: EdgeInsets.all(ringW),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white,
+        color: ring ? null : Colors.white,
+        gradient: ring
+            ? SweepGradient(colors: <Color>[
+                ...ringColors!,
+                ringColors!.first,
+              ])
+            : null,
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: AppColors.shadow(0.16),
-            blurRadius: 14,
+            color: ring
+                ? ringColors!.last.withValues(alpha: 0.35)
+                : AppColors.shadow(0.16),
+            blurRadius: ring ? 22 : 14,
             spreadRadius: -2,
-            offset: const Offset(0, 6),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      padding: EdgeInsets.all(3.5.r),
-      child: ClipOval(
-        child: _hasPhoto
-            ? CachedNetworkImage(
-                imageUrl: imageUrl!.trim(),
-                width: d,
-                height: d,
-                fit: BoxFit.cover,
-                memCacheWidth: 320,
-                placeholder: (_, __) => Container(
-                  color: AppColors.mediaPlaceholder(context),
-                ),
-                errorWidget: (_, __, ___) => _fallback(context),
-              )
-            : _fallback(context),
+      child: Container(
+        padding: EdgeInsets.all(gap),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: ring ? AppColors.card(context) : Colors.white,
+        ),
+        child: photo,
+      ),
+    );
+    if (!verified) return disc;
+    final double b = (diameter * 0.24).clamp(16.0, 30.0).r;
+    return SizedBox(
+      width: d,
+      height: d,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          disc,
+          Positioned(
+            right: d * 0.03,
+            bottom: d * 0.03,
+            child: Container(
+              key: const ValueKey<String>('public_profile_avatar_verified'),
+              width: b,
+              height: b,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.card(context), width: 2.5),
+                boxShadow: const <BoxShadow>[
+                  BoxShadow(
+                    color: Color(0x552563EB),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(Icons.check_rounded, size: b * 0.62, color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -280,10 +405,12 @@ class PublicProfileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double bannerH = 92.h;
-    final double avatarD = 104.r;
+    final double bannerH = kPublicProfileBannerH.h;
+    final double avatarD = kPublicProfileAvatarD.r;
     final String city = (location ?? '').trim();
     final String sub = (subtitle ?? '').trim();
+    final Color c0 = palette.gradient.first;
+    final Color c1 = palette.gradient.last;
 
     return Column(
       children: <Widget>[
@@ -299,24 +426,46 @@ class PublicProfileHero extends StatelessWidget {
                 height: bannerH,
                 child: ClipRRect(
                   borderRadius: BorderRadius.vertical(
-                    bottom: Radius.circular(28.r),
+                    bottom: Radius.circular(32.r),
                   ),
-                  child: Container(
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: palette.gradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: <Color>[
+                          Color.lerp(c0, Colors.white, 0.10)!,
+                          c0,
+                          c1,
+                        ],
+                        stops: const <double>[0, 0.45, 1],
                       ),
                     ),
-                    child: const RepaintBoundary(
-                      child: CustomPaint(
-                        painter: PawPatternPainter(
-                          color: Colors.white,
-                          opacity: 0.10,
-                          cell: 74,
+                    child: Stack(
+                      children: <Widget>[
+                        const Positioned.fill(
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              painter: PawPatternPainter(
+                                color: Colors.white,
+                                opacity: 0.10,
+                                cell: 74,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        // Halos lumineux discrets (profondeur, effet « HD »).
+                        Positioned(
+                          top: -bannerH * 0.55,
+                          right: -bannerH * 0.35,
+                          child: _Glow(size: bannerH * 1.5, alpha: 0.18),
+                        ),
+                        Positioned(
+                          bottom: -bannerH * 0.70,
+                          left: -bannerH * 0.45,
+                          child: _Glow(size: bannerH * 1.3, alpha: 0.10),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -330,27 +479,35 @@ class PublicProfileHero extends StatelessWidget {
                     name: name,
                     accent: palette.accent,
                     imageUrl: imageUrl,
+                    diameter: kPublicProfileAvatarD,
+                    ringColors: <Color>[
+                      c0,
+                      Color.lerp(c0, Colors.white, 0.35)!,
+                      c0,
+                      c1,
+                    ],
+                    verified: verified,
                   ),
                 ),
               ),
             ],
           ),
         ),
-        SizedBox(height: 12.h),
+        SizedBox(height: 14.h),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 20.w),
           child: Column(
             children: <Widget>[
               PoppinsText(
                 text: name,
-                fontSize: 20,
+                fontSize: 23,
                 fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary(context),
+                color: _inkOn(context),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: 8.h),
+              SizedBox(height: 9.h),
               Wrap(
                 alignment: WrapAlignment.center,
                 spacing: 6.w,
@@ -363,20 +520,69 @@ class PublicProfileHero extends StatelessWidget {
               ),
               if (city.isNotEmpty) ...<Widget>[
                 SizedBox(height: 10.h),
-                _IconLine(icon: Icons.location_on_rounded, text: city),
+                _IconLine(
+                  icon: Icons.location_on_rounded,
+                  text: city,
+                  accent: palette.accent,
+                ),
               ],
               if (sub.isNotEmpty) ...<Widget>[
                 SizedBox(height: 6.h),
-                _IconLine(icon: Icons.event_available_rounded, text: sub),
+                _IconLine(
+                  icon: Icons.event_available_rounded,
+                  text: sub,
+                  accent: palette.accent,
+                ),
               ],
               if (rating != null) ...<Widget>[
-                SizedBox(height: 10.h),
-                FittedBox(fit: BoxFit.scaleDown, child: rating!),
+                SizedBox(height: 12.h),
+                Container(
+                  key: const ValueKey<String>('public_profile_rating'),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 14.w, vertical: 7.h),
+                  decoration: BoxDecoration(
+                    color: AppColors.card(context),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: const Color(0xFFF4C04A)
+                          .withValues(alpha: _isDarkCtx(context) ? 0.55 : 0.70),
+                      width: 1.2,
+                    ),
+                    boxShadow: _tintShadow(context, const Color(0xFFF4C04A)),
+                  ),
+                  child: FittedBox(fit: BoxFit.scaleDown, child: rating!),
+                ),
               ],
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Halo blanc flou (décor du bandeau).
+class _Glow extends StatelessWidget {
+  final double size;
+  final double alpha;
+  const _Glow({required this.size, required this.alpha});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: <Color>[
+              Colors.white.withValues(alpha: alpha),
+              Colors.white.withValues(alpha: 0),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -425,8 +631,13 @@ class VerifiedPill extends StatelessWidget {
 class _IconLine extends StatelessWidget {
   final IconData icon;
   final String text;
+  final Color accent;
 
-  const _IconLine({required this.icon, required this.text});
+  const _IconLine({
+    required this.icon,
+    required this.text,
+    required this.accent,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -434,14 +645,14 @@ class _IconLine extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Icon(icon, size: 14.sp, color: AppColors.textTertiary(context)),
+        Icon(icon, size: 15.sp, color: AppColors.accentOn(context, accent)),
         SizedBox(width: 5.w),
         Flexible(
           child: InterText(
             text: text,
-            fontSize: 12.5,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary(context),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondaryStrong(context),
             maxLines: 2,
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
@@ -492,30 +703,49 @@ class PublicProfileStatsRow extends StatelessWidget {
   }
 
   Widget _tile(BuildContext context, PublicProfileStat s) {
+    final bool dark = _isDarkCtx(context);
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 12.h),
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 13.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.divider(context)),
-        boxShadow: AppColors.cardShadow(context),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            Color.alphaBlend(accent.withValues(alpha: dark ? 0.14 : 0.07),
+                AppColors.card(context)),
+            AppColors.card(context),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: _tintBorder(context, accent)),
+        boxShadow: _tintShadow(context, accent),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(
-            s.icon,
-            size: 17.sp,
-            color: AppColors.accentOn(context, accent),
+          Container(
+            width: 30.w,
+            height: 30.w,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accent.withValues(alpha: dark ? 0.24 : 0.12),
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              s.icon,
+              size: 16.sp,
+              color: AppColors.accentOn(context, accent),
+            ),
           ),
-          SizedBox(height: 6.h),
+          SizedBox(height: 7.h),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: PoppinsText(
               text: s.value,
-              fontSize: 15,
+              fontSize: 17,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary(context),
+              color: _inkOn(context),
               maxLines: 1,
             ),
           ),
@@ -561,12 +791,12 @@ class PublicProfileSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 16.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(kPublicProfileRadius.r),
-        border: Border.all(color: AppColors.divider(context)),
-        boxShadow: AppColors.cardShadow(context),
+        border: Border.all(color: _tintBorder(context, accent)),
+        boxShadow: _tintShadow(context, accent),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -574,26 +804,40 @@ class PublicProfileSection extends StatelessWidget {
           Row(
             children: <Widget>[
               Container(
-                width: 30.w,
-                height: 30.w,
+                width: 34.w,
+                height: 34.w,
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(11.r),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[
+                      Color.lerp(accent, Colors.white, 0.12)!,
+                      Color.lerp(accent, Colors.black, 0.12)!,
+                    ],
+                  ),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.28),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 alignment: Alignment.center,
                 child: Icon(
                   icon,
-                  size: 16.sp,
-                  color: AppColors.accentOn(context, accent),
+                  size: 17.sp,
+                  color: Colors.white,
                 ),
               ),
-              SizedBox(width: 10.w),
+              SizedBox(width: 11.w),
               Expanded(
                 child: PoppinsText(
                   text: title,
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary(context),
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                  color: _inkOn(context),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -604,7 +848,7 @@ class PublicProfileSection extends StatelessWidget {
               ],
             ],
           ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 14.h),
           child,
         ],
       ),
@@ -686,20 +930,27 @@ class PublicProfileRateRow extends StatelessWidget {
           Expanded(
             child: InterText(
               text: label,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondaryStrong(context),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: _inkOn(context),
+              maxLines: 3,
             ),
           ),
           SizedBox(width: 10.w),
-          PoppinsText(
-            text: value,
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            color: AppColors.accentOn(context, accent),
-            maxLines: 1,
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 11.w, vertical: 5.h),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: _isDarkCtx(context) ? 0.22 : 0.10),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: accent.withValues(alpha: 0.35)),
+            ),
+            child: PoppinsText(
+              text: value,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.accentOn(context, accent),
+              maxLines: 1,
+            ),
           ),
         ],
       ),
@@ -887,12 +1138,14 @@ class PublicProfileReviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final String d = (date ?? '').trim();
     final String c = comment.trim();
+    final bool dark = _isDarkCtx(context);
     return Container(
-      padding: EdgeInsets.all(12.w),
+      padding: EdgeInsets.all(13.w),
       decoration: BoxDecoration(
-        color: AppColors.scaffold(context),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.divider(context)),
+        color: Color.alphaBlend(accent.withValues(alpha: dark ? 0.10 : 0.045),
+            AppColors.card(context)),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: _tintBorder(context, accent)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -901,7 +1154,7 @@ class PublicProfileReviewCard extends StatelessWidget {
             name: name,
             accent: accent,
             imageUrl: imageUrl,
-            diameter: 40,
+            diameter: 44,
           ),
           SizedBox(width: 10.w),
           Expanded(
@@ -914,9 +1167,9 @@ class PublicProfileReviewCard extends StatelessWidget {
                     Expanded(
                       child: PoppinsText(
                         text: name,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary(context),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: _inkOn(context),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -958,7 +1211,9 @@ class _Stars extends StatelessWidget {
   final double rating;
   const _Stars({required this.rating});
 
-  static const Color _amber = Color(0xFFFFB300);
+  // Or Premium de la marque (#F4C04A), un cran plus soutenu pour rester
+  // lisible sur une carte blanche.
+  static const Color _amber = Color(0xFFF2B42C);
 
   @override
   Widget build(BuildContext context) {
@@ -974,14 +1229,14 @@ class _Stars extends StatelessWidget {
           } else {
             icon = Icons.star_outline_rounded;
           }
-          return Icon(icon, size: 13.sp, color: _amber);
+          return Icon(icon, size: 15.sp, color: _amber);
         }),
         SizedBox(width: 5.w),
         InterText(
           text: rating.toStringAsFixed(1),
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(context),
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          color: _inkOn(context),
           maxLines: 1,
         ),
       ],
@@ -1008,23 +1263,32 @@ class PublicProfileActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool dark = _isDarkCtx(context);
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        border: Border(top: BorderSide(color: AppColors.divider(context))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+        border: Border(
+          top: BorderSide(
+            color: dark
+                ? const Color(0x33FFFFFF)
+                : AppColors.divider(context).withValues(alpha: 0.9),
+          ),
+        ),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: AppColors.shadow(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, -3),
+            color: dark ? const Color(0x800B0706) : AppColors.shadow(0.10),
+            blurRadius: 22,
+            spreadRadius: -4,
+            offset: const Offset(0, -6),
           ),
         ],
       ),
       padding: EdgeInsets.fromLTRB(
         16.w,
-        10.h,
+        12.h,
         16.w,
-        10.h + appBottomInset(context),
+        12.h + appBottomInset(context),
       ),
       child: Row(
         children: <Widget>[
@@ -1108,14 +1372,14 @@ class PublicProfileSkeleton extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.card(context),
           borderRadius: BorderRadius.circular(kPublicProfileRadius.r),
-          border: Border.all(color: AppColors.divider(context)),
+          border: Border.all(color: _tintBorder(context, palette.accent)),
         ),
       );
 
   @override
   Widget build(BuildContext context) {
-    final double bannerH = 92.h;
-    final double avatarD = 104.r;
+    final double bannerH = kPublicProfileBannerH.h;
+    final double avatarD = kPublicProfileAvatarD.r;
     return SingleChildScrollView(
       physics: const NeverScrollableScrollPhysics(),
       child: Column(
@@ -1138,7 +1402,7 @@ class PublicProfileSkeleton extends StatelessWidget {
                         colors: palette.gradient,
                       ),
                       borderRadius: BorderRadius.vertical(
-                        bottom: Radius.circular(28.r),
+                        bottom: Radius.circular(32.r),
                       ),
                     ),
                   ),
@@ -1155,11 +1419,11 @@ class PublicProfileSkeleton extends StatelessWidget {
                         shape: BoxShape.circle,
                         color: Colors.white,
                       ),
-                      padding: EdgeInsets.all(3.5.r),
+                      padding: EdgeInsets.all(4.r),
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.mediaPlaceholder(context),
+                          color: palette.accent.withValues(alpha: 0.16),
                         ),
                       ),
                     ),

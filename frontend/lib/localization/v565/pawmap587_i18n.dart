@@ -3,7 +3,7 @@
 const Map<String, Map<String, String>> pawmap587I18n =
     <String, Map<String, String>>{
   'en': <String, String>{
-    'pawmap587_direct_off': 'Live',
+    'pawmap587_direct_off': 'Live off',
     'pawmap587_direct_on_now': 'Live now',
     'pawmap587_direct_on': 'Live · @min min',
     'pawmap587_direct_no_gps': 'Live · no GPS',
@@ -11,7 +11,7 @@ const Map<String, Map<String, String>> pawmap587I18n =
     'pawmap587_bar_show': 'Show the buttons',
   },
   'fr': <String, String>{
-    'pawmap587_direct_off': 'Direct',
+    'pawmap587_direct_off': 'Direct off',
     'pawmap587_direct_on_now': 'En direct',
     'pawmap587_direct_on': 'En direct · @min min',
     'pawmap587_direct_no_gps': 'Direct · pas de GPS',
@@ -19,7 +19,7 @@ const Map<String, Map<String, String>> pawmap587I18n =
     'pawmap587_bar_show': 'Afficher les boutons',
   },
   'es': <String, String>{
-    'pawmap587_direct_off': 'En vivo',
+    'pawmap587_direct_off': 'En vivo off',
     'pawmap587_direct_on_now': 'En vivo',
     'pawmap587_direct_on': 'En vivo · @min min',
     'pawmap587_direct_no_gps': 'En vivo · sin GPS',
@@ -27,7 +27,7 @@ const Map<String, Map<String, String>> pawmap587I18n =
     'pawmap587_bar_show': 'Mostrar los botones',
   },
   'de': <String, String>{
-    'pawmap587_direct_off': 'Live',
+    'pawmap587_direct_off': 'Live aus',
     'pawmap587_direct_on_now': 'Live',
     'pawmap587_direct_on': 'Live · @min Min.',
     'pawmap587_direct_no_gps': 'Live · kein GPS',
@@ -35,7 +35,7 @@ const Map<String, Map<String, String>> pawmap587I18n =
     'pawmap587_bar_show': 'Tasten einblenden',
   },
   'it': <String, String>{
-    'pawmap587_direct_off': 'Diretta',
+    'pawmap587_direct_off': 'Diretta off',
     'pawmap587_direct_on_now': 'In diretta',
     'pawmap587_direct_on': 'In diretta · @min min',
     'pawmap587_direct_no_gps': 'Diretta · niente GPS',
@@ -43,7 +43,7 @@ const Map<String, Map<String, String>> pawmap587I18n =
     'pawmap587_bar_show': 'Mostra i pulsanti',
   },
   'pt': <String, String>{
-    'pawmap587_direct_off': 'Direto',
+    'pawmap587_direct_off': 'Direto off',
     'pawmap587_direct_on_now': 'Em direto',
     'pawmap587_direct_on': 'Em direto · @min min',
     'pawmap587_direct_no_gps': 'Direto · sem GPS',
@@ -51,7 +51,7 @@ const Map<String, Map<String, String>> pawmap587I18n =
     'pawmap587_bar_show': 'Mostrar os botões',
   },
   'ko': <String, String>{
-    'pawmap587_direct_off': '라이브',
+    'pawmap587_direct_off': '라이브 꺼짐',
     'pawmap587_direct_on_now': '라이브 중',
     'pawmap587_direct_on': '라이브 중 · @min분',
     'pawmap587_direct_no_gps': '라이브 · GPS 없음',
@@ -59,7 +59,7 @@ const Map<String, Map<String, String>> pawmap587I18n =
     'pawmap587_bar_show': '버튼 보이기',
   },
   'ja': <String, String>{
-    'pawmap587_direct_off': 'ライブ',
+    'pawmap587_direct_off': 'ライブ オフ',
     'pawmap587_direct_on_now': 'ライブ中',
     'pawmap587_direct_on': 'ライブ中 · @min分',
     'pawmap587_direct_no_gps': 'ライブ · GPSなし',
@@ -67,7 +67,7 @@ const Map<String, Map<String, String>> pawmap587I18n =
     'pawmap587_bar_show': 'ボタンを表示',
   },
   'pl': <String, String>{
-    'pawmap587_direct_off': 'Na żywo',
+    'pawmap587_direct_off': 'Na żywo wył.',
     'pawmap587_direct_on_now': 'Na żywo',
     'pawmap587_direct_on': 'Na żywo · @min min',
     'pawmap587_direct_no_gps': 'Na żywo · brak GPS',

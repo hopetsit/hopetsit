@@ -38,6 +38,11 @@ class FriendPosition {
   /// direct », jamais de suivi proposé.
   final bool sharing;
 
+  /// v589 — tous les ids de profil de cette personne (envoyés par le
+  /// serveur) : une personne = UN rond, même quand sa position arrive sous
+  /// l'id d'un autre de ses profils.
+  final List<String> personIds;
+
   const FriendPosition({
     required this.userId,
     required this.role,
@@ -48,6 +53,7 @@ class FriendPosition {
     this.lastSeenAt,
     this.stale = false,
     this.sharing = false,
+    this.personIds = const <String>[],
   });
 
   factory FriendPosition.fromJson(Map<String, dynamic> j, {DateTime? now}) {
@@ -74,6 +80,11 @@ class FriendPosition {
       // le renvoie pas : on retombe sur son `stale` (false = signal < 3 min,
       // donc un partage réellement actif) — jamais sur une position de profil.
       sharing: j.containsKey('sharing') ? j['sharing'] == true : j['stale'] == false,
+      personIds: <String>[
+        if (j['personIds'] is List)
+          for (final e in (j['personIds'] as List))
+            if ((e ?? '').toString().isNotEmpty) e.toString(),
+      ],
     );
   }
 
@@ -108,9 +119,11 @@ class FriendPosition {
     DateTime? lastSeenAt,
     bool? stale,
     bool? sharing,
+    String? userId,
+    List<String>? personIds,
   }) =>
       FriendPosition(
-        userId: userId,
+        userId: userId ?? this.userId,
         role: role,
         latitude: latitude ?? this.latitude,
         longitude: longitude ?? this.longitude,
@@ -119,8 +132,39 @@ class FriendPosition {
         lastSeenAt: lastSeenAt ?? this.lastSeenAt,
         stale: stale ?? this.stale,
         sharing: sharing ?? this.sharing,
+        personIds: personIds ?? this.personIds,
       );
+
+  /// Tous les ids connus de la personne (l'id de la position compris).
+  Set<String> get allIds => <String>{
+        if (userId.isNotEmpty) userId.trim().toLowerCase(),
+        for (final x in personIds)
+          if (x.isNotEmpty) x.trim().toLowerCase(),
+      };
 }
+
+/// v589 — Daniel : « je vois la même personne à deux endroits différents ».
+/// Clé sous laquelle ranger [fp] : celle d'une position DÉJÀ connue de la
+/// même personne (ids en commun), sinon son propre id. Pure, testée.
+String friendPositionKey(Map<String, FriendPosition> current, FriendPosition fp) {
+  final ids = fp.allIds;
+  if (current.containsKey(fp.userId)) return fp.userId;
+  for (final e in current.entries) {
+    if (e.value.allIds.any(ids.contains) ||
+        ids.contains(e.key.trim().toLowerCase())) {
+      return e.key;
+    }
+  }
+  return fp.userId;
+}
+
+/// Fusion des ids connus de la personne (ancienne + nouvelle position).
+List<String> mergedPersonIds(FriendPosition? a, FriendPosition b) => <String>{
+      ...?a?.personIds,
+      ...b.personIds,
+      if (a != null && a.userId.isNotEmpty) a.userId,
+      if (b.userId.isNotEmpty) b.userId,
+    }.toList();
 
 /// v584 (25/09) — les trois états d'un ami sur la carte.
 enum FriendLiveState { live, lost, seen }
@@ -248,6 +292,21 @@ class LiveMapService extends GetxService {
   /// serveur : `GET /friends/live-state`, puis `map:self-live`). Ce téléphone
   /// ne diffuse pas, mais la pilule le dit au lieu d'afficher « Direct » éteint.
   final RxBool liveElsewhere = false.obs;
+
+  /// v589 — nombre de personnes qui suivent MON direct (jamais leurs noms).
+  final RxInt myFollowers = 0.obs;
+
+  /// v589 — je suis le direct de [targetId] (on) / j'arrête (off). Appelé au
+  /// début du suivi, toutes les 60 s pendant, et à la fin.
+  Future<void> followPresence(String targetId, bool on) async {
+    try {
+      if (targetId.isEmpty || !Get.isRegistered<ApiClient>()) return;
+      await Get.find<ApiClient>().post('/friends/follow-presence',
+          body: {'targetId': targetId, 'on': on}, requiresAuth: true);
+    } catch (e) {
+      debugPrint('[LiveMap] follow-presence failed: $e');
+    }
+  }
 
   Timer? _broadcastTicker;
   // v23.1 part 238 — Daniel : "suivre famille sa me donne pas la bonne
@@ -449,7 +508,11 @@ class LiveMapService extends GetxService {
         // vie, mesuré à l'heure du téléphone (avant : `at` du serveur, faux
         // si l'horloge du téléphone dérive, et faux pour un battement qui
         // rejoue une position plus ancienne).
-        friendPositions[fp.userId] = applyLiveEvent(fp, DateTime.now());
+        // v589 — rangée PAR PERSONNE : jamais un second rond.
+        final key = friendPositionKey(friendPositions, fp);
+        final merged = fp.copyWith(
+            userId: key, personIds: mergedPersonIds(friendPositions[key], fp));
+        friendPositions[key] = applyLiveEvent(merged, DateTime.now());
       } catch (e) {
         debugPrint('[LiveMap] friend-position parse error: $e');
       }
@@ -463,9 +526,22 @@ class LiveMapService extends GetxService {
         // v584 (25/09) — l'ami a COUPÉ son partage : on garde sa dernière
         // position (« vu il y a X »), mais plus rien de « direct ».
         if (uid != null) {
-          final cur = friendPositions[uid];
+          // v589 — même personne sous un autre id : on retrouve SA position.
+          final probe = FriendPosition(
+            userId: uid,
+            role: '',
+            latitude: 0,
+            longitude: 0,
+            at: DateTime.now(),
+            personIds: <String>[
+              if (map['personIds'] is List)
+                for (final e in (map['personIds'] as List)) e.toString(),
+            ],
+          );
+          final key = friendPositionKey(friendPositions, probe);
+          final cur = friendPositions[key];
           if (cur != null) {
-            friendPositions[uid] = cur.copyWith(sharing: false, stale: true);
+            friendPositions[key] = cur.copyWith(sharing: false, stale: true);
           }
         }
       } catch (_) {}
@@ -491,6 +567,15 @@ class LiveMapService extends GetxService {
 
     // v589 — mon direct suit la PERSONNE : lancé ou arrêté depuis un autre
     // de mes téléphones, le serveur prévient les autres (`map:self-live`).
+    // v589 — nombre de personnes qui suivent mon direct.
+    socket.off('map:followers');
+    socket.on('map:followers', (raw) {
+      try {
+        final n = ((raw as Map)['count'] as num?)?.toInt() ?? 0;
+        myFollowers.value = n < 0 ? 0 : n;
+      } catch (_) {/* payload inattendu */}
+    });
+
     socket.off('map:self-live');
     socket.on('map:self-live', (raw) {
       try {
@@ -532,6 +617,7 @@ class LiveMapService extends GetxService {
       final raw = await Get.find<ApiClient>()
           .get('/friends/live-state', requiresAuth: true);
       if (raw is! Map) return;
+      myFollowers.value = (raw['followers'] as num?)?.toInt() ?? 0;
       final d = liveStateDecision(raw.cast<String, dynamic>(),
           broadcasting: broadcasting.value,
           localStartedAt: sessionStartedAt.value);
@@ -616,16 +702,21 @@ class LiveMapService extends GetxService {
           : const [];
       for (final item in list) {
         if (item is! Map) continue;
-        final fp = FriendPosition.fromJson(item.cast<String, dynamic>());
-        if (fp.userId.isEmpty) continue;
-        final cur = friendPositions[fp.userId];
+        final raw = FriendPosition.fromJson(item.cast<String, dynamic>());
+        if (raw.userId.isEmpty) continue;
+        // v589 — rangée PAR PERSONNE (voir friendPositionKey).
+        final key = friendPositionKey(friendPositions, raw);
+        final cur = friendPositions[key];
+        final fp = raw.copyWith(
+            userId: key, personIds: mergedPersonIds(cur, raw));
         if (cur == null) {
-          friendPositions[fp.userId] = fp;
+          friendPositions[key] = fp;
         } else if (!fp.at.isBefore(cur.at)) {
-          friendPositions[fp.userId] = fp; // serveur au moins aussi frais
+          friendPositions[key] = fp; // serveur au moins aussi frais
         } else {
           // live plus frais : on ne garde du serveur que l'état de session.
-          friendPositions[fp.userId] = cur.copyWith(
+          friendPositions[key] = cur.copyWith(
+            personIds: fp.personIds,
             stale: fp.stale && cur.isStale,
             lastSeenAt: fp.seenAt.isAfter(cur.seenAt) ? fp.seenAt : cur.seenAt,
             // v584 — le serveur fait foi sur « partage actif ou non ».
