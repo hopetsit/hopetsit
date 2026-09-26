@@ -170,7 +170,8 @@ router.post('/purchase', requireAuth, async (req, res) => {
     const Model = roleToModel(req.user.role);
     const userDoc = await Model.findById(req.user.id);
     if (!userDoc) return res.status(404).json({ error: 'User not found.' });
-    if (userDoc.isStaff) {
+    // v589 — staff sur N'IMPORTE LEQUEL des 3 profils de la personne.
+    if (userDoc.isStaff || await require('../utils/staffAccess589').isStaffPerson(req.user.id)) {
       const now = new Date();
       const currentExpiry = userDoc.mapBoostExpiry && new Date(userDoc.mapBoostExpiry) > now
         ? new Date(userDoc.mapBoostExpiry)

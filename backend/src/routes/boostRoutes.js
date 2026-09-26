@@ -148,7 +148,10 @@ router.post('/purchase', requireAuth, async (req, res) => {
       ? require('../models/Walker')
       : role === 'sitter' ? Sitter : Owner;
     const staffUser = await StaffModel.findById(userId);
-    if (staffUser && staffUser.isStaff) {
+    // v589 — staff sur N'IMPORTE LEQUEL des 3 profils de la personne.
+    const staffPerson = !!(staffUser && (staffUser.isStaff
+      || await require('../utils/staffAccess589').isStaffPerson(userId)));
+    if (staffPerson) {
       const now = new Date();
       const currentExpiry = staffUser.boostExpiry && new Date(staffUser.boostExpiry) > now
         ? new Date(staffUser.boostExpiry)

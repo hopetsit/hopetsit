@@ -12,6 +12,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/subscription_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/services/staff_access.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
 // v503 — règle Apple 3.1.1 : sur iOS les abonnements/boosts s'achètent via
@@ -863,7 +864,8 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
 
     // v503 — iOS : achat intégré Apple (règle 3.1.1). La validation +
     // le crédit du boost se font via /apple-iap/validate dans le service.
-    if (Platform.isIOS) {
+    // v589 — un STAFF passe par l'activation gratuite du serveur.
+    if (Platform.isIOS && !(await StaffAccess.isStaff())) {
       try {
         final productId = AppleIapService.productForBoostTier(tier);
         if (productId == null) {
@@ -1950,7 +1952,8 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     if (!confirmed || !mounted) return;
     try {
       // v503 — iOS : achat intégré Apple (règle 3.1.1), sinon Airwallex.
-      final ok = Platform.isIOS
+      // v589 — un STAFF passe par l'activation gratuite du serveur.
+      final ok = (Platform.isIOS && !(await StaffAccess.isStaff()))
           ? await controller.purchaseWithApple(plan)
           : await controller.purchase(plan);
       if (!mounted) return;
@@ -2241,7 +2244,8 @@ class _PawSpotTabState extends State<_PawSpotTab>
 
     // v503 — iOS : achat intégré Apple (règle 3.1.1). Validation + crédit
     // via /apple-iap/validate dans AppleIapService.
-    if (Platform.isIOS) {
+    // v589 — un STAFF passe par l'activation gratuite du serveur.
+    if (Platform.isIOS && !(await StaffAccess.isStaff())) {
       try {
         final productId = AppleIapService.productForPawSpotPlan(plan);
         if (productId == null) {
@@ -3209,7 +3213,8 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
 
     // v503 — iOS : achat intégré Apple (règle 3.1.1). Validation + crédit
     // via /apple-iap/validate dans AppleIapService.
-    if (Platform.isIOS) {
+    // v589 — un STAFF passe par l'activation gratuite du serveur.
+    if (Platform.isIOS && !(await StaffAccess.isStaff())) {
       try {
         final productId = AppleIapService.productForSubscriptionPlan(plan);
         if (productId == null) {

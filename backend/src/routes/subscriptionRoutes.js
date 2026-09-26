@@ -236,7 +236,9 @@ router.post('/subscribe', requireAuth, async (req, res) => {
         ? require('../models/Sitter')
         : require('../models/Owner');
     const staffUser = await StaffModel.findById(userId).select('isStaff').lean();
-    if (staffUser && staffUser.isStaff) {
+    // v589 — staff sur N'IMPORTE LEQUEL des 3 profils de la personne.
+    if ((staffUser && staffUser.isStaff)
+      || await require('../utils/staffAccess589').isStaffPerson(userId)) {
       try {
         const userModelName = userModelFromRole(role);
         // v23.1.178 — Daniel : "je prend labonement famille et y se passe

@@ -671,6 +671,16 @@ router.delete('/:id', requireAuth, requireSelfId, deleteAccount);
 router.post('/switch-role', requireAuth, switchRole);
 // v574 — rôles que possède la personne (synchronisation entre appareils).
 router.get('/me/roles', requireAuth, require('../controllers/rolesController').getMyRoles);
+// v589 — la personne connectée est-elle staff (3 profils) ? L'app iPhone
+// s'en sert pour passer par l'activation gratuite au lieu de l'achat Apple.
+router.get('/me/staff', requireAuth, async (req, res) => {
+  try {
+    const staff = await require('../utils/staffAccess589').isStaffPerson(req.user.id);
+    return res.json({ staff });
+  } catch (_) {
+    return res.json({ staff: false });
+  }
+});
 
 // Sprint 4 step 1 — FCM device token registration
 router.post('/fcm-token', requireAuth, registerFcmToken);
