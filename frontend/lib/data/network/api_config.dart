@@ -23,13 +23,19 @@ class ApiConfig {
 
   /// Returns the environment-aware base URL, including the API version prefix.
   /// Set useLocalhost to true to use localhost:5000 for local development.
+  /// v593 — banc d'essai LOCAL uniquement : `--dart-define=HPS_API_ROOT=http://…`
+  /// (jamais utilisé par les versions publiées, qui ne le définissent pas).
+  static const String _rigRoot = String.fromEnvironment('HPS_API_ROOT');
+
   static String get baseUrl {
+    if (_rigRoot.isNotEmpty) return '$_rigRoot$_apiPrefix';
     final root = AppConstants.isDevelopment ? _devBaseUrl : _prodBaseUrl;
     return '$root$_apiPrefix';
   }
 
   /// Root URL without the version prefix (for legacy endpoints only — e.g. /webhooks).
   static String get rootUrl {
+    if (_rigRoot.isNotEmpty) return _rigRoot;
     return AppConstants.isDevelopment ? _devBaseUrl : _prodBaseUrl;
   }
 }

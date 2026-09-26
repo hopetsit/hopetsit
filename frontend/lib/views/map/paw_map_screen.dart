@@ -327,8 +327,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   // v592 — fond de carte détaillé du site (OpenStreetMap) par-dessus Google.
   // Activé par défaut ; interrupteur dans « Calques ». Nuit et satellite
   // gardent Google (les tuiles OSM sont claires et sans vue aérienne).
+  // v593 — Daniel : « ça charge horrible » (tuiles OSM posées sur Google,
+  // demandées une par une par le SDK) → carte GOOGLE par défaut (vectorielle,
+  // instantanée, nette) ; la carte détaillée reste au choix dans Calques en
+  // attendant le chantier MapLibre (vectoriel OSM).
   final RxBool _osmBase =
-      (GetStorage().read('pawmap_osm_base') as bool? ?? true).obs;
+      (GetStorage().read('pawmap_osm_base_v593') as bool? ?? false).obs;
   static final PawOsmTileProvider _osmTiles = PawOsmTileProvider();
   bool get _osmActive =>
       _osmBase.value && !_nightMode.value && _mapType == MapType.normal;
@@ -504,6 +508,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   @override
   void initState() {
     super.initState();
+    // v593 — carte détaillée : préchargement immédiat de la zone de départ
+    // (dernière position connue), pour ne plus ouvrir sur un écran blanc.
+    if (_osmBase.value && !_nightMode.value) {
+      _osmTiles.prefetchAround(
+          _currentCenter.latitude, _currentCenter.longitude, _zoomLevel);
+    }
     // v591 — bandeau « Filtres actifs » : 5 s puis pastille (voir _flashFiltersBanner).
     _filtersBannerTimer = Timer(const Duration(seconds: 5), () {
       if (mounted) _filtersBannerShown.value = false;
@@ -2473,8 +2483,18 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// v548 — couche MONDE (voir `_worldMembers`). Une seule requête par
   /// ouverture de la carte ; le serveur renvoie des positions arrondies.
+  /// v593 — Daniel : « mon frère est encore à Valencia » alors que le serveur
+  /// l'avait déplacé à Murcia : la couche monde n'était chargée qu'UNE fois
+  /// par session (onglet gardé en vie des heures). Rechargée dès 5 min.
+  DateTime? _worldLoadedAt;
+
   Future<void> _loadWorldMembers() async {
-    if (_worldMembersLoaded) return;
+    if (_worldMembersLoaded &&
+        _worldLoadedAt != null &&
+        DateTime.now().difference(_worldLoadedAt!) <
+            const Duration(minutes: 5)) {
+      return;
+    }
     // v550 — carte « peuplée » dès la première frame : on réaffiche le dernier
     // instantané connu (24 h max) pendant que la requête part. Sans ça la
     // PawMap restait vide quelques secondes au lancement — l'impression de
@@ -2527,6 +2547,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _worldMembers.assignAll(out);
       _worldRev += 1;
       _worldMembersLoaded = true;
+      _worldLoadedAt = DateTime.now();
       try {
         GetStorage().write('pawmap_world_cache', out);
         GetStorage().write(
@@ -2589,6 +2610,16 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// POI / report / request layers refresh after the user stops panning.
   void _scheduleReload() {
     _cameraMoving = false; // v550 — geste terminé : le halo repulse.
+    // v593 — Daniel : « quand tu zoomes trop vite, on voit la carte d'en
+    // dessous ». Les tuiles OSM du zoom voisin sont préchargées (zone
+    // centrale, avec modération : règles d'usage d'OpenStreetMap).
+    if (_osmActive) {
+      final c = _currentCenter;
+      _osmTiles.prefetchAround(c.latitude, c.longitude, _zoomLevel + 1,
+          radiusX: 2, radiusY: 3);
+      _osmTiles.prefetchAround(c.latitude, c.longitude, _zoomLevel - 1,
+          radiusX: 2, radiusY: 3);
+    }
     // v584 — la caméra s'arrête : on retient l'endroit ET le zoom, sur
     // l'appareil et sur le compte (« tout lié entre appareils »).
     _saveLastCamera(_currentCenter, _zoomLevel);
@@ -4794,8 +4825,13 @@ class _PawMapScreenState extends State<PawMapScreen>
             // v592 — mention légale d'OpenStreetMap (obligatoire) quand le
             // fond détaillé est affiché : discrète, au-dessus du logo Google.
             Positioned(
-              left: 72.w,
-              bottom: _menuInset(context) + _sheetPeekPx + 30.h,
+              // v593 — Daniel : « en plein milieu, ça gêne » : collée à droite
+              // du logo Google (même ligne), en tout petit.
+              // v593 — Daniel : « tout en bas à droite, sous le menu, que ça
+              // ne gêne pas » : dans la fine bande entre le menu et la barre
+              // du système.
+              right: 10,
+              bottom: _systemBottomInset(context) + 1,
               child: Obx(() => !_osmActive
                   ? const SizedBox.shrink()
                   : IgnorePointer(
@@ -4807,7 +4843,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                         ),
                         child: Text('pawmap592_osm_credit'.tr,
                             style: TextStyle(
-                                fontSize: 8.5.sp,
+                                fontSize: 7.sp,
                                 color: PawMapTheme.ink)),
                       ),
                     )),
@@ -5465,11 +5501,22 @@ class _PawMapScreenState extends State<PawMapScreen>
         // taille.
         // v585 — et le logo Google (mention légale du SDK, à laisser
         // VISIBLE) sort de sous le rail gauche : décalé à sa droite.
+        // v593 — Daniel : « le logo Google en bas à gauche, pas au milieu, et
+        // qu'il ne touche ni la patte ni les boutons ni derrière le menu » :
+        // posé dans l'espace libre sous la barre de gauche, juste au-dessus du
+        // menu (la réserve `_sheetPeekPx` de l'ancienne languette ne sert plus).
+        // (la barre de gauche descend jusqu'au menu : le logo se place juste
+        // à sa droite, vérifié au banc d'essai.)
         padding: EdgeInsets.only(
             left: 70.w,
-            bottom: _menuInset(context) + _sheetPeekPx + 6.h),
+            bottom: _menuInset(context) + 6.h),
         mapType: _mapType,
-        style: night ? _nightMapStyle : null,
+        // v593 — sous les tuiles OSM, la carte Google dessinait ENCORE ses
+        // noms, icônes de lieux et stations PAR-DESSUS (vu au banc d'essai) :
+        // doublons illisibles. Fond détaillé actif → Google sans étiquettes.
+        style: night
+            ? _nightMapStyle
+            : (_osmActive ? _osmUnderStyle : null),
         tileOverlays: _osmActive
             ? <TileOverlay>{
                 TileOverlay(
@@ -8476,6 +8523,26 @@ class _PawMapScreenState extends State<PawMapScreen>
 ]
 ''';
 
+  /// v593 — carte Google SOUS les tuiles OpenStreetMap : aucune étiquette,
+  /// aucun lieu, aucun transport (les tuiles OSM portent déjà tout ça).
+  static const String _osmUnderStyle = '''
+[
+  {"elementType":"labels","stylers":[{"visibility":"off"}]},
+  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#f2efe9"}]},
+  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#c8facc"}]},
+  {"featureType":"poi","elementType":"labels","stylers":[{"visibility":"off"}]},
+  {"featureType":"transit","stylers":[{"visibility":"off"}]},
+  {"featureType":"administrative","elementType":"geometry","stylers":[{"visibility":"off"}]},
+  {"featureType":"landscape","elementType":"geometry","stylers":[{"color":"#f2efe9"}]},
+  {"featureType":"landscape.natural","elementType":"geometry","stylers":[{"color":"#e8f0d8"}]},
+  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#aad3df"}]},
+  {"featureType":"road","elementType":"geometry.fill","stylers":[{"color":"#ffffff"}]},
+  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#d9d0c9"}]},
+  {"featureType":"road.highway","elementType":"geometry.fill","stylers":[{"color":"#fcd6a4"}]},
+  {"featureType":"road.arterial","elementType":"geometry.fill","stylers":[{"color":"#f7fabf"}]}
+]
+''';
+
   /// Mode nuit : style sombre appliqué à la carte (pas au reste de l'app).
   void _toggleNightMode() {
     _nightMode.value = !_nightMode.value;
@@ -8567,7 +8634,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   Icons.share_location_rounded, PawMapTheme.pawFollow),
               row('pawmap592_osm_base'.tr, _osmBase.value, () {
                 _osmBase.value = !_osmBase.value;
-                GetStorage().write('pawmap_osm_base', _osmBase.value);
+                GetStorage().write('pawmap_osm_base_v593', _osmBase.value);
                 if (mounted) setState(() {});
               }, Icons.map_rounded, PawMapTheme.accent),
             ],

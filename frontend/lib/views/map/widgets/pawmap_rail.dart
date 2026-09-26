@@ -593,14 +593,20 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
                 final t = Curves.easeOut.transform(animation.value);
                 return Transform.scale(
                   scale: 1 + 0.03 * t,
+                  // v593 — Daniel : « les barres qu'on déplace buguent ». Vu
+                  // au banc d'essai : le fond des lignes est translucide, la
+                  // ligne tirée laissait voir celle du dessous (textes
+                  // superposés) et l'ombre orange la teintait de brun. Fond
+                  // PLEIN de la feuille + ombre neutre.
                   child: DecoratedBox(
                     decoration: BoxDecoration(
+                      color: PawMapTheme.bgOn(ctx),
                       borderRadius: BorderRadius.circular(16.r),
                       boxShadow: [
                         BoxShadow(
-                          color: PawMapTheme.accent.withValues(alpha: 0.22 * t),
-                          blurRadius: 14 * t,
-                          offset: Offset(0, 4 * t),
+                          color: const Color(0xFF18100E).withValues(alpha: 0.16 * t),
+                          blurRadius: 16 * t,
+                          offset: Offset(0, 6 * t),
                         ),
                       ],
                     ),
