@@ -29,6 +29,10 @@ final RxBool navWrapperMounted = false.obs;
 /// Onglet PawMap dans StackedNavigationWrapper.
 const int kPawMapTabIndex = 2;
 
+/// v594 — onglet du menu actuellement affiché (la PawMap vit cachée dans un
+/// IndexedStack dès le lancement : elle doit savoir quand on l'ouvre).
+final RxInt currentMainTab = 0.obs;
+
 /// v584 — acquisition : un lien `hopetsit://pawmap?lat&lng&z` ou
 /// `?city=paris` ouvre l'ONGLET PawMap (menu conservé) centré sur cet
 /// endroit. La PawMap observe `pawMapPendingCenter` (zoom dans

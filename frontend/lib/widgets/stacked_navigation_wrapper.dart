@@ -67,6 +67,7 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     // retombait sur l'historique des réservations au lieu d'ouvrir la PawMap.
     _mountedWrappers++;
     navWrapperMounted.value = true;
+    currentMainTab.value = _currentIndex;
     _tabRequestWorker = ever<int>(requestedTab, (i) {
       if (i < 0 || !mounted) return;
       requestedTab.value = -1;
@@ -109,6 +110,7 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
 
   void _onTap(int index) {
     setState(() => _currentIndex = index);
+    currentMainTab.value = index;
     if (index == 0) _refreshNotificationBadge();
     // v574 — onglet Profil : « Mes profils » reflète les rôles activés sur
     // n'importe quel appareil (Android, iOS, web).

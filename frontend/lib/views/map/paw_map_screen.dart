@@ -498,7 +498,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// reels (lengths + show flags) : si la cle n'a pas change, on reutilise
   /// le Set cache. Le _buildMarkers ne tourne plus que quand la donnee
   /// change vraiment, pas a chaque tick visuel.
-  Set<Marker>? _cachedMarkers;
   String _cachedMarkersKey = '';
 
   /// v500 — Daniel (version Store, installation fraîche) : « les points ne
@@ -802,10 +801,18 @@ class _PawMapScreenState extends State<PawMapScreen>
     // Paris fallback is the initial value — the map renders immediately
     // and _bootstrap() upgrades to real location in the background.
     _bootstrap();
-    // v594 — jamais de voile bloqué : retiré au plus tard 8 s après l'ouverture.
-    Future<void>.delayed(const Duration(seconds: 8), () {
-      if (mounted) _mapPainted.value = true;
-    });
+    // v594b — PawMap de l'onglet construite cachée au lancement ?
+    _hiddenTab = navWrapperMounted.value && currentMainTab.value != kPawMapTabIndex;
+    if (_hiddenTab) {
+      _tabWorker = ever<int>(currentMainTab, (i) {
+        if (i == kPawMapTabIndex) _onTabShown();
+      });
+    } else {
+      // v594 — jamais de voile bloqué : retiré au plus tard 8 s après l'ouverture.
+      Future<void>.delayed(const Duration(seconds: 8), () {
+        if (mounted) _mapPainted.value = true;
+      });
+    }
 
     // v23.1.190 — pre-warm le cache emoji markers en background. Quand
     // pret, setState force le rebuild des markers map.
@@ -1876,6 +1883,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
     _haloTimer?.cancel();
     _mapPaintedFallback?.cancel();
+    _tabWorker?.dispose();
     _walkTimer?.cancel(); // v590
     _walkTimer = null;
     _followWorker?.dispose();
@@ -3578,14 +3586,21 @@ class _PawMapScreenState extends State<PawMapScreen>
           ? ''
           : '${_userPosition!.latitude.toStringAsFixed(5)},${_userPosition!.longitude.toStringAsFixed(5)}',
       // Respiration PawBoost : seulement si un boost est visible.
-      _anyBoosted && !_reduceMotion ? _boostPhaseIdx : -1,
     ].join('-');
-    if (_cachedMarkers == null || _cachedMarkersKey != key) {
-      _cachedMarkers = _buildMarkers();
+    // v594 — fluidité (Daniel, 27/09) : avec un membre boosté à l'écran, la
+    // respiration PawBoost reconstruisait TOUS les marqueurs 1,7×/s. Les
+    // 4 images de la respiration sont maintenant gardées par phase tant que
+    // rien d'autre ne change : après le 1er cycle, un tick ne recalcule
+    // plus rien (Google Maps ne met à jour que les ronds boostés).
+    if (_cachedMarkersKey != key) {
+      _markersByPhase.clear();
       _cachedMarkersKey = key;
     }
-    return _cachedMarkers!;
+    final int phase = _anyBoosted && !_reduceMotion ? _boostPhaseIdx : -1;
+    return _markersByPhase[phase] ??= _buildMarkers();
   }
+
+  final Map<int, Set<Marker>> _markersByPhase = <int, Set<Marker>>{};
 
   /// Zoom « rue » à partir duquel le prix s'affiche sous l'épingle (idée 2).
   // v591 — Daniel : « que la bulle prix s'affiche un peu avant de trop zoomer » (15 → 13).
@@ -3683,13 +3698,23 @@ class _PawMapScreenState extends State<PawMapScreen>
         '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey:${withBubble ? '$priceBubble/$priceRole' : ''}';
     // v594 — la bulle duo gardien/promeneur est plus large que le rond : le
     // bitmap s'élargit des deux côtés (le rond reste centré, ancre x = 0,5).
-    final baseW = PawMapPinPainter.photoBitmapSize(size);
+    // v594 — grande marge seulement pour les ronds à halo (voir photoMarginGlow).
+    final double m = (boosted ||
+            followPhase >= 0 ||
+            ring == PawMapLegend.friend ||
+            (ringColors ?? const <Color>[]).toSet().length > 1)
+        ? PawMapPinPainter.photoMarginGlow
+        : PawMapPinPainter.photoMargin;
+    _lastPhotoMargin = m;
+    final baseW = PawMapPinPainter.photoBitmapSize(size, margin: m);
     final double bubbleW = withBubble
         ? PawMapPinPainter.priceBubbleWidth(priceBubble) + 8
         : 0;
-    final double w = math.max(baseW, bubbleW);
+    // v594 — l'étiquette (« Vu il y a 20 min ») ne doit plus être coupée.
+    final double labelW = withLabel ? PawMapPinPainter.photoLabelWidth(label) : 0;
+    final double w = math.max(baseW, math.max(bubbleW, labelW));
     final double dx = (w - baseW) / 2;
-    final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel) +
+    final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel, margin: m) +
         (withBubble ? PawMapPinPainter.priceBubbleZone : 0);
     return _pins.getOrBuild(
           key,
@@ -3718,6 +3743,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             fallbackTint: fallbackTint,
             priceBubble: withBubble ? priceBubble : null,
             priceRole: priceRole,
+            margin: m,
           );
             c.restore();
           },
@@ -3726,11 +3752,16 @@ class _PawMapScreenState extends State<PawMapScreen>
         BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose);
   }
 
+  /// Marge du DERNIER rond photo dessiné : chaque appel à [_photoAnchor]
+  /// suit immédiatement le [_photoIcon] du même marqueur.
+  double _lastPhotoMargin = PawMapPinPainter.photoMargin;
+
   Offset _photoAnchor(double size,
       {bool withLabel = false, bool withBubble = false}) {
+    final double m = _lastPhotoMargin;
     final double zone = withBubble ? PawMapPinPainter.priceBubbleZone : 0;
-    final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel) + zone;
-    return Offset(0.5, (zone + PawMapPinPainter.photoMargin + size / 2) / h);
+    final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel, margin: m) + zone;
+    return Offset(0.5, (zone + m + size / 2) / h);
   }
 
   BitmapDescriptor _memberClusterIcon(int count, Map<String, int> roleCounts,
@@ -5660,8 +5691,36 @@ class _PawMapScreenState extends State<PawMapScreen>
   final RxBool _mapPainted = false.obs;
   Timer? _mapPaintedFallback;
 
+  /// v594b — Oppo A40 : la PawMap de l'onglet est construite CACHÉE dès le
+  /// lancement (IndexedStack). Son 1er « caméra à l'arrêt » arrivait donc
+  /// avant qu'on l'ouvre : le voile partait trop tôt, et à l'ouverture Android
+  /// laissait la vue Google noire ~3,5 s. Tant que l'onglet n'a jamais été
+  /// affiché, le voile reste ; à la 1re ouverture on force un nouveau dessin
+  /// et on attend le « caméra à l'arrêt » qui SUIT.
+  bool _hiddenTab = false;
+  bool _tabShownOnce = false;
+  Worker? _tabWorker;
+
+  void _onTabShown() {
+    if (_tabShownOnce || !mounted) return;
+    _tabShownOnce = true;
+    _mapPainted.value = false;
+    _mapPaintedFallback?.cancel();
+    _mapPaintedFallback = Timer(const Duration(seconds: 5), () {
+      if (mounted) _mapPainted.value = true;
+    });
+    unawaited(() async {
+      final ctl = await _activeMapCtl();
+      if (ctl == null || !mounted) return;
+      await ctl.moveCamera(CameraUpdate.newCameraPosition(
+          CameraPosition(target: _currentCenter, zoom: _zoomLevel)));
+    }());
+  }
+
   void _markMapPainted({Duration delay = const Duration(milliseconds: 250)}) {
     if (_mapPainted.value) return;
+    // Onglet encore jamais ouvert : la carte n'est pas à l'écran.
+    if (_hiddenTab && !_tabShownOnce) return;
     Future<void>.delayed(delay, () {
       if (mounted) _mapPainted.value = true;
     });
@@ -5740,10 +5799,13 @@ class _PawMapScreenState extends State<PawMapScreen>
         ),
         onMapCreated: (c) {
           if (!_mapCtl.isCompleted) _mapCtl.complete(c);
-          // v594 — filet : le voile part au plus tard 4 s après la création.
-          _mapPaintedFallback ??= Timer(const Duration(seconds: 4), () {
-            if (mounted) _mapPainted.value = true;
-          });
+          // v594 — filet : le voile part au plus tard 4 s après la création
+          // (sauf onglet encore caché : filet posé à la 1re ouverture).
+          if (!_hiddenTab) {
+            _mapPaintedFallback ??= Timer(const Duration(seconds: 4), () {
+              if (mounted) _mapPainted.value = true;
+            });
+          }
           // v23.1 part 213 — centre initial demandé (alerte, ami, lien) :
           // on y va tout de suite, avant le recentrage GPS.
           final lat = widget.initialLat;
@@ -5781,7 +5843,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         // suivi « en pause » tout seul. La pause vient du VRAI geste (glisser
         // > 12 px ou pincer), lu par `_onMapPointer*` (PawMapDragWatch).
         onCameraIdle: () {
-          _markMapPainted();
+          // v594b — onglet ouvert : un temps de plus pour que la vue Google
+          // ait réellement posé ses tuiles (Oppo A40).
+          _markMapPainted(
+              delay: Duration(milliseconds: _hiddenTab ? 450 : 250));
           _scheduleReload();
         },
         myLocationEnabled: true,

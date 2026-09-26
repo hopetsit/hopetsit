@@ -992,6 +992,18 @@ class PawMapPinPainter {
   /// `priceBubbleHtml`) : 22 px, rayon 8, dégradé 170° du service, contour
   /// blanc 2, ombre 0 5 10 −4, icône 11 + texte Poppins 700 11,5, pointe
   /// 10 × 6 foncée 1 px sous la bulle.
+  /// v594 — largeur de l'étiquette sous un rond photo (« Vu il y a 20 min »
+  /// était coupée : plus large que l'image du rond).
+  static double photoLabelWidth(String text) {
+    final tp = TextPainter(
+      text: TextSpan(
+          text: text, style: _pinStyle(11, FontWeight.w700, Colors.white, inter: true)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    return tp.width + 2 * 9.5 + 6;
+  }
+
   /// v594 — largeur d'une bulle de prix ; « A|B » = bulle DUO gardien/promeneur.
   static double priceBubbleWidth(String text) {
     double w = 0;
@@ -1161,12 +1173,13 @@ class PawMapPinPainter {
     bool verified = false,
     bool pawFollowGlow = false,
     PawPinLabelStyle? labelStyle,
+    double margin = photoMargin,
   }) {
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
     if (withBubble) {
       drawPriceBubble(canvas,
-          cx: photoMargin + size / 2,
-          bottom: priceBubbleZone + photoMargin - 3,
+          cx: margin + size / 2,
+          bottom: priceBubbleZone + margin - 3,
           text: priceBubble,
           role: priceRole);
       canvas.save();
@@ -1193,6 +1206,7 @@ class PawMapPinPainter {
       verified: verified,
       pawFollowGlow: pawFollowGlow,
       labelStyle: labelStyle,
+      margin: margin,
     );
     if (withBubble) canvas.restore();
   }
@@ -1227,8 +1241,8 @@ class PawMapPinPainter {
     bool verified = false,
     bool pawFollowGlow = false,
     PawPinLabelStyle? labelStyle,
+    double margin = photoMargin,
   }) {
-    const margin = photoMargin;
     final r = size / 2;
     final c = Offset(margin + r, margin + r);
     final bool isFriend = ringColor == PawMapLegend.friend;
@@ -1236,27 +1250,10 @@ class PawMapPinPainter {
         (dashedRing || eyeOff || size >= PawMapLegend.meSize);
     final double maxR = r + margin - 0.5;
 
-    // 1. Halo : PawBoost > suivi en direct > PawFollow (famille) > moi.
-    final circle = Path()..addOval(Rect.fromCircle(center: c, radius: r));
-    if (boostPhase != null) {
-      drawBoostGlow(canvas, c, r, boostPhase, maxR: maxR);
-    } else if (followPhase != null) {
-      drawGlow(canvas, c, r, followPhase, PawMapLegend.pawFollow, maxR: maxR);
-    } else if (pawFollowGlow) {
-      drawCssGlow(canvas, c, r, maxR, PawMapLegend.pawFollow,
-          [(4, 0, 0.35), (5, 16, 0.55)]);
-    } else if (isFriend) {
-      // v594 — Daniel (26/09) : « le halo rose oui » (l'or non, la couronne
-      // suffit). Lueur rose FIXE autour de chaque ami, sous PawBoost/suivi.
-      drawCssGlow(canvas, c, r, maxR, PawMapLegend.friend,
-          [(4, 0, 0.42), (6, 16, 0.62)]);
-    } else if (isMe) {
-      // Le site fait « pulser » un anneau autour de moi (`hps-pulse`) : sur
-      // un bitmap fixe, un halo doux de la couleur de mon rôle.
-      drawCssGlow(canvas, c, r, maxR, ringColor, [(2, 0, 0.18), (3, 14, 0.30)]);
-    }
-
-    // 2. Anneaux des autres rôles (site : `extraRoleRings`), sous le rond.
+    // Anneaux des autres rôles (site : `extraRoleRings`) — calculés AVANT le
+    // halo : v594, Daniel (27/09) « quand il y a tous les halos, le PawBoost
+    // de mon frère ne marche pas » : 3 anneaux (15 px) recouvraient la lueur,
+    // qui partait du rond. Elle part maintenant du DERNIER anneau.
     final extra = <Color>[];
     if (ringColors != null) {
       for (final col in ringColors) {
@@ -1268,6 +1265,29 @@ class PawMapPinPainter {
     } else {
       extra.clear();
     }
+    final double glowR = r + 5.0 * extra.length;
+
+    // 1. Halo : PawBoost > suivi en direct > PawFollow (famille) > moi.
+    final circle = Path()..addOval(Rect.fromCircle(center: c, radius: r));
+    if (boostPhase != null) {
+      drawBoostGlow(canvas, c, glowR, boostPhase, maxR: maxR);
+    } else if (followPhase != null) {
+      drawGlow(canvas, c, glowR, followPhase, PawMapLegend.pawFollow, maxR: maxR);
+    } else if (pawFollowGlow) {
+      drawCssGlow(canvas, c, glowR, maxR, PawMapLegend.pawFollow,
+          [(4, 0, 0.35), (5, 16, 0.55)]);
+    } else if (isFriend) {
+      // v594 — Daniel (26/09) : « le halo rose oui » (l'or non, la couronne
+      // suffit). Lueur rose FIXE autour de chaque ami, sous PawBoost/suivi.
+      drawCssGlow(canvas, c, glowR, maxR, PawMapLegend.friend,
+          [(4, 0, 0.42), (6, 16, 0.62)]);
+    } else if (isMe) {
+      // Le site fait « pulser » un anneau autour de moi (`hps-pulse`) : sur
+      // un bitmap fixe, un halo doux de la couleur de mon rôle.
+      drawCssGlow(canvas, c, r, maxR, ringColor, [(2, 0, 0.18), (3, 14, 0.30)]);
+    }
+
+    // 2. Anneaux des autres rôles, sous le rond.
     for (var i = extra.length - 1; i >= 0; i--) {
       canvas.drawCircle(c, r + 5.0 * (i + 1), Paint()..color = _veil(extra[i], dimmed));
       canvas.drawCircle(c, r + 5.0 * i + 2, Paint()..color = Colors.white);
@@ -1418,15 +1438,21 @@ class PawMapPinPainter {
   }
 
   static const double photoMargin = 22;
-  static double photoBitmapSize(double size, {bool withLabel = false}) =>
-      size + 2 * photoMargin + (withLabel ? 10 : 0);
+  // v594 — marge des ronds À HALO (ami, PawBoost, suivi, plusieurs rôles) :
+  // la lueur doit dépasser les 3 anneaux de rôles (15 px). Les autres ronds
+  // gardent 22 : Google compte toute l'image comme zone de toucher, une
+  // marge plus grande rendait le 1er appui moins précis (Daniel, 27/09).
+  static const double photoMarginGlow = 30;
+  static double photoBitmapSize(double size,
+          {bool withLabel = false, double margin = photoMargin}) =>
+      size + 2 * margin + (withLabel ? 10 : 0);
 
   /// Ancre verticale (0..1) d'un rond photo : le centre du cercle.
   static double photoAnchorY(double size,
-      {bool withLabel = false, bool withBubble = false}) {
+      {bool withLabel = false, bool withBubble = false, double margin = photoMargin}) {
     final zone = withBubble ? priceBubbleZone : 0.0;
-    return (zone + photoMargin + size / 2) /
-        (photoBitmapSize(size, withLabel: withLabel) + zone);
+    return (zone + margin + size / 2) /
+        (photoBitmapSize(size, withLabel: withLabel, margin: margin) + zone);
   }
 
   // ── GROUPES ────────────────────────────────────────────────────────────
