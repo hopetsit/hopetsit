@@ -21,8 +21,17 @@ const roleModelName = (role) => (role === 'walker' ? 'Walker' : role === 'sitter
 
 // Applique une récompense free_subscription. Réplique SANS risque la logique
 // d'activation d'achat (le webhook de paiement n'est pas modifié).
-async function grantPromoSubscription({ userId, role, plan, intervalDays, boostTier }) {
+async function grantPromoSubscription({ userId, role, plan: rawPlan, intervalDays, boostTier }) {
   const now = new Date();
+  // v589 — noms d'offre venus d'anciens codes / de saisies libres → valeurs
+  // du modèle (l'enum refusait « pawfollow », « premium »… : erreur 500).
+  const PLAN_ALIASES = {
+    pawfollow: 'monthly', follow: 'monthly', pawfollow_monthly: 'monthly',
+    pawfollow_yearly: 'yearly', premium: 'premium_monthly', paw_premium: 'premium_monthly',
+    pawpremium: 'premium_monthly', pawfamily: 'family', pawspot_monthly: 'pawspot',
+    pawspot_yearly: 'pawspot',
+  };
+  const plan = PLAN_ALIASES[String(rawPlan || '').toLowerCase()] || rawPlan;
 
   // PawBoost = palier temporaire sur le doc user (pas un timer d'abo).
   if (plan === 'pawboost') {
@@ -42,8 +51,17 @@ async function grantPromoSubscription({ userId, role, plan, intervalDays, boostT
   const userModelName = roleModelName(role);
   let sub = await UserSubscription.findOne({ userId, userModel: userModelName });
   if (!sub) {
+    // v589 — PawSpot offert à quelqu'un SANS abonnement : la fiche neuve
+    // portait `plan: 'pawspot'`, refusé par le modèle (500 « Impossible
+    // d'appliquer le code »). Le timer PawSpot vit à part ; l'offre de base
+    // reste « none ».
     sub = new UserSubscription({
-      userId, userModel: userModelName, plan, status: 'active', activatedAt: now, currency: 'EUR',
+      userId,
+      userModel: userModelName,
+      plan: plan === 'pawspot' ? 'none' : (plan === 'family' ? 'famille' : plan),
+      status: 'active',
+      activatedAt: now,
+      currency: 'EUR',
     });
   }
   const {
