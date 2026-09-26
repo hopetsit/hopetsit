@@ -76,6 +76,36 @@ function cityOf(doc) {
   return String(h || doc.city || (doc.location && doc.location.city) || '').trim();
 }
 
+const MOVED_KM = 50;
+// 12 h : un direct de ce matin loin de l'inscription = on a déménagé ; un
+// vieux direct (1 à 2 jours, cas « john C » du 25/09) ne l'emporte jamais.
+// Le relais durable est côté app : POST /users/me/home-position à
+// l'ouverture de la carte (GPS à plus de 50 km de l'inscription).
+const MOVED_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+function distanceKm(a, b) {
+  const [lng1, lat1] = a.map(Number);
+  const [lng2, lat2] = b.map(Number);
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const s = Math.sin(dLat / 2) ** 2
+    + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+/** v590 — dernière position connue (< 12 h) loin (> 50 km) de l'inscription → déménagement. */
+function movedFromHome(list, homeCoords, now = new Date()) {
+  const last = list
+    .filter((e) => e.d.location && validLngLat(e.d.location.coordinates) && _t(e.d.location.updatedAt) > 0)
+    .sort((a, b) => _t(b.d.location.updatedAt) - _t(a.d.location.updatedAt))[0];
+  if (!last) return null;
+  if (_t(now) - _t(last.d.location.updatedAt) > MOVED_MAX_AGE_MS) return null;
+  const c = last.d.location.coordinates.map(Number);
+  if (distanceKm(c, homeCoords) <= MOVED_KM) return null;
+  return { entry: last, coordinates: c, source: 'moved', city: cityOf(last.d) };
+}
+
 /**
  * @param {Array<{d: object, role: string}>} entries tous les profils d'UNE personne
  * @param {object} opts { now, cityAnchor: (city) => {lat,lng}|null }
@@ -95,6 +125,16 @@ function pickPersonPosition(entries, { now = new Date(), cityAnchor = null } = {
   const homes = list.map((e) => ({ e, h: homeOf(e.d) })).filter((x) => x.h)
     .sort((a, b) => b.h.at - a.h.at);
   if (homes.length) {
+    // v590 — Daniel (26/09) : « mon frère vit vers Murcia et ça met sa position
+    // vers Valencia, là où il était il y a une semaine ». Sa position
+    // d'inscription (Dénia) datait d'avant son déménagement ; sa dernière
+    // position connue (Murcia, ce matin) était à 170 km. Règle : si la
+    // dernière position connue (< 30 jours) est à plus de 50 km de la position
+    // d'inscription, la personne a CHANGÉ DE VILLE → on la place là. Dans la
+    // même ville, la position d'inscription reste (trajets du quotidien
+    // protégés).
+    const moved = movedFromHome(list, homes[0].h.coordinates, now);
+    if (moved) return moved;
     return { entry: homes[0].e, coordinates: homes[0].h.coordinates, source: 'home', city: homes[0].h.city };
   }
 
@@ -243,6 +283,8 @@ function personBoost(docs, now = new Date()) {
 }
 
 module.exports = {
+  distanceKm,
+  MOVED_KM,
   personBoost,
   LIVE_MAX_MS,
   validLngLat,

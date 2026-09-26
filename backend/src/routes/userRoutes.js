@@ -671,6 +671,18 @@ router.delete('/:id', requireAuth, requireSelfId, deleteAccount);
 router.post('/switch-role', requireAuth, switchRole);
 // v574 — rôles que possède la personne (synchronisation entre appareils).
 router.get('/me/roles', requireAuth, require('../controllers/rolesController').getMyRoles);
+// v590 — position de profil qui suit un déménagement (> 50 km), envoyée par
+// l'app à l'ouverture de la carte. Voir utils/homePosition590.js.
+router.post('/me/home-position', requireAuth, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const r = await require('../utils/homePosition590')
+      .updateHomePosition(req.user.id, { lat: b.lat, lng: b.lng, city: b.city });
+    return res.json(r);
+  } catch (e) {
+    return res.status(500).json({ error: 'Unable to update home position.' });
+  }
+});
 // v589 — la personne connectée est-elle staff (3 profils) ? L'app iPhone
 // s'en sert pour passer par l'activation gratuite au lieu de l'achat Apple.
 router.get('/me/staff', requireAuth, async (req, res) => {
