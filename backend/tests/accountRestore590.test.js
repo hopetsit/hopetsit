@@ -119,3 +119,21 @@ test('bloquer un profil bloque les autres profils de la personne, débloquer les
   expect((await Owner.findById(o._id).lean()).status).toBe('active');
   expect((await listBlocked()).some((u) => u.email === 'bot590@example.test')).toBe(false);
 });
+
+// v590 — onglet « Dernière connexion » : un début de session par tranche de 30 min.
+test('journal d\'activité : une session par tranche de 30 min, lieu du profil', async () => {
+  const { recordActivity, activitySummary, isNewSession, _seen } = require('../src/utils/activity590');
+  expect(isNewSession(null, 1000)).toBe(true);
+  expect(isNewSession(1000, 1000 + 10 * 60000)).toBe(false);
+  const o = await Owner.create({ name: 'Actif', email: 'actif590@example.test', password: 'MotDePasse590!', city: 'Paris', country: 'FR' });
+  const req = { headers: { 'x-app-platform': 'ios', 'x-app-version': '590' } };
+  const t0 = Date.now();
+  _seen.clear();
+  expect(await recordActivity(req, o._id, 'owner', t0)).toBeTruthy();
+  expect(await recordActivity(req, o._id, 'owner', t0 + 5 * 60000)).toBeNull();
+  _seen.clear(); // redémarrage du serveur : la base empêche le doublon
+  expect(await recordActivity(req, o._id, 'owner', t0 + 6 * 60000)).toBeNull();
+  expect(await recordActivity(req, o._id, 'owner', t0 + 45 * 60000)).toBeTruthy();
+  const s = (await activitySummary({ days: 1 })).find((u) => u.userId === String(o._id));
+  expect(s).toMatchObject({ sessions: 2, platform: 'ios', appVersion: '590', city: 'Paris', country: 'FR', name: 'Actif' });
+});

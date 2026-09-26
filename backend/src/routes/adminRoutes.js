@@ -1488,6 +1488,23 @@ router.post('/users/:id/unblock', requireAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// v590 — « Dernière connexion : date, heure, lieu, qu'on voie l'activité ».
+router.get('/activity', requireAdmin, async (req, res) => {
+  try {
+    const { activitySummary } = require('../utils/activity590');
+    const users = (await activitySummary({ days: Number(req.query.days) || 30 }))
+      .map((u) => ({ ...u, email: _plainEmail(u.email) }));
+    res.json({ users });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/activity/:userId', requireAdmin, async (req, res) => {
+  try {
+    const { userSessions } = require('../utils/activity590');
+    res.json({ sessions: await userSessions(req.params.userId) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/blocked-users', requireAdmin, async (req, res) => {
   try {
     const { listBlocked } = require('../utils/userBlock590');

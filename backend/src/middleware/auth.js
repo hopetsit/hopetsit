@@ -49,6 +49,12 @@ const requireAuth = async (req, res, next) => {
         return res.status(401).json({ error: msg, status: user.status });
       }
     }
+    // v590 — onglet « Dernière connexion » de l'admin (sans attendre, jamais bloquant).
+    if (process.env.NODE_ENV !== 'test' || process.env.ACTIVITY_IN_TESTS === '1') {
+      try {
+        require('../utils/activity590').recordActivity(req, payload.id, payload.role).catch(() => {});
+      } catch (_) { /* jamais bloquant */ }
+    }
     return next();
   } catch (error) {
     logger.error('Auth middleware error', error);
