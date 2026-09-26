@@ -13,7 +13,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:material_symbols_icons/symbols.dart';
 
 class PawJewelPalette {
   const PawJewelPalette(this.light, this.mid, this.dark);
@@ -90,7 +89,7 @@ Color pawRoleSolid(String role) {
   }
 }
 
-/// Icône Material Symbols Rounded pleine (FILL 1, wght 600, GRAD 200, opsz 48).
+/// Icône Material Symbols Rounded pleine (police figée `PawSymbols`, v591).
 class PawSymbol extends StatelessWidget {
   const PawSymbol(this.icon, {super.key, required this.size, this.color = Colors.white});
   final IconData icon;
@@ -99,15 +98,7 @@ class PawSymbol extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Icon(
-      icon,
-      size: size,
-      color: color,
-      fill: 1,
-      weight: 600,
-      grade: 200,
-      opticalSize: 48,
-    );
+    return Icon(icon, size: size, color: color);
   }
 }
 
@@ -351,24 +342,34 @@ class PawFollowersBadge extends StatelessWidget {
 }
 
 /// Icônes Symbols utilisées par la PawMap (une seule source).
+///
+/// v591 — Daniel : « 4 boutons sans dessin » + « le bouton fermer n'apparaît
+/// pas ». Cause mesurée sur l'AAB et l'IPA 590 : au build release, Flutter
+/// réduit la police VARIABLE Material Symbols aux seules icônes utilisées et
+/// abîme sa table de variations (gvar) → dessinées pleines/grasses, 16 icônes
+/// sur 24 sortaient vides ou fausses (le debug, police complète, ne le montre
+/// pas). Correctif : police FIGÉE `PawSymbols` (Material Symbols Rounded
+/// instanciée à FILL 1 · wght 600 · GRAD 200 · opsz 48, sans variations),
+/// que la réduction du build garde intacte. Mêmes codes que le paquet.
 class PawSymbols {
-  static const IconData chat = Symbols.forum_rounded;
-  static const IconData photo = Symbols.photo_camera_rounded;
-  static const IconData spots = Symbols.award_star_rounded;
-  static const IconData tag = Symbols.add_location_alt_rounded;
-  static const IconData feed = Symbols.tour_rounded;
-  static const IconData report = Symbols.warning_rounded;
-  static const IconData friends = Symbols.group_rounded;
-  static const IconData route = Symbols.route_rounded;
-  static const IconData around = Symbols.explore_nearby_rounded;
-  static const IconData help = Symbols.question_mark_rounded;
-  static const IconData search = Symbols.search_rounded;
-  static const IconData refresh = Symbols.refresh_rounded;
-  static const IconData settings = Symbols.settings_rounded;
-  static const IconData publish = Symbols.campaign_rounded;
-  static const IconData requests = Symbols.assignment_rounded;
-  static const IconData walk = Symbols.directions_walk_rounded;
-  static const IconData home = Symbols.home_rounded;
-  static const IconData close = Symbols.close_rounded;
-  static const IconData chevronRight = Symbols.chevron_right_rounded;
+  static const String _family = 'PawSymbols';
+  static const IconData chat = IconData(0xe8af, fontFamily: _family);
+  static const IconData photo = IconData(0xe412, fontFamily: _family);
+  static const IconData spots = IconData(0xf612, fontFamily: _family);
+  static const IconData tag = IconData(0xef3a, fontFamily: _family);
+  static const IconData feed = IconData(0xef75, fontFamily: _family);
+  static const IconData report = IconData(0xf083, fontFamily: _family);
+  static const IconData friends = IconData(0xea21, fontFamily: _family);
+  static const IconData route = IconData(0xeacd, fontFamily: _family);
+  static const IconData around = IconData(0xe538, fontFamily: _family);
+  static const IconData help = IconData(0xeb8b, fontFamily: _family);
+  static const IconData search = IconData(0xef7a, fontFamily: _family);
+  static const IconData refresh = IconData(0xe5d5, fontFamily: _family);
+  static const IconData settings = IconData(0xe8b8, fontFamily: _family);
+  static const IconData publish = IconData(0xef49, fontFamily: _family);
+  static const IconData requests = IconData(0xe85d, fontFamily: _family);
+  static const IconData walk = IconData(0xe536, fontFamily: _family);
+  static const IconData home = IconData(0xe9b2, fontFamily: _family);
+  static const IconData close = IconData(0xe5cd, fontFamily: _family);
+  static const IconData chevronRight = IconData(0xe5cc, fontFamily: _family);
 }

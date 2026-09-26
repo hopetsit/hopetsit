@@ -1,3 +1,4 @@
+import 'package:hopetsit/controllers/posts_controller.dart';
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
@@ -282,6 +283,12 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
           final type = (map['type'] as String?) ?? '';
           final lower = type.toLowerCase();
           unreadCount.value = unreadCount.value + 1;
+          // v591 — audit du 26/09 : une nouvelle demande près de moi
+          // n'apparaissait sur l'accueil qu'au tirage vers le bas. On recharge
+          // le fil des demandes dès que la notification arrive.
+          if (lower == 'new_request_nearby' && Get.isRegistered<PostsController>()) {
+            unawaited(Get.find<PostsController>().loadReservationRequests());
+          }
 
           // v23.1.182 — Daniel : "il faut jme deco et reco pour voir la
           // nouvelle notif au lieu que se soit instentanee". Le backend

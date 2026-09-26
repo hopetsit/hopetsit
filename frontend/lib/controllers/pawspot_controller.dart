@@ -259,8 +259,13 @@ class PawSpotController extends GetxController {
     return pawspotActive.value;
   }
 
-  /// GET /pawspots/nearby — spots publics autour d'un point (25 km).
-  Future<void> loadNearby(LatLng center) async {
+  /// GET /pawspots/nearby — spots publics autour d'un point.
+  /// v591 — Daniel : « quand je dézoome je ne les vois plus ». Le rayon était
+  /// figé à 25 km : au-delà, aucun spot n'était chargé. [radiusM] = rayon de
+  /// la zone visible (25 à 300 km), mémorisé pour les rechargements suivants.
+  double _radiusM = 25000;
+  Future<void> loadNearby(LatLng center, {double? radiusM}) async {
+    if (radiusM != null) _radiusM = radiusM.clamp(25000, 300000).toDouble();
     final api = _api;
     if (api == null) return;
     isLoading.value = true;
@@ -270,7 +275,7 @@ class PawSpotController extends GetxController {
         queryParameters: {
           'lat': center.latitude.toString(),
           'lng': center.longitude.toString(),
-          'radius': '25000',
+          'radius': _radiusM.round().toString(),
         },
         requiresAuth: true,
       );

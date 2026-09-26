@@ -1,7 +1,7 @@
 name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 23.1.578+590
+version: 23.1.578+591
 
 environment:
   sdk: ^3.9.2
@@ -127,7 +127,7 @@ dependencies:
   record: ^6.2.1
   audioplayers: ^6.7.1
   http_parser: ^4.1.2
-  material_symbols_icons: ^4.2960.0
+  # v591 — material_symbols_icons retiré : police figée assets/pawsymbols (PawSymbols).
 
 dev_dependencies:
   flutter_test:
@@ -194,3 +194,11 @@ flutter:
     - assets/sounds/
     - assets/fonts/
     - .env
+
+  # v591 — icônes de la PawMap : police figée (voir PawSymbols dans
+  # lib/views/map/widgets/pawmap_jewel.dart). Hors de assets/fonts/ pour ne
+  # pas être embarquée deux fois.
+  fonts:
+    - family: PawSymbols
+      fonts:
+        - asset: assets/pawsymbols/PawSymbolsRounded.ttf

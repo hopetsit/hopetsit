@@ -255,6 +255,9 @@ class PublishReservationRequestController extends GetxController {
     return null;
   }
 
+  /// v591 — ville à laquelle se rapportent userLat/userLng (en minuscules).
+  String _coordsCity = '';
+
   @override
   void onInit() {
     super.onInit();
@@ -262,6 +265,17 @@ class PublishReservationRequestController extends GetxController {
     cityController.addListener(() {
       if (cityText.value != cityController.text) {
         cityText.value = cityController.text;
+      }
+      // v591 — audit du 26/09 : GPS puis autre ville tapée à la main → les
+      // anciennes coordonnées partaient avec l'annonce (mauvais endroit sur la
+      // carte). Ville changée = coordonnées oubliées ; le serveur géocode la
+      // nouvelle ville.
+      final typed = cityController.text.trim().toLowerCase();
+      if (_coordsCity.isNotEmpty && typed != _coordsCity &&
+          (userLat.value != null || userLng.value != null)) {
+        userLat.value = null;
+        userLng.value = null;
+        _coordsCity = '';
       }
     });
     // v441 — en mode édition, on pré-remplit les champs scalaires AVANT le
@@ -354,6 +368,7 @@ class PublishReservationRequestController extends GetxController {
     }
     if (p.location?.lat != null) userLat.value = p.location!.lat;
     if (p.location?.lng != null) userLng.value = p.location!.lng;
+    if (userLat.value != null) _coordsCity = city.toLowerCase();
 
     // Toggle « Afficher le caractère des animaux ».
     showAnimalCharacter.value = p.showAnimalCharacter;
@@ -490,6 +505,7 @@ class PublishReservationRequestController extends GetxController {
       }
       if (city.isNotEmpty) {
         detectedCity.value = city;
+        _coordsCity = city.toLowerCase();
         cityController.text = city;
         if (street.isNotEmpty) addressController.text = street;
         CustomSnackbar.showSuccess(

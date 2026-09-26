@@ -263,6 +263,30 @@ class _PawMapScreenState extends State<PawMapScreen>
   bool get _friendsOnly => _visibility != 'all';
   /// v584 — idée 4 : filtre « Disponible aujourd'hui ».
   final RxBool _availableTodayOnly = false.obs;
+  // v591 — Daniel : « le pop-up Filtres actifs, qu'il disparaisse ». Visible
+  // 5 s à l'ouverture et après chaque changement de filtre, puis replié en
+  // pastille sur le bouton Réglages (« Tout afficher » reste dans le panneau).
+  final RxBool _filtersBannerShown = true.obs;
+  Timer? _filtersBannerTimer;
+  Worker? _filtersBannerWorker;
+  bool get _filtersHidePeople =>
+      _memberRoles.length < 3 ||
+      !_showFriends.value ||
+      !_showProviders.value ||
+      _availableTodayOnly.value;
+  // v591 — rayon de chargement des PawSpots = zone visible (≈ 40 000 km / 2^zoom
+  // de large → on prend les ¾ comme rayon), borné 25-300 km.
+  double get _spotRadiusM =>
+      (40000 / math.pow(2, _zoomLevel.clamp(1, 20)) * 0.75 * 1000)
+          .clamp(25000, 300000)
+          .toDouble();
+  void _flashFiltersBanner() {
+    _filtersBannerShown.value = true;
+    _filtersBannerTimer?.cancel();
+    _filtersBannerTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) _filtersBannerShown.value = false;
+    });
+  }
   /// v584 — idée 8 : les membres à moins de 50 km (compteur cliquable).
   List<Map<String, dynamic>> _aroundMembers = const [];
   final RxBool _showReports = true.obs;
@@ -328,6 +352,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   double _zoomLevel = _restoreLastZoom();
   /// v550 — dernier centre réellement rechargé (voir `_scheduleReload`).
   LatLng? _lastReloadCenter;
+  // v591 — rayon des PawSpots au dernier chargement (dézoom sans déplacement).
+  double _lastSpotRadiusM = 25000;
   // v584 — la couleur du rôle s'affiche À TOUS LES ZOOMS (légende du 23/09 :
   // fini le rose fluo dézoomé). Plus de seuil `_roleColorZoom`.
   /// v551 — Daniel : « filtres par type, joli et minimaliste, pas de slide ».
@@ -469,6 +495,14 @@ class _PawMapScreenState extends State<PawMapScreen>
   @override
   void initState() {
     super.initState();
+    // v591 — bandeau « Filtres actifs » : 5 s puis pastille (voir _flashFiltersBanner).
+    _filtersBannerTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) _filtersBannerShown.value = false;
+    });
+    _filtersBannerWorker = everAll(
+      [_availableTodayOnly, _showFriends, _showProviders, _memberRoles],
+      (_) => _flashFiltersBanner(),
+    );
     // v465 — on entre toujours en mode NORMAL (jamais bloqué en agrandi).
     // v557 — écrire un Rx pendant initState déclenche « setState() called
     // during build » sur les Obx qui l'écoutent (vu en debug) → différé
@@ -680,7 +714,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       final stored = GetStorage().read('pawspot_layer_on');
       if (stored != false) {
         _showPawSpots.value = true;
-        unawaited(_pawSpotController.loadNearby(_currentCenter));
+        unawaited(_pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM));
       }
     }));
 
@@ -1685,6 +1719,8 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   @override
   void dispose() {
+    _filtersBannerTimer?.cancel();
+    _filtersBannerWorker?.dispose();
     // v589 — plus de signal « je suis ce direct » après la carte.
     _followPresenceTimer?.cancel();
     if (_followUserId != null) {
@@ -1816,6 +1852,18 @@ class _PawMapScreenState extends State<PawMapScreen>
     } else {
       Get.to(page);
     }
+  }
+
+  /// v591 — audit du 26/09 : après une annonce publiée depuis la PawMap,
+  /// « Ma demande » n'apparaissait qu'après avoir déplacé la carte. On
+  /// recharge au retour du formulaire.
+  Future<void> _openPublishForm() async {
+    if (Navigator.of(context).canPop()) {
+      Get.off(() => const PublishReservationRequestScreen());
+      return;
+    }
+    await Get.to(() => const PublishReservationRequestScreen());
+    if (mounted) unawaited(_loadMyRequests());
   }
 
   /// v590 — une fois par ouverture : voir `POST /users/me/home-position`.
@@ -2310,7 +2358,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _reportController.loadNearby(_currentCenter),
       // v23.1.353 — refonte PawSpot : recharge aussi les spots 🐾 quand la
       // couche est active (pan/zoom → nouveaux spots autour du centre).
-      if (_showPawSpots.value) _pawSpotController.loadNearby(_currentCenter),
+      if (_showPawSpots.value) _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM),
     ];
     // Demandes layer is sitter/walker only — don't waste a round-trip on
     // owner sessions.
@@ -2463,7 +2511,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         queryParameters: {
           'lat': _currentCenter.latitude.toString(),
           'lng': _currentCenter.longitude.toString(),
-          'maxDistance': '25',
+          // v591 — audit du 26/09 : 25 km figés ici, 50 km par défaut sur
+          // l'accueil → une annonce visible sur l'accueil manquait sur la
+          // carte. Au moins 50 km, davantage si la carte montre plus large.
+          'maxDistance': (_spotRadiusM / 1000).clamp(50, 500).round().toString(),
         },
         requiresAuth: true,
       );
@@ -2535,9 +2586,17 @@ class _PawMapScreenState extends State<PawMapScreen>
             111.32;
         // Rayon visible approximatif : ~40 000 km / 2^zoom.
         final visibleKm = 40000 / math.pow(2, _zoomLevel.clamp(1, 20));
-        if (dKm < math.max(0.3, visibleKm * 0.25)) return;
+        if (dKm < math.max(0.3, visibleKm * 0.25)) {
+          // v591 — dézoom sur place : recharger les PawSpots sur la zone agrandie.
+          if (_showPawSpots.value && _spotRadiusM > _lastSpotRadiusM * 1.4) {
+            _lastSpotRadiusM = _spotRadiusM;
+            unawaited(_pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM));
+          }
+          return;
+        }
       }
       _lastReloadCenter = _currentCenter;
+      _lastSpotRadiusM = _spotRadiusM;
       _reloadAtCenter();
     });
   }
@@ -3363,7 +3422,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   /// Zoom « rue » à partir duquel le prix s'affiche sous l'épingle (idée 2).
-  static const double _priceZoom = 15;
+  // v591 — Daniel : « que la bulle prix s'affiche un peu avant de trop zoomer » (15 → 13).
+  static const double _priceZoom = 13;
 
   // ── fabriques d'épingles (cache PawMapPinCache) ──────────────────────────
 
@@ -4900,11 +4960,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                           // rien dire. Dès qu'un filtre cache des personnes :
                           // « Filtres actifs · Tout afficher », un appui remet tout.
                           Obx(() {
-                            final hidden = _memberRoles.length < 3 ||
-                                !_showFriends.value ||
-                                !_showProviders.value ||
-                                _availableTodayOnly.value;
-                            if (!hidden || !_viewerLoggedIn) return const SizedBox.shrink();
+                            final hidden = _filtersHidePeople;
+                            final shown = _filtersBannerShown.value;
+                            if (!hidden || !shown || !_viewerLoggedIn) {
+                              return const SizedBox.shrink();
+                            }
                             return Align(
                               alignment: Alignment.centerLeft,
                               child: Padding(
@@ -5171,12 +5231,16 @@ class _PawMapScreenState extends State<PawMapScreen>
           // il est au milieu : le mettre en haut à droite, icône paramètres
           // style iPhone, même orange, à droite du bouton actualiser ».
           SizedBox(width: 2.w),
-          _headerRoundButton(
-            key: const ValueKey<String>('pawmap_header_options'),
-            icon: PawSymbols.settings,
-            label: 'pawmap589_options'.tr,
-            onTap: () => unawaited(_sheetTo(PawSheetStop.high)),
-          ),
+          // v591 — pastille tant qu'un filtre cache des personnes.
+          Obx(() => _headerRoundButton(
+                key: const ValueKey<String>('pawmap_header_options'),
+                icon: PawSymbols.settings,
+                label: 'pawmap589_options'.tr,
+                badge: _filtersHidePeople && _viewerLoggedIn
+                    ? const PawJewelDot()
+                    : null,
+                onTap: () => unawaited(_sheetTo(PawSheetStop.high)),
+              )),
         ],
       ),
     );
@@ -5189,6 +5253,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    Widget? badge,
   }) {
     // v590 — handoff §3.1/§3.2 : les 4 boutons du haut à droite sont des
     // « bijoux » rouges de 40 dp pour les 3 rôles (?, loupe, actualiser,
@@ -5199,6 +5264,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       icon: icon,
       label: label,
       size: 40,
+      badge: badge,
       onTap: onTap,
     );
   }
@@ -5515,7 +5581,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       SignupWallSheet.show(trigger: 'booking');
       return;
     }
-    _openScreen(() => const PublishReservationRequestScreen());
+    unawaited(_openPublishForm());
   }
 
   /// v586 — rond « Direct » (gardien / promeneur) : UN appui bascule le
@@ -7521,7 +7587,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           label: 'pawmap_primary_publish'.tr,
           icon: Icons.campaign_rounded,
           color: roleColor,
-          onTap: () => _openScreen(() => const PublishReservationRequestScreen()),
+          onTap: () => unawaited(_openPublishForm()),
         );
       } else if (_isSitterOrWalker && _requests.isNotEmpty) {
         button = PawSignatureButton(
@@ -7640,7 +7706,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// son profil (onglet Profil).
   void _onEmptyAction() {
     if (_role == 'owner' || _role.isEmpty) {
-      Get.to(() => const PublishReservationRequestScreen());
+      unawaited(_openPublishForm());
     } else {
       openMainTabOr(4, () => const PawMapScreen());
     }
@@ -8055,7 +8121,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (lat != null && lng != null) {
           await _animateFollowCamera(LatLng(lat, lng), zoom: 16);
           _currentCenter = LatLng(lat, lng);
-          await _pawSpotController.loadNearby(_currentCenter);
+          await _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM);
         }
         final spot = _pawSpotController.spots
             .firstWhereOrNull((s) => s.id == spotId);
@@ -9029,7 +9095,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     } else {
       _showPawSpots.value = true;
       GetStorage().write('pawspot_layer_on', true);
-      await _pawSpotController.loadNearby(_currentCenter);
+      await _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM);
       setState(() {});
     }
   }
@@ -9051,7 +9117,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (!_showPawSpots.value) {
           _showPawSpots.value = true;
           GetStorage().write('pawspot_layer_on', true);
-          await _pawSpotController.loadNearby(_currentCenter);
+          await _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM);
         }
       } else {
         _showPawSpots.value = false;
@@ -9073,7 +9139,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       await _togglePawSpotLayer();
       if (!_showPawSpots.value) return; // gating abo → boutique déjà ouverte
     } else if (_pawSpotController.spots.isEmpty) {
-      await _pawSpotController.loadNearby(_currentCenter);
+      await _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM);
     }
     if (!mounted) return;
     await showPawSpotListSheet(
@@ -9109,7 +9175,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     unawaited(_pawSpotController.refreshBenefits());
     _showPawSpots.value = true;
     GetStorage().write('pawspot_layer_on', true);
-    await _pawSpotController.loadNearby(_currentCenter);
+    await _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM);
   }
 
   /// Ouvre la sheet de création — position = pin du viseur (tap/drag) si
@@ -9121,7 +9187,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       position: at ?? _currentCenter,
     );
     if (created == true) {
-      await _pawSpotController.loadNearby(_currentCenter);
+      await _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM);
     }
   }
 
@@ -9162,7 +9228,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         initialPhotoUrl: url,
       );
       if (created == true) {
-        await _pawSpotController.loadNearby(_currentCenter);
+        await _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM);
       }
     } catch (e) {
       debugPrint('[PawMap] spot photo error: $e');
@@ -9184,7 +9250,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         _startDirections(LatLng(s.lat, s.lng));
       },
       onChanged: () =>
-          unawaited(_pawSpotController.loadNearby(_currentCenter)),
+          unawaited(_pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM)),
     );
   }
 

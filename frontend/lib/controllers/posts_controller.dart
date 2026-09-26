@@ -132,11 +132,17 @@ class PostsController extends GetxController {
       // ---------------------------------------------------
 
       // Filter posts without media (no images, no videos, and not postType "media")
+      // v591 — audit du 26/09 : une DEMANDE publiée avec photo n'apparaissait
+      // dans aucune des deux listes de « Mes annonces » (ni media, ni « sans
+      // média ») : le propriétaire ne la voyait pas. Une demande reste ici,
+      // photo ou pas ; seules les vraies publications photo en sont exclues.
       final withoutMedia = allPosts.where((post) {
         final hasImages = post.images.isNotEmpty;
         final hasVideos = post.videos.isNotEmpty;
         final isMediaType = post.postType.toLowerCase() == 'media';
-        return !hasImages && !hasVideos && !isMediaType;
+        if (isMediaType) return false;
+        if (post.postType.toLowerCase() == 'request' || post.isReservationRequest) return true;
+        return !hasImages && !hasVideos;
       }).toList();
       postsWithoutMedia.assignAll(withoutMedia);
       // Reservation requests: any post with request data (dates, location, service, pet)
