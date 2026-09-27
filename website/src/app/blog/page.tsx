@@ -14,6 +14,20 @@ export const metadata: Metadata = {
 
 const POSTS = [
   {
+    slug: "devenir-pet-sitter-paris-15e",
+    lang: "🇫🇷",
+    title: "Devenir pet sitter dans le 15e arrondissement de Paris : le guide",
+    excerpt:
+      "Vaugirard, Convention, parc André-Citroën : le plus grand arrondissement de Paris manque de pet sitters — comment y trouver ses premiers clients.",
+  },
+  {
+    slug: "become-a-pet-sitter-in-san-francisco",
+    lang: "🇺🇸",
+    title: "How to become a pet sitter in San Francisco (and what you can earn)",
+    excerpt:
+      "The Mission, Noe Valley, Golden Gate Park: realistic SF rates ($45-75/day, $25-40/walk) and how to land your first regular clients.",
+  },
+  {
     slug: "faire-garder-son-chien-le-week-end-a-paris",
     lang: "🇫🇷",
     title: "Faire garder son chien le week-end à Paris : le mode d'emploi",

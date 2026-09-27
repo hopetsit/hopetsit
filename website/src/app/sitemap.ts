@@ -25,6 +25,9 @@ const PUBLIC_PATHS = [
   "/remboursement",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  // 2026-W39 — recrutement Paris 15e + San Francisco.
+  "/blog/devenir-pet-sitter-paris-15e",
+  "/blog/become-a-pet-sitter-in-san-francisco",
   // 2026-W38 — garde de week-end à Paris (propriétaires) + Austin (owners).
   "/blog/faire-garder-son-chien-le-week-end-a-paris",
   "/blog/finding-a-pet-sitter-in-austin",
