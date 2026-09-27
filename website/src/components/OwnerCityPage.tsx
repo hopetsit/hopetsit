@@ -519,7 +519,10 @@ export default function OwnerCityPage({
         <GetAppButton label={copy.heroAppLink} className="font-semibold text-owner-dark underline-offset-4 hover:underline" />
       </p>
       <p className="mt-2 text-center text-sm">
-        <TrackedLink href="/map" label="see_map" className="font-semibold text-owner-dark underline-offset-4 hover:underline">{copy.heroSecondary}</TrackedLink>
+        {/* 27/09/2026 (SAM) — /map exige un compte : le visiteur de la pub qui
+            voulait « voir les gardiens » tombait sur la page de connexion.
+            /pawmap est la carte PUBLIQUE, centrée sur la ville. */}
+        <TrackedLink href={`/pawmap?city=${encodeURIComponent(city.name.replace(/\s+\d+\s*(er|e|ème|eme|th|st|nd|rd)?$/i, "").trim() || city.name)}`} label="see_map" className="font-semibold text-owner-dark underline-offset-4 hover:underline">{copy.heroSecondary}</TrackedLink>
       </p>
 
       {/* ——— sous la ligne de flottaison ——— */}
