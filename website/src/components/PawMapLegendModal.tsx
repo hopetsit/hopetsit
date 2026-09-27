@@ -153,7 +153,10 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
   };
   const pins: Row[] = [
     { html: photoPinHtml({ role: "owner", name: "Moi", me: true, meLabel: t("legend_me_label") }), title: t("legend_me"), body: t("legend_me_body"), color: ROLE_COLOR.owner },
-    { html: photoPinHtml({ role: "sitter", name: "Léa Martin", online: true }), title: t("legend_friend"), body: t("legend_friend_body"), color: FRIEND_PINK },
+    // 27/09 — mon rond en « amis seulement » / « masqué » (pointillés + œil barré).
+    { html: photoPinHtml({ role: "owner", name: "Moi", me: true, friendsOnly: true, meLabel: t("legend_me_label") }), title: t("priv2709_mefr_t"), body: t("priv2709_mefr_b"), color: "#17141F" },
+    // 27/09 — ami : halo rose, contour aux couleurs de SES rôles.
+    { html: photoPinHtml({ role: "sitter", roles: ["sitter", "walker"], name: "Léa Martin", online: true }), title: t("legend_friend"), body: t("legend_friend_body"), color: FRIEND_PINK },
     { html: memberPinHtml({ role: "owner" }), title: t("legend_member_owner"), body: t("legend_member_owner_body"), color: ROLE_COLOR.owner },
     { html: memberPinHtml({ role: "sitter" }), title: t("legend_member_sitter"), body: t("legend_member_sitter_body"), color: ROLE_COLOR.sitter },
     { html: memberPinHtml({ role: "walker" }), title: t("legend_member_walker"), body: t("legend_member_walker_body"), color: ROLE_COLOR.walker },
@@ -162,6 +165,14 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     { html: memberPinHtml({ role: "sitter", premium: true }), title: t("legend_premium"), body: t("legend_premium_body"), color: PREMIUM_GOLD },
     { html: memberPinHtml({ role: "walker", boosted: true }), title: t("legend_boost"), body: t("legend_boost_body"), color: PAWBOOST_TURQUOISE },
     { html: memberPinHtml({ role: "walker", pawFollow: true }), title: t("legend_follow"), body: t("legend_follow_body"), color: PAWFOLLOW_VIOLET },
+    // 27/09 — un seul halo à la fois (PawBoost > PawFollow > ami) + couronne.
+    { node: (
+        <span className="flex items-center gap-[5px]">
+          {[["rgba(6,182,212,.75)", "#06B6D4"], ["rgba(124,58,237,.55)", "#7C3AED"], ["rgba(227,90,154,.62)", "#E35A9A"]].map(([g, c]) => (
+            <span key={c} className="block h-[13px] w-[13px] rounded-full border-2 border-white" style={{ background: c, boxShadow: `0 0 7px 3px ${g}` }} />
+          ))}
+        </span>
+      ), title: t("priv2709_halo_t"), body: t("priv2709_halo_b"), color: "#17141F" },
     { html: memberClusterHtml(4, "sitter"), title: t("legend_member_group"), body: t("legend_member_group_body"), color: ROLE_COLOR.sitter },
     { html: memberClusterHtml(3, "walker", true), title: t("legend_member_group_friend"), body: t("legend_member_group_friend_body"), color: FRIEND_PINK },
     { html: requestBubbleHtml({ service: "sitting", priceLabel: "25 €" }), title: t("legend_request"), body: t("legend_request_body"), color: ROLE_COLOR.owner },

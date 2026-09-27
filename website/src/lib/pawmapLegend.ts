@@ -277,6 +277,23 @@ export function extraRoleRings(roles: string[] | null | undefined, all = false):
 }
 
 /**
+ * 27/09 (Daniel) — plus d'anneaux de rôle empilés : le CONTOUR de la photo
+ * porte les rôles, comme le bouton « Profil ». 1 rôle = son dégradé ; 2 ou 3
+ * = contour bicolore / tricolore, ordre fixe propriétaire → gardien → promeneur.
+ */
+export function rolesRingGradient(roles: string[] | null | undefined, fallback: RoleKey): string {
+  const order: RoleKey[] = ["owner", "sitter", "walker"];
+  const set = new Set((roles || []).map(roleKey));
+  const ks = order.filter((k) => set.has(k));
+  if (ks.length < 2) return ringGradient(ks[0] ?? fallback);
+  const n = ks.length;
+  const stops = ks.flatMap((k, i) => [`${ROLE_COLOR[k]} ${((i / n) * 100).toFixed(0)}%`, `${ROLE_COLOR[k]} ${(((i + 1) / n) * 100).toFixed(0)}%`]);
+  return `linear-gradient(135deg,${stops.join(",")})`;
+}
+/** 27/09 — halo ROSE d'un ami (un seul halo : PawBoost > PawFollow > ami). */
+export const FRIEND_GLOW = "box-shadow:0 0 0 4px rgba(227,90,154,.40),0 0 14px 4px rgba(227,90,154,.62),0 3px 8px rgba(23,20,31,.35);";
+
+/**
  * Autre membre : LE plus visible de la carte (25/09, PawMap 584 — même règle
  * que l'app). Rond 46 px avec SA PHOTO quand elle existe (anneau 3 px à la
  * couleur du rôle + liseré blanc), sinon la couleur du rôle et son icône
@@ -286,6 +303,8 @@ export function memberPinHtml(o: MemberPinOptions): string {
   const key = roleKey(o.role);
   const size = o.size ?? 46;
   const grad = ringGradient(key);
+  // 27/09 — contour aux couleurs de TOUS les rôles (plus d'anneaux en plus).
+  const outer = rolesRingGradient(o.roles, key);
   const glow = o.boosted
     ? boostGlowStyle(true)
     : o.pawFollow
@@ -306,11 +325,9 @@ export function memberPinHtml(o: MemberPinOptions): string {
   const disc = o.avatar
     ? `padding:3px;`
     : `padding:${Math.round(size * 0.2)}px;border:2.5px solid #fff;`;
-  // Plusieurs rôles : liserés concentriques aux couleurs des autres rôles,
-  // posés sur un calque à part (la lueur PawBoost anime box-shadow).
-  const rings = extraRoleRings(o.roles);
-  const ringLayer = rings ? `<div style="position:absolute;inset:0;border-radius:50%;box-shadow:${rings};pointer-events:none;"></div>` : "";
-  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}<div style="width:${size}px;height:${size}px;border-radius:50%;background:${grad};${disc}${glow}display:flex;align-items:center;justify-content:center;box-sizing:border-box;position:relative;overflow:hidden;">${body}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : o.verified ? verifiedBadge() : ""}${o.online === true || o.online === false ? onlineDot(12, o.online) : ""}${caption}${bubble}</div>`;
+  // 27/09 — les liserés concentriques des autres rôles sont RETIRÉS : ils
+  // recouvraient la lueur PawBoost. Les rôles sont dans le contour (`outer`).
+  return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${o.avatar ? outer : grad};${disc}${glow}display:flex;align-items:center;justify-content:center;box-sizing:border-box;position:relative;overflow:hidden;">${body}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : o.verified ? verifiedBadge() : ""}${o.online === true || o.online === false ? onlineDot(12, o.online) : ""}${caption}${bubble}</div>`;
 }
 
 /** Échappe une chaîne insérée dans le HTML d'une épingle (nom, URL). */
@@ -363,13 +380,16 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   const size = o.me ? 56 : 50;
   const ring = o.me ? color : FRIEND_PINK;
   const ringStyle = o.friendsOnly ? "dashed" : "solid";
+  // 27/09 — UN seul halo : PawBoost > suivi > PawFollow > ami (rose).
   const glow = o.boosted
     ? boostGlowStyle(true)
     : o.followed
       ? `box-shadow:0 0 0 3px rgba(124,58,237,.45),0 0 10px 3px rgba(124,58,237,.5);animation:hps-follow 1.8s ease-in-out infinite;`
       : o.pawFollow
         ? `box-shadow:0 0 0 4px rgba(124,58,237,.35),0 0 16px 5px rgba(124,58,237,.55),0 3px 8px rgba(23,20,31,.35);`
-        : `box-shadow:0 3px 8px rgba(23,20,31,.35);`;
+        : o.me
+          ? `box-shadow:0 3px 8px rgba(23,20,31,.35);`
+          : FRIEND_GLOW;
   const inner = o.avatar
     ? `<img src="${escapeHtml(o.avatar)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" />`
     : `<span style="color:#fff;font:700 ${o.me ? 18 : 16}px/1 Inter,system-ui,sans-serif;">${escapeHtml(initials(o.name))}</span>`;
@@ -378,8 +398,9 @@ export function photoPinHtml(o: PhotoPinOptions): string {
     : o.caption
       ? `<span style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);background:${o.lost ? "#FFF4E5" : "#fff"};color:${o.lost ? "#9A3412" : color};border:1.5px solid ${o.lost ? "#EA580C" : FRIEND_PINK};border-radius:999px;padding:1px 8px;font:700 11px/1.3 Inter,system-ui,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(23,20,31,.25);">${escapeHtml(o.caption)}</span>`
       : "";
-  const rings = o.me ? "" : extraRoleRings(o.roles, true); // ami : le rose d'abord, puis TOUS ses rôles
-  const ringLayer = rings ? `<div style="position:absolute;inset:0;border-radius:50%;box-shadow:${rings};pointer-events:none;"></div>` : "";
+  // 27/09 — plus d'anneaux de rôle empilés autour d'un ami : son contour
+  // porte ses rôles, le rose passe dans le halo (FRIEND_GLOW).
+  const ringLayer = "";
   const bubble = o.priceDuo ? priceDuoBubbleHtml(o.priceDuo[0], o.priceDuo[1], size) : o.priceBubble ? priceBubbleHtml(o.priceBubble, key, size) : "";
   // 590 (§4) — anneau 3 px en DÉGRADÉ (rose pour un ami, rôle pour moi),
   // liseré blanc 2 px, puis la photo. Mode « amis seulement » : anneau
@@ -387,7 +408,7 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   // 27/09 — Daniel : pointillés invisibles sur le web : le fond (même couleur
   // que l'anneau) passait sous la bordure et bouchait les trous →
   // background-clip:padding-box, les trous laissent voir la carte.
-  const grad = ringGradient(o.me ? key : "friend");
+  const grad = o.me ? ringGradient(key) : rolesRingGradient(o.roles && o.roles.length ? o.roles : [key], key);
   const disc = o.friendsOnly
     ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};background-clip:padding-box;border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div>`
     : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${grad};padding:3px;${glow}box-sizing:border-box;"><div style="width:100%;height:100%;border-radius:50%;border:2px solid #fff;background:${ringGradient(key)};display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div></div>`;

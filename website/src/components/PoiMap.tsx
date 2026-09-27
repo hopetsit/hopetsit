@@ -361,10 +361,14 @@ export type LiveLabels = {
  * est suivi. Un clic ouvre SA fiche (carte du bas, jamais une bulle rognée à
  * 375 px) : « Suivre la balade · en direct », Itinéraire, Message.
  */
-function LiveFriendMarker({ p, isFamily, isPremium, followed, labels, onOpen }: {
+function LiveFriendMarker({ p, isFamily, isPremium, boosted, roles, followed, labels, onOpen }: {
   p: FriendLivePosition;
   isFamily: boolean;
   isPremium?: boolean;
+  /** 27/09 — PawBoost de la personne (n'importe lequel de ses rôles, lu sur les couches membres). */
+  boosted?: boolean;
+  /** 27/09 — tous ses rôles : contour bi/tricolore. */
+  roles?: string[];
   followed: boolean;
   labels?: LiveLabels;
   onOpen: () => void;
@@ -373,11 +377,11 @@ function LiveFriendMarker({ p, isFamily, isPremium, followed, labels, onOpen }: 
   const icon = useMemo(
     () => L.divIcon({
       className: "",
-      html: photoPinHtml({ role: p.role, name: p.name, avatar: p.avatar, premium: isPremium, pawFollow: isFamily && !followed, followed, lost, caption: lost ? labels?.lost : null, online: lost ? false : true }),
+      html: photoPinHtml({ role: p.role, name: p.name, avatar: p.avatar, premium: isPremium, boosted, roles, pawFollow: isFamily && !followed, followed, lost, caption: lost ? labels?.lost : null, online: lost ? false : true }),
       iconSize: [50, 50],
       iconAnchor: [25, 25],
     }),
-    [p.role, p.name, p.avatar, isPremium, isFamily, followed, lost, labels?.lost],
+    [p.role, p.name, p.avatar, isPremium, boosted, (roles || []).join(","), isFamily, followed, lost, labels?.lost],
   );
   return <Marker position={[p.lat, p.lng]} icon={icon} zIndexOffset={followed ? PIN_Z.friendFollowed : PIN_Z.friend} eventHandlers={{ click: onOpen }} />;
 }
@@ -705,6 +709,12 @@ export default function PoiMap({
   // exclus du regroupement, dessinés un par un au-dessus des membres, à
   // tous les zooms, sans plafond.
   const friendMembers = useMemo(() => members.filter((m) => isFriendMember(m, friendSet)), [members, friendSet]);
+  // 27/09 — la personne (couche membres) derrière un ami en direct : son
+  // PawBoost et ses rôles, comme dans l'app (_personBoosted).
+  const liveOwnerOf = (uid: string): NearbyMember | undefined => {
+    const k = String(uid).toLowerCase();
+    return members.find((m) => personIdsOf(m).some((x) => String(x).toLowerCase() === k));
+  };
   const otherMembers = useMemo(() => members.filter((m) => !isFriendMember(m, friendSet)), [members, friendSet]);
   const memberClusters = useMemo(
     () => clusterize(otherMembers, zoomLevel, (m) => (Array.isArray(m.location?.coordinates) && m.location.coordinates.length >= 2 ? [m.location.coordinates[1], m.location.coordinates[0]] : null), MEMBER_CELL_PX),
@@ -1106,6 +1116,8 @@ export default function PoiMap({
             p={p}
             isFamily={familySet.has(p.userId)}
             isPremium={premiumSet.has(p.userId)}
+            boosted={liveOwnerOf(p.userId)?.isBoosted === true}
+            roles={(() => { const m = liveOwnerOf(p.userId); return m ? rolesOf(m).map((r) => r.role) : [p.role]; })()}
             followed={followHaloId === p.userId}
             labels={liveLabels}
             onOpen={() => {
