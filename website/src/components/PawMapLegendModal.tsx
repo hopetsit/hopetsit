@@ -249,6 +249,17 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
 
         <p className="mt-4 rounded-2xl bg-[#17141F] px-4 py-3 text-sm font-semibold text-[#F4C04A]">{t("legend_memo")}</p>
 
+        {/* 27/09 — Daniel : positions floutées ~1 km, seul le Direct est exact. */}
+        <div className="mt-3 flex items-start gap-3 rounded-2xl border border-[#2E9E48]/40 bg-[#E9F7EE] px-4 py-3 dark:border-[#43B862]/40 dark:bg-[#15291B]">
+          <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#43B862,#1F7A37)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold text-[#1F7A37] dark:text-[#7FE39A]">{t("priv2709_title")}</span>
+            <span className="mt-0.5 block break-words text-[13px] leading-snug text-[#23352A] dark:text-[#DDEFE2]">{t("priv2709_body")}</span>
+          </span>
+        </div>
+
         {sections.map((sec) => (
           <section key={sec.id} aria-labelledby={`legend-sec-${sec.id}`} className="mt-6">
             <h3 id={`legend-sec-${sec.id}`} className="flex items-center gap-2 font-display text-lg font-bold text-[#231715] dark:text-[#FBEFE6]">

@@ -9776,3 +9776,5 @@ for (const code of Object.keys(PAWMAP589) as Lang[]) Object.assign(t[code], PAWM
 // 26/09/2026 — PawMap 590 (site) : carte focus, demande, pilule Direct off / En balade.
 import { MAP590 } from "./map590";
 for (const code of Object.keys(MAP590) as Lang[]) Object.assign(t[code], MAP590[code]);
+import { PRIVACY2709 } from "./privacy2709";
+for (const code of Object.keys(PRIVACY2709) as Lang[]) Object.assign(t[code], PRIVACY2709[code]);
