@@ -126,12 +126,39 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     t("v587_where"),
   ].join("\n");
 
+  // 27/09 — Daniel : expliquer les couleurs du bouton « Profil » selon le
+  // rôle et la bulle double prix (mêmes couleurs que la carte).
+  const pill = (bg: string, label: string) => (
+    <span className="inline-flex h-[20px] items-center rounded-full px-2 text-[9.5px] font-bold text-white" style={{ background: bg, boxShadow: "inset 0 0 0 1px rgba(255,255,255,.3)" }}>{label}</span>
+  );
+  const roleColorsRow: Row = {
+    node: (
+      <span className="flex flex-col items-center gap-[3px]">
+        {pill("linear-gradient(170deg,#D9442C,#C92A12 50%,#B8231A)", "›")}
+        {pill("linear-gradient(90deg,#3B78E8 44%,#2E9E48 56%)", "››")}
+        {pill("linear-gradient(90deg,#C92A12 27%,#3B78E8 39%,#3B78E8 61%,#2E9E48 73%)", "›››")}
+      </span>
+    ),
+    title: t("priv2709_roles_t"),
+    body: t("priv2709_roles_b"),
+    color: "#231715",
+  };
+  const duoRow: Row = {
+    node: (
+      <span className="inline-flex h-[22px] items-center gap-[2px] rounded-[8px] px-1 text-[8.5px] font-bold text-white" style={{ background: "linear-gradient(90deg,#4A86F0,#2458C9 45%,#43B862 55%,#1F7A37)", boxShadow: "0 0 0 2px #fff" }}>🏠20·🚶12</span>
+    ),
+    title: t("priv2709_duo_t"),
+    body: t("priv2709_duo_b"),
+    color: ROLE_COLOR.sitter,
+  };
   const pins: Row[] = [
     { html: photoPinHtml({ role: "owner", name: "Moi", me: true, meLabel: t("legend_me_label") }), title: t("legend_me"), body: t("legend_me_body"), color: ROLE_COLOR.owner },
     { html: photoPinHtml({ role: "sitter", name: "Léa Martin", online: true }), title: t("legend_friend"), body: t("legend_friend_body"), color: FRIEND_PINK },
     { html: memberPinHtml({ role: "owner" }), title: t("legend_member_owner"), body: t("legend_member_owner_body"), color: ROLE_COLOR.owner },
     { html: memberPinHtml({ role: "sitter" }), title: t("legend_member_sitter"), body: t("legend_member_sitter_body"), color: ROLE_COLOR.sitter },
     { html: memberPinHtml({ role: "walker" }), title: t("legend_member_walker"), body: t("legend_member_walker_body"), color: ROLE_COLOR.walker },
+    roleColorsRow,
+    duoRow,
     { html: memberPinHtml({ role: "sitter", premium: true }), title: t("legend_premium"), body: t("legend_premium_body"), color: PREMIUM_GOLD },
     { html: memberPinHtml({ role: "walker", boosted: true }), title: t("legend_boost"), body: t("legend_boost_body"), color: PAWBOOST_TURQUOISE },
     { html: memberPinHtml({ role: "walker", pawFollow: true }), title: t("legend_follow"), body: t("legend_follow_body"), color: PAWFOLLOW_VIOLET },
