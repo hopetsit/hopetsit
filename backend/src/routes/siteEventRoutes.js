@@ -19,6 +19,14 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
 const router = express.Router();
+// 27/09 — helmet pose `Cross-Origin-Resource-Policy: same-origin` : le
+// navigateur de hopetsit.com refusait de LIRE la réponse 204 (erreur console
+// ERR_BLOCKED_BY_RESPONSE.NotSameOrigin, la page vue était pourtant comptée).
+// Cette route publique est appelée depuis le site : réponse lisible partout.
+router.use((req, res, next) => {
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+});
 const adminRouter = express.Router();
 const requireAdmin = [requireAuth, requireRole('admin')];
 
