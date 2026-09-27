@@ -3,6 +3,7 @@ import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalP
 import { GetAppButton } from "@/components/GetAppButton";
 import { OwnerSignupCta } from "@/components/OwnerSignupCta";
 import { CitySupplyProof } from "@/components/CitySupplyProof";
+import { TrackedLink } from "@/components/TrackedLink";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 import { RECRUIT_PATH_PREFIX, OWNER_PATH_PREFIX, nearbyCities, NEARBY_LABEL } from "@/lib/recruit-cities";
 
@@ -518,7 +519,7 @@ export default function OwnerCityPage({
         <GetAppButton label={copy.heroAppLink} className="font-semibold text-owner-dark underline-offset-4 hover:underline" />
       </p>
       <p className="mt-2 text-center text-sm">
-        <Link href="/map" className="font-semibold text-owner-dark underline-offset-4 hover:underline">{copy.heroSecondary}</Link>
+        <TrackedLink href="/map" label="see_map" className="font-semibold text-owner-dark underline-offset-4 hover:underline">{copy.heroSecondary}</TrackedLink>
       </p>
 
       {/* ——— sous la ligne de flottaison ——— */}
@@ -580,7 +581,7 @@ export default function OwnerCityPage({
       </div>
 
       <p className="mt-8 text-center text-sm">
-        <Link href={recruitHref} className="font-semibold text-sitter-dark underline-offset-4 hover:underline">{paris ? `${city.name} : devenir pet sitter →` : copy.recruitLink(city)}</Link>
+        <TrackedLink href={recruitHref} label="recruit" className="font-semibold text-sitter-dark underline-offset-4 hover:underline">{paris ? `${city.name} : devenir pet sitter →` : copy.recruitLink(city)}</TrackedLink>
       </p>
 
       {/* v576 — villes voisines : donne à Google un chemin depuis les pages déjà
