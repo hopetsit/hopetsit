@@ -1,3 +1,8 @@
+// 27/09/2026 — LEO : un fichier JSON par langue (src/lib/i18n/generated/),
+// régénéré depuis translations.ts à chaque `next build` / `next dev`, y compris
+// sur Vercel. Le navigateur ne télécharge que la langue affichée.
+require('./scripts/i18n-split.js').generate();
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,

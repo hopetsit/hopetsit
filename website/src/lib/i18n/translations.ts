@@ -2,22 +2,14 @@
 // The 6 locales of the mobile app: EN (default), FR, ES, DE, IT, PT — plus KO and JA (web only).
 // Keys are flat (no nesting) to keep TypeScript inference fast.
 
-export type Lang = "en" | "fr" | "es" | "de" | "it" | "pt" | "ko" | "ja" | "pl";
-
-export const LANGUAGES: { code: Lang; label: string; flag: string }[] = [
-  { code: "en", label: "English", flag: "🇺🇸" },
-  { code: "fr", label: "Français", flag: "🇫🇷" },
-  { code: "es", label: "Español", flag: "🇪🇸" },
-  { code: "de", label: "Deutsch", flag: "🇩🇪" },
-  { code: "it", label: "Italiano", flag: "🇮🇹" },
-  { code: "pt", label: "Português", flag: "🇵🇹" },
-  { code: "ko", label: "한국어", flag: "🇰🇷" },
-  { code: "ja", label: "日本語", flag: "🇯🇵" },
-  // v546 — Daniel : ouverture Varsovie → polonais sur app + site.
-  { code: "pl", label: "Polski", flag: "🇵🇱" },
-];
-
-export const DEFAULT_LANG: Lang = "en";
+// 27/09/2026 — LEO : la liste des langues vit dans langs.ts (réexportée ici,
+// rien ne change pour les imports existants). Ce fichier reste LA source des
+// textes ; scripts/i18n-split.js en tire un JSON par langue, que le
+// navigateur charge à la demande. Ne jamais importer ce fichier depuis un
+// composant "use client" : il ferait retélécharger les 9 langues.
+import type { Lang } from "./langs";
+export type { Lang } from "./langs";
+export { LANGUAGES, DEFAULT_LANG } from "./langs";
 
 type Dict = Record<string, string>;
 type Bundle = Record<Lang, Dict>;

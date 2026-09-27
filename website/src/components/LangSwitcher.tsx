@@ -1,7 +1,7 @@
 "use client";
 
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { LANGUAGES, Lang } from "@/lib/i18n/translations";
+import { LANGUAGES, Lang } from "@/lib/i18n/langs";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // v548 — Daniel : « la sélection des langues n'est pas fluide ». Avant : liste
