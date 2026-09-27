@@ -182,7 +182,14 @@ export default function MapPage() {
   const [friendsOnlyMsg, setFriendsOnlyMsg] = useState<{ kind: StatusToastKind; text: string } | null>(null);
   useEffect(() => {
     if (!getStoredUser()) return;
-    getMapVisibility().then(setVisibility).catch(() => { /* repli : visible par tous */ });
+    // 27/09 — Daniel : synchro avec l'app. Le réglage peut changer depuis le
+    // téléphone : relu à l'ouverture ET à chaque retour sur l'onglet.
+    const load = () => { getMapVisibility().then(setVisibility).catch(() => { /* repli : visible par tous */ }); };
+    load();
+    const onVis = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", load);
+    return () => { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("focus", load); };
   }, []);
   const [liveInfoOpen, setLiveInfoOpen] = useState(false);
   // 25/09 (587, point 1a) — MON direct : le site n'envoie pas de GPS, il lit

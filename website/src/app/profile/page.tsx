@@ -66,7 +66,14 @@ export default function ProfilePage() {
   const [mapVisMsg, setMapVisMsg] = useState<string | null>(null);
   useEffect(() => {
     if (!getStoredUser()) return;
-    getMapVisibility().then(setMapVis).catch(() => { /* repli : Tous */ });
+    // 27/09 — Daniel : synchro avec l'app. Le réglage peut changer depuis le
+    // téléphone : relu à l'ouverture ET à chaque retour sur l'onglet.
+    const load = () => { getMapVisibility().then(setMapVis).catch(() => { /* repli : visible par tous */ }); };
+    load();
+    const onVis = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", load);
+    return () => { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("focus", load); };
   }, []);
   async function changeMapVis(v: MapVisibility) {
     if (mapVisBusy) return;

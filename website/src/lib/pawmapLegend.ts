@@ -384,9 +384,12 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   // 590 (§4) — anneau 3 px en DÉGRADÉ (rose pour un ami, rôle pour moi),
   // liseré blanc 2 px, puis la photo. Mode « amis seulement » : anneau
   // pointillé plein, comme avant (il doit se lire d'un coup d'œil).
+  // 27/09 — Daniel : pointillés invisibles sur le web : le fond (même couleur
+  // que l'anneau) passait sous la bordure et bouchait les trous →
+  // background-clip:padding-box, les trous laissent voir la carte.
   const grad = ringGradient(o.me ? key : "friend");
   const disc = o.friendsOnly
-    ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div>`
+    ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};background-clip:padding-box;border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div>`
     : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${grad};padding:3px;${glow}box-sizing:border-box;"><div style="width:100%;height:100%;border-radius:50%;border:2px solid #fff;background:${ringGradient(key)};display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div></div>`;
   return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}${disc}${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? rocketBadge(o.me ? 20 : 18) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${label}${bubble}</div>`;
 }
