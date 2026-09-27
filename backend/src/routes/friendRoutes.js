@@ -517,7 +517,13 @@ async function _withHiddenFriends(req, payload) {
       .flat();
     if (!missing.length) return payload;
     await require('../utils/geocodeCity').ensureAnchorsLoaded();
-    const sel = 'name avatar profilePicture location preferences.hideFromMap preferences.mapVisibility +homeLocation city updatedAt createdAt email';
+    // v595 — Daniel (27/09) : « les halos de mon frère encore partis ». Un
+    // ami « amis seulement » est ajouté ici, hors du cache partagé : sans
+    // boostExpiry / isStaff / abonnement, il perdait son PawBoost et sa
+    // couronne. Mêmes drapeaux que la couche monde.
+    const sel = 'name avatar profilePicture location preferences.hideFromMap preferences.mapVisibility +homeLocation city updatedAt createdAt email '
+      + 'boostExpiry mapBoostExpiry isStaff oldId kycStatus identityVerification.status '
+      + 'availableDates unavailableDates availableTimeSlots availableDays rating reviewsCount lastSeenAt';
     const docs = (await Promise.all([
       Owner.find({ _id: { $in: missing } }).select(sel).lean()
         .then((r) => r.map((d) => ({ d, role: 'owner' }))),
@@ -528,6 +534,20 @@ async function _withHiddenFriends(req, payload) {
     ])).flat();
     const extra = [];
     const avatarUrl = (a) => (a && (typeof a === 'object' ? a.url : a)) || '';
+    // v595 — abonnés actifs parmi ces amis (couronne).
+    let subIds = new Set();
+    try {
+      const now = new Date();
+      const subs = await require('../models/UserSubscription').find({
+        userId: { $in: docs.map((x) => x.d._id) },
+        $or: [
+          { premiumExpiry: { $gt: now } },
+          { currentPeriodEnd: { $gt: now } },
+          { familyExpiry: { $gt: now } },
+        ],
+      }).select('userId').lean();
+      subIds = new Set(subs.map((x) => String(x.userId)));
+    } catch (_) { /* sans abonnements : pas de couronne, jamais d'erreur */ }
     const { groupByPerson, pickPersonPosition } = require('../utils/personMapPosition');
     // v587 (point 11) — TOUT ami absent du cache est réinjecté pour ce viewer :
     // « amis seulement » (jamais dans le cache partagé), mais aussi « visible
@@ -549,12 +569,22 @@ async function _withHiddenFriends(req, payload) {
         name: d.name || '',
         avatar: entries.map((e) => avatarUrl(e.d.avatar) || avatarUrl(e.d.profilePicture)).find(Boolean) || '',
         location: fp.location,
-        isPremium: false,
-        isPawSpot: false,
+        // v595 — couronne : staff ou abonné (un rôle suffit).
+        isPremium: entries.some((e) => e.d.isStaff === true)
+          || entries.some((e) => subIds.has(String(e.d._id))),
+        isPawSpot: entries.some((e) => e.d.mapBoostExpiry && new Date(e.d.mapBoostExpiry) > new Date()),
         approx: true,
         approxKm: WORLD_APPROX_KM,
         hiddenFromMap: fp.mapVisibility === 'friends',
         isFriend: true,
+        ...mapVisibility.pinFlags(d, new Date()),
+        // v595 — PawBoost de la personne (n'importe lequel de ses rôles).
+        isBoosted: entries.some((e) => mapVisibility.isBoosted(e.d, new Date())),
+        lastSeenAt: (() => {
+          const t = entries.map((e) => (e.d.lastSeenAt ? new Date(e.d.lastSeenAt).getTime() : 0))
+            .reduce((m, x) => Math.max(m, x), 0);
+          return t > 0 ? new Date(t).toISOString() : null;
+        })(),
       });
     }
     if (!extra.length) return payload;

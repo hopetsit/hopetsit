@@ -26,7 +26,7 @@ const DOCS = {
     { _id: 'friend1', email: 'friend@example.test', name: 'Ami', location: { type: 'Point', coordinates: [LNG + 0.005, LAT] }, preferences: {} },
   ],
   Sitter: [
-    { _id: 'me1', email: 'me@example.test', name: 'Moi', location: { type: 'Point', coordinates: [LNG, LAT] }, preferences: { hideFromMap: true }, mapBoostExpiry: FUTURE, kycStatus: 'verified' },
+    { _id: 'me1', email: 'me@example.test', name: 'Moi', location: { type: 'Point', coordinates: [LNG, LAT] }, preferences: { hideFromMap: true }, mapBoostExpiry: FUTURE, kycStatus: 'verified', boostExpiry: FUTURE, isStaff: true },
     { _id: 'open1', email: 'open@example.test', name: 'Ouvert', location: { type: 'Point', coordinates: [LNG + 0.01, LAT + 0.01] }, preferences: { hideFromMap: false }, mapBoostExpiry: FUTURE },
   ],
   Walker: [
@@ -146,7 +146,7 @@ describe('mode « amis seulement » — /friends/members/nearby et /world, 3 com
     const me = n.body.members.find((m) => m.id === 'me1');
     expect(me.location.coordinates).toEqual([LNG, LAT]);
     expect(me.kycVerified).toBe(true);
-    expect(me.isBoosted).toBe(false);
+    expect(me.isBoosted).toBe(true);
     expect(typeof me.availableToday).toBe('boolean');
 
     const w = await call(world(), FRIEND);
@@ -154,6 +154,10 @@ describe('mode « amis seulement » — /friends/members/nearby et /world, 3 com
     const meWorld = w.body.members.find((m) => m.id === 'me1');
     expect(meWorld.hiddenFromMap).toBe(true);
     expect(meWorld.approx).toBe(true);
+    // v595 — « les halos de mon frère encore partis » : un ami « amis
+    // seulement » garde son PawBoost et sa couronne sur la couche monde.
+    expect(meWorld.isBoosted).toBe(true);
+    expect(meWorld.isPremium).toBe(true);
     // Le cache partagé, lui, ne me contient toujours pas.
     expect(w.body.members.filter((m) => m.id === 'me1')).toHaveLength(1);
   });
