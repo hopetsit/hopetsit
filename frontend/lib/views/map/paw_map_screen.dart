@@ -3791,15 +3791,34 @@ class _PawMapScreenState extends State<PawMapScreen>
         BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
   }
 
-  BitmapDescriptor _spotIcon(String type, bool golden) {
+  BitmapDescriptor _spotIcon(String type, bool golden, {String? label}) {
     final size = golden ? PawMapLegend.spotGoldSize : PawMapLegend.spotSize;
-    final w = PawMapPinPainter.dropBitmapWidth(size);
-    final h = PawMapPinPainter.dropHeight(size);
+    final hasLabel = label != null && label.trim().isNotEmpty;
+    final baseW = PawMapPinPainter.dropBitmapWidth(size);
+    // v597 — nom du PawSpot sous la pointe (comme le site) : le bitmap
+    // s'élargit des deux côtés et s'allonge, l'ancre suit (_spotAnchor).
+    final w = hasLabel
+        ? math.max(baseW, PawMapPinPainter.spotLabelWidth(label.trim()))
+        : baseW;
+    final dx = (w - baseW) / 2;
+    final h = PawMapPinPainter.dropHeight(size) +
+        (hasLabel ? PawMapPinPainter.spotLabelZone : 0);
     return _pins.getOrBuild(
-          'spot:$type:${golden ? 1 : 0}',
+          'spot:$type:${golden ? 1 : 0}:${hasLabel ? label.trim() : ''}',
           w,
           h,
-          (c) => PawMapPinPainter.paintPawSpotDrop(c, type: type, golden: golden),
+          (c) {
+            c.save();
+            c.translate(dx, 0);
+            PawMapPinPainter.paintPawSpotDrop(c, type: type, golden: golden);
+            c.restore();
+            if (hasLabel) {
+              PawMapPinPainter.paintPawSpotLabel(c,
+                  label: label.trim(),
+                  cx: w / 2,
+                  top: PawMapPinPainter.dropMargin + size * 1.32 + 2);
+            }
+          },
         ) ??
         BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow);
   }
@@ -3819,6 +3838,13 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Ancre d'une goutte : la POINTE (bas du bitmap, hors marge).
   Offset _dropAnchor(double width) {
     final h = PawMapPinPainter.dropHeight(width);
+    return Offset(0.5, (PawMapPinPainter.dropMargin + width * 1.32) / h);
+  }
+
+  /// v597 — ancre d'un PawSpot avec ou sans son nom dessous.
+  Offset _spotAnchor(double width, {bool withLabel = false}) {
+    final h = PawMapPinPainter.dropHeight(width) +
+        (withLabel ? PawMapPinPainter.spotLabelZone : 0);
     return Offset(0.5, (PawMapPinPainter.dropMargin + width * 1.32) / h);
   }
 
@@ -4196,7 +4222,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         final role = (p['_role'] ?? '').toString().toLowerCase();
         final name = (p['name'] ?? '').toString();
         final bool premium = p['isPremium'] == true;
-        final bool boosted = p['isBoosted'] == true;
+        // v597 — Daniel (27/09) : « son PawBoost a disparu ». Le boost est
+        // porté par UN rôle (son promeneur) : le point retenu pour la personne
+        // peut être un autre rôle, sans `isBoosted`. On regarde TOUS ses ids.
+        final bool boosted = p['isBoosted'] == true ||
+            pawMapPersonIds(p).any(_personBoosted);
         if (boosted) _anyBoosted = true;
         final bool online = p['isOnline'] != false && p['online'] != false;
         final bool selected = _selectedNearbyId == id;
@@ -4460,14 +4490,20 @@ class _PawMapScreenState extends State<PawMapScreen>
         final spot = group.first;
         final size =
             spot.isGolden ? PawMapLegend.spotGoldSize : PawMapLegend.spotSize;
+        final String? spotLabel =
+            _zoomLevel >= _priceZoom && spot.name.trim().isNotEmpty
+                ? spot.name.trim()
+                : null;
         markers.add(
           Marker(
             markerId: MarkerId('pawspot_${spot.id}'),
             position: LatLng(spot.lat, spot.lng),
-            anchor: _dropAnchor(size),
+            // v597 — le nom sous la goutte au zoom rue (même seuil que les
+            // prix et le site : `showPrice ? spot.name : null`).
+            anchor: _spotAnchor(size, withLabel: spotLabel != null),
             // v590 — handoff §6 : au-dessus des lieux et des signalements.
             zIndexInt: spot.isGolden ? 6 : 5,
-            icon: _spotIcon(spot.type, spot.isGolden),
+            icon: _spotIcon(spot.type, spot.isGolden, label: spotLabel),
             // v592 — Daniel (capture) : la bulle Google « nom / type » restait
             // ouverte et cachait le PawSpot voisin ; la fiche s'ouvre déjà au
             // toucher, la bulle est retirée.
@@ -4543,7 +4579,8 @@ class _PawMapScreenState extends State<PawMapScreen>
         final isPremiumMember = premiumMemberIds.contains(normPosId);
         // v594 — Daniel : « en balade, mon halo PawBoost disparaît ». Le rond
         // « direct » ne savait pas que la personne est boostée.
-        final bool liveBoosted = _personBoosted(pos.userId);
+        final bool liveBoosted = _personBoosted(pos.userId) ||
+            (friend?.other?.personIds ?? const <String>[]).any(_personBoosted);
         if (liveBoosted) _anyBoosted = true;
         markers.add(
           Marker(
@@ -4558,7 +4595,9 @@ class _PawMapScreenState extends State<PawMapScreen>
               online: pos.isLive,
               // Signal perdu : rond « éteint » à la couleur du rôle, jamais gris.
               dimmed: pos.isLost,
-              boosted: liveBoosted && !pos.isLost,
+              // v597 — le halo PawBoost reste visible en « signal perdu »
+              // (Daniel : capture du 27/09, halo absent sur le rond éteint).
+              boosted: liveBoosted,
               // v584 — auréole violette qui respire sur la personne SUIVIE.
               followPhase: _followUserId != null &&
                       _followUserId!.trim().toLowerCase() == normPosId &&
@@ -5885,8 +5924,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                       color: live
                           ? const Color(0xFF2A9A48)
                           : (PawMapTheme.isDark(context)
-                              ? const Color(0xFFD2C4BE)
-                              : const Color(0xFF6F5C55)),
+                              ? const Color(0xFFF6F1EE)
+                              : const Color(0xFF17141F)),
                     ),
                   ),
                 ),

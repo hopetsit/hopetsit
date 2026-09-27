@@ -128,6 +128,42 @@ const Map<String, Map<String, String>> help587I18n =
         "Tu pars promener Rex : touche « Direct » en haut à gauche. Tes amis voient ton rond bouger en temps réel. Au retour, touche-le encore et choisis « Arrêter ».",
     'help587_a4':
         "Une barre est peut-être rangée : touche la languette au bord de l'écran. Les barres se cachent aussi quand le panneau Options est ouvert, et reviennent quand tu le ranges. Vérifie enfin « Personnaliser » : un bouton de gauche a pu être retiré.",
+    // 27/09 — confidentialité (~1 km), couleurs des profils, bulle double prix,
+    // un seul halo (mêmes phrases que website/src/lib/i18n/privacy2709.ts).
+    'help2709_priv_t':
+        "Ta position reste privée",
+    'help2709_priv_b':
+        "Sur la carte, personne n'apparaît à son adresse exacte : pour ta sécurité et ta vie privée, chaque membre est placé dans un rayon d'environ 1 km autour de chez lui. Seul le mode Direct montre la position réelle, en temps réel, et uniquement pendant qu'il est activé.",
+    'help2709_me_t':
+        "Moi",
+    'help2709_me_b':
+        "Ma photo, contour à la couleur de mon rôle. Anneau plein = visible par tous.",
+    'help2709_mefr_t':
+        "Moi · amis seulement ou masqué",
+    'help2709_mefr_b':
+        "Anneau en pointillés + œil barré : seuls mes amis me voient (ou personne si je suis masqué). Ce réglage est le même sur l'app et sur le site.",
+    'help2709_friend_t':
+        "Ami",
+    'help2709_friend_b':
+        "Sa photo avec un halo rose ; son contour garde la couleur de ses rôles. Point vert quand il est en ligne ou en direct.",
+    'help2709_roles_t':
+        "Couleurs des profils",
+    'help2709_roles_b':
+        "Le bouton « Profil » et le contour de la photo prennent la couleur du rôle : orange = propriétaire, bleu = gardien, vert = promeneur. Une personne qui a plusieurs rôles a un bouton bicolore ou tricolore, toujours dans cet ordre.",
+    'help2709_duo_t':
+        "Gardien + promeneur : deux prix",
+    'help2709_duo_b':
+        "Une seule bulle bleu et vert donne les deux tarifs : 🏠 la garde, 🚶 la promenade. Si tu filtres un seul rôle, seul son prix s'affiche.",
+    'help2709_follow_t':
+        "PawFollow",
+    'help2709_follow_b':
+        "Lueur violette : suivi en direct (promenade, service).",
+    'help2709_halo_t':
+        "Un seul halo à la fois",
+    'help2709_halo_b':
+        "Turquoise = PawBoost, violet = suivi en direct (PawFollow), rose = ami. Si plusieurs s'appliquent, le PawBoost passe devant, puis le PawFollow, puis l'ami. La couronne dorée PawPremium reste toujours visible en plus.",
+    'help2709_spotname_b':
+        "Au zoom rue, son nom s'affiche sous la goutte : étiquette noire, contour et texte or.",
   },
   'en': <String, String>{
     'help587_sec_find':
@@ -252,6 +288,42 @@ const Map<String, Map<String, String>> help587I18n =
         "You're taking Rex for a walk: tap “Live” at the top left. Your friends see your circle move in real time. When you're back, tap it again and choose “Stop”.",
     'help587_a4':
         "A bar may be put away: tap the tab on the edge of the screen. The bars also hide while the Options panel is open and come back when you close it. Finally, check “Customise”: a left-hand button may have been removed.",
+    // 27/09 — confidentialité (~1 km), couleurs des profils, bulle double prix,
+    // un seul halo (mêmes phrases que website/src/lib/i18n/privacy2709.ts).
+    'help2709_priv_t':
+        "Your location stays private",
+    'help2709_priv_b':
+        "No one is shown at their exact address on the map: for your safety and privacy, every member is placed within about 1 km of their home. Only Live mode shows the real position, in real time, and only while it is switched on.",
+    'help2709_me_t':
+        "Me",
+    'help2709_me_b':
+        "My photo, border in my role's colour. Solid ring = visible to everyone.",
+    'help2709_mefr_t':
+        "Me · friends only or hidden",
+    'help2709_mefr_b':
+        "Dotted ring + crossed eye: only my friends can see me (or nobody if I'm hidden). This setting is the same in the app and on the website.",
+    'help2709_friend_t':
+        "Friend",
+    'help2709_friend_b':
+        "Their photo with a pink halo; the border keeps their role colours. Green dot when online or live.",
+    'help2709_roles_t':
+        "Profile colours",
+    'help2709_roles_b':
+        "The “Profile” button and the photo border take the role's colour: orange = owner, blue = sitter, green = walker. Someone with several roles gets a two- or three-colour button, always in that order.",
+    'help2709_duo_t':
+        "Sitter + walker: two prices",
+    'help2709_duo_b':
+        "One blue-and-green bubble shows both rates: 🏠 sitting, 🚶 walking. If you filter a single role, only its price is shown.",
+    'help2709_follow_t':
+        "PawFollow",
+    'help2709_follow_b':
+        "Purple glow: live tracking (walk, service).",
+    'help2709_halo_t':
+        "One halo at a time",
+    'help2709_halo_b':
+        "Turquoise = PawBoost, purple = live tracking (PawFollow), pink = friend. If several apply, PawBoost comes first, then PawFollow, then friend. The gold PawPremium crown always stays visible on top.",
+    'help2709_spotname_b':
+        "At street zoom, its name appears under the drop: black label, gold border and text.",
   },
   'es': <String, String>{
     'help587_sec_find':
@@ -376,6 +448,42 @@ const Map<String, Map<String, String>> help587I18n =
         "Sales a pasear a Rex: toca «En vivo» arriba a la izquierda. Tus amigos ven tu círculo moverse en tiempo real. Al volver, tócalo otra vez y elige «Detener».",
     'help587_a4':
         "Quizá una barra está guardada: toca la pestaña del borde de la pantalla. Las barras también se ocultan con el panel Opciones abierto y vuelven al cerrarlo. Revisa por último «Personalizar»: puede que se haya quitado un botón de la izquierda.",
+    // 27/09 — confidentialité (~1 km), couleurs des profils, bulle double prix,
+    // un seul halo (mêmes phrases que website/src/lib/i18n/privacy2709.ts).
+    'help2709_priv_t':
+        "Tu ubicación sigue siendo privada",
+    'help2709_priv_b':
+        "En el mapa nadie aparece en su dirección exacta: por tu seguridad y tu privacidad, cada miembro se sitúa en un radio de unos 1 km alrededor de su casa. Solo el modo Directo muestra la posición real, en tiempo real, y únicamente mientras está activado.",
+    'help2709_me_t':
+        "Yo",
+    'help2709_me_b':
+        "Mi foto, borde del color de mi rol. Anillo lleno = visible para todos.",
+    'help2709_mefr_t':
+        "Yo · solo amigos u oculto",
+    'help2709_mefr_b':
+        "Anillo punteado + ojo tachado: solo mis amigos me ven (o nadie si estoy oculto). Este ajuste es el mismo en la app y en la web.",
+    'help2709_friend_t':
+        "Amigo",
+    'help2709_friend_b':
+        "Su foto con un halo rosa; el borde conserva el color de sus roles. Punto verde si está en línea o en vivo.",
+    'help2709_roles_t':
+        "Colores de los perfiles",
+    'help2709_roles_b':
+        "El botón «Perfil» y el borde de la foto toman el color del rol: naranja = dueño, azul = cuidador, verde = paseador. Quien tiene varios roles tiene un botón de dos o tres colores, siempre en este orden.",
+    'help2709_duo_t':
+        "Cuidador + paseador: dos precios",
+    'help2709_duo_b':
+        "Una sola burbuja azul y verde muestra las dos tarifas: 🏠 el cuidado, 🚶 el paseo. Si filtras un solo rol, solo aparece su precio.",
+    'help2709_follow_t':
+        "PawFollow",
+    'help2709_follow_b':
+        "Halo violeta: seguimiento en vivo (paseo, servicio).",
+    'help2709_halo_t':
+        "Un solo halo a la vez",
+    'help2709_halo_b':
+        "Turquesa = PawBoost, violeta = seguimiento en vivo (PawFollow), rosa = amigo. Si se aplican varios, primero el PawBoost, luego el PawFollow y luego el amigo. La corona dorada PawPremium siempre sigue visible además.",
+    'help2709_spotname_b':
+        "Con zoom de calle, su nombre aparece bajo la gota: etiqueta negra, borde y texto dorados.",
   },
   'de': <String, String>{
     'help587_sec_find':
@@ -500,6 +608,42 @@ const Map<String, Map<String, String>> help587I18n =
         "Du gehst mit Rex Gassi: Tippe oben links auf „Live“. Deine Freunde sehen deinen Kreis in Echtzeit wandern. Zurück zu Hause tippst du erneut darauf und wählst „Beenden“.",
     'help587_a4':
         "Vielleicht ist eine Leiste weggeräumt: Tippe auf die Lasche am Bildschirmrand. Die Leisten verschwinden auch, solange das Panel Optionen offen ist, und kommen zurück, wenn du es schließt. Prüfe zuletzt „Anpassen“: Ein linker Button wurde vielleicht entfernt.",
+    // 27/09 — confidentialité (~1 km), couleurs des profils, bulle double prix,
+    // un seul halo (mêmes phrases que website/src/lib/i18n/privacy2709.ts).
+    'help2709_priv_t':
+        "Dein Standort bleibt privat",
+    'help2709_priv_b':
+        "Auf der Karte erscheint niemand an seiner genauen Adresse: Zu deiner Sicherheit und zum Schutz deiner Privatsphäre wird jedes Mitglied in einem Umkreis von etwa 1 km um sein Zuhause angezeigt. Nur der Live-Modus zeigt die echte Position, in Echtzeit, und nur solange er eingeschaltet ist.",
+    'help2709_me_t':
+        "Ich",
+    'help2709_me_b':
+        "Mein Foto, Rand in der Farbe meiner Rolle. Durchgehender Ring = für alle sichtbar.",
+    'help2709_mefr_t':
+        "Ich · nur Freunde oder verborgen",
+    'help2709_mefr_b':
+        "Gepunkteter Ring + durchgestrichenes Auge: Nur meine Freunde sehen mich (oder niemand, wenn ich verborgen bin). Die Einstellung ist in der App und auf der Website dieselbe.",
+    'help2709_friend_t':
+        "Freund",
+    'help2709_friend_b':
+        "Sein Foto mit rosa Schein; der Rand behält die Farben seiner Rollen. Grüner Punkt, wenn online oder live.",
+    'help2709_roles_t':
+        "Farben der Profile",
+    'help2709_roles_b':
+        "Der Button „Profil“ und der Rand des Fotos haben die Farbe der Rolle: Orange = Halter, Blau = Sitter, Grün = Gassigeher. Wer mehrere Rollen hat, bekommt einen zwei- oder dreifarbigen Button, immer in dieser Reihenfolge.",
+    'help2709_duo_t':
+        "Sitter + Gassigeher: zwei Preise",
+    'help2709_duo_b':
+        "Eine blau-grüne Blase zeigt beide Preise: 🏠 Betreuung, 🚶 Gassigehen. Wenn du nur eine Rolle filterst, siehst du nur ihren Preis.",
+    'help2709_follow_t':
+        "PawFollow",
+    'help2709_follow_b':
+        "Violettes Leuchten: Live-Verfolgung (Gassi, Service).",
+    'help2709_halo_t':
+        "Immer nur ein Schein",
+    'help2709_halo_b':
+        "Türkis = PawBoost, Violett = Live-Verfolgung (PawFollow), Rosa = Freund. Treffen mehrere zu, geht PawBoost vor, dann PawFollow, dann Freund. Die goldene PawPremium-Krone bleibt immer zusätzlich sichtbar.",
+    'help2709_spotname_b':
+        "Beim Straßen-Zoom erscheint sein Name unter dem Tropfen: schwarzes Schild, goldener Rand und goldene Schrift.",
   },
   'it': <String, String>{
     'help587_sec_find':
@@ -624,6 +768,42 @@ const Map<String, Map<String, String>> help587I18n =
         "Esci a passeggio con Rex: tocca «Diretta» in alto a sinistra. I tuoi amici vedono il tuo cerchio muoversi in tempo reale. Al ritorno, toccalo di nuovo e scegli «Ferma».",
     'help587_a4':
         "Forse una barra è nascosta: tocca la linguetta sul bordo dello schermo. Le barre si nascondono anche quando il pannello Opzioni è aperto e tornano quando lo chiudi. Infine controlla «Personalizza»: un pulsante di sinistra potrebbe essere stato tolto.",
+    // 27/09 — confidentialité (~1 km), couleurs des profils, bulle double prix,
+    // un seul halo (mêmes phrases que website/src/lib/i18n/privacy2709.ts).
+    'help2709_priv_t':
+        "La tua posizione resta privata",
+    'help2709_priv_b':
+        "Sulla mappa nessuno appare al suo indirizzo esatto: per la tua sicurezza e la tua privacy, ogni membro è collocato in un raggio di circa 1 km da casa sua. Solo la modalità Diretta mostra la posizione reale, in tempo reale, e solo finché è attiva.",
+    'help2709_me_t':
+        "Io",
+    'help2709_me_b':
+        "La mia foto, bordo del colore del mio ruolo. Anello pieno = visibile a tutti.",
+    'help2709_mefr_t':
+        "Io · solo amici o nascosto",
+    'help2709_mefr_b':
+        "Anello tratteggiato + occhio barrato: mi vedono solo i miei amici (o nessuno se sono nascosto). L'impostazione è la stessa nell'app e sul sito.",
+    'help2709_friend_t':
+        "Amico",
+    'help2709_friend_b':
+        "La sua foto con un alone rosa; il bordo mantiene i colori dei suoi ruoli. Punto verde se è online o in diretta.",
+    'help2709_roles_t':
+        "Colori dei profili",
+    'help2709_roles_b':
+        "Il pulsante «Profilo» e il bordo della foto prendono il colore del ruolo: arancione = proprietario, blu = pet sitter, verde = dog walker. Chi ha più ruoli ha un pulsante a due o tre colori, sempre in quest'ordine.",
+    'help2709_duo_t':
+        "Pet sitter + dog walker: due prezzi",
+    'help2709_duo_b':
+        "Una sola bolla blu e verde mostra le due tariffe: 🏠 la custodia, 🚶 la passeggiata. Se filtri un solo ruolo, compare solo il suo prezzo.",
+    'help2709_follow_t':
+        "PawFollow",
+    'help2709_follow_b':
+        "Bagliore viola: monitoraggio dal vivo (passeggiata, servizio).",
+    'help2709_halo_t':
+        "Un solo alone alla volta",
+    'help2709_halo_b':
+        "Turchese = PawBoost, viola = monitoraggio in diretta (PawFollow), rosa = amico. Se ne valgono più di uno, prima il PawBoost, poi il PawFollow, poi l'amico. La corona dorata PawPremium resta sempre visibile in più.",
+    'help2709_spotname_b':
+        "Allo zoom stradale, il suo nome compare sotto la goccia: etichetta nera, bordo e testo oro.",
   },
   'pt': <String, String>{
     'help587_sec_find':
@@ -748,6 +928,42 @@ const Map<String, Map<String, String>> help587I18n =
         "Vais passear o Rex: toca em «Direto» no canto superior esquerdo. Os teus amigos veem o teu círculo mover-se em tempo real. No regresso, toca de novo e escolhe «Parar».",
     'help587_a4':
         "Talvez uma barra esteja arrumada: toca na lingueta na borda do ecrã. As barras também se escondem com o painel Opções aberto e voltam quando o fechas. Por fim, verifica «Personalizar»: um botão da esquerda pode ter sido retirado.",
+    // 27/09 — confidentialité (~1 km), couleurs des profils, bulle double prix,
+    // un seul halo (mêmes phrases que website/src/lib/i18n/privacy2709.ts).
+    'help2709_priv_t':
+        "A tua localização continua privada",
+    'help2709_priv_b':
+        "No mapa, ninguém aparece na sua morada exata: pela tua segurança e privacidade, cada membro é colocado num raio de cerca de 1 km à volta de casa. Só o modo Direto mostra a posição real, em tempo real, e apenas enquanto está ativado.",
+    'help2709_me_t':
+        "Eu",
+    'help2709_me_b':
+        "A minha foto, contorno da cor do meu papel. Anel cheio = visível para todos.",
+    'help2709_mefr_t':
+        "Eu · só amigos ou oculto",
+    'help2709_mefr_b':
+        "Anel pontilhado + olho riscado: só os meus amigos me veem (ou ninguém se estiver oculto). Esta definição é a mesma na app e no site.",
+    'help2709_friend_t':
+        "Amigo",
+    'help2709_friend_b':
+        "A foto dele com um halo rosa; o contorno mantém as cores dos seus papéis. Ponto verde quando está online ou em direto.",
+    'help2709_roles_t':
+        "Cores dos perfis",
+    'help2709_roles_b':
+        "O botão «Perfil» e o contorno da foto ficam com a cor do papel: laranja = dono, azul = cuidador, verde = passeador. Quem tem vários papéis tem um botão de duas ou três cores, sempre por esta ordem.",
+    'help2709_duo_t':
+        "Cuidador + passeador: dois preços",
+    'help2709_duo_b':
+        "Uma só bolha azul e verde mostra as duas tarifas: 🏠 o cuidado, 🚶 o passeio. Se filtrares um só papel, só aparece o seu preço.",
+    'help2709_follow_t':
+        "PawFollow",
+    'help2709_follow_b':
+        "Brilho roxo: acompanhamento ao vivo (passeio, serviço).",
+    'help2709_halo_t':
+        "Um só halo de cada vez",
+    'help2709_halo_b':
+        "Turquesa = PawBoost, violeta = acompanhamento em direto (PawFollow), rosa = amigo. Se vários se aplicarem, primeiro o PawBoost, depois o PawFollow e depois o amigo. A coroa dourada PawPremium continua sempre visível.",
+    'help2709_spotname_b':
+        "Com zoom de rua, o nome aparece por baixo da gota: etiqueta preta, contorno e texto dourados.",
   },
   'ko': <String, String>{
     'help587_sec_find':
@@ -872,6 +1088,42 @@ const Map<String, Map<String, String>> help587I18n =
         "렉스와 산책을 나가나요? 왼쪽 위의 “라이브”를 누르세요. 친구들이 내 원이 움직이는 것을 실시간으로 봐요. 돌아오면 다시 눌러 “멈추기”를 고르세요.",
     'help587_a4':
         "막대가 접혀 있을 수 있어요. 화면 가장자리의 탭을 누르세요. 옵션 패널이 열려 있을 때도 막대가 숨었다가 패널을 닫으면 돌아와요. 마지막으로 “설정”에서 왼쪽 버튼이 빠졌는지 확인하세요.",
+    // 27/09 — confidentialité (~1 km), couleurs des profils, bulle double prix,
+    // un seul halo (mêmes phrases que website/src/lib/i18n/privacy2709.ts).
+    'help2709_priv_t':
+        "내 위치는 비공개로 보호돼요",
+    'help2709_priv_b':
+        "지도에는 누구도 정확한 주소에 표시되지 않아요. 안전과 사생활 보호를 위해 모든 회원은 집에서 약 1km 반경 안에 표시돼요. 실제 위치는 라이브 모드를 켠 동안에만 실시간으로 보여요.",
+    'help2709_me_t':
+        "나",
+    'help2709_me_b':
+        "내 사진, 테두리는 내 역할 색이에요. 꽉 찬 링 = 모두에게 보임.",
+    'help2709_mefr_t':
+        "나 · 친구만 또는 숨김",
+    'help2709_mefr_b':
+        "점선 링 + 빗금 친 눈: 친구만 나를 볼 수 있어요(숨김이면 아무도 못 봐요). 이 설정은 앱과 웹사이트에서 같아요.",
+    'help2709_friend_t':
+        "친구",
+    'help2709_friend_b':
+        "친구 사진에 분홍 후광; 테두리는 그 사람의 역할 색을 유지해요. 온라인이거나 라이브일 때 초록 점.",
+    'help2709_roles_t':
+        "프로필 색상",
+    'help2709_roles_b':
+        "‘프로필’ 버튼과 사진 테두리는 역할 색을 따라요: 주황 = 보호자, 파랑 = 펫시터, 초록 = 산책 도우미. 역할이 여러 개인 사람은 항상 이 순서로 두세 가지 색 버튼이 돼요.",
+    'help2709_duo_t':
+        "펫시터 + 산책 도우미: 두 가지 가격",
+    'help2709_duo_b':
+        "파랑·초록 말풍선 하나에 두 요금이 표시돼요: 🏠 돌봄, 🚶 산책. 한 역할만 필터하면 그 가격만 보여요.",
+    'help2709_follow_t':
+        "PawFollow",
+    'help2709_follow_b':
+        "보라색 빛: 실시간 추적(산책, 서비스).",
+    'help2709_halo_t':
+        "후광은 한 번에 하나",
+    'help2709_halo_b':
+        "청록 = PawBoost, 보라 = 실시간 따라가기(PawFollow), 분홍 = 친구. 여러 개가 해당되면 PawBoost, PawFollow, 친구 순서예요. 금색 PawPremium 왕관은 항상 함께 보여요.",
+    'help2709_spotname_b':
+        "거리 단위로 확대하면 물방울 아래에 이름이 표시돼요: 검은 라벨, 금색 테두리와 글자.",
   },
   'ja': <String, String>{
     'help587_sec_find':
@@ -996,6 +1248,42 @@ const Map<String, Map<String, String>> help587I18n =
         "レックスの散歩に出かけるとき：左上の「ライブ」をタップします。友だちにはあなたの丸がリアルタイムで動いて見えます。帰ったらもう一度タップして「停止」を選びます。",
     'help587_a4':
         "バーがしまわれているかもしれません。画面の端のタブをタップしてください。オプションのパネルを開いている間もバーは隠れ、閉じると戻ります。最後に「カスタマイズ」で、左側のボタンが外されていないか確認してください。",
+    // 27/09 — confidentialité (~1 km), couleurs des profils, bulle double prix,
+    // un seul halo (mêmes phrases que website/src/lib/i18n/privacy2709.ts).
+    'help2709_priv_t':
+        "あなたの位置はプライベートに守られます",
+    'help2709_priv_b':
+        "地図上では、誰も正確な住所には表示されません。安全とプライバシーのため、各メンバーは自宅から約1kmの範囲内に表示されます。実際の位置がリアルタイムで表示されるのは、ライブモードをオンにしている間だけです。",
+    'help2709_me_t':
+        "自分",
+    'help2709_me_b':
+        "自分の写真。縁は自分の役割の色。実線のリング＝全員に表示。",
+    'help2709_mefr_t':
+        "自分・友達のみ／非表示",
+    'help2709_mefr_b':
+        "点線のリング＋斜線の目：自分が見えるのは友達だけ（非表示なら誰にも見えません）。この設定はアプリとサイトで共通です。",
+    'help2709_friend_t':
+        "友達",
+    'help2709_friend_b':
+        "友達の写真にピンクの光。縁はその人の役割の色のまま。オンラインまたはライブ中は緑の点。",
+    'help2709_roles_t':
+        "プロフィールの色",
+    'help2709_roles_b':
+        "「プロフィール」ボタンと写真の縁は役割の色になります：オレンジ＝飼い主、青＝シッター、緑＝散歩代行。複数の役割を持つ人は、この順番で2色または3色のボタンになります。",
+    'help2709_duo_t':
+        "シッター＋散歩代行：2つの料金",
+    'help2709_duo_b':
+        "青と緑の吹き出し1つに2つの料金を表示：🏠 お世話、🚶 散歩。1つの役割だけで絞り込むと、その料金だけが表示されます。",
+    'help2709_follow_t':
+        "PawFollow",
+    'help2709_follow_b':
+        "紫の光：ライブ追跡（散歩・サービス）。",
+    'help2709_halo_t':
+        "光は一度にひとつ",
+    'help2709_halo_b':
+        "ターコイズ＝PawBoost、紫＝ライブ追跡（PawFollow）、ピンク＝友達。複数あてはまる場合は PawBoost、PawFollow、友達の順。金色の PawPremium の王冠はいつも追加で表示されます。",
+    'help2709_spotname_b':
+        "通りが見えるまで拡大すると、しずくの下に名前が表示されます：黒いラベルに金の縁と金の文字。",
   },
   'pl': <String, String>{
     'help587_sec_find':
@@ -1120,5 +1408,41 @@ const Map<String, Map<String, String>> help587I18n =
         "Wychodzisz z Reksem na spacer: dotknij „Na żywo” w lewym górnym rogu. Znajomi widzą, jak twoje kółko porusza się w czasie rzeczywistym. Po powrocie dotknij ponownie i wybierz „Zatrzymaj”.",
     'help587_a4':
         "Może pasek jest schowany: dotknij języczka na krawędzi ekranu. Paski chowają się też, gdy panel Opcje jest otwarty, i wracają po jego zamknięciu. Na koniec sprawdź „Dostosuj”: przycisk z lewej mógł zostać usunięty.",
+    // 27/09 — confidentialité (~1 km), couleurs des profils, bulle double prix,
+    // un seul halo (mêmes phrases que website/src/lib/i18n/privacy2709.ts).
+    'help2709_priv_t':
+        "Twoja lokalizacja pozostaje prywatna",
+    'help2709_priv_b':
+        "Na mapie nikt nie jest pokazany pod swoim dokładnym adresem: dla Twojego bezpieczeństwa i prywatności każdy członek jest umieszczony w promieniu około 1 km od domu. Tylko tryb Na żywo pokazuje prawdziwą pozycję, w czasie rzeczywistym, i tylko wtedy, gdy jest włączony.",
+    'help2709_me_t':
+        "Ja",
+    'help2709_me_b':
+        "Moje zdjęcie, obramowanie w kolorze mojej roli. Pełny pierścień = widoczny dla wszystkich.",
+    'help2709_mefr_t':
+        "Ja · tylko znajomi lub ukryty",
+    'help2709_mefr_b':
+        "Przerywany pierścień + przekreślone oko: widzą mnie tylko znajomi (albo nikt, jeśli jestem ukryty). To ustawienie jest takie samo w aplikacji i na stronie.",
+    'help2709_friend_t':
+        "Znajomy",
+    'help2709_friend_b':
+        "Jego zdjęcie z różową poświatą; obramowanie zachowuje kolory jego ról. Zielona kropka, gdy jest online lub na żywo.",
+    'help2709_roles_t':
+        "Kolory profili",
+    'help2709_roles_b':
+        "Przycisk „Profil” i obramowanie zdjęcia mają kolor roli: pomarańczowy = właściciel, niebieski = opiekun, zielony = spacerowicz. Osoba z kilkoma rolami ma przycisk dwu- lub trzykolorowy, zawsze w tej kolejności.",
+    'help2709_duo_t':
+        "Opiekun + spacerowicz: dwie ceny",
+    'help2709_duo_b':
+        "Jeden niebiesko-zielony dymek pokazuje obie stawki: 🏠 opieka, 🚶 spacer. Jeśli filtrujesz jedną rolę, widać tylko jej cenę.",
+    'help2709_follow_t':
+        "PawFollow",
+    'help2709_follow_b':
+        "Fioletowa poświata: śledzenie na żywo (spacer, usługa).",
+    'help2709_halo_t':
+        "Jedna poświata naraz",
+    'help2709_halo_b':
+        "Turkus = PawBoost, fiolet = śledzenie na żywo (PawFollow), róż = znajomy. Jeśli pasuje kilka, najpierw PawBoost, potem PawFollow, potem znajomy. Złota korona PawPremium zawsze pozostaje widoczna.",
+    'help2709_spotname_b':
+        "Po przybliżeniu do poziomu ulicy pod kroplą pojawia się jego nazwa: czarna etykieta, złote obramowanie i napis.",
   },
 };

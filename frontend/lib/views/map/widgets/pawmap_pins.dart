@@ -45,6 +45,8 @@
 // Zéro gris (saturation), zéro emoji.
 
 import 'dart:async';
+import 'dart:convert' show utf8;
+import 'dart:io' show Directory, File;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -54,6 +56,11 @@ import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:crypto/crypto.dart' show md5;
+import 'package:get_storage/get_storage.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../../../utils/storage_keys.dart';
 
 /// v584 (25/09) — prénom court sous un rond au zoom rue : le premier mot,
 /// 12 caractères au plus (« dadaciao84+testwalker » débordait de l'étiquette
@@ -1254,18 +1261,19 @@ class PawMapPinPainter {
     // halo : v594, Daniel (27/09) « quand il y a tous les halos, le PawBoost
     // de mon frère ne marche pas » : 3 anneaux (15 px) recouvraient la lueur,
     // qui partait du rond. Elle part maintenant du DERNIER anneau.
-    final extra = <Color>[];
-    if (ringColors != null) {
-      for (final col in ringColors) {
-        if (!extra.contains(col)) extra.add(col);
-      }
-    }
-    if (extra.length >= 2) {
-      if (!isFriend) extra.remove(ringColor);
-    } else {
-      extra.clear();
-    }
-    final double glowR = r + 5.0 * extra.length;
+    // v597 — Daniel (27/09, validé) : plus d'anneaux de rôle EMPILÉS (ils
+    // recouvraient la lueur PawBoost). Le CONTOUR de la photo porte les
+    // rôles, comme le bouton « Profil » : 1 rôle = son dégradé, 2 ou 3 =
+    // contour bicolore / tricolore, ordre fixe propriétaire → gardien →
+    // promeneur. Un ami garde son halo ROSE, son contour = ses rôles.
+    final roleSet = <Color>{...?ringColors};
+    if (!isFriend) roleSet.add(ringColor);
+    final List<Color> contour = [
+      for (final k in const [PawMapLegend.owner, PawMapLegend.sitter, PawMapLegend.walker])
+        if (roleSet.contains(k)) k,
+    ];
+    if (contour.isEmpty) contour.add(isFriend ? fallbackTint : ringColor);
+    final double glowR = r;
 
     // 1. Halo : PawBoost > suivi en direct > PawFollow (famille) > moi.
     final circle = Path()..addOval(Rect.fromCircle(center: c, radius: r));
@@ -1287,11 +1295,7 @@ class PawMapPinPainter {
       drawCssGlow(canvas, c, r, maxR, ringColor, [(2, 0, 0.18), (3, 14, 0.30)]);
     }
 
-    // 2. Anneaux des autres rôles, sous le rond.
-    for (var i = extra.length - 1; i >= 0; i--) {
-      canvas.drawCircle(c, r + 5.0 * (i + 1), Paint()..color = _veil(extra[i], dimmed));
-      canvas.drawCircle(c, r + 5.0 * i + 2, Paint()..color = Colors.white);
-    }
+    // 2. (v597) plus d'anneaux de rôle sous le rond : voir `contour`.
 
     // 3. Ombre du rond.
     if (boostPhase != null || followPhase != null) {
@@ -1317,14 +1321,30 @@ class PawMapPinPainter {
     if (dashedRing) {
       canvas.drawCircle(c, r, Paint()..color = Colors.white);
       drawDashedRing(canvas, c, r - ring / 2, _veil(ringColor, dimmed), ring);
-    } else {
-      final pair = PawMapLegend.ringGradient(ringColor);
+    } else if (contour.length == 1) {
+      final pair = PawMapLegend.ringGradient(contour.first);
       canvas.drawCircle(
           c,
           r,
           Paint()
             ..shader = cssLinear(rect, 170,
                 [_veil(pair.$1, dimmed), _veil(pair.$2, dimmed)]));
+    } else {
+      // Contour bi/tricolore : aplats nets, diagonale comme le site (135°).
+      final n = contour.length;
+      final colors = <Color>[];
+      final stops = <double>[];
+      for (var i = 0; i < n; i++) {
+        final col = _veil(contour[i], dimmed);
+        colors..add(col)..add(col);
+        stops..add(i / n)..add((i + 1) / n);
+      }
+      canvas.drawCircle(
+          c,
+          r,
+          Paint()
+            ..shader = ui.Gradient.linear(
+                rect.topLeft, rect.bottomRight, colors, stops));
     }
     canvas.drawCircle(c, r - ring, Paint()..color = Colors.white);
     final photoR = r - ring - white;
@@ -1580,6 +1600,35 @@ class PawMapPinPainter {
   ///   PawSpot : fond noir #3A3232 → #171212, patte or, contour or 2,5.
   ///   PawSpot doré (validé) : fond or #FFE08A → #F0B323 → #C98A08, patte
   ///   noire, contour blanc, éclat blanc.
+  // v597 — Daniel (27/09, capture) : « sur les PawSpots il n'y a pas le nom,
+  // sur le web oui ». Étiquette du site : fond #171212, contour or 1,5,
+  // texte or #F5C542 Poppins 700 10, sous la pointe, 150 px max.
+  static const double spotLabelZone = 22;
+  static double spotLabelWidth(String text) {
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: _pinStyle(10, FontWeight.w700, Colors.white)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    return math.min(150, tp.width + 2 * 7 + 3) + 4;
+  }
+
+  static void paintPawSpotLabel(Canvas canvas,
+      {required String label, required double cx, required double top}) {
+    _paintPill(canvas,
+        text: label,
+        cx: cx,
+        top: top,
+        style: _pinStyle(10, FontWeight.w700, const Color(0xFFF5C542), height: 1.25),
+        height: 17.5,
+        padX: 7,
+        bg: const Color(0xFF171212),
+        border: const Color(0xFFF0B323),
+        borderW: 1.5,
+        shadowAlpha: 0.3,
+        maxWidth: 150);
+  }
+
   static void paintPawSpotDrop(Canvas canvas,
       {required String type, bool golden = false}) {
     final double w = golden ? PawMapLegend.spotGoldSize : PawMapLegend.spotSize;
@@ -1835,6 +1884,29 @@ class PawMapPinCache extends GetxService {
     super.onInit();
     // v592 — polices des épingles prêtes avant la première épingle.
     unawaited(ensurePawPinFonts());
+    // v597 — Daniel (27/09) : « ma photo orange, puis ma photo de profil
+    // charge : micro-lag ». Ma photo est demandée DÈS le lancement (la PawMap
+    // est construite au démarrage), et relue depuis le disque (plus de
+    // téléchargement à chaque ouverture de l'app).
+    try {
+      final profile =
+          GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile);
+      final raw = profile?['avatar'];
+      final url = raw is Map ? (raw['url'] ?? '').toString() : (raw ?? '').toString();
+      if (url.isNotEmpty) avatarFor(url);
+    } catch (_) {/* pas de profil en mémoire : rien à précharger */}
+  }
+
+  static Directory? _diskDir;
+  Future<File?> _diskFile(String url) async {
+    try {
+      _diskDir ??= Directory('${(await getTemporaryDirectory()).path}/pawmap_avatars');
+      final d = _diskDir!;
+      if (!await d.exists()) await d.create(recursive: true);
+      return File('${d.path}/${md5.convert(utf8.encode(url))}.img');
+    } catch (_) {
+      return null;
+    }
   }
 
   BitmapDescriptor? peek(String key) => _cache[key];
@@ -1892,6 +1964,19 @@ class PawMapPinCache extends GetxService {
   }
 
   Future<void> _downloadAvatar(String url) async {
+    // v597 — copie disque (l'URL change quand la photo change : clé sûre).
+    final file = await _diskFile(url);
+    try {
+      if (file != null && await file.exists()) {
+        final img = await decodeAvatar(await file.readAsBytes());
+        if (img != null) {
+          _avatars[url] = img;
+          rev.value++;
+          _building.remove('avatar:$url');
+          return;
+        }
+      }
+    } catch (_) {/* copie abîmée : on retélécharge */}
     try {
       final resp = await http.get(
         Uri.parse(url),
@@ -1900,6 +1985,9 @@ class PawMapPinCache extends GetxService {
       if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
         _avatars[url] = await decodeAvatar(resp.bodyBytes);
         rev.value++;
+        if (file != null && _avatars[url] != null) {
+          unawaited(file.writeAsBytes(resp.bodyBytes, flush: false).then((_) {}, onError: (_) {}));
+        }
         return;
       }
       _avatarFails[url] = (_avatarFails[url] ?? 0) + 1;

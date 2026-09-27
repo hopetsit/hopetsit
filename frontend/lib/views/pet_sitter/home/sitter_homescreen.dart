@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/role_chip.dart';
@@ -1737,7 +1739,20 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     );
   }
 
+  /// v597 — animaux déjà ouverts (pas de 2e attente).
+  static final Map<String, PetModel> _petCache = <String, PetModel>{};
+
   Future<void> _handleCardTap(String petId) async {
+    // v597 — Daniel : « aucune attente » (accueil gardien ET promeneur, même
+    // écran). Un animal déjà ouvert s'affiche tout de suite (cache mémoire,
+    // rafraîchi en arrière-plan) ; sinon, fenêtre de chargement comme avant.
+    final Future<PetModel> fetch =
+        Get.find<PetRepository>().getPetById(petId).then((p) {
+      _petCache[petId] = p;
+      return p;
+    });
+    final cachedPet = _petCache[petId];
+    if (cachedPet == null) {
     // Show loading dialog
     showDialog(
       context: context,
@@ -1770,12 +1785,14 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       ),
     );
 
+    }
+
     try {
-      final petRepository = Get.find<PetRepository>();
-      final pet = await petRepository.getPetById(petId);
+      final pet = cachedPet ?? await fetch;
+      if (cachedPet != null) unawaited(fetch.then((_) {}, onError: (_) {}));
 
       // Close loading dialog
-      if (mounted) {
+      if (mounted && cachedPet == null) {
         Navigator.of(context).pop();
       }
 

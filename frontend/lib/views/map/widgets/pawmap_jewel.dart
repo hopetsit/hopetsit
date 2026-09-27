@@ -53,8 +53,10 @@ const PawJewelPalette kJewelAround =
 const PawJewelPalette kJewelHeader =
     PawJewelPalette(Color(0xFFD9442C), Color(0xFFC92A12), Color(0xFF9E1F0B)); // v592 — orange foncé
 /// §3.4 — Balade arrêtée (gris) / en direct (vert).
+// 27/09 — Daniel : « pas de gris dans toute l'app ni le web » → balade à
+// l'arrêt en NOIR chaud (encre de la marque #231715), jamais un gris neutre.
 const PawJewelPalette kJewelWalkOff =
-    PawJewelPalette(Color(0xFFC4B3AC), Color(0xFF978279), Color(0xFF6F5C55));
+    PawJewelPalette(Color(0xFF3A2621), Color(0xFF231715), Color(0xFF150D0B));
 const PawJewelPalette kJewelWalkOn =
     PawJewelPalette(Color(0xFF7FE39A), Color(0xFF2E9E48), Color(0xFF1D7A34));
 

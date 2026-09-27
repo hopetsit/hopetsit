@@ -49,6 +49,11 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   static int _mountedWrappers = 0;
 
   int _currentIndex = 0;
+  // v597 — Daniel (27/09) : « mini-lag au démarrage ». La PawMap (vue Google
+  // + couches) se construisait AU MÊME MOMENT que l'accueil. Elle est montée
+  // 1,2 s après la première image (l'accueil s'affiche d'abord), ou tout de
+  // suite si on touche l'onglet avant. Ensuite, elle reste dessinée (v596).
+  bool _pawMapMounted = false;
   Worker? _tabRequestWorker;
 
   @override
@@ -59,6 +64,9 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
       // v561 — mise à jour de l'app (Play In-App Updates / feuille App Store),
       // vérifiée une fois par lancement, après que le menu est affiché.
       Future.delayed(const Duration(seconds: 3), AppUpdateService.checkOnce);
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (mounted && !_pawMapMounted) setState(() => _pawMapMounted = true);
+      });
     });
     // v559 — un autre écran demande un onglet (ex. PawMap avec itinéraire).
     // v571 — compteur et non simple booléen : au changement de rôle le
@@ -109,7 +117,10 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   }
 
   void _onTap(int index) {
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+      if (index == kPawMapTabIndex) _pawMapMounted = true;
+    });
     currentMainTab.value = index;
     if (index == 0) _refreshNotificationBadge();
     // v574 — onglet Profil : « Mes profils » reflète les rôles activés sur
@@ -199,7 +210,9 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
                                   excluding: _currentIndex != kPawMapTabIndex,
                                   child: TickerMode(
                                     enabled: _currentIndex == kPawMapTabIndex,
-                                    child: widget.screens[kPawMapTabIndex],
+                                    child: _pawMapMounted || _currentIndex == kPawMapTabIndex
+                                        ? widget.screens[kPawMapTabIndex]
+                                        : const SizedBox.shrink(),
                                   ),
                                 ),
                               ),

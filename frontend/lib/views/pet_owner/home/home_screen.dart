@@ -384,7 +384,11 @@ class _HomeScreenState extends State<HomeScreen> {
   // SliverFillRemaining ; la liste utilise SliverList.builder lazy.
   Widget _buildWalkersTab() {
     return Obx(() {
-      if (_homeController.isLoadingWalkers.value) {
+      // v597 — Daniel : « l'accueil aussi, pas de lag ni d'attente ». Le
+      // squelette ne s'affiche plus qu'au TOUT premier chargement : pendant
+      // une actualisation, la liste déjà là reste affichée.
+      if (_homeController.isLoadingWalkers.value &&
+          _homeController.walkers.isEmpty) {
         // v565 — squelette de chargement (kit Réservations).
         return const SliverToBoxAdapter(
           child: BookingLoadingList(accent: AppColors.greenColor),
@@ -1361,7 +1365,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Obx(() {
       final isLoading = _homeController.isLoadingSitters.value;
 
-      if (isLoading) {
+      // v597 — squelette seulement si rien n'est encore affiché.
+      if (isLoading && _homeController.sitters.isEmpty) {
         // v565 — squelette de chargement (kit Réservations).
         return const SliverToBoxAdapter(
           child: BookingLoadingList(accent: AppColors.primaryColor),
