@@ -144,7 +144,7 @@ function spotIcon(type: PawSpotType, golden: boolean, label?: string | null): L.
   return L.divIcon({ className: "", html: spotPinHtml(type, golden, { label }), iconSize: [40, 50], iconAnchor: spotPinAnchor(40), popupAnchor: [0, -44] });
 }
 const reportIcon = () => L.divIcon({ className: "", html: reportPinHtml(30), iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] });
-function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], bubble: string | null, dark: boolean): L.DivIcon {
+function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], bubble: string | null, dark: boolean, duo?: [string, string] | null): L.DivIcon {
   return L.divIcon({
     className: "",
     html: memberPinHtml({
@@ -157,6 +157,7 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
       avatar: m.avatar || null,
       caption,
       priceBubble: bubble,
+      priceDuo: duo ?? null,
       verified: !!m.identityVerified,
       dark,
       size: 46,
@@ -167,11 +168,11 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
   });
 }
 /** Ami à sa position de PROFIL (floutée) : photo, anneau rose, pas de direct. */
-function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[], caption?: string | null, bubble?: string | null): L.DivIcon {
+function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[], caption?: string | null, bubble?: string | null, duo?: [string, string] | null): L.DivIcon {
   return L.divIcon({
     className: "",
     // 25/09 (585, bug 11) — un ami boosté garde sa lueur turquoise + fusée.
-    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role), caption, priceBubble: bubble }),
+    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role), caption, priceBubble: bubble, priceDuo: duo ?? null }),
     iconSize: [50, 50],
     iconAnchor: [25, 25],
     popupAnchor: [0, -28],
@@ -428,6 +429,9 @@ type Focus = {
   name: string;
   /** owner | sitter | walker (anneau + bouton « Profil »). */
   role: string;
+  /** 27/09 — TOUS les rôles de la personne : bouton « Profil » (et anneau hors
+   *  ami) bicolore / tricolore, ordre fixe propriétaire → gardien → promeneur. */
+  roles?: string[];
   avatar?: string | null;
   info: string;
   live?: boolean;
@@ -446,6 +450,21 @@ const JEWEL_ROLE: Record<string, [string, string, string]> = {
   friend: ["#F47BB2", "#E35A9A", "#D6377F"],
 };
 const jewelGrad = (p: [string, string, string]) => `linear-gradient(170deg,${p[0]},${p[1]} 50%,${p[2]})`;
+const ROLE_ORDER = ["owner", "sitter", "walker"] as const;
+/** 27/09 (règle Daniel 26/09, comme l'app 594) — 1 rôle = son dégradé ;
+ *  2 ou 3 rôles = dégradé horizontal des rôles, ordre fixe orange → bleu → vert. */
+function rolesGrad(roles: string[] | undefined, fallback: [string, string, string]): string {
+  const ks = ROLE_ORDER.filter((k) => (roles || []).includes(k));
+  if (ks.length < 2) return jewelGrad(fallback);
+  const n = ks.length;
+  const stops = ks.flatMap((k, i) => {
+    const c = JEWEL_ROLE[k][1];
+    const a = (i / n) * 100 + (i ? 6 : 0);
+    const b = ((i + 1) / n) * 100 - (i < n - 1 ? 6 : 0);
+    return [`${c} ${a.toFixed(0)}%`, `${c} ${b.toFixed(0)}%`];
+  });
+  return `linear-gradient(90deg,${stops.join(",")})`;
+}
 
 /** Efface la carte focus au clic sur la carte vide ou au début d'un glisser. */
 function FocusWatcher({ onClear }: { onClear: () => void }) {
@@ -666,6 +685,17 @@ export default function PoiMap({
   };
   const memberBubble = (role: string, amount?: number | null, currency?: string | null): string | null =>
     showPrice ? priceFor(role, amount, currency) : null;
+  // 27/09 — gardien ET promeneur parmi les rôles montrés (filtre compris) :
+  // les deux prix, gardien d'abord. Sinon null → bulle simple habituelle.
+  const duoPrices = (roles: PersonRole[]): [string, string] | null => {
+    const s = roles.find((r) => roleKey(r.role) === "sitter");
+    const w = roles.find((r) => roleKey(r.role) === "walker");
+    if (!s || !w) return null;
+    const ps = priceFor("sitter", s.priceFrom, s.currency);
+    const pw = priceFor("walker", w.priceFrom, w.currency);
+    return ps && pw ? [ps, pw] : null;
+  };
+  const memberDuo = (roles: PersonRole[]): [string, string] | null => (showPrice ? duoPrices(roles) : null);
 
   const poiClusters = useMemo(
     () => clusterize(pois, zoomLevel, (poi) => (Array.isArray(poi.location?.coordinates) && poi.location.coordinates.length >= 2 ? [poi.location.coordinates[1], poi.location.coordinates[0]] : null)),
@@ -810,11 +840,13 @@ export default function PoiMap({
     return formatKm(2 * R * Math.asin(Math.min(1, Math.sqrt(a))), cardLabels?.lang) || "";
   };
   const firstOf = (name: string) => (name || "").trim().split(/\s+/)[0] || name;
-  const personFocus = (m: NearbyMember, role: string, price: number | null | undefined, currency: string | null | undefined, open: () => void, friend: boolean): Focus | null => {
+  const personFocus = (m: NearbyMember, role: string, price: number | null | undefined, currency: string | null | undefined, open: () => void, friend: boolean, shown?: PersonRole[]): Focus | null => {
     const at = pointOf(m);
     if (!at) return null;
     const k = roleKey(role);
-    const pr = priceFor(k, price, currency);
+    // 27/09 — gardien + promeneur montrés : les deux prix (« 🏠 20 € · 🐾 12 € »).
+    const duo = shown ? duoPrices(shown) : null;
+    const pr = duo ? `🏠 ${duo[0]} · 🐾 ${duo[1]}` : priceFor(k, price, currency);
     const km = kmFrom(at);
     return {
       key: `p:${m.id}`,
@@ -822,6 +854,7 @@ export default function PoiMap({
       lng: at[1],
       name: m.name || focusLabels?.roles[k] || "",
       role: k,
+      roles: rolesOf(m).map((r) => roleKey(r.role)),
       avatar: m.avatar,
       info: [pr, km].filter(Boolean).join(" · ") || focusLabels?.roles[k] || "",
       friend,
@@ -1033,6 +1066,8 @@ export default function PoiMap({
           if (isFriend && personIdsOf(m).some((x) => liveIdSet.has(x))) return null;
           const wanted = rolesMatching(m, wantedRoles);
           const roles = wanted.length ? [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => w.id === r.id))] : rolesOf(m);
+          // Rôles MONTRÉS par le filtre (prix double seulement s'il montre gardien ET promeneur).
+          const shown = wanted.length ? wanted : roles;
           const open = () => openSheet(roles.length > 1 ? { kind: "person", m } : { kind: "role", m, r: roles[0] }, pt);
           if (isFriend) {
             const prem = personIdsOf(m).some((x) => premiumSet.has(x)) || !!m.isPremium;
@@ -1044,13 +1079,13 @@ export default function PoiMap({
               : null;
             const fBubble = memberBubble(roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency);
             const fOpen = () => flyToFriend(m);
-            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles, caption, fBubble)} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => { const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true); if (f) tapFocus(f); else fOpen(); } }} />;
+            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles, caption, fBubble, memberDuo(shown))} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => { const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true, shown); if (f) tapFocus(f); else fOpen(); } }} />;
           }
           const r0 = roles[0];
           const pFrom = r0.priceFrom ?? m.priceFrom;
           const pCur = r0.currency ?? m.currency;
           return (
-            <Marker key={`member-${m.id}`} position={pt} icon={memberIcon(m, memberCaption({ ...m, role: r0.role }), roles, memberBubble(r0.role, pFrom, pCur), dark)} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: () => { const f = personFocus(m, r0.role, pFrom, pCur, open, false); if (f) tapFocus(f); else open(); } }} />
+            <Marker key={`member-${m.id}`} position={pt} icon={memberIcon(m, memberCaption({ ...m, role: r0.role }), roles, memberBubble(r0.role, pFrom, pCur), dark, memberDuo(shown))} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: () => { const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown); if (f) tapFocus(f); else open(); } }} />
           );
         })}
 
@@ -1149,6 +1184,11 @@ export default function PoiMap({
 // que les barres (clair / sombre), mêmes tailles que l'app.
 function FocusCard({ f, labels, dark, top, faded, onClose, onOpen }: { f: Focus; labels: FocusLabels; dark: boolean; top: number; faded: boolean; onClose: () => void; onOpen: () => void }) {
   const pal = JEWEL_ROLE[f.friend ? "friend" : roleKey(f.role)];
+  // Bouton « Profil » : toujours aux couleurs des rôles (un ami compris) ;
+  // l'anneau de la photo reste rose pour un ami.
+  const btnGrad = rolesGrad(f.roles, JEWEL_ROLE[roleKey(f.role)]);
+  const btnShadow = JEWEL_ROLE[roleKey(f.role)][1];
+  const ringGrad = f.friend ? jewelGrad(pal) : rolesGrad(f.roles, pal);
   const ink = dark ? "#F6F1EE" : "#1B1616";
   const sub = dark ? "#A39A97" : "#7A6F6C";
   const [imgOk, setImgOk] = useState(true);
@@ -1169,7 +1209,7 @@ function FocusCard({ f, labels, dark, top, faded, onClose, onOpen }: { f: Focus;
         }}
       >
         <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
-          <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full p-[2.5px]" style={{ background: jewelGrad(pal) }}>
+          <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full p-[2.5px]" style={{ background: ringGrad }}>
             <span className="relative block h-full w-full overflow-hidden rounded-full border-[1.5px] border-white" style={{ background: jewelGrad(pal) }}>
               <span className="absolute inset-[22%] block" dangerouslySetInnerHTML={{ __html: glyph }} />
               {f.avatar && imgOk ? (
@@ -1191,7 +1231,7 @@ function FocusCard({ f, labels, dark, top, faded, onClose, onOpen }: { f: Focus;
           onClick={onOpen}
           aria-label={labels.profile}
           className="relative inline-flex h-[34px] shrink-0 items-center overflow-hidden rounded-full px-2 text-[12px] font-bold text-white transition-transform duration-150 hover:-translate-y-px active:scale-95 min-[420px]:pl-3 min-[420px]:pr-1.5"
-          style={{ background: jewelGrad(pal), boxShadow: `0 5px 10px -4px ${pal[1]}, inset 0 0 0 1.5px rgba(255,255,255,.3)`, fontFamily: POPPINS }}
+          style={{ background: btnGrad, boxShadow: `0 5px 10px -4px ${btnShadow}, inset 0 0 0 1.5px rgba(255,255,255,.3)`, fontFamily: POPPINS }}
         >
           <span aria-hidden="true" className="pointer-events-none absolute inset-x-2 top-[2px] h-[45%] rounded-full" style={{ background: "linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,0))" }} />
           {/* Téléphone étroit : le chevron seul (le nom garde la place). */}

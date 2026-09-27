@@ -86,6 +86,21 @@ export function priceBubbleHtml(text: string, service: string, discSize: number)
     + `<svg viewBox="0 0 10 6" width="10" height="6" style="display:block;margin-top:1px;" aria-hidden="true"><path d="M0 0h10L5 6z" fill="${b}"/></svg></span>`;
 }
 
+/**
+ * 27/09 (Daniel, règle validée le 26/09) — gardien ET promeneur : UNE bulle
+ * bicolore bleu → vert « 🏠 20 € · 🐾 12 € », comme l'app 594. Même gabarit
+ * que priceBubbleHtml (22 px, contour blanc, pointe foncée).
+ */
+export function priceDuoBubbleHtml(sitterText: string, walkerText: string, discSize: number): string {
+  const [sa] = RING_GRAD.sitter;
+  const [, wb] = RING_GRAD.walker;
+  const ic = (d: string) => `<svg viewBox="0 0 24 24" width="11" height="11" fill="#fff" aria-hidden="true">${d}</svg>`;
+  return `<span style="position:absolute;bottom:${discSize + 3}px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;">`
+    + `<span style="height:22px;padding:0 8px;border-radius:8px;background:linear-gradient(90deg,${sa},${RING_GRAD.sitter[1]} 45%,${RING_GRAD.walker[0]} 55%,${wb});color:#fff;display:inline-flex;align-items:center;gap:4px;font:700 11.5px/1 ${POPPINS};white-space:nowrap;box-shadow:0 0 0 2px #fff,0 5px 10px -4px rgba(23,20,31,.45);">`
+    + `${ic(MS_HOME)}${escapeHtml(sitterText)}<span style="opacity:.8;">·</span>${ic(MS_WALK)}${escapeHtml(walkerText)}</span>`
+    + `<svg viewBox="0 0 10 6" width="10" height="6" style="display:block;margin-top:1px;" aria-hidden="true"><path d="M0 0h10L5 6z" fill="${RING_GRAD.sitter[1]}"/></svg></span>`;
+}
+
 /** Étiquette du prénom sous un rond (§4) : 20 px, fond blanc (sombre : encre chaude). */
 function nameTagHtml(text: string, top: number, dark?: boolean): string {
   return `<span style="position:absolute;top:${top}px;left:50%;transform:translateX(-50%);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:10px;white-space:nowrap;max-width:160px;overflow:hidden;background:${dark ? "rgba(32,29,35,.95)" : "#fff"};color:${dark ? "#F6F1EE" : "#1B1616"};font:600 10.5px/1 ${POPPINS};box-shadow:0 2px 6px -1px rgba(23,20,31,.35);">${escapeHtml(text)}</span>`;
@@ -235,6 +250,8 @@ export type MemberPinOptions = {
   roles?: string[] | null;
   /** 590 — bulle de prix au-dessus du rond (règle §1 appliquée par l'appelant). */
   priceBubble?: string | null;
+  /** 27/09 — gardien + promeneur : bulle double [prix gardien, prix promeneur] (passe devant priceBubble). */
+  priceDuo?: [string, string] | null;
   /** 590 — étiquette sous le rond sur fond sombre (mode nuit). */
   dark?: boolean;
   /** 590 — coche bleue « identité vérifiée ». */
@@ -275,9 +292,9 @@ export function memberPinHtml(o: MemberPinOptions): string {
       ? `box-shadow:0 0 0 4px rgba(124,58,237,.35),0 0 14px 4px rgba(124,58,237,.55),0 3px 8px rgba(23,20,31,.35);`
       : `box-shadow:0 5px 12px -4px rgba(23,20,31,.5);`;
   // 590 — sous le rond : le PRÉNOM seul (le prix part dans la bulle au-dessus).
-  const captionText = o.caption || (o.priceBubble ? "" : o.priceLabel || "");
+  const captionText = o.caption || (o.priceBubble || o.priceDuo ? "" : o.priceLabel || "");
   const caption = captionText ? nameTagHtml(captionText, size + 4, o.dark) : "";
-  const bubble = o.priceBubble ? priceBubbleHtml(o.priceBubble, key, size) : "";
+  const bubble = o.priceDuo ? priceDuoBubbleHtml(o.priceDuo[0], o.priceDuo[1], size) : o.priceBubble ? priceBubbleHtml(o.priceBubble, key, size) : "";
   // L'icône du rôle reste DESSOUS la photo : si la photo tarde ou échoue,
   // on voit l'icône, jamais un disque vide.
   const glyphBox = `<span style="position:absolute;inset:${Math.round(size * 0.18)}px;display:block;">${ROLE_GLYPH[key]}</span>`;
@@ -324,6 +341,8 @@ export type PhotoPinOptions = {
   roles?: string[] | null;
   /** 590 — bulle de prix au-dessus du rond (règle §1 appliquée par l'appelant). */
   priceBubble?: string | null;
+  /** 27/09 — gardien + promeneur : bulle double [prix gardien, prix promeneur] (passe devant priceBubble). */
+  priceDuo?: [string, string] | null;
   /** 590 — étiquette sur fond sombre (mode nuit). */
   dark?: boolean;
 };
@@ -361,7 +380,7 @@ export function photoPinHtml(o: PhotoPinOptions): string {
       : "";
   const rings = o.me ? "" : extraRoleRings(o.roles, true); // ami : le rose d'abord, puis TOUS ses rôles
   const ringLayer = rings ? `<div style="position:absolute;inset:0;border-radius:50%;box-shadow:${rings};pointer-events:none;"></div>` : "";
-  const bubble = o.priceBubble ? priceBubbleHtml(o.priceBubble, key, size) : "";
+  const bubble = o.priceDuo ? priceDuoBubbleHtml(o.priceDuo[0], o.priceDuo[1], size) : o.priceBubble ? priceBubbleHtml(o.priceBubble, key, size) : "";
   // 590 (§4) — anneau 3 px en DÉGRADÉ (rose pour un ami, rôle pour moi),
   // liseré blanc 2 px, puis la photo. Mode « amis seulement » : anneau
   // pointillé plein, comme avant (il doit se lire d'un coup d'œil).
