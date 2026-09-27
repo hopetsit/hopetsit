@@ -19,6 +19,10 @@ export const LANGUAGES: { code: Lang; label: string; flag: string }[] = [
   { code: "pl", label: "Polski", flag: "🇵🇱" },
 ];
 
-// Langue du rendu serveur (HTML servi à Google) et langue de repli d'une clé
-// absente. Inchangée : l'anglais, comme avant.
-export const DEFAULT_LANG: Lang = "en";
+// 27/09/2026 — décision de Daniel : le FRANÇAIS est la langue par défaut du
+// site (HTML des pages génériques servi en français, langue de repli d'une
+// clé absente, langue d'un visiteur dont le navigateur parle une langue que
+// le site ne connaît pas). Les pages écrites dans une langue précise (pages
+// USA, pages villes allemandes, espagnoles…) gardent LEUR langue : voir les
+// groupes de routes src/app/(xx)/ et components/RootShell.tsx.
+export const DEFAULT_LANG: Lang = "fr";

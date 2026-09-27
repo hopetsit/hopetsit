@@ -12,9 +12,14 @@ vérifie (`npx tsc --noEmit`) et pousse sur `main` → Vercel déploie.
    dimanche du mois.
 
 ## Ce que produit chaque run
-- `website/src/app/blog/<slug>/page.tsx` — l'article (même structure que
-  `devenir-pet-sitter-combien-ca-rapporte`), ajouté en tête de `POSTS`
-  (`blog/page.tsx`) et au `sitemap.ts`.
+- `website/src/app/(<langue>)/blog/<slug>/page.tsx` — l'article, dans le
+  dossier de SA langue : `(fr)`, `(en)`, `(pl)`, `(ko)`… (depuis le 27/09 :
+  chaque langue a son layout racine, qui sert <html lang> et l'en-tête dans
+  la langue de l'article). Même structure que
+  `(fr)/blog/devenir-pet-sitter-combien-ca-rapporte`. Ajouté en tête de `POSTS`
+  (`(site)/blog/page.tsx`) et au `sitemap.ts`. ⚠️ Un dossier créé directement
+  sous `src/app/` (hors parenthèses) fait échouer le build, avec un message
+  qui indique où le mettre.
 - `social/<AAAA>-W<ss>.md` — 3 posts FR (Facebook groupes Paris, Instagram,
   story) + 1 PL + 1 EN, prêts à copier-coller.
 - `reports/<AAAA>-W<ss>.md` — récap 10 lignes : publié, prochains sujets,

@@ -120,8 +120,12 @@ function measurable(path: string): boolean {
 
 function langOfPage(): string {
   try {
-    // Posé par LanguageProvider sur <html lang>.
-    return (document.documentElement.lang || navigator.language || "").slice(0, 5);
+    // Langue AFFICHÉE, posée par LanguageProvider (data-ui-lang). Depuis le
+    // 27/09, <html lang> d'une page écrite dans une langue (page USA, ville
+    // allemande…) reste celle de la page même si le visiteur a choisi une
+    // autre langue : on lit donc d'abord data-ui-lang.
+    const root = document.documentElement;
+    return (root.dataset.uiLang || root.lang || navigator.language || "").slice(0, 5);
   } catch {
     return "";
   }

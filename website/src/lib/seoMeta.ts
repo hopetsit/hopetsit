@@ -7,19 +7,21 @@
 
 import type { Metadata } from "next";
 import { t as bundles } from "@/lib/i18n/translations";
+import { DEFAULT_LANG } from "@/lib/i18n/langs";
 
 const SITE = "https://www.hopetsit.com";
 const OG_IMAGE = { url: `${SITE}/og-image.png`, width: 1200, height: 630, alt: "HoPetSit — pet sitting & dog walking" };
 
 /**
- * @param titleKey clé i18n du titre (valeur anglaise servie au serveur)
+ * @param titleKey clé i18n du titre (valeur FRANÇAISE servie au serveur depuis
+ *                 le 27/09 : décision de Daniel, français par défaut)
  * @param descKey  clé i18n de la description
  * @param path     chemin canonique (« /pricing »)
  */
 export function pageMeta(titleKey: string, descKey: string, path: string): Metadata {
-  const en = bundles.en;
-  const title = en[titleKey] || "HoPetSit";
-  const description = en[descKey] || "";
+  const base = bundles[DEFAULT_LANG];
+  const title = base[titleKey] || "HoPetSit";
+  const description = base[descKey] || "";
   const url = `${SITE}${path}`;
   return {
     title,

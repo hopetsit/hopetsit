@@ -12,15 +12,27 @@ import {
 } from "react";
 import { DEFAULT_LANG, Lang, LANGUAGES } from "./langs";
 import { getStoredUser, syncAppLocale } from "@/lib/api";
-// 27/09/2026 — LEO : langues À LA DEMANDE. Avant, ce fichier importait
-// `translations.ts` entier : chaque page téléchargeait les 9 langues (~774 Ko,
-// ~242 Ko compressés) avant de s'afficher. Maintenant seul l'anglais est dans
-// le JS de la page (c'est la langue du HTML rendu par le serveur, donc celle
-// de l'hydratation, et la langue de repli d'une clé absente) ; la langue du
-// visiteur arrive dans son propre petit fichier, et les 7 autres ne sont
-// jamais téléchargées tant qu'on ne les choisit pas. Les JSON sont produits
-// par scripts/i18n-split.js depuis translations.ts (lancé par next.config.js).
-import enDict from "./generated/en.json";
+
+// 27/09/2026 — LEO : langues À LA DEMANDE + langue de page.
+//
+// Avant, ce fichier importait `translations.ts` entier : chaque page
+// téléchargeait les 9 langues (~774 Ko, ~242 Ko compressés). Maintenant :
+// - les textes de la langue de la PAGE (`base`, celle du HTML rendu par le
+//   serveur) arrivent DANS le HTML, passés par RootShell (serverDicts.ts) :
+//   ce sont eux qui servent à l'hydratation, donc aucun texte ne clignote
+//   pour qui lit cette langue ;
+// - la langue du visiteur, si elle diffère, arrive dans son propre petit
+//   fichier (import() dynamique), demandé dès le chargement de ce module ;
+// - les autres langues ne sont jamais téléchargées tant qu'on ne les choisit
+//   pas.
+// Pages génériques (groupe (site), servies en français) : on affiche le choix
+// enregistré, sinon la langue du navigateur, sinon le français.
+// Pages écrites dans une langue (`locked` : pages USA, villes allemandes…) :
+// on affiche le choix enregistré, sinon la langue de la page, et <html lang>
+// reste celle de la page (le contenu principal est dans cette langue).
+// Les JSON sont produits par scripts/i18n-split.js depuis translations.ts.
+
+type Dict = Record<string, string>;
 
 // v497 — pousse la langue du site au backend (appLocale) si l'utilisateur est
 // connecté → notifications + emails suivent la langue choisie. Best-effort.
@@ -33,10 +45,7 @@ function pushLocaleToBackend(l: Lang) {
   }
 }
 
-type Dict = Record<string, string>;
-
-const EN: Dict = enDict as Dict;
-const loaded: Partial<Record<Lang, Dict>> = { en: EN };
+const loaded: Partial<Record<Lang, Dict>> = {};
 const pending: Partial<Record<Lang, Promise<Dict>>> = {};
 
 /** Télécharge (une seule fois) le dictionnaire d'une langue. */
@@ -70,60 +79,89 @@ const LanguageContext = createContext<Ctx | null>(null);
 
 const STORAGE_KEY = "hopetsit_lang";
 
-function detectInitialLang(): Lang {
-  if (typeof window === "undefined") return DEFAULT_LANG;
+function isLang(x: string | null | undefined): x is Lang {
+  return !!x && LANGUAGES.some((l) => l.code === x);
+}
+
+/** Langue à afficher pour ce visiteur sur une page de langue `base`. */
+function detectInitialLang(base: Lang, locked: boolean): Lang {
+  if (typeof window === "undefined") return base;
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored && LANGUAGES.some((l) => l.code === stored)) return stored as Lang;
+    if (isLang(stored)) return stored;
+    if (locked) return base;
+    // Robots d'indexation (Googlebot rend la page avec un navigateur réglé en
+    // anglais) : ils doivent lire la page dans la langue du HTML servi, le
+    // français, et non la traduction choisie d'après leur navigateur.
+    if (/bot|crawl|spider|slurp|lighthouse|headless/i.test(navigator.userAgent || "")) return base;
     const nav = (navigator.language || "").slice(0, 2).toLowerCase();
-    if (LANGUAGES.some((l) => l.code === nav)) return nav as Lang;
+    if (isLang(nav)) return nav;
   } catch {
     /* localStorage may be blocked — fall through to default */
   }
-  return DEFAULT_LANG;
+  return locked ? base : DEFAULT_LANG;
 }
 
 // Côté navigateur, la langue du visiteur est demandée dès le chargement de ce
-// module, AVANT l'hydratation : quand l'effet de montage la réclame, elle est
-// en général déjà là (pas plus d'anglais affiché qu'avant).
-if (typeof window !== "undefined") {
-  const first = detectInitialLang();
-  if (first !== DEFAULT_LANG) void loadLang(first).catch(() => {});
+// module, AVANT l'hydratation. La langue de la page et le verrou sont lus sur
+// <html> (posés par RootShell dans le HTML servi).
+if (typeof document !== "undefined") {
+  const root = document.documentElement;
+  const base = isLang(root.lang) ? root.lang : DEFAULT_LANG;
+  const first = detectInitialLang(base, root.dataset.langLock === "1");
+  if (first !== base) void loadLang(first).catch(() => {});
 }
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(DEFAULT_LANG);
+export function LanguageProvider({
+  base,
+  baseDict,
+  locked = false,
+  children,
+}: {
+  /** Langue du HTML servi pour cette page. */
+  base: Lang;
+  /** Textes de cette langue (inclus dans le JS du layout). */
+  baseDict: Dict;
+  /** Page écrite dans une langue précise : <html lang> ne bouge pas. */
+  locked?: boolean;
+  children: ReactNode;
+}) {
+  if (!loaded[base]) loaded[base] = baseDict;
+  const [lang, setLangState] = useState<Lang>(base);
   // Dernière langue demandée (une réponse réseau plus lente ne doit pas
   // écraser un choix plus récent) et langue affichée (pour le fondu).
-  const wanted = useRef<Lang>(DEFAULT_LANG);
-  const shown = useRef<Lang>(DEFAULT_LANG);
+  const wanted = useRef<Lang>(base);
+  const shown = useRef<Lang>(base);
 
-  // Hydrate from storage / browser locale on mount only.
+  // Au montage : langue enregistrée / du navigateur.
   useEffect(() => {
-    const initial = detectInitialLang();
+    const initial = detectInitialLang(base, locked);
     wanted.current = initial;
-    if (initial !== DEFAULT_LANG) {
+    if (initial !== base) {
       loadLang(initial)
         .then(() => {
           if (wanted.current === initial) setLangState(initial);
         })
         .catch(() => {
-          /* hors ligne : la page reste en anglais plutôt que de casser */
+          /* hors ligne : la page reste dans sa langue plutôt que de casser */
         });
     }
     // v497 — au chargement, si déjà connecté, pousse la langue au backend.
     pushLocaleToBackend(initial);
-  }, []);
+  }, [base, locked]);
 
-  // Reflect choice in <html lang> for SEO + screen-readers, et fin du fondu
-  // de changement de langue (v548) une fois la nouvelle langue rendue.
+  // <html lang> (SEO + lecteurs d'écran) suit la langue affichée, sauf sur
+  // une page verrouillée ; data-ui-lang donne toujours la langue affichée
+  // (mesure d'audience). Fin du fondu de changement de langue (v548).
   useEffect(() => {
     shown.current = lang;
     if (typeof document !== "undefined") {
-      document.documentElement.lang = lang;
-      document.documentElement.classList.remove("lang-switching");
+      const root = document.documentElement;
+      if (!locked) root.lang = lang;
+      root.dataset.uiLang = lang;
+      root.classList.remove("lang-switching");
     }
-  }, [lang]);
+  }, [lang, locked]);
 
   const setLang = useCallback((l: Lang) => {
     try {
@@ -159,10 +197,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const t = useCallback(
     (key: string) => {
-      const dict = loaded[lang] || EN;
-      return dict[key] ?? EN[key] ?? key;
+      // Chaque fichier de langue est déjà complété par le français (i18n-split).
+      const dict = loaded[lang] || baseDict;
+      return dict[key] ?? baseDict[key] ?? key;
     },
-    [lang]
+    [lang, baseDict]
   );
 
   const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
