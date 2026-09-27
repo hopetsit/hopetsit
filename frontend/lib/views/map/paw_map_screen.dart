@@ -801,18 +801,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     // Paris fallback is the initial value — the map renders immediately
     // and _bootstrap() upgrades to real location in the background.
     _bootstrap();
-    // v594b — PawMap de l'onglet construite cachée au lancement ?
-    _hiddenTab = navWrapperMounted.value && currentMainTab.value != kPawMapTabIndex;
-    if (_hiddenTab) {
-      _tabWorker = ever<int>(currentMainTab, (i) {
-        if (i == kPawMapTabIndex) _onTabShown();
-      });
-    } else {
-      // v594 — jamais de voile bloqué : retiré au plus tard 8 s après l'ouverture.
-      Future<void>.delayed(const Duration(seconds: 8), () {
-        if (mounted) _mapPainted.value = true;
-      });
-    }
 
     // v23.1.190 — pre-warm le cache emoji markers en background. Quand
     // pret, setState force le rebuild des markers map.
@@ -1882,8 +1870,6 @@ class _PawMapScreenState extends State<PawMapScreen>
       w.dispose();
     }
     _haloTimer?.cancel();
-    _mapPaintedFallback?.cancel();
-    _tabWorker?.dispose();
     _walkTimer?.cancel(); // v590
     _walkTimer = null;
     _followWorker?.dispose();
@@ -5056,24 +5042,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                 child: _buildGoogleMap(),
               ),
             ),
-            // v594 — Oppo A40 (frère de Daniel) : fond vide sombre pendant
-            // que Google dessine ses premières tuiles. Voile PawMap clair (ou
-            // nuit) avec la patte, retiré en fondu dès la carte posée.
-            Positioned.fill(
-              key: const ValueKey<String>('pawmap_load_veil'),
-              child: Obx(() {
-                final bool shown = !_mapPainted.value;
-                return IgnorePointer(
-                  ignoring: !shown,
-                  child: AnimatedOpacity(
-                    opacity: shown ? 1 : 0,
-                    duration: const Duration(milliseconds: 380),
-                    curve: Curves.easeOut,
-                    child: _buildLoadVeil(),
-                  ),
-                );
-              }),
-            ),
+            // v596 — Daniel (27/09) : « je veux que ce soit sans attente, sur
+            // tous les téléphones, c'est tout ». Le voile de chargement des
+            // 594/595 est RETIRÉ : il attendait un « caméra à l'arrêt » que
+            // Google n'envoie pas quand la carte ne bouge pas → 5 s d'attente
+            // même sur Samsung. La carte s'affiche directement ; le moteur
+            // Google reste préparé dès le lancement (main.dart).
             // v592 — mention légale d'OpenStreetMap (obligatoire) quand le
             // fond détaillé est affiché : discrète, au-dessus du logo Google.
             Positioned(
@@ -5687,74 +5661,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v584 — LA GoogleMap unique (voir `build`). Un seul contrôleur
   /// (`_mapCtl`), un seul jeu de rappels, mêmes couches quel que soit le
   /// mode (normal / agrandi).
-  /// v594 — vrai dès que la carte Google a posé son premier cadrage.
-  final RxBool _mapPainted = false.obs;
-  Timer? _mapPaintedFallback;
-
-  /// v594b — Oppo A40 : la PawMap de l'onglet est construite CACHÉE dès le
-  /// lancement (IndexedStack). Son 1er « caméra à l'arrêt » arrivait donc
-  /// avant qu'on l'ouvre : le voile partait trop tôt, et à l'ouverture Android
-  /// laissait la vue Google noire ~3,5 s. Tant que l'onglet n'a jamais été
-  /// affiché, le voile reste ; à la 1re ouverture on force un nouveau dessin
-  /// et on attend le « caméra à l'arrêt » qui SUIT.
-  bool _hiddenTab = false;
-  bool _tabShownOnce = false;
-  Worker? _tabWorker;
-
-  void _onTabShown() {
-    if (_tabShownOnce || !mounted) return;
-    _tabShownOnce = true;
-    _mapPainted.value = false;
-    _mapPaintedFallback?.cancel();
-    _mapPaintedFallback = Timer(const Duration(seconds: 5), () {
-      if (mounted) _mapPainted.value = true;
-    });
-    unawaited(() async {
-      final ctl = await _activeMapCtl();
-      if (ctl == null || !mounted) return;
-      await ctl.moveCamera(CameraUpdate.newCameraPosition(
-          CameraPosition(target: _currentCenter, zoom: _zoomLevel)));
-    }());
-  }
-
-  void _markMapPainted({Duration delay = const Duration(milliseconds: 250)}) {
-    if (_mapPainted.value) return;
-    // Onglet encore jamais ouvert : la carte n'est pas à l'écran.
-    if (_hiddenTab && !_tabShownOnce) return;
-    Future<void>.delayed(delay, () {
-      if (mounted) _mapPainted.value = true;
-    });
-  }
-
-  Widget _buildLoadVeil() {
-    final bool dark = PawMapTheme.isDark(context) || _nightMode.value;
-    return ColoredBox(
-      color: dark ? PawMapTheme.bgDark : PawMapTheme.mapBg,
-      child: Center(
-        child: SizedBox(
-          width: 64,
-          height: 64,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              const SizedBox(
-                width: 64,
-                height: 64,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFC92A12)),
-                ),
-              ),
-              Icon(Icons.pets_rounded,
-                  size: 28,
-                  color: const Color(0xFFC92A12).withValues(alpha: 0.9)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildGoogleMap() {
     return Obx(() {
       // Dépendances observées : la carte se reconstruit quand une couche
@@ -5799,13 +5705,6 @@ class _PawMapScreenState extends State<PawMapScreen>
         ),
         onMapCreated: (c) {
           if (!_mapCtl.isCompleted) _mapCtl.complete(c);
-          // v594 — filet : le voile part au plus tard 4 s après la création
-          // (sauf onglet encore caché : filet posé à la 1re ouverture).
-          if (!_hiddenTab) {
-            _mapPaintedFallback ??= Timer(const Duration(seconds: 4), () {
-              if (mounted) _mapPainted.value = true;
-            });
-          }
           // v23.1 part 213 — centre initial demandé (alerte, ami, lien) :
           // on y va tout de suite, avant le recentrage GPS.
           final lat = widget.initialLat;
@@ -5842,13 +5741,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         // rond de l'ami, marge qui change) n'est pas un geste et mettait le
         // suivi « en pause » tout seul. La pause vient du VRAI geste (glisser
         // > 12 px ou pincer), lu par `_onMapPointer*` (PawMapDragWatch).
-        onCameraIdle: () {
-          // v594b — onglet ouvert : un temps de plus pour que la vue Google
-          // ait réellement posé ses tuiles (Oppo A40).
-          _markMapPainted(
-              delay: Duration(milliseconds: _hiddenTab ? 450 : 250));
-          _scheduleReload();
-        },
+        onCameraIdle: _scheduleReload,
         myLocationEnabled: true,
         // v23.1 part 68 — nos propres commandes (capsule droite).
         myLocationButtonEnabled: false,

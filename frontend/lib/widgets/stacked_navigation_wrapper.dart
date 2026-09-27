@@ -182,10 +182,45 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
                           : mq.padding.bottom,
                     ),
                   ),
-                  child: IndexedStack(
-                    index: _currentIndex,
-                    children: widget.screens,
-                  ),
+                  // v596 — Daniel (27/09) : « aucune attente, sur TOUS les
+                  // téléphones ». Dans un IndexedStack, l'onglet caché n'est
+                  // plus dessiné : à l'ouverture, Android devait redessiner la
+                  // vue Google de zéro (noir ~3,5 s sur l'Oppo A40). La PawMap
+                  // est maintenant TOUJOURS dessinée, sous les autres onglets
+                  // (qui sont opaques) : quand on la touche, elle est déjà
+                  // là. Cachée, elle ne reçoit aucun toucher ni animation.
+                  child: widget.screens.length > kPawMapTabIndex
+                      ? Stack(
+                          children: [
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                ignoring: _currentIndex != kPawMapTabIndex,
+                                child: ExcludeSemantics(
+                                  excluding: _currentIndex != kPawMapTabIndex,
+                                  child: TickerMode(
+                                    enabled: _currentIndex == kPawMapTabIndex,
+                                    child: widget.screens[kPawMapTabIndex],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned.fill(
+                              child: IndexedStack(
+                                index: _currentIndex,
+                                children: [
+                                  for (var i = 0; i < widget.screens.length; i++)
+                                    i == kPawMapTabIndex
+                                        ? const SizedBox.shrink()
+                                        : widget.screens[i],
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      : IndexedStack(
+                          index: _currentIndex,
+                          children: widget.screens,
+                        ),
                 );
               },
             ),
