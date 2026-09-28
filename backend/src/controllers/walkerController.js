@@ -284,6 +284,8 @@ const findNearbyWalkers = async (req, res) => {
     // perso. Sinon il achète PawSpot à Pego mais le marker reste chez lui.
     const enriched = walkers.map((w) => {
       const safe = sanitizeUser(w);
+      // 28/09/2026 — liste publique : prénom + initiale (règle de Daniel).
+      require('../utils/publicName2809').applyPublicName(safe);
       const isBoosted = w.boostExpiry && new Date(w.boostExpiry) > now;
       const isMapBoosted = w.mapBoostExpiry && new Date(w.mapBoostExpiry) > now;
       // Override location.coordinates avec mapBoostLocation quand boost

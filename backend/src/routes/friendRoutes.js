@@ -389,7 +389,10 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
         role,
         roles: ordered.map((e) => ({ id: String(e.d._id), role: e.role })),
         personIds: ids,
-        name: d.name || '',
+        // 28/09/2026 — prénom + initiale sauf pour mes amis (règle de Daniel).
+        name: ids.some((x) => friendIds.has(x))
+          ? (d.name || '')
+          : require('../utils/publicName2809').publicNameFields(d).name,
         avatar: avatarUrl(d.avatar) || avatarUrl(d.profilePicture)
           || entries.map((e) => avatarUrl(e.d.avatar) || avatarUrl(e.d.profilePicture)).find(Boolean) || '',
         location: { coordinates: pos.coordinates },
@@ -724,7 +727,8 @@ router.get('/members/world', requireAuth, async (req, res) => {
         role,
         roles,
         personIds: roles.map((r) => r.id),
-        name: d.name || '',
+        // 28/09/2026 — couche monde (tout le monde la voit) : prénom + initiale.
+        name: require('../utils/publicName2809').publicNameFields(d).name,
         avatar: avatarUrl(d.avatar) || avatarUrl(d.profilePicture)
           || entries.map((e) => avatarUrl(e.d.avatar) || avatarUrl(e.d.profilePicture)).find(Boolean) || '',
         // jamais la position exacte : grille de 1 km tirée vers le centre-ville

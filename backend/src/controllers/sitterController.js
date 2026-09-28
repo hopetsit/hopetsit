@@ -330,7 +330,8 @@ const findNearbySitters = async (req, res) => {
 
       return {
         id: sitter._id.toString(),
-        name: sitter.name || '',
+        // 28/09/2026 — liste publique : prénom + initiale (règle de Daniel).
+        name: require('../utils/publicName2809').publicNameFields(sitter).name,
         avatar: {
           url: sitter.avatar?.url || '',
           publicId: sitter.avatar?.publicId || '',
