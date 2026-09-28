@@ -610,6 +610,8 @@ const getSitterProfile = async (req, res) => {
       updatedAt: sitter.updatedAt,
     };
 
+    // 28/09/2026 — prénom + initiale pour tout autre lecteur que soi.
+    if (!isSelf) require('../utils/publicName2809').applyPublicName(sitterProfile);
     res.json({ sitter: sitterProfile });
   } catch (error) {
     logger.error('Fetch sitter profile error', error);

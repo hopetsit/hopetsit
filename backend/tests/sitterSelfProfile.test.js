@@ -213,7 +213,8 @@ describe('GET /sitters/:id — un visiteur (fuite v535 toujours colmatée)', () 
     expect(payload.sitter.address).toBe('');
     expect(payload.sitter.countryCode).toBe('');
     // …mais la fiche publique reste complète.
-    expect(payload.sitter.name).toBe('Daniel Cardelli');
+    // 28/09/2026 — prénom + initiale pour un visiteur (décision de Daniel).
+    expect(payload.sitter.name).toBe('Daniel C.');
     expect(payload.sitter.bio).toBe('Je garde des chiens depuis dix ans.');
     expect(mockFillSpy).not.toHaveBeenCalled();
   });

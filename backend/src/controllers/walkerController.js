@@ -156,6 +156,8 @@ const getWalkerProfile = async (req, res) => {
     }
     delete payload.homeLocation;
     payload.location = coarsenLocation(payload.location, req.params.id, isSelfWalker);
+    // 28/09/2026 — prénom + initiale pour tout autre lecteur que soi.
+    if (!isSelfWalker) require('../utils/publicName2809').applyPublicName(payload);
     payload.reviews = formattedReviews;
     // v23.1.296 — self-heal : recalcule le statut Top Walker à la lecture du
     // profil pour qu'il reflète toujours les prestations confirmées (même si le
