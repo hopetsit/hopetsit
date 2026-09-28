@@ -660,13 +660,17 @@ router.get('/:id/peer-position', requireAuth, async (req, res) => {
     if (!PeerModel) {
       return res.status(404).json({ error: 'Invalid peer role.' });
     }
-    const peer = await PeerModel.findById(peerId).select('location').lean();
+    const peer = await PeerModel.findById(peerId)
+      .select('location name firstName lastName avatar profilePicture').lean();
     if (!peer) {
       return res.status(404).json({ error: 'Peer not found.' });
     }
+    // v599 — nom + photo du correspondant : la PawMap ouverte depuis le chat
+    // dessine son rond avec sa photo dès le premier instant.
+    const card = require('../utils/personCard599').pickCard(peer);
     const coords = peer.location?.coordinates;
     if (!Array.isArray(coords) || coords.length < 2) {
-      return res.json({ lat: null, lng: null, peerId, peerRole });
+      return res.json({ lat: null, lng: null, peerId, peerRole, ...card });
     }
     return res.json({
       lat: Number(coords[1]), // GeoJSON [lng, lat]
@@ -674,6 +678,7 @@ router.get('/:id/peer-position', requireAuth, async (req, res) => {
       peerId,
       peerRole,
       city: peer.location?.city || '',
+      ...card,
     });
   } catch (e) {
     logger.error('[conversations/peer-position]', e);

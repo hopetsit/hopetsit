@@ -2520,15 +2520,22 @@ router.get('/live-positions', requireAuth, async (req, res) => {
       // v586 — « Masqué » : personne ne voit la personne sur la carte, même
       // ses amis (ni position, ni direct). Lu sur TOUS ses documents.
       let otherHidden = false;
+      // v599 — nom + photo de la personne (premier document qui en porte).
+      let otherCard = { name: '', avatar: '' };
       for (const d of otherDocs) {
         const Model = MODELS[d.model];
         if (!Model) continue;
         let doc = null;
         try {
           doc = await Model.findById(d.id)
-            .select('location preferences.mapVisibility preferences.hideFromMap').lean();
+            .select('location preferences.mapVisibility preferences.hideFromMap name firstName lastName avatar profilePicture').lean();
         } catch (_) {/* */}
         if (doc && mapVisibility.mapVisibilityOf(doc) === 'hidden') otherHidden = true;
+        if (doc) {
+          const c = require('../utils/personCard599').pickCard(doc);
+          if (!otherCard.name && c.name) otherCard.name = c.name;
+          if (!otherCard.avatar && c.avatar) otherCard.avatar = c.avatar;
+        }
         const coords = doc?.location?.coordinates;
         if (!Array.isArray(coords) || coords.length < 2) continue;
         // v532 — le partage éteint n'efface plus les coordonnées (sinon le
@@ -2607,6 +2614,9 @@ router.get('/live-positions', requireAuth, async (req, res) => {
         ageMs: lastSeenMs == null ? null : Math.max(0, now - lastSeenMs),
         // v590 — tracé de la balade (session en direct seulement).
         trail: live ? _trail590(live) : [],
+        // v599 — nom + photo : le rond n'est plus vide avant la liste d'amis.
+        name: otherCard.name,
+        avatar: otherCard.avatar,
       });
     }
 
@@ -2645,6 +2655,9 @@ router.get('/live-positions', requireAuth, async (req, res) => {
             personIds: gIds,
             bookingId: pv.bookingId,
             booking: true,
+            // v599 — le prestataire suivi n'est pas forcément un ami : sa
+            // photo et son nom viennent d'ici (capture « Po de la Isla »).
+            ...(await require('../utils/personCard599').cardFor(pv.id, pv.role)),
           });
         }
       }

@@ -507,6 +507,15 @@ async function expandListenerRooms(listeners) {
 // pour que le SERVICE DE FOND Android (isolate séparé, survit au swipe-kill via
 // foreground service) puisse pousser la position SANS socket — il POST sur
 // /friends/live-position et on diffuse ici aux amis/famille comme d'habitude.
+/** v599 — { name, avatar } de la personne qui diffuse ; jamais d'erreur. */
+async function personCard599(userId, role) {
+  try {
+    return await require('../utils/personCard599').cardFor(userId, role);
+  } catch (_) {
+    return { name: '', avatar: '' };
+  }
+}
+
 async function relayLivePosition({ userId, role, lat, lng, city, offline, duration, heartbeat }) {
   const r = String(role || '').toLowerCase();
   let Model = null;
@@ -523,12 +532,14 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline, durati
     const s = touchLiveSession({ userId, role: r, duration, heartbeat: true });
     if (!s) return 0;
     const listeners = await listPositionListeners(userId, r);
+    const card = await personCard599(userId, r);
     const event = {
       userId, role: r, lat: s.lat, lng: s.lng, city: s.city || '',
       at: new Date(s.at).toISOString(),
       lastSeenAt: new Date(s.lastSeenAt).toISOString(),
       heartbeat: true,
       personIds: listeners.personIds || [],
+      ...card,
     };
     for (const l of listeners) {
       emitToUser(l.role, l.userId, 'map:friend-position', {
@@ -591,10 +602,14 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline, durati
   const session = touchLiveSession({ userId, role: r, lat, lng, city, duration });
 
   const listeners = await listPositionListeners(userId, r);
+  // v599 — nom + photo dans l'événement : le rond du direct n'est plus vide
+  // chez qui ne connaît pas encore la personne (utils/personCard599.js).
+  const card = await personCard599(userId, r);
   const event = {
     userId, role: r, lat, lng, at: new Date().toISOString(), city: city || '',
     lastSeenAt: new Date(session ? session.lastSeenAt : Date.now()).toISOString(),
     personIds: listeners.personIds || [],
+    ...card,
   };
   for (const l of listeners) {
     // v526 — id traduit par destinataire : son app matche le marker de l'ami
@@ -718,6 +733,7 @@ function registerMapHandlers(io, socket) {
       const listeners = await listPositionListeners(identity.userId, identity.role);
       if (listeners.length === 0) return;
 
+      const card = await personCard599(identity.userId, identity.role); // v599
       const event = {
         userId: identity.userId,
         role: identity.role,
@@ -727,6 +743,7 @@ function registerMapHandlers(io, socket) {
         lastSeenAt: new Date(session ? session.lastSeenAt : now).toISOString(),
         city: payload.city || '',
         personIds: listeners.personIds || [],
+        ...card,
       };
 
       for (const l of listeners) {
