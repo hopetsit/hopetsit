@@ -645,7 +645,12 @@ export default function MapPage() {
   useEffect(() => {
     const me = getStoredUser();
     if (!me) {
-      router.replace("/login?redirect=%2Fmap");
+      // 28/09 (LEO) — mesure : 36 visiteurs sur /map → 0 clic. Un visiteur sans
+      // compte tombait sur la connexion. Il va désormais sur la carte publique
+      // (prix visibles, « Demander à <prénom> »), en gardant ville / position.
+      let qs = "";
+      try { qs = window.location.search || ""; } catch { /* ignore */ }
+      router.replace(`/pawmap${qs}`);
       return;
     }
     setMyRole(me.role);

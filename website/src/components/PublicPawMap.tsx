@@ -31,6 +31,8 @@ import {
 import { safeFly } from "@/lib/safeFly";
 import { AppIcon } from "@/components/AppIcon";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
+import { trackSiteEvent } from "@/components/SiteAnalytics";
+import { askHref, askLabel, askNote, dm } from "@/lib/i18n/demander2809";
 
 function memberIcon(p: PublicProvider, caption: string | null, bubble: string | null): L.DivIcon {
   return L.divIcon({
@@ -132,7 +134,7 @@ export type PublicPawMapProps = {
 };
 
 export default function PublicPawMap({ center, zoom = 12, height = "60vh", compact = false, focusKey = 0, onProviders }: PublicPawMapProps) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { user, ready } = useAuth();
   const [providers, setProviders] = useState<PublicProvider[]>([]);
   const [view, setView] = useState<View>({ lat: center[0], lng: center[1], zoom, s: center[0] - 0.1, w: center[1] - 0.15, n: center[0] + 0.1, e: center[1] + 0.15 });
@@ -186,7 +188,10 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
     const first = (p.name || "").trim().split(/\s+/)[0];
     return first || roleLabel[p.role] || null;
   };
-  const bubbleOf = (p: PublicProvider) => (showCaption ? formatPrice(p.priceFrom, p.currency) : null);
+  // 28/09 (LEO) — le PRIX se voit dès le zoom 11 (la carte s'ouvre au 12) :
+  // avant, il n'apparaissait qu'au zoom de rue (14) et le visiteur ne voyait
+  // que des ronds. Prix public déjà servi par /sitters|walkers/nearby.
+  const bubbleOf = (p: PublicProvider) => (view.zoom >= 11 ? formatPrice(p.priceFrom, p.currency) : null);
 
   return (
     <div className="relative w-full overflow-hidden rounded-[28px]" style={{ height }}>
@@ -242,14 +247,30 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                     )}
                   </div>
                   <div className="mt-1 text-[11px] text-[#8A6B64]">{t("map_member_approx").replace("{km}", String(p.approxKm))}</div>
+                  {/* 28/09 (LEO) — sans compte : « Demander à <prénom> » ouvre la
+                      demande (compte créé sur le même écran) ; connecté : Réserver. */}
                   <Link
-                    href={href}
+                    href={ready && user ? href : askHref(p.city)}
+                    onClick={() => { if (!(ready && user)) trackSiteEvent("cta_click", { label: "demander_carte" }); }}
                     className="mt-3 flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-bold text-white"
                     style={{ background: `linear-gradient(90deg, ${p.role === "sitter" ? "#2563EB" : "#15803D"}, ${p.role === "sitter" ? "#1E4FB0" : "#166534"})`, color: "#fff" }}
                   >
-                    <span className="grid h-7 w-7 place-items-center rounded-full bg-white"><AppIcon name="calendar" size={15} color={color} /></span>
-                    {ready && user ? t("map_member_book") : t("pawmap_signup_to_contact")}
+                    <span className="grid h-7 w-7 place-items-center rounded-full bg-white"><AppIcon name={ready && user ? "calendar" : "megaphone"} size={15} color={color} /></span>
+                    {ready && user ? t("map_member_book") : askLabel(lang, p.name)}
                   </Link>
+                  {!(ready && user) && (
+                    <>
+                      <p className="mt-1.5 text-center text-[11px] leading-snug text-[#6E4F48]">{askNote(lang, p.city)}</p>
+                      <Link
+                        href={`/p/${p.role}/${p.id}`}
+                        onClick={() => trackSiteEvent("cta_click", { label: "profil_carte" })}
+                        className="mt-1 flex min-h-[36px] items-center justify-center gap-1 text-xs font-bold"
+                        style={{ color }}
+                      >
+                        {dm(lang, "profile")}<AppIcon name="arrow-right" size={13} color={color} />
+                      </Link>
+                    </>
+                  )}
                 </div>
               </Popup>
             </Marker>
@@ -326,10 +347,11 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
             {clusterList.map((p) => {
               const color = ROLE_COLOR[p.role];
               const bookHref = `/book/${p.role}/${p.id}`;
-              const href = ready && user ? bookHref : `/signup?next=${encodeURIComponent(bookHref)}`;
+              // 28/09 (LEO) — sans compte : le profil public, qui porte « Demander à <prénom> ».
+              const href = ready && user ? bookHref : `/p/${p.role}/${p.id}`;
               return (
                 <li key={`cl-${p.id}`}>
-                  <Link href={href} className="flex min-h-[52px] items-center gap-3 rounded-2xl px-2 py-1.5 transition hover:bg-[#FAF1EC]">
+                  <Link href={href} onClick={() => { if (!(ready && user)) trackSiteEvent("cta_click", { label: "profil_grappe" }); }} className="flex min-h-[52px] items-center gap-3 rounded-2xl px-2 py-1.5 transition hover:bg-[#FAF1EC]">
                     <span className="h-10 w-10 shrink-0 overflow-hidden rounded-full" style={{ border: `2.5px solid ${color}`, background: color }}>
                       {p.avatar ? (
                         // eslint-disable-next-line @next/next/no-img-element

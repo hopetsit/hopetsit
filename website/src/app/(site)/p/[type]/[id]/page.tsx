@@ -25,6 +25,8 @@ import { API_BASE, startConversationWithOwner, startProviderConversation } from 
 import { OwnerRequestsCard } from "@/components/OwnerRequestsCard";
 import { AppIcon } from "@/components/AppIcon";
 import { ensureOwnerProfile, isMyProfile, needsOwnerSwitch } from "@/lib/bookAsOwner";
+import { trackSiteEvent } from "@/components/SiteAnalytics";
+import { askHref, askLabel, askNote, dm } from "@/lib/i18n/demander2809";
 import { providerCurrency, providerFrom, providerRateLines, formatMoney, type ProviderRateSource } from "@/lib/providerRates";
 
 // 25/09/2026 (PawMap 584, point 8) — fiche refaite : bouton principal PLEIN
@@ -239,7 +241,44 @@ function ProviderSharePage() {
           )}
         </div>
 
-        {!mine && (<>
+        {/* 28/09 (LEO) — SANS COMPTE : « Demander à <prénom> » en premier. Il
+            ouvre la demande de NEO, ville du prestataire pré-remplie, compte
+            propriétaire créé sur le même écran (plus d'inscription séparée). */}
+        {ready && !connecte && (<>
+        <Link
+          href={askHref(ville)}
+          onClick={() => trackSiteEvent("cta_click", { label: "demander_profil" })}
+          className="relative mt-6 flex min-h-[56px] w-full items-center justify-center gap-3 overflow-hidden rounded-[18px] px-5 text-[15px] font-bold text-white shadow-[0_12px_28px_-10px_rgba(23,20,31,0.45)] transition active:scale-[0.97]"
+          style={{ background: `linear-gradient(90deg, ${r.g1}, ${r.g2})`, color: "#fff" }}
+        >
+          <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-white/15" />
+          <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white"><AppIcon name="megaphone" size={18} color={r.c} /></span>
+          <span className="relative text-balance leading-tight">
+            {askLabel(lang, prenom)}
+            {des && <span className="block text-[12px] font-semibold opacity-90">{t("map_member_price_from")} {formatMoney(des.value, devise, lang)}/{t(des.unitKey)}</span>}
+          </span>
+        </Link>
+        <p className="mt-2 text-[12px] leading-snug text-[#6E4F48]">{askNote(lang, ville)}</p>
+        <div className="mt-3 flex items-center justify-center gap-2">
+          <Link
+            href={lienReserver}
+            onClick={() => trackSiteEvent("cta_click", { label: "reserver_profil" })}
+            className="flex min-h-[44px] items-center justify-center gap-2 rounded-[16px] border-[1.5px] bg-white px-4 text-sm font-bold transition active:scale-[0.97]"
+            style={{ borderColor: r.c, color: r.dark }}
+          >
+            <AppIcon name="calendar" size={16} color={r.c} />{dm(lang, "book")}
+          </Link>
+          <button
+            type="button"
+            onClick={() => { trackSiteEvent("cta_click", { label: "message_profil" }); void onMessage(); }}
+            className="flex min-h-[44px] items-center justify-center gap-2 rounded-[16px] border-[1.5px] bg-white px-4 text-sm font-bold transition active:scale-[0.97]"
+            style={{ borderColor: r.c, color: r.dark }}
+          >
+            <AppIcon name="chat" size={16} color={r.c} />{t("prov_message")}
+          </button>
+        </div>
+        </>)}
+        {connecte && !mine && (<>
         <Link
           href={lienReserver}
           onClick={onBook}

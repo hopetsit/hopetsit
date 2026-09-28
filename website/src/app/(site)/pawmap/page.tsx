@@ -10,7 +10,9 @@ import { PageTitle } from "@/components/PageTitle";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 import { getCitySupply, type PublicProvider } from "@/lib/api";
-import { ROLE_COLOR } from "@/lib/pawmapLegend";
+import { formatPrice, ROLE_COLOR } from "@/lib/pawmapLegend";
+import { trackSiteEvent } from "@/components/SiteAnalytics";
+import { askHref, askLabel, askNote } from "@/lib/i18n/demander2809";
 
 // v493 — page PawMap recentrée sur la carte et la communauté.
 // v562 — refonte minimaliste façon Apple (Daniel, 13/09).
@@ -223,31 +225,49 @@ export default function PawMapPage() {
       {nearest.length > 0 && (
         <div className="mx-auto max-w-6xl px-4 pt-10">
           <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-[#231715] md:text-3xl">{t("pawmap_public_nearest")}</h2>
+          <p className="mt-2 text-sm text-[#6E4F48]">{askNote(lang, cityLabel)}</p>
           <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {nearest.map((p) => {
               const color = ROLE_COLOR[p.role];
-              const bookHref = `/book/${p.role}/${p.id}`;
-              const href = ready && user ? bookHref : `/signup?next=${encodeURIComponent(bookHref)}`;
+              const price = formatPrice(p.priceFrom, p.currency);
+              // 28/09 (LEO) — « Demander à <prénom> » : la demande de NEO, ville du
+              // prestataire pré-remplie, compte créé sur le même écran.
+              const ville = cityLabel || p.city;
               return (
-                <li key={p.id} className="flex items-center gap-3 rounded-[20px] bg-[#FAF1EC] p-4">
-                  {p.avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.avatar} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" style={{ border: `2.5px solid ${color}` }} />
-                  ) : (
-                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-white" style={{ background: color }}>
-                      <AppIcon name={p.role === "walker" ? "walker" : "home"} size={22} color="#fff" />
+                <li key={p.id} className="rounded-[20px] bg-[#FAF1EC] p-4">
+                  <Link href={`/p/${p.role}/${p.id}`} onClick={() => trackSiteEvent("cta_click", { label: "profil_liste" })} className="flex items-center gap-3">
+                    {p.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.avatar} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" style={{ border: `2.5px solid ${color}` }} />
+                    ) : (
+                      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-white" style={{ background: color }}>
+                        <AppIcon name={p.role === "walker" ? "walker" : "home"} size={22} color="#fff" />
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold text-[#231715]">{p.name || roleLabel[p.role]}</span>
+                      <span className="block truncate text-xs font-semibold" style={{ color }}>
+                        {roleLabel[p.role]}
+                        {p.rating > 0 ? ` · ${p.rating.toFixed(1)} ★` : ""}
+                        {p.identityVerified ? ` · ${t("trust_id_title")}` : ""}
+                      </span>
                     </span>
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold text-[#231715]">{p.name || roleLabel[p.role]}</span>
-                    <span className="block truncate text-xs font-semibold" style={{ color }}>
-                      {roleLabel[p.role]}
-                      {p.rating > 0 ? ` · ${p.rating.toFixed(1)} ★` : ""}
-                      {p.identityVerified ? ` · ${t("trust_id_title")}` : ""}
-                    </span>
-                  </span>
-                  <Link href={href} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white" style={{ background: color }} aria-label={t("map_member_book")} title={t("map_member_book")}>
-                    <AppIcon name="calendar" size={20} color="#fff" />
+                    {price && (
+                      <span className="shrink-0 text-right leading-tight">
+                        <span className="block text-[10px] font-semibold uppercase tracking-wide text-[#6E4F48]">{t("map_member_price_from")}</span>
+                        <span className="block font-display text-lg font-bold tabular-nums" style={{ color }}>{price}</span>
+                      </span>
+                    )}
+                  </Link>
+                  <Link
+                    href={askHref(ville)}
+                    onClick={() => trackSiteEvent("cta_click", { label: "demander_liste" })}
+                    title={askNote(lang, ville)}
+                    className="mt-3 flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-bold text-white transition active:scale-[0.97]"
+                    style={{ background: `linear-gradient(90deg, ${p.role === "sitter" ? "#2563EB" : "#15803D"}, ${p.role === "sitter" ? "#1E4FB0" : "#166534"})`, color: "#fff" }}
+                  >
+                    <AppIcon name="megaphone" size={16} color="#fff" />
+                    <span className="truncate">{askLabel(lang, p.name)}</span>
                   </Link>
                 </li>
               );
