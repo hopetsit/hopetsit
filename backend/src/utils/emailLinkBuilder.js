@@ -67,7 +67,7 @@ const buildAppRoute = (notifType, data = {}) => {
     return bookingId ? `/walk/${bookingId}` : bookingPath;
   }
   // Annonces
-  if (t === 'new_request_nearby' || t === 'post_new' ||
+  if (t === 'new_request_nearby' || t === 'new_request_for_you' || t === 'post_new' ||
       t === 'post_application_eligible' ||
       t === 'application_rejected_other_accepted') {
     return postPath;

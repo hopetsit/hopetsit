@@ -11,6 +11,12 @@
     "emailSubject": "新しい募集 — HoPetSit",
     "emailBody": "<p>お近くのエリアに新しい募集が投稿されました。HoPetSitアプリから応募してみましょう。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">アプリで開く</a></p>"
   },
+  "new_request_for_you": {
+    "title": "{{ownerName}}さんがあなたを選びました",
+    "body": "{{ownerName}}さんが{{city}}での依頼にあなたを選びました。最初に返信しましょう：アプリを開いてください。",
+    "emailSubject": "{{ownerName}}さんがあなたを選びました — HoPetSit",
+    "emailBody": "<p>{{ownerName}}さんが{{city}}でのペットケアの依頼にあなたを選びました。あなたに最初に通知されています。アプリからすぐに返信しましょう。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">アプリで開く</a></p>"
+  },
   "booking_new": {
     "title": "新しい予約リクエスト",
     "body": "新しい予約リクエストが届きました。",

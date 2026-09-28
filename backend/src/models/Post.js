@@ -192,6 +192,15 @@ const postSchema = new mongoose.Schema(
     // applications stay pending and the owner sees them queued behind the
     // reservation. If the booking is cancelled the field is unset and the
     // post becomes available again.
+    // 28/09/2026 (NEO) — « Demander à Sasha » : prestataire ciblé par la
+    // demande (facultatif). Il est prévenu en premier, avec une notification
+    // distincte ; la diffusion à la ville reste inchangée. Voir
+    // utils/targetProvider2809.js (validation) et notifyNearbyProviders.
+    targetProvider: {
+      role: { type: String, enum: ['sitter', 'walker', null], default: null },
+      id: { type: mongoose.Schema.Types.ObjectId, default: null },
+    },
+
     reservedBy: {
       bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
       providerRole: { type: String, enum: ['sitter', 'walker', null], default: null },

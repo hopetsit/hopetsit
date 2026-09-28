@@ -13,6 +13,7 @@ const { isValidWalkDuration } = require('../utils/walkDuration');
 const { resolveServiceLocation } = require('../utils/serviceLocation587');
 // v587 (budget, option A de Daniel) — « Mon budget » facultatif.
 const { resolveBudget, publicBudget } = require('../utils/postBudget587');
+const { resolveTargetProvider } = require('../utils/targetProvider2809');
 
 /** v573 — retire d'une liste d'annonces celles du spectateur gardien/promeneur. */
 async function hideOwnPostsForProviders(req, posts) {
@@ -355,12 +356,39 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
           for (const gid of grp.ids) selfIds.add(String(gid));
         } catch (_) { /* non bloquant */ }
 
+        // 28/09 (NEO) — « Demander à <prénom> » : le prestataire ciblé est
+        // prévenu EN PREMIER, avec une notification distincte, dans SON rôle
+        // (un promeneur visé par une demande de garde la reçoit quand même).
+        // Il est ensuite retiré de la diffusion ville : jamais deux fois.
+        const alreadyNotified = new Set();
+        const target = postPayload.targetProvider;
+        if (target && target.id && (target.role === 'sitter' || target.role === 'walker')) {
+          const tid = String(target.id);
+          if (!selfIds.has(tid)) {
+            alreadyNotified.add(tid);
+            await sendNotification({
+              userId: tid,
+              role: target.role,
+              type: 'new_request_for_you',
+              data: {
+                postId: newPost._id.toString(),
+                ownerName: owner.name || '',
+                serviceType: normalizedServices[0] || '',
+                city: cityKey || '',
+              },
+              actor: { role: 'owner', id: ownerId },
+            });
+            logger.info(`[createPost] targeted ${target.role} ${tid} notified first (new_request_for_you)`);
+          }
+        }
+
         for (const r of recipients) {
           const rid = r._id ? r._id.toString() : '';
           const roldId = r.oldId ? r.oldId.toString() : '';
           if (selfIds.has(rid) || (roldId && selfIds.has(roldId))) {
             continue; // c'est le doc prestataire de l'owner lui-même → skip
           }
+          if (alreadyNotified.has(rid)) continue; // déjà prévenu en premier
           sendNotification({
             userId: r._id.toString(),
             role: recipientRole,
@@ -533,6 +561,12 @@ const createPost = async (req, res) => {
     }));
     // v587 — budget facultatif (devise du propriétaire par défaut).
     Object.assign(postPayload, resolveBudget(req.body, owner && owner.currency));
+    // 28/09 (NEO) — « Demander à <prénom> » : prestataire ciblé, facultatif ;
+    // rôle inconnu ou id inexistant → ignoré, la demande part quand même.
+    {
+      const tp = await resolveTargetProvider(req.body?.targetProvider);
+      if (tp) postPayload.targetProvider = tp;
+    }
 
     // Sprint 4 step 6 — auto-translate body to all supported locales.
     try {
@@ -1848,6 +1882,9 @@ const createPostWithMedia = async (req, res) => {
       }));
       // v587 — budget facultatif, aussi avec photo.
       Object.assign(postPayload, resolveBudget(req.body, owner && owner.currency));
+      // 28/09 (NEO) — prestataire ciblé (chaîne JSON en multipart).
+      const tp = await resolveTargetProvider(req.body?.targetProvider);
+      if (tp) postPayload.targetProvider = tp;
     }
 
     // Create the post
@@ -2243,6 +2280,7 @@ module.exports = {
   getPublicRequestPosts,
   createPost,
   createPostWithMedia,
+  notifyNearbyProviders,
   listPosts,
   getMediaPosts,
   getRequestPosts,

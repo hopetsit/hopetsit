@@ -62,7 +62,7 @@ const hasExplicitPrefs = (doc) =>
 /**
  * Catégorie d'un type de notification — mappage FIGÉ par le contrat §2 :
  *   messages = NEW_MESSAGE, CHAT_AUTO_WELCOME, chat_addon_activated, BOOKING_PAID_CHAT_UNLOCKED
- *   bookings = booking_*, application_*, service_*, VISIT_REPORT, BOOKING_*, walk_*, new_request_nearby, handover_*
+ *   bookings = booking_*, application_*, service_*, VISIT_REPORT, BOOKING_*, walk_*, new_request_nearby, new_request_for_you, handover_*
  *   payments = PAYMENT_*, payout_*, withdrawal_*, wallet_credited, kyc_payment_succeeded, REFERRAL_CREDITED
  *   friends = friend_*, family_* ; pawmap = lost_pet_sighting, sos_pet_nearby, map_boost_activated, profile_boost_activated
  *   live = live_tracking_*, live_still_active, live_session_ended ; reviews = NEW_REVIEW, PREMIUM_ACHIEVED, TOP_SITTER_ACHIEVED
@@ -72,6 +72,7 @@ const EXACT_CATEGORY = {
   NEW_MESSAGE: 'messages', CHAT_AUTO_WELCOME: 'messages', chat_addon_activated: 'messages',
   BOOKING_PAID_CHAT_UNLOCKED: 'messages',
   VISIT_REPORT: 'bookings', new_request_nearby: 'bookings',
+  new_request_for_you: 'bookings', // 28/09 (NEO) — « Demander à <prénom> »
   wallet_credited: 'payments', kyc_payment_succeeded: 'payments', REFERRAL_CREDITED: 'payments',
   lost_pet_sighting: 'pawmap', sos_pet_nearby: 'pawmap', map_boost_activated: 'pawmap',
   profile_boost_activated: 'pawmap',
