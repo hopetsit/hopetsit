@@ -97,7 +97,7 @@ function RoundIcon({ name, color, filled = false }: { name: AppIconName; color: 
 }
 
 type Row = { html?: string; node?: ReactNode; title: string; body?: string; color?: string; /** 29/09 — petite bulle sous le titre (texte exact de la carte). */ chip?: { text: string; color: string; border: string; bg?: string } };
-type Section = { id: string; title: string; rows: Row[]; example?: string; image?: { src: string; alt: string } };
+type Section = { id: string; title: string; rows: Row[]; example?: string; image?: { src: string; srcSet?: string; darkSrc?: string; darkSrcSet?: string; alt: string } };
 
 // 29/09 — section « La Balade » : dessins compacts (56 px) de ce que l'on voit
 // vraiment sur /map : pilule verte du direct, tracé violet PawFollow.
@@ -205,7 +205,12 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     id: "walk",
     title: t("help599_sec_balade"),
     example: t("help599_ex_balade"),
-    image: { src: "/pawmap/balade_2909.svg", alt: t("help599_img_caption") },
+    // 29/09 01 h 38 — l'image de PAM (même fichier que l'app, sans mot) : claire / nuit, @2x et @3x.
+    image: {
+      src: "/pawmap/balade_599_clair@2x.png", srcSet: "/pawmap/balade_599_clair@2x.png 2x, /pawmap/balade_599_clair@3x.png 3x",
+      darkSrc: "/pawmap/balade_599_nuit@2x.png", darkSrcSet: "/pawmap/balade_599_nuit@2x.png 2x, /pawmap/balade_599_nuit@3x.png 3x",
+      alt: t("help599_img_caption"),
+    },
     rows: [
       { html: walkPillHtml(), title: `${t("help599_t_me")} · « ${t("m590_on_walk")} · ${t("bal2909_followers").replace("{n}", "2")} »`, body: t("help599_b_me"), color: "#1F7A37" },
       { html: photoPinHtml({ role: "walker", name: "Kathy", followed: true, online: true }), title: t("help599_t_others"), body: t("help599_b_others"), color: PAWFOLLOW_VIOLET, chip: { text: t("bal2909_live_now"), color: ROLE_COLOR.walker, border: FRIEND_PINK } },
@@ -334,9 +339,17 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
               <span className="min-w-0">{sec.title}</span>
             </h3>
             {sec.image && (
-              // 29/09 — image de la section (même fichier que l'app), nette à 2× : SVG.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={sec.image.src} alt={sec.image.alt} width={640} height={300} loading="lazy" className="mt-3 block h-auto w-full rounded-[20px] border border-[#7C3AED]/25 shadow-[0_10px_24px_-14px_rgba(124,58,237,0.6)]" />
+              // 29/09 — image de la section = celle de PAM (même fichier que l'app), nette à 2× / 3×,
+              // version nuit quand le mode sombre est actif ; légende d'image en dessous.
+              <figure className="mt-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={sec.image.src} srcSet={sec.image.srcSet} alt={sec.image.alt} width={720} height={430} loading="lazy" className={`block h-auto w-full rounded-[20px] border border-[#7C3AED]/25 shadow-[0_10px_24px_-14px_rgba(124,58,237,0.6)] ${sec.image.darkSrc ? "dark:hidden" : ""}`} />
+                {sec.image.darkSrc && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={sec.image.darkSrc} srcSet={sec.image.darkSrcSet} alt={sec.image.alt} width={720} height={430} loading="lazy" className="hidden h-auto w-full rounded-[20px] border border-[#7C3AED]/40 shadow-[0_10px_24px_-14px_rgba(124,58,237,0.6)] dark:block" />
+                )}
+                <figcaption className="mt-1.5 break-words text-center text-[12px] font-semibold leading-snug text-[#3B2A26] dark:text-[#EBDDD6]">{sec.image.alt}</figcaption>
+              </figure>
             )}
             <ul className="mt-2 space-y-1.5">
               {sec.rows.map((r, i) => (
