@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { gp } from "@/lib/i18n/guestPublish2809";
+import { trackSiteEvent } from "@/components/SiteAnalytics";
 import ServiceLocationPicker587 from "@/components/ServiceLocationPicker587";
 import { locationComplete, locationOptions, locationToSend, p587, type ServiceLocation } from "@/lib/i18n/publish587";
 import {
@@ -11,7 +14,11 @@ import {
   createPostWithMedia,
   getMyProfile,
   getStoredUser,
+  login,
   POST_SERVICE_TYPES,
+  resendVerificationCode,
+  signup,
+  verifyEmail,
 } from "@/lib/api";
 
 // v402 — Owner publie une annonce depuis le SITE (parité app). Endpoint
@@ -72,6 +79,25 @@ export default function CreatePostPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
+  // 28/09/2026 (NEO, mission BOB validée par Daniel) — UNE SEULE ÉTAPE.
+  // Mesure du 28/09 (7 jours) : 8 visiteurs sur ce formulaire, 9 sur /signup,
+  // 0 demande publiée. L'invité devait remplir la demande, partir sur /signup,
+  // puis /verify-email, puis revenir ici et republier : 4 écrans. Désormais le
+  // compte (prénom, e-mail, mot de passe, CGU — le minimum exigé par
+  // POST /auth/signup) se remplit ICI, le code e-mail se tape ICI, et la
+  // demande part toute seule dès que le compte est actif.
+  const [accName, setAccName] = useState("");
+  const [accEmail, setAccEmail] = useState("");
+  const [accPassword, setAccPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+  const [step, setStep] = useState<"form" | "code">("form");
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [info, setInfo] = useState("");
+  const accStarted = useRef(false);
+
   function addPhotos(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -95,11 +121,17 @@ export default function CreatePostPage() {
         .catch(() => { /* hors ligne : EUR */ });
     }
 
+    // Mesure de l'entonnoir invité (libellé court, aucune donnée perso).
+    if (!u) trackSiteEvent("cta_click", { label: "pub_ouvert" });
+
     // Ville pré-remplie par la page ville d'où l'on vient (?city=Paris).
     try {
       const q = new URLSearchParams(window.location.search);
       const c = (q.get("city") || "").trim();
       if (c) setCity(c);
+      // Code parrain (même règle que /signup : format exact uniquement).
+      const ref = (q.get("ref") || "").trim();
+      if (/^[A-HJ-NP-Z2-9]{8}$/.test(ref)) setReferralCode(ref);
     } catch { /* URL exotique */ }
 
     // Brouillon laissé avant l'inscription : on le remet tel quel.
@@ -120,6 +152,13 @@ export default function CreatePostPage() {
       if (typeof d.animalCount === "number") setAnimalCount(d.animalCount);
       if (Array.isArray(d.animalTypes)) setAnimalTypes(d.animalTypes as string[]);
       if (typeof d.city === "string" && d.city) setCity(d.city);
+      // Page rechargée pendant la saisie du code : on revient sur le code.
+      if (!u && typeof d.pendingEmail === "string" && d.pendingEmail) {
+        setPendingEmail(d.pendingEmail);
+        setAccEmail(d.pendingEmail);
+        setStep("code");
+      }
+      if (typeof d.accName === "string") setAccName(d.accName);
     } catch { /* brouillon illisible → on repart d'une page vierge */ }
   }, [router]);
 
@@ -161,61 +200,67 @@ export default function CreatePostPage() {
       return;
     }
 
-    // Invité : rien n'est envoyé au serveur (il refuserait, et c'est très
-    // bien : aucune annonce d'un compte qui n'existe pas). On met la demande
-    // de côté et on va créer le compte ; au retour, le formulaire est rempli.
+    setBusy(true);
+    setErr("");
+    setInfo("");
+
+    // Invité : on crée le compte propriétaire ici même. Aucune demande n'est
+    // envoyée tant que le compte n'est pas actif (le serveur la refuserait).
     if (invite) {
+      const name = accName.trim();
+      const em = accEmail.trim().toLowerCase();
+      const fail = (m: string) => { setErr(m); setBusy(false); };
+      if (!name) return fail(gp(lang, "acc_name_required"));
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return fail(gp(lang, "acc_email_invalid"));
+      // Mêmes règles que /signup et que l'app (les modèles exigent 8 caractères).
+      if (accPassword.length < 8 || !/[A-Z]/.test(accPassword) || !/[a-z]/.test(accPassword) || !/[0-9]/.test(accPassword)) {
+        return fail(t("auth_error_password_rules"));
+      }
+      if (!acceptTerms) return fail(t("signup_terms_required"));
+      saveDraft({ accName: name });
       try {
-        window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
-          body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
-          animalCount, animalTypes, city, budget,
-        }));
-      } catch { /* navigation privée : on continue sans mémoriser */ }
-      router.push(
-        `/signup?role=owner&city=${encodeURIComponent(city.trim())}`
-        + `&next=${encodeURIComponent("/posts/create")}`,
-      );
+        const res = await signup({
+          name, email: em, password: accPassword, role: "owner", city: city.trim(), lang,
+          ...(referralCode ? { referralCode } : {}),
+        });
+        if (!res.needsVerification && res.token) {
+          await publishAfterAccount();
+          return;
+        }
+        // Le serveur a envoyé le code : on le demande SUR PLACE.
+        saveDraft({ accName: name, pendingEmail: em });
+        setPendingEmail(em);
+        setCode("");
+        setStep("code");
+        trackSiteEvent("cta_click", { label: "pub_code_envoye" });
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409) {
+          // Compte propriétaire déjà vérifié : on tente la connexion avec le
+          // mot de passe saisi, et la demande part dans la foulée.
+          try {
+            await login(em, accPassword);
+            trackSiteEvent("cta_click", { label: "pub_connexion" });
+            await publishAfterAccount();
+            return;
+          } catch {
+            setErr(gp(lang, "taken"));
+          }
+        } else {
+          setErr(e instanceof ApiError && e.message ? e.message : t("auth_error_generic"));
+        }
+      } finally {
+        setBusy(false);
+      }
       return;
     }
 
-    setBusy(true);
-    setErr("");
     try {
-      const input = {
-        body: body.trim(),
-        serviceTypes: services,
-        houseSittingVenue: needsVenue ? venue : undefined,
-        serviceLocation: service ? locationToSend(service, svcLocation) : undefined,
-        meetingPoint: svcLocation === "meeting_point" ? meetingPoint.trim() : undefined,
-        startDate: startDate ? new Date(startDate).toISOString() : undefined,
-        endDate: endDate ? new Date(endDate).toISOString() : undefined,
-        notes: notes.trim() || undefined,
-        animalCount: animalCount > 0 ? animalCount : undefined,
-        animalTypes: animalTypes.length ? animalTypes : undefined,
-        // Sans ville, aucun gardien n'est prévenu (cf. le commentaire plus haut).
-        location: { city: city.trim() },
-        // v587 — budget facultatif (rien envoyé sans montant).
-        budget: budgetAmount > 0 ? budgetAmount : undefined,
-        budgetCurrency: budgetAmount > 0 ? budgetCur : undefined,
-      };
-      // Avec photos → /posts/with-media (postType=request) ; sinon → /posts.
-      if (photos.length > 0) {
-        await createPostWithMedia(input, photos);
-      } else {
-        await createPost(input);
-      }
-      try { window.localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
-      router.push("/posts");
+      await publishNow(false);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         // Session expirée pendant la saisie : on garde le travail de la
         // personne plutôt que de le jeter avec elle vers /login.
-        try {
-          window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
-            body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
-            animalCount, animalTypes, city, budget,
-          }));
-        } catch { /* ignore */ }
+        saveDraft();
         router.replace(`/login?next=${encodeURIComponent("/posts/create")}`);
         return;
       }
@@ -223,6 +268,112 @@ export default function CreatePostPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  /** Brouillon (jamais le mot de passe) : survit à un rechargement. */
+  function saveDraft(extra: Record<string, unknown> = {}) {
+    try {
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
+        animalCount, animalTypes, city, budget, ...extra,
+      }));
+    } catch { /* navigation privée : on continue sans mémoriser */ }
+  }
+
+  async function publishNow(fromGuest: boolean) {
+    const input = {
+      body: body.trim(),
+      serviceTypes: services,
+      houseSittingVenue: needsVenue ? venue : undefined,
+      serviceLocation: service ? locationToSend(service, svcLocation) : undefined,
+      meetingPoint: svcLocation === "meeting_point" ? meetingPoint.trim() : undefined,
+      startDate: startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: endDate ? new Date(endDate).toISOString() : undefined,
+      notes: notes.trim() || undefined,
+      animalCount: animalCount > 0 ? animalCount : undefined,
+      animalTypes: animalTypes.length ? animalTypes : undefined,
+      // Sans ville, aucun gardien n'est prévenu (cf. le commentaire plus haut).
+      location: { city: city.trim() },
+      // v587 — budget facultatif (rien envoyé sans montant).
+      budget: budgetAmount > 0 ? budgetAmount : undefined,
+      budgetCurrency: budgetAmount > 0 ? budgetCur : undefined,
+    };
+    // Avec photos → /posts/with-media (postType=request) ; sinon → /posts.
+    if (photos.length > 0) {
+      await createPostWithMedia(input, photos);
+    } else {
+      await createPost(input);
+    }
+    try { window.localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    trackSiteEvent("cta_click", { label: fromGuest ? "pub_publiee" : "pub_publiee_membre" });
+    router.push("/posts");
+  }
+
+  /** Compte actif (code validé ou connexion) : la demande part toute seule. */
+  async function publishAfterAccount() {
+    setInvite(false);
+    setRole("owner");
+    setStep("form");
+    setInfo(gp(lang, "publishing"));
+    saveDraft();
+    try {
+      await publishNow(true);
+    } catch {
+      setInfo("");
+      setErr(gp(lang, "after_fail"));
+    }
+  }
+
+  async function onVerify(e: React.FormEvent) {
+    e.preventDefault();
+    const c = code.replace(/\s/g, "");
+    if (!/^\d{6}$/.test(c)) {
+      setErr(gp(lang, "code_invalid"));
+      return;
+    }
+    setBusy(true);
+    setErr("");
+    setInfo("");
+    try {
+      await verifyEmail(pendingEmail, c, "owner");
+    } catch {
+      setErr(gp(lang, "code_invalid"));
+      setBusy(false);
+      return;
+    }
+    trackSiteEvent("cta_click", { label: "pub_code_ok" });
+    try {
+      await publishAfterAccount();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onResend() {
+    setErr("");
+    setInfo("");
+    try {
+      await resendVerificationCode(pendingEmail);
+      setInfo(gp(lang, "code_resent"));
+      trackSiteEvent("cta_click", { label: "pub_code_renvoye" });
+    } catch (e) {
+      setErr(e instanceof ApiError && e.message ? e.message : t("auth_error_generic"));
+    }
+  }
+
+  function onChangeEmail() {
+    setStep("form");
+    setPendingEmail("");
+    setCode("");
+    setErr("");
+    setInfo("");
+    saveDraft({ accName });
+  }
+
+  function accountStarted() {
+    if (accStarted.current) return;
+    accStarted.current = true;
+    trackSiteEvent("cta_click", { label: "pub_compte" });
   }
 
   // Les owners seuls publient des annonces (le backend renvoie 403 sinon).
@@ -240,6 +391,49 @@ export default function CreatePostPage() {
         {t("posts_create_title")}
       </h1>
 
+      {step === "code" ? (
+        <form
+          onSubmit={onVerify}
+          data-testid="guest-code"
+          className="mt-10 space-y-4 rounded-3xl border border-owner/20 bg-white p-7 shadow-card"
+        >
+          <h2 className="text-center font-display text-xl font-extrabold text-ink">{gp(lang, "code_title")}</h2>
+          <p className="text-center text-sm leading-relaxed text-[#6E4F48]">
+            {gp(lang, "code_sub").replace("{email}", pendingEmail)}
+          </p>
+          <div>
+            <label htmlFor="guest-code-input" className="block text-sm font-medium text-ink">{gp(lang, "code_label")}</label>
+            <input
+              id="guest-code-input"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              maxLength={6}
+              placeholder="123456"
+              className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3.5 py-3 text-center font-display text-2xl font-extrabold tracking-[0.4em] text-ink focus:border-owner focus:outline-none"
+            />
+          </div>
+          <button
+            disabled={busy}
+            className="w-full rounded-full bg-owner py-3 text-sm font-semibold text-white shadow-cta hover:bg-owner-dark disabled:opacity-60"
+          >
+            {busy ? gp(lang, "publishing") : gp(lang, "code_submit")}
+          </button>
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
+            <button type="button" onClick={onResend} className="font-semibold text-owner-dark underline max-lg:min-h-[44px]">
+              {gp(lang, "code_resend")}
+            </button>
+            <button type="button" onClick={onChangeEmail} className="font-semibold text-owner-dark underline max-lg:min-h-[44px]">
+              {gp(lang, "code_change")}
+            </button>
+          </div>
+          <p className="text-center text-xs text-[#6E4F48]">{gp(lang, "code_spam")} {gp(lang, "code_kept")}</p>
+          {info && <p className="text-center text-sm font-semibold text-owner-dark">{info}</p>}
+          {err && <p className="text-center text-sm text-owner-dark">{err}</p>}
+        </form>
+      ) : (
       <form
         onSubmit={onSubmit}
         className="mt-10 space-y-5 rounded-3xl border border-ink/5 bg-white p-7 shadow-card"
@@ -386,10 +580,9 @@ export default function CreatePostPage() {
         </div>
 
         {/* v402 — Photos de l'annonce (ajouter / supprimer avant publication).
-            Masquées à l'invité : un fichier choisi ici ne survivrait pas au
-            passage par l'inscription, et on ne fait pas travailler quelqu'un
-            pour rien. */}
-        <div className={invite ? "hidden" : undefined}>
+            28/09 : visibles aussi pour l'invité, qui ne quitte plus cette
+            page pour créer son compte (les photos restent en mémoire). */}
+        <div>
           <label className="block text-sm font-medium text-ink">{t("posts_photos_label")}</label>
           <div className="mt-2 flex flex-wrap gap-3">
             {photos.map((f, i) => (
@@ -416,18 +609,72 @@ export default function CreatePostPage() {
           <p className="mt-1 text-xs text-ink-muted">{t("posts_photos_hint")}</p>
         </div>
 
+        {/* 28/09 (NEO) — le compte, sur le même écran que la demande. */}
+        {invite && (
+          <div data-testid="guest-account" className="space-y-4 rounded-2xl border border-owner/25 bg-owner-light p-5">
+            <div>
+              <p className="font-display text-base font-extrabold text-owner-dark">{gp(lang, "acc_title")}</p>
+              <p className="mt-0.5 text-xs leading-snug text-[#6E4F48]">{gp(lang, "acc_sub")}</p>
+            </div>
+            <div>
+              <label htmlFor="acc-name" className="block text-sm font-medium text-ink">{gp(lang, "acc_name")}</label>
+              <input id="acc-name" value={accName} onFocus={accountStarted} onChange={(e) => setAccName(e.target.value)}
+                autoComplete="given-name" className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none" />
+            </div>
+            <div>
+              <label htmlFor="acc-email" className="block text-sm font-medium text-ink">{gp(lang, "acc_email")}</label>
+              <input id="acc-email" type="email" value={accEmail} onFocus={accountStarted} onChange={(e) => setAccEmail(e.target.value)}
+                autoComplete="email" inputMode="email" className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none" />
+            </div>
+            <div>
+              <label htmlFor="acc-pwd" className="block text-sm font-medium text-ink">{gp(lang, "acc_password")}</label>
+              <div className="relative">
+                <input id="acc-pwd" type={showPwd ? "text" : "password"} value={accPassword} onFocus={accountStarted}
+                  onChange={(e) => setAccPassword(e.target.value)} autoComplete="new-password"
+                  className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none pr-11" />
+                <button type="button" onClick={() => setShowPwd((v) => !v)} aria-label={showPwd ? "hide" : "show"}
+                  className="absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 text-owner-dark">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>{showPwd && <line x1="2" y1="2" x2="22" y2="22"/>}</svg>
+                </button>
+              </div>
+              <p className="mt-1 text-xs leading-snug text-[#6E4F48]">{gp(lang, "acc_pwd_hint")}</p>
+            </div>
+            <label className="flex items-start gap-2.5 text-sm text-ink">
+              <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-owner" />
+              <span>
+                {t("signup_terms_accept")}{" "}
+                <Link href="/terms" className="font-semibold text-owner-dark underline">{t("terms_title")}</Link>
+                {" · "}
+                <Link href="/privacy" className="font-semibold text-owner-dark underline">{t("privacy_title")}</Link>
+              </span>
+            </label>
+          </div>
+        )}
+
         <button
           disabled={busy}
           className="w-full rounded-full bg-owner py-3 text-sm font-semibold text-white shadow-cta hover:bg-owner-dark disabled:opacity-60"
         >
-          {busy ? t("posts_publishing") : invite ? t("posts_guest_cta") : t("posts_submit")}
+          {busy ? t("posts_publishing") : invite ? gp(lang, "acc_cta") : t("posts_submit")}
         </button>
         {invite && (
-          <p className="text-center text-xs text-ink-muted">{t("posts_guest_note")}</p>
+          <p className="text-center text-sm text-[#6E4F48]">
+            {t("signup_have")}{" "}
+            <Link
+              href={`/login?next=${encodeURIComponent("/posts/create")}`}
+              onClick={() => saveDraft({ accName })}
+              className="font-semibold text-owner-dark underline"
+            >
+              {t("signup_login_link")}
+            </Link>
+          </p>
         )}
+        {info && <p className="text-center text-sm font-semibold text-owner-dark">{info}</p>}
         {err && <p className="text-center text-sm text-owner-dark">{err}</p>}
         <p className="text-center text-xs text-ink-muted">{t("posts_no_contact_info")}</p>
       </form>
+      )}
     </div>
   );
 }
