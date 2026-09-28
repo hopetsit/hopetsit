@@ -33,16 +33,18 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   // ── Séquence du handoff (ms) ────────────────────────────────────────────
-  static const int _introMs = 2000; // couvre coussinet → doigts → titre → loader
-  static const int _padDur = 700;
-  static const int _toeDur = 650;
-  static const List<int> _toeDelays = <int>[550, 650, 750, 850];
-  static const int _titleStart = 1100;
-  static const int _titleDur = 600;
-  static const int _loaderStart = 1500;
-  static const int _loaderDur = 500;
-  static const int _floatStart = 1600;
-  static const int _minDisplayMs = 1600;
+  // 28/09/2026 (598) — Daniel : « aucune attente sur tous les téléphones ».
+  // Séquence ramenée de 1,6 s à 1,0 s (mêmes étapes, ×0,6).
+  static const int _introMs = 1200; // couvre coussinet → doigts → titre → loader
+  static const int _padDur = 420;
+  static const int _toeDur = 400;
+  static const List<int> _toeDelays = <int>[330, 390, 450, 510];
+  static const int _titleStart = 660;
+  static const int _titleDur = 360;
+  static const int _loaderStart = 900;
+  static const int _loaderDur = 300;
+  static const int _floatStart = 1000;
+  static const int _minDisplayMs = 1000;
 
   late final AnimationController _intro;
   late final AnimationController _float;
@@ -90,7 +92,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  /// Laisse l'animation d'ouverture se terminer (≈1,6 s) avant la redirection.
+  /// Laisse l'animation d'ouverture se terminer (≈1,0 s) avant la redirection.
   /// Si le check a pris plus longtemps, on part immédiatement.
   Future<void> _holdForIntro() async {
     final int elapsed = DateTime.now().difference(_openedAt).inMilliseconds;
@@ -168,7 +170,8 @@ class _SplashScreenState extends State<SplashScreen>
     // fallback GetStorage pour les vieilles installs jamais migrées.
     // Aussi : on raccourcit le splash de 2000ms → 800ms pour que le retour
     // se sente plus instant.
-    await Future.delayed(const Duration(milliseconds: 800));
+    // 598 — 800 → 200 ms : la durée minimale (1,0 s) est tenue par _holdForIntro.
+    await Future.delayed(const Duration(milliseconds: 200));
 
     final storage = GetStorage();
     // v240 — Secure-first, GetStorage fallback (deux sources possibles).

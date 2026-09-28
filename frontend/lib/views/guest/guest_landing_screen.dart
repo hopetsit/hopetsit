@@ -97,7 +97,10 @@ class GuestLandingScreen extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10.r),
                         child: Image.asset('assets/brand/png/logo-mark.png',
-                            width: 38.w, height: 38.w),
+                            width: 38.w, height: 38.w,
+                            // v598 — source 1024 px affichée à 38 px : décodée
+                            // en petit (4 Mo → ~0,1 Mo), image identique.
+                            cacheWidth: 160),
                       ),
                       SizedBox(width: 8.w),
                       // Le logotype reste en Fredoka : c'est la signature de

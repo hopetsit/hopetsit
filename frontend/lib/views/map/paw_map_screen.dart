@@ -675,6 +675,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _currentCenter = LatLng(widget.initialLat!, widget.initialLng!);
     }
     if (widget.initialZoom != null) _zoomLevel = widget.initialZoom!;
+    _idleZoom = _zoomLevel;
     // v552 — lien partagé vers un spot / un signalement précis : on va le
     // chercher, on centre la carte dessus et on ouvre sa fiche.
     if ((widget.focusSpotId ?? '').isNotEmpty ||
@@ -705,6 +706,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       pawMapPendingCenter.value = null;
       _currentCenter = pendingCenter;
       _zoomLevel = pawMapPendingZoom.value;
+      _idleZoom = _zoomLevel;
     }
     _pendingCenterWorker = ever<LatLng?>(pawMapPendingCenter, (v) {
       if (v == null || !mounted) return;
@@ -720,6 +722,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _friendFocusRequested = true;
       _currentCenter = LatLng(pendingFriend.lat, pendingFriend.lng);
       _zoomLevel = kPawMapFriendFocusZoom;
+      _idleZoom = _zoomLevel;
       WidgetsBinding.instance
           .addPostFrameCallback((_) => unawaited(_focusFriend(pendingFriend)));
     }
@@ -1847,6 +1850,7 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   @override
   void dispose() {
+    _pinZoomTimer?.cancel();
     _filtersBannerTimer?.cancel();
     _filtersBannerWorker?.dispose();
     // v589 — plus de signal « je suis ce direct » après la carte.
@@ -2678,6 +2682,22 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
   }
 
+  /// v598 (28/09) — zoom vu par les ÉPINGLES. Pendant que la caméra bouge,
+  /// c'est le zoom du dernier arrêt ; à l'arrêt, le zoom réel.
+  /// Cause prouvée (simulateur iPhone, journal du SDK Google Maps : « Reached
+  /// the max number of texture atlases » × 332 pendant une rafale de zooms) :
+  /// à chaque passage du seuil 13 pendant un pincement rapide, les ~80 ronds
+  /// changeaient d'image (prénom / prix / « Vu il y a ») et, sur iOS, chaque
+  /// image renvoyée coûte une case de texture au SDK (flutter/flutter #193105) ;
+  /// la réserve déborde et les ronds sortent ROGNÉS ou vides. Les épingles ne
+  /// changent donc plus d'image qu'à l'arrêt de la caméra : une rafale = un
+  /// seul renvoi.
+  /// Et le zoom d'arrêt n'est adopté qu'après 450 ms d'immobilité : deux
+  /// zooms enchaînés (avant / arrière) ne renvoient les images qu'UNE fois.
+  double get _pinZoom => _idleZoom;
+  double _idleZoom = _restoreLastZoom();
+  Timer? _pinZoomTimer;
+
   void _onCameraMove(CameraPosition pos) {
     _currentCenter = pos.target;
     // v584 — plus d'écriture à chaque image : centre + zoom sont enregistrés
@@ -2685,6 +2705,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v550 — perf : tant que la caméra bouge, le halo ne pulse pas (sinon la
     // GoogleMap se reconstruit 1,7×/s pendant le pan → saccades sur mobile).
     _cameraMoving = true;
+    _pinZoomTimer?.cancel(); // v598 — la caméra repart : pas de renvoi d'images.
     _zoomLevel = pos.zoom;
     // v456 — viseur « point rouge au centre » : l'emplacement choisi SUIT le
     // centre de la carte que l'utilisateur déplace sous le repère rouge fixe
@@ -2702,6 +2723,17 @@ class _PawMapScreenState extends State<PawMapScreen>
   void _scheduleReload() {
     _cameraMoving = false; // v550 — geste terminé : le halo repulse.
     _camIdleRev.value++;
+    // v598 — les épingles adoptent le zoom d'arrêt après 450 ms de calme.
+    _pinZoomTimer?.cancel();
+    if (_idleZoom != _zoomLevel) {
+      _pinZoomTimer = Timer(const Duration(milliseconds: 450), () {
+        // La caméra est repartie entre-temps (pincements enchaînés) : on
+        // attend le prochain arrêt, sans renvoyer les images.
+        if (!mounted || _cameraMoving) return;
+        _idleZoom = _zoomLevel;
+        _camIdleRev.value++;
+      });
+    }
     // v593 — Daniel : « quand tu zoomes trop vite, on voit la carte d'en
     // dessous ». Les tuiles OSM du zoom voisin sont préchargées (zone
     // centrale, avec modération : règles d'usage d'OpenStreetMap).
@@ -3564,8 +3596,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       _worldMembers.length,
       _memberRoles.join(','),
       _availableTodayOnly.value ? 1 : 0,
-      _zoomLevel.round(),
-      _zoomLevel >= _priceZoom ? 1 : 0,
+      _pinZoom.round(),
+      _pinZoom >= _priceZoom ? 1 : 0,
       '${_currentCenter.latitude.toStringAsFixed(1)},'
           '${_currentCenter.longitude.toStringAsFixed(1)}',
       _userPosition == null
@@ -3643,14 +3675,6 @@ class _PawMapScreenState extends State<PawMapScreen>
                 : BitmapDescriptor.hueOrange);
   }
 
-  /// Ancre d'un rond de membre : centre du cercle (le bitmap a une marge et,
-  /// au zoom rue, une étiquette de prix en dessous).
-  Offset _memberAnchor({bool withLabel = false}) {
-    final size = PawMapLegend.memberSize;
-    final h = PawMapPinPainter.memberBitmapSize(size, withLabel: withLabel);
-    return Offset(0.5, (PawMapPinPainter.memberMargin + size / 2) / h);
-  }
-
   BitmapDescriptor _photoIcon({
     required String keyPrefix,
     required String avatarUrl,
@@ -3672,6 +3696,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v590 — handoff §1 : bulle de prix AU-DESSUS du rond, couleur du service.
     String? priceBubble,
     String priceRole = 'sitter',
+    // v598 — étiquette au-dessus du rond (ami collé à « Moi »).
+    bool labelAbove = false,
   }) {
     final avatar = _pins.avatarFor(avatarUrl);
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
@@ -3681,7 +3707,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
     final withLabel = label != null && label.isNotEmpty;
     final key =
-        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey:${withBubble ? '$priceBubble/$priceRole' : ''}';
+        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey:${withBubble ? '$priceBubble/$priceRole' : ''}:${labelAbove && withLabel ? 'up' : ''}';
     // v594 — la bulle duo gardien/promeneur est plus large que le rond : le
     // bitmap s'élargit des deux côtés (le rond reste centré, ancre x = 0,5).
     // v594 — grande marge seulement pour les ronds à halo (voir photoMarginGlow).
@@ -3690,7 +3716,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             ring == PawMapLegend.friend ||
             (ringColors ?? const <Color>[]).toSet().length > 1)
         ? PawMapPinPainter.photoMarginGlow
-        : PawMapPinPainter.photoMargin;
+        : PawMapPinPainter.photoMarginTight; // v598 — moins de vide = moins de textures
     _lastPhotoMargin = m;
     final baseW = PawMapPinPainter.photoBitmapSize(size, margin: m);
     final double bubbleW = withBubble
@@ -3730,6 +3756,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             priceBubble: withBubble ? priceBubble : null,
             priceRole: priceRole,
             margin: m,
+            labelAbove: labelAbove && withLabel,
           );
             c.restore();
           },
@@ -3743,11 +3770,15 @@ class _PawMapScreenState extends State<PawMapScreen>
   double _lastPhotoMargin = PawMapPinPainter.photoMargin;
 
   Offset _photoAnchor(double size,
-      {bool withLabel = false, bool withBubble = false}) {
+      {bool withLabel = false, bool withBubble = false, bool labelAbove = false}) {
     final double m = _lastPhotoMargin;
-    final double zone = withBubble ? PawMapPinPainter.priceBubbleZone : 0;
-    final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel, margin: m) + zone;
-    return Offset(0.5, (zone + m + size / 2) / h);
+    return Offset(
+        0.5,
+        PawMapPinPainter.photoAnchorY(size,
+            withLabel: withLabel,
+            withBubble: withBubble,
+            margin: m,
+            labelAbove: labelAbove));
   }
 
   BitmapDescriptor _memberClusterIcon(int count, Map<String, int> roleCounts,
@@ -3942,7 +3973,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (me == null) return false;
     final double mpp = 156543.03392 *
         math.cos(me.latitude * math.pi / 180) /
-        math.pow(2, _zoomLevel);
+        math.pow(2, _pinZoom);
     return pawMapDistanceKm(me, p) * 1000 / mpp < px;
   }
 
@@ -4065,7 +4096,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         worldPool.add(p);
       }
       final int worldCap =
-          _zoomLevel >= 11 ? 400 : (_zoomLevel >= 6 ? 300 : 200);
+          _pinZoom >= 11 ? 400 : (_pinZoom >= 6 ? 300 : 200);
       if (worldPool.length > worldCap) {
         final cosC =
             math.cos(_currentCenter.latitude * math.pi / 180).abs().clamp(0.05, 1.0);
@@ -4175,7 +4206,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           cellPx: _memberClusterCellPx,
         ),
       );
-      final showPrice = _zoomLevel >= _priceZoom;
+      final showPrice = _pinZoom >= _priceZoom;
       for (final group in groups) {
         if (group.length > 1) {
           final target = _centroid<Map<String, dynamic>>(
@@ -4283,9 +4314,17 @@ class _PawMapScreenState extends State<PawMapScreen>
           // Hors zoom rue, un ami porte sa dernière activité sous son rond.
           // v594 — « Vu il y a 1 j » chevauchait « Moi » quand l'ami est
           // juste à côté de moi : sous 70 px de mon rond, pas de légende.
-          final String friendLabel = photoLabel.isNotEmpty
-              ? photoLabel
-              : (_nearMeOnScreen(pos, 70) ? '' : _friendSeenCaption(p));
+          // v598 (28/09) — Daniel : la garder LISIBLE. Tout près de moi,
+          // l'étiquette passe AU-DESSUS du rond quand l'ami est à ma
+          // hauteur ou plus haut (elle ne touche ni mon rond ni « Moi ») ;
+          // plus bas que moi, elle reste dessous (déjà à l'écart de « Moi »).
+          final String friendLabel =
+              photoLabel.isNotEmpty ? photoLabel : _friendSeenCaption(p);
+          final bool friendLabelAbove = friendLabel.isNotEmpty &&
+              bubble == null &&
+              _nearMeOnScreen(pos, 70) &&
+              _userPosition != null &&
+              pos.latitude >= _userPosition!.latitude;
           icon = _photoIcon(
             keyPrefix: 'friend:$id',
             avatarUrl: avatar,
@@ -4302,9 +4341,12 @@ class _PawMapScreenState extends State<PawMapScreen>
             boosted: boosted,
             fallbackIcon: PawMapLegend.roleIcon(role),
             fallbackTint: PawMapLegend.roleColor(role),
+            labelAbove: friendLabelAbove,
           );
           anchor = _photoAnchor(PawMapLegend.friendSize,
-              withLabel: friendLabel.isNotEmpty, withBubble: bubble != null);
+              withLabel: friendLabel.isNotEmpty,
+              withBubble: bubble != null,
+              labelAbove: friendLabelAbove);
         } else if (personRoles.length > 1) {
           // v585 (25/09, Daniel : « la pastille 2 zoome et c'est tout ») — UN
           // rond pour la personne, liseré partagé entre ses rôles.
@@ -4467,7 +4509,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       final spotGroups = _clusterize<PawSpotModel>(
         _pawSpotController.spots.toList(),
         (s) => LatLng(s.lat, s.lng),
-        cellPx: _zoomLevel >= 13 ? 18 : 44,
+        cellPx: _pinZoom >= 13 ? 18 : 44,
       );
       for (final group in spotGroups) {
         if (group.length > 1) {
@@ -4491,7 +4533,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         final size =
             spot.isGolden ? PawMapLegend.spotGoldSize : PawMapLegend.spotSize;
         final String? spotLabel =
-            _zoomLevel >= _priceZoom && spot.name.trim().isNotEmpty
+            _pinZoom >= _priceZoom && spot.name.trim().isNotEmpty
                 ? spot.name.trim()
                 : null;
         markers.add(
@@ -4607,13 +4649,13 @@ class _PawMapScreenState extends State<PawMapScreen>
                           _followUserId!.trim().toLowerCase() == normPosId
                       ? 0
                       : -1),
-              label: _focusTapId == pos.userId || _zoomLevel >= _priceZoom
+              label: _focusTapId == pos.userId || _pinZoom >= _priceZoom
                   ? pawMapShortName(displayName)
                   : null,
               fallbackTint: PawMapLegend.roleColor(role),
             ),
             anchor: _photoAnchor(PawMapLegend.friendSize,
-                withLabel: _zoomLevel >= _priceZoom || _focusTapId == pos.userId),
+                withLabel: _pinZoom >= _priceZoom || _focusTapId == pos.userId),
             zIndexInt: 9, // v587 — le direct au-dessus de tout (sauf Moi)
             consumeTapEvents: true, // v590 — zoom géré par la carte focus
             // v584 (25/09, point 14) — taper un ami ouvre SA FICHE, avec
@@ -5860,14 +5902,21 @@ class _PawMapScreenState extends State<PawMapScreen>
           tint: PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
           onTap: _recenterOnUser,
         ),
+        // v598 (28/09) — Daniel : « les boutons + et − sont gris ». Sans
+        // teinte, l'icône encre sur fond presque blanc passait pour du gris :
+        // + / − prennent l'accent du rôle, comme « ma position » juste
+        // au-dessus (un bloc cohérent de 3 boutons ; clair ET nuit via
+        // AppColors.accentOn dans PawCapsuleButton).
         PawCapsuleButton(
           icon: Icons.add_rounded,
           label: '+',
+          tint: PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
           onTap: _zoomIn,
         ),
         PawCapsuleButton(
           icon: Icons.remove_rounded,
           label: '−',
+          tint: PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
           onTap: _zoomOut,
         ),
         // v23.1.266 — vue satellite (hybride) ; actif = teinté.
@@ -8394,7 +8443,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       final localMemory = GetStorage().read(_kLastCenterKey);
       if (lat != null && lng != null && localMemory == null && _userPosition == null) {
         _currentCenter = LatLng(lat, lng);
-        if (zoom != null) _zoomLevel = zoom;
+        if (zoom != null) _zoomLevel = _idleZoom = zoom;
         unawaited(_activeMapCtl().then((ctl) => ctl?.animateCamera(
             CameraUpdate.newLatLngZoom(_currentCenter, _zoomLevel))));
       }

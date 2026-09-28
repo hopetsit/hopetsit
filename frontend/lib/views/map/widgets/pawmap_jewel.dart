@@ -14,6 +14,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../widgets/paw_tab_bar.dart' show PawNavRole, PawTabBarPalette, kPawTabBarPalettes;
+
 class PawJewelPalette {
   const PawJewelPalette(this.light, this.mid, this.dark);
   final Color light;
@@ -49,9 +51,24 @@ const PawJewelPalette kJewelRoute =
     PawJewelPalette(Color(0xFF5FCC79), Color(0xFF2E9E48), Color(0xFF1D7A34));
 const PawJewelPalette kJewelAround =
     PawJewelPalette(Color(0xFFB08CFF), Color(0xFF7B4DE0), Color(0xFF5A30BF));
-/// Les 4 boutons du haut à droite : rouges pour les 3 rôles.
-const PawJewelPalette kJewelHeader =
-    PawJewelPalette(Color(0xFFD9442C), Color(0xFFC92A12), Color(0xFF9E1F0B)); // v592 — orange foncé
+/// v598 (28/09) — Daniel : « les 4 boutons en haut à droite, mettre le même
+/// orange que le menu ». L'orange du MENU du bas = la palette propriétaire de
+/// la pilule flottante (`kPawTabBarPalettes[PawNavRole.owner]`, haut #C92A12 →
+/// bas #9E1F0B) : on lit LA constante du menu, pas une copie.
+final PawTabBarPalette _menuPalette = kPawTabBarPalettes[PawNavRole.owner]!;
+
+/// L'orange du menu (haut de la pilule), pour tout ce qui doit lui être
+/// identique (bijoux du haut, contour et chevron des languettes).
+final Color kPawMenuOrange = _menuPalette.top;
+final Color kPawMenuOrangeDark = _menuPalette.bottom;
+
+/// Les 4 boutons du haut à droite : même dégradé « bijou », mais EXACTEMENT
+/// dans l'orange du menu (haut → milieu → bas de la pilule), pour les 3 rôles.
+final PawJewelPalette kJewelHeader = PawJewelPalette(
+  _menuPalette.top,
+  Color.lerp(_menuPalette.top, _menuPalette.bottom, 0.5)!,
+  _menuPalette.bottom,
+);
 /// §3.4 — Balade arrêtée (gris) / en direct (vert).
 // 27/09 — Daniel : « pas de gris dans toute l'app ni le web » → balade à
 // l'arrêt en NOIR chaud (encre de la marque #231715), jamais un gris neutre.

@@ -165,6 +165,8 @@ class SignupWallSheet extends StatelessWidget {
                   'assets/brand/png/logo-mark.png',
                   width: 52.w,
                   height: 52.w,
+                  // v598 — source 1024 px décodée en petit (voir guest_landing).
+                  cacheWidth: 192,
                 ),
               ),
               SizedBox(height: 12.h),

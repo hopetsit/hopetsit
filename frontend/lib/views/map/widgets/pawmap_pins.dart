@@ -51,6 +51,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:get/get.dart';
@@ -1181,6 +1182,11 @@ class PawMapPinPainter {
     bool pawFollowGlow = false,
     PawPinLabelStyle? labelStyle,
     double margin = photoMargin,
+    // v598 (28/09) — étiquette AU-DESSUS du rond (ami tout près de « Moi » :
+    // « Vu il y a … » reste lisible au lieu d'être masquée). Le rond descend
+    // de [photoLabelExtra] pour lui laisser la place ; l'ancre suit
+    // ([photoAnchorY] avec labelAbove).
+    bool labelAbove = false,
   }) {
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
     if (withBubble) {
@@ -1214,6 +1220,7 @@ class PawMapPinPainter {
       pawFollowGlow: pawFollowGlow,
       labelStyle: labelStyle,
       margin: margin,
+      labelAbove: labelAbove,
     );
     if (withBubble) canvas.restore();
   }
@@ -1249,9 +1256,13 @@ class PawMapPinPainter {
     bool pawFollowGlow = false,
     PawPinLabelStyle? labelStyle,
     double margin = photoMargin,
+    bool labelAbove = false,
   }) {
     final r = size / 2;
-    final c = Offset(margin + r, margin + r);
+    final bool hasLabel = label != null && label.isNotEmpty;
+    // v598 — étiquette au-dessus : le rond descend de la hauteur réservée à
+    // l'étiquette (le bitmap garde la même taille, voir photoBitmapSize).
+    final c = Offset(margin + r, margin + r + (labelAbove && hasLabel ? photoLabelExtra : 0));
     final bool isFriend = ringColor == PawMapLegend.friend;
     final bool isMe = !isFriend &&
         (dashedRing || eyeOff || size >= PawMapLegend.meSize);
@@ -1402,7 +1413,7 @@ class PawMapPinPainter {
       _crownAt(canvas, c, r, crownSize);
     }
 
-    // 6. Étiquette sous le rond.
+    // 6. Étiquette sous le rond (v598 : ou au-dessus, [labelAbove]).
     if (label != null && label.isNotEmpty) {
       final style = labelStyle ??
           (isMe
@@ -1410,12 +1421,16 @@ class PawMapPinPainter {
               : isFriend
                   ? (dimmed ? PawPinLabelStyle.lost : PawPinLabelStyle.friend)
                   : PawPinLabelStyle.name);
+      // Haut de la pastille : sous le rond (+3 / +4), ou au-dessus (sa
+      // hauteur + 3 au-dessus de l'anneau).
+      double top(double gap, double height) =>
+          labelAbove ? c.dy - r - 3 - height : c.dy + r + gap;
       switch (style) {
         case PawPinLabelStyle.me:
           _paintPill(canvas,
               text: label,
               cx: c.dx,
-              top: c.dy + r + 3,
+              top: top(3, 16.3),
               style: _pinStyle(11, FontWeight.w700, Colors.white, inter: true),
               height: 16.3,
               padX: 8,
@@ -1429,7 +1444,7 @@ class PawMapPinPainter {
           _paintPill(canvas,
               text: label,
               cx: c.dx,
-              top: c.dy + r + 3,
+              top: top(3, 19.3),
               style: _pinStyle(
                   11,
                   FontWeight.w700,
@@ -1444,7 +1459,7 @@ class PawMapPinPainter {
               borderW: 1.5);
           break;
         case PawPinLabelStyle.name:
-          _paintNameTag(canvas, label, c.dx, c.dy + r + 4);
+          _paintNameTag(canvas, label, c.dx, top(4, 20));
           break;
       }
     }
@@ -1458,20 +1473,36 @@ class PawMapPinPainter {
   }
 
   static const double photoMargin = 22;
+  /// v598 (28/09) — marge SERRÉE des ronds photo SANS halo dans l'app : le
+  /// rond nu (anneau, couronne, point « en ligne », ombre) n'occupe que ~9 dp
+  /// au-delà de son rayon ; 6 dp de vide en moins de chaque côté = −24 % de
+  /// pixels par rond dans la réserve de textures du SDK iOS (cause des ronds
+  /// rognés), sans rien changer à l'image. Les ronds à halo gardent 30.
+  static const double photoMarginTight = 16;
   // v594 — marge des ronds À HALO (ami, PawBoost, suivi, plusieurs rôles) :
   // la lueur doit dépasser les 3 anneaux de rôles (15 px). Les autres ronds
   // gardent 22 : Google compte toute l'image comme zone de toucher, une
   // marge plus grande rendait le 1er appui moins précis (Daniel, 27/09).
   static const double photoMarginGlow = 30;
+  /// Hauteur ajoutée au bitmap pour l'étiquette (sous le rond, ou au-dessus
+  /// avec `labelAbove` — v598). 10 → 14 (v598) : avec la marge serrée, la
+  /// queue d'ombre de la pastille touchait le bord du bitmap.
+  static const double photoLabelExtra = 14;
   static double photoBitmapSize(double size,
           {bool withLabel = false, double margin = photoMargin}) =>
-      size + 2 * margin + (withLabel ? 10 : 0);
+      size + 2 * margin + (withLabel ? photoLabelExtra : 0);
 
   /// Ancre verticale (0..1) d'un rond photo : le centre du cercle.
+  /// v598 — [labelAbove] : l'étiquette est au-dessus, le rond est descendu
+  /// de [photoLabelExtra] (voir `_paintPhotoDotBody`).
   static double photoAnchorY(double size,
-      {bool withLabel = false, bool withBubble = false, double margin = photoMargin}) {
+      {bool withLabel = false,
+      bool withBubble = false,
+      double margin = photoMargin,
+      bool labelAbove = false}) {
     final zone = withBubble ? priceBubbleZone : 0.0;
-    return (zone + margin + size / 2) /
+    final double shift = withLabel && labelAbove ? photoLabelExtra : 0.0;
+    return (zone + shift + margin + size / 2) /
         (photoBitmapSize(size, withLabel: withLabel, margin: margin) + zone);
   }
 
@@ -1798,6 +1829,15 @@ double pawPinRenderScale() {
   try {
     final views = ui.PlatformDispatcher.instance.views;
     final dpr = views.isEmpty ? 3.0 : views.first.devicePixelRatio;
+    // v598 (28/09) — iOS : 2,5× au lieu de 3×. Le SDK Google Maps iOS range
+    // chaque image de marqueur dans une réserve de textures limitée (journal
+    // « Reached the max number of texture atlases ») ; à 3× les ~80 ronds de
+    // Paris la remplissaient à chaque changement d'image et sortaient ROGNÉS.
+    // −31 % de pixels par rond, le plugin ne redessine pas (il ajuste l'échelle
+    // de l'UIImage) : rendu quasi identique, réserve qui respire. Android : 3×.
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return dpr.clamp(2.0, 2.5).toDouble();
+    }
     return dpr.clamp(2.0, 4.0).toDouble();
   } catch (_) {
     return 3.0;

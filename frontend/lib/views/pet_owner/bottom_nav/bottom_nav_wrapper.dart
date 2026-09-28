@@ -78,11 +78,22 @@ class _BottomNavWrapperState extends State<BottomNavWrapper> {
 
     // Ensure sitters refresh on every owner login.
     // HomeController may be permanent and survive logout/login.
+    // v598 — ZOE (mesuré) : au démarrage à froid, HomeScreen crée le
+    // contrôleur et son onInit lance déjà les deux recherches « près de moi »
+    // (v23.1 part 240) ; relancer loadSitters() ici ajoutait un 3e appel
+    // réseau (liste complète) en course avec les deux premiers. On ne
+    // recharge que si le contrôleur existait DÉJÀ avant ce wrapper (il a
+    // survécu à une déconnexion / reconnexion) : même comportement qu'avant
+    // dans ce cas, un appel de moins au lancement.
+    final homeControllerSurvived = Get.isRegistered<HomeController>();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!Get.isRegistered<HomeController>()) {
         Get.put(HomeController(), permanent: true);
+        return; // onInit vient de lancer les recherches
       }
-      await Get.find<HomeController>().loadSitters();
+      if (homeControllerSurvived) {
+        await Get.find<HomeController>().loadSitters();
+      }
     });
   }
 

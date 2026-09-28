@@ -30,6 +30,7 @@ import 'package:get_storage/get_storage.dart';
 import '../../../utils/pawmap_theme.dart';
 import '../../../widgets/paw_button_kit.dart' show pawRoleGradient;
 import '../../../widgets/paw_icons.dart';
+import 'pawmap_jewel.dart' show kPawMenuOrange;
 import 'pawmap_pins.dart';
 
 /// Nombre d'ouvertures de la PawMap mémorisé sur l'appareil ; `bump` à
@@ -1279,6 +1280,8 @@ class PawBarCollapseTab extends StatelessWidget {
     final Color glass = dark
         ? Color.alphaBlend(tint.withValues(alpha: 0.30), const Color(0xFF221A2E))
         : Color.alphaBlend(tint.withValues(alpha: 0.16), Colors.white);
+    final Color menuInk =
+        dark ? Color.lerp(kPawMenuOrange, Colors.white, 0.35)! : kPawMenuOrange;
     final BorderRadius radius = collapsed
         ? (left
             ? const BorderRadius.horizontal(right: Radius.circular(14))
@@ -1308,7 +1311,11 @@ class PawBarCollapseTab extends StatelessWidget {
               decoration: BoxDecoration(
                 color: glass.withValues(alpha: 0.94),
                 borderRadius: radius,
-                border: Border.all(color: tint.withValues(alpha: 0.35), width: 1),
+                // v598 (28/09) — Daniel : contour ET flèche dans l'orange du
+                // MENU (kPawMenuOrange, la constante de la pilule), le fond
+                // garde la couleur du rôle. En nuit l'orange est éclairci
+                // (35 % vers le blanc) pour rester lisible sur le verre sombre.
+                border: Border.all(color: menuInk.withValues(alpha: dark ? 0.9 : 0.85), width: 1.2),
                 boxShadow: [
                   BoxShadow(
                     color: tint.withValues(alpha: 0.22),
@@ -1322,7 +1329,7 @@ class PawBarCollapseTab extends StatelessWidget {
                     ? Icons.chevron_left_rounded
                     : Icons.chevron_right_rounded,
                 size: 20.sp,
-                color: dark ? Colors.white : PawMapLegend.darken(tint, 0.25),
+                color: menuInk,
               ),
             ),
           ),

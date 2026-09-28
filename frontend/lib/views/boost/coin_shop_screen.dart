@@ -3367,7 +3367,7 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
                   // ── 1. Hero produit (état intégré en bas à gauche) ────────
                   ShopHero(
                     icon: Image.asset('assets/images/pawpremium_logo.png',
-                        width: 36, height: 36),
+                        width: 36, height: 36, cacheWidth: 160),
                     title: 'Paw Premium',
                     subtitle: 'premium_bundle_subtitle'.tr,
                     colors: const [Color(0xFF3A3028), Color(0xFF0E0A09)],
@@ -3530,7 +3530,7 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
           // ([ShopHero]) en haut de l'onglet : la carte garde le ruban, le
           // logo, la pastille « inclut » et les avantages.
           Image.asset('assets/images/pawpremium_logo.png',
-              width: 56.w, height: 56.w),
+              width: 56.w, height: 56.w, cacheWidth: 224),
           SizedBox(height: 12.h),
           // Pill « INCLUT PAWFOLLOW + PAWSPOT »
           Container(
@@ -3678,7 +3678,7 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
       savePct: pct,
       ribbon: highlight ? 'shop569_most_chosen'.tr : null,
       leading: Image.asset('assets/images/pawpremium_logo.png',
-          width: 26.w, height: 26.w),
+          width: 26.w, height: 26.w, cacheWidth: 128),
       badges: [
         if (highlight)
           ShopPill(

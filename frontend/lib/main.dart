@@ -39,6 +39,12 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+// v598 — ZOE : repères de démarrage, lisibles en build profile avec
+// `adb logcat | grep BOOT` (debugPrint est un no-op en release : coût nul).
+final Stopwatch bootWatch = Stopwatch()..start();
+void bootMark(String label) =>
+    debugPrint('[BOOT] ${bootWatch.elapsedMilliseconds} ms — $label');
+
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
@@ -123,88 +129,38 @@ void main() async {
   ));
 
   await GetStorage.init();
+  bootMark('GetStorage.init');
   await dotenv.load(fileName: ".env");
+  bootMark('dotenv');
 
   // v594 — Daniel (26/09) : sur l'Oppo A40 de son frère, écran vide avant la
   // PawMap. Le moteur Google Maps ne démarrait qu'à la première carte (lent
   // sur ces puces). On le prépare dès le lancement, sans attendre.
   unawaited(_warmUpMaps());
 
-  // v530 — Daniel : « dates en anglais (Jul 9, 2026) alors que l'app est en
-  // français ». Les DateFormat SANS locale explicite suivent Intl.defaultLocale
-  // — jamais réglé jusqu'ici → anglais partout (cloche notifs, commentaires,
-  // historique gains...). On initialise les symboles de dates des 6 langues
-  // puis on aligne Intl.defaultLocale sur la langue de l'app (aussi mis à
-  // jour à chaque changement de langue dans LocalizationService.updateLocale).
-  try {
-    // v532 — ko_KR et ja_JP ajoutés : sans eux, DateFormat('dd MMM yyyy','ko')
-    // lève LocaleDataException et fait CRASHER les écrans portefeuille et
-    // historique des gains (ce n'est pas un simple affichage dégradé).
-    for (final code in [
-      'en_US', 'fr_FR', 'es_ES', 'de_DE', 'it_IT', 'pt_PT', 'ko_KR', 'ja_JP',
-      'pl_PL', // v546 — polonais
-    ]) {
-      await initializeDateFormatting(code);
-    }
-    Intl.defaultLocale = LocalizationService.getInitialLocale().toString();
-  } catch (e) {
-    debugPrint('date formatting init failed: $e');
-  }
-
-  // v23.1 part 125 — Phase 2 audit C4 : migrer le JWT depuis GetStorage
-  // vers flutter_secure_storage (Keystore Android / Keychain iOS) au boot,
-  // AVANT que les controllers / api_client ne tentent de le lire.
-  await SecureTokenStore.instance.migrateFromLegacyIfNeeded();
-
-  // v416 — enregistre le service de fond du suivi en direct (survit au
-  // swipe-kill sur Android). Non bloquant + non fatal (try/catch interne).
-  await configureLiveTrackingService();
-
-  var initialNotification = await flutterLocalNotificationsPlugin
-      .getNotificationAppLaunchDetails();
-  if (initialNotification?.didNotificationLaunchApp == true) {
-    Future.delayed(const Duration(seconds: 1), () {
-      debugPrint('notification here');
-    });
-  }
-
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    // v18.6 — FCM push fix. Enregistre le background handler AVANT
-    // setupDependencies qui put-async PushNotificationService. Sans ça,
-    // l'OS drop les push reçues app-killed/background.
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-    // v23.1 part 125 — Phase 2 audit L3 : Crashlytics.
-    // Collecte les crashes natifs + non-fatal Flutter errors. Désactivé en
-    // debug pour ne pas polluer le tableau de bord Firebase. Crash-free %
-    // visible côté Play Vitals.
-    if (kReleaseMode) {
-      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
-      FlutterError.onError = (details) {
-        if (_isNetworkError(details.exception)) {
-          FirebaseCrashlytics.instance.recordFlutterError(details);
-        } else {
-          FirebaseCrashlytics.instance.recordFlutterFatalError(details);
-        }
-      };
-      // Capture aussi les async errors hors zone Flutter.
-      WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
-        FirebaseCrashlytics.instance
-            .recordError(error, stack, fatal: !_isNetworkError(error));
-        return true;
-      };
-    } else {
-      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(false);
-    }
-  } catch (e) {
-    debugPrint("Firebase error is $e");
-  }
-
+  // v598 — ZOE (mesuré sur émulateur 2 Go, démarrage à froid) : les cinq
+  // initialisations ci-dessous sont indépendantes les unes des autres et
+  // s'enchaînaient en série avant runApp (≈ 0,8 s, dont ≈ 0,7 s pour la
+  // lecture du Keystore Android). Lancées ensemble, l'app n'attend plus que
+  // la plus longue. L'ORDRE des effets est conservé : tout est terminé avant
+  // setupDependencies() (le jeton est hydraté avant que les contrôleurs, le
+  // socket et les notifications push ne le lisent).
+  await Future.wait<void>(<Future<void>>[
+    _initDateFormatting(),
+    // v23.1 part 125 — Phase 2 audit C4 : migrer le JWT depuis GetStorage
+    // vers flutter_secure_storage (Keystore Android / Keychain iOS) au boot,
+    // AVANT que les controllers / api_client ne tentent de le lire.
+    SecureTokenStore.instance.migrateFromLegacyIfNeeded().then((_) => bootMark('SecureTokenStore.migrate')),
+    // v416 — enregistre le service de fond du suivi en direct (survit au
+    // swipe-kill sur Android). Non bloquant + non fatal (try/catch interne).
+    configureLiveTrackingService().then((_) => bootMark('configureLiveTrackingService')),
+    _logNotificationLaunch(),
+    _initFirebase(),
+  ]);
+  bootMark('initialisations parallèles terminées');
   setupDependencies();
   Get.put(ThemeController(), permanent: true);
+  bootMark('setupDependencies');
 
   // v18.8 — écoute les deep links hopetsit://pay/:bookingId envoyés dans
   // les emails "demande acceptée". Fire-and-forget : le stream reste
@@ -255,8 +211,88 @@ void main() async {
       appRunner: () => runApp(MyApp()),
     );
   } else {
+    bootMark('runApp');
     runApp(MyApp());
+    WidgetsBinding.instance.addPostFrameCallback((_) => bootMark('1re image Flutter'));
   }
+}
+
+/// v530 — Daniel : « dates en anglais (Jul 9, 2026) alors que l'app est en
+/// français ». Les DateFormat SANS locale explicite suivent Intl.defaultLocale
+/// — jamais réglé jusqu'ici → anglais partout (cloche notifs, commentaires,
+/// historique gains...). On initialise les symboles de dates des 9 langues
+/// puis on aligne Intl.defaultLocale sur la langue de l'app (aussi mis à
+/// jour à chaque changement de langue dans LocalizationService.updateLocale).
+Future<void> _initDateFormatting() async {
+  try {
+    // v532 — ko_KR et ja_JP ajoutés : sans eux, DateFormat('dd MMM yyyy','ko')
+    // lève LocaleDataException et fait CRASHER les écrans portefeuille et
+    // historique des gains (ce n'est pas un simple affichage dégradé).
+    for (final code in [
+      'en_US', 'fr_FR', 'es_ES', 'de_DE', 'it_IT', 'pt_PT', 'ko_KR', 'ja_JP',
+      'pl_PL', // v546 — polonais
+    ]) {
+      await initializeDateFormatting(code);
+    }
+    Intl.defaultLocale = LocalizationService.getInitialLocale().toString();
+  } catch (e) {
+    debugPrint('date formatting init failed: $e');
+  }
+  bootMark('initializeDateFormatting x9');
+}
+
+Future<void> _logNotificationLaunch() async {
+  try {
+    final initialNotification = await flutterLocalNotificationsPlugin
+        .getNotificationAppLaunchDetails();
+    if (initialNotification?.didNotificationLaunchApp == true) {
+      Future.delayed(const Duration(seconds: 1), () {
+        debugPrint('notification here');
+      });
+    }
+  } catch (e) {
+    debugPrint('notification launch details failed: $e');
+  }
+  bootMark('getNotificationAppLaunchDetails');
+}
+
+Future<void> _initFirebase() async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    bootMark('Firebase.initializeApp');
+    // v18.6 — FCM push fix. Enregistre le background handler AVANT
+    // setupDependencies qui put-async PushNotificationService. Sans ça,
+    // l'OS drop les push reçues app-killed/background.
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+    // v23.1 part 125 — Phase 2 audit L3 : Crashlytics.
+    // Collecte les crashes natifs + non-fatal Flutter errors. Désactivé en
+    // debug pour ne pas polluer le tableau de bord Firebase. Crash-free %
+    // visible côté Play Vitals.
+    if (kReleaseMode) {
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
+      FlutterError.onError = (details) {
+        if (_isNetworkError(details.exception)) {
+          FirebaseCrashlytics.instance.recordFlutterError(details);
+        } else {
+          FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+        }
+      };
+      // Capture aussi les async errors hors zone Flutter.
+      WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+        FirebaseCrashlytics.instance
+            .recordError(error, stack, fatal: !_isNetworkError(error));
+        return true;
+      };
+    } else {
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(false);
+    }
+  } catch (e) {
+    debugPrint("Firebase error is $e");
+  }
+  bootMark('Firebase+Crashlytics');
 }
 
 /// v23.1 part 235 — Daniel : "sa lag encore legerement" sur Oppo.

@@ -184,6 +184,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Image.asset(
                         'assets/brand/png/apple-icon-original.png',
                         fit: BoxFit.cover,
+                        // v598 — source 1024 px dans un cadre de 76 px.
+                        cacheWidth: 256,
                       ),
                     ),
                   ),

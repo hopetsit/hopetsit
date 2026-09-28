@@ -232,8 +232,6 @@ Future<void> _run(WidgetTester tester) async {
         seconds: 60);
     await _step(tester, '02 pawmap ouverte', hold: const Duration(seconds: 4));
     _ok('UNE seule GoogleMap', find.byType(GoogleMap).evaluate().length == 1);
-    _ok('feuille + bouton principal presents',
-        find.byKey(const ValueKey<String>('pawmap_primary')).evaluate().isNotEmpty);
     // Découverte guidée : uniquement au 1er lancement ; si elle est là, on la
     // ferme par la croix « Ne plus montrer » (point 13).
     // La question des notifications peut revenir après l'entrée (au-dessus
@@ -259,11 +257,21 @@ Future<void> _run(WidgetTester tester) async {
       }
     }
     _ok('decouverte guidee absente', find.byKey(const ValueKey<String>('pawmap_coach')).evaluate().isEmpty);
+    // v589 — la feuille (et son bouton principal) s'ouvre par la roue ⚙︎ en
+    // haut à droite ; elle n'est plus dépliée d'office à l'ouverture.
+    await tester.tap(find.byKey(const ValueKey<String>('pawmap_header_options')));
+    await tester.pump(const Duration(seconds: 1));
+    await _step(tester, '02c feuille ouverte par la roue');
+    _ok('feuille + bouton principal presents',
+        find.byKey(const ValueKey<String>('pawmap_primary')).evaluate().isNotEmpty);
     final primaryRect = tester.getRect(find.byKey(const ValueKey<String>('pawmap_primary')));
     final screenH = tester.view.physicalSize.height / tester.view.devicePixelRatio;
     debugPrint('[PARCOURS] bouton principal: $primaryRect (ecran ${tester.view.physicalSize} / dpr ${tester.view.devicePixelRatio})');
     _ok('bouton principal entier a l ecran',
         primaryRect.bottom <= screenH && primaryRect.height <= 60, detail: '$primaryRect');
+    // On ferme la feuille (croix) pour laisser la carte libre.
+    await tester.tap(find.byKey(const ValueKey<String>('sheet_close')));
+    await tester.pump(const Duration(seconds: 1));
     final state = tester.state<State<PawMapScreen>>(find.byType(PawMapScreen));
     expect(state, isNotNull);
 
@@ -295,7 +303,8 @@ Future<void> _run(WidgetTester tester) async {
     if (memberMarker != null) {
       memberMarker.onTap?.call();
       await _step(tester, '05 fiche membre depuis l epingle');
-      _ok('fiche membre ouverte', find.byType(PawMapMemberSheet).evaluate().isNotEmpty);
+      await _waitFor(tester, () => find.byType(PawMapMemberSheet, skipOffstage: false).evaluate().isNotEmpty, seconds: 5);
+      _ok('fiche membre ouverte', find.byType(PawMapMemberSheet, skipOffstage: false).evaluate().isNotEmpty);
       final profile = find.byKey(const ValueKey<String>('member_profile'));
       if (profile.evaluate().isNotEmpty) {
         await tester.ensureVisible(profile);
@@ -398,7 +407,11 @@ Future<void> _run(WidgetTester tester) async {
       _ok('ami en direct (aucun partage actif chez les comptes de test)', false, detail: 'lancer le partage du testwalker avant');
     }
 
-    // ── Bouton principal (point 3) ──
+    // ── Bouton principal (point 3) ── (v589 : dans la feuille, ouverte par la roue ⚙︎)
+    if (find.byKey(const ValueKey<String>('pawmap_primary')).evaluate().isEmpty) {
+      await tester.tap(find.byKey(const ValueKey<String>('pawmap_header_options')));
+      await tester.pump(const Duration(seconds: 1));
+    }
     await tester.tap(find.byKey(const ValueKey<String>('pawmap_primary')));
     await _step(tester, '13 bouton principal tape', hold: const Duration(seconds: 3));
     final primaryOpened = find.byType(PublishReservationRequestScreen, skipOffstage: false).evaluate().isNotEmpty ||
@@ -408,6 +421,12 @@ Future<void> _run(WidgetTester tester) async {
         find.byType(PawMapRequestSheet).evaluate().isNotEmpty;
     _ok('le bouton principal ouvre quelque chose', primaryOpened);
     await _closeAll(tester);
+    // La feuille dépliée efface les rails (v584) : on la ferme par sa croix.
+    final sheetClose = find.byKey(const ValueKey<String>('sheet_close'));
+    if (sheetClose.evaluate().isNotEmpty) {
+      await tester.tap(sheetClose, warnIfMissed: false);
+      await tester.pump(const Duration(seconds: 1));
+    }
 
     // ── En-tête : « ? », recherche, rafraîchir ──
     await tester.tap(find.byKey(const ValueKey<String>('pawmap_header_legend')));
@@ -422,7 +441,10 @@ Future<void> _run(WidgetTester tester) async {
     await tester.tap(find.byKey(const ValueKey<String>('pawmap_header_refresh')));
     await _step(tester, '16 rafraichir');
 
-    // ── Rail : chaque bouton ──
+    // ── Rail : chaque bouton ── (attendre que la recherche soit refermée)
+    await _waitFor(tester,
+        () => find.byKey(const ValueKey<String>('rail_around')).evaluate().isNotEmpty,
+        seconds: 8);
     final order = <String>[
       for (final spec in kPawRailSpecs)
         if (find.byKey(ValueKey<String>('rail_${spec.id}')).evaluate().isNotEmpty) spec.id,

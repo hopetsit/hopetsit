@@ -359,9 +359,13 @@ class PawCapsuleButton extends StatelessWidget {
     final Color toneOn = AppColors.accentOn(context, t);
     // v585 (bug 8) — un bouton principal teinté (« ma position ») prend
     // l'accent du rôle ; le reste reste à l'encre chaude.
+    // v598 (28/09) — Daniel : « + et − sont gris ». Un bouton QUI A une
+    // teinte la montre toujours sur son icône, secondaire ou non (satellite
+    // orange, « voir tout le monde » rose) ; seule l'absence de teinte donne
+    // l'encre. L'état actif garde son fond plus marqué + anneau blanc.
     final Color iconColor = active
         ? toneOn
-        : (secondary ? baseGrey : (tint != null ? toneOn : baseInk));
+        : (tint != null ? toneOn : (secondary ? baseGrey : baseInk));
     final Color fill = active
         ? (isDark
             ? toneOn.withValues(alpha: 0.28)

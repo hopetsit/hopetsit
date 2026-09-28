@@ -108,6 +108,9 @@ class RoleChip extends StatelessWidget {
                 width: 22.w,
                 height: 22.w,
                 fit: BoxFit.cover,
+                // v598 — source 1024 px affichée à 22 px sur les 3 accueils :
+                // décodée en petit (4 Mo → ~0,04 Mo), image identique.
+                cacheWidth: 96,
                 errorBuilder: (_, __, ___) =>
                     Icon(icon, size: 16.sp, color: Colors.white),
               ),
