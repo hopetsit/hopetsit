@@ -486,7 +486,6 @@ export default function OwnerCityPage({
           décalage de mise en page. Le texte long (intro) passe sous le pli. */}
       {!paris && <p className="text-sm font-semibold text-owner">{copy.kicker(city)}</p>}
       <h1 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-[1.15] tracking-tight text-ink md:mt-2 md:text-4xl">{heading}</h1>
-      <p className="mt-3 text-[15px] leading-relaxed text-ink-muted md:text-lg">{copy.heroLead(city)}</p>
 
       {/* 22/09/2026 — preuve que l'offre existe vraiment (compte en direct).
           Les arrondissements interrogent « Paris » : un gardien inscrit à
@@ -497,6 +496,11 @@ export default function OwnerCityPage({
         lang={city.lang}
       />
 
+      {/* 28/09/2026 (SAM) — les vraies personnes et leur prix passent AVANT
+          l'explication : le visiteur froid de la pub voit d'abord « qui, à
+          quel prix, près de chez moi », puis comment ça marche. */}
+      <p className="mt-4 text-[15px] leading-relaxed text-ink-muted md:text-lg">{copy.heroLead(city)}</p>
+
       <ul className="mt-5 grid grid-cols-3 gap-2">
         {copy.proofs.map((p, i) => (
           <li key={p} className="rounded-2xl bg-bg-soft px-2 py-3 text-center">
@@ -506,13 +510,15 @@ export default function OwnerCityPage({
         ))}
       </ul>
 
-      {/* v577 — le bouton principal mène au parcours WEB (/signup puis
+      {/* 28/09 (SAM) — « Publier ma demande » devient le 2e choix (contour) :
+          le 1er choix, ce sont les cartes des gardiens juste au-dessus.
+          v577 — le bouton mène au parcours WEB (/signup puis
           /posts/create) : publier une demande ne demande plus d'installer
           l'app. Le store reste accessible juste en dessous. */}
       <OwnerSignupCta
         label={copy.heroCta}
         city={city.name}
-        className="mt-5 block w-full rounded-full bg-owner px-6 py-4 text-center text-base font-bold text-white shadow-cta transition hover:bg-owner-dark md:mx-auto md:w-auto md:min-w-[18rem]"
+        className="mt-5 block w-full rounded-full border-2 border-owner bg-white px-6 py-3.5 text-center text-base font-bold text-owner-dark transition hover:bg-owner-light md:mx-auto md:w-auto md:min-w-[18rem]"
       />
       <p className="mt-2.5 text-center text-xs text-ink-soft">{copy.heroCtaNote}</p>
       <p className="mt-3 text-center text-sm">
