@@ -87,6 +87,21 @@ export default function ArticleGarderChatParis() {
         </div>
       </div>
 
+      <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">Où trouver un cat sitter par quartier</h2>
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        Certains arrondissements comptent déjà beaucoup de chats en appartement. Dans le{" "}
+        <Link href="/garde-animaux/paris-4" className="font-semibold text-owner underline">
+          4e arrondissement
+        </Link>
+        , entre le Marais et l'île Saint-Louis, les visites à domicile pour chats sont très
+        fréquentes. Même constat dans le{" "}
+        <Link href="/garde-animaux/paris-9" className="font-semibold text-owner underline">
+          9e
+        </Link>
+        , du côté de Pigalle et des Grands Boulevards, où jeunes couples et petits chiens se
+        partagent le quartier avec de nombreux chats.
+      </p>
+
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">Questions fréquentes</h2>
       <div className="mt-6 space-y-4">
         {FAQ.map((f) => (

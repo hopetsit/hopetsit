@@ -166,6 +166,23 @@ export default function ArticleGardeWeekEndParis() {
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
+        Deux quartiers où le week-end se prépare à l'avance
+      </h2>
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        Dans le{" "}
+        <Link href="/garde-animaux/paris-8" className="font-semibold text-owner underline">
+          8e arrondissement
+        </Link>{" "}
+        (Champs-Élysées, parc Monceau, Madeleine), la clientèle part souvent en week-end et
+        cherche des gardes fiables. Même logique dans le{" "}
+        <Link href="/garde-animaux/paris-16" className="font-semibold text-owner underline">
+          16e
+        </Link>
+        , entre Passy, Auteuil et le bois de Boulogne, où la demande de gardes longues grimpe
+        pendant les vacances scolaires.
+      </p>
+
+      <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
         Questions fréquentes
       </h2>
       <div className="mt-6 space-y-4">

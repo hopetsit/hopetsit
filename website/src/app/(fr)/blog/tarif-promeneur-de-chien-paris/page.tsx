@@ -94,6 +94,19 @@ export default function ArticleTarifPromeneurParis() {
         les profils de votre quartier, leurs avis et leurs prix avant de
         réserver.
       </p>
+      <p className="mt-4 text-sm text-ink-muted">
+        Dans le{" "}
+        <Link href="/garde-animaux/paris-1" className="font-semibold text-owner underline">
+          1er arrondissement
+        </Link>{" "}
+        (Louvre, Palais-Royal, les Tuileries), beaucoup de résidents en appartement et peu
+        d'espaces verts privés font de la promenade un service très demandé. Dans le{" "}
+        <Link href="/garde-animaux/paris-3" className="font-semibold text-owner underline">
+          3e
+        </Link>
+        , entre le Marais nord et Arts-et-Métiers, familles et jeunes actifs se partagent une
+        forte densité de petits chiens.
+      </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">Questions fréquentes</h2>
       <div className="mt-6 space-y-4">

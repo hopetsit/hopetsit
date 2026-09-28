@@ -96,6 +96,23 @@ export default function ArticleGarderChienVacances() {
         votre chien en direct sur la carte, depuis la plage.
       </p>
 
+      <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
+        À Paris, deux quartiers très concernés par les départs en vacances
+      </h2>
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        Dans le{" "}
+        <Link href="/garde-animaux/paris-5" className="font-semibold text-owner underline">
+          5e arrondissement
+        </Link>{" "}
+        (Quartier latin, Mouffetard, le Jardin des Plantes), étudiants disponibles et
+        propriétaires qui voyagent souvent se croisent toute l'année. Près des gares, dans le{" "}
+        <Link href="/garde-animaux/paris-10" className="font-semibold text-owner underline">
+          10e
+        </Link>{" "}
+        (Canal Saint-Martin, gares du Nord et de l'Est), les gardes courtes autour d'un départ
+        sont une habitude pour beaucoup de voyageurs.
+      </p>
+
       <div className="mt-14 rounded-3xl bg-owner-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">
           Des pet sitters vérifiés, partout

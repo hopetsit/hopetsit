@@ -100,6 +100,18 @@ export default function ArticlePromenerChienParis() {
         </Link>{" "}
         prennent le relais — avec le trajet suivi en GPS depuis votre téléphone.
       </p>
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        Deux jardins concentrent particulièrement les promeneurs parisiens : le{" "}
+        <Link href="/garde-animaux/paris-6" className="font-semibold text-owner underline">
+          6e arrondissement
+        </Link>
+        , autour du Luxembourg, l'un des jardins les plus prisés de la capitale, et le{" "}
+        <Link href="/garde-animaux/paris-12" className="font-semibold text-owner underline">
+          12e
+        </Link>
+        , du côté du bois de Vincennes et de Bercy — le terrain de jeu idéal pour les grands
+        chiens.
+      </p>
 
       <div className="mt-14 rounded-3xl bg-owner-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">

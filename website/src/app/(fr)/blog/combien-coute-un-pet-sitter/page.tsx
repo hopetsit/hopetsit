@@ -101,7 +101,15 @@ export default function ArticlePrixPetSitter() {
       <p className="mt-4 text-sm text-ink-muted">
         À Paris et dans les grandes villes, comptez plutôt le haut de la
         fourchette ; en zone rurale, le bas. Les gardes de plusieurs semaines se
-        négocient presque toujours avec un tarif dégressif.
+        négocient presque toujours avec un tarif dégressif. C'est particulièrement vrai dans le{" "}
+        <Link href="/garde-animaux/paris-11" className="font-semibold text-owner underline">
+          11e arrondissement
+        </Link>
+        , le plus peuplé de Paris, où la demande est constante toute l'année, et dans le{" "}
+        <Link href="/garde-animaux/paris-13" className="font-semibold text-owner underline">
+          13e
+        </Link>
+        , quartier familial en pleine croissance où les pet sitters installés restent rares.
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
