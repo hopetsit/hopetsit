@@ -188,6 +188,11 @@ const resolveMediaPostType = ({ rawPostType, startDate, endDate, serviceTypes, h
 //  /posts/with-media, qui ne notifiait personne. Corps inchangé.
 // ═══════════════════════════════════════════════════════════════════════════
 const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner, ownerId }) => {
+    // 28/09/2026 — compte de test (+test) : on ne prévient aucun gardien.
+    if (owner && require('../utils/testAccount2809').isTestAccountEmail(owner.email)) {
+      logger.info(`[notifyNearbyProviders] compte de test ${ownerId} : aucun prestataire prévenu`);
+      return;
+    }
     setImmediate(async () => {
       try {
         const Sitter = require('../models/Sitter');
