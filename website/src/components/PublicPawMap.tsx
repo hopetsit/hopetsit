@@ -250,7 +250,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                   {/* 28/09 (LEO) — sans compte : « Demander à <prénom> » ouvre la
                       demande (compte créé sur le même écran) ; connecté : Réserver. */}
                   <Link
-                    href={ready && user ? href : askHref(p.city)}
+                    href={ready && user ? href : askHref(p.city, p.role, p.id)}
                     onClick={() => { if (!(ready && user)) trackSiteEvent("cta_click", { label: "demander_carte" }); }}
                     className="mt-3 flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-bold text-white"
                     style={{ background: `linear-gradient(90deg, ${p.role === "sitter" ? "#2563EB" : "#15803D"}, ${p.role === "sitter" ? "#1E4FB0" : "#166534"})`, color: "#fff" }}
@@ -260,7 +260,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                   </Link>
                   {!(ready && user) && (
                     <>
-                      <p className="mt-1.5 text-center text-[11px] leading-snug text-[#6E4F48]">{askNote(lang, p.city)}</p>
+                      <p className="mt-1.5 text-center text-[11px] leading-snug text-[#6E4F48]">{askNote(lang, p.city, p.name)}</p>
                       <Link
                         href={`/p/${p.role}/${p.id}`}
                         onClick={() => trackSiteEvent("cta_click", { label: "profil_carte" })}

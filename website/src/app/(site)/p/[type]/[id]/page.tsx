@@ -246,7 +246,7 @@ function ProviderSharePage() {
             propriétaire créé sur le même écran (plus d'inscription séparée). */}
         {ready && !connecte && (<>
         <Link
-          href={askHref(ville)}
+          href={askHref(ville, type, id)}
           onClick={() => trackSiteEvent("cta_click", { label: "demander_profil" })}
           className="relative mt-6 flex min-h-[56px] w-full items-center justify-center gap-3 overflow-hidden rounded-[18px] px-5 text-[15px] font-bold text-white shadow-[0_12px_28px_-10px_rgba(23,20,31,0.45)] transition active:scale-[0.97]"
           style={{ background: `linear-gradient(90deg, ${r.g1}, ${r.g2})`, color: "#fff" }}
@@ -258,7 +258,7 @@ function ProviderSharePage() {
             {des && <span className="block text-[12px] font-semibold opacity-90">{t("map_member_price_from")} {formatMoney(des.value, devise, lang)}/{t(des.unitKey)}</span>}
           </span>
         </Link>
-        <p className="mt-2 text-[12px] leading-snug text-[#6E4F48]">{askNote(lang, ville)}</p>
+        <p className="mt-2 text-[12px] leading-snug text-[#6E4F48]">{askNote(lang, ville, prenom)}</p>
         <div className="mt-3 flex items-center justify-center gap-2">
           <Link
             href={lienReserver}

@@ -1893,6 +1893,8 @@ export type CreatePostInput = {
   /** v587 (option A de Daniel) — « Mon budget » facultatif (montant > 0). */
   budget?: number;
   budgetCurrency?: string;
+  /** 28/09 (NEO) — « Demander à <prénom> » : ce prestataire est prévenu en premier. */
+  targetProvider?: { role: "sitter" | "walker"; id: string };
 };
 
 // Canonical service keys (match the app + backend filtering: dog_walking is
@@ -1933,6 +1935,7 @@ export async function createPostWithMedia(input: CreatePostInput, files: File[])
   // 22/09/2026 — la ville manquait ici aussi : une annonce avec photos publiée
   // depuis le site ne prévenait aucun gardien (le serveur cible par ville).
   if (input.location?.city) fd.append("location", JSON.stringify(input.location));
+  if (input.targetProvider) fd.append("targetProvider", JSON.stringify(input.targetProvider));
   files.forEach((f) => fd.append("photos", f));
   const raw = await request<{ post?: RequestPost } & RequestPost>("/posts/with-media", {
     method: "POST",

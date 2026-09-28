@@ -2,13 +2,17 @@
 // Le compte propriétaire se crée sur le même écran que la demande, le code
 // e-mail se saisit sur place et la demande part toute seule après.
 // Fichier autonome (pas de fusion dans translations.ts) : `gp(lang, clé)`.
-// {email} est une variable : ne jamais la traduire.
+// {email} et {name} sont des variables : ne jamais les traduire.
 import type { Lang } from "./langs";
 
 type D = Record<string, string>;
 
 export const GUEST_PUBLISH: Record<Lang, D> = {
   fr: {
+    // 28/09 soir — « Demander à <prénom> » : demande adressée ({name} = prénom, jamais traduit).
+    for_title: "Demande pour {name}",
+    for_sub: "{name} est prévenu·e en premier, puis les autres gardiens et promeneurs de ta ville.",
+    for_remove: "Envoyer à tout le monde plutôt",
     acc_title: "Ton compte propriétaire",
     acc_sub: "Gratuit. Il sert à recevoir les réponses des gardiens.",
     acc_name: "Prénom",
@@ -33,6 +37,10 @@ export const GUEST_PUBLISH: Record<Lang, D> = {
     after_fail: "Ton compte est prêt, mais la demande n'est pas partie. Appuie sur Publier pour réessayer.",
   },
   en: {
+    // 28/09 soir — « Demander à <prénom> » : demande adressée ({name} = prénom, jamais traduit).
+    for_title: "Request for {name}",
+    for_sub: "{name} is notified first, then the other sitters and walkers in your city.",
+    for_remove: "Send to everyone instead",
     acc_title: "Your owner account",
     acc_sub: "Free. It lets you receive the sitters' replies.",
     acc_name: "First name",
@@ -57,6 +65,10 @@ export const GUEST_PUBLISH: Record<Lang, D> = {
     after_fail: "Your account is ready, but the request was not sent. Tap Publish to try again.",
   },
   es: {
+    // 28/09 soir — « Demander à <prénom> » : demande adressée ({name} = prénom, jamais traduit).
+    for_title: "Solicitud para {name}",
+    for_sub: "{name} recibe el aviso primero y después los demás cuidadores y paseadores de tu ciudad.",
+    for_remove: "Mejor enviar a todos",
     acc_title: "Tu cuenta de dueño",
     acc_sub: "Gratis. Sirve para recibir las respuestas de los cuidadores.",
     acc_name: "Nombre",
@@ -81,6 +93,10 @@ export const GUEST_PUBLISH: Record<Lang, D> = {
     after_fail: "Tu cuenta está lista, pero la solicitud no se ha enviado. Pulsa Publicar para reintentarlo.",
   },
   de: {
+    // 28/09 soir — « Demander à <prénom> » : demande adressée ({name} = prénom, jamais traduit).
+    for_title: "Anfrage an {name}",
+    for_sub: "{name} wird zuerst benachrichtigt, danach die anderen Sitter und Gassigeher in deiner Stadt.",
+    for_remove: "Lieber an alle senden",
     acc_title: "Dein Halter-Konto",
     acc_sub: "Kostenlos. Damit erhältst du die Antworten der Betreuer.",
     acc_name: "Vorname",
@@ -105,6 +121,10 @@ export const GUEST_PUBLISH: Record<Lang, D> = {
     after_fail: "Dein Konto ist bereit, aber die Anfrage wurde nicht gesendet. Tippe auf Veröffentlichen, um es erneut zu versuchen.",
   },
   it: {
+    // 28/09 soir — « Demander à <prénom> » : demande adressée ({name} = prénom, jamais traduit).
+    for_title: "Richiesta per {name}",
+    for_sub: "{name} viene avvisato per primo, poi gli altri pet sitter e dog walker della tua città.",
+    for_remove: "Invia a tutti invece",
     acc_title: "Il tuo account proprietario",
     acc_sub: "Gratis. Serve a ricevere le risposte dei pet sitter.",
     acc_name: "Nome",
@@ -129,6 +149,10 @@ export const GUEST_PUBLISH: Record<Lang, D> = {
     after_fail: "Il tuo account è pronto, ma la richiesta non è partita. Tocca Pubblica per riprovare.",
   },
   pt: {
+    // 28/09 soir — « Demander à <prénom> » : demande adressée ({name} = prénom, jamais traduit).
+    for_title: "Pedido para {name}",
+    for_sub: "{name} é avisado primeiro, depois os outros cuidadores e passeadores da tua cidade.",
+    for_remove: "Enviar antes a todos",
     acc_title: "A tua conta de dono",
     acc_sub: "Grátis. Serve para receberes as respostas dos cuidadores.",
     acc_name: "Nome próprio",
@@ -153,6 +177,10 @@ export const GUEST_PUBLISH: Record<Lang, D> = {
     after_fail: "A tua conta está pronta, mas o pedido não foi enviado. Toca em Publicar para tentar de novo.",
   },
   ko: {
+    // 28/09 soir — « Demander à <prénom> » : demande adressée ({name} = prénom, jamais traduit).
+    for_title: "{name}님에게 보내는 요청",
+    for_sub: "{name}님에게 먼저 알림이 가고, 그다음 내 도시의 다른 시터와 산책 도우미에게 전달됩니다.",
+    for_remove: "대신 모두에게 보내기",
     acc_title: "반려인 계정",
     acc_sub: "무료예요. 펫시터의 답장을 받는 데 필요해요.",
     acc_name: "이름",
@@ -177,6 +205,10 @@ export const GUEST_PUBLISH: Record<Lang, D> = {
     after_fail: "계정은 준비됐지만 요청이 전송되지 않았어요. 게시하기를 눌러 다시 시도해 주세요.",
   },
   ja: {
+    // 28/09 soir — « Demander à <prénom> » : demande adressée ({name} = prénom, jamais traduit).
+    for_title: "{name}さんへの依頼",
+    for_sub: "まず{name}さんに通知され、その後お住まいの街の他のシッターとお散歩代行にも届きます。",
+    for_remove: "代わりに全員に送る",
     acc_title: "飼い主アカウント",
     acc_sub: "無料です。シッターからの返信を受け取るために使います。",
     acc_name: "名前",
@@ -201,6 +233,10 @@ export const GUEST_PUBLISH: Record<Lang, D> = {
     after_fail: "アカウントの準備はできましたが、リクエストは送信されませんでした。「投稿」をもう一度押してください。",
   },
   pl: {
+    // 28/09 soir — « Demander à <prénom> » : demande adressée ({name} = prénom, jamais traduit).
+    for_title: "Prośba do: {name}",
+    for_sub: "{name} dostanie powiadomienie jako pierwsza osoba, potem pozostali opiekunowie i wyprowadzający psy w Twoim mieście.",
+    for_remove: "Wyślij raczej do wszystkich",
     acc_title: "Twoje konto właściciela",
     acc_sub: "Za darmo. Dzięki niemu dostaniesz odpowiedzi opiekunów.",
     acc_name: "Imię",

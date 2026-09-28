@@ -5,12 +5,14 @@
 //
 // Le bouton ouvre la demande de NEO (/posts/create) avec la ville du
 // prestataire pré-remplie : le compte propriétaire s'y crée sur le même écran.
-// Le serveur ne sait pas (encore) adresser une demande à UN prestataire
-// précis : elle part aux prestataires de la ville — c'est ce que dit la note.
+// 28/09 soir (NEO) — la demande est maintenant ADRESSÉE au prestataire :
+// `askHref` ajoute `&for=<rôle>:<id>`, le serveur le prévient en premier
+// (notification « <Prénom> vous a choisi »), puis la ville comme avant.
+// La note sous le bouton le dit (note_for_city / note_for).
 // Fichier autonome : `dm(lang, clé)`. {name} et {city} ne se traduisent pas.
 import type { Lang } from "./langs";
 
-type D = Record<"ask" | "ask_any" | "note_city" | "note" | "profile" | "book", string>;
+type D = Record<"ask" | "ask_any" | "note_city" | "note" | "note_for_city" | "note_for" | "profile" | "book", string>;
 
 export const DEMANDER: Record<Lang, D> = {
   fr: {
@@ -18,6 +20,8 @@ export const DEMANDER: Record<Lang, D> = {
     ask_any: "Faire une demande",
     note_city: "Gratuit, sans engagement. Ta demande part aux gardiens et promeneurs de {city}.",
     note: "Gratuit, sans engagement. Ta demande part aux gardiens et promeneurs près de chez toi.",
+    note_for_city: "Gratuit, sans engagement. {name} est prévenu·e en premier, puis les autres gardiens et promeneurs de {city}.",
+    note_for: "Gratuit, sans engagement. {name} est prévenu·e en premier, puis les autres gardiens et promeneurs près de chez toi.",
     profile: "Voir le profil",
     book: "Réserver",
   },
@@ -26,6 +30,8 @@ export const DEMANDER: Record<Lang, D> = {
     ask_any: "Make a request",
     note_city: "Free, no commitment. Your request goes to sitters and walkers in {city}.",
     note: "Free, no commitment. Your request goes to sitters and walkers near you.",
+    note_for_city: "Free, no commitment. {name} is notified first, then the other sitters and walkers in {city}.",
+    note_for: "Free, no commitment. {name} is notified first, then the other sitters and walkers near you.",
     profile: "See profile",
     book: "Book",
   },
@@ -34,6 +40,8 @@ export const DEMANDER: Record<Lang, D> = {
     ask_any: "Hacer una solicitud",
     note_city: "Gratis y sin compromiso. Tu solicitud llega a los cuidadores y paseadores de {city}.",
     note: "Gratis y sin compromiso. Tu solicitud llega a los cuidadores y paseadores cerca de ti.",
+    note_for_city: "Gratis y sin compromiso. {name} recibe el aviso primero y después los demás cuidadores y paseadores de {city}.",
+    note_for: "Gratis y sin compromiso. {name} recibe el aviso primero y después los demás cuidadores y paseadores cerca de ti.",
     profile: "Ver el perfil",
     book: "Reservar",
   },
@@ -42,6 +50,8 @@ export const DEMANDER: Record<Lang, D> = {
     ask_any: "Anfrage stellen",
     note_city: "Kostenlos und unverbindlich. Deine Anfrage geht an die Sitter und Gassigeher in {city}.",
     note: "Kostenlos und unverbindlich. Deine Anfrage geht an die Sitter und Gassigeher in deiner Nähe.",
+    note_for_city: "Kostenlos und unverbindlich. {name} wird zuerst benachrichtigt, danach die anderen Sitter und Gassigeher in {city}.",
+    note_for: "Kostenlos und unverbindlich. {name} wird zuerst benachrichtigt, danach die anderen Sitter und Gassigeher in deiner Nähe.",
     profile: "Profil ansehen",
     book: "Buchen",
   },
@@ -50,6 +60,8 @@ export const DEMANDER: Record<Lang, D> = {
     ask_any: "Fai una richiesta",
     note_city: "Gratis, senza impegno. La tua richiesta arriva ai pet sitter e dog walker di {city}.",
     note: "Gratis, senza impegno. La tua richiesta arriva ai pet sitter e dog walker vicino a te.",
+    note_for_city: "Gratis, senza impegno. {name} viene avvisato per primo, poi gli altri pet sitter e dog walker di {city}.",
+    note_for: "Gratis, senza impegno. {name} viene avvisato per primo, poi gli altri pet sitter e dog walker vicino a te.",
     profile: "Vedi il profilo",
     book: "Prenota",
   },
@@ -58,6 +70,8 @@ export const DEMANDER: Record<Lang, D> = {
     ask_any: "Fazer um pedido",
     note_city: "Grátis, sem compromisso. O teu pedido chega aos cuidadores e passeadores de {city}.",
     note: "Grátis, sem compromisso. O teu pedido chega aos cuidadores e passeadores perto de ti.",
+    note_for_city: "Grátis, sem compromisso. {name} é avisado primeiro, depois os outros cuidadores e passeadores de {city}.",
+    note_for: "Grátis, sem compromisso. {name} é avisado primeiro, depois os outros cuidadores e passeadores perto de ti.",
     profile: "Ver o perfil",
     book: "Reservar",
   },
@@ -66,6 +80,8 @@ export const DEMANDER: Record<Lang, D> = {
     ask_any: "Wyślij prośbę",
     note_city: "Za darmo, bez zobowiązań. Twoja prośba trafi do opiekunów i wyprowadzających psy w {city}.",
     note: "Za darmo, bez zobowiązań. Twoja prośba trafi do opiekunów i wyprowadzających psy w pobliżu.",
+    note_for_city: "Za darmo, bez zobowiązań. {name} dostanie powiadomienie jako pierwsza osoba, potem pozostali opiekunowie i wyprowadzający psy w {city}.",
+    note_for: "Za darmo, bez zobowiązań. {name} dostanie powiadomienie jako pierwsza osoba, potem pozostali opiekunowie i wyprowadzający psy w pobliżu.",
     profile: "Zobacz profil",
     book: "Zarezerwuj",
   },
@@ -74,6 +90,8 @@ export const DEMANDER: Record<Lang, D> = {
     ask_any: "依頼する",
     note_city: "無料・義務なし。依頼は{city}のシッターとお散歩代行に届きます。",
     note: "無料・義務なし。依頼は近くのシッターとお散歩代行に届きます。",
+    note_for_city: "無料・義務なし。まず{name}さんに通知され、その後{city}の他のシッターとお散歩代行にも届きます。",
+    note_for: "無料・義務なし。まず{name}さんに通知され、その後近くの他のシッターとお散歩代行にも届きます。",
     profile: "プロフィールを見る",
     book: "予約",
   },
@@ -82,6 +100,8 @@ export const DEMANDER: Record<Lang, D> = {
     ask_any: "요청하기",
     note_city: "무료, 부담 없음. 요청은 {city}의 시터와 산책 도우미에게 전달됩니다.",
     note: "무료, 부담 없음. 요청은 근처의 시터와 산책 도우미에게 전달됩니다.",
+    note_for_city: "무료, 부담 없음. {name}님에게 먼저 알림이 가고, 그다음 {city}의 다른 시터와 산책 도우미에게 전달됩니다.",
+    note_for: "무료, 부담 없음. {name}님에게 먼저 알림이 가고, 그다음 근처의 다른 시터와 산책 도우미에게 전달됩니다.",
     profile: "프로필 보기",
     book: "예약",
   },
@@ -96,14 +116,37 @@ export const askLabel = (lang: Lang, name?: string | null): string => {
   return first ? dm(lang, "ask").replace("{name}", first) : dm(lang, "ask_any");
 };
 
-/** Note sous le bouton (ville du prestataire si connue). */
-export const askNote = (lang: Lang, city?: string | null): string => {
+/** Note sous le bouton : avec le prénom du prestataire (prévenu en premier), ville si connue. */
+export const askNote = (lang: Lang, city?: string | null, name?: string | null): string => {
   const c = (city || "").trim();
+  const first = (name || "").trim().split(/\s+/)[0];
+  if (first) {
+    return c
+      ? dm(lang, "note_for_city").replace("{name}", first).replace("{city}", c)
+      : dm(lang, "note_for").replace("{name}", first);
+  }
   return c ? dm(lang, "note_city").replace("{city}", c) : dm(lang, "note");
 };
 
-/** La demande de NEO, ville du prestataire pré-remplie (seul paramètre lu). */
-export const askHref = (city?: string | null): string => {
+export type AskRole = "sitter" | "walker";
+const ID_RE = /^[a-f0-9]{24}$/i;
+
+/**
+ * La demande de NEO : ville pré-remplie, et `for=<rôle>:<id>` quand le bouton
+ * vise un prestataire précis (il est prévenu en premier par le serveur).
+ */
+export const askHref = (city?: string | null, role?: AskRole | string | null, id?: string | null): string => {
   const c = (city || "").trim();
-  return c ? `/posts/create?city=${encodeURIComponent(c)}` : "/posts/create";
+  const q: string[] = [];
+  if (c) q.push(`city=${encodeURIComponent(c)}`);
+  const r = String(role || "").trim();
+  const i = String(id || "").trim();
+  if ((r === "sitter" || r === "walker") && ID_RE.test(i)) q.push(`for=${r}:${i}`);
+  return q.length ? `/posts/create?${q.join("&")}` : "/posts/create";
+};
+
+/** Lecture de `?for=` : { role, id } ou null si la valeur n'a pas la forme attendue. */
+export const parseAskFor = (raw?: string | null): { role: AskRole; id: string } | null => {
+  const m = /^(sitter|walker):([a-f0-9]{24})$/i.exec(String(raw || "").trim());
+  return m ? { role: m[1].toLowerCase() as AskRole, id: m[2] } : null;
 };

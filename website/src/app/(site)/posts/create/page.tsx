@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { gp } from "@/lib/i18n/guestPublish2809";
+import { parseAskFor, type AskRole } from "@/lib/i18n/demander2809";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import ServiceLocationPicker587 from "@/components/ServiceLocationPicker587";
 import { locationComplete, locationOptions, locationToSend, p587, type ServiceLocation } from "@/lib/i18n/publish587";
 import {
+  API_BASE,
   ApiError,
   createPost,
   createPostWithMedia,
@@ -79,6 +81,16 @@ export default function CreatePostPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
+  // 28/09 soir (NEO, mission BOB validée par Daniel) — « Demander à Sasha ».
+  // Le bouton de la carte publique et des fiches /p/… arrive ici avec
+  // ?for=<rôle>:<id>. La demande est ADRESSÉE à ce prestataire : le serveur
+  // le prévient en premier (notification distincte), puis la ville comme
+  // avant. Le prénom vient de la fiche publique (« Prénom I. »). Gardé dans le
+  // brouillon, comme le reste. Fiche introuvable → ciblage abandonné, la
+  // demande part normalement à la ville.
+  const [target, setTarget] = useState<{ role: AskRole; id: string } | null>(null);
+  const [targetName, setTargetName] = useState("");
+
   // 28/09/2026 (NEO, mission BOB validée par Daniel) — UNE SEULE ÉTAPE.
   // Mesure du 28/09 (7 jours) : 8 visiteurs sur ce formulaire, 9 sur /signup,
   // 0 demande publiée. L'invité devait remplir la demande, partir sur /signup,
@@ -132,6 +144,9 @@ export default function CreatePostPage() {
       // Code parrain (même règle que /signup : format exact uniquement).
       const ref = (q.get("ref") || "").trim();
       if (/^[A-HJ-NP-Z2-9]{8}$/.test(ref)) setReferralCode(ref);
+      // Prestataire ciblé (« Demander à <prénom> »).
+      const forQ = parseAskFor(q.get("for"));
+      if (forQ) setTarget(forQ);
     } catch { /* URL exotique */ }
 
     // Brouillon laissé avant l'inscription : on le remet tel quel.
@@ -152,6 +167,12 @@ export default function CreatePostPage() {
       if (typeof d.animalCount === "number") setAnimalCount(d.animalCount);
       if (Array.isArray(d.animalTypes)) setAnimalTypes(d.animalTypes as string[]);
       if (typeof d.city === "string" && d.city) setCity(d.city);
+      // Ciblage gardé avec le brouillon (l'URL, si elle en porte un, a priorité).
+      {
+        const tp = d.targetProvider as { role?: string; id?: string } | undefined;
+        const fromDraft = tp && parseAskFor(`${tp.role}:${tp.id}`);
+        if (fromDraft) setTarget((cur) => cur || fromDraft);
+      }
       // Page rechargée pendant la saisie du code : on revient sur le code.
       if (!u && typeof d.pendingEmail === "string" && d.pendingEmail) {
         setPendingEmail(d.pendingEmail);
@@ -161,6 +182,23 @@ export default function CreatePostPage() {
       if (typeof d.accName === "string") setAccName(d.accName);
     } catch { /* brouillon illisible → on repart d'une page vierge */ }
   }, [router]);
+
+  // Prénom du prestataire ciblé, lu sur sa fiche publique (jamais stocké).
+  useEffect(() => {
+    if (!target) { setTargetName(""); return; }
+    let vivant = true;
+    fetch(`${API_BASE}/${target.role}s/${target.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!vivant) return;
+        const f = (d && (d.sitter || d.walker)) as { firstName?: string; name?: string } | undefined;
+        const first = ((f && (f.firstName || f.name)) || "").trim().split(/\s+/)[0];
+        if (first) setTargetName(first);
+        else setTarget(null);
+      })
+      .catch(() => { /* hors ligne : on garde le ciblage, le prénom viendra ou pas */ });
+    return () => { vivant = false; };
+  }, [target]);
 
   const svcLabel = (s: string) =>
     s === "house_sitting"
@@ -275,7 +313,7 @@ export default function CreatePostPage() {
     try {
       window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
         body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
-        animalCount, animalTypes, city, budget, ...extra,
+        animalCount, animalTypes, city, budget, targetProvider: target, ...extra,
       }));
     } catch { /* navigation privée : on continue sans mémoriser */ }
   }
@@ -297,6 +335,8 @@ export default function CreatePostPage() {
       // v587 — budget facultatif (rien envoyé sans montant).
       budget: budgetAmount > 0 ? budgetAmount : undefined,
       budgetCurrency: budgetAmount > 0 ? budgetCur : undefined,
+      // 28/09 — « Demander à <prénom> » : ce prestataire est prévenu en premier.
+      targetProvider: target || undefined,
     };
     // Avec photos → /posts/with-media (postType=request) ; sinon → /posts.
     if (photos.length > 0) {
@@ -306,6 +346,7 @@ export default function CreatePostPage() {
     }
     try { window.localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
     trackSiteEvent("cta_click", { label: fromGuest ? "pub_publiee" : "pub_publiee_membre" });
+    if (target) trackSiteEvent("cta_click", { label: "pub_pour_prestataire" });
     router.push("/posts");
   }
 
@@ -438,6 +479,30 @@ export default function CreatePostPage() {
         onSubmit={onSubmit}
         className="mt-10 space-y-5 rounded-3xl border border-ink/5 bg-white p-7 shadow-card"
       >
+        {/* 28/09 soir — demande adressée à un prestataire précis. */}
+        {target && targetName && (
+          <div data-testid="target-provider" className="flex items-start gap-3 rounded-2xl border border-owner/25 bg-owner-light p-4">
+            <span
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full font-display text-base font-extrabold text-white"
+              style={{ background: target.role === "walker" ? "linear-gradient(90deg,#15803D,#166534)" : "linear-gradient(90deg,#2563EB,#1E4FB0)" }}
+              aria-hidden
+            >
+              {targetName.charAt(0).toUpperCase()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-base font-extrabold text-owner-dark">{gp(lang, "for_title").replace("{name}", targetName)}</p>
+              <p className="mt-0.5 text-xs leading-snug text-[#6E4F48]">{gp(lang, "for_sub").replace("{name}", targetName)}</p>
+              <button
+                type="button"
+                onClick={() => { setTarget(null); setTargetName(""); }}
+                className="mt-1.5 text-xs font-semibold text-owner-dark underline max-lg:min-h-[44px]"
+              >
+                {gp(lang, "for_remove")}
+              </button>
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-ink">{t("posts_city_label")}</label>
           <input

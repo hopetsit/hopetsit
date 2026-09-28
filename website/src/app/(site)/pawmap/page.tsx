@@ -260,9 +260,9 @@ export default function PawMapPage() {
                     )}
                   </Link>
                   <Link
-                    href={askHref(ville)}
+                    href={askHref(ville, p.role, p.id)}
                     onClick={() => trackSiteEvent("cta_click", { label: "demander_liste" })}
-                    title={askNote(lang, ville)}
+                    title={askNote(lang, ville, p.name)}
                     className="mt-3 flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-bold text-white transition active:scale-[0.97]"
                     style={{ background: `linear-gradient(90deg, ${p.role === "sitter" ? "#2563EB" : "#15803D"}, ${p.role === "sitter" ? "#1E4FB0" : "#166534"})`, color: "#fff" }}
                   >
