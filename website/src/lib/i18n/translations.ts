@@ -9770,3 +9770,7 @@ import { MAP590 } from "./map590";
 for (const code of Object.keys(MAP590) as Lang[]) Object.assign(t[code], MAP590[code]);
 import { PRIVACY2709 } from "./privacy2709";
 for (const code of Object.keys(PRIVACY2709) as Lang[]) Object.assign(t[code], PRIVACY2709[code]);
+
+// 29/09/2026 — « Comprendre la PawMap » : section « La Balade » (mêmes textes que l'app, PAM).
+import { BALADE2909 } from "./balade2909";
+for (const code of Object.keys(BALADE2909) as Lang[]) Object.assign(t[code], BALADE2909[code]);

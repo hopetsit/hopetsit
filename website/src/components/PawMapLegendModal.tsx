@@ -96,8 +96,20 @@ function RoundIcon({ name, color, filled = false }: { name: AppIconName; color: 
   );
 }
 
-type Row = { html?: string; node?: ReactNode; title: string; body?: string; color?: string };
-type Section = { id: string; title: string; rows: Row[]; example?: string };
+type Row = { html?: string; node?: ReactNode; title: string; body?: string; color?: string; /** 29/09 — petite bulle sous le titre (texte exact de la carte). */ chip?: { text: string; color: string; border: string; bg?: string } };
+type Section = { id: string; title: string; rows: Row[]; example?: string; image?: { src: string; alt: string } };
+
+// 29/09 — section « La Balade » : dessins compacts (56 px) de ce que l'on voit
+// vraiment sur /map : pilule verte du direct, tracé violet PawFollow.
+const WALK_GREEN = "linear-gradient(170deg,#43B862,#1F7A37)";
+function walkPillHtml() {
+  const people = '<svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><circle cx="8" cy="7" r="3.2"/><path d="M2 19a6 6 0 0 1 12 0z"/><circle cx="16.5" cy="8" r="2.6"/><path d="M13.5 19a5 5 0 0 1 8.5-3.6V19z"/></svg>';
+  return `<span style="display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 9px 0 8px;border-radius:15px;background:${WALK_GREEN};box-shadow:0 0 0 2px #fff,0 8px 18px -8px rgba(31,122,55,.8);color:#fff;font:800 12px/1 Poppins,Inter,system-ui,sans-serif;white-space:nowrap"><span class="hps-dot-pulse" style="display:block;width:8px;height:8px;border-radius:999px;background:#fff"></span>${people}<span>2</span></span>`;
+}
+/** 29/09 — patte du menu de l'app avec le point vert « un ami est en balade ». */
+function menuDotHtml() {
+  return `<span style="position:relative;display:grid;place-items:center;width:56px;height:56px"><svg viewBox="0 0 56 56" width="56" height="56"><path d="M28 50c-7-7-16-15-16-24a16 16 0 0 1 32 0c0 9-9 17-16 24z" fill="#17141F"/><circle cx="28" cy="25" r="6" fill="#fff"/><circle cx="28" cy="25" r="3" fill="#C92A12"/><circle cx="12" cy="13" r="4.5" fill="#C92A12"/><circle cx="21" cy="6" r="4.5" fill="#2563EB"/><circle cx="35" cy="6" r="4.5" fill="#16A34A"/><circle cx="44" cy="13" r="4.5" fill="#7C3AED"/></svg><span style="position:absolute;top:2px;right:4px;width:14px;height:14px;border-radius:999px;background:#16A34A;border:2px solid #fff;box-shadow:0 0 0 3px rgba(22,163,74,.25)"></span></span>`;
+}
 
 /**
  * `role` absent = la petite carte publique (accueil, /pawmap) : seulement les
@@ -185,6 +197,22 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
   ];
   const roleColor = ROLE_COLOR[roleK];
 
+  // 29/09 — Daniel : « La Balade » expliquée. TEXTES DE PAM (help599_*,
+  // ~/hopetsit-social/pawmap_599/balade_textes_9langues.json), mot pour mot :
+  // site et app disent la même chose. Visible aussi sur la carte publique.
+  // Le point vert de la patte du menu n'existe que dans l'app → « Dans l'app ».
+  const walkSection: Section = {
+    id: "walk",
+    title: t("help599_sec_balade"),
+    example: t("help599_ex_balade"),
+    image: { src: "/pawmap/balade_2909.svg", alt: t("help599_img_caption") },
+    rows: [
+      { html: walkPillHtml(), title: `${t("help599_t_me")} · « ${t("m590_on_walk")} · ${t("bal2909_followers").replace("{n}", "2")} »`, body: t("help599_b_me"), color: "#1F7A37" },
+      { html: photoPinHtml({ role: "walker", name: "Kathy", followed: true, online: true }), title: t("help599_t_others"), body: t("help599_b_others"), color: PAWFOLLOW_VIOLET, chip: { text: t("bal2909_live_now"), color: ROLE_COLOR.walker, border: FRIEND_PINK } },
+      { html: menuDotHtml(), title: `${t("help599_t_dot")} · ${t("p589_in_app")}`, body: t("help599_b_dot"), color: "#16A34A" },
+    ],
+  };
+
   const sections: Section[] = full
     ? [
         {
@@ -225,6 +253,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
             { html: `<span style="display:flex;gap:4px">${roundHtml("linear-gradient(165deg,#2C2533,#17141F)", LIVE, "rgba(23,20,31,0.7)", 30)}${roundHtml("linear-gradient(165deg,#34B857,#16A34A)", LIVE, "#16A34A", 30)}</span>`, title: t("m586_live"), body: `${t("h587_b_direct")} ${t("p589_direct_account")}`, color: "#17141F" },
           ],
         },
+        walkSection,
         {
           id: "act", title: t("h587_sec_act"), example: t("h587_ex_act"),
           rows: [
@@ -250,7 +279,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
           ],
         },
       ]
-    : [{ id: "find", title: t("h587_sec_find"), rows: [{ node: <RoundIcon name="pin" color="#C92A12" />, title: t("h587_t_pins"), body: t("h587_b_pins") }, ...pins] }];
+    : [{ id: "find", title: t("h587_sec_find"), rows: [{ node: <RoundIcon name="pin" color="#C92A12" />, title: t("h587_t_pins"), body: t("h587_b_pins") }, ...pins] }, walkSection];
 
   // 587 — « Qui voit ma position ? » = les phrases du réglage, mot pour mot.
   const faq = [1, 2, 3, 4].map((n) => ({ q: t(`h587_q${n}`), a: n === 2 ? visExplained : t(`h587_a${n}`) }));
@@ -263,7 +292,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
       aria-labelledby="pawmap-legend-title"
       onClick={onClose}
     >
-      <style dangerouslySetInnerHTML={{ __html: PAWMAP_KEYFRAMES }} />
+      <style dangerouslySetInnerHTML={{ __html: `${PAWMAP_KEYFRAMES}@keyframes hps-dot-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}50%{box-shadow:0 0 0 5px rgba(255,255,255,0)}}.hps-dot-pulse{animation:hps-dot-pulse 1.4s ease-out infinite}` }} />
       <div
         className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-white p-4 shadow-2xl sm:rounded-[28px] sm:p-7 dark:bg-[#241916]"
         onClick={(e) => e.stopPropagation()}
@@ -304,6 +333,11 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
               <span aria-hidden="true" className="block h-5 w-1 shrink-0 rounded-full bg-[#C92A12]" />
               <span className="min-w-0">{sec.title}</span>
             </h3>
+            {sec.image && (
+              // 29/09 — image de la section (même fichier que l'app), nette à 2× : SVG.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={sec.image.src} alt={sec.image.alt} width={640} height={300} loading="lazy" className="mt-3 block h-auto w-full rounded-[20px] border border-[#7C3AED]/25 shadow-[0_10px_24px_-14px_rgba(124,58,237,0.6)]" />
+            )}
             <ul className="mt-2 space-y-1.5">
               {sec.rows.map((r, i) => (
                 <li key={`${sec.id}-${i}`} className="flex items-start gap-3 rounded-2xl px-1 py-2 sm:gap-4 sm:px-2">
@@ -312,6 +346,9 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
                     : <span className="grid h-14 w-14 shrink-0 place-items-center sm:h-16 sm:w-16" dangerouslySetInnerHTML={{ __html: r.html || "" }} />}
                   <span className="min-w-0 flex-1 pt-1">
                     <span className="block break-words text-sm font-bold dark:!text-[#FBEFE6]" style={{ color: r.color || "#231715" }}>{r.title}</span>
+                    {r.chip && (
+                      <span className="mt-1 inline-block rounded-full px-2 py-[1px] text-[11px] font-bold leading-[1.3]" style={{ color: r.chip.color, background: r.chip.bg || "#fff", border: `1.5px solid ${r.chip.border}`, boxShadow: "0 1px 4px rgba(23,20,31,.25)" }}>{r.chip.text}</span>
+                    )}
                     {r.body && <span className="mt-0.5 block whitespace-pre-line break-words text-[13px] leading-snug text-[#3B2A26] dark:text-[#EBDDD6]">{r.body}</span>}
                   </span>
                 </li>
