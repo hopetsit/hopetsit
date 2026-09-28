@@ -1,4 +1,5 @@
 const Owner = require('../models/Owner');
+const { buildPetListFilter } = require('../utils/petListFilter599'); // v599 FLO
 const Pet = require('../models/Pet');
 const { uploadMedia } = require('../services/cloudinary');
 const { sanitizePet } = require('../utils/sanitize');
@@ -232,8 +233,18 @@ const uploadPetMedia = async (req, res) => {
 
 const listPets = async (req, res) => {
   try {
-    const { ownerId } = req.query;
-    const query = ownerId ? { ownerId } : {};
+    // v599 — FLO (29/09) : GET /pets renvoyait TOUS les animaux de la plateforme
+    // (vétérinaires, passeport, santé…) à n'importe qui, sans connexion.
+    // Désormais : connexion obligatoire (route), un propriétaire ne voit que ses
+    // animaux, un prestataire doit désigner un propriétaire (?ownerId=).
+    const query = buildPetListFilter({
+      userId: req.user?.id,
+      userRole: req.user?.role,
+      ownerIdQuery: req.query?.ownerId,
+    });
+    if (!query) {
+      return res.status(403).json({ error: 'Pets can only be listed for your own account.' });
+    }
     const pets = await Pet.find(query).sort({ createdAt: -1 });
     res.json({ pets });
   } catch (error) {

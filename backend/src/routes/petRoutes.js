@@ -465,7 +465,7 @@ router.get('/all', getAllPets);
  *                   items:
  *                     $ref: '#/components/schemas/Pet'
  */
-router.get('/', listPets);
+router.get('/', requireAuth, listPets); // v599 FLO — plus de liste publique de tous les animaux
 
 /**
  * @swagger

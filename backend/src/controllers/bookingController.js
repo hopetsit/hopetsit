@@ -8,6 +8,7 @@ const Application = require('../models/Application');
 const Pet = require('../models/Pet');
 const Review = require('../models/Review');
 const { sanitizeBooking, sanitizeConversation } = require('../utils/sanitize');
+const { buildBookingListFilter } = require('../utils/bookingListFilter599'); // v599 FLO
 const Conversation = require('../models/Conversation');
 const { isOwnerSitterInteractionBlocked } = require('../services/blockService');
 // v532 — photos de preuve de remise / récupération (cf. _saveHandoverPhoto).
@@ -1534,40 +1535,23 @@ const processProviderPayoutForBooking = async (booking) => {
 
 const listBookings = async (req, res) => {
   try {
-    // Check if this is a "my" endpoint request (user authenticated)
     const userId = req.user?.id;
     const userRole = req.user?.role;
-    
-    const { ownerId, sitterId, status } = req.query;
-    const filter = {};
-    
-    // If user is authenticated (from /my endpoint), filter by their role
-    if (userId && userRole) {
-      if (userRole === 'owner') {
-        filter.ownerId = userId;
-      } else if (userRole === 'sitter') {
-        filter.sitterId = userId;
-      }
-    } else {
-      // For regular /bookings endpoint, use query parameters
-      if (ownerId) {
-        filter.ownerId = ownerId;
-      }
-      if (sitterId) {
-        filter.sitterId = sitterId;
-      }
-    }
-    
-    if (status) {
-      filter.status = status;
-    } else {
-      filter.status = { $ne: 'cancelled' };
+    const { status } = req.query;
+
+    // v599 — FLO : un utilisateur ne liste QUE ses réservations, quel que soit
+    // son rôle (owner / sitter / walker). Avant, le rôle « walker » n'était pas
+    // traité et recevait toutes les réservations de la plateforme.
+    const filter = buildBookingListFilter({ userId, userRole, status });
+    if (!filter) {
+      return res.status(403).json({ error: 'Bookings can only be listed for your own account.' });
     }
 
     const bookings = await Booking.find(filter)
       .sort({ createdAt: -1 })
       .populate('ownerId')
       .populate('sitterId')
+      .populate('walkerId') // v599 FLO — les réservations d'un promeneur portent walkerId
       .populate('petIds');
 
     res.json({ bookings: bookings.map(sanitizeBooking) });
@@ -2497,8 +2481,7 @@ const respondBooking = async (req, res) => {
           sitterId: booking.sitterId._id,
         })
           .populate('ownerId')
-          .populate('sitterId')
-          .populate('petIds');
+          .populate('sitterId'); // v599 FLO — Conversation n'a pas de petIds : ce populate faisait échouer (500 RESPOND_BOOKING_FAILED) une acceptation pourtant enregistrée
 
         if (!conversation) {
           conversation = await Conversation.create({
@@ -5634,22 +5617,36 @@ const respondToPawfollowRequest = async (req, res) => {
     if (message.type !== 'pawfollow_request') {
       return res.status(400).json({ error: 'Not a pawfollow request.' });
     }
-    if (message.metadata?.status !== 'pending') {
-      return res.status(409).json({
-        error: 'Request already responded to.',
-        currentStatus: message.metadata?.status,
-      });
-    }
-    // Seul le responder (la partie qui doit répondre) peut accept/refuse.
-    if (message.metadata.responderRole !== userRole) {
-      return res.status(403).json({
-        error: 'You are not allowed to respond to this request.',
-      });
-    }
-    // Vérifie aussi que le user est bien dans la conversation.
     const conv = await Conversation.findById(message.conversationId).lean();
     if (!conv) {
       return res.status(404).json({ error: 'Conversation not found.' });
+    }
+    // v599 — LA PERSONNE COMPTE, PAS LE RÔLE (Daniel, 29/09 : son frère,
+    // propriétaire, lui a envoyé une demande ; impossible de l'accepter).
+    // Avant : `responderRole !== userRole` → 403 dès que le destinataire
+    // ouvrait le chat sous un autre de ses profils, et entre deux
+    // propriétaires amis le rôle ne désignait personne. Désormais : répond
+    // l'AUTRE participant de la conversation, sous n'importe lequel de ses
+    // profils ; jamais le demandeur (utils/pawfollowRespond599.js, testé).
+    let myIds = [String(userId)];
+    try {
+      const { identityGroup } = require('../utils/identityGroup');
+      const g = await identityGroup(userId);
+      if (g && Array.isArray(g.ids) && g.ids.length) myIds = g.ids.map(String);
+    } catch (_) {/* sans groupe lisible : l'id de session suffit */}
+    const { respondDecision } = require('../utils/pawfollowRespond599');
+    const decision = respondDecision({ message, conversation: conv, myIds });
+    if (!decision.ok) {
+      if (decision.code === 'ALREADY_RESPONDED') {
+        return res.status(409).json({
+          error: 'Request already responded to.',
+          currentStatus: message.metadata?.status,
+        });
+      }
+      return res.status(decision.status || 403).json({
+        error: 'You are not allowed to respond to this request.',
+        code: decision.code,
+      });
     }
 
     message.metadata = {
@@ -5657,6 +5654,10 @@ const respondToPawfollowRequest = async (req, res) => {
       status: action === 'accept' ? 'accepted' : 'refused',
       respondedAt: new Date(),
       respondedBy: String(userId),
+      // v599 — le rôle réel de la personne qui a répondu.
+      responderRole: ['owner', 'sitter', 'walker'].includes(String(userRole || '').toLowerCase())
+        ? String(userRole).toLowerCase()
+        : message.metadata?.responderRole,
     };
     message.markModified('metadata');
     await message.save();
