@@ -19,6 +19,7 @@ const Booking = require('../models/Booking');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const logger = require('../utils/logger');
+const { failedEventStatus } = require('../utils/webhookPaidGuard599'); // v599 FLO
 
 const handleAirwallexWebhook = async (req, res) => {
   // 1. Verify signature.
@@ -625,7 +626,16 @@ const handleAirwallexWebhook = async (req, res) => {
         if (!piId) break;
         const booking = await Booking.findOne({ airwallexPaymentIntentId: piId });
         if (!booking) break;
-        booking.paymentStatus = eventName.endsWith('.failed') ? 'failed' : 'cancelled';
+        // v599 — FLO : un failed/cancelled TARDIF n'écrase jamais une
+        // réservation déjà payée (cf. utils/webhookPaidGuard599.js).
+        const nextStatus = failedEventStatus(booking, eventName);
+        if (!nextStatus) {
+          logger.info(
+            `[airwallex.webhook] ${eventName} ignoré pour booking ${booking._id} : déjà payée`,
+          );
+          break;
+        }
+        booking.paymentStatus = nextStatus;
         await booking.save();
         // v23.1.317 — Daniel (audit) : restituer le crédit fidélité/parrainage
         // consommé si le paiement n'aboutit pas (sinon l'owner le perd).
