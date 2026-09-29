@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
+import { PARIS_CITY } from "@/lib/recruit-cities";
 
 // v533 — SEO recrutement : page « devenir pet sitter à Paris » (stratégie
 // supply-first : remplir Paris de sitters avant de pousser les proprios).
@@ -78,10 +80,16 @@ export default function DevenirPetsitterParisPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <p className="text-sm font-semibold text-sitter-dark">Paris & Île-de-France</p>
-      <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+      {/* 29/09 (SAM) — fil d'Ariane + maillage, comme les autres pages villes. */}
+      <CityBreadcrumb city={PARIS_CITY} mode="recruit" />
+      <p className="mt-3 text-sm font-semibold text-sitter-dark">Paris & Île-de-France</p>
+      <h1 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-[1.15] tracking-tight text-ink md:mt-2 md:text-4xl">
         Devenez pet sitter à Paris — et soyez payé pour aimer les animaux
       </h1>
+      <p className="mt-4 flex items-start gap-2 text-sm font-semibold text-sitter-dark">
+        <span aria-hidden className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-[#16A34A]" />
+        Gardes 20 à 30 € par jour · promenades 12 à 20 € — vous fixez vos tarifs
+      </p>
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         Étudiant, en télétravail, retraité ou simplement passionné ? Des
         centaines de milliers de Parisiens ont un chien ou un chat… et personne
@@ -143,6 +151,7 @@ export default function DevenirPetsitterParisPage() {
           Créer mon profil gratuit
         </Link>
       </div>
+      <CityLinks city={PARIS_CITY} mode="recruit" />
     </div>
   );
 }

@@ -31,9 +31,9 @@ const LANG_LABEL: Record<RecruitLang, { flag: string; name: string; owner: strin
 const BIG_CITIES: { href: string; label: string }[] = [
   { href: "/garde-animaux/paris", label: "Garde d'animaux à Paris" },
   { href: "/devenir-petsitter/paris", label: "Devenir pet sitter à Paris" },
-  { href: "/petsitter/paris", label: "Pet sitter à Paris" },
+  { href: "/pet-sitting/dallas", label: "Pet sitting in Dallas" },
+  { href: "/pet-sitting/new-york", label: "Pet sitting in New York" },
   { href: "/petsitter/madrid", label: "Cuidador en Madrid" },
-  { href: "/petsitter/dallas", label: "Pet sitter in Dallas" },
 ];
 
 export default function CitiesHubPage() {

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import OwnerCityPage from "@/components/OwnerCityPage";
-import { RECRUIT_CITIES, OWNER_PATH_PREFIX, type RecruitCity } from "@/lib/recruit-cities";
+import { TrackedLink } from "@/components/TrackedLink";
+import { RECRUIT_CITIES, OWNER_PATH_PREFIX, PARIS_CITY, type RecruitCity } from "@/lib/recruit-cities";
 
 // v575 — PAGE D'ATTERRISSAGE DE LA PUB META « Paris · Propriétaires (FR) ».
 //
@@ -20,16 +20,9 @@ import { RECRUIT_CITIES, OWNER_PATH_PREFIX, type RecruitCity } from "@/lib/recru
 // URL existante modifiée). Elle joue aussi le rôle de hub : les liens vers les
 // 20 arrondissements aident leur indexation (Search Console 17/09 : « détectés,
 // non indexés »).
-const PARIS: RecruitCity = {
-  slug: "paris",
-  name: "Paris",
-  region: "Paris & Île-de-France",
-  lang: "fr",
-  local:
-    "De Montmartre au parc Montsouris, Paris compte plus de 100 000 chiens et des centaines de milliers de chats dans des appartements sans jardin. Promenade du midi, visite quotidienne pendant les vacances, garde de week-end : la demande est constante toute l'année, et elle se joue à l'échelle du quartier.",
-  dayRate: "20 à 30 €",
-  walkRate: "12 à 20 €",
-};
+// 29/09 (SAM) — la fiche « Paris » vit dans recruit-cities.ts (PARIS_CITY),
+// partagée avec /petsitter/paris et le maillage.
+const PARIS: RecruitCity = PARIS_CITY;
 
 const CANONICAL = "https://www.hopetsit.com/garde-animaux/paris";
 // Le layout ajoute déjà « · HoPetSit » (metadata.title.template) : ne pas
@@ -60,12 +53,13 @@ function Chips({ cities }: { cities: RecruitCity[] }) {
     <ul className="mt-4 flex flex-wrap gap-2">
       {cities.map((c) => (
         <li key={c.slug}>
-          <Link
+          <TrackedLink
             href={`${OWNER_PATH_PREFIX.fr}/${c.slug}`}
+            label="maillage"
             className="inline-block rounded-full bg-bg-soft px-3.5 py-2 text-sm font-medium text-ink transition hover:bg-owner-light hover:text-owner-dark max-lg:py-3"
           >
             {c.name}
-          </Link>
+          </TrackedLink>
         </li>
       ))}
     </ul>

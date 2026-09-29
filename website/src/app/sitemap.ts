@@ -45,7 +45,9 @@ const PUBLIC_PATHS = [
   "/blog/how-to-become-a-dog-walker",
   "/blog/dog-boarding-vs-pet-sitting",
   "/blog/leaving-cat-alone-vacation",
-  "/petsitter/paris",
+  // 29/09 (SAM) : /petsitter/paris et /petsitter/dallas restent en ligne mais
+  // pointent (canonical) vers /garde-animaux/paris et /pet-sitting/dallas —
+  // même contenu, une seule adresse pour Google, donc hors du plan du site.
   "/devenir-petsitter/paris",
   // v575 — page d'atterrissage de la pub Meta « Paris · Propriétaires » et hub
   // vers les 20 arrondissements (src/app/garde-animaux/paris/page.tsx).
@@ -53,7 +55,6 @@ const PUBLIC_PATHS = [
   // recruit-cities (qui ne contient que paris-1…paris-20).
   "/garde-animaux/paris",
   "/petsitter/madrid",
-  "/petsitter/dallas",
   "/villes",
 ];
 

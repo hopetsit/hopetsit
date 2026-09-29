@@ -182,33 +182,9 @@ export default function ParisLocalPlaces({ slug, mode }: { slug: string; mode: M
         <p className="mt-3 text-sm leading-relaxed text-ink-muted">{walks(e)}</p>
       </section>
 
-      <section className="mt-10">
-        <h2 className="font-display text-xl font-extrabold text-ink">Voisins du {a}</h2>
-        <ul className="mt-4 grid gap-3 md:grid-cols-2">
-          {e.neighbours.map((v) => {
-            return (
-              <li key={v}>
-                <Link href={`${base}/paris-${v}`} className="block rounded-2xl border border-ink/5 bg-white p-4 shadow-card transition hover:bg-owner-light">
-                  <span className="font-bold text-ink">Paris {ord(v)}</span>
-
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-        {/* v577 — SEO (21/09/2026) : lien vers la page PARIS entiere. Relevé du
-            20/09 : /garde-animaux/paris et /devenir-petsitter/paris sont les
-            pages ou la publicite Paris envoie, et Google ne connaissait meme
-            pas leur adresse — la liste des villes du site contient paris-1 a
-            paris-20 mais pas « paris » tout court, donc aucun menu, aucune
-            liste et aucun hub ne menait a elles. Les 20 pages arrondissement
-            leur donnent maintenant un chemin. Aucune page creee. */}
-        <p className="mt-4 text-sm">
-          <Link href={`${base}/paris`} className="font-semibold text-owner underline-offset-4 hover:underline">
-            {mode === "owner" ? "Voir toute la ville : garde d'animaux à Paris →" : "Voir toute la ville : devenir pet sitter à Paris →"}
-          </Link>
-        </p>
-      </section>
+      {/* 29/09 (SAM) — l'ancien bloc « Voisins du Ne » + lien Paris vit
+          maintenant dans CityLinks (voisins, Paris, petite couronne, page
+          jumelle), posé par OwnerCityPage / RecruitCityPage : pas de doublon. */}
 
       {faq.length > 0 && (
         <section className="mt-10">

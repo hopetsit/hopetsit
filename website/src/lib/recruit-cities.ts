@@ -458,3 +458,44 @@ export const NEARBY_LABEL: Record<RecruitLang, string> = {
   pt: "Cidades próximas",
   ja: "近くの都市",
 };
+
+// ---------------------------------------------------------------------------
+// 29/09/2026 (SAM, demande de Daniel) — MAILLAGE PARIS.
+// La ville « Paris » entière n'est PAS dans RECRUIT_CITIES (elle a ses deux
+// pages écrites à la main, /garde-animaux/paris et /devenir-petsitter/paris) :
+// on la décrit ici UNE fois pour que /petsitter/paris, le fil d'Ariane et les
+// liens entre pages parlent tous de la même chose. Rien n'est ajouté à la
+// liste : aucune page nouvelle.
+// ---------------------------------------------------------------------------
+export const PARIS_CITY: RecruitCity = {
+  slug: "paris",
+  name: "Paris",
+  region: "Paris & Île-de-France",
+  lang: "fr",
+  local:
+    "De Montmartre au parc Montsouris, Paris compte plus de 100 000 chiens et des centaines de milliers de chats dans des appartements sans jardin. Promenade du midi, visite quotidienne pendant les vacances, garde de week-end : la demande est constante toute l'année, et elle se joue à l'échelle du quartier.",
+  dayRate: "20 à 30 €",
+  walkRate: "12 à 20 €",
+};
+
+/** Communes de la petite couronne qui touchent chaque arrondissement (slugs
+ *  existants de RECRUIT_CITIES). Les arrondissements du centre (1 à 11) n'en
+ *  touchent aucune : ils relient Paris et leurs voisins seulement. */
+export const PARIS_ARR_SUBURBS: Record<number, string[]> = {
+  12: ["saint-mande", "vincennes", "charenton-le-pont"],
+  13: ["ivry-sur-seine", "le-kremlin-bicetre", "gentilly"],
+  14: ["montrouge", "gentilly", "malakoff"],
+  15: ["issy-les-moulineaux", "vanves", "boulogne-billancourt"],
+  16: ["boulogne-billancourt", "neuilly-sur-seine", "suresnes", "puteaux"],
+  17: ["neuilly-sur-seine", "levallois-perret", "clichy"],
+  18: ["saint-ouen-sur-seine", "saint-denis", "clichy"],
+  19: ["pantin", "aubervilliers", "les-lilas"],
+  20: ["montreuil", "bagnolet", "les-lilas", "vincennes"],
+};
+
+/** Numéro d'arrondissement d'un slug « paris-N », sinon undefined. */
+export function parisArrondissement(slug: string): number | undefined {
+  const m = /^paris-(\d{1,2})$/.exec(slug);
+  const n = m ? Number(m[1]) : NaN;
+  return n >= 1 && n <= 20 ? n : undefined;
+}

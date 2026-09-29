@@ -1,11 +1,10 @@
-import Link from "next/link";
 import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalPlaces";
 import { GetAppButton } from "@/components/GetAppButton";
 import { OwnerSignupCta } from "@/components/OwnerSignupCta";
 import { CitySupplyProof } from "@/components/CitySupplyProof";
 import { TrackedLink } from "@/components/TrackedLink";
+import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
-import { RECRUIT_PATH_PREFIX, OWNER_PATH_PREFIX, nearbyCities, NEARBY_LABEL } from "@/lib/recruit-cities";
 
 // v560 — moteur de croissance : pages « trouver un pet sitter à <ville> »
 // (intention PROPRIÉTAIRE : « pet sitter Paris 11 », « cuidador de perros
@@ -474,8 +473,6 @@ export default function OwnerCityPage({
       }] : []),
     ],
   };
-  const recruitHref = `${RECRUIT_PATH_PREFIX[city.lang]}/${city.slug}`;
-  const nearby = paris ? [] : nearbyCities(city.lang, city.slug);
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-16 pt-7 md:pb-24 md:pt-16">
@@ -484,7 +481,9 @@ export default function OwnerCityPage({
       {/* v575 — PREMIER ÉCRAN (360 × 640) : titre, 3 preuves, UN bouton.
           Aucune image, aucune police supplémentaire, hauteurs fixes → pas de
           décalage de mise en page. Le texte long (intro) passe sous le pli. */}
-      {!paris && <p className="text-sm font-semibold text-owner">{copy.kicker(city)}</p>}
+      {/* 29/09 (SAM) — fil d'Ariane : Accueil › Toutes les villes › Paris › Paris 11e. */}
+      <CityBreadcrumb city={city} mode="owner" />
+      {!paris && <p className="mt-3 text-sm font-semibold text-owner">{copy.kicker(city)}</p>}
       <h1 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-[1.15] tracking-tight text-ink md:mt-2 md:text-4xl">{heading}</h1>
 
       {/* 22/09/2026 — preuve que l'offre existe vraiment (compte en direct).
@@ -589,25 +588,11 @@ export default function OwnerCityPage({
         <OwnerSignupCta label={paris ? "Publier ma demande" : copy.ctaBtn} city={city.name} className="mt-5 inline-block rounded-full bg-owner px-7 py-3 text-sm font-bold text-white" />
       </div>
 
-      <p className="mt-8 text-center text-sm">
-        <TrackedLink href={recruitHref} label="recruit" className="font-semibold text-sitter-dark underline-offset-4 hover:underline">{paris ? `${city.name} : devenir pet sitter →` : copy.recruitLink(city)}</TrackedLink>
-      </p>
-
-      {/* v576 — villes voisines : donne à Google un chemin depuis les pages déjà
-          indexées vers celles qu'il n'a jamais explorées. Paris a déjà son propre
-          maillage (ParisLocalPlaces), on ne le double pas. */}
-      {!paris && nearby.length > 0 && (
-        <nav aria-label={NEARBY_LABEL[city.lang]} className="mt-10 border-t border-black/5 pt-6">
-          <h2 className="text-sm font-semibold text-ink">{NEARBY_LABEL[city.lang]}</h2>
-          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
-            {nearby.map((n) => (
-              <li key={n.slug}>
-                <Link href={`${OWNER_PATH_PREFIX[n.lang]}/${n.slug}`} className="text-owner underline-offset-4 hover:underline">{n.name}</Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
+      {/* 29/09 (SAM) — maillage : arrondissements voisins, Paris, petite
+          couronne (ou villes voisines du même État aux États-Unis), le hub et
+          la page « devenir pet sitter » de la même ville. Clics comptés
+          (« maillage »). Remplace l'ancien bloc « Villes voisines ». */}
+      <CityLinks city={city} mode="owner" />
     </div>
   );
 }

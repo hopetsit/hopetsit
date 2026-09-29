@@ -24,7 +24,7 @@ import { providerCurrency, providerFrom, formatMoney, type ProviderRateSource } 
 //     s'affiche pas du tout : jamais de « 0 gardien », jamais de chiffre
 //     inventé, et la page reste exactement comme avant ;
 //   - rendu côté client uniquement : le HTML servi à Google ne change pas.
-type N = { sitters: number; walkers: number; city: string };
+type N = { sitters: number; walkers: number; where: string };
 
 // 26/09/2026 (SAM) — 3 VRAIS VISAGES au-dessus du nombre. Route publique
 // /supply/city/faces : prénom, photo, ville, note — exactement ce que la fiche
@@ -65,6 +65,24 @@ const ROLE: Record<string, { sitter: string; walker: string; verified: string; s
   ja: { sitter: "シッター", walker: "散歩スタッフ", verified: "本人確認済み", see: "プロフィールを見る", units: { unit_day: "日", unit_hour: "時間", unit_week: "週", unit_month: "月", unit_30: "30分", unit_60: "1時間", unit_120: "2時間" } },
 };
 
+// 29/09/2026 (SAM, mission BOB) — VILLE SANS OFFRE DANS LE RAYON (Dallas :
+// 0 gardien / 1 promeneur à 25 km le 29/09). Plutôt que de cacher la ligne ou
+// d'écrire « 0 gardien », on élargit UNE fois à 100 km (même route publique,
+// même règle : un chiffre vrai) et on le dit : « 3 gardiens et 1 promeneur
+// déjà inscrits à moins de 100 km de Dallas ». Toujours rien → la ligne
+// n'apparaît pas et la page garde sa promesse sans mentir.
+const WHERE: Record<string, (city: string, km?: number) => string> = {
+  fr: (c, km) => (km ? `déjà inscrits à moins de ${km} km de ${c}` : `déjà inscrits autour de ${c}`),
+  en: (c, km) => (km ? `already signed up within ${km} km of ${c}` : `already signed up around ${c}`),
+  es: (c, km) => (km ? `ya registrados a menos de ${km} km de ${c}` : `ya registrados cerca de ${c}`),
+  de: (c, km) => (km ? `bereits im Umkreis von ${km} km um ${c}` : `bereits rund um ${c}`),
+  it: (c, km) => (km ? `già iscritti entro ${km} km da ${c}` : `già iscritti intorno a ${c}`),
+  pt: (c, km) => (km ? `já inscritos a menos de ${km} km de ${c}` : `já inscritos perto de ${c}`),
+  pl: (c, km) => (km ? `już zapisanych w promieniu ${km} km od ${c}` : `już zapisanych w okolicy ${c}`),
+  ko: (c, km) => (km ? `${c}에서 ${km} km 이내에` : `${c} 주변에`),
+  ja: (c, km) => (km ? `${c}から${km} km以内に` : `${c}の近くに`),
+};
+
 // Les 9 langues du site. Ces textes vivent ICI et pas dans OwnerCityPage :
 // Next.js interdit de passer une fonction d'un composant serveur à un
 // composant client (le build échoue). On passe donc la langue.
@@ -72,61 +90,61 @@ const LIGNE: Record<string, (n: N) => string> = {
   fr: (n: N) => {
       const g = n.sitters > 1 ? `${n.sitters} gardiens` : `${n.sitters} gardien`;
       const p = n.walkers > 1 ? `${n.walkers} promeneurs` : `${n.walkers} promeneur`;
-      if (!n.walkers) return `${g} déjà inscrits autour de ${n.city}`;
-      if (!n.sitters) return `${p} déjà inscrits autour de ${n.city}`;
-      return `${g} et ${p} déjà inscrits autour de ${n.city}`;
+      if (!n.walkers) return `${g} ${n.where}`;
+      if (!n.sitters) return `${p} ${n.where}`;
+      return `${g} et ${p} ${n.where}`;
     },
   en: (n: N) => {
       const g = n.sitters > 1 ? `${n.sitters} sitters` : `${n.sitters} sitter`;
       const p = n.walkers > 1 ? `${n.walkers} dog walkers` : `${n.walkers} dog walker`;
-      if (!n.walkers) return `${g} already signed up around ${n.city}`;
-      if (!n.sitters) return `${p} already signed up around ${n.city}`;
-      return `${g} and ${p} already signed up around ${n.city}`;
+      if (!n.walkers) return `${g} ${n.where}`;
+      if (!n.sitters) return `${p} ${n.where}`;
+      return `${g} and ${p} ${n.where}`;
     },
   es: (n: N) => {
       const g = n.sitters > 1 ? `${n.sitters} cuidadores` : `${n.sitters} cuidador`;
       const p = n.walkers > 1 ? `${n.walkers} paseadores` : `${n.walkers} paseador`;
-      if (!n.walkers) return `${g} ya registrados cerca de ${n.city}`;
-      if (!n.sitters) return `${p} ya registrados cerca de ${n.city}`;
-      return `${g} y ${p} ya registrados cerca de ${n.city}`;
+      if (!n.walkers) return `${g} ${n.where}`;
+      if (!n.sitters) return `${p} ${n.where}`;
+      return `${g} y ${p} ${n.where}`;
     },
   de: (n: N) => {
       const g = n.sitters > 1 ? `${n.sitters} Sitter` : `${n.sitters} Sitter`;
       const p = n.walkers > 1 ? `${n.walkers} Gassigeher` : `${n.walkers} Gassigeher`;
-      if (!n.walkers) return `${g} bereits rund um ${n.city} angemeldet`;
-      if (!n.sitters) return `${p} bereits rund um ${n.city} angemeldet`;
-      return `${g} und ${p} bereits rund um ${n.city} angemeldet`;
+      if (!n.walkers) return `${g} ${n.where} angemeldet`;
+      if (!n.sitters) return `${p} ${n.where} angemeldet`;
+      return `${g} und ${p} ${n.where} angemeldet`;
     },
   it: (n: N) => {
       const g = n.sitters > 1 ? `${n.sitters} sitter` : `${n.sitters} sitter`;
       const p = n.walkers > 1 ? `${n.walkers} dog sitter per passeggiate` : `${n.walkers} dog sitter per passeggiate`;
-      if (!n.walkers) return `${g} già iscritti intorno a ${n.city}`;
-      if (!n.sitters) return `${p} già iscritti intorno a ${n.city}`;
-      return `${g} e ${p} già iscritti intorno a ${n.city}`;
+      if (!n.walkers) return `${g} ${n.where}`;
+      if (!n.sitters) return `${p} ${n.where}`;
+      return `${g} e ${p} ${n.where}`;
     },
   pt: (n: N) => {
       const g = n.sitters > 1 ? `${n.sitters} cuidadores` : `${n.sitters} cuidador`;
       const p = n.walkers > 1 ? `${n.walkers} passeadores` : `${n.walkers} passeador`;
-      if (!n.walkers) return `${g} já inscritos perto de ${n.city}`;
-      if (!n.sitters) return `${p} já inscritos perto de ${n.city}`;
-      return `${g} e ${p} já inscritos perto de ${n.city}`;
+      if (!n.walkers) return `${g} ${n.where}`;
+      if (!n.sitters) return `${p} ${n.where}`;
+      return `${g} e ${p} ${n.where}`;
     },
   pl: (n: N) => {
       const g = `${n.sitters} opiekunów`;
       const p = `${n.walkers} wyprowadzaczy psów`;
-      if (!n.walkers) return `${g} już zapisanych w okolicy ${n.city}`;
-      if (!n.sitters) return `${p} już zapisanych w okolicy ${n.city}`;
-      return `${g} i ${p} już zapisanych w okolicy ${n.city}`;
+      if (!n.walkers) return `${g} ${n.where}`;
+      if (!n.sitters) return `${p} ${n.where}`;
+      return `${g} i ${p} ${n.where}`;
     },
   ko: (n: N) => {
-      if (!n.walkers) return `${n.city} 주변에 펫시터 ${n.sitters}명이 등록되어 있어요`;
-      if (!n.sitters) return `${n.city} 주변에 산책 도우미 ${n.walkers}명이 등록되어 있어요`;
-      return `${n.city} 주변에 펫시터 ${n.sitters}명과 산책 도우미 ${n.walkers}명이 등록되어 있어요`;
+      if (!n.walkers) return `${n.where} 펫시터 ${n.sitters}명이 등록되어 있어요`;
+      if (!n.sitters) return `${n.where} 산책 도우미 ${n.walkers}명이 등록되어 있어요`;
+      return `${n.where} 펫시터 ${n.sitters}명과 산책 도우미 ${n.walkers}명이 등록되어 있어요`;
     },
   ja: (n: N) => {
-      if (!n.walkers) return `${n.city}の近くにシッターが${n.sitters}人登録しています`;
-      if (!n.sitters) return `${n.city}の近くに散歩スタッフが${n.walkers}人登録しています`;
-      return `${n.city}の近くにシッターが${n.sitters}人、散歩スタッフが${n.walkers}人登録しています`;
+      if (!n.walkers) return `${n.where}シッターが${n.sitters}人登録しています`;
+      if (!n.sitters) return `${n.where}散歩スタッフが${n.walkers}人登録しています`;
+      return `${n.where}シッターが${n.sitters}人、散歩スタッフが${n.walkers}人登録しています`;
     },
 };
 
@@ -141,7 +159,7 @@ export function CitySupplyProof({
   lng?: number;
   lang: string;
 }) {
-  const [n, setN] = useState<{ sitters: number; walkers: number } | null>(null);
+  const [n, setN] = useState<{ sitters: number; walkers: number; km?: number } | null>(null);
   const [faces, setFaces] = useState<Face[]>([]);
 
   useEffect(() => {
@@ -178,13 +196,19 @@ export function CitySupplyProof({
       q.set("lat", String(lat));
       q.set("lng", String(lng));
     }
-    fetch(`${API_BASE}/supply/city?${q.toString()}`, { signal: ctrl.signal })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!vivant || !d) return;
-        const sitters = Number(d.sitters) || 0;
-        const walkers = Number(d.walkers) || 0;
-        if (sitters + walkers > 0) setN({ sitters, walkers });
+    const lire = (params: URLSearchParams) =>
+      fetch(`${API_BASE}/supply/city?${params.toString()}`, { signal: ctrl.signal })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => (d ? { sitters: Number(d.sitters) || 0, walkers: Number(d.walkers) || 0 } : null));
+    lire(q)
+      .then(async (c) => {
+        if (!vivant || !c) return;
+        if (c.sitters + c.walkers > 0) return setN(c);
+        // Rien à 25 km : on regarde une fois à 100 km, et on affiche la distance.
+        const loin = new URLSearchParams(q);
+        loin.set("radiusKm", "100");
+        const l = await lire(loin);
+        if (vivant && l && l.sitters + l.walkers > 0) setN({ ...l, km: 100 });
       })
       .catch(() => {
         /* hors ligne, serveur en veille, requête annulée → on n'affiche rien */
@@ -198,6 +222,7 @@ export function CitySupplyProof({
   }, [city, lat, lng]);
 
   const label = LIGNE[lang] || LIGNE.en;
+  const where = (WHERE[lang] || WHERE.en)(city, n?.km);
   const roles = ROLE[lang] || ROLE.en;
   if (!n && !faces.length) return null;
 
@@ -209,11 +234,11 @@ export function CitySupplyProof({
         aria-hidden
         className="inline-block h-2 w-2 shrink-0 rounded-full bg-[#16A34A]"
       />
-      {label({ ...n, city })}
+      {label({ ...n, where })}
     </p>
     )}
     {faces.length > 0 && (
-      <ul className="mt-3 grid gap-2.5 md:grid-cols-3" aria-label={n ? label({ ...n, city }) : undefined}>
+      <ul className="mt-3 grid gap-2.5 md:grid-cols-3" aria-label={n ? label({ ...n, where }) : undefined}>
         {faces.map((f) => {
           const walker = f.role === "walker";
           // Mesure : un label par rôle, lisible dans /admin/site-analytics (byCta).

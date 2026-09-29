@@ -1,7 +1,7 @@
-import Link from "next/link";
+import { TrackedLink } from "@/components/TrackedLink";
+import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
 import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalPlaces";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
-import { OWNER_PATH_PREFIX, RECRUIT_PATH_PREFIX, nearbyCities, NEARBY_LABEL } from "@/lib/recruit-cities";
 
 // v547 — page « devenir pet sitter à <ville> » (composant serveur statique,
 // indexable). Copie par langue, détail local injecté pour que chaque page
@@ -286,7 +286,6 @@ export function recruitMetadata(c: RecruitCity, canonical: string) {
 export default function RecruitCityPage({ city }: { city: RecruitCity }) {
   const copy = COPY[city.lang];
   const paris = city.lang === "fr" && !!parisEntry(city.slug);
-  const nearby = paris ? [] : nearbyCities(city.lang, city.slug);
   const faq = paris ? parisFaq(city.slug, "recruit") : copy.faq(city);
   const jsonLd = {
     "@context": "https://schema.org",
@@ -313,15 +312,24 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
   return (
     <div className="mx-auto max-w-3xl px-4 py-16 md:py-24">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      {!paris && <p className="text-sm font-semibold text-sitter-dark">{copy.kicker(city)}</p>}
-      <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">{paris ? `Devenir pet sitter, ${city.name}` : copy.h1(city)}</h1>
-      {!paris && <p className="mt-4 text-lg leading-relaxed text-ink-muted">{copy.intro(city)}</p>}
-
-      {!paris && <div className="mt-8 flex flex-wrap gap-3">
+      {/* 29/09 (SAM, demande de Daniel) — même premier écran que les pages
+          propriétaires (fil d'Ariane, titre, ligne verte, 4 preuves, UN bouton),
+          adapté à la cible gardien : ce qu'on gagne, pas ce qu'on paie. */}
+      <CityBreadcrumb city={city} mode="recruit" />
+      {!paris && <p className="mt-3 text-sm font-semibold text-sitter-dark">{copy.kicker(city)}</p>}
+      <h1 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-[1.15] tracking-tight text-ink md:mt-2 md:text-4xl">{paris ? `Devenir pet sitter, ${city.name}` : copy.h1(city)}</h1>
+      <p className="mt-4 flex items-start gap-2 text-sm font-semibold text-sitter-dark">
+        <span aria-hidden className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-[#16A34A]" />
+        {GAINS[city.lang](city)}
+      </p>
+      <ul className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-4">
         {copy.badges.map((b) => (
-          <span key={b} className="rounded-full border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink shadow-card">{b}</span>
+          <li key={b} className="rounded-2xl bg-bg-soft px-2 py-3 text-center text-[11px] font-semibold leading-tight text-ink md:text-xs">{b}</li>
         ))}
-      </div>}
+      </ul>
+      <TrackedLink href="/download" label="recruit_cta" className="mt-5 block w-full rounded-full bg-sitter px-6 py-3.5 text-center text-base font-bold text-white transition hover:bg-sitter-dark md:mx-auto md:w-auto md:min-w-[18rem]">{copy.ctaBtn}</TrackedLink>
+      <p className="mt-2.5 text-center text-xs text-ink-soft">{FREE[city.lang]}</p>
+      {!paris && <p className="mt-8 text-base leading-relaxed text-ink-muted md:text-lg">{copy.intro(city)}</p>}
 
       <div className="mt-10 rounded-2xl border border-sitter/20 bg-sitter-light/60 p-6">
         <h2 className="font-display text-xl font-extrabold text-ink">{copy.localTitle(city)}</h2>
@@ -358,42 +366,37 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
       <div className="mt-14 rounded-3xl bg-sitter-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">{paris ? `${city.name} avec HoPetSit` : copy.ctaTitle(city)}</h2>
         {!paris && <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">{copy.ctaText(city)}</p>}
-        <Link href="/download" className="mt-5 inline-block rounded-full bg-sitter px-7 py-3 text-sm font-bold text-white">{paris ? "Télécharger" : copy.ctaBtn}</Link>
+        <TrackedLink href="/download" label="recruit_cta" className="mt-5 inline-block rounded-full bg-sitter px-7 py-3 text-sm font-bold text-white">{paris ? "Télécharger" : copy.ctaBtn}</TrackedLink>
       </div>
 
-      {/* v560 — lien croisé vers la page « trouver un pet sitter à <ville> ». */}
-      <p className="mt-8 text-center text-sm">
-        <Link href={`${OWNER_PATH_PREFIX[city.lang]}/${city.slug}`} className="font-semibold text-owner underline-offset-4 hover:underline">
-          {paris ? `${city.name} : trouver un pet sitter →` : OWNER_LINK[city.lang](city)}
-        </Link>
-      </p>
-
-      {/* v576 — villes voisines (voir OwnerCityPage) : c'est ce chemin qui manquait
-          pour que Google atteigne /become-a-pet-sitter/dallas depuis Austin et Houston. */}
-      {!paris && nearby.length > 0 && (
-        <nav aria-label={NEARBY_LABEL[city.lang]} className="mt-10 border-t border-black/5 pt-6">
-          <h2 className="text-sm font-semibold text-ink">{NEARBY_LABEL[city.lang]}</h2>
-          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
-            {nearby.map((n) => (
-              <li key={n.slug}>
-                <Link href={`${RECRUIT_PATH_PREFIX[n.lang]}/${n.slug}`} className="text-sitter-dark underline-offset-4 hover:underline">{n.name}</Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
+      {/* 29/09 (SAM) — maillage : voisins, Paris, petite couronne (ou villes
+          voisines aux États-Unis), le hub et la page propriétaire jumelle. */}
+      <CityLinks city={city} mode="recruit" />
     </div>
   );
 }
 
-const OWNER_LINK: Record<RecruitLang, (c: RecruitCity) => string> = {
-  fr: (c) => `Vous êtes propriétaire ? Trouver un pet sitter à ${c.name} →`,
-  en: (c) => `Pet owner? Find a pet sitter in ${c.name} →`,
-  es: (c) => `¿Tienes mascota? Encuentra un cuidador en ${c.name} →`,
-  de: (c) => `Tierhalter? Finde einen Tiersitter in ${c.name} →`,
-  it: (c) => `Hai un animale? Trova un pet sitter a ${c.name} →`,
-  pt: (c) => `Tens um animal? Encontra um pet sitter em ${c.name} →`,
-  pl: (c) => `Masz zwierzaka? Znajdź opiekuna — ${c.name} →`,
-  ko: (c) => `보호자이신가요? ${c.name} 펫시터 찾기 →`,
-  ja: (c) => `飼い主の方へ：${c.name}でペットシッターを探す →`,
+// 29/09 (SAM) — la ligne verte des pages gardiens : ce qu'on gagne dans la
+// ville (fourchettes déjà affichées dans la FAQ), et la gratuité sous le bouton.
+const GAINS: Record<RecruitLang, (c: RecruitCity) => string> = {
+  fr: (c) => `Gardes ${c.dayRate} par jour · promenades ${c.walkRate} — vous fixez vos tarifs`,
+  en: (c) => `Sitting ${c.dayRate} per day · walks ${c.walkRate} — you set your rates`,
+  es: (c) => `Cuidados ${c.dayRate} al día · paseos ${c.walkRate} — tú fijas tus tarifas`,
+  de: (c) => `Betreuung ${c.dayRate} pro Tag · Gassi ${c.walkRate} — du legst deine Preise fest`,
+  it: (c) => `Custodia ${c.dayRate} al giorno · passeggiate ${c.walkRate} — decidi tu le tariffe`,
+  pt: (c) => `Cuidado ${c.dayRate} por dia · passeios ${c.walkRate} — tu defines os teus preços`,
+  pl: (c) => `Opieka ${c.dayRate} za dzień · spacery ${c.walkRate} — sam ustalasz stawki`,
+  ko: (c) => `돌봄 하루 ${c.dayRate} · 산책 ${c.walkRate} — 요금은 직접 정해요`,
+  ja: (c) => `お預かり1日${c.dayRate}・散歩${c.walkRate} — 料金は自分で決められます`,
+};
+const FREE: Record<RecruitLang, string> = {
+  fr: "Inscription gratuite · profil en 5 minutes",
+  en: "Free to join · profile in 5 minutes",
+  es: "Registro gratis · perfil en 5 minutos",
+  de: "Kostenlos · Profil in 5 Minuten",
+  it: "Iscrizione gratuita · profilo in 5 minuti",
+  pt: "Inscrição grátis · perfil em 5 minutos",
+  pl: "Rejestracja bezpłatna · profil w 5 minut",
+  ko: "가입 무료 · 5분이면 프로필 완성",
+  ja: "登録無料・5分でプロフィール作成",
 };
