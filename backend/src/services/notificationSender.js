@@ -593,16 +593,47 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
   // Fix : on crée la notif EN PREMIER, on récupère l'id + createdAt, puis
   // on emit le payload COMPLET au socket. Frontend peut alors préfixer
   // direct dans la liste sans refetch.
-  const inAppCreated = await createNotificationSafe({
-    recipientRole: role,
-    recipientId: userId,
-    actorRole: actor?.role || null,
-    actorId: actor?.id || null,
-    type,
-    title,
-    body,
-    data,
-  });
+  const isChatMessage = String(type).toUpperCase() === 'NEW_MESSAGE';
+  const conversationIdForPush = isChatMessage && data && data.conversationId
+    ? String(data.conversationId) : null;
+  // v599 (ZOE) — Daniel : « une cloche ». Tant qu'une conversation est NON LUE,
+  // ses nouveaux messages METTENT À JOUR l'entrée « Nouveau message » de la
+  // cloche (titre, aperçu, date) au lieu d'en empiler une par message.
+  let inAppCreated = null;
+  if (conversationIdForPush) {
+    try {
+      const Notification = require('../models/Notification');
+      inAppCreated = await Notification.findOneAndUpdate(
+        {
+          recipientRole: role,
+          recipientId: userId,
+          type: { $in: ['NEW_MESSAGE', 'new_message'] },
+          'data.conversationId': conversationIdForPush,
+          readAt: null,
+        },
+        { $set: { title, body, data, createdAt: new Date(), updatedAt: new Date() } },
+        { new: true, sort: { createdAt: -1 } },
+      );
+      if (inAppCreated) {
+        logger.info(`[notif.bell] conversation ${conversationIdForPush} : entrée de cloche mise à jour (${inAppCreated._id})`);
+      }
+    } catch (e) {
+      logger.warn(`[notif.bell] collapse failed : ${e?.message || e}`);
+      inAppCreated = null;
+    }
+  }
+  if (!inAppCreated) {
+    inAppCreated = await createNotificationSafe({
+      recipientRole: role,
+      recipientId: userId,
+      actorRole: actor?.role || null,
+      actorId: actor?.id || null,
+      type,
+      title,
+      body,
+      data,
+    });
+  }
 
   // Real-time socket push avec payload complet (id + recipientRole +
   // createdAt) pour insertion live dans la bell list — best-effort.
@@ -638,9 +669,6 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
   // OUVERTE à l'écran (socket présent dans la salle du fil), il lit le message
   // en direct → ni push ni e-mail (la cloche/in-app garde sa trace).
   let pushNow = categoryEnabled;
-  const isChatMessage = String(type).toUpperCase() === 'NEW_MESSAGE';
-  const conversationIdForPush = isChatMessage && data && data.conversationId
-    ? String(data.conversationId) : null;
   if (conversationIdForPush) {
     try {
       const emitter = require('../sockets/emitter');

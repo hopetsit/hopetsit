@@ -23,6 +23,8 @@ const mkModel = () => {
 jest.mock('../src/models/Owner', () => mkModel());
 jest.mock('../src/models/Sitter', () => mkModel());
 jest.mock('../src/models/Walker', () => mkModel());
+// v599 — la cloche regroupe par conversation : modèle Notification simulé (aucune entrée existante).
+jest.mock('../src/models/Notification', () => ({ findOneAndUpdate: jest.fn(async () => null) }));
 jest.mock('../src/models/Message', () => ({
   findById: jest.fn(() => ({ select: () => ({ lean: async () => ({ senderId: 'x', senderRole: 'owner' }) }) })),
 }), { virtual: false });

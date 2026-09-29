@@ -72,6 +72,9 @@ describe('notificationSender — une notification par conversation (v599)', () =
     jest.doMock('../src/models/Owner', () => mkModel());
     jest.doMock('../src/models/Sitter', () => mkModel());
     jest.doMock('../src/models/Walker', () => mkModel());
+    jest.doMock('../src/models/Notification', () => ({
+      findOneAndUpdate: jest.fn(async () => (global.__bellExisting ? { _id: 'bell-existing', createdAt: new Date() } : null)),
+    }));
     jest.doMock('../src/models/Message', () => ({
       findById: jest.fn(() => ({ select: () => ({ lean: async () => ({ senderId: 'x', senderRole: 'owner' }) }) })),
     }));
@@ -119,6 +122,24 @@ describe('notificationSender — une notification par conversation (v599)', () =
     });
     expect(mockSendMulticast).not.toHaveBeenCalled();
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  test('cloche : un 2e message dans une conversation NON LUE met à jour l\'entrée existante (pas de 2e entrée)', async () => {
+    openFor = false;
+    global.__bellExisting = true;
+    const { sendNotification } = require('../src/services/notificationSender');
+    const { createNotificationSafe } = require('../src/services/notificationService');
+    createNotificationSafe.mockClear();
+    const { emitToUser } = require('../src/sockets/emitter');
+    emitToUser.mockClear();
+    await sendNotification({
+      userId: mockUser._id, role: 'owner', type: 'NEW_MESSAGE',
+      data: { conversationId: 'F', messageId: 'm3', senderName: 'John', preview: 'Troisième', unreadForRecipient: 3 },
+    });
+    expect(createNotificationSafe).not.toHaveBeenCalled();
+    const call = emitToUser.mock.calls.find((c) => c[2] === 'notification.new');
+    expect(call[3].id).toBe('bell-existing');
+    global.__bellExisting = false;
   });
 
   test('un autre type (réservation) ne porte pas de collapse par conversation', async () => {
