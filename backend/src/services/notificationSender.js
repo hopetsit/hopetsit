@@ -294,6 +294,34 @@ const isBadgeCapableDevice = (d) =>
   !!d && !!d.token && String(d.platform || '').toLowerCase() === 'ios' &&
   Number(d.appBuild || 0) >= BADGE_MIN_IOS_BUILD;
 
+// v603 (ZOE) — appareils ACTIFS de la personne (jeton encore enregistré), sur ses
+// 3 profils : plateforme + numéro de build, pour savoir si le lien d'un e-mail
+// peut viser une cible propre au 602. Best-effort : erreur = [] (lien de repli).
+const gatherActiveDevices = async (primary, userId) => {
+  try {
+    const docs = [primary || {}];
+    const or = [{ _id: userId }];
+    if (primary?.email) or.push({ email: primary.email });
+    if (primary?.oldId) or.push({ oldId: primary.oldId });
+    const found = await Promise.all([Owner, Sitter, Walker].map((M) =>
+      M.find({ $or: or }).select('fcmTokens fcmDevices').lean()));
+    found.forEach((arr) => (arr || []).forEach((d) => docs.push(d)));
+    const byToken = new Map();
+    docs.forEach((d) => {
+      const live = new Set((d.fcmTokens || []).filter(Boolean));
+      (d.fcmDevices || []).forEach((dev) => {
+        if (dev && dev.token && live.has(dev.token)) byToken.set(dev.token, dev);
+      });
+      // Jeton sans fiche d'appareil (app très ancienne) : plateforme inconnue.
+      live.forEach((t) => { if (!byToken.has(t)) byToken.set(t, { token: t, platform: '', appBuild: 0 }); });
+    });
+    return [...byToken.values()];
+  } catch (e) {
+    logger.warn(`[notif.email.link] appareils illisibles : ${e?.message || e}`);
+    return [];
+  }
+};
+
 const gatherFcmTokens = async (primary, userId) => {
   const tokens = new Set((primary?.fcmTokens || []).filter(Boolean));
   const badgeTokens = new Set();
@@ -520,13 +548,26 @@ const prepareNotification = async ({ userId, role, type, rawData = {} }) => {
   // (champ `route`). Un `data.emailLink` fourni par l'appelant n'est gardé
   // que si le type n'a pas de route dédiée.
   const data = await ensureSenderName(type, rawData && typeof rawData === 'object' ? rawData : {});
-  const { buildAppRoute, BASE_URL: SITE_BASE } = require('../utils/emailLinkBuilder');
+  const {
+    buildAppRoute, buildEmailRoute, buildPreciseRoute, routeNeedsRecentApp, BASE_URL: SITE_BASE,
+  } = require('../utils/emailLinkBuilder');
+  // Push : route « thème » historique (lue telle quelle par les apps 598-601).
   const appRoute = buildAppRoute(type, data);
+  // v603 (ZOE) — bouton de l'e-mail : la MÊME cible précise que la cloche et le
+  // push du 602 (miroir de DeepLinkService.routeForNotification). Les 5 cibles
+  // propres au 602 ne sont utilisées que si tous les appareils de la personne
+  // savent les ouvrir (voir buildEmailRoute) ; on ne lit les appareils que dans
+  // ce cas.
+  let devices = null;
+  if (routeNeedsRecentApp(buildPreciseRoute(type, data, role))) {
+    devices = await gatherActiveDevices(user, userId);
+  }
+  const emailRoute = buildEmailRoute(type, data, { role, devices });
   const renderData = {
     ...data,
     emailLink:
-      appRoute !== '/notifications' || !data.emailLink
-        ? `${SITE_BASE}${appRoute}`
+      emailRoute !== '/notifications' || !data.emailLink
+        ? `${SITE_BASE}${emailRoute}`
         : data.emailLink,
   };
   const title = render(tmpl.title, renderData);
@@ -552,7 +593,7 @@ const prepareNotification = async ({ userId, role, type, rawData = {} }) => {
   const category = categoryForType(type);
   const categoryEnabled = prefs.categories[category] !== false;
   return {
-    user, locale, data, appRoute, renderData, title, body, emailSubject, emailBody, emailText,
+    user, locale, data, appRoute, emailRoute, renderData, title, body, emailSubject, emailBody, emailText,
     email, prefs, category, categoryEnabled,
   };
 };
