@@ -15,6 +15,8 @@ import { dictFor } from "@/lib/i18n/serverDicts";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { DownloadAppBanner } from "@/components/DownloadAppBanner";
+// 29/09 (NEO, mission BOB) — rappel du brouillon de demande laissé sans finir.
+import DraftReminder2909 from "@/components/DraftReminder2909";
 import { AppLinkOpener } from "@/components/AppLinkOpener";
 import SiteAnalytics from "@/components/SiteAnalytics";
 import { RoleWallpaper } from "@/components/RoleWallpaper";
@@ -194,6 +196,9 @@ export function RootShell({
           {/* v23.1.452 — bannière de téléchargement site-wide (desktop : barre
               fine en flux sous le Header ; mobile : bouton flottant). */}
           <DownloadAppBanner />
+          {/* 29/09 (NEO) — « Ta demande n'est pas partie » : bandeau si un brouillon
+              de /posts/create dort dans ce navigateur (jamais sur le formulaire lui-même). */}
+          <DraftReminder2909 />
           {/* v561 — arrivée depuis un mail/push sur mobile : on tente d'ouvrir
               l'app sur le même chemin (hopetsit://…) avant de laisser la page
               web s'afficher. */}

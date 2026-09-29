@@ -8,6 +8,8 @@ import { gp } from "@/lib/i18n/guestPublish2809";
 import { parseAskFor, type AskRole } from "@/lib/i18n/demander2809";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import ServiceLocationPicker587 from "@/components/ServiceLocationPicker587";
+// 29/09 (NEO) — « N gardiens et promeneurs à <ville> seront prévenus » sous le bouton.
+import ProofNearButton2909 from "@/components/ProofNearButton2909";
 import { locationComplete, locationOptions, locationToSend, p587, type ServiceLocation } from "@/lib/i18n/publish587";
 import {
   API_BASE,
@@ -129,7 +131,14 @@ export default function CreatePostPage() {
     // de toute façon celle du propriétaire si rien n'est envoyé).
     if (u) {
       getMyProfile()
-        .then((p) => { const c = String((p as { currency?: string })?.currency || "").toUpperCase(); if (c) setBudgetCur(c); })
+        .then((p) => {
+          const c = String((p as { currency?: string })?.currency || "").toUpperCase(); if (c) setBudgetCur(c);
+          // 29/09 (NEO) — ville du profil pré-remplie pour un membre (mesure du
+          // 29/09 sur l'app : le champ ville arrive vide alors que le profil en a
+          // une). Jamais par-dessus une ville déjà posée (?city=, brouillon, saisie).
+          const pc = String((p as { city?: string })?.city || "").trim();
+          if (pc && !pc.includes("@")) setCity((cur) => cur || pc);
+        })
         .catch(() => { /* hors ligne : EUR */ });
     }
 
@@ -717,6 +726,8 @@ export default function CreatePostPage() {
           </div>
         )}
 
+        {/* 29/09 (NEO) — qui va lire la demande : chiffre vrai, rien si 0. */}
+        <ProofNearButton2909 city={city} lang={lang} />
         <button
           disabled={busy}
           className="w-full rounded-full bg-owner py-3 text-sm font-semibold text-white shadow-cta hover:bg-owner-dark disabled:opacity-60"
