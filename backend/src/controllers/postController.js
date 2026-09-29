@@ -1980,6 +1980,10 @@ const updatePost = async (req, res) => {
       walkDurationMinutes,
     } = req.body || {};
 
+    // 29/09/2026 (600) — l'app envoie animalCount / animalTypes aussi en
+    // modification (demande sans fiche animal) : mêmes règles qu'à la création.
+    applyAnimalFields(post, req.body?.animalCount, req.body?.animalTypes);
+
     if (typeof body === 'string') {
       const trimmed = body.trim();
       if (!trimmed) {
