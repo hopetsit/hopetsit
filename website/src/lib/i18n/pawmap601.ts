@@ -8,8 +8,12 @@ import type { Lang } from "./translations";
 
 type D = Record<string, string>;
 
+// h601_* : écrits par LEO (pas de texte de l'app pour ces 2 lignes de la légende du
+// site) — remplacent « la pilule en haut à gauche », retirée en 601.
 export const PAWMAP601: Record<Lang, D> = {
   fr: {
+    h601_b_direct: "Le bouton Balade, dans la barre de droite (noir : arrêté, vert : en balade). La balade se lance et s'arrête dans l'app HoPetSit, sur ton téléphone ; ici, pendant la balade, un badge vert au-dessus du bouton montre depuis combien de minutes et combien de personnes te suivent. Touche le bouton pour l'explication.",
+    h601_ex_live_walker: "Tu pars promener Rex : touche « Balade » dans l'app sur ton téléphone. Ici, le bouton Balade passe au vert, un badge « 12 min » apparaît juste au-dessus, et tes amis voient ton rond bouger en temps réel.",
     p601_pawmap590_walk: "Balade",
     p601_pawmap590_walk_live: "En direct",
     p601_pawmap590_on_walk: "En balade",
@@ -49,6 +53,8 @@ export const PAWMAP601: Record<Lang, D> = {
     p601_pawmap_rail_help_feed: "Voir tous les signalements autour de toi.",
   },
   en: {
+    h601_b_direct: "The Walk button, in the right bar (black: stopped, green: on a walk). A walk starts and stops in the HoPetSit app, on your phone; here, during the walk, a green badge above the button shows for how many minutes and how many people are following you. Tap the button for the explanation.",
+    h601_ex_live_walker: "You're taking Rex for a walk: tap “Walk” in the app on your phone. Here, the Walk button turns green, a “12 min” badge appears just above it, and your friends see your circle move in real time.",
     p601_pawmap590_walk: "Walk",
     p601_pawmap590_walk_live: "Live",
     p601_pawmap590_on_walk: "On a walk",
@@ -88,6 +94,8 @@ export const PAWMAP601: Record<Lang, D> = {
     p601_pawmap_rail_help_feed: "See every report around you.",
   },
   es: {
+    h601_b_direct: "El botón Paseo, en la barra derecha (negro: detenido, verde: de paseo). El paseo se inicia y se detiene en la app HoPetSit, en tu teléfono; aquí, durante el paseo, una insignia verde encima del botón muestra desde hace cuántos minutos y cuántas personas te siguen. Toca el botón para ver la explicación.",
+    h601_ex_live_walker: "Sales a pasear a Rex: toca «Paseo» en la app de tu teléfono. Aquí el botón Paseo se pone verde, aparece una insignia «12 min» justo encima y tus amigos ven tu círculo moverse en tiempo real.",
     p601_pawmap590_walk: "Paseo",
     p601_pawmap590_walk_live: "En directo",
     p601_pawmap590_on_walk: "De paseo",
@@ -127,6 +135,8 @@ export const PAWMAP601: Record<Lang, D> = {
     p601_pawmap_rail_help_feed: "Ver todos los avisos cerca de ti.",
   },
   de: {
+    h601_b_direct: "Der Gassi-Button in der rechten Leiste (schwarz: aus, grün: unterwegs). Der Spaziergang wird in der HoPetSit-App auf deinem Handy gestartet und beendet; hier zeigt während des Spaziergangs ein grünes Abzeichen über dem Button, seit wie vielen Minuten du unterwegs bist und wie viele Personen dir folgen. Tippe auf den Button für die Erklärung.",
+    h601_ex_live_walker: "Du gehst mit Rex Gassi: Tippe in der App auf deinem Handy auf „Gassi“. Hier wird der Gassi-Button grün, direkt darüber erscheint ein Abzeichen „12 Min.“, und deine Freunde sehen deinen Kreis in Echtzeit wandern.",
     p601_pawmap590_walk: "Gassi",
     p601_pawmap590_walk_live: "Live",
     p601_pawmap590_on_walk: "Unterwegs",
@@ -166,6 +176,8 @@ export const PAWMAP601: Record<Lang, D> = {
     p601_pawmap_rail_help_feed: "Alle Meldungen in deiner Nähe ansehen.",
   },
   it: {
+    h601_b_direct: "Il pulsante Passeggio, nella barra destra (nero: fermo, verde: in passeggiata). La passeggiata si avvia e si ferma nell'app HoPetSit, sul telefono; qui, durante la passeggiata, un badge verde sopra il pulsante mostra da quanti minuti e quante persone ti seguono. Tocca il pulsante per la spiegazione.",
+    h601_ex_live_walker: "Esci a passeggio con Rex: tocca «Passeggio» nell'app sul telefono. Qui il pulsante Passeggio diventa verde, appena sopra compare un badge «12 min» e i tuoi amici vedono il tuo cerchio muoversi in tempo reale.",
     p601_pawmap590_walk: "Passeggio",
     p601_pawmap590_walk_live: "In diretta",
     p601_pawmap590_on_walk: "In passeggiata",
@@ -205,6 +217,8 @@ export const PAWMAP601: Record<Lang, D> = {
     p601_pawmap_rail_help_feed: "Vedi tutte le segnalazioni vicino a te.",
   },
   pt: {
+    h601_b_direct: "O botão Passeio, na barra da direita (preto: parado, verde: a passear). O passeio liga-se e desliga-se na app HoPetSit, no telemóvel; aqui, durante o passeio, um distintivo verde por cima do botão mostra há quantos minutos e quantas pessoas te seguem. Toca no botão para a explicação.",
+    h601_ex_live_walker: "Vais passear o Rex: toca em «Passeio» na app do telemóvel. Aqui o botão Passeio fica verde, aparece um distintivo «12 min» logo por cima e os teus amigos veem o teu círculo mover-se em tempo real.",
     p601_pawmap590_walk: "Passeio",
     p601_pawmap590_walk_live: "Em direto",
     p601_pawmap590_on_walk: "A passear",
@@ -244,6 +258,8 @@ export const PAWMAP601: Record<Lang, D> = {
     p601_pawmap_rail_help_feed: "Ver todos os alertas perto de ti.",
   },
   ko: {
+    h601_b_direct: "오른쪽 바의 산책 버튼이에요 (검은색: 꺼짐, 초록색: 산책 중). 산책은 휴대폰의 HoPetSit 앱에서 시작하고 끝내요. 여기서는 산책하는 동안 버튼 위의 초록 배지가 몇 분째인지, 몇 명이 나를 따라오는지 보여 줘요. 버튼을 누르면 설명이 나와요.",
+    h601_ex_live_walker: "렉스와 산책을 나가나요? 휴대폰 앱에서 “산책”을 누르세요. 여기서는 산책 버튼이 초록색이 되고 바로 위에 “12분” 배지가 나타나며, 친구들이 내 원이 움직이는 것을 실시간으로 봐요.",
     p601_pawmap590_walk: "산책",
     p601_pawmap590_walk_live: "라이브",
     p601_pawmap590_on_walk: "산책 중",
@@ -283,6 +299,8 @@ export const PAWMAP601: Record<Lang, D> = {
     p601_pawmap_rail_help_feed: "주변 제보를 모두 봅니다.",
   },
   ja: {
+    h601_b_direct: "右のバーの散歩ボタンです（黒：停止中、緑：散歩中）。散歩はスマホのHoPetSitアプリで開始・停止します。ここでは散歩中、ボタンの上の緑のバッジが何分経ったか、何人があなたを見守っているかを表示します。タップすると説明が表示されます。",
+    h601_ex_live_walker: "レックスの散歩に出かけるとき：スマホのアプリで「散歩」をタップします。ここでは散歩ボタンが緑になり、そのすぐ上に「12分」のバッジが表示され、友だちにはあなたの丸がリアルタイムで動いて見えます。",
     p601_pawmap590_walk: "散歩",
     p601_pawmap590_walk_live: "ライブ",
     p601_pawmap590_on_walk: "散歩中",
@@ -322,6 +340,8 @@ export const PAWMAP601: Record<Lang, D> = {
     p601_pawmap_rail_help_feed: "周辺の報告をすべて見ます。",
   },
   pl: {
+    h601_b_direct: "Przycisk Spacer na prawym pasku (czarny: wyłączony, zielony: na spacerze). Spacer włączasz i wyłączasz w aplikacji HoPetSit na telefonie; tutaj w trakcie spaceru zielona plakietka nad przyciskiem pokazuje, od ilu minut trwa i ile osób cię śledzi. Dotknij przycisku, aby zobaczyć wyjaśnienie.",
+    h601_ex_live_walker: "Wychodzisz z Reksem na spacer: dotknij „Spacer” w aplikacji na telefonie. Tutaj przycisk Spacer robi się zielony, tuż nad nim pojawia się plakietka „12 min”, a znajomi widzą, jak twoje kółko porusza się na żywo.",
     p601_pawmap590_walk: "Spacer",
     p601_pawmap590_walk_live: "Na żywo",
     p601_pawmap590_on_walk: "Na spacerze",

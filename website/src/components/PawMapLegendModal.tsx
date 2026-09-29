@@ -101,10 +101,12 @@ type Section = { id: string; title: string; rows: Row[]; example?: string; image
 
 // 29/09 — section « La Balade » : dessins compacts (56 px) de ce que l'on voit
 // vraiment sur /map : pilule verte du direct, tracé violet PawFollow.
-const WALK_GREEN = "linear-gradient(170deg,#43B862,#1F7A37)";
-function walkPillHtml() {
-  const people = '<svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><circle cx="8" cy="7" r="3.2"/><path d="M2 19a6 6 0 0 1 12 0z"/><circle cx="16.5" cy="8" r="2.6"/><path d="M13.5 19a5 5 0 0 1 8.5-3.6V19z"/></svg>';
-  return `<span style="display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 9px 0 8px;border-radius:15px;background:${WALK_GREEN};box-shadow:0 0 0 2px #fff,0 8px 18px -8px rgba(31,122,55,.8);color:#fff;font:800 12px/1 Poppins,Inter,system-ui,sans-serif;white-space:nowrap"><span class="hps-dot-pulse" style="display:block;width:8px;height:8px;border-radius:999px;background:#fff"></span>${people}<span>2</span></span>`;
+function walkPillHtml(minTxt: string) {
+  // 601 — le drapeau Balade de la barre de droite : badge vert compact (durée,
+  // œil + nombre de suiveurs) posé au-dessus du bouton Balade en direct.
+  const eye = '<svg viewBox="0 0 24 24" width="11" height="11" fill="#fff"><path d="M12 5C6.5 5 2.7 9.1 1.5 12c1.2 2.9 5 7 10.5 7s9.3-4.1 10.5-7C21.3 9.1 17.5 5 12 5zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/><circle cx="12" cy="12" r="2"/></svg>';
+  const walker = '<svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><circle cx="13.5" cy="4.5" r="2"/><path d="M9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3A7.3 7.3 0 0 0 19 13v-2a5 5 0 0 1-4.3-2.4l-1-1.6a2 2 0 0 0-1.7-1c-.3 0-.5.1-.8.1L6 8.3V13h2V9.6z"/></svg>';
+  return `<span style="display:inline-flex;flex-direction:column;align-items:center;gap:3px"><span style="display:flex;flex-direction:column;align-items:center;width:44px;padding:4px 3px;border-radius:12px;background:linear-gradient(170deg,#7FE39A -20%,#2E9E48 45%,#1D7A34 100%);border:1.4px solid #fff;box-shadow:0 3px 8px rgba(29,122,52,.35);color:#fff;font:800 10.5px/1.05 Poppins,Inter,system-ui,sans-serif;white-space:nowrap"><span>${minTxt}</span><span style="display:inline-flex;align-items:center;gap:2px;margin-top:2px;font-size:9.5px;font-weight:700">${eye}2</span></span><span style="display:grid;place-items:center;width:38px;height:38px;border-radius:999px;background:linear-gradient(170deg,#7FE39A -20%,#2E9E48 40%,#1D7A34 100%);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3),0 6px 12px -5px #2E9E48CC">${walker}</span></span>`;
 }
 /** 29/09 — patte du menu de l'app avec le point vert « un ami est en balade ». */
 function menuDotHtml() {
@@ -207,12 +209,12 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     example: t("help599_ex_balade"),
     // 29/09 01 h 38 — l'image de PAM (même fichier que l'app, sans mot) : claire / nuit, @2x et @3x.
     image: {
-      src: "/pawmap/balade_599_clair@2x.png", srcSet: "/pawmap/balade_599_clair@2x.png 2x, /pawmap/balade_599_clair@3x.png 3x",
-      darkSrc: "/pawmap/balade_599_nuit@2x.png", darkSrcSet: "/pawmap/balade_599_nuit@2x.png 2x, /pawmap/balade_599_nuit@3x.png 3x",
+      src: "/pawmap/balade_601_clair@2x.png", srcSet: "/pawmap/balade_601_clair@2x.png 2x, /pawmap/balade_601_clair@3x.png 3x",
+      darkSrc: "/pawmap/balade_601_nuit@2x.png", darkSrcSet: "/pawmap/balade_601_nuit@2x.png 2x, /pawmap/balade_601_nuit@3x.png 3x",
       alt: t("help599_img_caption"),
     },
     rows: [
-      { html: walkPillHtml(), title: `${t("help599_t_me")} · « ${t("m590_on_walk")} · ${t("bal2909_followers").replace("{n}", "2")} »`, body: t("help599_b_me"), color: "#1F7A37" },
+      { html: walkPillHtml(t("p601_pawmap601_walk_min").replace("{n}", "12")), title: `${t("help599_t_me")} · « ${t("m590_on_walk")} · ${t("p601_pawmap601_walk_min").replace("{n}", "12")} · ${t("bal2909_followers").replace("{n}", "2")} »`, body: t("help599_b_me"), color: "#1F7A37" },
       { html: photoPinHtml({ role: "walker", name: "Kathy", followed: true, online: true }), title: t("help599_t_others"), body: t("help599_b_others"), color: PAWFOLLOW_VIOLET, chip: { text: t("bal2909_live_now"), color: ROLE_COLOR.walker, border: FRIEND_PINK } },
       { html: menuDotHtml(), title: `${t("help599_t_dot")} · ${t("p589_in_app")}`, body: t("help599_b_dot"), color: "#16A34A" },
     ],
@@ -249,13 +251,13 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
           ],
         },
         {
-          id: "live", title: t("h587_sec_live"), example: provider ? t("h587_ex_live_walker") : t("h587_ex_live_owner"),
+          id: "live", title: t("h587_sec_live"), example: provider ? t("h601_ex_live_walker") : t("h587_ex_live_owner"),
           rows: [
             { html: eyesHtml(), title: t("m586_leg_eye_t"), body: t("h587_b_eye"), color: "#17141F" },
             // 587 — Daniel : les 3 réglages en clair, mêmes phrases que le réglage (vis587).
             { html: eyesHtml(), title: t("v587_title"), body: visExplained, color: "#17141F" },
             // 587 — le Direct existe pour les 3 profils (propriétaire compris).
-            { html: `<span style="display:flex;gap:4px">${roundHtml("linear-gradient(165deg,#2C2533,#17141F)", LIVE, "rgba(23,20,31,0.7)", 30)}${roundHtml("linear-gradient(165deg,#34B857,#16A34A)", LIVE, "#16A34A", 30)}</span>`, title: t("m586_live"), body: `${t("h587_b_direct")} ${t("p589_direct_account")}`, color: "#17141F" },
+            { html: `<span style="display:flex;gap:4px">${roundHtml("linear-gradient(165deg,#2C2533,#17141F)", LIVE, "rgba(23,20,31,0.7)", 30)}${roundHtml("linear-gradient(165deg,#34B857,#16A34A)", LIVE, "#16A34A", 30)}</span>`, title: t("p601_pawmap590_walk"), body: `${t("h601_b_direct")} ${t("p589_direct_account")}`, color: "#17141F" },
           ],
         },
         walkSection,
