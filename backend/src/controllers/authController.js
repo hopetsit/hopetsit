@@ -220,6 +220,8 @@ const signupLang = (body) => {
 // envoie `X-App-Version: web`. Build ≥ 565 ou web → 400 CITY_REQUIRED si la
 // ville manque ; sans en-tête ou build < 565 → tolérant (comportement d'avant).
 const CITY_REQUIRED_MIN_BUILD = 565;
+// 29/09 (NEO) — une « ville » qui est une adresse e-mail compte comme absente.
+const { cleanCity } = require('../utils/cleanCity2909');
 const clientRequiresCity = (req) => {
   const raw = String(req.headers?.['x-app-version'] || '').trim().toLowerCase();
   if (!raw) return false;
@@ -242,7 +244,7 @@ const CITY_REQUIRED_I18N = {
   ja: 'お住まいの都市を入力してください。アカウント作成に必須です。',
 };
 const hasCity = (user) =>
-  !!String(user?.city || user?.location?.city || '').trim();
+  !!(cleanCity(user?.city) || cleanCity(user?.location?.city));
 const cityRequiredResponse = (req, res, lang) =>
   res.status(400).json({
     code: 'CITY_REQUIRED',
@@ -293,7 +295,7 @@ const processLocationData = (locationData) => {
   return {
     type: 'Point',
     coordinates: [longitude, latitude],
-    city: (locationData.city || '').trim(),
+    city: cleanCity(locationData.city), // 29/09 (NEO) — jamais une adresse e-mail
   };
 };
 
@@ -410,7 +412,7 @@ const signup = async (req, res) => {
       // v565 point 1 — ville plate : conservée même sans GPS (AVANT, sans
       // coordonnées, processLocationData renvoyait undefined et la ville
       // saisie disparaissait → « ? » dans l'admin).
-      city: (user.city || user.location?.city || '').toString().trim(),
+      city: cleanCity(user.city) || cleanCity(user.location?.city), // 29/09 (NEO)
       password: user.password,
       language: user.language || '',
       // v565 — langue des e-mails/notifs posée DÈS l'inscription (avant :
@@ -1163,7 +1165,7 @@ const googleAuth = async (req, res) => {
       // v565 audit-inscription — pays, ville, langue posés dès la création
       // (AVANT : country/language/appLocale vides pour tout compte Google/Apple).
       country: (user?.country || '').toString().toUpperCase().trim(),
-      city: (user?.city || user?.location?.city || '').toString().trim(), // v565 point 1
+      city: cleanCity(user?.city) || cleanCity(user?.location?.city), // v565 point 1 · 29/09 (NEO) garde-fou e-mail
       password: generateRandomPassword(),
       language: (user?.language || '').toString().trim(),
       ...(appLocaleOf({ appLocale: user?.appLocale, user }) ? { appLocale: appLocaleOf({ appLocale: user?.appLocale, user }) } : {}),
@@ -1506,7 +1508,7 @@ const appleAuth = async (req, res) => {
       // v565 audit-inscription — pays, ville, langue posés dès la création
       // (AVANT : country/language/appLocale vides pour tout compte Google/Apple).
       country: (user?.country || '').toString().toUpperCase().trim(),
-      city: (user?.city || user?.location?.city || '').toString().trim(), // v565 point 1
+      city: cleanCity(user?.city) || cleanCity(user?.location?.city), // v565 point 1 · 29/09 (NEO) garde-fou e-mail
       password: generateRandomPassword(),
       language: (user?.language || '').toString().trim(),
       ...(appLocaleOf({ appLocale: user?.appLocale, user }) ? { appLocale: appLocaleOf({ appLocale: user?.appLocale, user }) } : {}),
