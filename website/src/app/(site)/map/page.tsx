@@ -337,27 +337,37 @@ export default function MapPage() {
   const [railOrder, setRailOrder] = useState<string[]>(RAIL_IDS);
   const [capsuleOrder, setCapsuleOrder] = useState<string[]>(CAPSULE_IDS);
   const [customizeBar, setCustomizeBar] = useState<"rail" | "capsule" | null>(null);
+  // 29/09 (parité 602) — la liste ENREGISTRÉE telle quelle (avec les ids que
+  // le site ne connaît pas : `feed`, `no_feed` de l'app 602, futurs boutons).
+  // À l'enregistrement, le site les RECOPIE à leur place : il ne doit jamais
+  // effacer un réglage fait dans l'app. null = jamais réglé.
+  const railSavedRef = useRef<string[] | null>(null);
+  const capsuleSavedRef = useRef<string[] | null>(null);
   useEffect(() => {
+    const asList = (v: unknown) => (Array.isArray(v) ? v.map(String) : null);
     try {
       const r = localStorage.getItem("hopetsit:mapRail");
-      if (r) setRailOrder(normalizeRail(JSON.parse(r)));
+      if (r) { const l = asList(JSON.parse(r)); railSavedRef.current = l; setRailOrder(normalizeRail(l)); }
       const c = localStorage.getItem("hopetsit:mapCapsule");
-      if (c) setCapsuleOrder(normalizeCapsule(JSON.parse(c)));
+      if (c) { const l = asList(JSON.parse(c)); capsuleSavedRef.current = l; setCapsuleOrder(normalizeCapsule(l)); }
     } catch { /* stockage indisponible */ }
     if (!getStoredUser()) return;
     let stop = false;
     void getMapBarPrefs().then((p) => {
       if (stop || !p) return;
-      if (p.rail) { const o = normalizeRail(p.rail); setRailOrder(o); try { localStorage.setItem("hopetsit:mapRail", JSON.stringify(o)); } catch { /* */ } }
-      if (p.capsule) { const o = normalizeCapsule(p.capsule); setCapsuleOrder(o); try { localStorage.setItem("hopetsit:mapCapsule", JSON.stringify(o)); } catch { /* */ } }
+      if (p.rail) { railSavedRef.current = p.rail; setRailOrder(normalizeRail(p.rail)); try { localStorage.setItem("hopetsit:mapRail", JSON.stringify(p.rail)); } catch { /* */ } }
+      if (p.capsule) { capsuleSavedRef.current = p.capsule; setCapsuleOrder(normalizeCapsule(p.capsule)); try { localStorage.setItem("hopetsit:mapCapsule", JSON.stringify(p.capsule)); } catch { /* */ } }
     });
     return () => { stop = true; };
   }, []);
   function saveBarOrder(bar: "rail" | "capsule", order: string[]) {
     const o = bar === "rail" ? normalizeRail(order) : normalizeCapsule(order);
     if (bar === "rail") setRailOrder(o); else setCapsuleOrder(o);
-    try { localStorage.setItem(bar === "rail" ? "hopetsit:mapRail" : "hopetsit:mapCapsule", JSON.stringify(o)); } catch { /* */ }
-    if (getStoredUser()) void saveMapBarPrefs({ [bar]: o });
+    const ref = bar === "rail" ? railSavedRef : capsuleSavedRef;
+    const full = keepUnknownIds(ref.current, o, bar === "rail" ? RAIL_IDS : CAPSULE_IDS);
+    ref.current = full;
+    try { localStorage.setItem(bar === "rail" ? "hopetsit:mapRail" : "hopetsit:mapCapsule", JSON.stringify(full)); } catch { /* */ }
+    if (getStoredUser()) void saveMapBarPrefs({ [bar]: full });
   }
   function toggleBar(key: "railCollapsed" | "capsuleCollapsed") {
     const cur = key === "railCollapsed" ? railCollapsed : capsuleCollapsed;
@@ -2604,6 +2614,24 @@ function normalizeCapsule(order: unknown): string[] {
   if (!Array.isArray(order)) return CAPSULE_IDS;
   const out: string[] = [];
   for (const v of order) { const id = String(v); if (CAPSULE_IDS.includes(id) && !out.includes(id)) out.push(id); }
+  return out;
+}
+/**
+ * 29/09 (parité 602) — ce que le site ENREGISTRE : l'ordre choisi ici, plus
+ * chaque id qu'il ne connaît pas (réglage fait dans l'app : `feed`, `no_feed`,
+ * boutons futurs), remis à sa place d'origine (juste avant le bouton connu qui
+ * le suivait). Sans cela le site effaçait le réglage de l'app.
+ */
+function keepUnknownIds(saved: string[] | null, next: string[], known: string[]): string[] {
+  if (!saved) return next;
+  const out = [...next];
+  for (let i = 0; i < saved.length; i++) {
+    const id = saved[i];
+    if (known.includes(id) || out.includes(id)) continue;
+    let at = -1;
+    for (let j = i + 1; j < saved.length && at < 0; j++) at = out.indexOf(saved[j]);
+    if (at >= 0) out.splice(at, 0, id); else out.push(id);
+  }
   return out;
 }
 /** kJewelWalkOn / kJewelWalkOff de l'app : vert en direct, encre chaude à l'arrêt. */
