@@ -42,14 +42,26 @@ jest.mock('../src/services/emailService', () => {
   return { ...actual, sendEmail: jest.fn(async () => ({ messageId: 'mock' })) };
 });
 
+// v599 (29/09 08 h) — l'e-mail d'un message de chat est DIFFÉRÉ 15 min : le
+// planificateur (attente en base) est simulé ; on capture ce qu'il reçoit.
+const scheduled = [];
+jest.mock('../src/services/chatUnreadEmailScheduler599', () => {
+  const actual = jest.requireActual('../src/services/chatUnreadEmailScheduler599');
+  return {
+    ...actual,
+    scheduleUnreadEmail: jest.fn(async (a) => { scheduled.push(a); return { created: true }; }),
+  };
+});
+
 const { sendEmail } = require('../src/services/emailService');
 const { createNotificationSafe } = require('../src/services/notificationService');
 const { emitToUser } = require('../src/sockets/emitter');
-const { sendNotification, categoryForType } = require('../src/services/notificationSender');
+const { sendNotification, sendDeferredChatEmail, categoryForType } = require('../src/services/notificationSender');
 
 const CONV = 'c'.repeat(24);
 beforeEach(() => {
   jest.clearAllMocks();
+  scheduled.length = 0;
   mockUser.notificationPrefs = null;
   mockUser.fcmTokens = ['tok-1'];
   mockUser.fcmDevices = [];
@@ -74,6 +86,16 @@ describe('sendNotification', () => {
     expect(msg.android.notification.channelId).toBe('hopetsit_frog_v2');
     expect(msg.apns.payload.aps.sound).toBe('frog.caf');
     expect(msg.apns.headers['apns-priority']).toBe('10');
+    // v599 (29/09 08 h) — message de chat : AUCUN e-mail immédiat, une attente
+    // de 15 min posée pour ce fil ; l'e-mail rendu à l'échéance garde le
+    // contenu d'hier (langue du compte, lien www vers la conversation).
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(scheduled).toHaveLength(1);
+    expect(scheduled[0].conversationId).toBe(CONV);
+    expect(scheduled[0].recipientId).toBe(mockUser._id);
+    expect(scheduled[0].recipientRole).toBe('owner');
+    const r = await sendDeferredChatEmail(scheduled[0].payload);
+    expect(r).toEqual({ sent: true });
     const [to, subject, text, html] = sendEmail.mock.calls[0];
     expect(to).toBe('camille@example.com');
     expect(subject).toBeTruthy();
@@ -88,6 +110,7 @@ describe('sendNotification', () => {
       userId: mockUser._id, role: 'owner', type: 'NEW_MESSAGE',
       data: { conversationId: CONV, senderName: 'Alex', preview: '<a href="https://evil.example">payer</a>' },
     });
+    await sendDeferredChatEmail(scheduled[0].payload); // e-mail différé, même gabarit
     const html = sendEmail.mock.calls[0][3];
     expect(html).not.toContain('<a href="https://evil.example">');
     expect(html).toContain('&lt;a href=');
@@ -115,13 +138,32 @@ describe('sendNotification', () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
-  test('message : e-mail seulement si le destinataire est HORS LIGNE ; paiement : toujours', async () => {
+  test('message : jamais d\'e-mail immédiat (attente 15 min, en ligne ou non) ; paiement : toujours', async () => {
     mockIsOnline.mockResolvedValue(true);
     await sendNotification({
       userId: mockUser._id, role: 'owner', type: 'NEW_MESSAGE',
       data: { conversationId: CONV, senderName: 'Alex', preview: 'x' },
     });
     expect(mockSendMulticast).toHaveBeenCalledTimes(1);
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(scheduled).toHaveLength(1);
+    // 2e message d'un fil déjà non lu : pas de nouvelle attente (une par fil).
+    await sendNotification({
+      userId: mockUser._id, role: 'owner', type: 'NEW_MESSAGE',
+      data: { conversationId: CONV, senderName: 'Alex', preview: 'y', unreadForRecipient: 2 },
+    });
+    expect(scheduled).toHaveLength(1);
+    // compte de test (+test) : aucune attente, donc aucun e-mail.
+    const realEmail = mockUser.email;
+    mockUser.email = 'camille+test7@example.com';
+    await sendNotification({
+      userId: mockUser._id, role: 'owner', type: 'NEW_MESSAGE',
+      data: { conversationId: 'd'.repeat(24), senderName: 'Alex', preview: 'z' },
+    });
+    expect(scheduled).toHaveLength(1);
+    expect(await sendDeferredChatEmail({ userId: mockUser._id, role: 'owner', data: { conversationId: CONV, senderName: 'Alex', preview: 'z' } }))
+      .toEqual({ skipped: true, reason: 'test_account' });
+    mockUser.email = realEmail;
     expect(sendEmail).not.toHaveBeenCalled();
     await sendNotification({
       userId: mockUser._id, role: 'owner', type: 'wallet_credited', data: { amount: '24,00', currency: 'EUR' },

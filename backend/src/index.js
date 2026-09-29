@@ -125,6 +125,8 @@ async function startServer() {
     require('./services/handoverScheduler').startHandoverScheduler(); // v565 — remise/rendu (§7) + partage en direct (§8)
     // v560 — moteur de croissance : e-mails de cycle de vie (1 passage/heure, 9h-19h Paris).
     require('./services/lifecycleEmailScheduler').startLifecycleEmailScheduler();
+    // v599 (ZOE, 29/09 08 h) — e-mail « message non lu » différé 15 min, balayage 1/min.
+    require('./services/chatUnreadEmailScheduler599').startChatUnreadEmailScheduler();
   } catch (error) {
     logger.error('Failed to start server', error);
     process.exit(1);

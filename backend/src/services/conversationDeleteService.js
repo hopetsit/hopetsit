@@ -117,6 +117,13 @@ const deleteConversationForUser = async ({ conversationId, userId }) => {
     );
   }
 
+  // v599 (29/09 08 h) — supprimer le fil = aucun e-mail différé « message non lu »
+  // pour moi sur ce fil (best-effort).
+  try {
+    await require('./chatUnreadEmailScheduler599')
+      .cancelUnreadEmail({ conversationId: String(conversation._id), readerIds: [...myIds] });
+  } catch (_) { /* best-effort */ }
+
   try {
     emitToUsersAllRoles([uid], 'conversation:deleted', {
       conversationId: cid,

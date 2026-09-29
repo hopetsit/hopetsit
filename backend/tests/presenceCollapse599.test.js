@@ -93,6 +93,11 @@ describe('notificationSender — une notification par conversation (v599)', () =
       const actual = jest.requireActual('../src/services/emailService');
       return { ...actual, sendEmail: jest.fn(async () => ({ messageId: 'mock' })) };
     });
+    // v599 (29/09 08 h) — e-mail de chat différé : attente simulée (pas de base).
+    jest.doMock('../src/services/chatUnreadEmailScheduler599', () => {
+      const actual = jest.requireActual('../src/services/chatUnreadEmailScheduler599');
+      return { ...actual, scheduleUnreadEmail: jest.fn(async () => ({ created: true })) };
+    });
   });
 
   test('NEW_MESSAGE : Android tag + collapseKey, iOS apns-collapse-id + thread-id = conv:<id>', async () => {

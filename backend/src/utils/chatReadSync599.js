@@ -11,7 +11,8 @@
  *   2. les entrées « Nouveau message » de la cloche pour CE fil passent en lu
  *      → `notification.read { ids, unreadCount }` (l'app retire la
  *      notification téléphone correspondante, iOS remet le badge) ;
- *   3. push « badge seul » iOS (déjà existant : sendBadgeSync).
+ *   3. push « badge seul » iOS (déjà existant : sendBadgeSync) ;
+ *   0. (29/09 08 h) l'e-mail différé « message non lu » en attente est annulé.
  * Best-effort : ne lève jamais, ne bloque jamais la réponse.
  */
 const logger = require('./logger');
@@ -31,7 +32,16 @@ const afterConversationRead = async ({ conversationId, readerId, readerIds = nul
       ids = [me];
     }
   }
-  const out = { notified: 0, bell: 0 };
+  const out = { notified: 0, bell: 0, emailCancelled: 0 };
+  // 0) v599 (29/09 08 h, décision Daniel) : lire le fil annule l'e-mail différé
+  //    « message non lu » (15 min) en attente pour cette personne.
+  try {
+    const { cancelUnreadEmail } = require('../services/chatUnreadEmailScheduler599');
+    const r = await cancelUnreadEmail({ conversationId: cid, readerIds: ids });
+    out.emailCancelled = (r && r.cancelled) || 0;
+  } catch (e) {
+    logger.warn(`[chat.readSync] cancel deferred email failed : ${e && e.message ? e.message : e}`);
+  }
   // 1) mes autres appareils / profils : le fil est lu.
   try {
     const { emitToUsersAllRoles } = require('../sockets/emitter');

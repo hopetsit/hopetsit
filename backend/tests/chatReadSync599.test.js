@@ -45,6 +45,11 @@ jest.mock('../src/services/notificationSender', () => ({
   sendBadgeSync: jest.fn(async (a) => { badgeSyncs.push(a); return { ok: true }; }),
 }));
 jest.mock('../src/utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
+// v599 (29/09 08 h) — lire le fil annule l'e-mail différé « message non lu ».
+const cancelled = [];
+jest.mock('../src/services/chatUnreadEmailScheduler599', () => ({
+  cancelUnreadEmail: jest.fn(async (a) => { cancelled.push(a); return { cancelled: 1 }; }),
+}));
 
 const { afterConversationRead } = require('../src/utils/chatReadSync599');
 
@@ -64,6 +69,8 @@ beforeEach(() => {
 test('lire F en tant que D1 prévient D1/D2/D3 et passe en lu les 2 entrées de cloche de F (pas L, pas J1, pas la réservation)', async () => {
   const r = await afterConversationRead({ conversationId: 'F', readerId: 'D1' });
   expect(r.bell).toBe(2);
+  expect(r.emailCancelled).toBe(1);
+  expect(cancelled).toEqual([{ conversationId: 'F', readerIds: ['D1', 'D2', 'D3'] }]);
   const self = emitted.find((e) => e.event === 'conversation:read:self');
   expect(self).toBeTruthy();
   expect(self.ids).toEqual(['D1', 'D2', 'D3']);

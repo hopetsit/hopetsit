@@ -480,29 +480,14 @@ const _roleModelForPurge = (role) =>
   null;
 
 /**
- * Send a notification to a user across three channels: in-app, push (FCM), email.
- * Silent on failures — each channel is wrapped in allSettled and errors are logged.
- *
- * @param {Object} params
- * @param {string} params.userId
- * @param {'owner'|'sitter'} params.role
- * @param {string} params.type     - template key (e.g. 'NEW_MESSAGE')
- * @param {Object} [params.data]   - template variables + notification payload
- * @param {Object} [params.actor]  - { role, id } who triggered the event
+ * v599 (ZOE, 29/09/2026) — résout TOUT ce qu'il faut pour rendre une notification
+ * (utilisateur, langue, gabarit, titre/corps, e-mail HTML + texte, adresse,
+ * préférences). Partagé par sendNotification (envoi immédiat) et par l'e-mail
+ * DIFFÉRÉ des messages (chatUnreadEmailScheduler599) : même contenu, 9 langues,
+ * accents, lien vers la conversation. Retourne null si l'utilisateur ou le
+ * gabarit manque (déjà journalisé).
  */
-const sendNotification = async ({ userId, role, type, data: rawData = {}, actor = null }) => {
-  // v23.1 part 48 — entry log fires UNCONDITIONALLY before any early return.
-  // Lets us prove from Render logs that sendNotification was actually
-  // invoked (vs being skipped upstream). Previous logs only fired once
-  // user/template resolved, so a "user not found" path was indistinguishable
-  // from a "function never called" one.
-  logger.info(`[notif.entry] type=${type} role=${role} userId=${userId}`);
-  if (!userId || !role || !type) {
-    logger.warn(
-      `[notif.skip] missing required fields userId=${userId} role=${role} type=${type}`,
-    );
-    return;
-  }
+const prepareNotification = async ({ userId, role, type, rawData = {} }) => {
   const user = await resolveUser(role, userId);
   if (!user) {
     logger.warn(
@@ -510,7 +495,7 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
       `(this happens when the booking references a deleted/migrated user — ` +
       `check whether a switchRole purged the recipient's old doc)`,
     );
-    return;
+    return null;
   }
   // v23.1.348 — Daniel : la langue suit le système. appLocale (code UI synchronisé
   // par l'app : choix manuel OU langue du téléphone) est PRIORITAIRE sur le champ
@@ -521,7 +506,7 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
   const tmpl = pickTemplate(locale, type);
   if (!tmpl) {
     logger.warn(`[notif.skip] template missing type=${type} locale=${locale}`);
-    return;
+    return null;
   }
   // v23.1.155 — Daniel : "connecte les boutons quon recois par mail a
   // lapp ou le web". On injecte un `emailLink` universel
@@ -562,13 +547,49 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
   });
   const emailText = `${body}\n\n${renderData.emailLink}`;
   const email = decrypt(user.email || '');
-  // v407 — union des fcmTokens sur les 3 docs de rôle (fix push multi-profils).
-  const allTokens = await gatherFcmTokens(user, userId);
-  const tokenCount = allTokens.length;
   // v565 §2 — préférences : catégorie coupée → ni push ni e-mail (in-app gardée).
   const prefs = await resolveNotificationPrefsAcrossRoles(user, userId);
   const category = categoryForType(type);
   const categoryEnabled = prefs.categories[category] !== false;
+  return {
+    user, locale, data, appRoute, renderData, title, body, emailSubject, emailBody, emailText,
+    email, prefs, category, categoryEnabled,
+  };
+};
+
+/**
+ * Send a notification to a user across three channels: in-app, push (FCM), email.
+ * Silent on failures — each channel is wrapped in allSettled and errors are logged.
+ *
+ * @param {Object} params
+ * @param {string} params.userId
+ * @param {'owner'|'sitter'} params.role
+ * @param {string} params.type     - template key (e.g. 'NEW_MESSAGE')
+ * @param {Object} [params.data]   - template variables + notification payload
+ * @param {Object} [params.actor]  - { role, id } who triggered the event
+ */
+const sendNotification = async ({ userId, role, type, data: rawData = {}, actor = null }) => {
+  // v23.1 part 48 — entry log fires UNCONDITIONALLY before any early return.
+  // Lets us prove from Render logs that sendNotification was actually
+  // invoked (vs being skipped upstream). Previous logs only fired once
+  // user/template resolved, so a "user not found" path was indistinguishable
+  // from a "function never called" one.
+  logger.info(`[notif.entry] type=${type} role=${role} userId=${userId}`);
+  if (!userId || !role || !type) {
+    logger.warn(
+      `[notif.skip] missing required fields userId=${userId} role=${role} type=${type}`,
+    );
+    return;
+  }
+  const prepared = await prepareNotification({ userId, role, type, rawData });
+  if (!prepared) return;
+  const {
+    user, locale, data, appRoute, renderData, title, body, emailSubject, emailBody, emailText,
+    email, prefs, category, categoryEnabled,
+  } = prepared;
+  // v407 — union des fcmTokens sur les 3 docs de rôle (fix push multi-profils).
+  const allTokens = await gatherFcmTokens(user, userId);
+  const tokenCount = allTokens.length;
   if (!categoryEnabled) {
     logger.info(
       `[notif.prefs.skip] category=${category} disabled → push+email suppressed ` +
@@ -688,15 +709,42 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
       }
     } catch (_) { /* doute → on pousse */ }
   }
-  // v599 (ZOE) — Daniel : « une cloche, une notification téléphone et un
-  // e-mail, ça suffit ». Par conversation : l'e-mail (hors ligne) ne part que
-  // pour le PREMIER message non lu ; les suivants n'ont que la cloche et la
-  // push (regroupée). Dès que la conversation est lue, le compteur repart.
-  if (sendEmailNow && isChatMessage) {
-    const n = Number(data && data.unreadForRecipient);
-    if (Number.isFinite(n) && n > 1) {
-      sendEmailNow = false;
-      logger.info(`[notif.email.skip] conversation ${conversationIdForPush} déjà non lue (${n}) → pas d'e-mail par message`);
+  // v599 (ZOE, 29/09 08 h — décision Daniel) — message de chat : l'e-mail est
+  // DIFFÉRÉ. Il ne part que si le premier message non lu est TOUJOURS non lu
+  // 15 min plus tard, une seule fois par conversation tant qu'elle n'est pas lue
+  // (la lecture, sur n'importe quel appareil, annule l'attente ; le compteur
+  // repart après une lecture). Jamais d'e-mail immédiat, jamais par message,
+  // jamais aux comptes +test. Mécanique : chatUnreadEmailScheduler599 (attente
+  // en base, balayage 1/min, robuste au redémarrage de Render).
+  let emailDeferred = null;
+  if (isChatMessage && conversationIdForPush) {
+    const wanted = Boolean(email) && categoryEnabled;
+    sendEmailNow = false;
+    if (wanted) {
+      const n = Number(data && data.unreadForRecipient);
+      const sched = require('./chatUnreadEmailScheduler599');
+      if (Number.isFinite(n) && n > 1) {
+        logger.info(`[notif.email.defer] conversation ${conversationIdForPush} déjà non lue (${n}) → pas de nouvelle attente`);
+      } else if (sched.isTestEmail(email)) {
+        logger.info(`[notif.email.defer] compte de test (+test) → aucun e-mail pour ${role}:${userId}`);
+      } else {
+        try {
+          let ids = [String(userId)];
+          try {
+            const { identityGroup } = require('../utils/identityGroup');
+            ids = (await identityGroup(userId)).ids;
+          } catch (_) { /* id seul */ }
+          emailDeferred = await sched.scheduleUnreadEmail({
+            conversationId: conversationIdForPush,
+            recipientId: String(userId),
+            recipientRole: role,
+            recipientIds: ids,
+            payload: { userId: String(userId), role, type, data, actor },
+          });
+        } catch (e) {
+          logger.warn(`[notif.email.defer] attente non posée : ${e?.message || e}`);
+        }
+      }
     }
   }
   if (sendEmailNow &&
@@ -760,7 +808,12 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
       : Promise.resolve({ skipped: true, reason: categoryEnabled ? 'conversation_open' : `prefs_category_off:${category}` }),
     sendEmailNow
       ? sendEmail(email, emailSubject || title, emailText, emailBody)
-      : Promise.resolve({ skipped: true, reason: categoryEnabled ? 'no_email' : `prefs_category_off:${category}` }),
+      : Promise.resolve({
+        skipped: true,
+        reason: emailDeferred && emailDeferred.created
+          ? 'deferred_15min'
+          : (categoryEnabled ? 'no_email' : `prefs_category_off:${category}`),
+      }),
   ]);
 
   // v23.1 part 48 — log success/failure per channel so the Render log
@@ -780,6 +833,28 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
       logger.info(`[notif.channel] ${channel} ok for ${type}${skipped}`);
     }
   });
+};
+
+/**
+ * v599 (ZOE, 29/09/2026) — envoi de l'e-mail « message non lu » à l'échéance
+ * (15 min sans lecture), appelé par chatUnreadEmailScheduler599.runOnce. Même
+ * gabarit que l'e-mail immédiat d'hier (9 langues, accents, lien vers la
+ * conversation), rendu au moment de l'envoi dans la langue COURANTE du compte.
+ * Retourne { sent: true } ou { skipped: true, reason } ; lève si le SMTP échoue
+ * (le balayage rend alors la réclamation et réessaie, 3 fois au plus).
+ */
+const sendDeferredChatEmail = async ({ userId, role, type = 'NEW_MESSAGE', data = {} } = {}) => {
+  if (!userId || !role) return { skipped: true, reason: 'bad_args' };
+  const prepared = await prepareNotification({ userId, role, type: type || 'NEW_MESSAGE', rawData: data || {} });
+  if (!prepared) return { skipped: true, reason: 'unresolved' };
+  if (!prepared.categoryEnabled) return { skipped: true, reason: `prefs_category_off:${prepared.category}` };
+  const to = prepared.email;
+  if (!to || to.length < 4) return { skipped: true, reason: 'no_email' };
+  const { isTestEmail } = require('./chatUnreadEmailScheduler599');
+  if (isTestEmail(to)) return { skipped: true, reason: 'test_account' };
+  await sendEmail(to, prepared.emailSubject || prepared.title, prepared.emailText, prepared.emailBody);
+  logger.info(`[notif.channel] email ok for ${type} (différé 15 min) role=${role} userId=${userId}`);
+  return { sent: true };
 };
 
 /**
@@ -845,5 +920,7 @@ module.exports = {
   resolveNotificationPrefsAcrossRoles,
   pushSoundConfig,
   sendBadgeSync, // v566
+  prepareNotification, // v599 — e-mail différé
+  sendDeferredChatEmail, // v599 — e-mail différé
   BADGE_MIN_IOS_BUILD,
 };
