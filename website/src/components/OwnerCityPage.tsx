@@ -4,6 +4,7 @@ import { OwnerSignupCta } from "@/components/OwnerSignupCta";
 import { CitySupplyProof } from "@/components/CitySupplyProof";
 import { TrackedLink } from "@/components/TrackedLink";
 import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
+import OwnerPageEngagement from "@/components/OwnerPageEngagement";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 
 // v560 — moteur de croissance : pages « trouver un pet sitter à <ville> »
@@ -477,6 +478,8 @@ export default function OwnerCityPage({
   return (
     <div className="mx-auto max-w-3xl px-4 pb-16 pt-7 md:pb-24 md:pt-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {/* 29/09 (SAM) — repères de lecture (3 s, 15 s, mi-page), rien d'affiché. */}
+      <OwnerPageEngagement />
 
       {/* v575 — PREMIER ÉCRAN (360 × 640) : titre, 3 preuves, UN bouton.
           Aucune image, aucune police supplémentaire, hauteurs fixes → pas de
