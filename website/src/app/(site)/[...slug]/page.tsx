@@ -82,6 +82,19 @@ function webFallbackFor(path: string): { href: string; label: string } | null {
     case "auth":
       // /auth/* — flow de bridge session web → app
       return { href: "/login", label: "Se connecter" };
+    // v603 (ZOE) — cibles précises des e-mails de notification (même routeur
+    // que la cloche et le push du 602). Sans ces cas, la page ne tentait pas
+    // d'ouvrir l'app et n'offrait aucun bouton : impasse.
+    case "request":
+    case "application":
+      return { href: "/bookings", label: "Voir mes réservations" };
+    case "identity":
+    case "reviews":
+      return { href: "/profile", label: "Voir mon profil" };
+    case "member":
+      return { href: "/friends", label: "Voir mes amis" };
+    case "shop":
+      return { href: "/boutique", label: "Voir la boutique" };
     default:
       return null;
   }
