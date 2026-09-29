@@ -354,7 +354,7 @@ export default function MapPage() {
       if (!el) { setFitH(null); return; }
       // Bureau aussi : carte (et panneau latéral) jusqu'au bas de l'écran.
       const top = el.getBoundingClientRect().top + window.scrollY;
-      setFitH(Math.max(window.innerWidth >= 1024 ? 560 : 420, Math.round(window.innerHeight - top)));
+      setFitH(Math.max(window.innerWidth >= 1024 ? 340 : 420, Math.round(window.innerHeight - top)));
     };
     fit();
     window.addEventListener("resize", fit);
@@ -420,7 +420,7 @@ export default function MapPage() {
   // (« Direct », « Amis ») : écart entre boutons resserré (10 → 4 px), puis
   // boutons réduits (44 → 36 px) si la carte est basse.
   const topRowRef = useRef<HTMLDivElement | null>(null);
-  const [railFit, setRailFit] = useState<{ gap: number; btn: number }>({ gap: 10, btn: 44 });
+  const [railFit, setRailFit] = useState<{ gap: number; btn: number; maxH: number }>({ gap: 10, btn: 44, maxH: 0 });
   // Carte très basse et rangée du haut sur 2 lignes : « Amis » passe en rond
   // (icône seule, nom en info-bulle) pour que tout tienne sur UNE ligne.
   const [compactTop, setCompactTop] = useState(false);
@@ -455,12 +455,16 @@ export default function MapPage() {
       const avail = h - topReserve - 16 - 16;
       setFocusTop((p) => (p === Math.round(topReserve) ? p : Math.round(topReserve)));
       const { gap, btn } = fit(avail);
-      setRailFit((p) => (p.gap === gap && p.btn === btn ? p : { gap, btn }));
+      // 29/09 (LEO) — fenêtre très basse : le rail ne dépasse plus jamais la
+      // carte (il défile, comme `_railScroller` de l'app) — sa languette reste
+      // donc toujours dans le cadre.
+      const maxH = N * btn + (N - 1) * gap + 16 > avail ? Math.max(120, Math.floor(avail)) : 0;
+      setRailFit((p) => (p.gap === gap && p.btn === btn && p.maxH === maxH ? p : { gap, btn, maxH }));
       const cap = capsuleRef.current;
       if (cap) {
         const natural = cap.offsetHeight;
         const room = h - (12 + 44 + 10) - 16;
-        const sc = natural > room ? Math.max(0.72, Math.floor((room / natural) * 100) / 100) : 1;
+        const sc = natural > room ? Math.max(0.6, Math.floor((room / natural) * 100) / 100) : 1;
         setCapsuleScale((p) => (p === sc ? p : sc));
       }
       const rowH = row ? row.getBoundingClientRect().height : 44;
@@ -1495,7 +1499,7 @@ export default function MapPage() {
       {/* ── 2 COLONNES sur ordinateur : carte | panneau ── */}
       <div className="mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5">
         {/* ── COLONNE CARTE ── */}
-        <div ref={mapColRef} className="relative -mx-4 overflow-x-clip h-[64vh] min-h-[420px] lg:mx-0 lg:h-[calc(100vh-230px)] lg:min-h-[560px]" style={fitH ? { height: fitH } : undefined}>
+        <div ref={mapColRef} className="relative -mx-4 overflow-x-clip h-[64vh] min-h-[420px] lg:mx-0 lg:h-[calc(100vh-230px)] lg:min-h-[340px]" style={fitH ? { height: fitH } : undefined}>
           {/* 25/09 (585, lot 2 — bug 15) — bouton « Amis » bien visible : amis,
               demandes, en direct et PawFamily (page /friends). */}
           {/* 25/09 (587, point 1a) — coin haut-gauche, juste sous le titre
@@ -1622,7 +1626,7 @@ export default function MapPage() {
               direct · 12 s », chevron) ; un clic ouvre une petite feuille
               Recentrer / Itinéraire / Message / Arrêter de suivre. */}
           {followed && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-5 z-[1050] flex flex-col items-center gap-2 px-[72px]">
+            <div className="pointer-events-none absolute inset-x-0 bottom-5 z-[1050] flex flex-col items-center gap-2 px-[100px] max-[420px]:px-[96px]">
               {followSheet && (
                 <div className="pointer-events-auto w-full max-w-[300px] rounded-[20px] bg-white p-2 shadow-[0_12px_32px_-8px_rgba(76,29,149,0.45)]" role="dialog" aria-label={t("live_sheet_title")}>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -1671,7 +1675,7 @@ export default function MapPage() {
             </div>
           )}
           {(liveToast || friendsOnlyMsg) && (
-            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[72px] ${followed ? "bottom-[76px]" : "bottom-5"}`}>
+            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[100px] max-[420px]:px-[96px] ${followed ? "bottom-[76px]" : "bottom-5"}`}>
               {liveToast
                 ? <StatusToast key={`lt-${liveToast}`} kind={liveToast === t("route_pick_target") ? "follow" : "liveOff"} text={liveToast} dark={dark} />
                 : friendsOnlyMsg && <StatusToast key={`vt-${friendsOnlyMsg.kind}-${friendsOnlyMsg.text}`} kind={friendsOnlyMsg.kind} text={friendsOnlyMsg.text} dark={dark} />}
@@ -1690,9 +1694,12 @@ export default function MapPage() {
               symétrique de la barre de droite ; 9 boutons « bijou » à la
               couleur de l'app (même ordre) + icônes Material Symbols pleines.
               Aucune fonction retirée : mêmes actions qu'avant. */}
-          <div className="absolute bottom-4 left-3 z-[1000]" style={{ transform: railCollapsed ? "translateX(calc(-100% - 12px))" : "translateX(0)", opacity: railCollapsed ? 0 : 1, transition: "transform 350ms cubic-bezier(.3,.7,.2,1), opacity 350ms cubic-bezier(.3,.7,.2,1)" }}>
-          <div onPointerDown={revealControls} className={fadeCls} {...inertIf(railCollapsed)}>
-            <div className="flex w-[50px] flex-col items-center rounded-[25px] px-[3px] py-2" style={{ ...barGlass(dark), gap: railFit.gap }}>
+          <div className="absolute bottom-4 left-3 z-[1000]" style={{ transform: railCollapsed ? "translateX(calc(-100% - 12px))" : "translateX(0)", transition: "transform 350ms cubic-bezier(.3,.7,.2,1)" }}>
+          {/* 29/09 (LEO) — l'effacement (opacité 0) ne touche QUE la barre :
+              avant, il était posé sur le bloc qui contient aussi la languette,
+              qui disparaissait avec elle une fois la barre rangée. */}
+          <div onPointerDown={revealControls} className={fadeCls} style={railCollapsed ? { opacity: 0 } : undefined} {...inertIf(railCollapsed)}>
+            <div className="hps-rail-scroll flex w-[50px] flex-col items-center rounded-[25px] px-[3px] py-2" style={{ ...barGlass(dark), gap: railFit.gap, ...(railFit.maxH ? { maxHeight: railFit.maxH, overflowY: "auto", overscrollBehavior: "contain", scrollbarWidth: "none" } : {}) }}>
               {(
                 [
                   { k: "around", pal: JEWEL.around, icon: "explore_nearby", label: t("map_around_title"), on: () => { setSheet("full"); document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" }); } },
@@ -1749,8 +1756,8 @@ export default function MapPage() {
               la barre de gauche. Viseur (bijou du rôle), +, −, satellite, tout
               le monde (rose), qui me voit, puis le bouton principal du rôle :
               « Publier » (propriétaire) ou « Demandes » (gardien, promeneur). */}
-          <div className="absolute bottom-4 right-3 z-[1000]" style={{ transform: capsuleCollapsed ? "translateX(calc(100% + 12px))" : "translateX(0)", opacity: capsuleCollapsed ? 0 : 1, transition: "transform 350ms cubic-bezier(.3,.7,.2,1), opacity 350ms cubic-bezier(.3,.7,.2,1)" }}>
-          <div onPointerDown={revealControls} className={fadeCls} style={capsuleScale < 1 ? { transform: `scale(${capsuleScale})`, transformOrigin: "bottom right" } : undefined} {...inertIf(capsuleCollapsed)}>
+          <div className="absolute bottom-4 right-3 z-[1000]" style={{ transform: capsuleCollapsed ? "translateX(calc(100% + 12px))" : "translateX(0)", transition: "transform 350ms cubic-bezier(.3,.7,.2,1)" }}>
+          <div onPointerDown={revealControls} className={fadeCls} style={{ ...(capsuleScale < 1 ? { transform: `scale(${capsuleScale})`, transformOrigin: "bottom right" } : {}), ...(capsuleCollapsed ? { opacity: 0 } : {}) }} {...inertIf(capsuleCollapsed)}>
             <div ref={capsuleRef} className="flex w-[50px] flex-col items-center rounded-[25px] px-[3px] py-2" style={barGlass(dark)}>
               <PawJewel palette={JEWEL_ROLE[roleKey(myRole)]} icon="my_location" label={t("map_locate_btn")} onClick={locateMe}>
                 {locating ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" /> : undefined}
@@ -1921,7 +1928,7 @@ export default function MapPage() {
             « Mes abonnements sur la carte », puis les listes. Aucune fonction
             retirée. */}
         <aside
-          className={`fixed inset-x-0 bottom-0 z-[1500] flex flex-col rounded-t-[28px] bg-[#FFF8F4] shadow-[0_-10px_40px_-10px_rgba(35,23,21,0.35)] transition-[height,box-shadow] duration-300 ${sheetH} lg:static lg:z-auto lg:h-[calc(100vh-230px)] lg:min-h-[560px] lg:rounded-[28px] lg:bg-[#FAF1EC] ${optionsFlash ? "lg:shadow-[0_0_0_3px_#C92A12,0_18px_40px_-18px_rgba(185,36,37,0.6)]" : "lg:shadow-none"}`}
+          className={`fixed inset-x-0 bottom-0 z-[1500] flex flex-col rounded-t-[28px] bg-[#FFF8F4] shadow-[0_-10px_40px_-10px_rgba(35,23,21,0.35)] transition-[height,box-shadow] duration-300 ${sheetH} lg:static lg:z-auto lg:h-[calc(100vh-230px)] lg:min-h-[340px] lg:rounded-[28px] lg:bg-[#FAF1EC] ${optionsFlash ? "lg:shadow-[0_0_0_3px_#C92A12,0_18px_40px_-18px_rgba(185,36,37,0.6)]" : "lg:shadow-none"}`}
          style={fitH && typeof window !== "undefined" && window.innerWidth >= 1024 ? { height: fitH } : undefined}>
           {/* Poignée (téléphone, tablette) : glisser vers le bas = ranger,
               vers le haut = agrandir ; un clic alterne moitié / plein écran. */}
@@ -2383,7 +2390,7 @@ export default function MapPage() {
       {/* 25/09 (587) — lueur verte qui respire de la pilule « En direct » (fixe si « réduire les animations »). */}
       <style>{`@keyframes hps-live-breathe{0%,100%{box-shadow:0 0 0 3px rgba(22,163,74,.28),0 0 14px 3px rgba(22,163,74,.45)}50%{box-shadow:0 0 0 6px rgba(22,163,74,.22),0 0 26px 9px rgba(22,163,74,.62)}}.hps-live-breathe{animation:hps-live-breathe 1.6s ease-in-out infinite}@media (prefers-reduced-motion: reduce){.hps-live-breathe{animation:none}}`}</style>
       <PawMapFonts />
-      <style>{`${JEWEL_CSS}@keyframes hps-dot-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}50%{box-shadow:0 0 0 5px rgba(255,255,255,0)}}.hps-dot-pulse{animation:hps-dot-pulse 1.6s ease-in-out infinite}@media (prefers-reduced-motion: reduce){.hps-dot-pulse{animation:none}}`}</style>
+      <style>{`${JEWEL_CSS}.hps-rail-scroll::-webkit-scrollbar{display:none}@keyframes hps-dot-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}50%{box-shadow:0 0 0 5px rgba(255,255,255,0)}}.hps-dot-pulse{animation:hps-dot-pulse 1.6s ease-in-out infinite}@media (prefers-reduced-motion: reduce){.hps-dot-pulse{animation:none}}`}</style>
       <PawMapLegendModal open={legendOpen} onClose={() => setLegendOpen(false)} role={roleKey(myRole)} />
       {/* 26/09 (589) — fenêtre d'annonce (une fois par navigateur). */}
       <PawMapAnnouncement enabled={!loading} dark={dark} />
@@ -2523,8 +2530,14 @@ function inertIf(on: boolean): Record<string, string> {
  */
 function BarTab({ side, collapsed, dark, label, onClick, color, className = "" }: { side: "left" | "right"; collapsed: boolean; dark: boolean; label: string; onClick: () => void; color: string; className?: string }) {
   // Barre gauche : « < » la range, « > » la ramène ; barre droite : l'inverse.
-  // 590 (§3.3) — languette de verre 24 × 46, chevron à la couleur du rôle.
+  // 29/09 (LEO) — même languette que l'app (598, `PawBarCollapseTab`) : fond
+  // de verre teinté du rôle (mélange PLEIN, jamais gris), contour + chevron
+  // dans l'orange du MENU (#C92A12 ; éclairci en nuit). Rangée, elle se colle
+  // au bord de l'écran, arrondie du seul côté intérieur (24 × 44).
   const pointLeft = side === "left" ? !collapsed : collapsed;
+  const ink = dark ? mixHex(MENU_ORANGE, "#FFFFFF", 0.65) : MENU_ORANGE;
+  const glass = dark ? mixHex(color, "#221A2E", 0.3) : mixHex(color, "#FFFFFF", 0.16);
+  const radius = collapsed ? (side === "left" ? "0 14px 14px 0" : "14px 0 0 14px") : "14px";
   return (
     <button
       type="button"
@@ -2532,17 +2545,22 @@ function BarTab({ side, collapsed, dark, label, onClick, color, className = "" }
       aria-label={label}
       title={label}
       aria-expanded={!collapsed}
-      className={`absolute bottom-1 grid h-12 w-11 ${side === "left" ? "left-full justify-items-start pl-1" : "right-full justify-items-end pr-1"} items-center ${className}`}
-      style={{ opacity: 1 }}
+      data-bar-tab={side}
+      className={`absolute bottom-1 z-[70] grid h-12 w-11 ${side === "left" ? "left-full justify-items-start" : "right-full justify-items-end"} ${collapsed ? "" : side === "left" ? "pl-1" : "pr-1"} items-center ${className}`}
     >
-      <span className="grid h-[46px] w-6 place-items-center rounded-[12px] transition-transform duration-200 hover:scale-[1.06] active:scale-95" style={barGlass(dark)}>
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={dark ? "#FBEFE6" : color} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <span
+        className={`grid place-items-center transition-transform duration-200 hover:scale-[1.06] active:scale-95 ${collapsed ? "h-11 w-6" : "h-[46px] w-6"}`}
+        style={{ background: glass, borderRadius: radius, border: `1.2px solid ${ink}`, boxShadow: `0 2px 8px ${color}38` }}
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={ink} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d={pointLeft ? "M14 7l-5 5 5 5" : "M10 7l5 5-5 5"} />
         </svg>
       </span>
     </button>
   );
 }
+/** Orange du MENU (haut de la pilule du bas) — contour et chevron des languettes, comme l'app 598. */
+const MENU_ORANGE = "#C92A12";
 /**
  * 590 (§3.3) — bouton OUTIL de la barre droite : rond 38 px (zone 44), fond
  * teinté doux PLEIN (jamais une opacité posée sur du blanc = gris), liseré
