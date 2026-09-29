@@ -3089,20 +3089,26 @@ export async function saveMapSeekPrefs(layers: MapLayerPrefs, memberRoles?: stri
 // gauche, capsule droite) retenues sur le COMPTE : pawMap.railCollapsed /
 // pawMap.capsuleCollapsed (mêmes clés que l'app, serveur v587). Clé absente
 // (serveur plus ancien) = null → la page retombe sur cet appareil.
-export type MapBarPrefs = { railCollapsed: boolean | null; capsuleCollapsed: boolean | null };
+// 29/09/2026 (parité 601) — + ordre et choix des boutons des deux barres :
+// pawMap.rail (gauche) et pawMap.capsule (droite), mêmes ids que l'app.
+// null = jamais réglé (ordre d'origine).
+export type MapBarPrefs = { railCollapsed: boolean | null; capsuleCollapsed: boolean | null; rail: string[] | null; capsule: string[] | null };
 export async function getMapBarPrefs(): Promise<MapBarPrefs | null> {
   try {
-    const raw = await request<{ pawMap?: { railCollapsed?: unknown; capsuleCollapsed?: unknown } }>(`/users/me/map-prefs`);
+    const raw = await request<{ pawMap?: { railCollapsed?: unknown; capsuleCollapsed?: unknown; rail?: unknown; capsule?: unknown } }>(`/users/me/map-prefs`);
     const pm = raw?.pawMap || {};
+    const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : null);
     return {
       railCollapsed: typeof pm.railCollapsed === "boolean" ? pm.railCollapsed : null,
       capsuleCollapsed: typeof pm.capsuleCollapsed === "boolean" ? pm.capsuleCollapsed : null,
+      rail: list(pm.rail),
+      capsule: list(pm.capsule),
     };
   } catch {
     return null;
   }
 }
-export async function saveMapBarPrefs(patch: Partial<Record<"railCollapsed" | "capsuleCollapsed", boolean>>): Promise<boolean> {
+export async function saveMapBarPrefs(patch: Partial<Record<"railCollapsed" | "capsuleCollapsed", boolean> & Record<"rail" | "capsule", string[]>>): Promise<boolean> {
   try {
     await request(`/users/me/map-prefs`, { method: "PATCH", body: JSON.stringify({ pawMap: patch }) });
     return true;
@@ -3217,4 +3223,20 @@ export async function getMapAnnouncements(lang: string): Promise<MapAnnouncement
     out.push({ id, title, body, kind: String(o.kind ?? "info"), url: String(o.url ?? "").trim() });
   }
   return out;
+}
+
+// 29/09/2026 (parité 601) — état de MON direct (Balade), tous appareils :
+// GET /friends/live-state (serveur 589) → en cours, heure de départ, nombre de
+// personnes qui me suivent. null = lecture impossible (la page garde son repli).
+export type MyLiveState = { active: boolean; startedAt: number | null; followers: number };
+export async function getMyLiveState(): Promise<MyLiveState | null> {
+  try {
+    const r = await request<{ active?: unknown; startedAt?: unknown; followers?: unknown }>(`/friends/live-state`);
+    if (!r || typeof r.active !== "boolean") return null;
+    const st = typeof r.startedAt === "string" ? new Date(r.startedAt).getTime() : NaN;
+    const f = typeof r.followers === "number" && Number.isFinite(r.followers) ? Math.max(0, Math.round(r.followers)) : 0;
+    return { active: r.active, startedAt: Number.isFinite(st) ? st : null, followers: f };
+  } catch {
+    return null;
+  }
 }

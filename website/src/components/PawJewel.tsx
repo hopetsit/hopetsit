@@ -47,6 +47,8 @@ export const jewelGradient = (p: JewelPalette) => `linear-gradient(170deg, ${p[0
 const ICON_NAMES = [
   "add", "add_location_alt", "assignment", "award_star", "campaign", "close", "explore_nearby", "forum", "group", "groups",
   "map", "my_location", "photo_camera", "public", "question_mark", "refresh", "remove", "route", "search", "settings", "tour", "warning",
+  // 29/09 (parité 601) — bouton Balade, réglage des barres.
+  "arrow_downward", "arrow_upward", "directions_walk", "edit", "swap_vert", "visibility", "smartphone", "push_pin",
 ].sort();
 const FONT_URLS = [
   `https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,600,1,200&icon_names=${ICON_NAMES.join(",")}&display=block`,

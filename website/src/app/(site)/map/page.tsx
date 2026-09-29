@@ -73,6 +73,7 @@ import {
   getMyBenefits,
   getMapSeekPrefs,
   getMapBarPrefs,
+  getMyLiveState,
   saveMapBarPrefs,
   saveMapSeekPrefs,
   saveMapLayerPrefs,
@@ -197,7 +198,7 @@ export default function MapPage() {
   // + dernier signe de vie location.updatedAt, règle serveur liveState : actif
   // si le dernier signe de vie a moins de 10 min). La durée s'affiche quand le
   // serveur donne l'heure de départ (liveShareStartedAt), sinon « En direct ».
-  const [myLive, setMyLive] = useState<{ on: boolean; startedAt: number | null }>({ on: false, startedAt: null });
+  const [myLive, setMyLive] = useState<{ on: boolean; startedAt: number | null; followers: number }>({ on: false, startedAt: null, followers: 0 });
   useEffect(() => {
     const me = getStoredUser();
     // 587 (Daniel : « le bouton en haut à gauche pour les 3 profils ») — un
@@ -205,6 +206,14 @@ export default function MapPage() {
     if (!me) return;
     let stop = false;
     const read = async () => {
+      // 29/09 (parité 601) — d'abord l'état du direct sur TOUS mes appareils
+      // (GET /friends/live-state : en cours, départ, nombre qui me suivent),
+      // comme l'app ; repli sur la lecture du profil ci-dessous.
+      const st = await getMyLiveState();
+      if (st) {
+        if (!stop) setMyLive({ on: st.active, startedAt: st.active ? st.startedAt : null, followers: st.active ? st.followers : 0 });
+        return;
+      }
       try {
         const { getMyProfile } = await import("@/lib/api");
         const p = (await getMyProfile()) as unknown as { location?: { liveShareActive?: boolean; updatedAt?: string | null; liveShareStartedAt?: string | null }; liveShareStartedAt?: string | null };
@@ -213,7 +222,7 @@ export default function MapPage() {
         const on = loc.liveShareActive === true && Number.isFinite(seen) && Date.now() - seen <= 10 * 60 * 1000;
         const st = loc.liveShareStartedAt || p?.liveShareStartedAt || null;
         const startedAt = st && Number.isFinite(new Date(st).getTime()) ? new Date(st).getTime() : null;
-        if (!stop) setMyLive({ on, startedAt: on ? startedAt : null });
+        if (!stop) setMyLive({ on, startedAt: on ? startedAt : null, followers: 0 });
       } catch { /* repli : arrêté */ }
     };
     void read();
@@ -321,6 +330,35 @@ export default function MapPage() {
     });
     return () => { stop = true; };
   }, []);
+  // 29/09 (parité 601) — les DEUX barres personnalisables, comme l'app :
+  // ordre et choix des boutons retenus sur le COMPTE (pawMap.rail /
+  // pawMap.capsule, mêmes ids que l'app), recopiés sur l'appareil.
+  // Barre de droite : ma position, + et − restent toujours (jamais listés).
+  const [railOrder, setRailOrder] = useState<string[]>(RAIL_IDS);
+  const [capsuleOrder, setCapsuleOrder] = useState<string[]>(CAPSULE_IDS);
+  const [customizeBar, setCustomizeBar] = useState<"rail" | "capsule" | null>(null);
+  useEffect(() => {
+    try {
+      const r = localStorage.getItem("hopetsit:mapRail");
+      if (r) setRailOrder(normalizeRail(JSON.parse(r)));
+      const c = localStorage.getItem("hopetsit:mapCapsule");
+      if (c) setCapsuleOrder(normalizeCapsule(JSON.parse(c)));
+    } catch { /* stockage indisponible */ }
+    if (!getStoredUser()) return;
+    let stop = false;
+    void getMapBarPrefs().then((p) => {
+      if (stop || !p) return;
+      if (p.rail) { const o = normalizeRail(p.rail); setRailOrder(o); try { localStorage.setItem("hopetsit:mapRail", JSON.stringify(o)); } catch { /* */ } }
+      if (p.capsule) { const o = normalizeCapsule(p.capsule); setCapsuleOrder(o); try { localStorage.setItem("hopetsit:mapCapsule", JSON.stringify(o)); } catch { /* */ } }
+    });
+    return () => { stop = true; };
+  }, []);
+  function saveBarOrder(bar: "rail" | "capsule", order: string[]) {
+    const o = bar === "rail" ? normalizeRail(order) : normalizeCapsule(order);
+    if (bar === "rail") setRailOrder(o); else setCapsuleOrder(o);
+    try { localStorage.setItem(bar === "rail" ? "hopetsit:mapRail" : "hopetsit:mapCapsule", JSON.stringify(o)); } catch { /* */ }
+    if (getStoredUser()) void saveMapBarPrefs({ [bar]: o });
+  }
   function toggleBar(key: "railCollapsed" | "capsuleCollapsed") {
     const cur = key === "railCollapsed" ? railCollapsed : capsuleCollapsed;
     const next = !cur;
@@ -434,7 +472,9 @@ export default function MapPage() {
   const cityInputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
     if (loading) return;
-    const N = 9; // boutons du rail gauche (même ordre que l'app, 590 : + Amis en direct)
+    // Boutons affichés du rail gauche (choisis par la personne, 601) + le
+    // petit bouton « Personnaliser » (compté comme un bouton : marge sûre).
+    const N = Math.max(2, railOrder.length + 1);
     const measure = () => {
       const col = mapColRef.current;
       if (!col) return;
@@ -484,7 +524,7 @@ export default function MapPage() {
     }
     window.addEventListener("resize", measure);
     return () => { ro?.disconnect(); window.removeEventListener("resize", measure); };
-  }, [loading, fitH]);
+  }, [loading, fitH, railOrder.length]);
 
   const formatOpenStatus = useCallback(
     (raw: string): { label: string; open: boolean } | null => {
@@ -1506,36 +1546,10 @@ export default function MapPage() {
               PawMap : pilule « ● Direct » (gardien / promeneur), puis « Amis ».
               Rangée qui passe à la ligne plutôt que de chevaucher « ? ». */}
           <div ref={topRowRef} className={`pointer-events-none absolute left-3 right-[200px] top-3 z-[1000] flex flex-wrap items-start gap-2 ${fadeCls}`}>
-            {/* 587 — pilule « ● Direct » pour les 3 profils (propriétaire compris).
-                590 (§3.4) — off : encre violette, point rouge, « Direct off » ;
-                on : vert, point blanc qui bat. 34 px, contour blanc 2 px. */}
-            {getStoredUser() && (
-              <button
-                type="button"
-                onPointerDown={revealControls}
-                onClick={() => setLiveInfoOpen(true)}
-                aria-label={myLive.on ? t("m586_live_on") : t("m586_live_off")}
-                title={myLive.on ? t("m586_live_on") : t("m586_live_off")}
-                className="pointer-events-auto inline-flex min-h-[44px] items-center transition-transform duration-150 hover:-translate-y-px active:scale-95"
-              >
-                <span
-                  className="relative inline-flex h-[34px] items-center gap-2 overflow-hidden whitespace-nowrap rounded-[17px] pl-3 pr-3.5 text-[13px] font-bold text-white"
-                  style={{
-                    fontFamily: "Poppins, Inter, system-ui, sans-serif",
-                    background: myLive.on ? "linear-gradient(170deg,#43B862,#1F7A37)" : "linear-gradient(170deg,#2C2540,#17121F)",
-                    boxShadow: `0 0 0 2px #FFFFFF, inset 0 1px 0 rgba(255,255,255,0.28), 0 8px 18px -8px ${myLive.on ? "rgba(31,122,55,0.8)" : "rgba(23,18,31,0.8)"}`,
-                  }}
-                >
-                  <span aria-hidden="true" className="pointer-events-none absolute inset-x-2 top-[2px] h-[45%] rounded-full" style={{ background: "linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0))" }} />
-                  <span aria-hidden="true" className={`relative block h-2.5 w-2.5 rounded-full ${myLive.on ? "hps-dot-pulse" : ""}`} style={{ background: myLive.on ? "#FFFFFF" : "#E8402C" }} />
-                  <span className="relative">
-                    {myLive.on
-                      ? (myLive.startedAt ? t("m587_live_since").replace("{d}", formatAgo(nowTs - myLive.startedAt, t)) : t("m590_on_walk"))
-                      : t("m590_direct_off")}
-                  </span>
-                </span>
-              </button>
-            )}
+            {/* 29/09 (parité 601) — la pilule « ● Direct » du haut à gauche est
+                RETIRÉE, comme dans l'app : pendant une balade, un drapeau vert
+                compact (durée · qui me suit) se pose au-dessus du bouton
+                Balade de la barre de droite. */}
             <Link href="/friends" onPointerDown={revealControls} title={t("map_friends_btn")} aria-label={t("map_friends_btn")} className={`pointer-events-auto inline-flex min-h-[44px] items-center gap-2 whitespace-nowrap rounded-full py-1 text-sm font-bold hover:scale-[1.03] ${compactTop ? "px-1.5" : "pl-1.5 pr-4"}`} style={{ ...glassStyle(dark), color: dark ? "#FBEFE6" : "#231715" }}>
               <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#F48AB4,#E0568B)", border: "1.5px solid #fff" }}><AppIcon name="friends" size={17} color="#fff" /></span>
               {!compactTop && t("map_friends_btn")}
@@ -1703,7 +1717,7 @@ export default function MapPage() {
               {(
                 [
                   { k: "around", pal: JEWEL.around, icon: "explore_nearby", label: t("map_around_title"), on: () => { setSheet("full"); document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" }); } },
-                  { k: "route", pal: JEWEL.route, icon: "route", label: t("map_directions_btn"), on: () => {
+                  { k: "directions", pal: JEWEL.route, icon: "route", label: t("map_directions_btn"), on: () => {
                     if (selectedPoi) { const [lng, lat] = selectedPoi.location.coordinates; handleDirections({ lat, lng }); }
                     else if (followed) handleDirections({ lat: followed.lat, lng: followed.lng });
                     else {
@@ -1714,19 +1728,19 @@ export default function MapPage() {
                     }
                   } },
                   // 590 — « Amis en direct » (rose), comme la barre de l'app : la liste de qui est en direct.
-                  { k: "friends", pal: JEWEL.friends, icon: "group", label: t("map_live_friends"), on: () => {
+                  { k: "live_friends", pal: JEWEL.friends, icon: "group", label: t("map_live_friends"), on: () => {
                     if (!showFriends) setFriendsLayer(true);
                     setSheet("full");
                     setTimeout(() => document.getElementById("live-friends")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
                   } },
                   { k: "chat", pal: JEWEL.chat, icon: "forum", label: t("dash_card_messages_title"), on: () => router.push("/chat") },
                   { k: "photo", pal: JEWEL.photo, icon: "photo_camera", label: t("map_spot_photo_label"), on: () => openCreate("spot", true) },
-                  { k: "spot", pal: JEWEL.spots, icon: "award_star", label: t("map_panel_spots_title"), on: () => {
+                  { k: "spots", pal: JEWEL.spots, icon: "award_star", label: t("map_panel_spots_title"), on: () => {
                     if (sidePanel === "spots") { setSidePanel(null); return; }
                     setShowSpots(true); setSidePanel("spots"); setSheet("full");
                     setTimeout(() => document.getElementById("side-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
                   }, active: sidePanel === "spots" },
-                  { k: "add", pal: JEWEL.tag, icon: "add_location_alt", label: t("map_tag_spot_cta"), on: () => openCreate("spot") },
+                  { k: "tag", pal: JEWEL.tag, icon: "add_location_alt", label: t("map_tag_spot_cta"), on: () => openCreate("spot") },
                   { k: "report", pal: JEWEL.report, icon: "warning", label: t("map_report_cta"), on: () => openCreate("report") },
                   { k: "feed", pal: JEWEL.feed, icon: "tour", label: t("map_panel_reports_title"), dot: true, on: () => {
                     if (sidePanel === "reports") { setSidePanel(null); return; }
@@ -1734,7 +1748,7 @@ export default function MapPage() {
                     setTimeout(() => document.getElementById("side-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
                   }, active: sidePanel === "reports" },
                 ] as { k: string; pal: JewelPalette; icon: string; label: string; on: () => void; active?: boolean; dot?: boolean }[]
-              ).map((b) => (
+              ).filter((b) => railOrder.includes(b.k)).sort((a, b) => railOrder.indexOf(a.k) - railOrder.indexOf(b.k)).map((b) => (
                 <PawJewel
                   key={`rail-${b.k}`}
                   palette={b.pal}
@@ -1747,6 +1761,8 @@ export default function MapPage() {
                   badge={b.dot ? <JewelDot /> : undefined}
                 />
               ))}
+              {/* 601 — « Personnaliser mes boutons » (même bouton que l'app). */}
+              <BarEditBtn dark={dark} label={t("p601_pawmap_rail_customize")} onClick={() => setCustomizeBar("rail")} />
             </div>
           </div>
           <BarTab side="left" collapsed={railCollapsed} dark={dark} color={ROLE_SOLID_UI[roleKey(myRole)]} className={fadeCls} label={railCollapsed ? t("m587_rail_show") : t("m587_rail_hide")} onClick={() => { revealControls(); toggleBar("railCollapsed"); }} />
@@ -1769,17 +1785,35 @@ export default function MapPage() {
               <CapsuleBtn dark={dark} color={ROLE_SOLID_UI[roleKey(myRole)]} label={t("map_zoom_out")} onClick={() => { try { mapRef.current?.zoomOut(); } catch { /* */ } }}>
                 <PawSymbol name="remove" size={22} />
               </CapsuleBtn>
-              <CapsuleSep dark={dark} />
-              <CapsuleBtn dark={dark} color={ROLE_SOLID_UI[roleKey(myRole)]} label={satellite ? t("map_layer_plan") : t("map_layer_satellite")} pressed={satellite} onClick={() => setSatellite((v) => { try { localStorage.setItem("hopetsit:mapSat", v ? "0" : "1"); } catch { /* */ } return !v; })}>
-                <PawSymbol name={satellite ? "map" : "public"} size={21} />
-              </CapsuleBtn>
-              <CapsuleBtn dark={dark} color="#E8448F" label={showMembers ? t("map_members_hide") : t("map_members_show")} pressed={showMembers} onClick={() => setShowMembers((v) => !v)}>
-                <PawSymbol name="groups" size={21} />
-              </CapsuleBtn>
-              {/* 25/09 (586, point 3) — ŒIL « qui me voit » : un clic = état
-                  suivant (Tous → Amis → Masqué → Tous), pastille 2 s. */}
-              {getStoredUser() && (
+              {/* 29/09 (parité 601) — boutons PERSONNALISABLES, dans l'ordre
+                  choisi (compte, clé `capsule`) : satellite, tout le monde,
+                  Balade, l'œil. Ma position, + et − ci-dessus sont fixes. */}
+              {(capsuleOrder.length > 0 || myLive.on) && <CapsuleSep dark={dark} />}
+              {/* Balade masquée de la barre mais en cours : le drapeau reste (comme l'app). */}
+              {myLive.on && !capsuleOrder.includes("balade") && getStoredUser() && <WalkBadge startedAt={myLive.startedAt} followers={myLive.followers} nowTs={nowTs} t={t} />}
+              {capsuleOrder.map((id) => {
+                if (id === "satellite") return (
+                  <CapsuleBtn key="cap-satellite" dark={dark} color={ROLE_SOLID_UI[roleKey(myRole)]} label={satellite ? t("map_layer_plan") : t("map_layer_satellite")} pressed={satellite} onClick={() => setSatellite((v) => { try { localStorage.setItem("hopetsit:mapSat", v ? "0" : "1"); } catch { /* */ } return !v; })}>
+                    <PawSymbol name={satellite ? "map" : "public"} size={21} />
+                  </CapsuleBtn>
+                );
+                if (id === "everyone") return (
+                  <CapsuleBtn key="cap-everyone" dark={dark} color="#E8448F" label={showMembers ? t("map_members_hide") : t("map_members_show")} pressed={showMembers} onClick={() => setShowMembers((v) => !v)}>
+                    <PawSymbol name="groups" size={21} />
+                  </CapsuleBtn>
+                );
+                if (id === "balade") return getStoredUser() ? (
+                  <div key="cap-balade" className="flex flex-col items-center">
+                    {myLive.on && <WalkBadge startedAt={myLive.startedAt} followers={myLive.followers} nowTs={nowTs} t={t} />}
+                    <PawJewel palette={myLive.on ? WALK_ON : WALK_OFF} icon="directions_walk" label={`${myLive.on ? t("p601_pawmap590_walk_live") : t("p601_pawmap590_walk")} — ${t("p601_pawmap586_direct_help")}`} onClick={() => setLiveInfoOpen(true)} active={myLive.on} />
+                    <span className="-mt-1 whitespace-nowrap text-[9.5px] font-bold leading-none" style={{ color: myLive.on ? "#2A9A48" : dark ? "#F6F1EE" : "#17141F", fontFamily: "Poppins, Inter, system-ui, sans-serif" }}>{myLive.on ? t("p601_pawmap590_walk_live") : t("p601_pawmap590_walk")}</span>
+                  </div>
+                ) : null;
+                // 25/09 (586, point 3) — ŒIL « qui me voit » : un clic = état
+                // suivant (Tous → Amis → Masqué → Tous), pastille 2 s.
+                if (id === "eye") return getStoredUser() ? (
                 <CapsuleBtn
+                  key="cap-eye"
                   dark={dark}
                   color={ROLE_SOLID_UI[roleKey(myRole)]}
                   label={`${t("m586_vis_title")} : ${t(visibility === "all" ? "v587_all_t" : visibility === "friends" ? "v587_friends_t" : "v587_hidden_t")} — ${t(visibility === "all" ? "v587_all_d" : visibility === "friends" ? "v587_friends_d" : "v587_hidden_d")}`}
@@ -1789,7 +1823,11 @@ export default function MapPage() {
                 >
                   {friendsOnlyBusy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <EyeIcon state={visibility} />}
                 </CapsuleBtn>
-              )}
+              ) : null;
+                return null;
+              })}
+              {/* 601 — « Modifier la barre de droite » (même bouton que l'app). */}
+              <BarEditBtn dark={dark} label={t("p601_pawmap601_capsule_customize")} onClick={() => setCustomizeBar("capsule")} />
               {/* Un trait, puis le BOUTON PRINCIPAL du rôle (libellé dessous). */}
               <span aria-hidden="true" className="my-1.5 block h-[2px] w-7 rounded-full" style={{ background: dark ? "#4A3A40" : "#EBD7CC" }} />
               {isOwner ? (
@@ -2396,6 +2434,36 @@ export default function MapPage() {
       <PawMapAnnouncement enabled={!loading} dark={dark} />
       {/* 25/09 (586, point 2) — le site n'émet pas de position GPS en direct :
           le rond « Direct » explique qu'il se lance depuis l'app. */}
+      {customizeBar && (
+        <BarCustomizeSheet
+          title={customizeBar === "rail" ? t("p601_pawmap_rail_customize") : t("p601_pawmap601_capsule_customize")}
+          sub={t("p601_pawmap_rail_customize_sub")}
+          fixedNote={customizeBar === "capsule" ? t("p601_pawmap601_capsule_fixed") : undefined}
+          specs={customizeBar === "rail" ? [
+            { id: "around", label: t("p601_pawmap_btn_around"), help: t("p601_pawmap_rail_help_around"), icon: "explore_nearby", pal: JEWEL.around },
+            { id: "directions", label: t("p601_pawmap_btn_directions"), help: t("p601_pawmap_rail_help_directions"), icon: "route", pal: JEWEL.route },
+            { id: "live_friends", label: t("p601_v565_live_friends_title"), help: t("p601_pawmap_rail_help_live_friends"), icon: "group", pal: JEWEL.friends },
+            { id: "chat", label: t("p601_pawmap_btn_circle_chat"), help: t("p601_pawmap_rail_help_chat"), icon: "forum", pal: JEWEL.chat },
+            { id: "photo", label: t("p601_pawmap_btn_spot_photo"), help: t("p601_pawmap_rail_help_photo"), icon: "photo_camera", pal: JEWEL.photo },
+            { id: "spots", label: t("p601_pawmap_view_spots_btn"), help: t("p601_pawmap_rail_help_spots"), icon: "award_star", pal: JEWEL.spots },
+            { id: "tag", label: t("p601_pawmap_tag_spot"), help: t("p601_pawmap_rail_help_tag"), icon: "add_location_alt", pal: JEWEL.tag },
+            { id: "report", label: t("p601_pawmap_btn_send"), help: t("p601_pawmap_rail_help_report"), icon: "warning", pal: JEWEL.report },
+            { id: "feed", label: t("p601_pawmap_view_reports_btn"), help: t("p601_pawmap_rail_help_feed"), icon: "tour", pal: JEWEL.feed },
+          ] : [
+            { id: "satellite", label: t("p601_pawmap601_satellite"), help: t("p601_pawmap601_satellite_help"), icon: "public", pal: JEWEL_ROLE[roleKey(myRole)] },
+            { id: "everyone", label: t("map_members_show"), help: "", icon: "groups", pal: JEWEL.friends },
+            { id: "balade", label: t("p601_pawmap590_walk"), help: t("p601_pawmap586_direct_help"), icon: "directions_walk", pal: WALK_ON },
+            { id: "eye", label: t("p601_pawmap586_vis_btn"), help: t("p601_pawmap586_vis_help"), icon: "visibility", pal: WALK_OFF },
+          ]}
+          order={customizeBar === "rail" ? railOrder : capsuleOrder}
+          defaults={customizeBar === "rail" ? RAIL_IDS : CAPSULE_IDS}
+          allowEmpty={customizeBar === "capsule"}
+          onChange={(o) => saveBarOrder(customizeBar, o)}
+          onClose={() => setCustomizeBar(null)}
+          roleColor={ROLE_SOLID_UI[roleKey(myRole)]}
+          t={t}
+        />
+      )}
       {liveInfoOpen && (
         <div className="fixed inset-0 z-[3000] flex items-end justify-center bg-[#231715]/55 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="live-info-title" onClick={() => setLiveInfoOpen(false)}>
           <div className="w-full max-w-md rounded-t-[28px] bg-white p-5 shadow-2xl sm:rounded-[28px] sm:p-7" onClick={(e) => e.stopPropagation()}>
@@ -2519,6 +2587,166 @@ function GearIcon({ size = 22, color = "#FFFFFF" }: { size?: number; color?: str
     </svg>
   );
 }
+// ─── 29/09 (parité 601) — barres personnalisables + drapeau Balade ─────────
+/** Rail gauche : les 9 boutons, ordre d'origine (ids de l'app, kPawRailSpecs). */
+const RAIL_IDS = ["around", "directions", "live_friends", "chat", "photo", "spots", "tag", "report", "feed"];
+/** Barre droite : boutons personnalisables, ordre d'origine (kPawCapsuleSlotSpecs). */
+const CAPSULE_IDS = ["satellite", "everyone", "balade", "eye"];
+/** Comme normalizeRailOrder de l'app : ids connus, sans doublon ; vide → ordre d'origine. */
+function normalizeRail(order: unknown): string[] {
+  if (!Array.isArray(order)) return RAIL_IDS;
+  const out: string[] = [];
+  for (const v of order) { const id = String(v); if (RAIL_IDS.includes(id) && !out.includes(id)) out.push(id); }
+  return out.length ? out : RAIL_IDS;
+}
+/** Comme normalizeCapsuleOrder : ids connus, sans doublon ; liste vide permise (les fixes restent). */
+function normalizeCapsule(order: unknown): string[] {
+  if (!Array.isArray(order)) return CAPSULE_IDS;
+  const out: string[] = [];
+  for (const v of order) { const id = String(v); if (CAPSULE_IDS.includes(id) && !out.includes(id)) out.push(id); }
+  return out;
+}
+/** kJewelWalkOn / kJewelWalkOff de l'app : vert en direct, encre chaude à l'arrêt. */
+const WALK_ON: JewelPalette = ["#7FE39A", "#2E9E48", "#1D7A34"];
+const WALK_OFF: JewelPalette = ["#3A2621", "#231715", "#150D0B"];
+
+/**
+ * Drapeau Balade (PawWalkBadge de l'app 601) : badge vert compact posé juste
+ * au-dessus du bouton Balade, SEULEMENT pendant la balade — durée, puis
+ * l'œil et le nombre de personnes qui me suivent. Phrase entière en
+ * info-bulle et pour le lecteur d'écran.
+ */
+function WalkBadge({ startedAt, followers, nowTs, t }: { startedAt: number | null; followers: number; nowTs: number; t: (k: string) => string }) {
+  const min = startedAt ? Math.max(0, Math.floor((nowTs - startedAt) / 60000)) : null;
+  const minTxt = min === null ? null : t("p601_pawmap601_walk_min").replace("{n}", String(min));
+  const sentence = min === null
+    ? t("p601_live589_pill_elsewhere")
+    : [t("p601_pawmap590_on_walk"), minTxt, followers > 0 ? t("p601_pawmap590_followers").replace("{n}", String(followers)) : null].filter(Boolean).join(" · ");
+  return (
+    <span
+      role="status"
+      aria-label={sentence}
+      title={sentence}
+      data-walk-badge=""
+      className="mb-[3px] flex w-[44px] flex-col items-center rounded-[12px] px-[3px] py-1 text-white"
+      style={{ background: "linear-gradient(170deg,#7FE39A -20%,#2E9E48 45%,#1D7A34 100%)", border: "1.4px solid #FFFFFF", boxShadow: "0 3px 8px rgba(29,122,52,0.35)", fontFamily: "Poppins, Inter, system-ui, sans-serif" }}
+    >
+      {minTxt === null ? (
+        <PawSymbol name="smartphone" size={14} color="#FFFFFF" />
+      ) : (
+        <span className="whitespace-nowrap text-[10.5px] font-extrabold leading-[1.05]">{minTxt}</span>
+      )}
+      {followers > 0 && minTxt !== null && (
+        <span className="mt-0.5 inline-flex items-center gap-0.5 text-[9.5px] font-bold leading-[1.05]">
+          <PawSymbol name="visibility" size={11} color="#FFFFFF" />{followers > 99 ? "99+" : followers}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** PawRailEditButton de l'app : petite pilule 38 × 28, flèches + crayon orange. */
+function BarEditBtn({ dark, label, onClick }: { dark: boolean; label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label} title={label} data-bar-edit="" className="hps-jewel grid h-11 w-11 shrink-0 place-items-center">
+      <span
+        className="hps-jewel-disc inline-flex h-[28px] w-[38px] items-center justify-center gap-px rounded-full"
+        style={{ background: dark ? "linear-gradient(180deg,#3A2620,#2A1B17)" : "linear-gradient(180deg,#FFFFFF,#FFEDE7)", border: "1.5px solid #D8352A", boxShadow: "0 3px 8px rgba(216,53,42,0.28)", color: dark ? "#FFB39E" : "#D8352A" }}
+      >
+        <PawSymbol name="swap_vert" size={17} />
+        <PawSymbol name="edit" size={12} />
+      </span>
+    </button>
+  );
+}
+
+type BarSpec = { id: string; label: string; help: string; icon: string; pal: JewelPalette };
+/** Teinte PLEINE et chaude du fond d'une ligne : les palettes très sombres (œil, signalements) donneraient du gris → terre cuite #8B4A32 (même correctif que l'app 601). */
+function rowTint(pal: JewelPalette, a: number): string {
+  const h = pal[1];
+  const lum = (parseInt(h.slice(1, 3), 16) * 299 + parseInt(h.slice(3, 5), 16) * 587 + parseInt(h.slice(5, 7), 16) * 114) / 1000;
+  return mixHex(lum < 80 ? "#8B4A32" : h, "#FFFFFF", a);
+}
+/**
+ * Réglage d'une barre (PawRailCustomizeSheet de l'app) : afficher / masquer
+ * chaque bouton et changer l'ordre (flèches haut / bas au lieu du glisser de
+ * l'app), « Remettre l'ordre d'origine ». Chaque changement est enregistré
+ * aussitôt sur le compte (toutes les apps de la personne).
+ */
+function BarCustomizeSheet({ title, sub, fixedNote, specs, order, defaults, allowEmpty, onChange, onClose, roleColor, t }: {
+  title: string; sub: string; fixedNote?: string; specs: BarSpec[]; order: string[]; defaults: string[]; allowEmpty: boolean;
+  onChange: (o: string[]) => void; onClose: () => void; roleColor: string; t: (k: string) => string;
+}) {
+  const rows = [...order.map((id) => specs.find((x) => x.id === id)).filter(Boolean) as BarSpec[], ...specs.filter((x) => !order.includes(x.id))];
+  const move = (id: string, d: -1 | 1) => {
+    const i = order.indexOf(id);
+    const j = i + d;
+    if (i < 0 || j < 0 || j >= order.length) return;
+    const o = [...order];
+    [o[i], o[j]] = [o[j], o[i]];
+    onChange(o);
+  };
+  const toggle = (id: string) => {
+    if (order.includes(id)) {
+      if (!allowEmpty && order.length <= 1) return;
+      onChange(order.filter((x) => x !== id));
+    } else onChange([...order, id]);
+  };
+  return (
+    <div className="fixed inset-0 z-[2100] flex items-end justify-center bg-[#231715]/50 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+      <div className="flex max-h-[88vh] w-full max-w-[460px] flex-col rounded-t-[28px] bg-[#FFF8F4] shadow-[0_-10px_40px_-10px_rgba(35,23,21,0.35)] sm:rounded-[28px]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start gap-3 px-5 pb-2 pt-5">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-lg font-bold leading-snug text-[#231715]">{title}</h2>
+            <p className="mt-1 text-[13px] leading-snug text-[#6E4F48]">{sub}</p>
+            {fixedNote && <p className="mt-2 flex items-center gap-1.5 text-[12.5px] font-semibold text-[#3A2621]"><PawSymbol name="push_pin" size={15} color="#C92A12" />{fixedNote}</p>}
+          </div>
+          <button type="button" onClick={onClose} aria-label={t("common_close")} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#FAF1EC] text-[#231715]">
+            <PawSymbol name="close" size={20} />
+          </button>
+        </div>
+        <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-4 pb-2">
+          {rows.map((r) => {
+            const on = order.includes(r.id);
+            const i = order.indexOf(r.id);
+            return (
+              <li key={r.id} data-bar-row={r.id} className="flex items-center gap-2 rounded-[18px] px-2 py-2" style={{ background: rowTint(r.pal, 0.08), boxShadow: `inset 0 0 0 1px ${rowTint(r.pal, 0.3)}` }}>
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: `linear-gradient(170deg,${r.pal[0]} -20%,${r.pal[1]} 45%,${r.pal[2]} 100%)` }}>
+                  <PawSymbol name={r.icon} size={20} color="#FFFFFF" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold leading-tight text-[#231715]">{r.label}</span>
+                  {r.help && <span className="mt-0.5 block text-[11.5px] leading-snug text-[#6E4F48]">{r.help}</span>}
+                </span>
+                {on && (
+                  <span className="flex shrink-0 flex-col">
+                    <button type="button" disabled={i <= 0} onClick={() => move(r.id, -1)} aria-label={`${r.label} ↑`} className="grid h-7 w-8 place-items-center rounded-full disabled:opacity-30" style={{ color: roleColor }}><PawSymbol name="arrow_upward" size={17} /></button>
+                    <button type="button" disabled={i >= order.length - 1} onClick={() => move(r.id, 1)} aria-label={`${r.label} ↓`} className="grid h-7 w-8 place-items-center rounded-full disabled:opacity-30" style={{ color: roleColor }}><PawSymbol name="arrow_downward" size={17} /></button>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={on}
+                  aria-label={r.label}
+                  onClick={() => toggle(r.id)}
+                  className="relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors"
+                  style={{ background: on ? r.pal[1] : "#EBD7CC" }}
+                >
+                  <span className="absolute top-[3px] h-6 w-6 rounded-full bg-white shadow transition-[left]" style={{ left: on ? 23 : 3 }} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="flex gap-2 px-4 pb-5 pt-2">
+          <button type="button" onClick={() => onChange(defaults)} className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-[16px] px-3 text-sm font-bold text-[#9E1F0B]" style={{ boxShadow: "inset 0 0 0 1.5px #C92A12" }}><PawSymbol name="refresh" size={18} color="#C92A12" />{t("p601_pawmap_rail_reset")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Barre rangée hors écran : ni focus clavier ni lecteur d'écran (React 18 : `inert` en attribut texte). */
 function inertIf(on: boolean): Record<string, string> {
   return on ? { inert: "", "aria-hidden": "true" } : {};
