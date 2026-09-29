@@ -98,10 +98,16 @@ const buildAppRoute = (notifType, data = {}) => {
   if (t === 'friend_request_received' || t === 'family_invitation_received') {
     return '/friends/requests';
   }
-  if (t === 'live_tracking_request_received') {
-    return conversationId ? chatPath : '/friends/requests';
+  // v602 — Daniel : « je tape sur la notification de demande de suivi, ça
+  // m'envoie sur les Amis ». La demande, son acceptation et son refus vivent
+  // dans une carte du CHAT (boutons Accepter / Refuser, « Voir sur la
+  // carte ») : on ouvre cette conversation. Sans conversation connue : la
+  // liste des conversations (demande, refus) ou les personnes en direct
+  // (acceptation) — jamais l'écran Amis, qui ne montre pas ces demandes.
+  if (t === 'live_tracking_request_received' || t === 'live_tracking_refused') {
+    return conversationId ? chatPath : '/chat';
   }
-  if (t === 'live_tracking_accepted') return '/friends/live';
+  if (t === 'live_tracking_accepted') return conversationId ? chatPath : '/friends/live';
   // v566 — audit : partage en direct « toujours actif » / « session terminée »
   // tombaient sur /notifications côté serveur alors que l'app les route vers
   // /friends/live (DeepLinkService.routeForNotification) → même chemin des deux côtés.

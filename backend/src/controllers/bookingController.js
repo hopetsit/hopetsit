@@ -5376,6 +5376,9 @@ const requestLiveTracking = async (req, res) => {
     // conversation du booking, pour que l'owner voie une carte avec
     // boutons Accepter / Refuser DIRECTEMENT dans le chat.
     let pawfollowMessageId = null;
+    // v602 — la conversation de la carte, pour que la notification ouvre LA
+    // demande (chat) et non la liste des amis.
+    let pawfollowConversationId = null;
     try {
       const Conversation = require('../models/Conversation');
       const Message = require('../models/Message');
@@ -5392,6 +5395,7 @@ const requestLiveTracking = async (req, res) => {
         ...providerKey,
       }).lean();
       if (conversation) {
+        pawfollowConversationId = String(conversation._id);
         // Anti-spam : si une demande pending existe < 5 min, on ne crée
         // pas de doublon.
         const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
@@ -5564,6 +5568,10 @@ const requestLiveTracking = async (req, res) => {
           body: 'live_tracking_request_body',
           data: {
             bookingId: String(bookingId),
+            // v602 — ouvre la conversation où se trouve la carte
+            // Accepter / Refuser (route /chat/:id), pas l'écran Amis.
+            ...(pawfollowConversationId ? { conversationId: pawfollowConversationId } : {}),
+            ...(pawfollowMessageId ? { messageId: String(pawfollowMessageId) } : {}),
             providerRole: userRole,
             // Deep link → /walk/:bookingId qui ouvre LiveWalkMapScreen.
             emailLink: buildEmailLink('walk', { bookingId: String(bookingId) }),
