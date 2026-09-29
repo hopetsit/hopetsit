@@ -17,6 +17,13 @@ const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const { emitToUsersAllRoles } = require('../sockets/emitter');
 const logger = require('../utils/logger');
+// v599 (ZOE) — accusés PAR PERSONNE : mes 3 profils sont « moi » (un message
+// envoyé depuis mon profil gardien n'est pas « remis à moi » sur mon profil
+// propriétaire), et un ancien id de fil fusionné mène au fil canonique.
+const identity599 = require('../utils/conversationIdentity599');
+const myIdsOf = async (userId) => {
+  try { return [...(await identity599.identityIds(userId))]; } catch (_) { return [String(userId)]; }
+};
 
 // Nombre maximal d'ids renvoyés dans un événement (les plus récents). Le client
 // applique de toute façon « tous mes messages ≤ readAt sont lus ».
@@ -51,9 +58,9 @@ const receiptStatusOf = (message) => {
 };
 
 const loadConversationLite = (conversationId) =>
-  Conversation.findById(conversationId)
-    .select('friendChat participants ownerId sitterId walkerId')
-    .lean();
+  identity599.resolveConversation(conversationId, {
+    select: 'friendChat participants ownerId sitterId walkerId mergedInto', lean: true,
+  });
 
 const groupBySender = (docs) => {
   const map = new Map();
@@ -75,16 +82,17 @@ const groupBySender = (docs) => {
 const markMessagesRead = async ({ conversationId, readerId, conversation = null }) => {
   const empty = { count: 0, readAt: null, messageIds: [] };
   const reader = idOf(readerId);
+  const readerIds = reader ? await myIdsOf(reader) : [];
   if (!conversationId || !reader) return empty;
 
   const conv = conversation || (await loadConversationLite(conversationId));
   if (!conv) return empty;
-  if (!participantIdsOf(conv).includes(reader)) return empty;
+  if (!participantIdsOf(conv).some((id) => readerIds.includes(id))) return empty;
 
   const convId = conv._id || conversationId;
   const base = {
     conversationId: convId,
-    senderId: { $ne: reader },
+    senderId: { $nin: readerIds },
     senderRole: { $ne: 'system' },
   };
 
@@ -128,6 +136,7 @@ const markMessagesRead = async ({ conversationId, readerId, conversation = null 
  * à l'expéditeur.
  */
 const markMessagesDelivered = async ({ conversationId, messageIds, recipientId }) => {
+  const recipientIds = recipientId ? await myIdsOf(idOf(recipientId)) : [];
   const empty = { count: 0, deliveredAt: null, messageIds: [] };
   const recipient = idOf(recipientId);
   const ids = [...new Set((Array.isArray(messageIds) ? messageIds : [messageIds]).map(idOf).filter(Boolean))]
@@ -137,7 +146,7 @@ const markMessagesDelivered = async ({ conversationId, messageIds, recipientId }
   const pending = await Message.find({
     _id: { $in: ids },
     conversationId,
-    senderId: { $ne: recipient },
+    senderId: { $nin: recipientIds },
     senderRole: { $ne: 'system' },
     deliveredAt: null,
   })
@@ -147,7 +156,7 @@ const markMessagesDelivered = async ({ conversationId, messageIds, recipientId }
 
   // Seul un participant peut accuser réception.
   const conv = await loadConversationLite(conversationId);
-  if (!conv || !participantIdsOf(conv).includes(recipient)) return empty;
+  if (!conv || !participantIdsOf(conv).some((id) => recipientIds.includes(id))) return empty;
 
   const now = new Date();
   const pendingIds = pending.map((d) => d._id);
@@ -179,12 +188,13 @@ const markMessagesDelivered = async ({ conversationId, messageIds, recipientId }
  */
 const markDeliveredForConversations = async ({ conversationIds, recipientId }) => {
   const recipient = idOf(recipientId);
+  const recipientIds = recipient ? await myIdsOf(recipient) : [];
   const convIds = (conversationIds || []).filter(Boolean);
   if (!recipient || !convIds.length) return { count: 0 };
 
   const pending = await Message.find({
     conversationId: { $in: convIds },
-    senderId: { $ne: recipient },
+    senderId: { $nin: recipientIds },
     senderRole: { $ne: 'system' },
     deliveredAt: null,
     readAt: null,
@@ -227,9 +237,10 @@ const markDeliveredForConversations = async ({ conversationIds, recipientId }) =
  * (UNE requête, bornée par `lastMessageAt` pour rester sur l'index
  * { conversationId, createdAt }). Renvoie Map<conversationId, infos>.
  */
-const lastMessageReceipts = async ({ conversations, userId }) => {
+const lastMessageReceipts = async ({ conversations, userId, myIds = null }) => {
   const out = new Map();
   const me = idOf(userId);
+  const meIds = new Set(Array.isArray(myIds) && myIds.length ? myIds.map(String) : [me]);
   const or = [];
   for (const c of conversations || []) {
     if (!c || !c._id || !c.lastMessageAt) continue;
@@ -247,7 +258,7 @@ const lastMessageReceipts = async ({ conversations, userId }) => {
       lastMessageId: idOf(d._id),
       lastMessageSenderId: idOf(d.senderId),
       lastMessageSenderRole: d.senderRole || null,
-      lastMessageMine: d.senderRole !== 'system' && idOf(d.senderId) === me,
+      lastMessageMine: d.senderRole !== 'system' && meIds.has(idOf(d.senderId)),
       lastMessageStatus: receiptStatusOf(d),
       lastMessageDeliveredAt: d.deliveredAt ? new Date(d.deliveredAt).toISOString() : null,
       lastMessageReadAt: d.readAt ? new Date(d.readAt).toISOString() : null,

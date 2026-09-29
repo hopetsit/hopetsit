@@ -20,6 +20,7 @@ const mockMatches = (doc, filter) =>
     if (v && typeof v === 'object' && !(v instanceof Date) && !Array.isArray(v)) {
       return Object.entries(v).every(([op, arg]) => {
         if (op === '$ne') return !mockEq(val, arg);
+        if (op === '$nin') return !arg.some((x) => mockEq(val, x)); // v599
         if (op === '$in') return arg.some((x) => mockEq(val, x));
         if (op === '$lte') return new Date(val).getTime() <= new Date(arg).getTime();
         if (op === '$gte') return new Date(val).getTime() >= new Date(arg).getTime();
@@ -58,6 +59,11 @@ jest.mock('../src/models/Conversation', () => mockModel('Conversation'));
 jest.mock('../src/models/Message', () => mockModel('Message'));
 jest.mock('../src/sockets/emitter', () => ({ emitToUsersAllRoles: jest.fn(() => 1) }));
 jest.mock('../src/utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
+// v599 — identité : une personne = un seul profil dans ce banc d'essai.
+jest.mock('../src/utils/identityGroup', () => ({
+  identityGroup: async (id) => ({ ids: [String(id)], set: new Set([String(id)]), docs: [] }),
+  selfIdSet: async () => new Set(),
+}));
 
 const Message = require('../src/models/Message');
 const { emitToUsersAllRoles } = require('../src/sockets/emitter');

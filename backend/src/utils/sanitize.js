@@ -658,6 +658,10 @@ const sanitizeMessage = (messageDoc) => {
           : null,
       thumbnailUrl: attachment.thumbnailUrl || '',
       originalFilename: attachment.originalFilename || '',
+      // v599 — forme d'onde d'un vocal (absente pour les anciens vocaux).
+      ...(Array.isArray(attachment.waveform) && attachment.waveform.length
+        ? { waveform: attachment.waveform.map((v) => Number(v) || 0) }
+        : {}),
     }));
   } else {
     message.attachments = [];

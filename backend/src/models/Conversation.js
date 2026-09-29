@@ -56,6 +56,13 @@ const conversationSchema = new mongoose.Schema(
     sitterUnreadCount: { type: Number, default: 0 },
     ownerLastReadAt: { type: Date, default: null },
     sitterLastReadAt: { type: Date, default: null },
+    // v599 (ZOE) — UNE conversation par paire de PERSONNES. Un fil doublon
+    // (même deux humains, autre paire d'ids de rôle ou autre type) est fusionné
+    // dans un fil canonique : ses messages y sont déplacés et `mergedInto`
+    // pointe vers lui. Le doublon reste en base (index unique + anciens ids
+    // gardés par l'app 598) mais n'est plus listé ; toute lecture/écriture sur
+    // son id est redirigée vers le canonique (utils/conversationIdentity599).
+    mergedInto: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', default: null, index: true },
   },
   { timestamps: true }
 );

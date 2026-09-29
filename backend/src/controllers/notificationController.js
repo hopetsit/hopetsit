@@ -198,6 +198,63 @@ const markMyNotificationsReadAll = async (req, res) => {
 };
 
 // v409 — Daniel : "effacer notification" (web + app).
+// v599 (ZOE) — Daniel : « pouvoir CHOISIR » dans la cloche. Lecture et
+// suppression PAR LOT (ids choisis), mêmes garanties que l'unitaire :
+// portée au destinataire, synchro `notification.read` / `notification.removed`
+// vers ses autres appareils + badge iOS. Compatible 598 (routes ajoutées).
+const _batchIds = (req) => {
+  const raw = (req.body && req.body.ids) || (req.query && req.query.ids) || [];
+  const arr = Array.isArray(raw) ? raw : String(raw).split(',');
+  return [...new Set(arr.map((v) => String(v || '').trim()).filter((v) => /^[a-f0-9]{24}$/i.test(v)))].slice(0, 200);
+};
+
+const markMyNotificationsReadBatch = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const role = req.user?.role;
+    if (!userId || !role) {
+      return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
+    }
+    if (!['owner', 'sitter', 'walker'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
+    }
+    const ids = _batchIds(req);
+    if (!ids.length) return res.status(400).json({ error: 'ids is required.' });
+    const Notification = require('../models/Notification');
+    const r = await Notification.updateMany(
+      { _id: { $in: ids }, recipientRole: role, recipientId: userId, readAt: null },
+      { $set: { readAt: new Date() } },
+    );
+    const sync = await emitNotificationSync('notification.read', { role, userId, ids });
+    res.json({ ok: true, updated: (r && (r.modifiedCount ?? r.nModified)) || 0, unreadCount: sync ? sync.unreadCount : undefined });
+  } catch (error) {
+    logger.error('Mark notifications read (batch) error', error);
+    res.status(500).json({ error: 'Unable to mark notifications as read. Please try again later.' });
+  }
+};
+
+const deleteMyNotificationsBatch = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const role = req.user?.role;
+    if (!userId || !role) {
+      return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
+    }
+    if (!['owner', 'sitter', 'walker'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
+    }
+    const ids = _batchIds(req);
+    if (!ids.length) return res.status(400).json({ error: 'ids is required.' });
+    const Notification = require('../models/Notification');
+    const r = await Notification.deleteMany({ _id: { $in: ids }, recipientRole: role, recipientId: userId });
+    const sync = await emitNotificationSync('notification.removed', { role, userId, ids });
+    res.json({ ok: true, deleted: (r && r.deletedCount) || 0, unreadCount: sync ? sync.unreadCount : undefined });
+  } catch (error) {
+    logger.error('Delete notifications (batch) error', error);
+    res.status(500).json({ error: 'Unable to delete notifications. Please try again later.' });
+  }
+};
+
 const deleteMyNotification = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -245,6 +302,8 @@ const clearMyNotifications = async (req, res) => {
 };
 
 module.exports = {
+  markMyNotificationsReadBatch, // v599
+  deleteMyNotificationsBatch, // v599
   getMyNotifications,
   getMyUnreadCount,
   markMyNotificationRead,

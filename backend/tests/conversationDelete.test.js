@@ -44,6 +44,11 @@ const mockModel = (name) => ({
 
 jest.mock('../src/models/Conversation', () => mockModel('Conversation'));
 jest.mock('../src/models/Message', () => mockModel('Message'));
+// v599 — identité : une personne = un seul profil dans ce banc d'essai.
+jest.mock('../src/utils/identityGroup', () => ({
+  identityGroup: async (id) => ({ ids: [String(id)], set: new Set([String(id)]), docs: [] }),
+  selfIdSet: async () => new Set(),
+}));
 jest.mock('../src/sockets/emitter', () => ({ emitToUsersAllRoles: jest.fn(() => 1) }));
 jest.mock('../src/utils/logger', () => ({
   info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(),

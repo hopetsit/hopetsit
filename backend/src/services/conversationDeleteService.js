@@ -24,6 +24,9 @@ const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const { emitToUsersAllRoles } = require('../sockets/emitter');
 const logger = require('../utils/logger');
+// v599 (ZOE) — suppression PAR PERSONNE : mes 3 profils masquent ensemble, et
+// un ancien id de fil fusionné mène au fil canonique.
+const identity599 = require('../utils/conversationIdentity599');
 
 const idOf = (v) => (v ? String(v._id || v.id || v) : '');
 
@@ -82,17 +85,21 @@ const deleteConversationForUser = async ({ conversationId, userId }) => {
   if (!cid || !uid) {
     throw new ConversationDeleteError(400, 'Invalid request.');
   }
-  const conversation = await Conversation.findById(cid);
+  const conversation = await identity599.resolveConversation(cid);
   if (!conversation) {
     throw new ConversationDeleteError(404, 'Conversation not found.');
   }
-  if (!memberIdsOf(conversation).has(uid)) {
+  let myIds = new Set([uid]);
+  try { myIds = await identity599.identityIds(uid); } catch (_) { myIds = new Set([uid]); }
+  const members = memberIdsOf(conversation);
+  const myMemberIds = [...members].filter((id) => myIds.has(id));
+  if (!myMemberIds.length) {
     throw new ConversationDeleteError(403, 'Not a conversation participant.');
   }
 
   const cleared = new Set((conversation.clearedFor || []).map(String));
-  const alreadyCleared = cleared.has(uid);
-  cleared.add(uid);
+  const alreadyCleared = myMemberIds.every((id) => cleared.has(id));
+  for (const id of myMemberIds) cleared.add(id);
 
   const participantIds = participantIdsOf(conversation);
   const allCleared =
@@ -106,7 +113,7 @@ const deleteConversationForUser = async ({ conversationId, userId }) => {
   } else if (!alreadyCleared) {
     await Conversation.updateOne(
       { _id: conversation._id },
-      { $addToSet: { clearedFor: userId } },
+      { $addToSet: { clearedFor: myMemberIds.length === 1 ? myMemberIds[0] : { $each: myMemberIds } } },
     );
   }
 

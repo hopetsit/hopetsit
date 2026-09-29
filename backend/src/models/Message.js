@@ -12,6 +12,9 @@ const attachmentSchema = new mongoose.Schema(
     duration: { type: Number, default: null },
     thumbnailUrl: { type: String, default: '', trim: true },
     originalFilename: { type: String, default: '', trim: true },
+    // v599 (ZOE) — vocal : forme d'onde réelle captée à l'enregistrement
+    // (jusqu'à 64 valeurs 0..1). Absente pour les vocaux antérieurs.
+    waveform: { type: [Number], default: undefined },
   },
   { _id: false }
 );

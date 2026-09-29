@@ -346,9 +346,13 @@ const sendPush = async (tokens, title, body, data, opts = {}) => {
   return out;
 };
 
-const sendPushBatch = async (list, title, body, data, { userId, role, sound, badge = null } = {}) => {
+const sendPushBatch = async (list, title, body, data, { userId, role, sound, badge = null, collapseId = null } = {}) => {
   // v565 §2 — son choisi par l'utilisateur (défaut = comportement v558).
   const snd = pushSoundConfig(sound);
+  // v599 (ZOE) — Daniel : « à chaque message, pas besoin ». Une seule
+  // notification PAR CONVERSATION : le 2e message remplace la 1re au lieu de
+  // s'empiler (Android : tag + collapseKey ; iOS : apns-collapse-id + thread-id).
+  const collapse = collapseId ? String(collapseId).slice(0, 64) : null;
   const message = {
     tokens: list,
     notification: { title, body },
@@ -367,14 +371,20 @@ const sendPushBatch = async (list, title, body, data, { userId, role, sound, bad
     // ce défaut) + canal Android + son + type APNs « alert ».
     android: {
       priority: 'high',
-      notification: { ...snd.android },
+      ...(collapse ? { collapseKey: collapse } : {}),
+      notification: { ...snd.android, ...(collapse ? { tag: collapse } : {}) },
     },
     apns: {
-      headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+      headers: {
+        'apns-priority': '10',
+        'apns-push-type': 'alert',
+        ...(collapse ? { 'apns-collapse-id': collapse } : {}),
+      },
       payload: {
         aps: {
           ...(snd.apnsSound ? { sound: snd.apnsSound } : {}),
           ...(badge != null ? { badge } : {}),
+          ...(collapse ? { 'thread-id': collapse } : {}),
         },
       },
     },
@@ -624,6 +634,43 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
   // notif en direct → on n'envoie PAS l'email (évite le spam + le retard
   // Gmail). Best-effort : en cas de doute, l'email part.
   let sendEmailNow = Boolean(email) && categoryEnabled;
+  // v599 (ZOE) — message de chat : si le destinataire A LA CONVERSATION
+  // OUVERTE à l'écran (socket présent dans la salle du fil), il lit le message
+  // en direct → ni push ni e-mail (la cloche/in-app garde sa trace).
+  let pushNow = categoryEnabled;
+  const isChatMessage = String(type).toUpperCase() === 'NEW_MESSAGE';
+  const conversationIdForPush = isChatMessage && data && data.conversationId
+    ? String(data.conversationId) : null;
+  if (conversationIdForPush) {
+    try {
+      const emitter = require('../sockets/emitter');
+      if (typeof emitter.isConversationOpenFor === 'function') {
+        let ids = [String(userId)];
+        try {
+          const { identityGroup } = require('../utils/identityGroup');
+          ids = (await identityGroup(userId)).ids;
+        } catch (_) { /* id seul */ }
+        if (await emitter.isConversationOpenFor(conversationIdForPush, ids)) {
+          pushNow = false;
+          sendEmailNow = false;
+          logger.info(
+            `[notif.push.skip] conversation ${conversationIdForPush} OUVERTE chez ${role}:${userId} → push+email supprimés`,
+          );
+        }
+      }
+    } catch (_) { /* doute → on pousse */ }
+  }
+  // v599 (ZOE) — Daniel : « une cloche, une notification téléphone et un
+  // e-mail, ça suffit ». Par conversation : l'e-mail (hors ligne) ne part que
+  // pour le PREMIER message non lu ; les suivants n'ont que la cloche et la
+  // push (regroupée). Dès que la conversation est lue, le compteur repart.
+  if (sendEmailNow && isChatMessage) {
+    const n = Number(data && data.unreadForRecipient);
+    if (Number.isFinite(n) && n > 1) {
+      sendEmailNow = false;
+      logger.info(`[notif.email.skip] conversation ${conversationIdForPush} déjà non lue (${n}) → pas d'e-mail par message`);
+    }
+  }
   if (sendEmailNow &&
       PRESENCE_GATED_EMAIL_TYPES.has(String(type).toLowerCase())) {
     try {
@@ -657,7 +704,7 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
     // contenait PAS l'id de la notif → la dédup côté app (_markSeenOrDupe, qui
     // lit data.notificationId) ne pouvait jamais rapprocher le push et l'event
     // socket → badge compté 2×. On injecte notificationId dans le data push.
-    categoryEnabled
+    pushNow
       ? sendPush(
         allTokens,
         title,
@@ -676,9 +723,13 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
             ? { notificationId: String(inAppCreated._id) }
             : {}),
         },
-        { userId, role, sound: prefs.sound, badge: badgeCount, badgeTokens: allTokens.badgeTokens },
+        {
+          userId, role, sound: prefs.sound, badge: badgeCount, badgeTokens: allTokens.badgeTokens,
+          // v599 — une notification par conversation.
+          collapseId: conversationIdForPush ? `conv:${conversationIdForPush}` : null,
+        },
       )
-      : Promise.resolve({ skipped: true, reason: `prefs_category_off:${category}` }),
+      : Promise.resolve({ skipped: true, reason: categoryEnabled ? 'conversation_open' : `prefs_category_off:${category}` }),
     sendEmailNow
       ? sendEmail(email, emailSubject || title, emailText, emailBody)
       : Promise.resolve({ skipped: true, reason: categoryEnabled ? 'no_email' : `prefs_category_off:${category}` }),

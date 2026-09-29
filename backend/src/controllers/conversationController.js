@@ -27,6 +27,8 @@ const { emitToConversation, emitChatMessage } = require('../sockets/emitter');
 const receipts = require('../services/messageReceiptService');
 // v583 (lot A) — conversation avec MOI-MÊME (mes autres profils) masquée.
 const { selfIdSet, excludeSelfConversations } = require('../utils/identityGroup');
+// v599 (ZOE) — une conversation par paire de PERSONNES.
+const identity599 = require('../utils/conversationIdentity599');
 const logger = require('../utils/logger');
 
 const bufferToDataUri = (file) => `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
@@ -42,6 +44,8 @@ const mapUploadToAttachment = (uploadResult) => ({
   duration: typeof uploadResult.duration === 'number' ? uploadResult.duration : null,
   thumbnailUrl: uploadResult.thumbnailUrl || uploadResult.url,
   originalFilename: uploadResult.originalFilename || '',
+  // v599 — forme d'onde d'un vocal.
+  ...(Array.isArray(uploadResult.waveform) && uploadResult.waveform.length ? { waveform: uploadResult.waveform } : {}),
 });
 
 // ─── v565 §5 — chat : réponse à un message, vocal, drapeaux admin ───────────
@@ -187,10 +191,13 @@ const persistBookingAttachmentMessage = async ({ conversation, senderRole, sende
   const ownerId = idStr(conversation.ownerId);
   const sitterId = idStr(conversation.sitterId);
   const walkerId = idStr(conversation.walkerId);
-  const mine = senderRole === 'owner' ? ownerId : senderRole === 'sitter' ? sitterId : walkerId;
-  if (!mine || mine !== String(senderId)) {
+  // v599 — côté de l'expéditeur PAR PERSONNE (3 profils), pas par rôle.
+  const senderIds = await identity599.identityIds(senderId);
+  const mySide = identity599.sideOf(conversation, senderIds);
+  if (!mySide.side) {
     throw new HttpError(403, 'User is not part of this conversation.');
   }
+  const senderIsOwnerSide = mySide.side === 'owner';
   const providerId = sitterId || walkerId;
   const providerModel = sitterId ? 'Sitter' : 'Walker';
   const blocked = await Block.exists({
@@ -216,8 +223,9 @@ const persistBookingAttachmentMessage = async ({ conversation, senderRole, sende
   // v575 — audit P2-1 : `preview` reste le texte de repli (anciennes apps) ;
   // `lastMessageKind` permet aux apps ≥ 575 de le traduire.
   const previewKind = previewKindOf({ body: cleanBody, attachments, type });
-  const inc = senderRole === 'owner' ? { sitterUnreadCount: 1 } : { ownerUnreadCount: 1 };
-  await Conversation.updateOne(
+  const inc = senderIsOwnerSide ? { sitterUnreadCount: 1 } : { ownerUnreadCount: 1 };
+  // v599 — on relit les compteurs après l'incrément (e-mail « premier non lu »).
+  const afterInc = await Conversation.findOneAndUpdate(
     { _id: conversation._id },
     {
       $set: {
@@ -228,12 +236,13 @@ const persistBookingAttachmentMessage = async ({ conversation, senderRole, sende
       },
       $inc: inc,
     },
-  );
+    { new: true },
+  ).select('ownerUnreadCount sitterUnreadCount').lean();
   // Notification NEW_MESSAGE au destinataire (owner ↔ prestataire).
   try {
-    const recipientRole = senderRole === 'owner' ? (walkerId ? 'walker' : 'sitter') : 'owner';
-    const recipientId = senderRole === 'owner' ? (walkerId || sitterId) : ownerId;
-    if (recipientId && recipientId !== String(senderId)) {
+    const recipientRole = senderIsOwnerSide ? (walkerId ? 'walker' : 'sitter') : 'owner';
+    const recipientId = senderIsOwnerSide ? (walkerId || sitterId) : ownerId;
+    if (recipientId && !senderIds.has(String(recipientId))) {
       const SenderModel = senderRole === 'owner' ? Owner : senderRole === 'sitter' ? Sitter : Walker;
       const senderDoc = SenderModel ? await SenderModel.findById(senderId).select('name').lean() : null;
       const { sendNotification } = require('../services/notificationSender');
@@ -246,6 +255,10 @@ const persistBookingAttachmentMessage = async ({ conversation, senderRole, sende
           messageId: String(message._id),
           senderName: (senderDoc?.name || '').trim() || 'HoPetSit',
           preview: preview.slice(0, 120),
+          // v599 — e-mail seulement pour le premier message non lu.
+          unreadForRecipient: senderIsOwnerSide
+            ? (afterInc?.sitterUnreadCount ?? 1)
+            : (afterInc?.ownerUnreadCount ?? 1),
         },
         actor: { role: senderRole, id: senderId },
       }).catch((e) => logger.warn(`[chat.voice] NEW_MESSAGE notif failed : ${e?.message || e}`));
@@ -300,40 +313,35 @@ const getChatList = async (req, res) => {
 
     const normalizedRole = userRole.toLowerCase();
 
-    // v18.7 — walker chat activé. La Conversation schema supporte XOR
-    // sitter/walker depuis v18.6. On query sur le champ correspondant au
-    // rôle courant.
-    // v23.1.200 — Daniel : "bouton 💬 sur friend + family member".
-    // On retourne maintenant 2 types de conversations dans la chat list :
-    //   1. Bookings (owner ↔ sitter/walker) — filtrage role classique
-    //   2. friendChats — toute conv friendChat où l'user est participant
-    let query;
-    if (normalizedRole === 'owner') {
-      query = {
-        $or: [
-          { ownerId: userId, friendChat: { $ne: true } },
-          { friendChat: true, 'participants.userId': userId },
-        ],
-      };
-    } else if (normalizedRole === 'walker') {
-      query = {
-        $or: [
-          { walkerId: userId, friendChat: { $ne: true } },
-          { friendChat: true, 'participants.userId': userId },
-        ],
-      };
-    } else {
-      query = {
-        $or: [
-          { sitterId: userId, friendChat: { $ne: true } },
-          { friendChat: true, 'participants.userId': userId },
-        ],
-      };
-    }
-
-    // v23.1.255 — exclut les conversations que CET utilisateur a masquées
-    // (soft-delete). Un nouveau message vide clearedFor → réapparition.
-    query.clearedFor = { $ne: userId };
+    // v599 (ZOE) — la liste est celle de la PERSONNE : tous ses profils
+    // (owner / sitter / walker), tous les types de fil. Avant, la liste était
+    // filtrée par le rôle de la session → un message reçu dans un fil
+    // « gardien » restait invisible depuis le profil propriétaire, et la même
+    // personne apparaissait deux fois (« Daniel C » ×2 chez John).
+    // 1) fusion paresseuse des doublons de cette personne (idempotente) ;
+    // 2) requête sur tous mes ids, fils fusionnés exclus.
+    let selfIds = new Set();
+    try { selfIds = await selfIdSet(req); } catch (_) { selfIds = new Set(); }
+    if (!selfIds.size) selfIds = new Set([String(userId)]);
+    const myIdList = [...selfIds];
+    try {
+      const m = await identity599.mergeDuplicatesFor(selfIds);
+      if (m && (m.merged || m.moved)) {
+        logger.info(`[chat.list] fusion ${normalizedRole}:${userId} → ${m.merged} fil(s), ${m.moved} message(s)`);
+      }
+    } catch (_) {/* best-effort */}
+    const inMine = { $in: myIdList };
+    const query = {
+      $or: [
+        { ownerId: inMine },
+        { sitterId: inMine },
+        { walkerId: inMine },
+        { 'participants.userId': inMine },
+      ],
+      mergedInto: null,
+      // v23.1.255 — masqué par l'un de mes profils = masqué pour moi.
+      clearedFor: { $nin: myIdList },
+    };
 
     const conversations = await Conversation.find(query)
       .sort({ updatedAt: -1 })
@@ -355,7 +363,7 @@ const getChatList = async (req, res) => {
     // conversation (une seule requête pour toute la liste).
     let lastReceipts = new Map();
     try {
-      lastReceipts = await receipts.lastMessageReceipts({ conversations, userId });
+      lastReceipts = await receipts.lastMessageReceipts({ conversations, userId, myIds: myIdList });
     } catch (e) {
       logger.warn(`[chat.list] lastMessageReceipts failed : ${e?.message || e}`);
     }
@@ -378,16 +386,17 @@ const getChatList = async (req, res) => {
         let otherParty = null;
         let unread = 0;
         let pres = { isOnline: false, lastSeenAt: null };
+        // v599 — mon côté, par personne.
+        const mySide = identity599.sideOf(conversation, selfIds);
 
         // v23.1.200 — friendChat : autre participant = celui qui n'est pas moi.
         if (conversation.friendChat === true) {
           const others = (conversation.participants || []).filter(
-            (p) => String(p.userId) !== String(userId),
+            (p) => !selfIds.has(String(p.userId)),
           );
-          const me = (conversation.participants || []).find(
-            (p) => String(p.userId) === String(userId),
-          );
-          unread = me?.unreadCount || 0;
+          unread = (conversation.participants || [])
+            .filter((p) => selfIds.has(String(p.userId)))
+            .reduce((n, p) => n + (p.unreadCount || 0), 0);
           const o = others[0];
           if (o) {
             const ROLE_MODELS = { Owner: 'owner', Sitter: 'sitter', Walker: 'walker' };
@@ -418,8 +427,8 @@ const getChatList = async (req, res) => {
           return { ...sanitized, otherParty, unreadCount: unread, ...pres, ...receiptOf(conversation) };
         }
 
-        // Branch booking classique (legacy).
-        if (normalizedRole === 'owner') {
+        // Branch booking classique (legacy) — v599 : côté par personne.
+        if (mySide.side === 'owner') {
           const provider = conversation.sitterId || conversation.walkerId;
           if (provider) {
             pres = presenceOf(provider);
@@ -432,7 +441,7 @@ const getChatList = async (req, res) => {
               ...pres,
             };
           }
-        } else {
+        } else if (mySide.side === 'provider') {
           const owner = conversation.ownerId;
           if (owner) {
             pres = presenceOf(owner);
@@ -449,7 +458,7 @@ const getChatList = async (req, res) => {
         // v490 — Daniel : compte supprimé (provider/owner introuvable après
         // populate) → on retire la conversation au lieu d'afficher un ghost.
         if (!otherParty) return null;
-        const bookingUnread = normalizedRole === 'owner'
+        const bookingUnread = mySide.side === 'owner'
           ? conversation.ownerUnreadCount || 0
           : conversation.sitterUnreadCount || 0;
         if (bookingUnread > 0) unreadConversationIds.push(conversation._id);
@@ -468,8 +477,6 @@ const getChatList = async (req, res) => {
     // v583 (lot A, validé par Daniel le 23/09) — retire aussi la conversation
     // avec MOI-MÊME (l'autre participant est un de mes profils : « Daniel C »
     // avec lui-même sur sa capture). Rien n'est supprimé en base.
-    let selfIds = new Set();
-    try { selfIds = await selfIdSet(req); } catch (_) { selfIds = new Set(); }
     const cleanedConversations = excludeSelfConversations(
       enhancedConversations.filter(Boolean),
       selfIds,
@@ -505,44 +512,18 @@ const getConversationMessages = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const conversation = await Conversation.findById(id);
+    // v599 — un ancien id (fil fusionné) mène au fil canonique.
+    const conversation = await identity599.resolveConversation(id);
     if (!conversation) {
       return res.status(404).json({ error: 'Conversation not found.' });
     }
 
-    // v23.1 part 238 — Daniel : "Access denied for this conversation"
-    // sur un chat ami. ROOT CAUSE : ce controller utilisait query.role +
-    // query.userId + vrai check seulement sur ownerId/sitterId/walkerId.
-    // Or les conversations friendChat ont participants:[{userId,userModel}]
-    // au lieu d'ownerId/sitterId/walkerId → check fail → 403 systematique
-    // sur tous les chats ami.
-    //
-    // FIX :
-    //  1. Source d'identite = JWT (req.user) au lieu de query params
-    //     (cohérent avec les autres endpoints + securite).
-    //  2. Branch friendChat : check participants[] include userId.
-    //  3. Branch booking-style : check ownerId/sitterId/walkerId.
-    //  4. Bypass staff email (cohérent avec chatAccess.js middleware).
+    // v599 — accès PAR PERSONNE : mes 3 profils (owner / sitter / walker)
+    // ouvrent le fil, quel que soit le rôle de la session.
     const myId = String(req.user?.id || '');
-    const idToString = (v) =>
-      v ? (v._id ? v._id.toString() : v.toString()) : null;
-
-    let accessOk = false;
-
-    // FriendChat : check participants.
-    if (conversation.friendChat === true) {
-      accessOk = (conversation.participants || []).some(
-        (p) => idToString(p.userId) === myId,
-      );
-    } else {
-      // Booking-style : check ownerId / sitterId / walkerId.
-      const ownerIdValue = idToString(conversation.ownerId);
-      const sitterIdValue = idToString(conversation.sitterId);
-      const walkerIdValue = idToString(conversation.walkerId);
-      accessOk = ownerIdValue === myId
-        || sitterIdValue === myId
-        || walkerIdValue === myId;
-    }
+    const myIds = await identity599.identityIds(myId);
+    const mySide = identity599.sideOf(conversation, myIds);
+    let accessOk = !!mySide.side;
 
     // v23.1 part 238 — staff email bypass (coherent avec chatAccess.js).
     if (!accessOk) {
@@ -579,11 +560,10 @@ const getConversationMessages = async (req, res) => {
     // unreadCount du lecteur à 0 ici aussi. Couvre friendChat (participants[]) ET
     // booking (owner/sitterUnreadCount). Best-effort : n'empêche jamais la réponse.
     try {
-      const myIdStr = String(req.user?.id || '');
       let changed = false;
       if (conversation.friendChat === true && Array.isArray(conversation.participants)) {
         for (const part of conversation.participants) {
-          if (String(part.userId) === myIdStr && (part.unreadCount || 0) > 0) {
+          if (myIds.has(String(part.userId)) && (part.unreadCount || 0) > 0) {
             part.unreadCount = 0;
             part.lastReadAt = new Date();
             changed = true;
@@ -591,7 +571,8 @@ const getConversationMessages = async (req, res) => {
         }
       } else {
         // Booking-style : le provider (sitter ET walker) partage le slot sitter.
-        if (req.user?.role === 'owner') {
+        // v599 — côté par personne (et non par rôle de session).
+        if (mySide.side === 'owner') {
           if ((conversation.ownerUnreadCount || 0) > 0) {
             conversation.ownerUnreadCount = 0;
             conversation.ownerLastReadAt = new Date();
@@ -603,14 +584,26 @@ const getConversationMessages = async (req, res) => {
           changed = true;
         }
       }
-      if (changed) await conversation.save();
+      if (changed) {
+        await conversation.save();
+        // v599 — ouvrir le fil = le lire : mes autres appareils + cloche.
+        require('../utils/chatReadSync599')
+          .afterConversationRead({ conversationId: conversation._id, readerId: myId, readerIds: [...myIds] })
+          .catch(() => {});
+      }
     } catch (e) {
       logger.warn(`[conversation.messages] reset unread failed : ${e?.message || e}`);
     }
 
     const messages = await Message.find({ conversationId: conversation._id }).sort({ createdAt: 1 });
 
-    res.json({ messages: messages.map(sanitizeMessage) });
+    // v599 — `mine` + senderId vu par CE lecteur (l'app 598 compare senderId à
+    // son id de rôle courant ; mes messages envoyés depuis un autre profil
+    // restent « à moi »). `conversationId` = fil canonique.
+    res.json({
+      conversationId: String(conversation._id),
+      messages: messages.map((m) => identity599.personalizeMessage(sanitizeMessage(m), myIds, myId)),
+    });
   } catch (error) {
     logger.error('Fetch messages error', error);
     if (error.name === 'CastError') {
@@ -633,14 +626,17 @@ const sendFriendMessage = async ({
   conversation, senderId, senderRole, body, attachments, type, replyTo,
 }) => {
   const Message = require('../models/Message');
+  // v599 — participant PAR PERSONNE (mes 3 profils).
+  const senderIds = await identity599.identityIds(senderId);
   const isParticipant = (conversation.participants || []).some(
-    (p) => String(p.userId) === String(senderId),
+    (p) => senderIds.has(String(p.userId)),
   );
   if (!isParticipant) {
     const err = new Error('Not a chat participant.');
     err.status = 403;
     throw err;
   }
+  const senderIdList = [...senderIds];
   const msg = await Message.create({
     conversationId: conversation._id,
     senderId,
@@ -668,10 +664,17 @@ const sendFriendMessage = async ({
   await Conversation.findByIdAndUpdate(conversation._id, update);
   // Increment unreadCount du destinataire (chaque participant != sender).
   await Conversation.updateOne(
-    { _id: conversation._id, 'participants.userId': { $ne: senderId } },
+    { _id: conversation._id, 'participants.userId': { $nin: senderIdList } },
     { $inc: { 'participants.$[other].unreadCount': 1 } },
-    { arrayFilters: [{ 'other.userId': { $ne: senderId } }] },
+    { arrayFilters: [{ 'other.userId': { $nin: senderIdList } }] },
   );
+  // v599 — non lus par participant APRÈS l'incrément (pour l'e-mail « premier
+  // message non lu seulement »).
+  let unreadByParticipant = new Map();
+  try {
+    const fresh = await Conversation.findById(conversation._id).select('participants').lean();
+    for (const p of (fresh?.participants || [])) unreadByParticipant.set(String(p.userId), p.unreadCount || 0);
+  } catch (_) { unreadByParticipant = new Map(); }
   // Notif push au(x) destinataire(s).
   try {
     const { sendNotification } = require('../services/notificationSender');
@@ -687,7 +690,7 @@ const sendFriendMessage = async ({
       }
     } catch (_) {/* le serveur complète à défaut (ensureSenderName) */}
     for (const p of (conversation.participants || [])) {
-      if (String(p.userId) === String(senderId)) continue;
+      if (senderIds.has(String(p.userId))) continue;
       const roleLower = String(p.userModel || 'Owner').toLowerCase();
       sendNotification({
         userId: String(p.userId),
@@ -698,6 +701,7 @@ const sendFriendMessage = async ({
           messageId: String(msg._id),
           senderName: senderName || 'HoPetSit',
           preview: String(preview || '').slice(0, 120),
+          unreadForRecipient: unreadByParticipant.get(String(p.userId)) ?? 1, // v599
         },
         actor: senderRole ? { role: String(senderRole).toLowerCase(), id: senderId } : null,
       }).catch(() => {});
@@ -729,8 +733,11 @@ const createConversationMessage = async (req, res) => {
     // sender est participant + save + notif l'autre participant.
     // v23.1 part 227 — on select aussi ownerId/sitterId/walkerId pour que
     // emitChatMessage puisse emit aux user-rooms des 2 participants.
-    const convPre = await Conversation.findById(id)
-      .select('friendChat participants ownerId sitterId walkerId').lean();
+    // v599 — fil canonique (un ancien id de fil fusionné reste accepté).
+    const convPre = await identity599.resolveConversation(id, {
+      select: 'friendChat participants ownerId sitterId walkerId mergedInto', lean: true,
+    });
+    const canonicalId = convPre ? String(convPre._id) : id;
     if (convPre?.friendChat === true) {
       const result = await sendFriendMessage({
         conversation: convPre,
@@ -742,7 +749,7 @@ const createConversationMessage = async (req, res) => {
       });
       // v23.1 part 227 — emit aux user-rooms aussi (badge unread).
       emitChatMessage(convPre, 'message:new', {
-        conversationId: id,
+        conversationId: canonicalId,
         triggeredBy: { role: senderRole, userId: senderId },
         ...result,
       });
@@ -750,7 +757,7 @@ const createConversationMessage = async (req, res) => {
     }
 
     const result = await sendMessage({
-      conversationId: id,
+      conversationId: canonicalId,
       senderRole,
       senderId,
       body,
@@ -762,7 +769,7 @@ const createConversationMessage = async (req, res) => {
     // qui n'apparaissait pas car les users hors-chat-room ne recevaient
     // pas le message:new).
     emitChatMessage(convPre, 'message:new', {
-      conversationId: id,
+      conversationId: canonicalId,
       triggeredBy: { role: senderRole, userId: senderId },
       ...result,
     });
@@ -816,6 +823,16 @@ const createConversationAttachmentMessage = async (req, res) => {
     }
     const durationRaw = Number(req.body?.duration);
     const duration = Number.isFinite(durationRaw) && durationRaw > 0 ? Math.round(durationRaw * 100) / 100 : null;
+    // v599 — forme d'onde réelle du vocal (JSON de 0..1, ≤ 64 valeurs).
+    let waveform = null;
+    if (kind === 'voice' && req.body?.waveform) {
+      try {
+        const arr = typeof req.body.waveform === 'string' ? JSON.parse(req.body.waveform) : req.body.waveform;
+        if (Array.isArray(arr) && arr.length) {
+          waveform = arr.slice(0, 64).map((v) => Math.max(0, Math.min(1, Math.round((Number(v) || 0) * 100) / 100)));
+        }
+      } catch (_) { waveform = null; }
+    }
 
     const uploadFolder =
       typeof folder === 'string' && folder.trim()
@@ -838,7 +855,7 @@ const createConversationAttachmentMessage = async (req, res) => {
             ? { transformation: undefined, image_metadata: undefined, quality_analysis: undefined }
             : {},
         }).then((up) => (isAudio || kind === 'voice'
-          ? { ...up, resourceType: 'audio', duration: duration ?? up.duration ?? null, thumbnailUrl: '' }
+          ? { ...up, resourceType: 'audio', duration: duration ?? up.duration ?? null, thumbnailUrl: '', ...(waveform ? { waveform } : {}) }
           : up));
       })
     );
@@ -871,8 +888,14 @@ const createConversationAttachmentMessage = async (req, res) => {
     // conversationService.sendMessage (pipeline booking : ownerId/sitterId)
     // → 403 « not part of this conversation » sur toute conversation amie →
     // « l'envoi de photos/vidéos ne marche pas ». On route vers le pipeline ami.
-    const convForEmit = await Conversation.findById(id)
-      .select('friendChat participants ownerId sitterId walkerId').lean();
+    // v599 — fil canonique (ancien id de fil fusionné accepté).
+    const convForEmit = await identity599.resolveConversation(id, {
+      select: 'friendChat participants ownerId sitterId walkerId mergedInto', lean: true,
+    });
+    if (!convForEmit) {
+      return res.status(404).json({ error: 'Conversation not found.' });
+    }
+    const canonicalId = String(convForEmit._id);
     let result;
     if (convForEmit?.friendChat === true) {
       result = await sendFriendMessage({
@@ -896,7 +919,7 @@ const createConversationAttachmentMessage = async (req, res) => {
       });
     } else {
       result = await sendMessage({
-        conversationId: id,
+        conversationId: canonicalId,
         senderRole,
         senderId,
         body,
@@ -908,7 +931,7 @@ const createConversationAttachmentMessage = async (req, res) => {
     // v23.1 part 227 — emit user-rooms + conv-room (payload : message avec
     // replyTo / type / attachments[].resourceType — contrat §5).
     emitChatMessage(convForEmit, 'message:new', {
-      conversationId: id,
+      conversationId: canonicalId,
       triggeredBy: { role: senderRole, userId: senderId },
       ...result,
     });
@@ -960,6 +983,13 @@ const markConversationRead = async (req, res) => {
       receipts.markMessagesRead({ conversationId: id, readerId: userId }),
     );
     const readInfo = { readCount: read?.count || 0, readAt: read?.readAt || null };
+    // v599 — « lu » synchronisé : mes autres appareils / profils + cloche.
+    try {
+      const canonicalId = await identity599.canonicalIdOf(id);
+      require('../utils/chatReadSync599')
+        .afterConversationRead({ conversationId: canonicalId, readerId: userId })
+        .catch(() => {});
+    } catch (_) { /* best-effort */ }
 
     if (updated) {
       emitToConversation(
@@ -1100,10 +1130,19 @@ const startConversation = async (req, res) => {
     const convoQuery = targetWalker
       ? { ownerId: ownerId, walkerId: walkerIdParam }
       : { ownerId: ownerId, sitterId: sitterId };
-    let conversation = await Conversation.findOne(convoQuery)
-      .populate('ownerId')
-      .populate('sitterId')
-      .populate('walkerId');
+    let conversation = await identity599.resolveConversation(
+      (await Conversation.findOne(convoQuery).select('_id').lean())?._id,
+      { populate: ['ownerId', 'sitterId', 'walkerId'] },
+    );
+    // v599 — un fil existe déjà entre ces deux PERSONNES (autre rôle, chat
+    // ami) → on le réutilise au lieu d'en ouvrir un deuxième.
+    if (!conversation) {
+      conversation = await identity599.findConversationBetweenPersons(
+        await identity599.identityIds(ownerId),
+        await identity599.identityIds(targetWalker ? walkerIdParam : sitterId),
+        { populate: ['ownerId', 'sitterId', 'walkerId'] },
+      );
+    }
 
     if (!conversation) {
       const convoCreate = targetWalker
@@ -1280,12 +1319,18 @@ const startConversationBySitter = async (req, res) => {
     }
 
     // Find or create conversation
-    let conversation = await Conversation.findOne({
-      ownerId: ownerId,
-      sitterId: sitterId,
-    })
-      .populate('ownerId')
-      .populate('sitterId');
+    let conversation = await identity599.resolveConversation(
+      (await Conversation.findOne({ ownerId: ownerId, sitterId: sitterId }).select('_id').lean())?._id,
+      { populate: ['ownerId', 'sitterId', 'walkerId'] },
+    );
+    // v599 — fil existant entre les deux PERSONNES.
+    if (!conversation) {
+      conversation = await identity599.findConversationBetweenPersons(
+        await identity599.identityIds(ownerId),
+        await identity599.identityIds(sitterId),
+        { populate: ['ownerId', 'sitterId', 'walkerId'] },
+      );
+    }
 
     if (!conversation) {
       // Create new conversation
@@ -1411,9 +1456,18 @@ const startConversationByWalker = async (req, res) => {
       }
     }
 
-    let conversation = await Conversation.findOne({ ownerId, walkerId })
-      .populate('ownerId')
-      .populate('walkerId');
+    let conversation = await identity599.resolveConversation(
+      (await Conversation.findOne({ ownerId, walkerId }).select('_id').lean())?._id,
+      { populate: ['ownerId', 'sitterId', 'walkerId'] },
+    );
+    // v599 — fil existant entre les deux PERSONNES.
+    if (!conversation) {
+      conversation = await identity599.findConversationBetweenPersons(
+        await identity599.identityIds(ownerId),
+        await identity599.identityIds(walkerId),
+        { populate: ['ownerId', 'sitterId', 'walkerId'] },
+      );
+    }
 
     if (!conversation) {
       conversation = await Conversation.create({
@@ -1550,7 +1604,12 @@ const startFriendConversation = async (req, res) => {
     };
     const myOid = toOid(myId);
     const targetOid = toOid(targetUserId);
-    const existing = await Conversation.findOne({
+    // v599 — fil existant entre les deux PERSONNES, quel que soit son type
+    // (réservation ou ami) et le profil utilisé : on le rouvre.
+    const existing = await identity599.findConversationBetweenPersons(
+      await identity599.identityIds(myId),
+      await identity599.identityIds(targetUserId),
+    ) || await Conversation.findOne({
       friendChat: true,
       'participants.userId': { $all: [myOid, targetOid] },
     });

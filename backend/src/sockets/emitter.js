@@ -100,11 +100,44 @@ const emitToWalk = (walkId, event, payload) => {
 // Conversation participants resolves :
 //   - friendChat=true → conversation.participants[].userModel/userId
 //   - sinon (booking conv classique) → ownerId / sitterId / walkerId
+// v599 (ZOE) — le message porte `senderId` = l'id de RÔLE utilisé pour l'envoi.
+// L'app (598/599) décide « à moi » par senderId == mon id de rôle courant. Une
+// personne à plusieurs profils (Daniel : owner + sitter + walker) qui envoie
+// depuis son profil propriétaire recevait donc son propre message comme un
+// message REÇU sur son profil gardien (badge, bulle à gauche, accusé). On
+// personnalise : dans les salles de MES autres profils, senderId = cet id.
+const _senderIdsOf = async (senderId) => {
+  const set = new Set(senderId ? [String(senderId)] : []);
+  if (!senderId) return set;
+  try {
+    const { identityGroup } = require('../utils/identityGroup');
+    const g = await identityGroup(senderId);
+    for (const id of g.ids) set.add(String(id));
+  } catch (_) { /* best-effort */ }
+  return set;
+};
+const _withSenderId = (payload, senderId) => {
+  if (!payload || typeof payload !== 'object') return payload;
+  const out = { ...payload };
+  if (out.senderId) out.senderId = senderId;
+  if (out.message && typeof out.message === 'object' && out.message.senderId) {
+    out.message = { ...out.message, senderId, mine: true };
+  }
+  if (out.sentMessage && typeof out.sentMessage === 'object' && out.sentMessage.senderId) {
+    out.sentMessage = { ...out.sentMessage, senderId, mine: true };
+  }
+  return out;
+};
+
 const emitChatMessage = (conversation, event, payload) => {
   if (!ioInstance || !conversation) return;
   const convIdRaw = conversation._id || conversation.id;
   if (!convIdRaw) return;
   const convId = String(convIdRaw);
+  // v599 — id de rôle de l'expéditeur (pour personnaliser ses autres salles).
+  const rawSender = payload && (payload.triggeredBy?.userId
+    || payload.message?.senderId || payload.sentMessage?.senderId || payload.senderId);
+  const senderRoleId = rawSender ? String(rawSender._id || rawSender) : '';
   // 1) Conversation room (active chat users).
   ioInstance.to(convId).emit(event, payload);
   // 2) Per-participant user rooms (so badge bumps even when on Home).
@@ -157,13 +190,35 @@ const emitChatMessage = (conversation, event, payload) => {
   // UNE livraison, aucune double-incrémentation du badge. On dédup les userId
   // pour ne pas re-emit plusieurs fois au même utilisateur.
   const seenUserIds = new Set();
-  for (const p of participants) {
-    if (!p.userId || seenUserIds.has(p.userId)) continue;
-    seenUserIds.add(p.userId);
+  const emitTo = (userId, pl) => {
     for (const r of ['owner', 'sitter', 'walker']) {
-      ioInstance.to(userRoom(r, p.userId)).emit(event, payload);
+      ioInstance.to(userRoom(r, userId)).emit(event, pl);
     }
-  }
+  };
+  const emitAll = (senderIds) => {
+    for (const p of participants) {
+      if (!p.userId || seenUserIds.has(p.userId)) continue;
+      seenUserIds.add(p.userId);
+      // v599 — salle d'un de MES profils (≠ id d'envoi) → senderId = ce profil.
+      if (senderIds && senderIds.has(p.userId) && p.userId !== senderRoleId) {
+        emitTo(p.userId, _withSenderId(payload, p.userId));
+      } else {
+        emitTo(p.userId, payload);
+      }
+    }
+    // v599 — mes profils qui ne figurent pas dans le fil (ex. je réponds en
+    // propriétaire dans un fil où je suis enregistré gardien) : ils reçoivent
+    // aussi l'écho, personnalisé, pour se mettre à jour.
+    if (senderIds) {
+      for (const id of senderIds) {
+        if (seenUserIds.has(id)) continue;
+        seenUserIds.add(id);
+        emitTo(id, _withSenderId(payload, id));
+      }
+    }
+  };
+  if (!senderRoleId) { emitAll(null); return; }
+  _senderIdsOf(senderRoleId).then(emitAll).catch(() => emitAll(null));
 };
 
 // v566 — accusés de réception/lecture : UNE seule diffusion vers les 3 rooms
@@ -191,9 +246,11 @@ const isUserOnline = async (userId) => {
   if (!ioInstance || !userId) return false;
   const uid = String(userId);
   try {
+    const now = Date.now();
     for (const r of ['owner', 'sitter', 'walker']) {
       const sockets = await ioInstance.in(userRoom(r, uid)).fetchSockets();
-      if (sockets && sockets.length > 0) return true;
+      // v599 — un socket en arrière-plan ne compte pas comme « en ligne ».
+      if (sockets && sockets.some((s) => isSocketPresent(s, now))) return true;
     }
   } catch (_) {
     return false;
@@ -216,18 +273,69 @@ const socketUserId = (s) => {
   return null;
 };
 
-/** Ids (String) de tous les utilisateurs ayant au moins un socket connecté. */
+/**
+ * v599 (ZOE) — « en ligne » = un appareil de la personne est RÉELLEMENT devant
+ * l'app. Le socket reste connecté en arrière-plan (voulu, part 228 : badges et
+ * suivi en direct), donc « socket connecté » ≠ « en ligne » : le point vert
+ * restait allumé alors que personne n'était là (capture du 28/09).
+ * Un socket est présent si :
+ *   - l'app a déclaré `presence:state { foreground: true }` (599+) et n'a pas
+ *     déclaré le contraire depuis, et son dernier signe date de < 2 min ;
+ *   - ou (client sans déclaration : app 598, site) son dernier signe de vie
+ *     (paquet reçu, événement) date de < 2 min.
+ */
+const PRESENCE_STALE_MS = 2 * 60 * 1000;
+const isSocketPresent = (s, now = Date.now()) => {
+  const d = (s && s.data) || {};
+  if (d.foreground === false) return false;
+  const last = Number(d.lastActiveAt || 0);
+  if (!last) return true; // socket tout neuf (handshake) : présent
+  return now - last < PRESENCE_STALE_MS;
+};
+/** À appeler sur tout signe de vie d'un socket. */
+const markSocketActivity = (s) => {
+  if (!s) return;
+  s.data = s.data || {};
+  s.data.lastActiveAt = Date.now();
+};
+
+/** Ids (String) de tous les utilisateurs ayant au moins un socket PRÉSENT. */
 const getOnlineUserIds = async () => {
   const set = new Set();
   if (!ioInstance) return set;
   try {
     const sockets = await ioInstance.fetchSockets();
+    const now = Date.now();
     for (const s of sockets) {
+      if (!isSocketPresent(s, now)) continue;
       const id = socketUserId(s);
       if (id) set.add(id);
     }
   } catch (_) { /* best-effort */ }
   return set;
+};
+
+/**
+ * v599 — la conversation est-elle OUVERTE à l'écran chez l'une de ces
+ * personnes (ids de rôle) ? Sert à ne pas pousser de notification pour un
+ * message que le destinataire est en train de lire.
+ */
+const isConversationOpenFor = async (conversationId, userIds) => {
+  if (!ioInstance || !conversationId) return false;
+  const ids = new Set((userIds || []).map((v) => (v ? String(v._id || v) : '')).filter(Boolean));
+  if (!ids.size) return false;
+  try {
+    const sockets = await ioInstance.in(String(conversationId)).fetchSockets();
+    const now = Date.now();
+    for (const s of sockets) {
+      const uid = socketUserId(s);
+      if (!uid || !ids.has(uid)) continue;
+      if (!isSocketPresent(s, now)) continue;
+      const open = s.data && s.data.openConversationId;
+      if (!open || String(open) === String(conversationId)) return true;
+    }
+  } catch (_) { /* best-effort */ }
+  return false;
 };
 
 /** Nombre de sockets des ids donnés (3 rooms de rôle chacun), hors `excludeSocketId`. */
@@ -238,15 +346,18 @@ const countSocketsForIds = async (ids, excludeSocketId = null) => {
     for (const id of ids) for (const r of ROLE_KEYS) rooms.push(userRoom(r, id));
     const sockets = await ioInstance.in(rooms).fetchSockets();
     const idSet = new Set(ids.map(String));
+    const now = Date.now();
     let n = 0;
     for (const s of sockets) {
       if (excludeSocketId && s.id === excludeSocketId) continue;
+      if (!isSocketPresent(s, now)) continue; // v599 — arrière-plan ≠ présent
       n += 1;
     }
     // Sockets connectés mais pas encore dans une room (juste après le handshake).
     const all = await ioInstance.fetchSockets();
     for (const s of all) {
       if (excludeSocketId && s.id === excludeSocketId) continue;
+      if (!isSocketPresent(s, now)) continue;
       const uid = socketUserId(s);
       if (uid && idSet.has(uid)) {
         const inRoom = ROLE_KEYS.some((r) => s.rooms && s.rooms.has && s.rooms.has(userRoom(r, uid)));
@@ -352,6 +463,11 @@ const emitPresenceUpdate = ({ userId, userIds, online, at, recipients }) => {
 };
 
 module.exports = {
+  // v599
+  isSocketPresent,
+  markSocketActivity,
+  isConversationOpenFor,
+  PRESENCE_STALE_MS,
   setSocketServer,
   getSocketServer,
   emitToConversation,

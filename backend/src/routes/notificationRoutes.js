@@ -8,6 +8,8 @@ const {
   markMyNotificationsReadAll,
   deleteMyNotification,
   clearMyNotifications,
+  markMyNotificationsReadBatch, // v599
+  deleteMyNotificationsBatch, // v599
 } = require('../controllers/notificationController');
 const { sendNotification } = require('../services/notificationSender');
 const logger = require('../utils/logger');
@@ -232,6 +234,13 @@ router.patch('/my/:id/read', requireAuth, markMyNotificationRead);
  *         description: Unauthorized
  */
 router.patch('/my/read-all', requireAuth, markMyNotificationsReadAll);
+// v599 (ZOE) — lecture / suppression PAR LOT (ids choisis dans la cloche).
+// POST accepté aussi pour la suppression (certains clients n'envoient pas de
+// corps avec DELETE).
+router.patch('/my/read-batch', requireAuth, markMyNotificationsReadBatch);
+router.post('/my/read-batch', requireAuth, markMyNotificationsReadBatch);
+router.delete('/my/batch', requireAuth, deleteMyNotificationsBatch);
+router.post('/my/delete-batch', requireAuth, deleteMyNotificationsBatch);
 
 // v409 — Daniel : "effacer notification". Suppression d'une notif ou de toutes
 // (scoping strict au destinataire côté service).

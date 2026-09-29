@@ -7,6 +7,7 @@ const { HttpError } = require('../utils/errors');
 const {
   emitToConversation, emitChatMessage, userRoom, walkRoom,
   countSocketsForIds, expandIdentityIds, emitPresenceUpdate, invalidatePresenceIndex,
+  markSocketActivity, // v599
 } = require('./emitter');
 const WalkSession = require('../models/WalkSession');
 const { evaluateChatAccess } = require('../middleware/chatAccess');
@@ -231,8 +232,30 @@ const registerChatHandlers = (io, socket) => {
       socket.join(userRoom(trusted.role, trusted.id));
       socket.data.userRoom = { role: trusted.role, userId: trusted.id };
     }
+    markSocketActivity(socket);
     handlePresenceConnect(socket).catch(() => {});
     socket.on('disconnect', () => { handlePresenceDisconnect(socket).catch(() => {}); });
+    // v599 (ZOE) — tout signe de vie (événement reçu, pong) rafraîchit la
+    // présence ; un socket muet depuis 2 min n'est plus « en ligne ».
+    socket.onAny(() => markSocketActivity(socket));
+    try {
+      socket.conn.on('packet', (p) => { if (p && p.type === 'pong') markSocketActivity(socket); });
+    } catch (_) { /* transport sans événement packet */ }
+    // v599 — l'app déclare son état : premier plan (présent) / arrière-plan
+    // (socket gardé pour les badges et le suivi en direct, mais PAS « en
+    // ligne »). Le passage en arrière-plan écrit lastSeenAt et prévient les
+    // correspondants comme une déconnexion ; le retour, comme une connexion.
+    socket.on('presence:state', (payload = {}, callback) => {
+      const fg = !(payload && (payload.foreground === false || payload.background === true));
+      const was = socket.data.foreground;
+      socket.data.foreground = fg;
+      markSocketActivity(socket);
+      if (was !== fg) {
+        if (fg) handlePresenceConnect(socket).catch(() => {});
+        else handlePresenceDisconnect(socket).catch(() => {});
+      }
+      if (callback) callback({ status: 'ok', foreground: fg });
+    });
   }
 
   // Sprint 4 step 4 — per-user room for targeted notifications.
@@ -258,6 +281,14 @@ const registerChatHandlers = (io, socket) => {
       await assertChatPaid(conversation, role, userId);
 
       socket.join(conversationId);
+      // v599 — un ancien id (fil fusionné) : on rejoint aussi la salle du fil
+      // canonique, où arrivent désormais les messages.
+      const canonicalId = conversation && (conversation.id || conversation._id)
+        ? String(conversation.id || conversation._id) : String(conversationId);
+      if (canonicalId !== String(conversationId)) socket.join(canonicalId);
+      // v599 — conversation ouverte à l'écran (pas de push pour ses messages).
+      socket.data = socket.data || {};
+      socket.data.openConversationId = canonicalId;
       // Also ensure we're in the per-user room for targeted notifications.
       if (role && userId) socket.join(userRoom(role, userId));
       socket.data = socket.data || {};
@@ -308,6 +339,10 @@ const registerChatHandlers = (io, socket) => {
       socket.leave(conversationId);
       if (socket.data?.conversationMetadata) {
         delete socket.data.conversationMetadata[conversationId];
+      }
+      // v599 — plus de conversation ouverte à l'écran.
+      if (socket.data && socket.data.openConversationId) {
+        socket.data.openConversationId = null;
       }
     }
     if (callback) {
@@ -407,6 +442,14 @@ const registerChatHandlers = (io, socket) => {
         'markMessagesRead',
         receipts.markMessagesRead({ conversationId, readerId: userId }),
       );
+      // v599 — « lu » synchronisé sur mes autres appareils / profils + cloche.
+      try {
+        const { canonicalIdOf } = require('../utils/conversationIdentity599');
+        const canonicalId = await canonicalIdOf(conversationId);
+        require('../utils/chatReadSync599')
+          .afterConversationRead({ conversationId: canonicalId, readerId: userId })
+          .catch(() => {});
+      } catch (_) { /* best-effort */ }
 
       if (updated) {
         emitToConversation(

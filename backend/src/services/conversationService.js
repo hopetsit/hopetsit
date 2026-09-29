@@ -12,6 +12,13 @@ const { decrypt } = require('../utils/encryption');
 const { createNotificationSafe } = require('./notificationService');
 const { sendNotification } = require('./notificationSender');
 const { getChatAccess } = require('./chatAccessService');
+// v599 (ZOE) — une conversation par paire de PERSONNES : accès, côté (owner /
+// prestataire / participant) et fil canonique calculés sur les 3 profils.
+const {
+  resolveConversation,
+  sideOf,
+  identityIds,
+} = require('../utils/conversationIdentity599');
 
 const normalizeId = (value) => {
   if (!value) return null;
@@ -30,20 +37,30 @@ const getConversationOrThrow = async (conversationId, { populate = false } = {})
   // dispatcher silently drops notifications whose `notification.title`
   // resolves to "Nouveau message de " (empty trailing). Adding walkerId
   // to the populate list fixes the title for walker conversations.
-  const query = populate
-    ? Conversation.findById(conversationId)
-        .populate('ownerId')
-        .populate('sitterId')
-        .populate('walkerId')
-    : Conversation.findById(conversationId);
-
-  const conversation = await query;
+  // v599 — suit `mergedInto` : un ancien id (app 598, webhook) mène au fil
+  // canonique où vivent désormais tous les messages de la paire.
+  const conversation = await resolveConversation(conversationId, {
+    populate: populate ? ['ownerId', 'sitterId', 'walkerId'] : null,
+  });
 
   if (!conversation) {
     throw new HttpError(404, 'Conversation not found.');
   }
 
   return conversation;
+};
+
+/**
+ * v599 — participant PAR PERSONNE : mes 3 profils comptent. Renvoie le côté
+ * ({ side, myIds, otherIds, otherRole }) ou lève 403.
+ */
+const assertParticipantByIdentity = async (conversation, userId) => {
+  const mine = await identityIds(userId);
+  const side = sideOf(conversation, mine);
+  if (!side.side) {
+    throw new HttpError(403, 'User is not part of this conversation.');
+  }
+  return { ...side, mine };
 };
 
 const assertParticipant = (conversation, role, userId) => {
@@ -102,6 +119,10 @@ const sanitizeAttachmentsPayload = (attachments) => {
       thumbnailUrl: typeof attachment.thumbnailUrl === 'string' ? attachment.thumbnailUrl : '',
       originalFilename:
         typeof attachment.originalFilename === 'string' ? attachment.originalFilename : '',
+      // v599 — forme d'onde d'un vocal (0..1, ≤ 64 valeurs).
+      ...(Array.isArray(attachment.waveform) && attachment.waveform.length
+        ? { waveform: attachment.waveform.slice(0, 64).map((v) => Math.max(0, Math.min(1, Number(v) || 0))) }
+        : {}),
     }))
     .filter((attachment) => attachment.url && attachment.publicId);
 };
@@ -193,7 +214,11 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
 
   const conversation = await getConversationOrThrow(conversationId, { populate: true });
 
-  assertParticipant(conversation, senderRole, senderId);
+  // v599 — le côté de l'expéditeur se lit sur la PERSONNE (3 profils), pas sur
+  // le rôle de la session : Daniel connecté en propriétaire peut répondre dans
+  // le fil où il est enregistré comme gardien.
+  const mySide = await assertParticipantByIdentity(conversation, senderId);
+  const senderIsOwnerSide = mySide.side === 'owner';
 
   const ownerId = normalizeId(conversation.ownerId);
   const sitterId = normalizeId(conversation.sitterId);
@@ -291,7 +316,9 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
     attachments: normalizedAttachments,
   });
   conversation.lastMessageAt = new Date();
-  if (senderRole === 'owner') {
+  // v599 — un nouveau message fait réapparaître le fil chez qui l'avait masqué.
+  conversation.clearedFor = [];
+  if (senderIsOwnerSide) {
     conversation.sitterUnreadCount = (conversation.sitterUnreadCount || 0) + 1;
   } else {
     conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
@@ -305,24 +332,22 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
   const sitterIdForNotif = normalizeId(conversation.sitterId);
   const walkerIdForNotif = normalizeId(conversation.walkerId);
   const isWalkerConvo = !!walkerIdForNotif;
-  const recipientRole = senderRole === 'owner'
+  // v599 — destinataire = l'AUTRE côté (par personne).
+  const recipientRole = senderIsOwnerSide
     ? (isWalkerConvo ? 'walker' : 'sitter')
     : 'owner';
-  const recipientId = senderRole === 'owner'
+  const recipientId = senderIsOwnerSide
     ? (isWalkerConvo ? walkerIdForNotif : sitterIdForNotif)
     : ownerIdForNotif;
 
-  if (recipientId && recipientId !== senderId) {
+  if (recipientId && recipientId !== senderId && !mySide.mine.has(String(recipientId))) {
     // v23.1 part 45 — guarantee non-empty senderName + preview so the FCM
     // notification title and body are never empty (Android drops empty
     // notifications). senderName falls back to a localized role label,
     // preview to "📎 Pièce jointe" / "Nouveau message".
-    let senderName =
-      senderRole === 'owner'
-        ? conversation.ownerId?.name
-        : senderRole === 'walker'
-          ? conversation.walkerId?.name
-          : conversation.sitterId?.name;
+    let senderName = senderIsOwnerSide
+      ? conversation.ownerId?.name
+      : (conversation.walkerId?.name || conversation.sitterId?.name);
     senderName = (senderName && senderName.trim()) || 'HoPetSit';
     let preview = (effectiveBody || conversation.lastMessage || '').trim();
     if (!preview) {
@@ -345,6 +370,11 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
         messageId: message._id.toString(),
         senderName,
         preview,
+        // v599 — non lus du destinataire APRÈS ce message : l'e-mail ne part
+        // que pour le PREMIER message non lu d'une conversation.
+        unreadForRecipient: senderIsOwnerSide
+          ? (conversation.sitterUnreadCount || 0)
+          : (conversation.ownerUnreadCount || 0),
       },
       actor: { role: senderRole, id: senderId },
     }).catch((e) => {
@@ -377,10 +407,12 @@ const markConversationRead = async ({ conversationId, role, userId }) => {
   // ne remettait jamais à 0 → au reload/reconnexion le badge revenait.
   // assertParticipant ne connaît pas participants[] non plus → on traite ce cas
   // AVANT (et on évite le 403).
+  // v599 — lecture PAR PERSONNE (mes 3 profils).
+  const mySide = await assertParticipantByIdentity(conversation, userId);
   if (conversation.friendChat === true && Array.isArray(conversation.participants)) {
     let changed = false;
     for (const p of conversation.participants) {
-      if (String(p.userId) === String(userId) && (p.unreadCount || 0) > 0) {
+      if (mySide.mine.has(String(p.userId)) && (p.unreadCount || 0) > 0) {
         p.unreadCount = 0;
         p.lastReadAt = new Date();
         changed = true;
@@ -391,10 +423,8 @@ const markConversationRead = async ({ conversationId, role, userId }) => {
     return { updated: true, conversation: sanitizeConversation(conversation) };
   }
 
-  assertParticipant(conversation, role, userId);
-
   let updated = false;
-  if (role === 'owner') {
+  if (mySide.side === 'owner') {
     if (conversation.ownerUnreadCount > 0) {
       conversation.ownerUnreadCount = 0;
       conversation.ownerLastReadAt = new Date();
@@ -429,7 +459,8 @@ const assertAccessAndFetch = async ({ conversationId, role, userId }) => {
   ensureRole(role);
 
   const conversation = await getConversationOrThrow(conversationId, { populate: true });
-  assertParticipant(conversation, role, userId);
+  // v599 — accès par personne (tous rôles).
+  await assertParticipantByIdentity(conversation, userId);
 
   return sanitizeConversation(conversation);
 };
@@ -439,5 +470,6 @@ module.exports = {
   markConversationRead,
   assertAccessAndFetch,
   hasValidPaidBooking,
+  assertParticipantByIdentity, // v599
 };
 

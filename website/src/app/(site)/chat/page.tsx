@@ -394,6 +394,19 @@ export default function ChatPage() {
     bumpListStatus(data.conversationId, "delivered");
   });
 
+  // v599 (ZOE) — présence réelle : « en ligne » = onglet visible. Un onglet
+  // laissé ouvert en arrière-plan ne fait plus croire que la personne est là.
+  useEffect(() => {
+    const send = () => {
+      getSocket()?.emit("presence:state", {
+        foreground: document.visibilityState === "visible",
+      });
+    };
+    send();
+    document.addEventListener("visibilitychange", send);
+    return () => document.removeEventListener("visibilitychange", send);
+  }, []);
+
   // v566 — l'onglet redevient visible avec une conversation ouverte → lu.
   useEffect(() => {
     const onVisible = () => {
@@ -424,6 +437,17 @@ export default function ChatPage() {
   // mes appareils) : l'onglet ouvert ici retire la ligne SANS recharger, et
   // ferme le panneau de droite si c'était la conversation affichée. Rien n'est
   // émis à l'autre personne : elle garde sa copie.
+  // v599 (ZOE) — « lu » synchronisé : la conversation a été lue sur un AUTRE
+  // appareil de la même personne (iPhone, Android, autre onglet) → son compteur
+  // tombe à 0 ici aussi, sans recharger. Le serveur est la seule source de vérité.
+  useSocketEvent<{ conversationId?: string }>("conversation:read:self", (data) => {
+    const cid = String((data && data.conversationId) || "");
+    if (!cid) return;
+    setConversations((prev) =>
+      prev.map((c) => (c.id === cid ? { ...c, unreadCount: 0 } : c)),
+    );
+  });
+
   useSocketEvent<{ conversationId?: string }>("conversation:deleted", (data) => {
     const id = data?.conversationId;
     if (!id) return;

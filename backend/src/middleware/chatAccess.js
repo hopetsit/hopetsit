@@ -47,22 +47,26 @@ const evaluateChatAccess = async ({ ownerId, sitterId, walkerId }) => {
  */
 const requirePaidBooking = async (req, res, next) => {
   try {
-    const conversation = await Conversation.findById(req.params.id)
-      .select('ownerId sitterId walkerId friendChat participants')
-      .lean();
+    // v599 (ZOE) — un ancien id (fil fusionné) mène au fil canonique ; l'accès
+    // se juge PAR PERSONNE (mes 3 profils).
+    const identity599 = require('../utils/conversationIdentity599');
+    const conversation = await identity599.resolveConversation(req.params.id, {
+      select: 'ownerId sitterId walkerId friendChat participants mergedInto', lean: true,
+    });
     if (!conversation) {
       return res.status(404).json({ error: 'Conversation not found.' });
     }
+    let myIds599 = new Set([String(req.user?.id || '')]);
+    try { myIds599 = await identity599.identityIds(req.user?.id); } catch (_) { /* id seul */ }
 
     // v23.1.200 — Daniel : friend/family chat. Bypass complet du
     // pipeline booking-payé pour les conversations friendChat.
     // L'autorisation est verifiee a la creation (startFriendConversation)
     // qui valide friendship 'accepted' OU meme famille PawFollow.
     if (conversation.friendChat === true) {
-      const myId = req.user?.id;
       const isParticipant = Array.isArray(conversation.participants)
         && conversation.participants.some(
-          (p) => String(p.userId) === String(myId),
+          (p) => myIds599.has(String(p.userId)),
         );
       if (!isParticipant) {
         return res.status(403).json({ error: 'Not a chat participant.' });
