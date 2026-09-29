@@ -14,6 +14,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/services/live_map_service.dart';
+import 'package:hopetsit/services/live_share_starter.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
@@ -58,6 +60,128 @@ ChatMessageBase? pawFollowLiveMessage(Iterable<ChatMessageBase> messages) {
 
 bool pawFollowIsLive(Iterable<ChatMessageBase> messages) =>
     pawFollowLiveMessage(messages) != null;
+
+// ───────── v603 (ZOE) — la pilule du chat à l'état RÉEL du partage ─────────
+// Daniel (29/09) : la pilule « En direct · voir la carte » restait affichée
+// après l'arrêt du direct. Elle ne regardait que la demande ACCEPTÉE (moins
+// de 12 h), jamais le partage lui-même. Désormais :
+//   • c'est MA position qui est suivie → mon direct réel (ce téléphone ou mon
+//     autre téléphone), la même vérité que le bouton Balade de la PawMap et
+//     la carte du chat du 602 ; arrêté → « Relancer le direct » ;
+//   • c'est l'AUTRE qui partage → son direct tel que la PawMap le reçoit
+//     (socket `map:friend-position` / `map:friend-offline`) ; arrêté ou
+//     invisible pour moi → « Direct arrêté · redemander ».
+
+/// État affiché par la pilule PawFollow d'une conversation.
+enum PawFollowLiveStatus {
+  /// Aucune demande acceptée en cours : pilule « Suivre » / « Partager ».
+  none,
+
+  /// Le partage de position tourne : « En direct · voir la carte ».
+  live,
+
+  /// Demande acceptée mais le partage est arrêté.
+  stopped,
+}
+
+/// Règle PURE (testée). [peerLive] = l'autre partage-t-il ? null = inconnu
+/// (sa position ne m'arrive pas : pour moi, rien n'est en direct).
+PawFollowLiveStatus pawFollowLiveStatus({
+  required bool accepted,
+  required bool iShare,
+  required bool myLive,
+  required bool? peerLive,
+}) {
+  if (!accepted) return PawFollowLiveStatus.none;
+  if (iShare) return myLive ? PawFollowLiveStatus.live : PawFollowLiveStatus.stopped;
+  return peerLive == true ? PawFollowLiveStatus.live : PawFollowLiveStatus.stopped;
+}
+
+/// Ids de l'AUTRE personne d'une demande PawFollow (expéditeur, répondant,
+/// contact de la conversation). Vide si inconnu.
+Set<String> pawFollowPeerIds(ChatMessageBase m, {String contactId = ''}) {
+  final md = m.metadata;
+  final ids = <String>{
+    if (contactId.isNotEmpty) contactId,
+    if (!m.isFromCurrentUser) ...[
+      m.senderId,
+      (md['requesterId'] ?? '').toString(),
+    ] else
+      (md['respondedBy'] ?? '').toString(),
+  };
+  return ids
+      .where((e) => e.trim().isNotEmpty)
+      .map((e) => e.trim().toLowerCase())
+      .toSet();
+}
+
+/// L'autre personne partage-t-elle sa position en ce moment (en direct ou
+/// signal perdu depuis moins de 10 min) ? null = aucune position reçue.
+/// Lue dans un `Obx` : suit les événements socket du direct.
+bool? pawFollowPeerLiveNow(LiveMapService live, Set<String> peerIds) {
+  if (peerIds.isEmpty) return null;
+  // Abonne l'Obx au minuteur « signal perdu » (toutes les 30 s).
+  live.staleTick.value;
+  for (final fp in live.friendPositions.values) {
+    if (fp.allIds.any(peerIds.contains)) {
+      return fp.liveState != FriendLiveState.seen;
+    }
+  }
+  return null;
+}
+
+/// État RÉEL de la pilule pour la conversation (à appeler dans un `Obx`).
+PawFollowLiveStatus pawFollowLiveStatusFor(
+  Iterable<ChatMessageBase> messages, {
+  String contactId = '',
+}) {
+  final accepted = pawFollowLiveMessage(messages);
+  if (accepted == null) return PawFollowLiveStatus.none;
+  final iShare = pawfollowSharerIsMe(
+    requesterRole: accepted.pawfollowRequesterRole,
+    isMine: accepted.isFromCurrentUser,
+  );
+  if (!Get.isRegistered<LiveMapService>()) {
+    return PawFollowLiveStatus.stopped;
+  }
+  final live = Get.find<LiveMapService>();
+  final myLive = live.broadcasting.value || live.liveElsewhere.value;
+  return pawFollowLiveStatus(
+    accepted: true,
+    iShare: iShare,
+    myLive: myLive,
+    peerLive: iShare
+        ? null
+        : pawFollowPeerLiveNow(
+            live, pawFollowPeerIds(accepted, contactId: contactId)),
+  );
+}
+
+/// Construit [build] avec MON direct réel et celui de l'AUTRE personne de la
+/// demande [m] (null = inconnu), reconstruit à chaque événement du direct.
+Widget pawFollowWithLiveState(
+  ChatMessageBase m, {
+  String contactId = '',
+  required Widget Function(bool myLive, bool? peerLive) build,
+}) {
+  if (!Get.isRegistered<LiveMapService>()) return build(false, null);
+  final live = Get.find<LiveMapService>();
+  return Obx(() {
+    final bool myLive = live.broadcasting.value || live.liveElsewhere.value;
+    final bool? peerLive =
+        pawFollowPeerLiveNow(live, pawFollowPeerIds(m, contactId: contactId));
+    return build(myLive, peerLive);
+  });
+}
+
+/// Id du contact de la conversation [conversationId] (vide si inconnu).
+String pawFollowContactId(
+    Iterable<ChatConversationBase> conversations, String conversationId) {
+  for (final c in conversations) {
+    if (c.id == conversationId) return c.contactId;
+  }
+  return '';
+}
 
 /// Point vert qui pulse (suivi en cours).
 class PawFollowLiveDot extends StatefulWidget {
@@ -129,6 +253,8 @@ class PawFollowPill extends StatelessWidget {
     this.icon = Icons.my_location_rounded,
     this.live = false,
     this.maxWidth,
+    this.stoppedLabel,
+    this.stoppedIcon = Icons.replay_rounded,
   });
 
   /// Libellé hors suivi (« Suivre en direct mon animal », « Partager ma position »).
@@ -140,9 +266,16 @@ class PawFollowPill extends StatelessWidget {
   final bool live;
   final double? maxWidth;
 
+  /// v603 — demande acceptée mais partage ARRÊTÉ : ce libellé (« Relancer le
+  /// direct » / « Direct arrêté · redemander ») et [stoppedIcon], jamais le
+  /// point vert.
+  final String? stoppedLabel;
+  final IconData stoppedIcon;
+
   @override
   Widget build(BuildContext context) {
-    final text = live ? 'cs_pf_live_open'.tr : label;
+    final bool stopped = !live && stoppedLabel != null;
+    final text = live ? 'cs_pf_live_open'.tr : (stoppedLabel ?? label);
     final radius = BorderRadius.circular(999);
     return Padding(
       padding: EdgeInsets.only(right: 4.w),
@@ -185,7 +318,8 @@ class PawFollowPill extends StatelessWidget {
                       if (live)
                         const PawFollowLiveDot(size: 7)
                       else
-                        Icon(icon, size: 15.sp, color: Colors.white),
+                        Icon(stopped ? stoppedIcon : icon,
+                            size: 15.sp, color: Colors.white),
                       SizedBox(width: 5.w),
                       Flexible(
                         // v583 (lot A, capture de Daniel : « Suivre en direct

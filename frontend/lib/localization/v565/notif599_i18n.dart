@@ -3,6 +3,8 @@
 // « Supprimer (N) » / « Marquer lu (N) »), et garder « Tout ».
 // v602 (ZOE, 29/09/2026) — routage des notifications : message clair quand la
 // cible d'une notification n'existe plus (notif602_*).
+// v603 (ZOE, 29/09/2026) — pilule « En direct » du chat à l'état réel du partage :
+// « Relancer le direct » / « Direct arrêté · redemander » (chat603_*).
 // Même clé dans les 9 langues ; la variable @n ne s'accentue jamais.
 const Map<String, Map<String, String>> notif599I18n = <String, Map<String, String>>{
   'en': <String, String>{
@@ -24,6 +26,8 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif602_conversation_gone': 'This conversation no longer exists (it may have been deleted).',
     'notif602_application_gone': 'This application no longer exists or has already been handled.',
     'notif602_application_rejected': 'This application was declined.',
+    'chat603_live_restart': 'Restart live',
+    'chat603_live_stopped_ask': 'Live stopped · ask again',
   },
   'fr': <String, String>{
     'notif599_select': 'Sélectionner',
@@ -44,6 +48,8 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif602_conversation_gone': "Cette conversation n'existe plus (elle a peut-être été supprimée).",
     'notif602_application_gone': "Cette candidature n'existe plus ou a déjà été traitée.",
     'notif602_application_rejected': 'Cette candidature a été refusée.',
+    'chat603_live_restart': 'Relancer le direct',
+    'chat603_live_stopped_ask': 'Direct arrêté · redemander',
   },
   'es': <String, String>{
     'notif599_select': 'Seleccionar',
@@ -64,6 +70,8 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif602_conversation_gone': 'Esta conversación ya no existe (quizá se eliminó).',
     'notif602_application_gone': 'Esta candidatura ya no existe o ya se ha gestionado.',
     'notif602_application_rejected': 'Esta candidatura fue rechazada.',
+    'chat603_live_restart': 'Reanudar el directo',
+    'chat603_live_stopped_ask': 'Directo detenido · volver a pedir',
   },
   'de': <String, String>{
     'notif599_select': 'Auswählen',
@@ -84,6 +92,8 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif602_conversation_gone': 'Diese Unterhaltung gibt es nicht mehr (sie wurde vielleicht gelöscht).',
     'notif602_application_gone': 'Diese Bewerbung gibt es nicht mehr oder sie wurde bereits bearbeitet.',
     'notif602_application_rejected': 'Diese Bewerbung wurde abgelehnt.',
+    'chat603_live_restart': 'Live neu starten',
+    'chat603_live_stopped_ask': 'Live beendet · erneut anfragen',
   },
   'it': <String, String>{
     'notif599_select': 'Seleziona',
@@ -104,6 +114,8 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif602_conversation_gone': 'Questa conversazione non esiste più (forse è stata eliminata).',
     'notif602_application_gone': 'Questa candidatura non esiste più o è già stata gestita.',
     'notif602_application_rejected': 'Questa candidatura è stata rifiutata.',
+    'chat603_live_restart': 'Riavvia la diretta',
+    'chat603_live_stopped_ask': 'Diretta interrotta · richiedi di nuovo',
   },
   'pt': <String, String>{
     'notif599_select': 'Selecionar',
@@ -124,6 +136,8 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif602_conversation_gone': 'Esta conversa já não existe (pode ter sido eliminada).',
     'notif602_application_gone': 'Esta candidatura já não existe ou já foi tratada.',
     'notif602_application_rejected': 'Esta candidatura foi recusada.',
+    'chat603_live_restart': 'Retomar o direto',
+    'chat603_live_stopped_ask': 'Direto parado · pedir de novo',
   },
   'ko': <String, String>{
     'notif599_select': '선택',
@@ -144,6 +158,8 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif602_conversation_gone': '이 대화는 더 이상 존재하지 않습니다(삭제되었을 수 있어요).',
     'notif602_application_gone': '이 지원은 더 이상 존재하지 않거나 이미 처리되었습니다.',
     'notif602_application_rejected': '이 지원은 거절되었습니다.',
+    'chat603_live_restart': '실시간 다시 시작',
+    'chat603_live_stopped_ask': '실시간 중지됨 · 다시 요청',
   },
   'ja': <String, String>{
     'notif599_select': '選択',
@@ -164,6 +180,8 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif602_conversation_gone': 'この会話はもう存在しません（削除された可能性があります）。',
     'notif602_application_gone': 'この応募はもう存在しないか、すでに対応済みです。',
     'notif602_application_rejected': 'この応募は辞退されました。',
+    'chat603_live_restart': 'ライブを再開',
+    'chat603_live_stopped_ask': 'ライブ停止中 · 再リクエスト',
   },
   'pl': <String, String>{
     'notif599_select': 'Zaznacz',
@@ -184,5 +202,7 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif602_conversation_gone': 'Ta rozmowa już nie istnieje (mogła zostać usunięta).',
     'notif602_application_gone': 'To zgłoszenie już nie istnieje lub zostało już rozpatrzone.',
     'notif602_application_rejected': 'To zgłoszenie zostało odrzucone.',
+    'chat603_live_restart': 'Wznów na żywo',
+    'chat603_live_stopped_ask': 'Na żywo zatrzymane · poproś ponownie',
   },
 };

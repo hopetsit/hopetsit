@@ -426,7 +426,10 @@ class _SitterIndividualChatScreenState
         requesterRole: m.pawfollowRequesterRole,
         isMine: m.isFromCurrentUser,
       );
-      return LiveShareStarter.withMyLiveState((liveNow) => PawfollowRequestCard(
+      return pawFollowWithLiveState(m,
+        contactId: pawFollowContactId(chatController.conversations, widget.conversationId),
+        build: (liveNow, peerLiveNow) => PawfollowRequestCard(
+      peerLiveNow: peerLiveNow,
         iShare: iShare,
         liveNow: liveNow,
         onStartLive: () => unawaited(LiveShareStarter.startWithFeedback()),
@@ -540,20 +543,43 @@ class _SitterIndividualChatScreenState
         actions: [
           // v566 — pilule violette PawFollow ; suivi EN COURS → point vert
           // animé + « En direct · voir la carte ».
+          // v603 (ZOE) — la pilule suit l'état RÉEL du partage (socket du
+          // direct) : arrêté → « Relancer le direct » (ma position) ou
+          // « Direct arrêté · redemander » (celle de l'autre).
           Obx(() {
-            final live =
-                pawFollowLiveMessage(chatController.currentChatMessages);
+            final msgs = chatController.currentChatMessages;
+            final live = pawFollowLiveMessage(msgs);
+            final status = pawFollowLiveStatusFor(
+              msgs,
+              contactId: pawFollowContactId(
+                  chatController.conversations, widget.conversationId),
+            );
+            final bool iShare = live != null &&
+                pawfollowSharerIsMe(
+                  requesterRole: live.pawfollowRequesterRole,
+                  isMine: live.isFromCurrentUser,
+                );
             return PawFollowPill(
+              key: ValueKey<String>('chat_pf_pill_${status.name}'),
               icon: Icons.share_location_rounded,
               // v583 (lot A) — libellé court, jamais coupé (9 langues).
               label: 'cs_pf_pill_share'.tr,
-              live: live != null,
-              onTap: live != null
-                  ? () => Get.to(() => PawMapScreen(
-                        initialLat: live.pawfollowLastLat,
-                        initialLng: live.pawfollowLastLng,
-                      ))
-                  : _onFollowMeSheet,
+              live: status == PawFollowLiveStatus.live,
+              stoppedLabel: status == PawFollowLiveStatus.stopped
+                  ? (iShare
+                      ? 'chat603_live_restart'.tr
+                      : 'chat603_live_stopped_ask'.tr)
+                  : null,
+              onTap: switch (status) {
+                PawFollowLiveStatus.live => () => Get.to(() => PawMapScreen(
+                      initialLat: live!.pawfollowLastLat,
+                      initialLng: live.pawfollowLastLng,
+                    )),
+                PawFollowLiveStatus.stopped => iShare
+                    ? () => unawaited(LiveShareStarter.startWithFeedback())
+                    : _onFollowMeSheet,
+                PawFollowLiveStatus.none => _onFollowMeSheet,
+              },
             );
           }),
         ],

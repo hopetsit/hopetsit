@@ -175,6 +175,16 @@
                 <data android:pathPrefix="/family" />
                 <data android:pathPrefix="/live" />
                 <data android:pathPrefix="/pawmap" />
+                <!-- v603 (ZOE) — cibles précises du routeur 602 utilisées aussi par
+                     les boutons des e-mails (emailLinkBuilder.buildEmailRoute) :
+                     carte de la demande, candidature, identité, avis, profil d'un
+                     membre. Le serveur ne les met dans un e-mail que si les
+                     appareils Android de la personne sont en 603 ou plus. -->
+                <data android:pathPrefix="/request" />
+                <data android:pathPrefix="/application" />
+                <data android:pathPrefix="/identity" />
+                <data android:pathPrefix="/reviews" />
+                <data android:pathPrefix="/member" />
             </intent-filter>
         </activity>
         <!-- Google Maps API Key -->

@@ -28,6 +28,7 @@ import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/routes/app_routes.dart';
 import 'package:hopetsit/routes/app_pages.dart';
 import 'package:hopetsit/views/splash/splash_screen.dart';
+import 'package:hopetsit/views/map/pawmap_snapshot.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/utils/paw_menu_theme.dart';
@@ -137,6 +138,9 @@ void main() async {
   // PawMap. Le moteur Google Maps ne démarrait qu'à la première carte (lent
   // sur ces puces). On le prépare dès le lancement, sans attendre.
   unawaited(_warmUpMaps());
+  // v603 — la photo de la dernière PawMap est décodée pendant l'écran de
+  // démarrage : posée sans délai par-dessus la carte à son ouverture.
+  unawaited(PawMapSnapshotStore.warmUp());
 
   // v598 — ZOE (mesuré sur émulateur 2 Go, démarrage à froid) : les cinq
   // initialisations ci-dessous sont indépendantes les unes des autres et

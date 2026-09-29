@@ -153,6 +153,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v584 — LE contrôleur de LA carte (une seule GoogleMap depuis la fusion
   /// du lot C : plus de calque agrandi avec son propre contrôleur).
   final Completer<GoogleMapController> _mapCtl = Completer();
+  // v603 — la photo PAR-DESSUS la carte au démarrage (plafond dur 800 ms).
+  final PawMapLaunchCover _cover = PawMapLaunchCover();
+  bool _firstIdleSeen = false;
   late final PawMapController _poiController;
   late final MapReportController _reportController;
   late final FriendController _friendController;
@@ -273,6 +276,38 @@ class _PawMapScreenState extends State<PawMapScreen>
     _zoomLevel = m.zoom;
     _idleZoom = _zoomLevel;
     _snapshotShown.value = true;
+    // v603 — la même photo aussi PAR-DESSUS (le gris opaque d'iOS).
+    if (!pawMap603NoCover) _cover.show();
+  }
+
+  /// v603 — l'onglet de la carte devient visible / caché (le wrapper coupe
+  /// les animations de l'onglet caché : TickerMode).
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (TickerMode.valuesOf(context).enabled) {
+      pawMap603Log('onglet PawMap visible');
+      _cover.visible();
+    } else {
+      _cover.hidden();
+    }
+  }
+
+  Widget _buildLaunchCover() {
+    final PawMapSnapshotMeta? m = _snapshot;
+    if (m == null) return const SizedBox.shrink();
+    return PawMapLaunchCoverView(
+      cover: _cover,
+      image: Image.file(
+        File(m.path),
+        key: const ValueKey<String>('pawmap_cover_image'),
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        excludeFromSemantics: true,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      ),
+    );
   }
 
   /// Caméra à l'arrêt : photo 1,5 s plus tard si rien n'a rebougé (les
@@ -2018,6 +2053,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     _pendingFriendWorker?.dispose();
     _reloadDebounce?.cancel();
     _snapshotTimer?.cancel();
+    _cover.dispose();
     for (final w in _backGuardWorkers) {
       w.dispose();
     }
@@ -2880,6 +2916,13 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v601 — premier arrêt de la caméra : la photo de lancement s'en va ;
     // une nouvelle photo est prise quand la carte est stable.
     if (_snapshotShown.value) _snapshotShown.value = false;
+    // v603 — premier arrêt de la caméra après la création : la carte est
+    // prête, la photo du dessus s'en va (après le court délai de peinture).
+    if (!_firstIdleSeen) {
+      _firstIdleSeen = true;
+      pawMap603Log('1er onCameraIdle');
+      _cover.mapReady();
+    }
     _scheduleSnapshot();
     _camIdleRev.value++;
     // v598 — les épingles adoptent le zoom d'arrêt après 450 ms de calme.
@@ -5275,7 +5318,11 @@ class _PawMapScreenState extends State<PawMapScreen>
           // v586 — au PREMIER appui, où qu'il soit, les commandes effacées
           // pendant un geste reviennent tout de suite.
           child: Listener(
-            onPointerDown: (_) => _restoreChrome(),
+            onPointerDown: (_) {
+              // v603 — premier geste, où qu'il soit : la photo s'en va.
+              _cover.dismiss('geste');
+              _restoreChrome();
+            },
             behavior: HitTestBehavior.translucent,
             child: Stack(
           children: [
@@ -5313,6 +5360,13 @@ class _PawMapScreenState extends State<PawMapScreen>
                 onPointerCancel: _onMapPointerEnd,
                 child: _buildGoogleMap(),
               ),
+            ),
+            // v603 — la photo PAR-DESSUS la carte, le temps que la vue
+            // Google peigne ses tuiles (iPhone : fond gris opaque ~0,3 s).
+            // Retirée à la carte prête, au 1er geste ou à 800 ms au plus.
+            Positioned.fill(
+              key: const ValueKey<String>('pawmap_cover_layer'),
+              child: _buildLaunchCover(),
             ),
             // v596 — Daniel (27/09) : « je veux que ce soit sans attente, sur
             // tous les téléphones, c'est tout ». Le voile de chargement des
@@ -5956,6 +6010,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           zoom: _zoomLevel,
         ),
         onMapCreated: (c) {
+          pawMap603Log('onMapCreated');
           if (!_mapCtl.isCompleted) _mapCtl.complete(c);
           // v23.1 part 213 — centre initial demandé (alerte, ami, lien) :
           // on y va tout de suite, avant le recentrage GPS.

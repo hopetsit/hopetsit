@@ -68,11 +68,15 @@ class PawfollowRequestCard extends StatelessWidget {
     this.iShare = false,
     this.liveNow = false,
     this.onStartLive,
+    // v603 (ZOE) — direct de l'AUTRE personne (c'est elle qui partage) tel
+    // que la PawMap le reçoit ; null = inconnu (rien ne m'arrive).
+    this.peerLiveNow,
   });
 
   final bool? isMine;
   final bool iShare;
   final bool liveNow;
+  final bool? peerLiveNow;
   final VoidCallback? onStartLive;
 
   final String messageId;
@@ -139,6 +143,12 @@ class PawfollowRequestCard extends StatelessWidget {
             expiresAt!.isBefore(DateTime.now()));
     final bool canRespond = status == 'pending' && isResponder && !expired;
     final bool trackingActive = status == 'accepted' && !ended;
+    // v603 (ZOE) — Daniel : « En direct · voir la carte » restait affiché
+    // après l'arrêt du direct. Le point vert et « Suivi actif » ne suivent
+    // plus la seule demande acceptée mais le partage RÉEL : le mien si c'est
+    // ma position, sinon celui de l'autre.
+    final bool reallyLive =
+        trackingActive && (iShare ? liveNow : peerLiveNow == true);
 
     String statusBadge;
     Color statusColor;
@@ -537,11 +547,13 @@ class PawfollowRequestCard extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.fromLTRB(14.w, 6.h, 14.w, 6.h),
                 child: PawFollowPrimaryButton(
-                  label: trackingActive
+                  key: ValueKey<String>(
+                      reallyLive ? 'pawfollow_open_map_live' : 'pawfollow_open_map'),
+                  label: reallyLive
                       ? 'cs_pf_active_open_map'.tr
                       : 'pawfollow_open_map'.tr,
                   icon: Icons.map_rounded,
-                  live: trackingActive,
+                  live: reallyLive,
                   onTap: onOpenMap,
                 ),
               ),

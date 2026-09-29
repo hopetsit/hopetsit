@@ -1,6 +1,9 @@
 import 'package:hopetsit/widgets/paw_count_badge.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/views/map/pawmap_friend_focus.dart';
+import 'package:hopetsit/views/map/pawmap_snapshot.dart';
+import 'dart:ui' show FramePhase;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter/services.dart';
@@ -59,17 +62,77 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   bool _pawMapMounted = false;
   Worker? _tabRequestWorker;
 
+  /// v603 — délai de montage de la PawMap après la 1re image de l'accueil
+  /// (mesuré au 603 : voir PAM_rapport). Réglable pour les mesures A/B
+  /// seulement (`--dart-define=HPS_MOUNT_MS=…`), jamais dans les stores.
+  static const int kPawMapMountMs =
+      int.fromEnvironment('HPS_MOUNT_MS', defaultValue: 300);
+
+  /// v603 — mesures seulement : ouvre l'onglet PawMap tout seul N ms après
+  /// la 1re image de l'accueil (-1 = jamais, valeur des stores).
+  static final int _kAutoTabMs = pawMap603Int('HPS_AUTOTAB_MS',
+      const int.fromEnvironment('HPS_AUTOTAB_MS', defaultValue: -1));
+  static final int _mountMs = pawMap603Int('HPS_MOUNT_MS', kPawMapMountMs);
+
+  void _mountPawMap() {
+    if (mounted && !_pawMapMounted) {
+      pawMap603Log('PawMap MONTÉE (délai $_mountMs ms)');
+      setState(() => _pawMapMounted = true);
+    }
+  }
+
+  // v603 — mesures seulement : images de l'accueil trop longues (jank).
+  int _probeFrames = 0;
+  int _probeJankMs = 0;
+  int _probeWorstMs = 0;
+  final List<String> _probeSlow = <String>[];
+  int? _probeT0;
+  void _onProbeTimings(List<FrameTiming> list) {
+    for (final t in list) {
+      final ms = t.totalSpan.inMicroseconds / 1000.0;
+      final at = t.timestampInMicroseconds(FramePhase.vsyncStart) ~/ 1000;
+      _probeT0 ??= at;
+      _probeFrames++;
+      if (ms > 16.7) _probeJankMs += (ms - 16.7).round();
+      if (ms > _probeWorstMs) _probeWorstMs = ms.round();
+      if (ms > 33) _probeSlow.add('+${at - _probeT0!}:${ms.round()}');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      pawMap603Log('ACCUEIL 1re image (auto-onglet $_kAutoTabMs ms, '
+          'montage $_mountMs ms, sans photo dessus $pawMap603NoCover)');
+      if (kPawMap603Probe) {
+        SchedulerBinding.instance.addTimingsCallback(_onProbeTimings);
+        Future.delayed(const Duration(milliseconds: 2500), () {
+          SchedulerBinding.instance.removeTimingsCallback(_onProbeTimings);
+          pawMap603Log('JANK 2,5 s : $_probeFrames images, '
+              'retard cumulé $_probeJankMs ms, pire $_probeWorstMs ms ; '
+              'lentes (début:durée ms) ${_probeSlow.join(' ')}');
+        });
+      }
+      if (_kAutoTabMs >= 0) {
+        Future.delayed(Duration(milliseconds: _kAutoTabMs), () {
+          pawMap603Log('TAB_OPEN (auto)');
+          if (mounted) _onTap(kPawMapTabIndex);
+        });
+      }
       _refreshNotificationBadge();
       // v561 — mise à jour de l'app (Play In-App Updates / feuille App Store),
       // vérifiée une fois par lancement, après que le menu est affiché.
       Future.delayed(const Duration(seconds: 3), AppUpdateService.checkOnce);
-      Future.delayed(const Duration(milliseconds: 1200), () {
-        if (mounted && !_pawMapMounted) setState(() => _pawMapMounted = true);
-      });
+      // v603 — Daniel (29/09, 602) : « toujours la mini attente de la
+      // map ». Montée plus tôt (1,2 s au 597) pour que la vue Google ait
+      // peint avant qu'on touche l'onglet ; le coût pour l'accueil a été
+      // mesuré (PAM_rapport, section 603).
+      if (_mountMs <= 0) {
+        _mountPawMap();
+      } else {
+        Future.delayed(Duration(milliseconds: _mountMs), _mountPawMap);
+      }
     });
     // v559 — un autre écran demande un onglet (ex. PawMap avec itinéraire).
     // v571 — compteur et non simple booléen : au changement de rôle le
@@ -140,6 +203,7 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
         );
       }
     }
+    if (index == kPawMapTabIndex) pawMap603Log('onglet PawMap touché');
     setState(() {
       _currentIndex = index;
       if (index == kPawMapTabIndex) _pawMapMounted = true;

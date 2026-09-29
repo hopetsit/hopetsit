@@ -285,7 +285,10 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
       requesterRole: message.pawfollowRequesterRole,
       isMine: message.isFromCurrentUser,
     );
-    return LiveShareStarter.withMyLiveState((liveNow) => PawfollowRequestCard(
+    return pawFollowWithLiveState(message,
+        contactId: pawFollowContactId(chatController.conversations, widget.conversationId),
+        build: (liveNow, peerLiveNow) => PawfollowRequestCard(
+      peerLiveNow: peerLiveNow,
       iShare: iShare,
       liveNow: liveNow,
       onStartLive: () => unawaited(LiveShareStarter.startWithFeedback()),
@@ -739,15 +742,41 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         actions: [
           // v566 — pilule violette PawFollow ; suivi EN COURS → point vert
           // animé + « En direct · voir la carte » (ouvre la PawMap).
+          // v603 (ZOE) — la pilule suit l'état RÉEL du partage (socket du
+          // direct), plus seulement la demande acceptée : arrêté → « Relancer
+          // le direct » (si c'est ma position) ou « Direct arrêté ·
+          // redemander » (si c'est celle de l'autre).
           Obx(() {
-            final live =
-                pawFollowLiveMessage(chatController.currentChatMessages);
+            final msgs = chatController.currentChatMessages;
+            final live = pawFollowLiveMessage(msgs);
+            final status = pawFollowLiveStatusFor(
+              msgs,
+              contactId: pawFollowContactId(
+                  chatController.conversations, widget.conversationId),
+            );
+            final bool iShare = live != null &&
+                pawfollowSharerIsMe(
+                  requesterRole: live.pawfollowRequesterRole,
+                  isMine: live.isFromCurrentUser,
+                );
             return PawFollowPill(
+              key: ValueKey<String>('chat_pf_pill_${status.name}'),
               icon: Icons.my_location_rounded,
               // v583 (lot A) — libellé court, jamais coupé (9 langues).
               label: 'cs_pf_pill_follow'.tr,
-              live: live != null,
-              onTap: live != null ? () => _openLiveMap(live) : _onSuivreTap,
+              live: status == PawFollowLiveStatus.live,
+              stoppedLabel: status == PawFollowLiveStatus.stopped
+                  ? (iShare
+                      ? 'chat603_live_restart'.tr
+                      : 'chat603_live_stopped_ask'.tr)
+                  : null,
+              onTap: switch (status) {
+                PawFollowLiveStatus.live => () => _openLiveMap(live!),
+                PawFollowLiveStatus.stopped => iShare
+                    ? () => unawaited(LiveShareStarter.startWithFeedback())
+                    : _onSuivreTap,
+                PawFollowLiveStatus.none => _onSuivreTap,
+              },
             );
           }),
         ],

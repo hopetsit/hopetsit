@@ -27,6 +27,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:path_provider/path_provider.dart';
@@ -196,11 +197,53 @@ class PawMapSnapshotStore {
     try {
       final m = PawMapSnapshotMeta.fromJson(GetStorage().read(metaKey));
       if (m == null) return null;
-      if (!File(m.path).existsSync()) return null;
-      return m;
+      if (File(m.path).existsSync()) return m;
+      // v603 — iPhone : après une MISE À JOUR de l'app, le chemin du dossier
+      // de l'app change (la photo est toujours là, ailleurs). On la retrouve
+      // dans le dossier actuel, connu depuis [warmUp].
+      final dir = _supportDir;
+      if (dir == null) return null;
+      final moved = '$dir/$fileName';
+      if (moved == m.path || !File(moved).existsSync()) return null;
+      return PawMapSnapshotMeta(
+        path: moved,
+        lat: m.lat,
+        lng: m.lng,
+        zoom: m.zoom,
+        savedAt: m.savedAt,
+        night: m.night,
+        satellite: m.satellite,
+        uid: m.uid,
+        aspect: m.aspect,
+      );
     } catch (_) {
       return null;
     }
+  }
+
+  /// Dossier actuel de l'app (lu une fois au lancement par [warmUp]).
+  static String? _supportDir;
+
+  /// v603 — décode la photo PENDANT l'écran de démarrage (≈ 1 s) : quand
+  /// la carte la pose, elle est déjà prête dans le cache d'images (même clé
+  /// que `Image.file` : chemin + échelle 1). Ne lève jamais.
+  static Future<void> warmUp() async {
+    try {
+      if (pawMap603NoCover) return;
+      if (readSync() == null) {
+        _supportDir = (await getApplicationSupportDirectory()).path;
+      }
+      final m = readSync();
+      if (m == null) return;
+      final stream =
+          FileImage(File(m.path)).resolve(ImageConfiguration.empty);
+      late final ImageStreamListener l;
+      l = ImageStreamListener((_, __) {
+        pawMap603Log('photo décodée d\'avance');
+        stream.removeListener(l);
+      }, onError: (_, __) => stream.removeListener(l));
+      stream.addListener(l);
+    } catch (_) {/* la carte la décodera elle-même */}
   }
 
   static bool _writing = false;
@@ -249,5 +292,201 @@ class PawMapSnapshotStore {
     } finally {
       _writing = false;
     }
+  }
+}
+
+
+// ─── v603 (PAM, 29/09) — la photo PAR-DESSUS la carte au démarrage ─────────
+//
+// Daniel (29/09, 602) : « il y a toujours la mini attente de la map ». Sur
+// iPhone, la vue Google peint son propre fond gris OPAQUE ~0,3 s avant les
+// tuiles : la photo 601, posée DESSOUS, était cachée. La même photo est donc
+// aussi posée PAR-DESSUS, le temps que la carte soit prête, et retirée
+// (fondu de 120 ms) à la PREMIÈRE de ces conditions :
+//   · la carte est prête (premier « caméra à l'arrêt » après sa création,
+//     plus un court délai de peinture mesuré — voir [readyGrace]) ;
+//   · le premier geste de la personne, où qu'il soit ;
+//   · un PLAFOND DUR de 800 ms après que l'onglet est devenu visible : un
+//     vrai `Timer`, indépendant de Google (le voile du 595 attendait un
+//     « caméra à l'arrêt » qui ne venait jamais : 5 s).
+// Sans photo (premier lancement) : rien par-dessus.
+
+/// Journal de mesure du 603 : seulement avec `--dart-define=HPS_PROBE603=true`
+/// (jamais dans le build des stores).
+const bool kPawMap603Probe =
+    bool.fromEnvironment('HPS_PROBE603', defaultValue: false);
+
+void pawMap603Log(String what) {
+  if (kPawMap603Probe) {
+    // ignore: avoid_print
+    print('[P603] ${DateTime.now().millisecondsSinceEpoch} $what');
+  }
+}
+
+/// Réglage de MESURE (probe seulement, sinon [compiled]) : variable
+/// d'environnement ou ligne `NOM=valeur` du fichier `p603.txt` (iOS :
+/// `Documents/` de l'app ; Android : dossier externe de l'app, poussé par
+/// adb). Jamais lu dans le build des stores.
+int pawMap603Int(String name, int compiled) {
+  if (!kPawMap603Probe) return compiled;
+  try {
+    final env = Platform.environment[name];
+    if (env != null) return int.parse(env.trim());
+    // iOS : pas de HOME dans l'environnement ; tmp/ est dans le dossier
+    // de l'app, à côté de Documents/.
+    final home = Directory.systemTemp.parent.path;
+    File f = File('$home/Documents/p603.txt');
+    if (!f.existsSync()) {
+      f = File(
+          '/sdcard/Android/data/com.cardellihermanos.hopetsit/files/p603.txt');
+    }
+    if (f.existsSync()) {
+      for (final line in f.readAsLinesSync()) {
+        final kv = line.split('=');
+        if (kv.length == 2 && kv[0].trim() == name) {
+          return int.parse(kv[1].trim());
+        }
+      }
+    }
+  } catch (e) {
+    pawMap603Log('réglage $name illisible : $e');
+  }
+  return compiled;
+}
+
+/// Mesure « AVANT » (comportement 602 : pas de photo par-dessus).
+bool get pawMap603NoCover => pawMap603Int('HPS_NO_COVER', 0) == 1;
+
+/// État de la photo posée par-dessus la carte. Logique sans widget, testée.
+class PawMapLaunchCover extends ChangeNotifier {
+  PawMapLaunchCover({
+    this.cap = kCap,
+    this.readyGrace = kReadyGrace,
+  });
+
+  /// Plafond dur : jamais plus longtemps que ça une fois l'onglet visible.
+  static const Duration kCap = Duration(milliseconds: 800);
+
+  /// Durée du fondu de sortie.
+  static const Duration kFade = Duration(milliseconds: 120);
+
+  /// « Caméra à l'arrêt » ne veut pas dire « tuiles peintes » : délai laissé
+  /// à la vue Google pour peindre après son premier arrêt (mesuré au 603).
+  static const Duration kReadyGrace = Duration(milliseconds: 150);
+
+  final Duration cap;
+  final Duration readyGrace;
+
+  bool _up = false;
+  bool _removed = true;
+  bool _visible = false;
+  Timer? _capTimer;
+  Timer? _graceTimer;
+  String? _reason;
+
+  /// La photo est posée (opacité 1).
+  bool get up => _up;
+
+  /// La photo n'est plus dans l'arbre (fondu terminé ou jamais posée).
+  bool get removed => _removed;
+
+  /// Pourquoi elle est partie ('carte prête', 'geste', 'plafond'…).
+  String? get reason => _reason;
+
+  /// Le plafond est-il en route ?
+  bool get capRunning => _capTimer?.isActive ?? false;
+
+  /// Photo utilisable au lancement : on la pose.
+  void show() {
+    if (_up) return;
+    _up = true;
+    _removed = false;
+    _reason = null;
+    pawMap603Log('photo par-dessus POSÉE');
+    notifyListeners();
+  }
+
+  /// L'onglet de la carte est visible : le plafond démarre (une seule fois).
+  void visible() {
+    _visible = true;
+    if (!_up || _capTimer != null) return;
+    pawMap603Log('onglet visible : plafond ${cap.inMilliseconds} ms');
+    _capTimer = Timer(cap, () => dismiss('plafond'));
+  }
+
+  /// L'onglet de la carte est caché (autre onglet devant).
+  void hidden() => _visible = false;
+
+  /// La carte vient de s'arrêter pour la première fois : retrait après le
+  /// court délai de peinture.
+  void mapReady() {
+    if (!_up || _graceTimer != null) return;
+    if (readyGrace == Duration.zero) {
+      dismiss('carte prête');
+      return;
+    }
+    _graceTimer = Timer(readyGrace, () => dismiss('carte prête'));
+  }
+
+  /// Retrait (fondu), à la première condition remplie.
+  void dismiss(String why) {
+    if (!_up) return;
+    _up = false;
+    _reason = why;
+    _capTimer?.cancel();
+    _graceTimer?.cancel();
+    pawMap603Log('photo par-dessus RETIRÉE : $why');
+    // Onglet caché : personne ne voit le fondu (et il ne tournerait pas,
+    // les animations y sont coupées) → la photo part tout de suite.
+    if (!_visible) _removed = true;
+    notifyListeners();
+  }
+
+  /// Fin du fondu : la photo quitte l'arbre.
+  void faded() {
+    if (_up || _removed) return;
+    _removed = true;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _capTimer?.cancel();
+    _graceTimer?.cancel();
+    super.dispose();
+  }
+}
+
+/// La photo posée par-dessus la carte (ne capte aucun toucher : le geste
+/// passe à la carte, qui la retire).
+class PawMapLaunchCoverView extends StatelessWidget {
+  const PawMapLaunchCoverView({
+    super.key,
+    required this.cover,
+    required this.image,
+  });
+
+  final PawMapLaunchCover cover;
+
+  /// L'image (en production : `Image.file` de la photo 601).
+  final Widget image;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: cover,
+      builder: (_, __) {
+        if (cover.removed) return const SizedBox.shrink();
+        return IgnorePointer(
+          child: AnimatedOpacity(
+            key: const ValueKey<String>('pawmap_cover'),
+            opacity: cover.up ? 1 : 0,
+            duration: PawMapLaunchCover.kFade,
+            onEnd: cover.faded,
+            child: image,
+          ),
+        );
+      },
+    );
   }
 }
