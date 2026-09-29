@@ -83,6 +83,20 @@ function normalizeMapPrefs(existing, patch) {
     out.rail = rail;
   }
 
+  // v601 — barre de DROITE personnalisable comme la gauche : ordre et choix
+  // des boutons personnalisables (satellite, voir tout le monde, Balade,
+  // œil…). « Ma position », + et − sont fixes et n'y figurent jamais.
+  const capsuleSrc = p.capsule !== undefined ? p.capsule : base.capsule;
+  if (Array.isArray(capsuleSrc)) {
+    const capsule = [];
+    for (const id of capsuleSrc) {
+      const s = String(id);
+      if (RAIL_ID.test(s) && !capsule.includes(s)) capsule.push(s);
+      if (capsule.length >= MAX_RAIL) break;
+    }
+    out.capsule = capsule;
+  }
+
   const lookingSrc = p.lookingFor !== undefined ? p.lookingFor : base.lookingFor;
   if (typeof lookingSrc === 'string' && LOOKING_FOR.includes(lookingSrc)) {
     out.lookingFor = lookingSrc;
