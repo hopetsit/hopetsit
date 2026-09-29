@@ -41,7 +41,9 @@ abstract class ChatSession {
 
   Future<void> sendMessage();
   Future<void> sendMediaFiles(List<File> files);
-  Future<void> sendVoice(File file, int durationSeconds);
+  /// v599 — `waveform` = forme d'onde captée à l'enregistrement (0..1).
+  Future<void> sendVoice(File file, int durationSeconds,
+      [List<double>? waveform]);
   Future<void> retryFailed(String messageId);
   Future<bool> deleteMessage(String messageId);
   Future<bool> deleteConversation(String conversationId);
@@ -282,7 +284,8 @@ mixin ChatSessionMixin<M extends ChatMessageBase,
 
   // ── message vocal (kind=voice) ───────────────────────────────────────────
   @override
-  Future<void> sendVoice(File file, int durationSeconds) async {
+  Future<void> sendVoice(File file, int durationSeconds,
+      [List<double>? waveform]) async {
     if (currentChatId.value.isEmpty) return;
     if (!features.value.voice) {
       CustomSnackbar.showWarning(
@@ -304,6 +307,7 @@ mixin ChatSessionMixin<M extends ChatMessageBase,
           resourceType: 'audio',
           duration: durationSeconds.toDouble(),
           localPath: file.path,
+          waveform: waveform,
         ),
       ],
       replyTo: reply,
@@ -315,6 +319,7 @@ mixin ChatSessionMixin<M extends ChatMessageBase,
       file: file,
       kind: 'voice',
       duration: durationSeconds,
+      waveform: waveform,
       replyToId: reply?.messageId,
     );
     updateLastMessagePreview(chatPreviewForKind('audio', ''));
@@ -343,6 +348,7 @@ mixin ChatSessionMixin<M extends ChatMessageBase,
         senderId: currentUserId,
         kind: p.kind,
         durationSeconds: p.duration,
+        waveform: p.waveform,
         replyToMessageId: p.replyToId,
       );
       _pendingUploads.remove(tempId);
@@ -680,10 +686,12 @@ class _PendingUpload {
     required this.file,
     required this.kind,
     this.duration,
+    this.waveform,
     this.replyToId,
   });
   final File file;
   final String kind;
   final int? duration;
+  final List<double>? waveform;
   final String? replyToId;
 }

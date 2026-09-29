@@ -994,6 +994,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'signup_account_created_message':
           'Bitte bestätige deine E‑Mail, um fortzufahren.',
       'signup_failed_title': 'Registrierung fehlgeschlagen',
+      'login_failed_title': 'Anmeldung fehlgeschlagen', // v599 FLO
       'signup_failed_generic_message':
           'Etwas ist schiefgelaufen. Bitte versuche es erneut.',
 

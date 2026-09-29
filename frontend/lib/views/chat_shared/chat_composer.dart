@@ -67,7 +67,8 @@ class _ChatComposerState extends State<ChatComposer> {
   @override
   void initState() {
     super.initState();
-    _rec.onSend = (file, seconds) => widget.session.sendVoice(file, seconds);
+    _rec.onSend = (file, seconds, wave) =>
+        widget.session.sendVoice(file, seconds, wave);
     _rec.addListener(_onRec);
   }
 

@@ -274,6 +274,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
               focusUserId: fresh.peerId,
               focusUserRole: fresh.peerRole,
               focusUserName: widget.contactName,
+              focusUserAvatar: widget.contactImage, // v599 — rond jamais vide
             ));
       };
     }
@@ -283,6 +284,8 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
       responderRole: message.pawfollowResponderRole,
       status: message.pawfollowStatus,
       myRole: myRole,
+      // v599 — la personne compte, pas le rôle (deux propriétaires amis).
+      isMine: message.isFromCurrentUser,
       onAccept: () => _respondPawfollow(message, 'accept'),
       onRefuse: () => _respondPawfollow(message, 'refuse'),
       onOpenMap: openMap,
@@ -331,6 +334,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
           focusUserId: peerId,
           focusUserRole: peerRole,
           focusUserName: widget.contactName,
+          focusUserAvatar: widget.contactImage, // v599 — rond jamais vide
         ));
   }
 

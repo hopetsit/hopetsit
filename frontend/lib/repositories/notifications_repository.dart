@@ -125,6 +125,28 @@ class NotificationsRepository {
     );
   }
 
+  /// v599 — POST /notifications/my/read-batch { ids } (lot choisi dans la cloche).
+  Future<void> markReadBatch(List<String> ids) async {
+    final clean = ids.where((e) => e.isNotEmpty).toSet().toList();
+    if (clean.isEmpty) return;
+    await _apiClient.post(
+      '${ApiEndpoints.notificationsMy}/read-batch',
+      body: {'ids': clean},
+      requiresAuth: true,
+    );
+  }
+
+  /// v599 — POST /notifications/my/delete-batch { ids } (lot choisi dans la cloche).
+  Future<void> deleteBatch(List<String> ids) async {
+    final clean = ids.where((e) => e.isNotEmpty).toSet().toList();
+    if (clean.isEmpty) return;
+    await _apiClient.post(
+      '${ApiEndpoints.notificationsMy}/delete-batch',
+      body: {'ids': clean},
+      requiresAuth: true,
+    );
+  }
+
   /// PATCH /notifications/my/read-all
   Future<void> markAllAsRead() async {
     await _apiClient.patch(

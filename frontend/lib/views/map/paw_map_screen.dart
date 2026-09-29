@@ -50,6 +50,7 @@ import 'package:hopetsit/views/map/pawspot_sheets.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/map/widgets/paw_rail_button.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_pins.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_placeholder.dart';
 import 'package:hopetsit/views/map/pawmap_help_screen.dart';
 import 'package:hopetsit/views/map/pawmap_member_profile_route.dart';
 import 'package:hopetsit/views/map/pawmap_rates.dart';
@@ -115,6 +116,7 @@ class PawMapScreen extends StatefulWidget {
     this.focusUserId,
     this.focusUserRole,
     this.focusUserName,
+    this.focusUserAvatar,
     this.focusSpotId,
     this.focusReportId,
     this.routeToLat,
@@ -126,6 +128,9 @@ class PawMapScreen extends StatefulWidget {
   final String? focusUserId;
   final String? focusUserRole; // 'walker' | 'sitter' | 'owner'
   final String? focusUserName;
+  /// v599 — photo du contact suivi (le rond n'est jamais vide, même avant la
+  /// première position reçue).
+  final String? focusUserAvatar;
   /// Id d'un PawSpot partagé : la carte s'y centre et ouvre sa fiche.
   final String? focusSpotId;
   /// Id d'un signalement (ou SOS) partagé : même principe.
@@ -596,12 +601,18 @@ class _PawMapScreenState extends State<PawMapScreen>
         widget.initialLat != null &&
         widget.initialLng != null) {
       final role = (widget.focusUserRole ?? '').toLowerCase();
+      final prev = _liveMap.friendPositions[widget.focusUserId!];
       _liveMap.friendPositions[widget.focusUserId!] = FriendPosition(
         userId: widget.focusUserId!,
         role: role,
         latitude: widget.initialLat!,
         longitude: widget.initialLng!,
         at: DateTime.now(),
+        // v599 — nom + photo connus dès l'ouverture (chat → carte).
+        name: widget.focusUserName ?? prev?.name ?? '',
+        avatar: (widget.focusUserAvatar ?? '').isNotEmpty
+            ? widget.focusUserAvatar!
+            : (prev?.avatar ?? ''),
       );
     }
 
@@ -3287,16 +3298,22 @@ class _PawMapScreenState extends State<PawMapScreen>
                               final fam = familyById[key];
                               final name = friend?.other?.name ??
                                   (fam?['name'] ?? '').toString();
+                              // v599 — nom envoyé avec la position en repli.
                               final display = name.isNotEmpty
                                   ? name
-                                  : (widget.focusUserId == pos.userId
-                                      ? (widget.focusUserName ?? '')
-                                      : '');
+                                  : pos.name.isNotEmpty
+                                      ? pos.name
+                                      : (widget.focusUserId == pos.userId
+                                          ? (widget.focusUserName ?? '')
+                                          : '');
                               final role = (friend?.other?.model ??
                                       (fam?['role'] ?? pos.role).toString())
                                   .toLowerCase();
-                              final avatar = friend?.other?.avatar ??
+                              final avatar0 = friend?.other?.avatar ??
                                   (fam?['avatar'] ?? '').toString();
+                              // v599 — photo envoyée avec la position en repli.
+                              final avatar =
+                                  avatar0.isNotEmpty ? avatar0 : pos.avatar;
                               final roleColor = PawMapTheme.forRole(role);
                               final stale = pos.isStale;
                               return _liveFriendRow(
@@ -4606,17 +4623,22 @@ class _PawMapScreenState extends State<PawMapScreen>
             ? familyById[pos.userId.trim().toLowerCase()]
             : null;
         final famName = (famMember?['name'] ?? '').toString();
+        // v599 — repli sur le nom / la photo envoyés AVEC la position
+        // (prestataire d'une réservation, contact du chat : pas dans mes amis).
         final displayName = friend?.other!.name ??
             (famName.isNotEmpty ? famName : null) ??
-            widget.focusUserName ??
+            (pos.name.isNotEmpty ? pos.name : null) ??
+            (widget.focusUserId == pos.userId ? widget.focusUserName : null) ??
             '—';
         final famRole = (famMember?['role'] ?? '').toString();
         final role = (friend?.other?.model ??
                 (famRole.isNotEmpty ? famRole : pos.role))
             .toLowerCase();
         final famAvatar = (famMember?['avatar'] ?? '').toString();
-        final avatarUrl = friend?.other?.avatar ??
-            (famAvatar.isNotEmpty ? famAvatar : '');
+        final friendAvatar = friend?.other?.avatar ?? '';
+        final avatarUrl = friendAvatar.isNotEmpty
+            ? friendAvatar
+            : (famAvatar.isNotEmpty ? famAvatar : pos.avatar);
         final normPosId = pos.userId.trim().toLowerCase();
         final isPremiumMember = premiumMemberIds.contains(normPosId);
         // v594 — Daniel : « en balade, mon halo PawBoost disparaît ». Le rond
@@ -5109,6 +5131,19 @@ class _PawMapScreenState extends State<PawMapScreen>
             behavior: HitTestBehavior.translucent,
             child: Stack(
           children: [
+            // v599 — fond de remplacement SOUS la carte (Oppo A40 : 5 s de
+            // zone vide avant les tuiles) : beige clair + pattes discrètes +
+            // « Carte en préparation… ». Les tuiles le recouvrent
+            // d'elles-mêmes ; aucun voile, aucune minuterie. La carte garde
+            // sa clé : elle n'est jamais recréée.
+            Positioned.fill(
+              key: const ValueKey<String>('pawmap_placeholder'),
+              child: Obx(() => PawMapPlaceholder(
+                    night: _nightMode.value,
+                    roleColor: PawMapLegend.roleColor(
+                        _role.isEmpty ? 'owner' : _role),
+                  )),
+            ),
             // ── LA carte (unique) : toujours premier enfant, toujours à la
             // même place dans l'arbre, avec une clé → jamais recréée.
             // v586 — un vrai geste sur la carte (glisser, pincer) efface

@@ -1230,6 +1230,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'signup_account_created_title': 'Compte créé',
       'signup_account_created_message': 'Veuillez vérifier votre e‑mail pour continuer.',
       'signup_failed_title': "Échec de l’inscription",
+      'login_failed_title': 'Connexion impossible', // v599 FLO
       'signup_failed_generic_message': 'Une erreur est survenue. Veuillez réessayer.',
 
       'language_dialog_title': 'Choisir la langue',

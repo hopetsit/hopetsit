@@ -1159,6 +1159,7 @@ const Map<String, String> koKRTranslations = <String, String>{
   'signup_account_created_title': '계정이 생성됐어요',
   'signup_account_created_message': '계속하려면 이메일을 인증해 주세요.',
   'signup_failed_title': '가입 실패',
+  'login_failed_title': '로그인 실패', // v599 FLO
   'signup_failed_generic_message': '문제가 발생했어요. 다시 시도해 주세요.',
   'language_dialog_title': '언어 선택',
   'language_dialog_message': '앱에서 사용할 언어를 선택해 주세요.',

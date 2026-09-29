@@ -43,6 +43,12 @@ class FriendPosition {
   /// l'id d'un autre de ses profils.
   final List<String> personIds;
 
+  /// v599 — nom et photo envoyés par le serveur avec la position : le rond
+  /// du direct n'attend plus la liste d'amis (prestataire d'une réservation,
+  /// contact ouvert depuis le chat → rond vide « Po de la Isla », 28/09).
+  final String name;
+  final String avatar;
+
   const FriendPosition({
     required this.userId,
     required this.role,
@@ -54,6 +60,8 @@ class FriendPosition {
     this.stale = false,
     this.sharing = false,
     this.personIds = const <String>[],
+    this.name = '',
+    this.avatar = '',
   });
 
   factory FriendPosition.fromJson(Map<String, dynamic> j, {DateTime? now}) {
@@ -85,6 +93,8 @@ class FriendPosition {
           for (final e in (j['personIds'] as List))
             if ((e ?? '').toString().isNotEmpty) e.toString(),
       ],
+      name: (j['name'] ?? '').toString().trim(),
+      avatar: (j['avatar'] ?? '').toString().trim(),
     );
   }
 
@@ -121,6 +131,8 @@ class FriendPosition {
     bool? sharing,
     String? userId,
     List<String>? personIds,
+    String? name,
+    String? avatar,
   }) =>
       FriendPosition(
         userId: userId ?? this.userId,
@@ -133,6 +145,8 @@ class FriendPosition {
         stale: stale ?? this.stale,
         sharing: sharing ?? this.sharing,
         personIds: personIds ?? this.personIds,
+        name: name ?? this.name,
+        avatar: avatar ?? this.avatar,
       );
 
   /// Tous les ids connus de la personne (l'id de la position compris).
@@ -328,6 +342,34 @@ class LiveMapService extends GetxService {
   /// v589 — nombre de personnes qui suivent MON direct (jamais leurs noms).
   final RxInt myFollowers = 0.obs;
 
+  /// v599 — Daniel (29/09) : « voir qu'un ami est en balade SANS ouvrir le
+  /// menu ». Nombre de personnes (amis, famille, prestataire suivi) dont le
+  /// direct est vivant ou en « signal perdu » — jamais une simple position
+  /// « vue il y a ». Recompté à chaque position reçue et toutes les 30 s
+  /// (l'état « seen » arrive aussi par simple écoulement du temps).
+  final RxInt liveFriendsCount = 0.obs;
+
+  void recountLiveFriends() {
+    var n = 0;
+    for (final p in friendPositions.values) {
+      if (p.liveState != FriendLiveState.seen) n += 1;
+    }
+    if (liveFriendsCount.value != n) liveFriendsCount.value = n;
+  }
+
+  /// L'unique personne en balade, s'il n'y en a qu'une (sinon null).
+  FriendPosition? get singleLiveFriend {
+    FriendPosition? one;
+    for (final p in friendPositions.values) {
+      if (p.liveState == FriendLiveState.seen) continue;
+      if (one != null) return null;
+      one = p;
+    }
+    return one;
+  }
+
+  Timer? _recountTimer;
+
   /// v589 — je suis le direct de [targetId] (on) / j'arrête (off). Appelé au
   /// début du suivi, toutes les 60 s pendant, et à la fin.
   Future<void> followPresence(String targetId, bool on) async {
@@ -409,6 +451,11 @@ class LiveMapService extends GetxService {
   @override
   void onInit() {
     super.onInit();
+    // v599 — point vert sur l'onglet PawMap : recompte à chaque changement
+    // de position et toutes les 30 s (fin de direct par écoulement du temps).
+    ever<Map<String, FriendPosition>>(friendPositions, (_) => recountLiveFriends());
+    _recountTimer?.cancel();
+    _recountTimer = Timer.periodic(const Duration(seconds: 30), (_) => recountLiveFriends());
     // v590 — mon tracé suit ma position en direct ; effacé à l'arrêt.
     ever<LatLng?>(myLivePosition, (p) {
       if (p == null) {
@@ -552,8 +599,14 @@ class LiveMapService extends GetxService {
         // rejoue une position plus ancienne).
         // v589 — rangée PAR PERSONNE : jamais un second rond.
         final key = friendPositionKey(friendPositions, fp);
+        final prev = friendPositions[key];
         final merged = fp.copyWith(
-            userId: key, personIds: mergedPersonIds(friendPositions[key], fp));
+            userId: key,
+            personIds: mergedPersonIds(prev, fp),
+            // v599 — un serveur qui n'envoie pas encore nom/photo ne les
+            // efface pas.
+            name: fp.name.isNotEmpty ? fp.name : prev?.name,
+            avatar: fp.avatar.isNotEmpty ? fp.avatar : prev?.avatar);
         friendPositions[key] = applyLiveEvent(merged, DateTime.now());
         // v590 — le tracé de l'ami avance avec son direct.
         friendTrails[key] = appendTrailPoint(

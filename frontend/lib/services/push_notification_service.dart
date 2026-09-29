@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
@@ -134,6 +135,14 @@ class PushNotificationService extends GetxService {
   /// est lue sur un autre appareil (événement socket `notification.read`).
   static int localIdFor(String notificationId) =>
       notificationId.hashCode & 0x7fffffff;
+
+  /// v599 — le push est-il un message de chat ?
+  static bool _isChatType(Map<String, dynamic> data) {
+    final t = (data['type'] ?? data['notificationType'] ?? '')
+        .toString()
+        .toLowerCase();
+    return t == 'new_message' || t == 'message' || t == 'message_new';
+  }
 
   bool _systemBannersAuthorized = false;
 
@@ -573,8 +582,23 @@ class PushNotificationService extends GetxService {
     final String soundFile = (sound == 'frog' || sound == 'bark' || sound == 'meow' || sound == 'tweet') ? sound : 'chime';
 
     final serverId = (message.data['notificationId'] ?? '').toString();
-    final int localId =
-        serverId.isNotEmpty ? localIdFor(serverId) : message.hashCode;
+    // v599 (ZOE) — Daniel : « à chaque message, pas besoin ». Un message de
+    // chat : (1) conversation OUVERTE à l'écran → aucune notification ;
+    // (2) sinon UNE notification par conversation (id local + tag Android
+    // stables « conv:<id> » → le 2e message remplace le 1er, texte ou vocal).
+    final chatConversationId = _isChatType(message.data)
+        ? (message.data['conversationId'] ?? '').toString()
+        : '';
+    if (chatConversationId.isNotEmpty &&
+        chatConversationId == SocketService.visibleConversationId) {
+      debugPrint('FCM foreground: conversation ouverte → pas de notification');
+      return;
+    }
+    final String? androidTag =
+        chatConversationId.isNotEmpty ? 'conv:$chatConversationId' : null;
+    final int localId = chatConversationId.isNotEmpty
+        ? localIdFor('conv:$chatConversationId')
+        : (serverId.isNotEmpty ? localIdFor(serverId) : message.hashCode);
 
     NotificationDetails details({required bool withCustomSound}) {
       final ch = withCustomSound ? channel : _androidChannel;
@@ -587,6 +611,7 @@ class PushNotificationService extends GetxService {
           priority: silent ? Priority.low : Priority.high,
           icon: _smallIcon,
           color: _accent,
+          tag: androidTag,
           playSound: !(silent || vibrateOnly),
           sound: withCustomSound && customSound
               ? RawResourceAndroidNotificationSound(soundFile)
@@ -599,6 +624,7 @@ class PushNotificationService extends GetxService {
           presentBadge: true,
           presentSound: !(silent || vibrateOnly),
           sound: withCustomSound && customSound ? '$soundFile.caf' : null,
+          threadIdentifier: androidTag,
         ),
       );
     }
@@ -629,6 +655,28 @@ class PushNotificationService extends GetxService {
       } catch (e2) {
         debugPrint('Local notification failed: $e2');
       }
+    }
+  }
+
+  /// v599 — la conversation [conversationId] a été lue (ici ou ailleurs) :
+  /// retire du téléphone la notification de ce fil (locale = id stable
+  /// `conv:` + id ; Android : aussi celles affichées par le système, qui
+  /// portent le même tag posé par le serveur).
+  Future<void> dismissConversationNotification(String conversationId) async {
+    if (conversationId.isEmpty) return;
+    final tag = 'conv:$conversationId';
+    try {
+      await _localNotifications.cancel(localIdFor(tag));
+      if (!kIsWeb && Platform.isAndroid) {
+        final active = await _localNotifications.getActiveNotifications();
+        for (final a in active) {
+          if (a.tag == tag && a.id != null) {
+            await _localNotifications.cancel(a.id!, tag: a.tag);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('dismissConversationNotification failed: $e');
     }
   }
 

@@ -507,6 +507,11 @@ class PawTabBar extends StatefulWidget {
     required this.currentIndex,
     required this.onTap,
     required this.role,
+    // v599 — Daniel (29/09) : « voir qu'un ami est en balade sans ouvrir le
+    // menu », DISCRET : petit point vert en haut à droite de la patte quand
+    // au moins un ami / membre de la famille / personne suivie est en
+    // balade ; le nombre en tout petit s'ils sont plusieurs. Rien d'autre.
+    this.liveFriends = 0,
     required this.systemInset,
     required this.labels,
     this.badges = const <int, WidgetBuilder>{},
@@ -516,6 +521,9 @@ class PawTabBar extends StatefulWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
   final PawNavRole role;
+
+  /// Nombre de personnes en balade (0 = aucun point).
+  final int liveFriends;
 
   /// Inset système (viewPadding.bottom) à ajouter sous la pilule.
   final double systemInset;
@@ -622,7 +630,7 @@ class _PawTabBarState extends State<PawTabBar>
                 widget.systemInset +
                 (_isPawMap ? kPawTabBarPawLift : 0),
             child: Center(
-              child: RepaintBoundary(child: _pawButton()),
+              child: RepaintBoundary(child: _pawButton(palette)),
             ),
           ),
         ],
@@ -843,7 +851,7 @@ class _PawTabBarState extends State<PawTabBar>
   }
 
   // ── Patte ────────────────────────────────────────────────────────────────
-  Widget _pawButton() {
+  Widget _pawButton(PawTabBarPalette palette) {
     return SizedBox(
       width: kPawTabBarPawBox,
       height: kPawTabBarPawBox,
@@ -876,6 +884,23 @@ class _PawTabBarState extends State<PawTabBar>
               ),
             ),
           ),
+          // v599 — point vert « un ami est en balade », posé sur le bord
+          // haut-droit du COUSSINET (la tête de l'épingle, 48 dp ancrée en
+          // bas-centre : centre (42, 60), rayon 24 → point à 45° = (59, 43)).
+          // Les doigts sont rentrés sur les autres onglets : le point doit
+          // tenir sur la tête seule (vu au simulateur, 29/09).
+          if (widget.liveFriends > 0)
+            Positioned(
+              left: 59 - (widget.liveFriends > 1 ? 13 : 8) / 2,
+              top: 43 - (widget.liveFriends > 1 ? 13 : 8) / 2,
+              child: IgnorePointer(
+                child: PawLiveDot(
+                  key: const ValueKey<String>('paw_tab_live_dot'),
+                  count: widget.liveFriends,
+                  ring: palette.top,
+                ),
+              ),
+            ),
           // Zone tactile : 84 × 67, ancrée en bas. Les 17 px du haut de la
           // boîte sont VIDES par construction (les doigts commencent à y=17) :
           // les y laisser tactiles volerait des taps à l'écran qui est
@@ -928,6 +953,79 @@ class _PressScaleState extends State<_PressScale> {
         duration: const Duration(milliseconds: 120),
         curve: Curves.easeOut,
         child: widget.child,
+      ),
+    );
+  }
+}
+
+
+/// v599 — Point vert « ami en balade » sur la patte du menu : 8 dp, liseré
+/// 1,5 dp à la couleur du menu, respiration lente très légère (2,6 s) ; le
+/// nombre en tout petit quand ils sont plusieurs (le point passe à 13 dp).
+/// Le vert est celui du direct (`kPawFollowLive` du chat). Aucun texte.
+class PawLiveDot extends StatefulWidget {
+  const PawLiveDot({super.key, required this.count, required this.ring});
+  final int count;
+  final Color ring;
+
+  static const Color green = Color(0xFF22C55E);
+
+  @override
+  State<PawLiveDot> createState() => _PawLiveDotState();
+}
+
+class _PawLiveDotState extends State<PawLiveDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2600),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool many = widget.count > 1;
+    final double size = many ? 13 : 8;
+    final bool reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (BuildContext context, Widget? child) {
+        final double t = Curves.easeInOut.transform(_c.value);
+        final double scale = reduce ? 1 : 1 + 0.10 * t;
+        return Transform.scale(scale: scale, child: child);
+      },
+      child: Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: PawLiveDot.green,
+          shape: BoxShape.circle,
+          border: Border.all(color: widget.ring, width: 1.5),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: PawLiveDot.green.withValues(alpha: 0.45),
+              blurRadius: 5,
+            ),
+          ],
+        ),
+        child: many
+            ? Text(
+                widget.count > 9 ? '9' : '${widget.count}',
+                style: const TextStyle(
+                  fontSize: 7,
+                  height: 1,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  decoration: TextDecoration.none,
+                ),
+              )
+            : null,
       ),
     );
   }

@@ -440,7 +440,11 @@ class SitterChatController extends GetxController
         final senderId = raw['senderId']?.toString() ??
             messageData['senderId']?.toString() ??
             '';
-        final isMine = senderId.isNotEmpty && senderId == userId;
+        // v599 — le serveur dit `mine` (mes 3 profils) ; sinon comparaison d'id.
+        final mineFlag = raw['mine'] ?? messageData['mine'];
+        final isMine = mineFlag is bool
+            ? mineFlag
+            : (senderId.isNotEmpty && senderId == userId);
         // Check if message already exists to avoid duplicates
         final exists = currentChatMessages.any(
           (msg) => msg.id == newMessage.id,
@@ -521,6 +525,18 @@ class SitterChatController extends GetxController
   }
 
   /// Public method to reload conversations (can be called from UI)
+  /// v599 — « lu » synchronisé : la conversation [id] vient d'être lue sur
+  /// un autre de mes appareils / profils → son compteur tombe à 0 ici, sans
+  /// recharger (le serveur est la source de vérité ; resync du badge ensuite).
+  void markConversationReadLocally(String id) {
+    if (id.isEmpty) return;
+    final idx = conversations.indexWhere((c) => c.id == id);
+    if (idx < 0) return;
+    if (conversations[idx].unreadCount == 0) return;
+    conversations[idx] = conversations[idx].copyWith(unreadCount: 0);
+    conversations.refresh();
+  }
+
   @override
   Future<void> reloadConversations() async {
     await _loadConversations();
@@ -890,7 +906,11 @@ class SitterChatController extends GetxController
     // propre message → pas de menu Effacer → "le bouton effacer marche pas".
     final sid = senderId.trim().toLowerCase();
     final cid = currentUserId.trim().toLowerCase();
-    final isFromCurrentUser = sid.isNotEmpty && sid == cid;
+    // v599 — `mine` calculé par le serveur pour CE lecteur (un message envoyé
+    // depuis mon autre profil reste à moi) ; repli : comparaison d'id.
+    final mineFlag = data['mine'];
+    final isFromCurrentUser =
+        mineFlag is bool ? mineFlag : (sid.isNotEmpty && sid == cid);
 
     // Extract sender name - check multiple possible fields
     String senderName = '';

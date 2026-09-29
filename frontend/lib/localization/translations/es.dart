@@ -916,6 +916,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'signup_account_created_message':
           'Verifica tu correo electrónico para continuar.',
       'signup_failed_title': 'Error en el registro',
+      'login_failed_title': 'No se pudo iniciar sesión', // v599 FLO
       'signup_failed_generic_message': 'Algo salió mal. Inténtalo de nuevo.',
 
       'language_dialog_title': 'Elegir idioma',

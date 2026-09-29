@@ -604,10 +604,18 @@ class MyApp extends StatelessWidget {
 
 /// v594 — prépare le moteur de rendu Google Maps (Android) avant la 1re
 /// carte. Sans effet ailleurs ; une erreur ici ne bloque jamais l'app.
+/// v599 — APK de test A/B pour l'Oppo A40 de Daniel (carte vide 5 s au
+/// premier affichage) : `--dart-define=HPS_MAP_SURFACE=1` active la
+/// « composition hybride » du SDK Google Maps (la carte est une vraie vue
+/// Android, plus une texture). Jamais actif dans le build des stores.
+const bool kHpsMapSurface =
+    String.fromEnvironment('HPS_MAP_SURFACE', defaultValue: '0') == '1';
+
 Future<void> _warmUpMaps() async {
   try {
     final impl = GoogleMapsFlutterPlatform.instance;
     if (impl is GoogleMapsFlutterAndroid) {
+      if (kHpsMapSurface) impl.useAndroidViewSurface = true;
       await impl.initializeWithRenderer(AndroidMapRenderer.latest);
     }
   } catch (_) {/* déjà initialisé ou indisponible : la carte le fera */}

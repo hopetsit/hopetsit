@@ -24,6 +24,7 @@ class ChatAttachment {
     this.width,
     this.height,
     this.localPath,
+    this.waveform,
   });
 
   final String url;
@@ -39,6 +40,10 @@ class ChatAttachment {
 
   /// Chemin local pendant l'envoi optimiste (aperçu avant l'URL Cloudinary).
   final String? localPath;
+
+  /// v599 — forme d'onde réelle d'un vocal (0..1, ≤ 64 valeurs) captée à
+  /// l'enregistrement. Null pour les vocaux antérieurs.
+  final List<double>? waveform;
 
   bool get isImage => resourceType == 'image';
   bool get isVideo => resourceType == 'video';
@@ -126,6 +131,7 @@ List<ChatAttachment> parseChatAttachments(dynamic raw) {
     String? thumb;
     int? w;
     int? h;
+    List<double>? waveform;
     if (item is String) {
       url = item;
     } else if (item is Map) {
@@ -145,6 +151,12 @@ List<ChatAttachment> parseChatAttachments(dynamic raw) {
       if (t is String && t.isNotEmpty) thumb = t;
       if (item['width'] is num) w = (item['width'] as num).toInt();
       if (item['height'] is num) h = (item['height'] as num).toInt();
+      final wf = item['waveform'];
+      if (wf is List && wf.isNotEmpty) {
+        waveform = wf
+            .map((v) => v is num ? v.toDouble().clamp(0.0, 1.0) : 0.0)
+            .toList(growable: false);
+      }
     }
     if (url.isEmpty ||
         !(url.startsWith('http://') || url.startsWith('https://'))) {
@@ -156,6 +168,7 @@ List<ChatAttachment> parseChatAttachments(dynamic raw) {
     out.add(ChatAttachment(
       url: url,
       resourceType: type,
+      waveform: waveform,
       duration: duration,
       thumbnailUrl: thumb,
       width: w,

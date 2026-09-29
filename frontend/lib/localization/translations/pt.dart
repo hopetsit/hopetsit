@@ -886,6 +886,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'location_get_error': 'Não foi possível obter a sua localização',
       'signup_account_created_message': 'Verifique o seu e-mail para continuar.',
       'signup_failed_title': 'Falha no registo',
+      'login_failed_title': 'Não foi possível iniciar sessão', // v599 FLO
       'signup_failed_generic_message': 'Algo correu mal. Tente novamente.',
       'language_dialog_message': 'Selecione o idioma preferido para a aplicação.',
       'language_updated_title': 'Idioma atualizado',

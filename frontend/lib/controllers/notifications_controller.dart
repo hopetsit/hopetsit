@@ -1,3 +1,5 @@
+import 'package:hopetsit/controllers/sitter_chat_controller.dart';
+import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'dart:async';
 
@@ -272,6 +274,10 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       s.socket?.on('notification.read', _onSocketNotificationRead);
       s.socket?.off('notification.removed');
       s.socket?.on('notification.removed', _onSocketNotificationRemoved);
+      // v599 — « lu » synchronisé : la conversation a été lue sur un autre de
+      // mes appareils / profils (ou le site) → badge, liste, notification.
+      s.socket?.off('conversation:read:self');
+      s.socket?.on('conversation:read:self', _onSocketConversationReadSelf);
       s.socket?.off('notification.new');
       s.socket?.on('notification.new', (data) {
         try {
@@ -492,6 +498,35 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
     }
   }
 
+  /// v599 — une conversation vient d'être lue ailleurs (iPhone, Android,
+  /// site) par MOI : compteur de la conversation à 0 dans la liste, badge du
+  /// menu recalé sur le serveur, notification téléphone du fil retirée.
+  void _onSocketConversationReadSelf(dynamic data) {
+    try {
+      final map = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+      final cid = (map['conversationId'] ?? '').toString();
+      if (cid.isEmpty) return;
+      try {
+        if (Get.isRegistered<ChatController>()) {
+          Get.find<ChatController>().markConversationReadLocally(cid);
+        }
+      } catch (_) {/* best-effort */}
+      try {
+        if (Get.isRegistered<SitterChatController>()) {
+          Get.find<SitterChatController>().markConversationReadLocally(cid);
+        }
+      } catch (_) {/* best-effort */}
+      scheduleChatBadgeResync(ms: 300);
+      try {
+        if (Get.isRegistered<PushNotificationService>()) {
+          Get.find<PushNotificationService>().dismissConversationNotification(cid);
+        }
+      } catch (_) {/* best-effort */}
+    } catch (e) {
+      AppLogger.logError('conversation:read:self sync failed', error: e);
+    }
+  }
+
   void _onSocketNotificationRemoved(dynamic data) {
     try {
       final sync = _parseSync(data);
@@ -529,6 +564,42 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
   }
 
   /// v566 — tout effacer (DELETE /notifications/my/clear).
+  /// v599 — lot choisi dans la cloche : marquer lu. Optimiste, puis serveur.
+  Future<void> markManyAsRead(Iterable<String> ids) async {
+    final set = ids.where((e) => e.isNotEmpty).toSet();
+    if (set.isEmpty) return;
+    final now = DateTime.now().toUtc();
+    for (var i = 0; i < notifications.length; i++) {
+      final n = notifications[i];
+      if (set.contains(n.id) && n.isUnread) {
+        notifications[i] = n.copyWith(readAt: now);
+      }
+    }
+    notifications.refresh();
+    try {
+      await _repository.markReadBatch(set.toList());
+      await refreshUnreadCount();
+    } catch (e) {
+      AppLogger.logError('Mark many read failed', error: e);
+      await loadInitial();
+    }
+  }
+
+  /// v599 — lot choisi dans la cloche : supprimer. Optimiste, puis serveur.
+  Future<void> deleteMany(Iterable<String> ids) async {
+    final set = ids.where((e) => e.isNotEmpty).toSet();
+    if (set.isEmpty) return;
+    final backup = notifications.toList();
+    notifications.removeWhere((n) => set.contains(n.id));
+    try {
+      await _repository.deleteBatch(set.toList());
+      await refreshUnreadCount();
+    } catch (e) {
+      AppLogger.logError('Delete many failed', error: e);
+      notifications.assignAll(backup);
+    }
+  }
+
   Future<void> clearAll() async {
     final backup = notifications.toList();
     notifications.clear();

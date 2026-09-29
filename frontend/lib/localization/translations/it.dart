@@ -1000,6 +1000,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'signup_account_created_title': 'Account creato',
       'signup_account_created_message': 'Verifica la tua email per continuare.',
       'signup_failed_title': 'Registrazione non riuscita',
+      'login_failed_title': 'Accesso non riuscito', // v599 FLO
       'signup_failed_generic_message': 'Si è verificato un errore. Riprova.',
 
       'language_dialog_title': 'Scegli la lingua',

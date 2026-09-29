@@ -1,3 +1,5 @@
+import 'package:hopetsit/services/live_map_service.dart';
+import 'package:hopetsit/views/map/pawmap_friend_focus.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter/services.dart';
@@ -117,6 +119,26 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   }
 
   void _onTap(int index) {
+    // v599 — un seul ami en balade : l'onglet PawMap ouvre la carte SUR lui
+    // (vol doux, fiche courte, suivi), uniquement en arrivant d'un autre
+    // onglet ; sinon l'onglet se comporte comme d'habitude.
+    if (index == kPawMapTabIndex &&
+        _currentIndex != kPawMapTabIndex &&
+        Get.isRegistered<LiveMapService>()) {
+      final one = Get.find<LiveMapService>().singleLiveFriend;
+      if (one != null && one.userId.isNotEmpty) {
+        pawMapPendingFriend.value = PawMapFriendFocus(
+          userId: one.userId,
+          role: one.role.isEmpty ? 'owner' : one.role,
+          name: one.name,
+          avatar: one.avatar,
+          lat: one.latitude,
+          lng: one.longitude,
+          live: true,
+          personIds: one.personIds,
+        );
+      }
+    }
     setState(() {
       _currentIndex = index;
       if (index == kPawMapTabIndex) _pawMapMounted = true;
@@ -256,6 +278,11 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
                   currentIndex: _currentIndex,
                   onTap: _onTap,
                   role: role,
+                  // v599 — point vert : un ami / la famille / une personne
+                  // suivie est en balade (lu en direct, socket + relecture).
+                  liveFriends: Get.isRegistered<LiveMapService>()
+                      ? Get.find<LiveMapService>().liveFriendsCount.value
+                      : 0,
                   systemInset: bottomInset,
                   labels: [
                     'nav_home'.tr,
@@ -282,8 +309,40 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     return Obx(() {
       final n = Get.find<NotificationsController>().unreadChat.value;
       if (n <= 0) return const SizedBox.shrink();
-      return _pill(n > 9 ? '9+' : n.toString(), role);
+      // v599 — Daniel (29/09) : non-lus en petit, en haut à droite de l'icône
+      // Chat, badge ROUGE et chiffre BLANC, « 99+ » au-delà, disparaît à zéro.
+      return _redPill(n > 99 ? '99+' : n.toString());
     });
+  }
+
+  /// v599 — pilule rouge / chiffre blanc (compteur de messages non lus).
+  Widget _redPill(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE5484D),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white, width: 1.4),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1E1513).withValues(alpha: 0.28),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+          height: 1.15,
+        ),
+      ),
+    );
   }
 
   /// Badge « action requise » Réservations (pendingActionCount).

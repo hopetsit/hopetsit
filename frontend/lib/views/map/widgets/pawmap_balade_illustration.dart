@@ -1,0 +1,300 @@
+// v599 (29/09/2026) — ILLUSTRATION « LA BALADE » de « Comprendre la PawMap ».
+//
+// Daniel : « une image montrant ce que voit la personne en balade et ce que
+// voient les autres ». SANS AUCUN MOT (retour de LEO, 29/09 : la même image
+// sert au site dans 9 langues) : les textes sont à côté, traduits. Dessinée
+// avec les VRAIS peintres des épingles (`PawMapPinPainter`) et la vraie
+// patte du menu (`PawGlyph` + `PawLiveDot`) : fidèle à la carte, nette à 2×
+// et 3×, en clair comme en nuit. Le même widget exporte les PNG donnés à LEO
+// (test `balade599_illustration_test.dart`).
+//
+//   ┌──────────────┐  ┌──────────────┐
+//   │ ●🚶 👁       │  │      ●👁     │   gauche : ce que je vois (rond « Moi »
+//   │      ╱‾‾╲    │  │  ╱‾‾╲        │   à ma couleur, tracé violet, pilule)
+//   │ ────╯  (Moi) │  │ ─╯   (photo) │   droite : ce que voient les autres
+//   └──────────────┘  └──────────────┘   (rond photo, anneau violet, bulle)
+//                     🐾• (point vert du menu)
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../../../widgets/paw_pattern_background.dart';
+import '../../../widgets/paw_tab_bar.dart';
+import 'pawmap_pins.dart';
+
+class PawMapBaladeIllustration extends StatelessWidget {
+  const PawMapBaladeIllustration({
+    super.key,
+    required this.dark,
+    this.role = 'walker',
+  });
+
+  final bool dark;
+  final String role;
+
+  static const Color _dayBg = Color(0xFFF6F1EE);
+  static const Color _nightBg = Color(0xFF1D1B18);
+  static const double _pad = 10;
+  static const double _gap = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color roleColor = PawMapLegend.roleColor(role);
+    final Color line = dark ? const Color(0xFF3A2A25) : const Color(0xFFEADBD2);
+    return LayoutBuilder(builder: (context, c) {
+      // Largeur utile = largeur donnée − marges intérieures (jamais plus large
+      // que l'écran : vérifié à 320 et 360 dp par test).
+      final double outer = c.maxWidth.isFinite ? c.maxWidth : 340;
+      final double w = math.max(120, outer - 2 * _pad);
+      final double panelW = ((w - _gap) / 2).floorToDouble();
+      final double panelH = math.max(96, (panelW * 0.78).floorToDouble());
+      Widget panel({required bool mine}) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            width: panelW,
+            height: panelH,
+            child: CustomPaint(
+              painter: _BaladePanelPainter(
+                dark: dark,
+                mine: mine,
+                roleColor: roleColor,
+              ),
+              child: mine
+                  ? const Align(
+                      alignment: Alignment.topCenter,
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: _LivePill(),
+                      ),
+                    )
+                  : null,
+            ),
+          ),
+        );
+      }
+
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: dark ? _nightBg : _dayBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: line),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(_pad),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  panel(mine: true),
+                  const SizedBox(width: _gap),
+                  panel(mine: false),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Le point vert du menu : la vraie patte, le vrai point.
+              SizedBox(
+                width: 54,
+                height: 50,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    const Positioned(left: 0, top: 0, child: PawGlyph(size: 54)),
+                    // Même place que dans le menu : bord haut-droit de la
+                    // tête (84 → 54 : (59, 43) × 0,643 = (38, 27,6)).
+                    Positioned(
+                      left: 34,
+                      top: 23.6,
+                      child: PawLiveDot(
+                        count: 1,
+                        ring: kPawTabBarPalettes[_navRole(role)]!.top,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  static PawNavRole _navRole(String role) {
+    switch (role) {
+      case 'sitter':
+        return PawNavRole.sitter;
+      case 'walker':
+        return PawNavRole.walker;
+      default:
+        return PawNavRole.owner;
+    }
+  }
+}
+
+/// Pilule Direct sans mot : point vert (en direct) + marcheur + œil (ceux
+/// qui me suivent) — même violet, même point vert que la vraie pilule.
+class _LivePill extends StatelessWidget {
+  const _LivePill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: <Color>[Color(0xFF9B6BF5), PawMapLegend.pawFollow],
+        ),
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: PawMapLegend.pawFollow.withValues(alpha: 0.35),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: PawLiveDot.green,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1),
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Icon(Icons.directions_walk_rounded, size: 13, color: Colors.white),
+          const SizedBox(width: 6),
+          const Icon(Icons.visibility_rounded, size: 13, color: Colors.white),
+        ],
+      ),
+    );
+  }
+}
+
+class _BaladePanelPainter extends CustomPainter {
+  const _BaladePanelPainter({
+    required this.dark,
+    required this.mine,
+    required this.roleColor,
+  });
+
+  final bool dark;
+  final bool mine;
+  final Color roleColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Fond de carte : beige / brun nuit + quelques « rues » douces.
+    final Color base = dark ? const Color(0xFF2A2019) : const Color(0xFFF0EBE1);
+    canvas.drawRect(Offset.zero & size, Paint()..color = base);
+    final Paint street = Paint()
+      ..color = dark ? const Color(0xFF3E2E28) : Colors.white
+      ..strokeWidth = 7
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(Offset(0, size.height * 0.62),
+        Offset(size.width, size.height * 0.48), street);
+    canvas.drawLine(Offset(size.width * 0.3, 0),
+        Offset(size.width * 0.42, size.height), street);
+    final Paint park = Paint()
+      ..color = (dark ? const Color(0xFF1F3A26) : const Color(0xFFDCEBD8));
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            Rect.fromLTWH(size.width * 0.58, size.height * 0.08,
+                size.width * 0.36, size.height * 0.3),
+            const Radius.circular(10)),
+        park);
+    // Pattes discrètes (identité PawMap).
+    PawPatternPainter(
+      color: dark ? Colors.white : roleColor,
+      opacity: 0.05,
+      cell: 48,
+    ).paint(canvas, size);
+
+    // Tracé violet de la balade, qui finit sur le rond.
+    final Offset end = Offset(size.width * 0.64, size.height * 0.64);
+    final Path trail = Path()
+      ..moveTo(size.width * 0.06, size.height * 0.9)
+      ..quadraticBezierTo(size.width * 0.22, size.height * 0.94,
+          size.width * 0.32, size.height * 0.74)
+      ..quadraticBezierTo(size.width * 0.44, size.height * 0.52,
+          end.dx, end.dy);
+    canvas.drawPath(
+        trail,
+        Paint()
+          ..color = PawMapLegend.pawFollow.withValues(alpha: 0.28)
+          ..strokeWidth = 8
+          ..strokeCap = StrokeCap.round
+          ..style = PaintingStyle.stroke);
+    canvas.drawPath(
+        trail,
+        Paint()
+          ..color = PawMapLegend.pawFollow
+          ..strokeWidth = 3.2
+          ..strokeCap = StrokeCap.round
+          ..style = PaintingStyle.stroke);
+
+    // Le rond : « Moi » (ma couleur) ou l'ami (anneau violet qui respire).
+    // Aucune étiquette : l'image est sans mot.
+    final double dot = mine ? 40 : 38;
+    const double margin = PawMapPinPainter.photoMarginGlow;
+    canvas.save();
+    canvas.translate(end.dx - margin - dot / 2, end.dy - margin - dot / 2);
+    PawMapPinPainter.paintPhotoDot(
+      canvas,
+      avatar: null,
+      ringColor: mine ? roleColor : PawMapLegend.friend,
+      size: dot,
+      online: true,
+      followPhase: mine ? null : 0.55,
+      fallbackTint: roleColor,
+      margin: margin,
+    );
+    canvas.restore();
+
+    // Chez les autres : bulle « en direct » sans mot (point vert + œil).
+    if (!mine) {
+      final double bx = end.dx - 34;
+      final double by = end.dy - dot / 2 - 30;
+      final RRect bubble = RRect.fromRectAndRadius(
+          Rect.fromLTWH(bx, by, 68, 22), const Radius.circular(11));
+      canvas.drawRRect(
+          bubble,
+          Paint()
+            ..color = PawMapLegend.pawFollow.withValues(alpha: 0.18)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
+      canvas.drawRRect(bubble, Paint()..color = Colors.white);
+      canvas.drawRRect(
+          bubble,
+          Paint()
+            ..color = PawMapLegend.pawFollow.withValues(alpha: 0.5)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1);
+      canvas.drawCircle(Offset(bx + 14, by + 11), 4, Paint()..color = PawLiveDot.green);
+      // Œil : deux arcs + pupille.
+      final Paint eye = Paint()
+        ..color = PawMapLegend.pawFollow
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6;
+      final Offset ec = Offset(bx + 44, by + 11);
+      final Path eyePath = Path()
+        ..moveTo(ec.dx - 9, ec.dy)
+        ..quadraticBezierTo(ec.dx, ec.dy - 8, ec.dx + 9, ec.dy)
+        ..quadraticBezierTo(ec.dx, ec.dy + 8, ec.dx - 9, ec.dy);
+      canvas.drawPath(eyePath, eye);
+      canvas.drawCircle(ec, 2.6, Paint()..color = PawMapLegend.pawFollow);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BaladePanelPainter old) =>
+      old.dark != dark || old.mine != mine || old.roleColor != roleColor;
+}

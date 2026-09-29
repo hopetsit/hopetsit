@@ -48,6 +48,8 @@ import 'widgets/pawmap_discreet.dart';
 import 'widgets/pawmap_pins.dart';
 import 'widgets/pawmap_rail.dart';
 import 'widgets/pawmap_sheets.dart';
+import 'widgets/pawmap_balade_illustration.dart';
+import '../../widgets/paw_tab_bar.dart';
 
 // ── Palette de l'aide (chaude, jamais grise) ──────────────────────────────
 const Color _cream = Color(0xFFFFFBF7);
@@ -334,10 +336,49 @@ class PawMapHelpScreen extends StatelessWidget {
                 ],
               ),
 
-              // ── 4. Agir ────────────────────────────────────────────────
+              // ── 4. La Balade (v599, Daniel 29/09) ─────────────────────
+              _SectionCard(
+                id: 'balade',
+                number: 4,
+                icon: Icons.directions_walk_rounded,
+                title: 'help599_sec_balade'.tr,
+                example: 'help599_ex_balade'.tr,
+                children: [
+                  const _BaladeCard(key: ValueKey<String>('help_balade_image')),
+                  _ButtonRow(
+                    key: const ValueKey<String>('help_balade_me'),
+                    icon: _RoundIcon(
+                        icon: Icons.directions_walk_rounded,
+                        color: roleColor,
+                        filled: true),
+                    title: 'help599_t_me'.tr,
+                    help: 'help599_b_me'.tr,
+                  ),
+                  _ButtonRow(
+                    key: const ValueKey<String>('help_balade_others'),
+                    icon: const _RoundIcon(
+                        icon: Icons.visibility_rounded,
+                        color: PawMapLegend.pawFollow,
+                        filled: true),
+                    title: 'help599_t_others'.tr,
+                    help: 'help599_b_others'.tr,
+                  ),
+                  _ButtonRow(
+                    key: const ValueKey<String>('help_balade_dot'),
+                    icon: const _RoundIcon(
+                        icon: Icons.circle,
+                        color: PawLiveDot.green,
+                        filled: true),
+                    title: 'help599_t_dot'.tr,
+                    help: 'help599_b_dot'.tr,
+                  ),
+                ],
+              ),
+
+              // ── 5. Agir ────────────────────────────────────────────────
               _SectionCard(
                 id: 'act',
-                number: 4,
+                number: 5,
                 icon: Icons.touch_app_rounded,
                 title: 'help587_sec_act'.tr,
                 example: 'help587_ex_act'.tr,
@@ -357,7 +398,7 @@ class PawMapHelpScreen extends StatelessWidget {
               // ── 5. Réglages ────────────────────────────────────────────
               _SectionCard(
                 id: 'set',
-                number: 5,
+                number: 6,
                 icon: Icons.tune_rounded,
                 title: 'help587_sec_set'.tr,
                 example: 'help587_ex_set'.tr,
@@ -1447,6 +1488,43 @@ class _LiveShareCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// v599 — L'image de « La Balade » : ce que je vois / ce que voient les
+/// autres, dessinée par les vrais peintres (nette à 2× et 3×, clair et nuit,
+/// 9 langues), avec sa légende.
+class _BaladeCard extends StatelessWidget {
+  const _BaladeCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final role = ((Get.isRegistered<AuthController>()
+                ? Get.find<AuthController>().userRole.value
+                : null) ??
+            'owner')
+        .toLowerCase();
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PawMapBaladeIllustration(
+            dark: PawMapTheme.isDark(context),
+            role: role.isEmpty ? 'owner' : role,
+          ),
+          SizedBox(height: 6.h),
+          Text(
+            'help599_img_caption'.tr,
+            style: PawMapTheme.fontOn(context,
+                size: 11.5.sp,
+                weight: FontWeight.w500,
+                height: 1.3,
+                color: _warmBody(context)),
           ),
         ],
       ),

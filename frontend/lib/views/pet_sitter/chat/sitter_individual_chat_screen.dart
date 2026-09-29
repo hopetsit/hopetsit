@@ -411,6 +411,8 @@ class _SitterIndividualChatScreenState
         responderRole: m.pawfollowResponderRole,
         status: m.pawfollowStatus,
         myRole: myRole,
+        // v599 — la personne compte, pas le rôle.
+        isMine: m.isFromCurrentUser,
         onAccept: () => _respondPawfollow(m, 'accept'),
         onRefuse: () => _respondPawfollow(m, 'refuse'),
         // v566 — « Suivi actif → Ouvrir la carte » aussi côté prestataire

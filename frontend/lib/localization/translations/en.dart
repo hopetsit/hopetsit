@@ -1283,6 +1283,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'signup_account_created_title': 'Account Created',
       'signup_account_created_message': 'Please verify your email to continue.',
       'signup_failed_title': 'Sign Up Failed',
+      'login_failed_title': 'Login failed', // v599 FLO
       'signup_failed_generic_message':
           'Something went wrong. Please try again.',
 

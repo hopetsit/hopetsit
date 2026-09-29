@@ -103,10 +103,31 @@ class SecureTokenStore {
   }
 
   Future<void> writeToken(String token) async {
-    await _secure.write(key: StorageKeys.authToken, value: token);
-    _cachedToken = token;
-    _hydrated = true;
-    _purgeLegacy();
+    // v599 — FLO : sur un appareil neuf (émulateur Android tout juste créé,
+    // Keystore/EncryptedSharedPreferences pas encore prêts), l'écriture
+    // sécurisée peut lever une exception. Avant, elle remontait jusqu'à
+    // login() et la connexion échouait (« Échec de l'inscription ») alors que
+    // le serveur avait accepté — jusqu'à ce que le Keystore veuille bien.
+    // On garde le jeton en mémoire et dans GetStorage (lu par currentToken())
+    // pour que la connexion aboutisse ; la migration vers le stockage sécurisé
+    // se refait au prochain démarrage (migrateFromLegacyIfNeeded).
+    try {
+      await _secure.write(key: StorageKeys.authToken, value: token);
+      _cachedToken = token;
+      _hydrated = true;
+      _purgeLegacy();
+    } catch (e, st) {
+      AppLogger.logError(
+        'SecureTokenStore.writeToken failed — fallback GetStorage',
+        error: e,
+        stackTrace: st,
+      );
+      _cachedToken = token;
+      _hydrated = true;
+      try {
+        await GetStorage().write(StorageKeys.authToken, token);
+      } catch (_) {/* ignore */}
+    }
   }
 
   Future<void> clear() async {

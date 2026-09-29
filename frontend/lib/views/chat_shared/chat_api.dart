@@ -87,6 +87,7 @@ class ChatApi {
     int? durationSeconds,
     String? body,
     String? replyToMessageId,
+    List<double>? waveform,
   }) async {
     final token = SecureTokenStore.currentToken();
     if (token == null || token.isEmpty) {
@@ -111,6 +112,13 @@ class ChatApi {
     request.fields['kind'] = kind;
     if (durationSeconds != null) {
       request.fields['duration'] = durationSeconds.toString();
+    }
+    // v599 — forme d'onde réelle du vocal (0..1, ≤ 64 valeurs), rendue dans
+    // la bulle chez le destinataire.
+    if (waveform != null && waveform.isNotEmpty) {
+      request.fields['waveform'] = jsonEncode(
+        waveform.take(64).map((v) => (v.clamp(0.0, 1.0) * 100).round() / 100).toList(),
+      );
     }
     if (body != null && body.trim().isNotEmpty) {
       request.fields['body'] = body.trim();

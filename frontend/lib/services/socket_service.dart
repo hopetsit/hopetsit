@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:hopetsit/data/network/api_config.dart';
@@ -113,6 +114,11 @@ class SocketService {
         if (role != null && role.isNotEmpty && userId != null && userId.isNotEmpty) {
           _socket!.emit('user:identify', {'role': role, 'userId': userId});
         }
+        // v599 (ZOE) — le socket reste connecté en arrière-plan (badges, suivi
+        // en direct), mais « en ligne » = app RÉELLEMENT devant les yeux. On
+        // déclare l'état au serveur à la connexion, puis à chaque changement.
+        _ensurePresenceWatcher();
+        sendPresenceState(foreground: _PresenceWatcher.isForeground);
         // v20.0.19 — fire all post-connect hooks (NotificationsController,
         // chat controllers, etc.). Wrapped in try/catch so one buggy hook
         // can't break the others.
@@ -138,6 +144,30 @@ class SocketService {
     } catch (e) {
       AppLogger.logError('Failed to connect socket', error: e);
       rethrow;
+    }
+  }
+
+  // ── v599 — présence réelle (premier plan / arrière-plan) ────────────────
+  _PresenceWatcher? _presenceWatcher;
+  void _ensurePresenceWatcher() {
+    if (_presenceWatcher != null) return;
+    try {
+      _presenceWatcher = _PresenceWatcher(this);
+      WidgetsBinding.instance.addObserver(_presenceWatcher!);
+    } catch (e) {
+      AppLogger.logError('presence watcher failed', error: e);
+    }
+  }
+
+  /// Déclare au serveur si l'app est au premier plan (`presence:state`).
+  /// Idempotent, jamais bloquant.
+  void sendPresenceState({required bool foreground}) {
+    try {
+      final s = _socket;
+      if (s == null || !_isConnected) return;
+      s.emit('presence:state', {'foreground': foreground});
+    } catch (e) {
+      AppLogger.logError('presence:state emit failed', error: e);
     }
   }
 
@@ -648,6 +678,29 @@ class SocketService {
   void removeAllListeners() {
     if (_socket != null) {
       _socket!.clearListeners();
+    }
+  }
+}
+
+
+/// v599 — observe le cycle de vie de l'app pour la présence « en ligne ».
+/// `paused` / `hidden` = arrière-plan (point vert éteint chez les autres) ;
+/// `resumed` = premier plan. `inactive` (centre de contrôle, appel) est ignoré.
+class _PresenceWatcher with WidgetsBindingObserver {
+  _PresenceWatcher(this._service);
+  final SocketService _service;
+  static bool isForeground = true;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      isForeground = true;
+      _service.sendPresenceState(foreground: true);
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      isForeground = false;
+      _service.sendPresenceState(foreground: false);
     }
   }
 }

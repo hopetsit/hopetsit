@@ -1082,6 +1082,7 @@ const Map<String, String> plPLTranslations = <String, String>{
   'signup_account_created_title': 'Konto utworzone',
   'signup_account_created_message': 'Aby kontynuować, zweryfikuj swój adres e-mail.',
   'signup_failed_title': 'Rejestracja nie powiodła się',
+  'login_failed_title': 'Logowanie nie powiodło się', // v599 FLO
   'signup_failed_generic_message': 'Coś poszło nie tak. Spróbuj ponownie.',
   'language_dialog_title': 'Wybierz język',
   'language_dialog_message': 'Wybierz preferowany język aplikacji.',

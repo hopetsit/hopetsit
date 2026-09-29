@@ -2,6 +2,7 @@ import 'package:hopetsit/utils/map_ui_state.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../widgets/paw_button_kit.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -44,6 +45,8 @@ import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dar
 import 'package:hopetsit/views/pet_walker/booking/walker_bookings_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
+import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/notification_card.dart';
@@ -58,6 +61,134 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final ScrollController _scrollController = ScrollController();
+
+  // v599 (ZOE) — Daniel : « pouvoir CHOISIR ». Appui long → mode sélection
+  // (cases), « Supprimer (N) » / « Marquer lu (N) », « Tout » conservé.
+  bool _selecting = false;
+  final Set<String> _selected = <String>{};
+
+  void _enterSelection(AppNotificationModel item) {
+    setState(() {
+      _selecting = true;
+      _selected
+        ..clear()
+        ..add(item.id);
+    });
+  }
+
+  void _toggleSelected(AppNotificationModel item) {
+    setState(() {
+      if (!_selected.remove(item.id)) _selected.add(item.id);
+      if (_selected.isEmpty) _selecting = false;
+    });
+  }
+
+  void _exitSelection() {
+    setState(() {
+      _selecting = false;
+      _selected.clear();
+    });
+  }
+
+  void _toggleSelectAll() {
+    final all = _c.notifications.map((e) => e.id).toSet();
+    setState(() {
+      if (_selected.length >= all.length) {
+        _selected.clear();
+        _selecting = false;
+      } else {
+        _selected
+          ..clear()
+          ..addAll(all);
+      }
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    final ids = _selected.toList();
+    if (ids.isEmpty) return;
+    final ok = await showAppConfirmDialog(
+      context,
+      title: 'notif599_delete_n_title'.trParams({'n': '${ids.length}'}),
+      message: 'notif599_delete_n_body'.tr,
+      confirmLabel: 'notif599_delete_n'.trParams({'n': '${ids.length}'}),
+      cancelLabel: 'common_cancel'.tr,
+      destructive: true,
+      icon: Icons.delete_outline_rounded,
+    );
+    if (ok != true || !mounted) return;
+    _exitSelection();
+    await _c.deleteMany(ids);
+  }
+
+  Future<void> _readSelected() async {
+    final ids = _selected.toList();
+    if (ids.isEmpty) return;
+    _exitSelection();
+    await _c.markManyAsRead(ids);
+  }
+
+  Future<void> _deleteAll() async {
+    final ok = await showAppConfirmDialog(
+      context,
+      title: 'notif599_delete_all_title'.tr,
+      message: 'notif599_delete_all_body'.tr,
+      confirmLabel: 'notif599_delete_all'.tr,
+      cancelLabel: 'common_cancel'.tr,
+      destructive: true,
+      icon: Icons.delete_sweep_outlined,
+    );
+    if (ok != true || !mounted) return;
+    _exitSelection();
+    await _c.clearAll();
+  }
+
+  /// Barre du bas en mode sélection : Supprimer (N) · Marquer lu (N).
+  Widget _selectionBar(BuildContext context) {
+    final n = _selected.length;
+    final accent = AppColors.activeRoleAccent();
+    final hasUnread = _c.notifications
+        .any((e) => _selected.contains(e.id) && e.isUnread);
+    return Container(
+      padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 10.h + appBottomInset(context)),
+      decoration: BoxDecoration(
+        color: AppColors.appBar(context),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1E1513).withValues(alpha: 0.10),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            // 599 (BOB) — boutons du kit, pas de Material brut (garde lotd).
+            child: PawButton(
+              label: 'notif599_delete_n'.trParams({'n': '$n'}),
+              icon: Icons.delete_outline_rounded,
+              color: const Color(0xFFE5484D),
+              enabled: n > 0,
+              height: 48.h,
+              onTap: _deleteSelected,
+            ),
+          ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: PawButton(
+              label: 'notif599_read_n'.trParams({'n': '$n'}),
+              icon: Icons.done_all_rounded,
+              color: accent,
+              enabled: n > 0 && hasUnread,
+              height: 48.h,
+              onTap: _readSelected,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   NotificationsController get _c {
     if (!Get.isRegistered<NotificationsController>()) {
@@ -645,30 +776,102 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         backgroundColor: AppColors.appBar(context),
         surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
+        leading: _selecting
+            ? IconButton(
+                tooltip: 'common_cancel'.tr,
+                icon: const Icon(Icons.close_rounded),
+                onPressed: _exitSelection,
+              )
+            : null,
         title: InterText(
-          text: 'notifications_title'.tr,
+          text: _selecting
+              ? 'notif599_selected_n'.trParams({'n': '${_selected.length}'})
+              : 'notifications_title'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
         ),
         actions: [
-          Obx(() {
-            final hasUnread = _c.notifications.any((e) => e.isUnread);
-            if (!hasUnread) return const SizedBox.shrink();
-            return TextButton(
-              onPressed: () async {
-                await _c.markAllAsRead();
-              },
-              child: InterText(
-                text: 'notifications_mark_all_read'.tr,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primaryColor,
-              ),
-            );
-          }),
+          if (_selecting)
+            Obx(() {
+              final all = _c.notifications.length;
+              final allSelected = all > 0 && _selected.length >= all;
+              return IconButton(
+                tooltip: allSelected
+                    ? 'notif599_deselect_all'.tr
+                    : 'notif599_select_all'.tr,
+                icon: Icon(allSelected
+                    ? Icons.deselect_rounded
+                    : Icons.select_all_rounded),
+                onPressed: all == 0 ? null : _toggleSelectAll,
+              );
+            })
+          else ...[
+            Obx(() {
+              final hasUnread = _c.notifications.any((e) => e.isUnread);
+              if (!hasUnread) return const SizedBox.shrink();
+              return TextButton(
+                onPressed: () async {
+                  await _c.markAllAsRead();
+                },
+                child: InterText(
+                  text: 'notifications_mark_all_read'.tr,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryColor,
+                ),
+              );
+            }),
+            // v599 — menu : Sélectionner · Tout supprimer.
+            Obx(() {
+              if (_c.notifications.isEmpty) return const SizedBox.shrink();
+              return PopupMenuButton<String>(
+                tooltip: 'notif599_more'.tr,
+                icon: Icon(Icons.more_vert_rounded,
+                    color: AppColors.primaryColor),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.r)),
+                color: AppColors.appBar(context),
+                onSelected: (v) {
+                  if (v == 'select' && _c.notifications.isNotEmpty) {
+                    _enterSelection(_c.notifications.first);
+                    setState(() => _selected.clear());
+                  } else if (v == 'delete_all') {
+                    _deleteAll();
+                  }
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem<String>(
+                    value: 'select',
+                    child: Row(children: [
+                      Icon(Icons.checklist_rounded,
+                          size: 20.sp, color: AppColors.primaryColor),
+                      SizedBox(width: 10.w),
+                      Text('notif599_select'.tr,
+                          style: TextStyle(
+                              color: AppColors.textPrimary(context),
+                              fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'delete_all',
+                    child: Row(children: [
+                      Icon(Icons.delete_sweep_outlined,
+                          size: 20.sp, color: const Color(0xFFE5484D)),
+                      SizedBox(width: 10.w),
+                      Text('notif599_delete_all'.tr,
+                          style: const TextStyle(
+                              color: Color(0xFFE5484D),
+                              fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                ],
+              );
+            }),
+          ],
         ],
       ),
+      bottomNavigationBar: _selecting ? _selectionBar(context) : null,
       body: PawPatternBackground(
           color: AppColors.activeRoleAccent(),
           child: Obx(() {
@@ -799,6 +1002,46 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 );
               }
               final item = _c.notifications[index];
+              // v599 — mode sélection : case + tap = cocher (pas de glisser).
+              if (_selecting) {
+                final checked = _selected.contains(item.id);
+                final accent = AppColors.activeRoleAccent();
+                return Padding(
+                  padding: EdgeInsets.only(bottom: 12.h),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: () => _toggleSelected(item),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 160),
+                          width: 26.w,
+                          height: 26.w,
+                          margin: EdgeInsets.only(right: 10.w),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: checked ? accent : Colors.transparent,
+                            border: Border.all(color: accent, width: 2),
+                          ),
+                          child: checked
+                              ? Icon(Icons.check_rounded,
+                                  size: 18.sp, color: Colors.white)
+                              : null,
+                        ),
+                      ),
+                      Expanded(
+                        child: Semantics(
+                          selected: checked,
+                          child: NotificationCard(
+                            notification: item,
+                            onTap: () => _toggleSelected(item),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
               // v566 — glisser vers la gauche = supprimer (synchronisé avec les
               // autres appareils par l'événement `notification.removed`).
               return Padding(
@@ -820,9 +1063,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                   ),
                   onDismissed: (_) => _c.deleteNotification(item),
-                  child: NotificationCard(
-                    notification: item,
-                    onTap: () => _onTapNotification(item),
+                  // v599 — appui long = mode sélection.
+                  child: GestureDetector(
+                    onLongPress: () => _enterSelection(item),
+                    child: NotificationCard(
+                      notification: item,
+                      onTap: () => _onTapNotification(item),
+                    ),
                   ),
                 ),
               );

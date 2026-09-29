@@ -1159,6 +1159,7 @@ const Map<String, String> jaJPTranslations = <String, String>{
   'signup_account_created_title': 'アカウントを作成しました',
   'signup_account_created_message': '続けるにはメールを認証してください。',
   'signup_failed_title': '登録に失敗しました',
+  'login_failed_title': 'ログインできませんでした', // v599 FLO
   'signup_failed_generic_message': '問題が発生しました。もう一度お試しください。',
   'language_dialog_title': '言語を選択',
   'language_dialog_message': 'アプリで使う言語を選んでください。',

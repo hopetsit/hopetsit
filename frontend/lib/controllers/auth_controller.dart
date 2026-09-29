@@ -1332,8 +1332,10 @@ class AuthController extends GetxController {
           ),
         );
       } else {
+        // v599 — FLO : c'est une CONNEXION qui échoue, pas une inscription
+        // (le titre « Échec de l'inscription » trompait l'utilisateur).
         CustomSnackbar.showError(
-          title: 'signup_failed_title',
+          title: 'login_failed_title',
           message: 'signup_failed_generic_message',
         );
       }

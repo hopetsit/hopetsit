@@ -55,7 +55,15 @@ class PawfollowRequestCard extends StatelessWidget {
     // expiration de la demande.
     this.busy = false,
     this.expiresAt,
+    // v599 — LA PERSONNE, PAS LE RÔLE (Daniel, 29/09 : demande du frère,
+    // propriétaire, impossible à accepter). `isMine` = ce message est de moi.
+    // Entre deux propriétaires amis, comparer les rôles faisait croire aux
+    // deux qu'ils étaient l'expéditeur : « Demande envoyée · En attente »
+    // des deux côtés, aucun bouton. Null = ancien calcul par rôle (tests).
+    this.isMine,
   });
+
+  final bool? isMine;
 
   final String messageId;
   final String requesterRole; // 'owner' | 'sitter' | 'walker'
@@ -84,8 +92,9 @@ class PawfollowRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isResponder = responderRole == myRole;
-    final isRequester = requesterRole == myRole;
+    final bool isRequester = isMine ?? (requesterRole == myRole);
+    final bool isResponder =
+        isMine != null ? !isMine! : (responderRole == myRole);
 
     // v23.1 part 240 — Daniel : "cotter sitter et walker quand jenvoi
     // partager ma position il devrai avoir un message partage de position
