@@ -349,14 +349,21 @@ export default function MapPage() {
       const r = localStorage.getItem("hopetsit:mapRail");
       if (r) { const l = asList(JSON.parse(r)); railSavedRef.current = l; setRailOrder(normalizeRail(l)); }
       const c = localStorage.getItem("hopetsit:mapCapsule");
-      if (c) { const l = asList(JSON.parse(c)); capsuleSavedRef.current = l; setCapsuleOrder(normalizeCapsule(l)); }
+      if (c) { const l = asList(JSON.parse(c)); capsuleSavedRef.current = l; setCapsuleOrder(migrateCapsuleFeed602(l, railSavedRef.current).order); }
     } catch { /* stockage indisponible */ }
     if (!getStoredUser()) return;
     let stop = false;
     void getMapBarPrefs().then((p) => {
       if (stop || !p) return;
       if (p.rail) { railSavedRef.current = p.rail; setRailOrder(normalizeRail(p.rail)); try { localStorage.setItem("hopetsit:mapRail", JSON.stringify(p.rail)); } catch { /* */ } }
-      if (p.capsule) { capsuleSavedRef.current = p.capsule; setCapsuleOrder(normalizeCapsule(p.capsule)); try { localStorage.setItem("hopetsit:mapCapsule", JSON.stringify(p.capsule)); } catch { /* */ } }
+      // 602 — migration « Voir signaux » (gauche → droite), comme l'app ;
+      // enregistrée UNE fois sur le compte, puis elle ne se rejoue plus.
+      const mig = migrateCapsuleFeed602(p.capsule, p.rail);
+      const full = mig.changed ? capsuleToSave(keepUnknownIds(p.capsule, mig.order, CAPSULE_IDS)) : (p.capsule ?? mig.order);
+      capsuleSavedRef.current = full;
+      setCapsuleOrder(mig.order);
+      try { localStorage.setItem("hopetsit:mapCapsule", JSON.stringify(full)); } catch { /* */ }
+      if (mig.changed) void saveMapBarPrefs({ capsule: full });
     });
     return () => { stop = true; };
   }, []);
@@ -364,7 +371,8 @@ export default function MapPage() {
     const o = bar === "rail" ? normalizeRail(order) : normalizeCapsule(order);
     if (bar === "rail") setRailOrder(o); else setCapsuleOrder(o);
     const ref = bar === "rail" ? railSavedRef : capsuleSavedRef;
-    const full = keepUnknownIds(ref.current, o, bar === "rail" ? RAIL_IDS : CAPSULE_IDS);
+    const kept = keepUnknownIds(ref.current, o, bar === "rail" ? RAIL_IDS : CAPSULE_IDS);
+    const full = bar === "capsule" ? capsuleToSave(kept) : kept;
     ref.current = full;
     try { localStorage.setItem(bar === "rail" ? "hopetsit:mapRail" : "hopetsit:mapCapsule", JSON.stringify(full)); } catch { /* */ }
     if (getStoredUser()) void saveMapBarPrefs({ [bar]: full });
@@ -1752,11 +1760,7 @@ export default function MapPage() {
                   }, active: sidePanel === "spots" },
                   { k: "tag", pal: JEWEL.tag, icon: "add_location_alt", label: t("map_tag_spot_cta"), on: () => openCreate("spot") },
                   { k: "report", pal: JEWEL.report, icon: "warning", label: t("map_report_cta"), on: () => openCreate("report") },
-                  { k: "feed", pal: JEWEL.feed, icon: "tour", label: t("map_panel_reports_title"), dot: true, on: () => {
-                    if (sidePanel === "reports") { setSidePanel(null); return; }
-                    setShowReports(true); setSidePanel("reports"); setSheet("full");
-                    setTimeout(() => document.getElementById("side-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-                  }, active: sidePanel === "reports" },
+                  // 602 — « Voir signaux » (drapeau noir) est passé dans la barre de DROITE.
                 ] as { k: string; pal: JewelPalette; icon: string; label: string; on: () => void; active?: boolean; dot?: boolean }[]
               ).filter((b) => railOrder.includes(b.k)).sort((a, b) => railOrder.indexOf(a.k) - railOrder.indexOf(b.k)).map((b) => (
                 <PawJewel
@@ -1811,6 +1815,23 @@ export default function MapPage() {
                   <CapsuleBtn key="cap-everyone" dark={dark} color="#E8448F" label={showMembers ? t("map_members_hide") : t("map_members_show")} pressed={showMembers} onClick={() => setShowMembers((v) => !v)}>
                     <PawSymbol name="groups" size={21} />
                   </CapsuleBtn>
+                );
+                // 602 — « Voir signaux » : même pierre (drapeau noir), même point
+                // rouge décoratif, même panneau Signalements qu'avant à gauche.
+                if (id === "feed") return (
+                  <PawJewel
+                    key="cap-feed"
+                    palette={JEWEL.feed}
+                    icon="tour"
+                    label={`${t("p601_pawmap_view_reports_btn")} — ${t("p601_pawmap_rail_help_feed")}`}
+                    onClick={() => {
+                      if (sidePanel === "reports") { setSidePanel(null); return; }
+                      setShowReports(true); setSidePanel("reports"); setSheet("full");
+                      setTimeout(() => document.getElementById("side-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+                    }}
+                    active={sidePanel === "reports"}
+                    badge={<JewelDot />}
+                  />
                 );
                 if (id === "balade") return getStoredUser() ? (
                   <div key="cap-balade" className="flex flex-col items-center">
@@ -2458,10 +2479,10 @@ export default function MapPage() {
             { id: "spots", label: t("p601_pawmap_view_spots_btn"), help: t("p601_pawmap_rail_help_spots"), icon: "award_star", pal: JEWEL.spots },
             { id: "tag", label: t("p601_pawmap_tag_spot"), help: t("p601_pawmap_rail_help_tag"), icon: "add_location_alt", pal: JEWEL.tag },
             { id: "report", label: t("p601_pawmap_btn_send"), help: t("p601_pawmap_rail_help_report"), icon: "warning", pal: JEWEL.report },
-            { id: "feed", label: t("p601_pawmap_view_reports_btn"), help: t("p601_pawmap_rail_help_feed"), icon: "tour", pal: JEWEL.feed },
           ] : [
             { id: "satellite", label: t("p601_pawmap601_satellite"), help: t("p601_pawmap601_satellite_help"), icon: "public", pal: JEWEL_ROLE[roleKey(myRole)] },
             { id: "everyone", label: t("map_members_show"), help: "", icon: "groups", pal: JEWEL.friends },
+            { id: "feed", label: t("p601_pawmap_view_reports_btn"), help: t("p601_pawmap_rail_help_feed"), icon: "tour", pal: JEWEL.feed },
             { id: "balade", label: t("p601_pawmap590_walk"), help: t("p601_pawmap586_direct_help"), icon: "directions_walk", pal: WALK_ON },
             { id: "eye", label: t("p601_pawmap586_vis_btn"), help: t("p601_pawmap586_vis_help"), icon: "visibility", pal: WALK_OFF },
           ]}
@@ -2599,9 +2620,38 @@ function GearIcon({ size = 22, color = "#FFFFFF" }: { size?: number; color?: str
 }
 // ─── 29/09 (parité 601) — barres personnalisables + drapeau Balade ─────────
 /** Rail gauche : les 9 boutons, ordre d'origine (ids de l'app, kPawRailSpecs). */
-const RAIL_IDS = ["around", "directions", "live_friends", "chat", "photo", "spots", "tag", "report", "feed"];
+// 602 — « feed » (Voir signaux) a quitté la gauche : un réglage qui le contient
+// encore ne fait apparaître aucun bouton fantôme (comme normalizeRailOrder).
+const RAIL_IDS = ["around", "directions", "live_friends", "chat", "photo", "spots", "tag", "report"];
 /** Barre droite : boutons personnalisables, ordre d'origine (kPawCapsuleSlotSpecs). */
-const CAPSULE_IDS = ["satellite", "everyone", "balade", "eye"];
+// 602 — + « feed » (Voir signaux) juste au-dessus de Balade (kPawCapsuleSlotSpecs).
+const CAPSULE_IDS = ["satellite", "everyone", "feed", "balade", "eye"];
+/** kCapsuleFeedHiddenMarker de l'app 602 : « Voir signaux » masqué à droite. */
+const NO_FEED = "no_feed";
+/** capsuleOrderToSave (app 602) : l'ordre, plus le marqueur si « feed » est masqué. */
+function capsuleToSave(full: string[]): string[] {
+  const out = full.filter((id) => id !== NO_FEED);
+  if (!out.includes("feed")) out.push(NO_FEED);
+  return out;
+}
+/**
+ * migrateCapsuleFeed602 (app 602, pawmap_rail.dart) — mêmes règles :
+ *  · la barre de droite connaît déjà « feed » (présent ou `no_feed`) → rien ;
+ *  · sinon (jamais réglée, ou réglée au 601) : « feed » arrive juste au-dessus
+ *    de Balade (en fin s'il n'y a pas de Balade) — SAUF s'il avait été masqué
+ *    à gauche (rail enregistré sans « feed ») : il reste masqué.
+ * `changed` : enregistrer le résultat une fois pour que ça ne se rejoue jamais.
+ */
+function migrateCapsuleFeed602(capsule: string[] | null, rail: string[] | null): { order: string[]; changed: boolean } {
+  if (capsule && (capsule.includes("feed") || capsule.includes(NO_FEED))) return { order: normalizeCapsule(capsule), changed: false };
+  const hadFeedLeft = rail === null || rail.includes("feed");
+  const base = capsule === null ? CAPSULE_IDS.filter((id) => id !== "feed") : normalizeCapsule(capsule);
+  if (!hadFeedLeft) return { order: base, changed: true };
+  const out = [...base];
+  const at = out.indexOf("balade");
+  if (at >= 0) out.splice(at, 0, "feed"); else out.push("feed");
+  return { order: out, changed: true };
+}
 /** Comme normalizeRailOrder de l'app : ids connus, sans doublon ; vide → ordre d'origine. */
 function normalizeRail(order: unknown): string[] {
   if (!Array.isArray(order)) return RAIL_IDS;
