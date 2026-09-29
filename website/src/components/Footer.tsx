@@ -86,14 +86,19 @@ export function Footer() {
       title: "Guides",
       links: [
         { href: "/blog", label: "Blog" },
-        { href: "/petsitter/paris",  label: "Pet sitter à Paris" },
         // v577 — SEO (21/09/2026) : la page ou la publicite Paris envoie. Elle
         // n'avait qu'un seul lien entrant sur tout le site, depuis un article
         // de blog lui-meme pas indexe. Un lien de pied de page la rend
         // atteignable depuis les 223 pages deja indexees.
         { href: "/garde-animaux/paris", label: "Garde d'animaux à Paris" },
+        // 29/09/2026 (LEO, retour de SAM) : /petsitter/paris et /petsitter/dallas
+        // sont d'anciennes adresses (canonical vers les nouvelles) : le pied de
+        // page pointe sur les pages canoniques. Push USA gratuit : les deux
+        // pages Dallas (propriétaires + gardiens) et le hub des villes.
+        { href: "/devenir-petsitter/paris", label: "Devenir pet sitter à Paris" },
         { href: "/petsitter/madrid", label: "Cuidador en Madrid" },
-        { href: "/petsitter/dallas", label: "Pet sitter in Dallas" },
+        { href: "/pet-sitting/dallas", label: "Pet sitters in Dallas" },
+        { href: "/become-a-pet-sitter/dallas", label: "Become a pet sitter in Dallas" },
       ],
     },
   ];

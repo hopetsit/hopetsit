@@ -95,7 +95,7 @@ export default function ArticlePromenerChienParis() {
       </p>
       <p className="mt-4 leading-relaxed text-ink-muted">
         Pas le temps de promener aujourd'hui ? Des{" "}
-        <Link href="/petsitter/paris" className="font-semibold text-owner">
+        <Link href="/garde-animaux/paris" className="font-semibold text-owner">
           promeneurs de chiens vérifiés à Paris
         </Link>{" "}
         prennent le relais — avec le trajet suivi en GPS depuis votre téléphone.

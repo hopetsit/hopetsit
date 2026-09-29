@@ -9,7 +9,8 @@ vérifie (`npx tsc --noEmit`) et pousse sur `main` → Vercel déploie.
 1. **Paris / France** — obtenir les premiers clients : recruter des pet sitters
    parisiens (semaines impaires), puis parler aux propriétaires (semaines paires).
 2. USA, Pologne (Varsovie), Corée (Séoul) — un article chacun le premier
-   dimanche du mois.
+   dimanche du mois. **Sujets US : prendre dans l'ordre la banque `sujets_us.md`**
+   (ajoutée le 29/09/2026, push USA gratuit) et cocher la ligne publiée.
 
 ## Ce que produit chaque run
 - `website/src/app/(<langue>)/blog/<slug>/page.tsx` — l'article, dans le
