@@ -557,6 +557,8 @@ const createApplication = async (req, res) => {
         applicationId: application._id.toString(),
         providerRole: providerRole === 'walker' ? 'walker' : 'sitter',
         providerId: sitterId.toString(),
+        // v602 (ZOE) — la demande concernée : l'app ouvre ses candidats.
+        ...(application.postId ? { postId: String(application.postId._id || application.postId) } : {}),
       },
       actor: {
         role: providerRole === 'walker' ? 'walker' : 'sitter',
@@ -933,6 +935,8 @@ const respondToApplication = async (req, res) => {
         data: {
           applicationId: application._id.toString(),
           providerRole,
+          // v602 (ZOE) — le tap ouvre la demande refusée, plus la liste.
+          ...(application.postId ? { postId: String(application.postId._id || application.postId) } : {}),
         },
         actor: { role: 'owner', id: ownerId },
       }).catch(() => {});

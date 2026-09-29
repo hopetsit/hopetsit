@@ -212,13 +212,9 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
 
   ensureRole(senderRole);
 
-  const conversation = await getConversationOrThrow(conversationId, { populate: true });
-
-  // v599 — le côté de l'expéditeur se lit sur la PERSONNE (3 profils), pas sur
-  // le rôle de la session : Daniel connecté en propriétaire peut répondre dans
-  // le fil où il est enregistré comme gardien.
-  const mySide = await assertParticipantByIdentity(conversation, senderId);
-  const senderIsOwnerSide = mySide.side === 'owner';
+  // v602 — le fil est lu SANS populate ; les noms (populate) arrivent en
+  // parallèle des contrôles ci-dessous (−1 aller-retour).
+  const conversation = await getConversationOrThrow(conversationId, { populate: false });
 
   const ownerId = normalizeId(conversation.ownerId);
   const sitterId = normalizeId(conversation.sitterId);
@@ -227,7 +223,19 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
   // v18.8 — block rule walker-aware : sitter OU walker en face.
   const otherProviderId = sitterId || walkerId;
   const otherProviderModel = sitterId ? 'Sitter' : 'Walker';
-  const isBlocked = await Block.exists({
+  // v602 (ZOE) — « réception molle » : base à ~130 ms du serveur. Les trois
+  // lectures indépendantes (participant, blocage, réservation payée) partent
+  // ENSEMBLE au lieu de l'une après l'autre (−2 allers-retours). Les décisions
+  // restent prises dans le même ordre ci-dessous.
+  // v599 — le côté de l'expéditeur se lit sur la PERSONNE (3 profils), pas sur
+  // le rôle de la session : Daniel connecté en propriétaire peut répondre dans
+  // le fil où il est enregistré comme gardien.
+  const [mySideSettled, isBlocked, hasPaidBooking] = await Promise.all([
+    assertParticipantByIdentity(conversation, senderId).then(
+      (v) => ({ ok: true, v }),
+      (e) => ({ ok: false, e }),
+    ),
+    Block.exists({
     $or: [
       {
         blockerId: ownerId,
@@ -242,7 +250,13 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
         blockedModel: 'Owner',
       },
     ],
-  });
+    }),
+    hasValidPaidBooking(ownerId, sitterId, walkerId),
+    conversation.populate(['ownerId', 'sitterId', 'walkerId']),
+  ]);
+  if (!mySideSettled.ok) throw mySideSettled.e;
+  const mySide = mySideSettled.v;
+  const senderIsOwnerSide = mySide.side === 'owner';
 
   if (isBlocked) {
     throw new HttpError(403, 'Messaging is disabled because one user has been blocked.');
@@ -252,7 +266,6 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
   //   * If a paid booking exists → OK (historical support chat).
   //   * Else if sender has Premium OR Chat add-on → OK (friends / pre-booking chat).
   //   * Else → 402 CHAT_ACCESS_REQUIRED so client can upsell.
-  const hasPaidBooking = await hasValidPaidBooking(ownerId, sitterId, walkerId);
   if (!hasPaidBooking) {
     const senderUserModel = senderRole === 'owner'
       ? 'Owner'
@@ -296,7 +309,9 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
   // masque insultes (***) et menaces dans le corps du message avant stockage.
   const effectiveBody = require('./textModerationService').moderateText(emailMasked).clean;
 
-  const message = await Message.create({
+  // v602 (ZOE) — le message et la mise à jour du fil s'écrivent EN MÊME TEMPS
+  // (−1 aller-retour) ; le fil déjà peuplé n'est plus relu (−1).
+  const messagePromise = Message.create({
     conversationId: conversation._id,
     senderRole,
     senderId,
@@ -323,8 +338,11 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
   } else {
     conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
   }
-  await conversation.save();
-  await conversation.populate(['ownerId', 'sitterId', 'walkerId']);
+  const [message] = await Promise.all([messagePromise, conversation.save()]);
+  const toPopulate = ['ownerId', 'sitterId', 'walkerId'].filter(
+    (p) => conversation[p] && !conversation.populated(p),
+  );
+  if (toPopulate.length) await conversation.populate(toPopulate);
 
   // v18.8 — destinataire de la notif NEW_MESSAGE est dynamique :
   // owner → provider (sitter OU walker) ; provider → owner.

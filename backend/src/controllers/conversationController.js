@@ -734,7 +734,8 @@ const createConversationMessage = async (req, res) => {
     // v23.1 part 227 — on select aussi ownerId/sitterId/walkerId pour que
     // emitChatMessage puisse emit aux user-rooms des 2 participants.
     // v599 — fil canonique (un ancien id de fil fusionné reste accepté).
-    const convPre = await identity599.resolveConversation(id, {
+    // v602 (ZOE) — fil déjà lu par requirePaidBooking (même sélection) : reprise.
+    const convPre = req.chatConversation602 || await identity599.resolveConversation(id, {
       select: 'friendChat participants ownerId sitterId walkerId mergedInto', lean: true,
     });
     const canonicalId = convPre ? String(convPre._id) : id;
@@ -889,7 +890,8 @@ const createConversationAttachmentMessage = async (req, res) => {
     // → 403 « not part of this conversation » sur toute conversation amie →
     // « l'envoi de photos/vidéos ne marche pas ». On route vers le pipeline ami.
     // v599 — fil canonique (ancien id de fil fusionné accepté).
-    const convForEmit = await identity599.resolveConversation(id, {
+    // v602 (ZOE) — fil déjà lu par requirePaidBooking (même sélection) : reprise.
+    const convForEmit = req.chatConversation602 || await identity599.resolveConversation(id, {
       select: 'friendChat participants ownerId sitterId walkerId mergedInto', lean: true,
     });
     if (!convForEmit) {

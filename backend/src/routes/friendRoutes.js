@@ -1913,6 +1913,8 @@ router.post('/request', requireAuth, async (req, res) => {
             data: {
               friendshipId: String(existing._id),
               byUserId: String(user.id),
+              // v602 (ZOE) — le tap ouvre le profil du nouvel ami.
+              byUserRole: String(user.model || '').toLowerCase(),
             },
           });
         } catch (_) {/* non-critical */}

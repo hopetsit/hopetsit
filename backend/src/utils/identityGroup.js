@@ -19,7 +19,49 @@
  */
 const logger = require('./logger');
 
+// v602 (ZOE) — « la réception des messages est molle ». La base est à Mumbai et
+// le serveur en Oregon : chaque aller-retour Mongo coûte ~130 ms, et ce groupe
+// (2 allers-retours) était recalculé 3 à 4 fois pour UN message (accès,
+// participant, salles des destinataires). Petit cache mémoire de 60 s (+ une
+// seule requête en vol par id). Un nouveau profil du même e-mail est vu au
+// plus 60 s plus tard ; `invalidateIdentityGroup()` le force.
+const IDENTITY_TTL_MS = 60 * 1000;
+const _idCache = new Map(); // id → { at, value } | { at, promise }
+const _cacheOn = () => process.env.NODE_ENV !== 'test' || process.env.IDENTITY_CACHE_IN_TESTS === '1';
+const _copy = (g) => ({ ids: [...g.ids], docs: g.docs.map((d) => ({ ...d })), set: new Set(g.set), failed: !!g.failed });
+
+function invalidateIdentityGroup(userId) {
+  if (userId == null) { _idCache.clear(); return; }
+  _idCache.delete(String(userId));
+}
+
 async function identityGroup(userId) {
+  if (!_cacheOn()) return _identityGroupUncached(userId);
+  const key = String(userId);
+  const now = Date.now();
+  const hit = _idCache.get(key);
+  if (hit && now - hit.at < IDENTITY_TTL_MS) {
+    if (hit.value) return _copy(hit.value);
+    if (hit.promise) return _copy(await hit.promise);
+  }
+  const promise = _identityGroupUncached(userId);
+  _idCache.set(key, { at: now, promise });
+  try {
+    const value = await promise;
+    // Un échec de lecture (repli sur l'id seul) n'est jamais gardé en cache.
+    if (value.failed) _idCache.delete(key);
+    else _idCache.set(key, { at: now, value });
+    if (_idCache.size > 5000) {
+      for (const [k, v] of _idCache) if (now - v.at >= IDENTITY_TTL_MS) _idCache.delete(k);
+    }
+    return _copy(value);
+  } catch (e) {
+    _idCache.delete(key);
+    throw e;
+  }
+}
+
+async function _identityGroupUncached(userId) {
   const Owner = require('../models/Owner');
   const Sitter = require('../models/Sitter');
   const Walker = require('../models/Walker');
@@ -28,6 +70,7 @@ async function identityGroup(userId) {
   const ids = [id];
   const set = new Set(ids);
   const docs = [];
+  let failed = false;
 
   try {
     const sel = 'email oldId';
@@ -66,9 +109,10 @@ async function identityGroup(userId) {
     }
   } catch (e) {
     logger.warn(`[identityGroup] lookup failed for ${id}: ${e.message}`);
+    failed = true;
   }
 
-  return { ids, docs, set };
+  return { ids, docs, set, failed };
 }
 
 /**
@@ -115,4 +159,4 @@ function excludeSelfConversations(conversations, selfSet) {
   });
 }
 
-module.exports = { identityGroup, selfIdSet, isSelfConversation, excludeSelfConversations };
+module.exports = { identityGroup, invalidateIdentityGroup, selfIdSet, isSelfConversation, excludeSelfConversations };

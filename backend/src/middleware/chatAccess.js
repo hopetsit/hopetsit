@@ -56,6 +56,9 @@ const requirePaidBooking = async (req, res, next) => {
     if (!conversation) {
       return res.status(404).json({ error: 'Conversation not found.' });
     }
+    // v602 (ZOE) — le contrôleur réutilise ce fil (même sélection) au lieu de
+    // le relire : un aller-retour Mongo de moins par message envoyé.
+    req.chatConversation602 = conversation;
     let myIds599 = new Set([String(req.user?.id || '')]);
     try { myIds599 = await identity599.identityIds(req.user?.id); } catch (_) { /* id seul */ }
 
