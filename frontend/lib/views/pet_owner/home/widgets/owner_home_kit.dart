@@ -15,8 +15,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_button_kit.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 
 /// Dégradé « garde » — bleu gardien (v571, Daniel : « mets-la en bleu » :
@@ -88,14 +90,19 @@ class _OwnerActionCardState extends State<OwnerActionCard> {
       ),
     );
 
-    final Widget label = InterText(
+    // v601 (PAM, 29/09) — « Faire garder mon anim… » / « Faire promener
+    // mon … » étaient coupés (version basse : 1 ligne + « … »). Titre du kit
+    // (`PawButtonLabel`) : une ligne si ça tient, sinon deux lignes coupées à
+    // un espace, sinon réduction douce — jamais de « … » (NORME_DESIGN).
+    final Widget label = PawButtonLabel(
       text: widget.title,
-      fontSize: compact ? 12.sp : 13.sp,
-      fontWeight: FontWeight.w800,
-      color: Colors.white,
-      height: 1.15,
-      maxLines: compact ? 1 : 2,
-      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.start,
+      style: GoogleFonts.inter(
+        fontSize: compact ? 12.sp : 13.sp,
+        fontWeight: FontWeight.w800,
+        color: Colors.white,
+        height: 1.15,
+      ),
     );
 
     final Widget content = compact

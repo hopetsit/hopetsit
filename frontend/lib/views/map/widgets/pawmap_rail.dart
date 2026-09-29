@@ -202,6 +202,81 @@ List<String> normalizeRailOrder(List<String>? order) {
   return out.isEmpty ? kPawRailDefaultOrder : out;
 }
 
+// ─── v601 — BARRE DE DROITE personnalisable comme la gauche ─────────────
+//
+// Fixes et toujours présents (jamais dans cette liste) : ma position, +, −.
+// Personnalisables (choisir, ordonner, masquer ; réglage retenu sur le
+// compte, clé `capsule`) : satellite, voir tout le monde, Balade, l'œil —
+// et tout bouton qu'on ajoutera (une ligne ici + son action dans l'écran).
+
+/// Les boutons personnalisables de la barre de droite, ordre d'origine.
+const List<PawRailSpec> kPawCapsuleSlotSpecs = <PawRailSpec>[
+  PawRailSpec(
+    id: 'satellite',
+    icon: Icons.satellite_alt_rounded,
+    svg: '',
+    color: PawMapTheme.accent,
+    g1: Color(0xFFE25822),
+    g2: PawMapTheme.accent,
+    labelKey: 'pawmap601_satellite',
+    helpKey: 'pawmap601_satellite_help',
+  ),
+  PawRailSpec(
+    id: 'everyone',
+    icon: Icons.groups_rounded,
+    svg: '',
+    color: PawMapTheme.rose,
+    g1: Color(0xFFFF6EB4),
+    g2: PawMapTheme.roseDark,
+    labelKey: 'v565_live_friends_fit',
+    helpKey: 'pawmap601_everyone_help',
+  ),
+  PawRailSpec(
+    id: 'balade',
+    icon: Icons.directions_walk_rounded,
+    svg: '',
+    color: Color(0xFF2E9E48),
+    g1: Color(0xFF7FE39A),
+    g2: Color(0xFF1D7A34),
+    labelKey: 'pawmap590_walk',
+    helpKey: 'pawmap586_direct_help',
+  ),
+  PawRailSpec(
+    id: 'eye',
+    icon: Icons.visibility_rounded,
+    svg: '',
+    // Terre cuite (encre chaude saturée, #8B4A32 comme l'Aide du 600) : une
+    // encre brune à 8 % donnait une ligne grise à l'œil (vu au simulateur).
+    color: Color(0xFF8B4A32),
+    g1: Color(0xFFB8694A),
+    g2: Color(0xFF6E3622),
+    labelKey: 'pawmap586_vis_btn',
+    helpKey: 'pawmap586_vis_help',
+  ),
+];
+
+List<String> get kPawCapsuleDefaultOrder =>
+    kPawCapsuleSlotSpecs.map((s) => s.id).toList(growable: false);
+
+PawRailSpec? pawCapsuleSlotOf(String id) {
+  for (final s in kPawCapsuleSlotSpecs) {
+    if (s.id == id) return s;
+  }
+  return null;
+}
+
+/// Ordre de la barre de droite venu du compte : ids connus, sans doublon.
+/// Null (jamais réglé) → ordre d'origine ; liste vide = tout masqué
+/// (autorisé : les boutons fixes restent).
+List<String> normalizeCapsuleOrder(List<String>? order) {
+  if (order == null) return kPawCapsuleDefaultOrder;
+  final out = <String>[];
+  for (final id in order) {
+    if (pawCapsuleSlotOf(id) != null && !out.contains(id)) out.add(id);
+  }
+  return out;
+}
+
 /// Explications des boutons du dock et de la capsule (appui long).
 /// Raccourcis du dock (feuille glissante / carte agrandie) : UNE seule source
 /// pour le libellé, l'icône, la couleur et l'explication — utilisée par
@@ -347,16 +422,25 @@ class PawMapRail extends StatelessWidget {
 /// et crayon orange — on comprend qu'on règle ET qu'on déplace. Jamais noir,
 /// jamais gris.
 class PawRailEditButton extends StatelessWidget {
-  const PawRailEditButton({super.key, required this.onTap});
+  const PawRailEditButton({
+    super.key,
+    required this.onTap,
+    this.pressKey = 'rail_customize',
+    this.labelKey = 'pawmap_rail_customize',
+  });
   final VoidCallback onTap;
+
+  /// v601 — la barre de droite a le même bouton (clé `capsule_customize`).
+  final String pressKey;
+  final String labelKey;
 
   @override
   Widget build(BuildContext context) {
     final bool dark = PawMapTheme.isDark(context);
     const Color accent = PawMapTheme.accent;
     return PawPressable(
-      key: const ValueKey<String>('rail_customize'),
-      label: 'pawmap_rail_customize'.tr,
+      key: ValueKey<String>(pressKey),
+      label: labelKey.tr,
       onTap: onTap,
       onLongPress: onTap,
       child: Container(
@@ -512,10 +596,25 @@ class PawRailCustomizeSheet extends StatefulWidget {
     super.key,
     required this.order,
     required this.onChanged,
+    this.specs = kPawRailSpecs,
+    this.titleKey = 'pawmap_rail_customize',
+    this.fixedNoteKey,
+    this.allowEmpty = false,
   });
 
   final List<String> order;
   final ValueChanged<List<String>> onChanged;
+
+  /// v601 — la même feuille règle la barre de GAUCHE (défaut) ou celle de
+  /// DROITE ([kPawCapsuleSlotSpecs]) : mêmes gestes, même dessin.
+  final List<PawRailSpec> specs;
+  final String titleKey;
+
+  /// Phrase « toujours présents : … » (barre de droite).
+  final String? fixedNoteKey;
+
+  /// Barre de droite : tout masquer est permis (les boutons fixes restent).
+  final bool allowEmpty;
 
   @override
   State<PawRailCustomizeSheet> createState() => _PawRailCustomizeSheetState();
@@ -525,11 +624,29 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
   late List<String> _shown;
   late List<String> _hidden;
 
+  List<String> get _defaultOrder =>
+      widget.specs.map((s) => s.id).toList(growable: false);
+
+  PawRailSpec? _specOf(String id) {
+    for (final s in widget.specs) {
+      if (s.id == id) return s;
+    }
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
-    _shown = normalizeRailOrder(widget.order);
-    _hidden = kPawRailDefaultOrder.where((id) => !_shown.contains(id)).toList();
+    final known = <String>[
+      for (final id in widget.order)
+        if (_specOf(id) != null) id,
+    ];
+    _shown = <String>[];
+    for (final id in known) {
+      if (!_shown.contains(id)) _shown.add(id);
+    }
+    if (_shown.isEmpty && !widget.allowEmpty) _shown = List<String>.from(_defaultOrder);
+    _hidden = _defaultOrder.where((id) => !_shown.contains(id)).toList();
   }
 
   void _emit() => widget.onChanged(List<String>.unmodifiable(_shown));
@@ -546,7 +663,7 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('pawmap_rail_customize'.tr,
+              Text(widget.titleKey.tr,
                   style: PawMapTheme.fontOn(context,
                       size: 18.sp, weight: FontWeight.w800)),
               SizedBox(height: 4.h),
@@ -555,6 +672,25 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
                       size: 12.sp,
                       weight: FontWeight.w500,
                       color: PawMapTheme.subOn(context))),
+              // v601 — barre de droite : ce qui ne bouge jamais.
+              if (widget.fixedNoteKey != null) ...[
+                SizedBox(height: 6.h),
+                Row(
+                  children: [
+                    Icon(Icons.push_pin_rounded,
+                        size: 15.sp, color: PawMapTheme.accent),
+                    SizedBox(width: 4.w),
+                    Expanded(
+                      child: Text(widget.fixedNoteKey!.tr,
+                          key: const ValueKey<String>('capsule_fixed_note'),
+                          style: PawMapTheme.fontOn(context,
+                              size: 12.sp,
+                              weight: FontWeight.w600,
+                              color: PawMapTheme.subOn(context))),
+                    ),
+                  ],
+                ),
+              ],
               // v589 — le geste pour déplacer, dit clairement.
               SizedBox(height: 6.h),
               Row(
@@ -628,7 +764,7 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
             },
             itemBuilder: (_, i) {
               final id = all[i];
-              final spec = pawRailSpecOf(id)!;
+              final spec = _specOf(id)!;
               final shown = i < _shown.length;
               // v587 — chaque ligne isolée : le glisser ne redessine que la
               // ligne déplacée, jamais toute la liste.
@@ -681,8 +817,9 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
                               maxLines: 2,
                               style: PawMapTheme.fontOn(context,
                                   size: 13.5.sp, weight: FontWeight.w800)),
+                          // v601 — l'explication entière, jamais coupée
+                          // (« Un appui démarre » s'arrêtait net à 3 lignes).
                           Text(spec.help,
-                              maxLines: 3,
                               style: PawMapTheme.fontOn(context,
                                   size: 11.sp,
                                   weight: FontWeight.w500,
@@ -736,7 +873,7 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
             color: PawMapTheme.accent,
             onTap: () {
               setState(() {
-                _shown = List<String>.from(kPawRailDefaultOrder);
+                _shown = List<String>.from(_defaultOrder);
                 _hidden = <String>[];
               });
               _emit();

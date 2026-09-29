@@ -51,6 +51,7 @@ import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/map/widgets/paw_rail_button.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_pins.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_placeholder.dart';
+import 'package:hopetsit/views/map/pawmap_snapshot.dart';
 import 'package:hopetsit/views/map/pawmap_help_screen.dart';
 import 'package:hopetsit/views/map/pawmap_member_profile_route.dart';
 import 'package:hopetsit/views/map/pawmap_rates.dart';
@@ -58,6 +59,7 @@ import 'package:hopetsit/views/map/widgets/pawmap_sheets.dart';
 import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_rail.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_jewel.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_walk_badge.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_focus_card.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
@@ -195,6 +197,130 @@ class _PawMapScreenState extends State<PawMapScreen>
       raw = GetStorage().read(_kLastCenterKey);
     } catch (_) {/* stockage indisponible */}
     return PawMapCameraMemory.zoomFrom(raw);
+  }
+
+  // ─── v601 — photo de la carte (affichage instantané) ─────────────────────
+
+  Widget _buildSnapshotLayer() => Obx(() {
+        final bool shown = _snapshotShown.value;
+        final PawMapSnapshotMeta? m = _snapshot;
+        if (!shown || m == null) return const SizedBox.shrink();
+        return IgnorePointer(
+          child: Image.file(
+            File(m.path),
+            key: const ValueKey<String>('pawmap_snapshot_image'),
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            excludeFromSemantics: true,
+            filterQuality: FilterQuality.medium,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
+        );
+      });
+
+  /// Photo de la dernière carte, choisie au lancement (null = pas de photo :
+  /// le fond « Carte en préparation… » reste le repli).
+  PawMapSnapshotMeta? _snapshot;
+  final RxBool _snapshotShown = false.obs;
+  DateTime? _lastSnapshotAt;
+  Timer? _snapshotTimer;
+
+  /// Ouverture demandée ailleurs (lien, ville, ami) : la caméra ne part pas
+  /// de la photo.
+  bool _explicitStart = false;
+
+  static String _snapshotUid() {
+    try {
+      final p =
+          GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile);
+      return (p?['_id'] ?? p?['id'] ?? p?['userId'] ?? '').toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static double _screenAspect() {
+    try {
+      final v = WidgetsBinding.instance.platformDispatcher.views.first;
+      final s = v.physicalSize;
+      return s.height > 0 ? s.width / s.height : 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  void _initSnapshot() {
+    final bool explicit = _explicitStart ||
+        _friendFocusRequested ||
+        (widget.initialLat != null && widget.initialLng != null) ||
+        widget.initialZoom != null;
+    if (explicit) return;
+    final m = PawMapSnapshotStore.readSync();
+    if (!PawMapSnapshotRules.usable(
+      m,
+      now: DateTime.now(),
+      target: _currentCenter,
+      night: _nightMode.value,
+      satellite: _mapType != MapType.normal,
+      uid: _snapshotUid(),
+      aspect: _screenAspect(),
+    )) {
+      return;
+    }
+    // Caméra initiale = celle de la photo : les tuiles la recouvrent pile.
+    _snapshot = m;
+    _currentCenter = m!.center;
+    _zoomLevel = m.zoom;
+    _idleZoom = _zoomLevel;
+    _snapshotShown.value = true;
+  }
+
+  /// Caméra à l'arrêt : photo 1,5 s plus tard si rien n'a rebougé (les
+  /// tuiles ont eu le temps d'arriver), au plus une fois par 10 s.
+  void _scheduleSnapshot() {
+    _snapshotTimer?.cancel();
+    _snapshotTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (!mounted || _cameraMoving) return;
+      unawaited(_takeSnapshot());
+    });
+  }
+
+  Future<void> _takeSnapshot({bool force = false}) async {
+    if (!mounted || !_mapCtl.isCompleted) return;
+    final now = DateTime.now();
+    final last = _lastSnapshotAt;
+    if (force) {
+      // Arrière-plan : pas deux photos dans la même seconde (inactive puis
+      // hidden se suivent).
+      if (last != null && now.difference(last) < const Duration(seconds: 2)) {
+        return;
+      }
+    } else if (!PawMapSnapshotRules.due(last, now)) {
+      return;
+    }
+    _lastSnapshotAt = now;
+    // L'endroit et le zoom de la photo, lus AVANT la capture.
+    final center = _currentCenter;
+    final zoom = _zoomLevel;
+    final night = _nightMode.value;
+    final satellite = _mapType != MapType.normal;
+    try {
+      final ctl = await _mapCtl.future;
+      final bytes = await ctl.takeSnapshot();
+      debugPrint('[PawMap601] photo prise : ${bytes?.length ?? 0} octets');
+      if (bytes == null || bytes.isEmpty) return;
+      await PawMapSnapshotStore.save(
+        bytes,
+        center: center,
+        zoom: zoom,
+        night: night,
+        satellite: satellite,
+        uid: _snapshotUid(),
+        aspect: _screenAspect(),
+      );
+    } catch (e) {
+      debugPrint('[PawMap601] photo impossible : $e');
+    }
   }
 
   /// Enregistre centre + zoom. Appelé quand la caméra S'ARRÊTE (jamais à
@@ -718,6 +844,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _currentCenter = pendingCenter;
       _zoomLevel = pawMapPendingZoom.value;
       _idleZoom = _zoomLevel;
+      _explicitStart = true;
     }
     _pendingCenterWorker = ever<LatLng?>(pawMapPendingCenter, (v) {
       if (v == null || !mounted) return;
@@ -800,6 +927,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     // repart vers le compte (MapPrefsService). Feuille glissante observée
     // pour retirer les rails quand elle monte.
     _applyPrefs(fromAccount: false);
+    // v601 — la photo de la dernière carte, posée tout de suite sous la vue
+    // Google (caméra initiale calée dessus).
+    _initSnapshot();
     _watchPrefs();
     _sheetCtl.addListener(_onSheetMoved);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1881,6 +2011,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     _pendingCenterWorker?.dispose();
     _pendingFriendWorker?.dispose();
     _reloadDebounce?.cancel();
+    _snapshotTimer?.cancel();
     for (final w in _backGuardWorkers) {
       w.dispose();
     }
@@ -1936,6 +2067,13 @@ class _PawMapScreenState extends State<PawMapScreen>
       if (state == AppLifecycleState.paused ||
           state == AppLifecycleState.hidden) {
         _pausedAt ??= DateTime.now();
+      }
+      // v601 — passage en arrière-plan : photo de la carte telle qu'elle
+      // est (la vue est encore dessinée à « inactive »).
+      if (state == AppLifecycleState.inactive ||
+          state == AppLifecycleState.hidden) {
+        _snapshotTimer?.cancel();
+        unawaited(_takeSnapshot(force: true));
       }
       // paused / inactive / detached / hidden → coupe le timer.
       _haloTimer?.cancel();
@@ -2733,6 +2871,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// POI / report / request layers refresh after the user stops panning.
   void _scheduleReload() {
     _cameraMoving = false; // v550 — geste terminé : le halo repulse.
+    // v601 — premier arrêt de la caméra : la photo de lancement s'en va ;
+    // une nouvelle photo est prise quand la carte est stable.
+    if (_snapshotShown.value) _snapshotShown.value = false;
+    _scheduleSnapshot();
     _camIdleRev.value++;
     // v598 — les épingles adoptent le zoom d'arrêt après 450 ms de calme.
     _pinZoomTimer?.cancel();
@@ -5144,6 +5286,14 @@ class _PawMapScreenState extends State<PawMapScreen>
                         _role.isEmpty ? 'owner' : _role),
                   )),
             ),
+            // v601 — PHOTO de la dernière carte (enregistrée sur l'appareil),
+            // SOUS la vue Google : visible tant que celle-ci n'a rien peint,
+            // retirée au premier arrêt de la caméra ou au premier geste.
+            // Jamais par-dessus, jamais de minuterie.
+            Positioned.fill(
+              key: const ValueKey<String>('pawmap_snapshot'),
+              child: _buildSnapshotLayer(),
+            ),
             // ── LA carte (unique) : toujours premier enfant, toujours à la
             // même place dans l'arbre, avec une clé → jamais recréée.
             // v586 — un vrai geste sur la carte (glisser, pincer) efface
@@ -5401,32 +5551,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _fading(_buildFloatingHeader()),
-                          // v587 (point 1a) — la pilule « ● Direct » sous le
-                          // logo PawMap. Daniel (25/09) : « pour les 3 profils »
-                          // — un propriétaire promène aussi son chien et
-                          // partage avec ses amis.
-                          if (pawMapShowsDirectPill(_role))
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Padding(
-                                padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
-                                child: _fading(Obx(() {
-                                  final live = _liveMap.broadcasting.value;
-                                  return PawMapDirectPill(
-                                    live: live,
-                                    followers: live ? _liveMap.myFollowers.value : 0,
-                                    elsewhere: !live && _liveMap.liveElsewhere.value,
-                                    startedAt: _liveMap.sessionStartedAt.value,
-                                    noGps: live &&
-                                        _liveMap.liveStatus.value ==
-                                            LiveShareStatus.lost &&
-                                        _liveMap.myLivePosition.value == null,
-                                    onTap: () => unawaited(_toggleDirect()),
-                                    onLongPress: () => _showCapsuleHelp('direct'),
-                                  );
-                                })),
-                              ),
-                            ),
+                          // v601 — la pilule « ● Direct / En balade » qui
+                          // vivait ici (v587) est devenue le drapeau vert posé
+                          // au-dessus du bouton Balade de la barre de droite
+                          // (`PawWalkBadge`), visible seulement en balade.
                           // v590 — « ma mère ne voit personne » : des filtres
                           // enregistrés sur son compte cachaient les gens sans
                           // rien dire. Dès qu'un filtre cache des personnes :
@@ -5575,6 +5703,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   void _onMapPointerDown(PointerDownEvent e) {
+    // v601 — premier geste : la photo de lancement s'en va.
+    if (_snapshotShown.value) _snapshotShown.value = false;
     if (_dragWatch.down(e.position)) {
       _userMovedMap = true;
       _lastGestureAt = DateTime.now();
@@ -5922,107 +6052,64 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// douce floue.
   Widget _buildMapControlsStack() {
     // v565 (18/09) — Daniel : « la barre de droite aussi, plus design ».
-    // Une seule capsule blanche translucide (blur), coins 22, séparateurs
-    // fins, icônes noires #1D1D1F (localiser, + / −) ou grises (satellite,
-    // membres), bouton actif teinté (satellite = orange de la marque).
-    // Mêmes actions, même ordre, même largeur utile qu'avant.
+    // v601 — barre de droite PERSONNALISABLE comme la gauche : « ma
+    // position », + et − sont FIXES et toujours en tête ; les autres
+    // (satellite, voir tout le monde, Balade, l'œil…) suivent l'ordre choisi
+    // par la personne (`_capsuleOrder`, retenu sur le compte) ; le petit
+    // bouton « Modifier » ouvre le même écran de réglage que la gauche. Trop
+    // de boutons pour la hauteur : seuls les personnalisables défilent.
+    final Color roleTint =
+        PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role);
     return PawGlassCapsule(
       // v590 — barres symétriques de 50 dp (handoff §3.3).
       width: 50,
-      children: [
+      maxHeight: _railMaxHeight(),
+      leading: [
         PawCapsuleButton(
           icon: Icons.my_location_rounded,
           label: 'pawmap_quick_follow'.tr,
           // v585 (bug 8) — « ma position » à l'accent du rôle.
-          tint: PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
+          tint: roleTint,
           onTap: _recenterOnUser,
         ),
-        // v598 (28/09) — Daniel : « les boutons + et − sont gris ». Sans
-        // teinte, l'icône encre sur fond presque blanc passait pour du gris :
-        // + / − prennent l'accent du rôle, comme « ma position » juste
-        // au-dessus (un bloc cohérent de 3 boutons ; clair ET nuit via
-        // AppColors.accentOn dans PawCapsuleButton).
+        // v598 — + / − à l'accent du rôle (jamais gris), comme « ma position ».
         PawCapsuleButton(
           icon: Icons.add_rounded,
           label: '+',
-          tint: PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
+          tint: roleTint,
           onTap: _zoomIn,
         ),
         PawCapsuleButton(
           icon: Icons.remove_rounded,
           label: '−',
-          tint: PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
+          tint: roleTint,
           onTap: _zoomOut,
         ),
-        // v23.1.266 — vue satellite (hybride) ; actif = teinté.
-        PawCapsuleButton(
-          icon: _mapType == MapType.normal
-              ? Icons.satellite_alt_rounded
-              : Icons.map_rounded,
-          label: 'pawmap_dock_layers'.tr,
-          secondary: true,
-          active: _mapType != MapType.normal,
-          tint: AppColors.primaryColor,
-          onTap: _toggleMapType,
-        ),
-        // v23.1.266 — « voir tous mes amis » (dézoome pour les englober).
-        PawCapsuleButton(
-          icon: Icons.groups_rounded,
-          label: 'v565_live_friends_fit'.tr,
-          secondary: true,
-          // v590 — handoff §3.3 : « Voir tout le monde » en rose.
-          tint: PawMapTheme.rose,
-          onTap: _fitAllFriends,
-        ),
-        // v590 — handoff §3.4 : bouton BALADE (3 rôles). Même action que la
-        // pilule Direct (démarrer / arrêter le partage en direct) : gris à
-        // l'arrêt, vert en direct avec le nombre de personnes qui me suivent.
-        if (_viewerLoggedIn)
+      ],
+      children: [
+        for (final id in _capsuleOrder)
+          if (_buildCapsuleSlot(id) case final Widget w) w,
+        // v601 — Balade masquée de la barre mais en cours : le drapeau reste
+        // visible (en tête des boutons personnalisables).
+        if (_viewerLoggedIn && !_capsuleOrder.contains('balade'))
           Obx(() {
             final live = _liveMap.broadcasting.value;
-            final n = live ? _liveMap.myFollowers.value : 0;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                PawJewel(
-                  key: const ValueKey<String>('pawmap_walk_btn'),
-                  palette: live ? kJewelWalkOn : kJewelWalkOff,
-                  icon: PawSymbols.walk,
-                  label: live
-                      ? 'pawmap590_walk_live'.tr
-                      : 'pawmap590_walk'.tr,
-                  size: 38,
-                  active: live,
-                  badge: n > 0 ? PawFollowersBadge(count: n) : null,
-                  onTap: () => unawaited(_toggleDirect()),
-                  onLongPress: () => _showCapsuleHelp('direct'),
-                ),
-                Transform.translate(
-                  offset: const Offset(0, -4),
-                  child: Text(
-                    live ? 'pawmap590_walk_live'.tr : 'pawmap590_walk'.tr,
-                    maxLines: 1,
-                    style: GoogleFonts.poppins(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w700,
-                      color: live
-                          ? const Color(0xFF2A9A48)
-                          : (PawMapTheme.isDark(context)
-                              ? const Color(0xFFF6F1EE)
-                              : const Color(0xFF17141F)),
-                    ),
-                  ),
-                ),
-              ],
+            final elsewhere = !live && _liveMap.liveElsewhere.value;
+            if (!live && !elsewhere) return const SizedBox.shrink();
+            return PawWalkBadge(
+              startedAt: _liveMap.sessionStartedAt.value,
+              followers: live ? _liveMap.myFollowers.value : 0,
+              elsewhere: elsewhere,
             );
           }),
-        // v586 — l'ŒIL : qui me voit (Tous · Amis seulement · Masqué), la
-        // même vérité que Profil › Préférences et le site.
-        Obx(() => PawCapsuleEyeButton(
-              state: _prefs.mapVisibility.value,
-              onTap: () => unawaited(_cycleVisibility()),
-              onLongPress: () => _showCapsuleHelp('eye'),
-            )),
+        Padding(
+          padding: EdgeInsets.only(top: 2.h, bottom: 2.h),
+          child: PawRailEditButton(
+            pressKey: 'capsule_customize',
+            labelKey: 'pawmap601_capsule_customize',
+            onTap: _openCapsuleCustomize,
+          ),
+        ),
       ],
       // v586 — l'action du rôle, sous un trait : Publier (propriétaire) ou
       // Direct (gardien / promeneur, noir = arrêté, vert = en direct).
@@ -6056,6 +6143,135 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
+
+  /// v601 — boutons PERSONNALISABLES de la barre de droite, dans l'ordre
+  /// choisi (réglage du compte, clé `capsule`). Null = jamais réglé.
+  List<String> _capsuleOrder = kPawCapsuleDefaultOrder;
+
+  /// Un bouton personnalisable de la barre de droite (mêmes actions
+  /// qu'avant la v601, au pixel près). Null = id inconnu / non disponible.
+  Widget? _buildCapsuleSlot(String id) {
+    switch (id) {
+      case 'satellite':
+        // v23.1.266 — vue satellite (hybride) ; actif = teinté.
+        return PawCapsuleButton(
+          key: const ValueKey<String>('capsule_satellite'),
+          icon: _mapType == MapType.normal
+              ? Icons.satellite_alt_rounded
+              : Icons.map_rounded,
+          label: 'pawmap_dock_layers'.tr,
+          secondary: true,
+          active: _mapType != MapType.normal,
+          tint: AppColors.primaryColor,
+          onTap: _toggleMapType,
+        );
+      case 'everyone':
+        // v23.1.266 — « voir tous mes amis » (dézoome pour les englober).
+        return PawCapsuleButton(
+          key: const ValueKey<String>('capsule_everyone'),
+          icon: Icons.groups_rounded,
+          label: 'v565_live_friends_fit'.tr,
+          secondary: true,
+          // v590 — handoff §3.3 : « Voir tout le monde » en rose.
+          tint: PawMapTheme.rose,
+          onTap: _fitAllFriends,
+        );
+      case 'balade':
+        // v590 — handoff §3.4 : bouton BALADE (3 rôles), noir à l'arrêt,
+        // vert en direct. v601 — le drapeau « en balade » (durée +
+        // suiveurs) est posé JUSTE AU-DESSUS, seulement pendant la balade
+        // (il remplace la pilule du haut à gauche).
+        if (!_viewerLoggedIn) return null;
+        return Obx(() {
+          final live = _liveMap.broadcasting.value;
+          final elsewhere = !live && _liveMap.liveElsewhere.value;
+          final n = live ? _liveMap.myFollowers.value : 0;
+          final startedAt = _liveMap.sessionStartedAt.value;
+          return Column(
+            key: const ValueKey<String>('capsule_balade'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (live || elsewhere)
+                Padding(
+                  padding: EdgeInsets.only(bottom: 3.h),
+                  child: PawWalkBadge(
+                    startedAt: startedAt,
+                    followers: n,
+                    elsewhere: elsewhere,
+                  ),
+                ),
+              PawJewel(
+                key: const ValueKey<String>('pawmap_walk_btn'),
+                palette: live ? kJewelWalkOn : kJewelWalkOff,
+                icon: PawSymbols.walk,
+                label: live
+                    ? 'pawmap590_walk_live'.tr
+                    : 'pawmap590_walk'.tr,
+                size: 38,
+                active: live,
+                badge: n > 0 ? PawFollowersBadge(count: n) : null,
+                onTap: () => unawaited(_toggleDirect()),
+                onLongPress: () => _showCapsuleHelp('direct'),
+              ),
+              Transform.translate(
+                offset: const Offset(0, -4),
+                // v601 — « En direct » était coupé en « En » à 360 dp
+                // (Android) : réduit doucement, jamais rogné.
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                  live ? 'pawmap590_walk_live'.tr : 'pawmap590_walk'.tr,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: GoogleFonts.poppins(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: live
+                        ? const Color(0xFF2A9A48)
+                        : (PawMapTheme.isDark(context)
+                            ? const Color(0xFFF6F1EE)
+                            : const Color(0xFF17141F)),
+                  ),
+                ),
+                ),
+              ),
+            ],
+          );
+        });
+      case 'eye':
+        // v586 — l'ŒIL : qui me voit (Tous · Amis seulement · Masqué).
+        return Obx(() => PawCapsuleEyeButton(
+              key: const ValueKey<String>('capsule_eye'),
+              state: _prefs.mapVisibility.value,
+              onTap: () => unawaited(_cycleVisibility()),
+              onLongPress: () => _showCapsuleHelp('eye'),
+            ));
+      default:
+        return null;
+    }
+  }
+
+  /// v601 — même écran de réglage que la barre de gauche, pour la droite :
+  /// choisir, ordonner, masquer ; ma position, + et − restent (phrase en
+  /// tête). Enregistré sur le compte (toutes les apps de la personne).
+  Future<void> _openCapsuleCustomize() async {
+    List<String>? chosen;
+    await showPawMapSheet<void>(
+      context,
+      PawRailCustomizeSheet(
+        order: _capsuleOrder,
+        specs: kPawCapsuleSlotSpecs,
+        titleKey: 'pawmap601_capsule_customize',
+        fixedNoteKey: 'pawmap601_capsule_fixed',
+        allowEmpty: true,
+        onChanged: (order) => chosen = order,
+      ),
+    );
+    final order = chosen;
+    if (order == null || !mounted) return;
+    setState(() => _capsuleOrder = order);
+    _prefs.update({'capsule': order});
+  }
 
   /// v589 — liste des demandes autour (gardien / promeneur), de la plus
   /// proche à la plus loin ; un appui ouvre la fiche de la demande.
@@ -8445,6 +8661,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     final p = _prefs;
     final rail = p.rail;
     if (rail != null) _railOrder = normalizeRailOrder(rail);
+    // v601 — barre de droite (ordre et choix), même mécanisme.
+    _capsuleOrder = normalizeCapsuleOrder(p.capsule);
     final layers = p.layers;
     if (layers.containsKey('places')) _showPois.value = layers['places']!;
     if (layers.containsKey('reports')) _showReports.value = layers['reports']!;
@@ -8833,8 +9051,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   double _railAvailableHeight() {
     final mq = MediaQuery.of(context);
     final double fallback = math.max(mq.viewPadding.top, 28.0) +
-        48.h +
-        (pawMapShowsDirectPill(_role) ? 42.h : 0);
+        48.h; // v601 — plus de pilule Direct en haut à gauche.
     final double topBottom =
         _topChromeBottom > 0 ? _topChromeBottom : fallback;
     return mq.size.height - topBottom - 14.h - _railBottom(context, picking: false);
@@ -8857,6 +9074,19 @@ class _PawMapScreenState extends State<PawMapScreen>
     return g.clamp(0.0, std).toDouble();
   }
 
+  /// v601 — hauteur utile des barres (gauche ET droite) : de 14 dp sous
+  /// l'en-tête jusqu'à leur base au-dessus du menu. Elles ne chevauchent
+  /// jamais le menu ; au-delà, elles défilent.
+  double _railMaxHeight() {
+    final mq = MediaQuery.of(context);
+    final double fallback = math.max(mq.viewPadding.top, 28.0) + 48.h;
+    final double topBottom =
+        _topChromeBottom > 0 ? _topChromeBottom : fallback;
+    final double maxH =
+        mq.size.height - topBottom - 14.h - _railBottom(context, picking: false);
+    return maxH.clamp(120.0, mq.size.height).toDouble();
+  }
+
   Widget _railScroller(Widget column) {
     final mq = MediaQuery.of(context);
     final h = mq.size.height;
@@ -8870,8 +9100,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     // Repli avant la 1re mesure : barre d'état (28 dp au moins) + en-tête
     // (≈ 48) + pilule Direct (≈ 42).
     final double fallback = math.max(mq.viewPadding.top, 28.0) +
-        48.h +
-        (pawMapShowsDirectPill(_role) ? 42.h : 0);
+        48.h; // v601 — plus de pilule Direct en haut à gauche.
     final double topBottom =
         _topChromeBottom > 0 ? _topChromeBottom : fallback;
     // 14 dp d'air sous la pilule Direct, jamais moins.

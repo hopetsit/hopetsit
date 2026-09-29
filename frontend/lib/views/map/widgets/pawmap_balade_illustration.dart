@@ -9,8 +9,10 @@
 // (test `balade599_illustration_test.dart`).
 //
 //   ┌──────────────┐  ┌──────────────┐
-//   │ ●🚶 👁       │  │      ●👁     │   gauche : ce que je vois (rond « Moi »
-//   │      ╱‾‾╲    │  │  ╱‾‾╲        │   à ma couleur, tracé violet, pilule)
+//   │          ⏱👁 │  │      ●👁     │   gauche : ce que je vois (rond « Moi »
+//   │      ╱‾‾╲ 🚶 │  │  ╱‾‾╲        │   à ma couleur, tracé violet ; v601 :
+//   │              │  │              │   drapeau vert au-dessus du bouton
+//   │              │  │              │   Balade, barre de droite)
 //   │ ────╯  (Moi) │  │ ─╯   (photo) │   droite : ce que voient les autres
 //   └──────────────┘  └──────────────┘   (rond photo, anneau violet, bulle)
 //                     🐾• (point vert du menu)
@@ -60,12 +62,14 @@ class PawMapBaladeIllustration extends StatelessWidget {
                 mine: mine,
                 roleColor: roleColor,
               ),
+              // v601 — plus de pilule en haut : le drapeau vert est posé
+              // au-dessus du bouton Balade, dans la barre de DROITE.
               child: mine
                   ? const Align(
-                      alignment: Alignment.topCenter,
+                      alignment: Alignment.topRight,
                       child: Padding(
-                        padding: EdgeInsets.only(top: 8),
-                        child: _LivePill(),
+                        padding: EdgeInsets.only(top: 6, right: 5),
+                        child: _RightBarBalade(),
                       ),
                     )
                   : null,
@@ -135,46 +139,71 @@ class PawMapBaladeIllustration extends StatelessWidget {
   }
 }
 
-/// Pilule Direct sans mot : point vert (en direct) + marcheur + œil (ceux
-/// qui me suivent) — même violet, même point vert que la vraie pilule.
-class _LivePill extends StatelessWidget {
-  const _LivePill();
+/// v601 — morceau de la barre de DROITE, sans mot : le drapeau vert
+/// (horloge = durée, œil = ceux qui me suivent) juste au-dessus du bouton
+/// Balade vert en direct — même palette que le vrai bouton (`kJewelWalkOn`).
+class _RightBarBalade extends StatelessWidget {
+  const _RightBarBalade();
+
+  static const List<Color> _walkOn = <Color>[
+    Color(0xFF7FE39A),
+    Color(0xFF2E9E48),
+    Color(0xFF1D7A34),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: <Color>[Color(0xFF9B6BF5), PawMapLegend.pawFollow],
+    const LinearGradient g = LinearGradient(
+      begin: Alignment(-0.17, -1),
+      end: Alignment(0.17, 1),
+      colors: _walkOn,
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+          decoration: BoxDecoration(
+            gradient: g,
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: Colors.white, width: 1.2),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: _walkOn.last.withValues(alpha: 0.35),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(Icons.schedule_rounded, size: 10, color: Colors.white),
+              SizedBox(width: 2),
+              Icon(Icons.visibility_rounded, size: 10, color: Colors.white),
+            ],
+          ),
         ),
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: PawMapLegend.pawFollow.withValues(alpha: 0.35),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+        const SizedBox(height: 3),
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            gradient: g,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 1.4),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: _walkOn.last.withValues(alpha: 0.4),
+                blurRadius: 7,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: PawLiveDot.green,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 1),
-            ),
-          ),
-          const SizedBox(width: 6),
-          const Icon(Icons.directions_walk_rounded, size: 13, color: Colors.white),
-          const SizedBox(width: 6),
-          const Icon(Icons.visibility_rounded, size: 13, color: Colors.white),
-        ],
-      ),
+          child: const Icon(Icons.directions_walk_rounded,
+              size: 16, color: Colors.white),
+        ),
+      ],
     );
   }
 }

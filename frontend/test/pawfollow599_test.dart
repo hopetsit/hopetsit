@@ -72,7 +72,9 @@ void main() {
       }
     }
     expect(all['fr_FR']!['pawmap599_map_preparing'], 'Carte en préparation…');
-    expect(all['fr_FR']!['help599_b_me'], contains('Démarrer'));
+    expect(all['fr_FR']!['help599_b_me'], contains('barre de droite')); // v601 : badge vert à droite
+    expect(all['fr_FR']!['help599_b_me'], contains('téléphones'));
+    expect(all['fr_FR']!['help599_b_me'], isNot(contains('pilule')));
     expect(all['fr_FR']!['help599_b_others'], contains('réservation'));
     expect(all['pl_PL']!['help599_b_dot'], contains('ł'));
   });

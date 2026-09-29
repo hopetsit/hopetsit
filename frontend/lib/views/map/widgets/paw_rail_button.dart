@@ -256,11 +256,20 @@ class PawGlassCapsule extends StatelessWidget {
     required this.children,
     this.width = 42,
     this.footer,
+    this.leading = const <Widget>[],
+    this.maxHeight,
   });
 
   /// Boutons ([PawCapsuleButton]) — les séparateurs fins sont insérés ici.
   final List<Widget> children;
   final double width;
+
+  /// v601 — boutons FIXES en tête (ma position, +, −) : jamais défilés.
+  final List<Widget> leading;
+
+  /// v601 — hauteur maximale de la capsule : au-delà, seuls les boutons
+  /// personnalisables ([children]) défilent ; les fixes et le pied restent.
+  final double? maxHeight;
 
   /// v586 — l'action du rôle (Publier / Direct), sous un trait plus marqué.
   /// Hors de la découpe : sa lueur qui respire n'est jamais rognée.
@@ -281,21 +290,55 @@ class PawGlassCapsule extends StatelessWidget {
       if (i > 0) items.add(SizedBox(height: 3.h));
       items.add(children[i]);
     }
+    final lead = <Widget>[];
+    for (var i = 0; i < leading.length; i++) {
+      if (i > 0) lead.add(SizedBox(height: 3.h));
+      lead.add(leading[i]);
+    }
+    // Sans hauteur maximale (hauteur libre), aucun Flexible : il lèverait
+    // « flex sous contrainte infinie ».
+    final bool bounded = maxHeight != null;
+    final Widget body = (leading.isEmpty || !bounded)
+        ? Column(mainAxisSize: MainAxisSize.min, children: [
+            ...lead,
+            if (lead.isNotEmpty && items.isNotEmpty) SizedBox(height: 3.h),
+            ...items,
+          ])
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ...lead,
+              if (items.isNotEmpty) SizedBox(height: 3.h),
+              Flexible(
+                child: SingleChildScrollView(
+                  key: const ValueKey<String>('pawmap_capsule_scroll'),
+                  physics: const ClampingScrollPhysics(),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: items),
+                ),
+              ),
+            ],
+          );
     // v585 (bug 8) — même verre TEINTÉ que le rail gauche (PawRailGlass) :
     // blanc chaud translucide, liseré blanc fin, ombre à l'encre chaude hors
     // de la découpe (elle était rognée), coins 28.
     return Container(
       width: width.w,
+      constraints:
+          maxHeight == null ? null : BoxConstraints(maxHeight: maxHeight!),
       decoration: pawSiteGlass(context),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(25.r),
-            child: RepaintBoundary(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 5.h),
-                child: Column(mainAxisSize: MainAxisSize.min, children: items),
+          Flexible(
+            fit: FlexFit.loose,
+            flex: bounded ? 1 : 0,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(25.r),
+              child: RepaintBoundary(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 5.h),
+                  child: body,
+                ),
               ),
             ),
           ),

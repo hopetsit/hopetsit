@@ -238,6 +238,14 @@ class MapPrefsService extends GetxService {
     return r.map((e) => e.toString()).toList();
   }
 
+  /// v601 — barre de DROITE : boutons personnalisables affichés, dans
+  /// l'ordre (null = jamais réglé → ordre d'origine ; [] = tout masqué).
+  List<String>? get capsule {
+    final r = prefs['capsule'];
+    if (r is! List) return null;
+    return r.map((e) => e.toString()).toList();
+  }
+
   List<String>? get memberRoles {
     final r = prefs['memberRoles'];
     if (r is! List) return null;

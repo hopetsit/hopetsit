@@ -1,6 +1,7 @@
 // v599 (29/09/2026) — illustration « La Balade » : se construit dans les
 // 9 langues, clair et nuit, et EXPORT des PNG pour LEO (site) :
-// ~/hopetsit-social/pawmap_599/balade_{clair,nuit}@{2x,3x}.png (français).
+// ~/hopetsit-social/pawmap_601/balade/balade_ (v601 : badge à droite ; 599 = ancienne)
+// balade_{clair,nuit}@{2x,3x}.png (français).
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -88,7 +89,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final home = Platform.environment['HOME'] ?? '';
-    final dir = Directory('$home/hopetsit-social/pawmap_599');
+    final dir = Directory('$home/hopetsit-social/pawmap_601/balade');
     if (!dir.existsSync()) dir.createSync(recursive: true);
     for (final dark in [false, true]) {
       final key = GlobalKey();
