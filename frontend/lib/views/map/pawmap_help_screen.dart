@@ -112,7 +112,8 @@ class PawMapHelpScreen extends StatelessWidget {
   }
 
   Widget _railRow(BuildContext context, String id) {
-    final spec = pawRailSpecOf(id)!;
+    // v602 — « Voir signaux » est passé dans la barre de droite.
+    final spec = (pawRailSpecOf(id) ?? pawCapsuleSlotOf(id))!;
     return _ButtonRow(
       key: ValueKey<String>('help_rail_$id'),
       icon: PawRailButton(

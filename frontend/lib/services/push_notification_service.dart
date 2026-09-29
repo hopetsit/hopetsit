@@ -267,6 +267,21 @@ class PushNotificationService extends GetxService {
           await _messaging.getInitialMessage();
       if (initialMessage != null) {
         _onMessageOpened(initialMessage);
+      } else {
+        // v602 (ZOE) — app FERMÉE puis relancée par le tap sur une
+        // notification affichée par l'app elle-même (message reçu au premier
+        // plan sur Android) : ce tap n'était jamais routé (seulement journalisé
+        // dans main.dart) → l'app s'ouvrait sur l'accueil.
+        try {
+          final launch =
+              await _localNotifications.getNotificationAppLaunchDetails();
+          final resp = launch?.notificationResponse;
+          if (launch?.didNotificationLaunchApp == true && resp != null) {
+            _onLocalNotificationTap(resp);
+          }
+        } catch (e) {
+          debugPrint('local launch details failed: $e');
+        }
       }
       // v566 — audit : l'obtention du jeton vient APRÈS l'installation des écouteurs et
       // dans son propre try/catch. Avant, sur iOS, un `getToken()` qui levait
@@ -782,10 +797,14 @@ class PushNotificationService extends GetxService {
     // passe par le routeur des liens universels (attend que le menu soit
     // monté au démarrage à froid → plus d'écran noir).
     try {
-      var route = (data['route'] ?? '').toString().trim();
-      if (route.isEmpty || !route.startsWith('/')) {
-        route = DeepLinkService.routeForNotification(type, data);
-      }
+      // v602 (ZOE) — la route de l'app (plus précise : carte de la demande,
+      // candidature, identité, avis, onglet de boutique…) passe avant celle
+      // du serveur, gardée pour les apps 598-601.
+      final route = DeepLinkService.resolvePushRoute(
+        type,
+        data,
+        role: (data['recipientRole'] ?? '').toString(),
+      );
       // v575 — audit P1-3 : le serveur dit désormais pour QUEL profil la
       // notification a été émise. Si ce n'est pas le profil actif, on
       // n'ouvre pas un écran qui répondrait 403 : `openRoute` affiche la

@@ -107,11 +107,14 @@ class PawMapBaladeIllustration extends StatelessWidget {
                   clipBehavior: Clip.none,
                   children: <Widget>[
                     const Positioned(left: 0, top: 0, child: PawGlyph(size: 54)),
-                    // Même place que dans le menu : bord haut-droit de la
-                    // tête (84 → 54 : (59, 43) × 0,643 = (38, 27,6)).
+                    // Même place que dans le menu : sur le liseré blanc de
+                    // la tête, en haut à droite (v602, `pawLiveDotCenter`,
+                    // 84 → 54).
                     Positioned(
-                      left: 34,
-                      top: 23.6,
+                      left: pawLiveDotCenter().dx * 54 / kPawTabBarPawBox -
+                          PawLiveDot.outerSize(1) / 2,
+                      top: pawLiveDotCenter().dy * 54 / kPawTabBarPawBox -
+                          PawLiveDot.outerSize(1) / 2,
                       child: PawLiveDot(
                         count: 1,
                         ring: kPawTabBarPalettes[_navRole(role)]!.top,

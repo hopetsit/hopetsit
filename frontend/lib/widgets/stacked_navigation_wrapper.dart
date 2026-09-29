@@ -1,3 +1,4 @@
+import 'package:hopetsit/widgets/paw_count_badge.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/views/map/pawmap_friend_focus.dart';
 import 'package:flutter/material.dart';
@@ -311,38 +312,9 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
       if (n <= 0) return const SizedBox.shrink();
       // v599 — Daniel (29/09) : non-lus en petit, en haut à droite de l'icône
       // Chat, badge ROUGE et chiffre BLANC, « 99+ » au-delà, disparaît à zéro.
-      return _redPill(n > 99 ? '99+' : n.toString());
+      // v602 — la pastille commune (taille fixe, « 99+ », jamais grise).
+      return PawCountBadge(count: n);
     });
-  }
-
-  /// v599 — pilule rouge / chiffre blanc (compteur de messages non lus).
-  Widget _redPill(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-      constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE5484D),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white, width: 1.4),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1E1513).withValues(alpha: 0.28),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w800,
-          height: 1.15,
-        ),
-      ),
-    );
   }
 
   /// Badge « action requise » Réservations (pendingActionCount).

@@ -1,3 +1,4 @@
+import 'package:hopetsit/widgets/paw_count_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -122,47 +123,23 @@ class NotificationBellAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(left: 4.w, right: 4.w),
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          _HeaderActionShell(
-            color: _bellBg,
-            onTap: onTap,
-            child: Icon(
-              Icons.notifications_rounded,
-              size: 21,
-              color: AppColors.whiteColor,
-            ),
+      // v602 — pastille commune posée sur le coin haut-droit du bouton
+      // (40 dp) : « 99+ » dans une pilule (avant : un rond qui débordait),
+      // place fixe quel que soit le téléphone.
+      child: PawBadgeAnchor(
+        iconWidth: 40,
+        bite: 12,
+        lift: 6,
+        badge: count > 0 ? PawCountBadge(count: count) : null,
+        child: _HeaderActionShell(
+          color: _bellBg,
+          onTap: onTap,
+          child: Icon(
+            Icons.notifications_rounded,
+            size: 21,
+            color: AppColors.whiteColor,
           ),
-          if (count > 0)
-            Positioned(
-              right: -2,
-              top: -4,
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: count > 9 ? 4.w : 5.w,
-                  vertical: 2.h,
-                ),
-                constraints: BoxConstraints(minWidth: 18.w, minHeight: 18.w),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE53935),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  count > 99 ? '99+' : '$count',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.w700,
-                    height: 1,
-                  ),
-                ),
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }

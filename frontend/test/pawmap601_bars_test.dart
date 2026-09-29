@@ -44,7 +44,8 @@ void main() {
   group('réglage de la barre de droite', () {
     test('fixes jamais personnalisables ; ordre d\'origine ; vide permis', () {
       final ids = kPawCapsuleDefaultOrder;
-      expect(ids, ['satellite', 'everyone', 'balade', 'eye']);
+      // v602 — « Voir signaux » arrive au-dessus de Balade.
+      expect(ids, ['satellite', 'everyone', 'feed', 'balade', 'eye']);
       for (final fixed in ['position', 'zoom_in', 'zoom_out', 'my_location']) {
         expect(pawCapsuleSlotOf(fixed), isNull, reason: fixed);
       }
@@ -217,8 +218,10 @@ void main() {
       final lead = src.indexOf('leading: [', src.indexOf('Widget _buildMapControlsStack()'));
       expect(src.indexOf('Icons.my_location_rounded', lead), greaterThan(lead));
       // Réglage retenu sur le compte.
-      expect(src, contains("_prefs.update({'capsule': order});"));
-      expect(src, contains('_capsuleOrder = normalizeCapsuleOrder(p.capsule);'));
+      // v602 — enregistré avec le marqueur « Voir signaux masqué » et relu
+      // par la migration (feed de la gauche vers la droite).
+      expect(src, contains("_prefs.update({'capsule': capsuleOrderToSave(order)});"));
+      expect(src, contains('migrateCapsuleFeed602(capsule: p.capsule, rail: p.rail)'));
     });
   });
 }

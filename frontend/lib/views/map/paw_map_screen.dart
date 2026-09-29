@@ -936,6 +936,12 @@ class _PawMapScreenState extends State<PawMapScreen>
       unawaited(_prefs.loadFromAccount().then((remoteNewer) {
         if (!mounted) return;
         if (remoteNewer) _applyPrefs(fromAccount: true);
+        // v602 — migration « Voir signaux » enregistrée sur le compte une
+        // fois le compte relu (plus jamais rejouée, sur aucun appareil).
+        if (_capsuleMigrationPending) {
+          _capsuleMigrationPending = false;
+          _prefs.update({'capsule': capsuleOrderToSave(_capsuleOrder)});
+        }
         if (mounted) setState(() {});
       }));
       _maybeStartCoach();
@@ -6147,6 +6153,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v601 — boutons PERSONNALISABLES de la barre de droite, dans l'ordre
   /// choisi (réglage du compte, clé `capsule`). Null = jamais réglé.
   List<String> _capsuleOrder = kPawCapsuleDefaultOrder;
+  bool _capsuleMigrationPending = false;
 
   /// Un bouton personnalisable de la barre de droite (mêmes actions
   /// qu'avant la v601, au pixel près). Null = id inconnu / non disponible.
@@ -6238,6 +6245,19 @@ class _PawMapScreenState extends State<PawMapScreen>
             ],
           );
         });
+      case 'feed':
+        // v602 — « Voir signaux » (drapeau noir, point rouge), venu de la
+        // barre de gauche : mêmes icône, point, action et explication.
+        return PawJewel(
+          key: const ValueKey<String>('capsule_feed'),
+          palette: kJewelFeed,
+          icon: PawSymbols.feed,
+          label: kPawFeedSpec.label,
+          size: 38,
+          badge: const PawJewelDot(),
+          onTap: () => _openScreen(() => const AlertsScreen()),
+          onLongPress: () => _showRailHelp('feed'),
+        );
       case 'eye':
         // v586 — l'ŒIL : qui me voit (Tous · Amis seulement · Masqué).
         return Obx(() => PawCapsuleEyeButton(
@@ -6270,7 +6290,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final order = chosen;
     if (order == null || !mounted) return;
     setState(() => _capsuleOrder = order);
-    _prefs.update({'capsule': order});
+    _prefs.update({'capsule': capsuleOrderToSave(order)});
   }
 
   /// v589 — liste des demandes autour (gardien / promeneur), de la plus
@@ -7772,7 +7792,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Appui long sur un bouton du rail → sa bulle d'explication, avec
   /// « Essayer » (fait l'action) et « Personnaliser ».
   void _showRailHelp(String id) {
-    final spec = pawRailSpecOf(id);
+    // v602 — « Voir signaux » vit dans la barre de droite : sa bulle y
+    // renvoie aussi (« Personnaliser » ouvre le réglage de droite).
+    final bool right = pawRailSpecOf(id) == null;
+    final spec = pawRailSpecOf(id) ?? pawCapsuleSlotOf(id);
     if (spec == null) return;
     showPawMapSheet<void>(
       context,
@@ -7788,7 +7811,11 @@ class _PawMapScreenState extends State<PawMapScreen>
           },
           onCustomize: () {
             Navigator.of(ctx).pop();
-            _openRailCustomize();
+            if (right) {
+              unawaited(_openCapsuleCustomize());
+            } else {
+              _openRailCustomize();
+            }
           },
         ),
       ),
@@ -8662,7 +8689,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     final rail = p.rail;
     if (rail != null) _railOrder = normalizeRailOrder(rail);
     // v601 — barre de droite (ordre et choix), même mécanisme.
-    _capsuleOrder = normalizeCapsuleOrder(p.capsule);
+    // v602 — « Voir signaux » passe de la gauche à la droite (au-dessus de
+    // Balade) : migration des réglages enregistrés, rejouée une seule fois.
+    final mig = migrateCapsuleFeed602(capsule: p.capsule, rail: p.rail);
+    _capsuleOrder = mig.order;
+    if (mig.changed) _capsuleMigrationPending = true;
     final layers = p.layers;
     if (layers.containsKey('places')) _showPois.value = layers['places']!;
     if (layers.containsKey('reports')) _showReports.value = layers['reports']!;

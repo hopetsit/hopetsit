@@ -8,6 +8,7 @@
 // ⚠️ CE FICHIER NE CONTIENT QUE DU RENDU. Toute la logique de navigation
 // (IndexedStack, requestedTab, badges, PromoPopup…) reste dans
 // `stacked_navigation_wrapper.dart`.
+import 'package:hopetsit/widgets/paw_count_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -741,17 +742,19 @@ class _PawTabBarState extends State<PawTabBar>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              Stack(
-                clipBehavior: Clip.none,
-                children: <Widget>[
-                  SvgPicture.string(
-                    _strokeIcon(path, active),
-                    width: 23,
-                    height: 23,
-                  ),
-                  if (badge != null)
-                    Positioned(top: -7, right: -10, child: badge(context)),
-                ],
+              // v602 — pastille posée sur le coin haut-droit de l'icône,
+              // ancrée par la GAUCHE (un « 99+ » s'allonge vers l'extérieur,
+              // il ne recouvre plus l'icône), place fixe en dp.
+              PawBadgeAnchor(
+                iconWidth: 23,
+                bite: 9,
+                lift: 8,
+                badge: badge?.call(context),
+                child: SvgPicture.string(
+                  _strokeIcon(path, active),
+                  width: 23,
+                  height: 23,
+                ),
               ),
               const SizedBox(height: 4),
               Padding(
@@ -859,48 +862,63 @@ class _PawTabBarState extends State<PawTabBar>
         clipBehavior: Clip.none,
         children: <Widget>[
           // Dessin (non tactile) : la patte occupe bien les 84×84 du handoff.
+          // v602 — le point vert « un ami en balade » est DANS le même bloc
+          // que la patte (même échelle à l'appui, même montée quand l'onglet
+          // PawMap s'ouvre) : il ne peut plus s'en décoller.
           Positioned.fill(
             child: IgnorePointer(
               child: AnimatedScale(
                 scale: _pawDown ? 0.96 : 1.0,
                 duration: const Duration(milliseconds: 120),
                 curve: Curves.easeOut,
-                child: AnimatedBuilder(
-                  animation: _toeCtl,
-                  builder: (BuildContext context, Widget? _) {
-                    final double v = _toeCtl.value;
-                    return PawGlyph(
-                      size: kPawTabBarPawBox,
-                      toeProgress: <double>[
-                        _toeProgress(0, v),
-                        _toeProgress(1, v),
-                        _toeProgress(2, v),
-                        _toeProgress(3, v),
-                      ],
-                      toeOpacity: List<double>.filled(4, _toeOpacity(v)),
-                    );
-                  },
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    Positioned.fill(
+                      child: AnimatedBuilder(
+                        animation: _toeCtl,
+                        builder: (BuildContext context, Widget? _) {
+                          final double v = _toeCtl.value;
+                          return PawGlyph(
+                            size: kPawTabBarPawBox,
+                            toeProgress: <double>[
+                              _toeProgress(0, v),
+                              _toeProgress(1, v),
+                              _toeProgress(2, v),
+                              _toeProgress(3, v),
+                            ],
+                            toeOpacity: List<double>.filled(4, _toeOpacity(v)),
+                          );
+                        },
+                      ),
+                    ),
+                    // v599 — point vert « un ami est en balade ».
+                    // v602 — Daniel : « un petit point vert qui est sorti ».
+                    // Au 599 son CENTRE était posé sur le bord extérieur de
+                    // la tête (rayon 24) : la moitié dépassait dans le vide,
+                    // avec un liseré brun-rouge — un point orphelin. Il est
+                    // désormais posé SUR le liseré blanc de la tête (centre
+                    // à [kPawLiveDotRadius] du centre, à 45°) : il mord le
+                    // noir du coussinet et le blanc du bord, jamais le vide.
+                    // Liseré blanc puis contour encre (identiques de jour et
+                    // de nuit), coordonnées fixes de la patte (aucun .w/.sp).
+                    if (widget.liveFriends > 0)
+                      Positioned(
+                        left: pawLiveDotCenter().dx -
+                            PawLiveDot.outerSize(widget.liveFriends) / 2,
+                        top: pawLiveDotCenter().dy -
+                            PawLiveDot.outerSize(widget.liveFriends) / 2,
+                        child: PawLiveDot(
+                          key: const ValueKey<String>('paw_tab_live_dot'),
+                          count: widget.liveFriends,
+                          ring: palette.top,
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
           ),
-          // v599 — point vert « un ami est en balade », posé sur le bord
-          // haut-droit du COUSSINET (la tête de l'épingle, 48 dp ancrée en
-          // bas-centre : centre (42, 60), rayon 24 → point à 45° = (59, 43)).
-          // Les doigts sont rentrés sur les autres onglets : le point doit
-          // tenir sur la tête seule (vu au simulateur, 29/09).
-          if (widget.liveFriends > 0)
-            Positioned(
-              left: 59 - (widget.liveFriends > 1 ? 13 : 8) / 2,
-              top: 43 - (widget.liveFriends > 1 ? 13 : 8) / 2,
-              child: IgnorePointer(
-                child: PawLiveDot(
-                  key: const ValueKey<String>('paw_tab_live_dot'),
-                  count: widget.liveFriends,
-                  ring: palette.top,
-                ),
-              ),
-            ),
           // Zone tactile : 84 × 67, ancrée en bas. Les 17 px du haut de la
           // boîte sont VIDES par construction (les doigts commencent à y=17) :
           // les y laisser tactiles volerait des taps à l'écran qui est
@@ -959,16 +977,37 @@ class _PressScaleState extends State<_PressScale> {
 }
 
 
-/// v599 — Point vert « ami en balade » sur la patte du menu : 8 dp, liseré
-/// 1,5 dp à la couleur du menu, respiration lente très légère (2,6 s) ; le
-/// nombre en tout petit quand ils sont plusieurs (le point passe à 13 dp).
-/// Le vert est celui du direct (`kPawFollowLive` du chat). Aucun texte.
+/// v602 — distance entre le centre de la tête de l'épingle (coussinet de
+/// 48 dp, rayon 24, liseré blanc de 3 dp) et le centre du point vert : le
+/// point est à cheval sur le liseré blanc, jamais dans le vide.
+const double kPawLiveDotRadius = 20.5;
+
+/// v602 — centre du point vert dans la boîte de la patte (84 × 84) : tête
+/// centrée en (42, 60), point à 45° en haut à droite.
+Offset pawLiveDotCenter() {
+  const double c = 0.7071067811865476; // cos 45° = sin 45°
+  return Offset(
+    kPawTabBarPawBox / 2 + kPawLiveDotRadius * c,
+    kPawTabBarPawBox - 24 - kPawLiveDotRadius * c,
+  );
+}
+
+/// v599 — Point vert « ami en balade » sur la patte du menu ; respiration
+/// lente très légère (2,6 s) ; le nombre en tout petit quand ils sont
+/// plusieurs. Le vert est celui du direct (`kPawFollowLive` du chat).
+/// v602 — dessin refait : pastille verte, liseré BLANC, puis fin contour
+/// encre du coussinet (le même de jour et de nuit, sur le blanc du bord comme
+/// sur le noir de la tête) ; 11 dp seul, 15 dp avec un chiffre. [ring] est
+/// gardé pour l'API (plus utilisé : le brun-rouge faisait « tache »).
 class PawLiveDot extends StatefulWidget {
   const PawLiveDot({super.key, required this.count, required this.ring});
   final int count;
   final Color ring;
 
   static const Color green = Color(0xFF22C55E);
+
+  /// Diamètre total (contour compris) selon le nombre de personnes.
+  static double outerSize(int count) => count > 1 ? 15 : 11;
 
   @override
   State<PawLiveDot> createState() => _PawLiveDotState();
@@ -990,42 +1029,47 @@ class _PawLiveDotState extends State<PawLiveDot>
   @override
   Widget build(BuildContext context) {
     final bool many = widget.count > 1;
-    final double size = many ? 13 : 8;
+    final double size = PawLiveDot.outerSize(widget.count);
     final bool reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return AnimatedBuilder(
       animation: _c,
       builder: (BuildContext context, Widget? child) {
         final double t = Curves.easeInOut.transform(_c.value);
-        final double scale = reduce ? 1 : 1 + 0.10 * t;
+        final double scale = reduce ? 1 : 1 + 0.08 * t;
         return Transform.scale(scale: scale, child: child);
       },
       child: Container(
         width: size,
         height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: PawLiveDot.green,
+        // Contour encre (1 dp) : détache le point du blanc du bord.
+        padding: const EdgeInsets.all(1),
+        decoration: const BoxDecoration(
+          color: kPawPadDark,
           shape: BoxShape.circle,
-          border: Border.all(color: widget.ring, width: 1.5),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: PawLiveDot.green.withValues(alpha: 0.45),
-              blurRadius: 5,
-            ),
-          ],
         ),
-        child: many
-            ? Text(
-                widget.count > 9 ? '9' : '${widget.count}',
-                style: const TextStyle(
-                  fontSize: 7,
-                  height: 1,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  decoration: TextDecoration.none,
-                ),
-              )
-            : null,
+        child: Container(
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: PawLiveDot.green,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 1.5),
+          ),
+          child: many
+              ? Text(
+                  widget.count > 9 ? '9+' : '${widget.count}',
+                  maxLines: 1,
+                  softWrap: false,
+                  textScaler: TextScaler.noScaling,
+                  style: const TextStyle(
+                    fontSize: 7,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    decoration: TextDecoration.none,
+                  ),
+                )
+              : null,
+        ),
       ),
     );
   }

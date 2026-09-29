@@ -53,6 +53,14 @@ import 'package:hopetsit/views/pet_sitter/profile/sitter_profile_screen.dart';
 import 'package:hopetsit/views/pet_walker/booking/walker_bookings_screen.dart';
 import 'package:hopetsit/views/pet_walker/profile/walker_profile_screen.dart';
 import 'package:hopetsit/views/profile/profile_screen.dart';
+// v602 (ZOE) — routage précis des notifications.
+import 'package:hopetsit/controllers/applications_controller.dart';
+import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/friends/tabs/friends_ui.dart' show openMemberProfile;
+import 'package:hopetsit/views/kyc/kyc_verification_screen.dart';
+import 'package:hopetsit/views/notifications/notification_sitter_application_card_view_screen.dart';
+import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_sheet.dart';
+import 'package:hopetsit/views/profile/widgets/profile_categories.dart' show openMyReviews;
 
 /// v18.8 — écoute les deep links `hopetsit://pay/:bookingId` envoyés dans
 /// les emails "Bonne nouvelle, votre demande de réservation vient d'être
@@ -124,6 +132,14 @@ class DeepLinkService {
   /// main isolate. Si le navigator n'est pas encore prêt, on bufferise.
   Future<void> _safeHandle(Uri uri) async {
     try {
+      // v602 (PAM) — après une CONNEXION faite dans la session (écran de
+      // connexion, pas l'écran de lancement), `flushPending` n'était jamais
+      // appelé : tous les taps de notification (cloche et push) restaient
+      // en attente jusqu'au redémarrage de l'app (vu sur l'émulateur). Le
+      // menu monté = la navigation est prête.
+      if (!_navigatorReady && navWrapperMounted.value && Get.key.currentState != null) {
+        _navigatorReady = true;
+      }
       if (!_navigatorReady) {
         AppLogger.logInfo(
           'DeepLink buffered (navigator not ready): ${uri.scheme}://${uri.host}${uri.path}',
@@ -351,7 +367,9 @@ class DeepLinkService {
     } else if (first == 'paw-spot' || first == 'pawspot') {
       Get.to(() => const CoinShopScreen(initialTab: 2));
     } else if (first == 'shop') {
-      Get.to(() => const CoinShopScreen());
+      // v602 — /shop/<onglet> : 0 PawBoost · 1 PawFollow · 2 PawSpot · 3 Premium.
+      final tab = int.tryParse(second) ?? 0;
+      Get.to(() => CoinShopScreen(initialTab: tab.clamp(0, 3)));
     } else if (first == 'spot') {
       // v532 — lien de PARTAGE d'un PawSpot : https://hopetsit.com/spot/<id>.
       // v552 — Daniel : « que ça tombe sur la chose précise ». On passe l'id
@@ -398,6 +416,42 @@ class DeepLinkService {
               initialLng: lng,
               initialZoom: z,
             ));
+      }
+    } else if (first == 'request') {
+      // v602 — nouvelle demande de réservation (prestataire) : la carte de la
+      // demande avec Accepter / Refuser. Propriétaire : la fiche.
+      if (!_objectIdRegex.hasMatch(second)) {
+        _openBookingsScreen();
+      } else if (_currentRole() == 'owner') {
+        await _openOwnerBookingDetail(second);
+      } else {
+        Get.to(() => NotificationSitterNewRequestCardViewScreen(bookingId: second));
+      }
+    } else if (first == 'application') {
+      // v602 — candidature reçue (propriétaire) : LA candidature.
+      if (_objectIdRegex.hasMatch(second) && _currentRole() == 'owner') {
+        await _openOwnerApplication(second);
+      } else {
+        _openBookingsScreen();
+      }
+    } else if (first == 'identity' || first == 'kyc') {
+      // v602 — vérification d'identité (Didit) : l'écran de vérification.
+      Get.to(() => const KycVerificationScreen());
+    } else if (first == 'reviews') {
+      // v602 — avis reçu : la liste de MES avis (note + commentaires).
+      await openMyReviews(
+        role: _currentRole(),
+        accent: AppColors.activeRoleAccent(),
+      );
+    } else if (first == 'member') {
+      // v602 — /member/<rôle>/<id> : profil d'un membre (ami accepté).
+      final memberRole = second.toLowerCase();
+      final memberId = rest.length > 1 ? rest[1] : '';
+      if (_objectIdRegex.hasMatch(memberId) &&
+          const <String>['owner', 'sitter', 'walker'].contains(memberRole)) {
+        openMemberProfile(userId: memberId, role: memberRole, name: '');
+      } else {
+        Get.to(() => const FriendsScreen());
       }
     } else if (first == 'profile') {
       _openProfileScreen();
@@ -497,12 +551,36 @@ class DeepLinkService {
     return true;
   }
 
-  /// Route « thème » pour un type de notification (miroir de
-  /// backend/src/utils/emailLinkBuilder.js → buildAppRoute). Sert aux pushs
-  /// anciens sans champ `route` et à la cloche.
-  static String routeForNotification(String type, Map<String, dynamic>? data) {
+  // Route « thème » pour un type de notification. Sert au tap sur un push
+  // (prioritaire sur le champ `route` du serveur, voir [resolvePushRoute]) et
+  // à la cloche.
+  //
+  // v602 (ZOE) — Daniel : « toutes les notifications, dans la cloche et sur
+  // l'app, doivent renvoyer à la tâche PRÉCISE ». Ce routeur ne renvoie plus
+  // jamais une liste quand une cible précise existe :
+  //   nouvelle demande (prestataire)  → /request/<bookingId> (la carte Accepter/Refuser)
+  //   candidature reçue (propriétaire) → /application/<applicationId>
+  //   candidature refusée              → /post/<postId> (la demande)
+  //   réservation mutuellement acceptée (propriétaire) → /pay?bookingId=
+  //   identité (kyc_*)                 → /identity
+  //   avis reçu                        → /reviews
+  //   boost / abonnement / parrainage  → /shop/<onglet>
+  //   ami accepté                      → /member/<rôle>/<id>
+  //   famille                          → /friends/family
+  //   PawSpot validé / populaire       → /spot/<spotId>
+  // Les chemins historiques (/bookings, /chat…) restent compris : les apps
+  // 598-601 reçoivent toujours le `route` calculé par le serveur.
+  // Les notifications de suivi en direct (live_*) sont à PAM : inchangées.
+  static String routeForNotification(
+    String type,
+    Map<String, dynamic>? data, {
+    String? role,
+  }) {
     final t = type.toLowerCase();
     final d = data ?? const <String, dynamic>{};
+    final r = (role ?? (d['recipientRole'] ?? '').toString()).toLowerCase();
+    final isOwner = r == 'owner';
+    final isProvider = r == 'sitter' || r == 'walker';
     String id(String key) {
       final v = (d[key] ?? '').toString();
       return _objectIdRegex.hasMatch(v) ? v : '';
@@ -514,8 +592,14 @@ class DeepLinkService {
     final postId = id('postId');
     final postPath = postId.isNotEmpty ? '/post/$postId' : '/bookings';
     final reportId = id('reportId');
+    final applicationId = id('applicationId');
     if (t == 'booking_accepted' || t == 'payment_failed' || t == 'payment_required') {
       return bookingId.isNotEmpty ? '/pay?bookingId=$bookingId' : bookingPath;
+    }
+    // Les deux parties ont signé : le propriétaire doit payer.
+    if (t == 'booking_mutually_accepted') {
+      if (isOwner && bookingId.isNotEmpty) return '/pay?bookingId=$bookingId';
+      return bookingPath;
     }
     if (t == 'new_message' || t == 'message' || t == 'message_new' ||
         t == 'chat_auto_welcome' || t == 'booking_paid_chat_unlocked') {
@@ -527,8 +611,26 @@ class DeepLinkService {
     if (t == 'walk_started' || t == 'walk_finished') {
       return bookingId.isNotEmpty ? '/walk/$bookingId' : bookingPath;
     }
-    if (t == 'new_request_nearby' || t == 'post_new' ||
-        t == 'post_application_eligible' ||
+    // Nouvelle demande de réservation reçue par le prestataire : la carte
+    // de la demande (Accepter / Refuser), pas la liste.
+    if (t == 'booking_new') {
+      if (bookingId.isEmpty) return '/bookings';
+      return isOwner ? bookingPath : '/request/$bookingId';
+    }
+    // Candidature reçue par le propriétaire : la candidature elle-même.
+    if (t == 'application_new') {
+      if (applicationId.isNotEmpty && !isProvider) {
+        return '/application/$applicationId';
+      }
+      return postId.isNotEmpty ? postPath : '/bookings';
+    }
+    // Candidature refusée : la demande concernée (postId ajouté côté serveur
+    // en 602 ; les anciennes notifications sans postId gardent la liste).
+    if (t == 'application_rejected') {
+      return postId.isNotEmpty ? postPath : '/bookings';
+    }
+    if (t == 'new_request_nearby' || t == 'new_request_for_you' ||
+        t == 'post_new' || t == 'post_application_eligible' ||
         t == 'application_rejected_other_accepted' ||
         t.startsWith('post_')) {
       return postPath;
@@ -543,32 +645,76 @@ class DeepLinkService {
         t == 'wallet_credited' || t.contains('wallet')) {
       return '/wallet';
     }
-    if (t == 'new_review' || t == 'premium_achieved' ||
-        t == 'top_sitter_achieved' || t.startsWith('kyc_')) {
+    // Vérification d'identité (Didit, 3 €) : l'écran de vérification.
+    if (t.startsWith('kyc_')) return '/identity';
+    if (t == 'new_review') return '/reviews';
+    if (t == 'premium_achieved' || t == 'top_sitter_achieved') {
       return '/profile';
     }
-    if (t == 'referral_credited' || t.startsWith('map_boost') ||
-        t == 'profile_boost_activated') {
-      return '/paw-spot';
+    // Boutique : l'onglet de l'achat concerné (0 PawBoost · 1 PawFollow ·
+    // 2 PawSpot · 3 Paw Premium).
+    if (t.startsWith('map_boost') || t == 'profile_boost_activated') {
+      return '/shop/0';
     }
-    if (t.startsWith('subscription_')) return '/subscription';
+    if (t == 'referral_credited') return '/shop/1'; // -10 % sur PawFollow
+    if (t.startsWith('subscription_')) {
+      final plan = (d['plan'] ?? '').toString().toLowerCase();
+      return plan.startsWith('premium') ? '/shop/3' : '/shop/1';
+    }
+    if (t == 'pawspot_validated' || t == 'pawspot_popular') {
+      final spotId = id('spotId');
+      return spotId.isNotEmpty ? '/spot/$spotId' : '/shop/2';
+    }
     if (t == 'friend_request_received' || t == 'family_invitation_received') {
       return '/friends/requests';
     }
-    if (t == 'live_tracking_request_received') {
-      return conv.isNotEmpty ? chatPath : '/friends/requests';
+    if (t == 'friend_request_accepted') {
+      final who = id('byUserId');
+      final whoRole = (d['byUserRole'] ?? '').toString().toLowerCase();
+      if (who.isNotEmpty &&
+          const <String>['owner', 'sitter', 'walker'].contains(whoRole)) {
+        return '/member/$whoRole/$who';
+      }
+      return '/friends';
     }
-    if (t == 'live_tracking_accepted') return '/friends/live';
+    if (t.startsWith('family_')) return '/friends/family';
+    // v602 — la demande de suivi, son acceptation et son refus vivent dans
+    // une carte du CHAT : on ouvre cette conversation (jamais l'écran Amis,
+    // qui ne montre pas ces demandes). Miroir de emailLinkBuilder.js.
+    if (t == 'live_tracking_request_received' || t == 'live_tracking_refused') {
+      return conv.isNotEmpty ? chatPath : '/chat';
+    }
+    if (t == 'live_tracking_accepted') {
+      return conv.isNotEmpty ? chatPath : '/friends/live';
+    }
     // v565 — partage en direct : « toujours actif » / session terminée.
     if (t == 'live_still_active' || t == 'live_session_ended') return '/friends/live';
-    if (t.startsWith('friend_') || t.startsWith('family_') ||
-        t.startsWith('live_tracking')) {
+    if (t.startsWith('friend_') || t.startsWith('live_tracking')) {
       return '/friends';
     }
     if (t == 'sos_pet_nearby' || t == 'lost_pet_sighting') {
       return reportId.isNotEmpty ? '/alert/$reportId' : '/map';
     }
     return '/notifications';
+  }
+
+  /// v602 — route à ouvrir au tap sur un push : celle de l'app quand elle
+  /// connaît le type (plus précise que le `route` du serveur, gardé tel quel
+  /// pour les apps 598-601), sinon celle du serveur (type ajouté plus tard).
+  static String resolvePushRoute(
+    String type,
+    Map<String, dynamic> data, {
+    String? role,
+  }) {
+    final server = (data['route'] ?? '').toString().trim();
+    // Suivi en direct (live_*) : territoire de PAM, dont la route est posée
+    // par le serveur (602 : la carte de la demande dans le chat) → on la suit.
+    if (type.toLowerCase().startsWith('live_') && server.startsWith('/')) {
+      return server;
+    }
+    final local = routeForNotification(type, data, role: role);
+    if (local != '/notifications') return local;
+    return server.startsWith('/') ? server : local;
   }
 
   static const _pendingRouteKey = 'pending_deep_route';
@@ -688,6 +834,7 @@ class DeepLinkService {
       AppLogger.logError('DeepLink _openOwnerBookingDetail failed', error: e);
     }
     if (booking == null) {
+      _showGone('notif602_booking_gone');
       _openBookingsScreen();
       return;
     }
@@ -730,8 +877,16 @@ class DeepLinkService {
     } catch (e) {
       AppLogger.logError('DeepLink _openProviderBookingDetail failed', error: e);
     }
-    if (booking == null || booking.status == 'pending') {
+    if (booking == null) {
+      // v602 — cible disparue : on le dit, puis la liste la plus proche.
+      _showGone('notif602_booking_gone');
       _openBookingsScreen();
+      return;
+    }
+    if (booking.status == 'pending') {
+      // v602 — demande encore à traiter : la carte Accepter / Refuser (avant :
+      // la liste, où il fallait retrouver la demande).
+      Get.to(() => NotificationSitterNewRequestCardViewScreen(bookingId: bookingId));
       return;
     }
     final b = booking;
@@ -768,11 +923,67 @@ class DeepLinkService {
       AppLogger.logError('DeepLink _openPost failed', error: e);
     }
     if (post == null) {
-      _openBookingsScreen();
+      // v602 — demande supprimée : message clair + l'accueil (les demandes
+      // du prestataire / « Mes annonces » du propriétaire), pas les réservations.
+      _showGone('notif602_post_gone');
+      if (!_goToTab(0)) _openBookingsScreen();
       return;
     }
     final p = post;
     Get.to(() => NotificationPostViewScreen(post: p));
+  }
+
+  /// v602 — la cible d'une notification n'existe plus : message clair.
+  void _showGone(String key) {
+    try {
+      CustomSnackbar.showInfo(title: 'notifications_title'.tr, message: key.tr);
+    } catch (_) {/* best-effort */}
+  }
+
+  /// v602 — candidature reçue (propriétaire). Avant, taper la notification
+  /// ACCEPTAIT la candidature sans rien demander (et refusait les autres
+  /// candidats de la demande). On ouvre désormais les candidats de CETTE
+  /// demande (Choisir / Refuser, avec confirmation) ; si le propriétaire
+  /// choisit ce gardien, la page de paiement s'ouvre juste après.
+  Future<void> _openOwnerApplication(String applicationId) async {
+    final ApplicationsController ctrl = Get.isRegistered<ApplicationsController>()
+        ? Get.find<ApplicationsController>()
+        : Get.put(ApplicationsController());
+    await ctrl.loadApplications();
+    final app = ctrl.applications.firstWhereOrNull((a) => a.id == applicationId);
+    if (app == null) {
+      _showGone('notif602_application_gone');
+      _goToTab(0);
+      return;
+    }
+    final status = app.status.toLowerCase().trim();
+    final bookingId = app.bookingId ?? '';
+    if (status == 'accepted' || status == 'agreed') {
+      if (_objectIdRegex.hasMatch(bookingId)) {
+        await _openPayment(bookingId); // déjà payée → la fiche
+      } else {
+        _openBookingsScreen();
+      }
+      return;
+    }
+    if (status == 'rejected' || status == 'cancelled') {
+      _showGone('notif602_application_rejected');
+      _goToTab(0);
+      return;
+    }
+    final postId = app.postId ?? '';
+    final ctx = Get.context;
+    if (!_objectIdRegex.hasMatch(postId) || ctx == null || !ctx.mounted) {
+      _goToTab(0);
+      return;
+    }
+    await PostCandidatesSheet.show(context: ctx, postId: postId);
+    // Choix fait dans la feuille → paiement tout de suite (1 tap de moins).
+    final chosen = ctrl.applications.firstWhereOrNull((a) =>
+        a.postId == postId &&
+        const <String>['accepted', 'agreed'].contains(a.status.toLowerCase().trim()) &&
+        _objectIdRegex.hasMatch(a.bookingId ?? ''));
+    if (chosen != null) await _openPayment(chosen.bookingId!);
   }
 
   // v23.1.286 — navigation par rôle vers les VRAIS écrans (les routes nommées
@@ -1105,7 +1316,13 @@ class DeepLinkService {
       }
       final alreadyPaid =
           (booking.paymentStatus ?? '').toLowerCase() == 'paid';
-      if (alreadyPaid) {
+      // v602 (ZOE) — réservation annulée / refusée / remboursée / terminée :
+      // rien à payer → la fiche (avant : la page de paiement d'une réservation
+      // annulée).
+      final closed = const <String>{
+        'cancelled', 'canceled', 'rejected', 'refunded', 'completed', 'expired',
+      }.contains(booking.status.toLowerCase());
+      if (alreadyPaid || closed) {
         // v561 — déjà payée : on montre la réservation au lieu de ne rien
         // faire (le mail « paiement » arrive parfois après le paiement).
         final b = booking;

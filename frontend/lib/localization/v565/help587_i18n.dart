@@ -55,7 +55,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help587_b_spots':
         "Dans la barre de gauche. Touche-le pour la liste des PawSpots autour de toi : des coins recommandés par la communauté (balades, parcs, cafés…).",
     'help587_b_feed':
-        "Dans la barre de gauche. Touche-le pour voir tous les signalements autour de toi : animal perdu, chien agressif, danger… À regarder avant de partir en balade.",
+        "Dans la barre de droite, juste au-dessus du bouton Balade. Touche-le pour voir tous les signalements autour de toi : animal perdu, chien agressif, danger… À regarder avant de partir en balade.",
     'help587_b_eye':
         "Dans la barre de droite. Chaque appui passe au choix suivant : œil = tout le monde te voit (à la position de ton profil, floutée à environ 1 km) ; œil avec un cœur = seulement tes amis ; œil barré = personne, même pas tes amis. Le choix est gardé sur ton compte, dans l'app comme sur le site.",
     'help587_b_publish':
@@ -215,7 +215,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help587_b_spots':
         "In the left-hand bar. Tap it for the list of PawSpots around you: places recommended by the community (walks, parks, cafés…).",
     'help587_b_feed':
-        "In the left-hand bar. Tap it to see every report around you: lost pet, aggressive dog, hazard… Worth a look before going for a walk.",
+        "In the right-hand bar, just above the Walk button. Tap it to see every report around you: lost pet, aggressive dog, hazard… Worth a look before going for a walk.",
     'help587_b_eye':
         "In the right-hand bar. Each tap moves to the next choice: eye = everyone sees you (at your profile position, blurred to about 1 km); eye with a heart = only your friends; crossed-out eye = nobody, not even your friends. The choice is saved on your account, in the app and on the website.",
     'help587_b_publish':
@@ -375,7 +375,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help587_b_spots':
         "En la barra izquierda. Tócalo para ver la lista de PawSpots cerca de ti: rincones recomendados por la comunidad (paseos, parques, cafés…).",
     'help587_b_feed':
-        "En la barra izquierda. Tócalo para ver todos los avisos cerca de ti: mascota perdida, perro agresivo, peligro… Échales un vistazo antes de salir de paseo.",
+        "En la barra derecha, justo encima del botón Paseo. Tócalo para ver todos los avisos cerca de ti: mascota perdida, perro agresivo, peligro… Échales un vistazo antes de salir de paseo.",
     'help587_b_eye':
         "En la barra derecha. Cada toque pasa a la opción siguiente: ojo = todos te ven (en la posición de tu perfil, difuminada a 1 km aproximadamente); ojo con corazón = solo tus amigos; ojo tachado = nadie, ni siquiera tus amigos. La elección se guarda en tu cuenta, en la app y en la web.",
     'help587_b_publish':
@@ -535,7 +535,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help587_b_spots':
         "In der linken Leiste. Tippe darauf für die Liste der PawSpots in deiner Nähe: Orte, die die Community empfiehlt (Spazierwege, Parks, Cafés …).",
     'help587_b_feed':
-        "In der linken Leiste. Tippe darauf, um alle Meldungen in deiner Nähe zu sehen: verlorenes Tier, aggressiver Hund, Gefahr … Ein Blick lohnt sich vor dem Spaziergang.",
+        "In der rechten Leiste, direkt über dem Gassi-Button. Tippe darauf, um alle Meldungen in deiner Nähe zu sehen: verlorenes Tier, aggressiver Hund, Gefahr … Ein Blick lohnt sich vor dem Spaziergang.",
     'help587_b_eye':
         "In der rechten Leiste. Jeder Tipp springt zur nächsten Wahl: Auge = alle sehen dich (an deiner Profilposition, auf etwa 1 km unscharf); Auge mit Herz = nur deine Freunde; durchgestrichenes Auge = niemand, nicht einmal deine Freunde. Die Wahl wird in deinem Konto gespeichert, in der App und auf der Website.",
     'help587_b_publish':
@@ -695,7 +695,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help587_b_spots':
         "Nella barra di sinistra. Toccalo per l'elenco dei PawSpot intorno a te: angoli consigliati dalla community (passeggiate, parchi, caffè…).",
     'help587_b_feed':
-        "Nella barra di sinistra. Toccalo per vedere tutte le segnalazioni intorno a te: animale smarrito, cane aggressivo, pericolo… Da guardare prima di uscire a passeggio.",
+        "Nella barra di destra, subito sopra il pulsante Passeggio. Toccalo per vedere tutte le segnalazioni intorno a te: animale smarrito, cane aggressivo, pericolo… Da guardare prima di uscire a passeggio.",
     'help587_b_eye':
         "Nella barra di destra. Ogni tocco passa alla scelta successiva: occhio = tutti ti vedono (nella posizione del tuo profilo, sfocata a circa 1 km); occhio con cuore = solo i tuoi amici; occhio barrato = nessuno, nemmeno i tuoi amici. La scelta resta salvata sul tuo account, nell'app e sul sito.",
     'help587_b_publish':
@@ -855,7 +855,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help587_b_spots':
         "Na barra da esquerda. Toca nele para ver a lista de PawSpots à tua volta: sítios recomendados pela comunidade (passeios, parques, cafés…).",
     'help587_b_feed':
-        "Na barra da esquerda. Toca nele para ver todos os alertas à tua volta: animal perdido, cão agressivo, perigo… Vale a pena ver antes de sair para passear.",
+        "Na barra da direita, logo acima do botão Passeio. Toca nele para ver todos os alertas à tua volta: animal perdido, cão agressivo, perigo… Vale a pena ver antes de sair para passear.",
     'help587_b_eye':
         "Na barra da direita. Cada toque passa à escolha seguinte: olho = todos te veem (na posição do teu perfil, desfocada a cerca de 1 km); olho com coração = só os teus amigos; olho riscado = ninguém, nem os teus amigos. A escolha fica guardada na tua conta, na app e no site.",
     'help587_b_publish':
@@ -1015,7 +1015,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help587_b_spots':
         "왼쪽 막대에 있어요. 누르면 주변 PawSpot 목록이 나와요. 커뮤니티가 추천하는 곳 (산책길, 공원, 카페…)이에요.",
     'help587_b_feed':
-        "왼쪽 막대에 있어요. 누르면 주변의 모든 제보를 볼 수 있어요: 잃어버린 동물, 공격적인 개, 위험… 산책 전에 확인해 보세요.",
+        "오른쪽 막대의 산책 버튼 바로 위에 있어요. 누르면 주변의 모든 제보를 볼 수 있어요: 잃어버린 동물, 공격적인 개, 위험… 산책 전에 확인해 보세요.",
     'help587_b_eye':
         "오른쪽 막대에 있어요. 누를 때마다 다음 선택으로 바뀌어요: 눈 = 모두가 나를 봐요 (프로필 위치를 약 1 km 흐리게); 하트가 있는 눈 = 친구만; 줄 그은 눈 = 아무도, 친구도 못 봐요. 선택은 계정에 저장되어 앱과 웹사이트에 똑같이 적용돼요.",
     'help587_b_publish':
@@ -1175,7 +1175,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help587_b_spots':
         "左側のバーにあります。タップすると近くのPawSpot一覧が表示されます。コミュニティおすすめの場所（散歩道、公園、カフェ…）です。",
     'help587_b_feed':
-        "左側のバーにあります。タップすると近くの報告をすべて見られます：迷子のペット、攻撃的な犬、危険など。散歩の前に確認しましょう。",
+        "右側のバーの「散歩」ボタンのすぐ上にあります。タップすると近くの報告をすべて見られます：迷子のペット、攻撃的な犬、危険など。散歩の前に確認しましょう。",
     'help587_b_eye':
         "右側のバーにあります。タップするたびに次の設定に切り替わります：目 = 全員に表示（プロフィールの位置を約1 km ぼかして表示）、ハート付きの目 = 友だちだけ、斜線の目 = 友だちも含め誰にも表示されません。設定はアカウントに保存され、アプリとサイトで共通です。",
     'help587_b_publish':
@@ -1335,7 +1335,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help587_b_spots':
         "Na lewym pasku. Dotknij go, aby zobaczyć listę PawSpotów w okolicy: miejsc polecanych przez społeczność (spacery, parki, kawiarnie…).",
     'help587_b_feed':
-        "Na lewym pasku. Dotknij go, aby zobaczyć wszystkie zgłoszenia w okolicy: zaginione zwierzę, agresywny pies, zagrożenie… Warto zajrzeć przed spacerem.",
+        "Na prawym pasku, tuż nad przyciskiem Spacer. Dotknij go, aby zobaczyć wszystkie zgłoszenia w okolicy: zaginione zwierzę, agresywny pies, zagrożenie… Warto zajrzeć przed spacerem.",
     'help587_b_eye':
         "Na prawym pasku. Każde dotknięcie przechodzi do następnej opcji: oko = widzą cię wszyscy (w miejscu z profilu, rozmytym do ok. 1 km); oko z sercem = tylko znajomi; przekreślone oko = nikt, nawet znajomi. Wybór zapisuje się na koncie, w aplikacji i na stronie.",
     'help587_b_publish':

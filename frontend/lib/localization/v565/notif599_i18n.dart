@@ -1,6 +1,8 @@
 // v599 (ZOE, 29/09/2026) — écran des notifications (la cloche) : choisir
 // ce qu'on supprime / marque lu (glisser, appui long → sélection avec cases,
 // « Supprimer (N) » / « Marquer lu (N) »), et garder « Tout ».
+// v602 (ZOE, 29/09/2026) — routage des notifications : message clair quand la
+// cible d'une notification n'existe plus (notif602_*).
 // Même clé dans les 9 langues ; la variable @n ne s'accentue jamais.
 const Map<String, Map<String, String>> notif599I18n = <String, Map<String, String>>{
   'en': <String, String>{
@@ -17,6 +19,11 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif599_delete_n_body': 'They will be removed from every device.',
     'notif599_done': 'Done',
     'notif599_more': 'More',
+    'notif602_booking_gone': 'This booking no longer exists (it may have been cancelled or deleted).',
+    'notif602_post_gone': 'This request no longer exists (it may have been deleted).',
+    'notif602_conversation_gone': 'This conversation no longer exists (it may have been deleted).',
+    'notif602_application_gone': 'This application no longer exists or has already been handled.',
+    'notif602_application_rejected': 'This application was declined.',
   },
   'fr': <String, String>{
     'notif599_select': 'Sélectionner',
@@ -32,6 +39,11 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif599_delete_n_body': 'Elles disparaîtront de tous tes appareils.',
     'notif599_done': 'Terminé',
     'notif599_more': 'Plus',
+    'notif602_booking_gone': "Cette réservation n'existe plus (elle a peut-être été annulée ou supprimée).",
+    'notif602_post_gone': "Cette demande n'existe plus (elle a peut-être été supprimée).",
+    'notif602_conversation_gone': "Cette conversation n'existe plus (elle a peut-être été supprimée).",
+    'notif602_application_gone': "Cette candidature n'existe plus ou a déjà été traitée.",
+    'notif602_application_rejected': 'Cette candidature a été refusée.',
   },
   'es': <String, String>{
     'notif599_select': 'Seleccionar',
@@ -47,6 +59,11 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif599_delete_n_body': 'Desaparecerán de todos tus dispositivos.',
     'notif599_done': 'Listo',
     'notif599_more': 'Más',
+    'notif602_booking_gone': 'Esta reserva ya no existe (quizá se canceló o se eliminó).',
+    'notif602_post_gone': 'Esta solicitud ya no existe (quizá se eliminó).',
+    'notif602_conversation_gone': 'Esta conversación ya no existe (quizá se eliminó).',
+    'notif602_application_gone': 'Esta candidatura ya no existe o ya se ha gestionado.',
+    'notif602_application_rejected': 'Esta candidatura fue rechazada.',
   },
   'de': <String, String>{
     'notif599_select': 'Auswählen',
@@ -62,6 +79,11 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif599_delete_n_body': 'Sie verschwinden von allen deinen Geräten.',
     'notif599_done': 'Fertig',
     'notif599_more': 'Mehr',
+    'notif602_booking_gone': 'Diese Buchung gibt es nicht mehr (sie wurde vielleicht storniert oder gelöscht).',
+    'notif602_post_gone': 'Diese Anfrage gibt es nicht mehr (sie wurde vielleicht gelöscht).',
+    'notif602_conversation_gone': 'Diese Unterhaltung gibt es nicht mehr (sie wurde vielleicht gelöscht).',
+    'notif602_application_gone': 'Diese Bewerbung gibt es nicht mehr oder sie wurde bereits bearbeitet.',
+    'notif602_application_rejected': 'Diese Bewerbung wurde abgelehnt.',
   },
   'it': <String, String>{
     'notif599_select': 'Seleziona',
@@ -77,6 +99,11 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif599_delete_n_body': 'Scompariranno da tutti i tuoi dispositivi.',
     'notif599_done': 'Fatto',
     'notif599_more': 'Altro',
+    'notif602_booking_gone': 'Questa prenotazione non esiste più (forse è stata annullata o eliminata).',
+    'notif602_post_gone': 'Questa richiesta non esiste più (forse è stata eliminata).',
+    'notif602_conversation_gone': 'Questa conversazione non esiste più (forse è stata eliminata).',
+    'notif602_application_gone': 'Questa candidatura non esiste più o è già stata gestita.',
+    'notif602_application_rejected': 'Questa candidatura è stata rifiutata.',
   },
   'pt': <String, String>{
     'notif599_select': 'Selecionar',
@@ -92,6 +119,11 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif599_delete_n_body': 'Desaparecerão de todos os teus dispositivos.',
     'notif599_done': 'Concluído',
     'notif599_more': 'Mais',
+    'notif602_booking_gone': 'Esta reserva já não existe (pode ter sido cancelada ou eliminada).',
+    'notif602_post_gone': 'Este pedido já não existe (pode ter sido eliminado).',
+    'notif602_conversation_gone': 'Esta conversa já não existe (pode ter sido eliminada).',
+    'notif602_application_gone': 'Esta candidatura já não existe ou já foi tratada.',
+    'notif602_application_rejected': 'Esta candidatura foi recusada.',
   },
   'ko': <String, String>{
     'notif599_select': '선택',
@@ -107,6 +139,11 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif599_delete_n_body': '모든 기기에서 사라집니다.',
     'notif599_done': '완료',
     'notif599_more': '더보기',
+    'notif602_booking_gone': '이 예약은 더 이상 존재하지 않습니다(취소되었거나 삭제되었을 수 있어요).',
+    'notif602_post_gone': '이 요청은 더 이상 존재하지 않습니다(삭제되었을 수 있어요).',
+    'notif602_conversation_gone': '이 대화는 더 이상 존재하지 않습니다(삭제되었을 수 있어요).',
+    'notif602_application_gone': '이 지원은 더 이상 존재하지 않거나 이미 처리되었습니다.',
+    'notif602_application_rejected': '이 지원은 거절되었습니다.',
   },
   'ja': <String, String>{
     'notif599_select': '選択',
@@ -122,6 +159,11 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif599_delete_n_body': 'すべての端末から消えます。',
     'notif599_done': '完了',
     'notif599_more': 'その他',
+    'notif602_booking_gone': 'この予約はもう存在しません（キャンセルまたは削除された可能性があります）。',
+    'notif602_post_gone': 'このリクエストはもう存在しません（削除された可能性があります）。',
+    'notif602_conversation_gone': 'この会話はもう存在しません（削除された可能性があります）。',
+    'notif602_application_gone': 'この応募はもう存在しないか、すでに対応済みです。',
+    'notif602_application_rejected': 'この応募は辞退されました。',
   },
   'pl': <String, String>{
     'notif599_select': 'Zaznacz',
@@ -137,5 +179,10 @@ const Map<String, Map<String, String>> notif599I18n = <String, Map<String, Strin
     'notif599_delete_n_body': 'Znikną ze wszystkich Twoich urządzeń.',
     'notif599_done': 'Gotowe',
     'notif599_more': 'Więcej',
+    'notif602_booking_gone': 'Ta rezerwacja już nie istnieje (mogła zostać anulowana lub usunięta).',
+    'notif602_post_gone': 'To zlecenie już nie istnieje (mogło zostać usunięte).',
+    'notif602_conversation_gone': 'Ta rozmowa już nie istnieje (mogła zostać usunięta).',
+    'notif602_application_gone': 'To zgłoszenie już nie istnieje lub zostało już rozpatrzone.',
+    'notif602_application_rejected': 'To zgłoszenie zostało odrzucone.',
   },
 };

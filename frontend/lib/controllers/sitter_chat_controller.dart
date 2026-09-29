@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/chat_repository.dart';
+import 'package:hopetsit/services/live_share_starter.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -396,6 +398,18 @@ class SitterChatController extends GetxController
       final updated = _mapToSitterChatMessage(raw, userId, 'sitter');
       final idx = currentChatMessages.indexWhere((m) => m.id == updated.id);
       if (idx < 0) return; // pas encore affiché → message:new s'en charge
+      // v602 — ma proposition « Partager ma position » vient d'être
+      // acceptée : mon direct démarre (même chemin que le bouton Balade).
+      final prev = currentChatMessages[idx];
+      if (prev.isPawfollowRequest &&
+          pawfollowAcceptedForMyShare(
+            previousStatus: prev.pawfollowStatus,
+            newStatus: updated.pawfollowStatus,
+            requesterRole: updated.pawfollowRequesterRole,
+            isMine: updated.isFromCurrentUser,
+          )) {
+        unawaited(LiveShareStarter.startWithFeedback());
+      }
       currentChatMessages[idx] = updated;
       currentChatMessages.refresh();
     } catch (e) {

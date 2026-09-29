@@ -154,17 +154,26 @@ const List<PawRailSpec> kPawRailSpecs = <PawRailSpec>[
     labelKey: 'pawmap_btn_send',
     helpKey: 'pawmap_rail_help_report',
   ),
-  PawRailSpec(
-    id: 'feed',
-    icon: Icons.notifications_active_rounded,
-    svg: kRailSvgFeed,
-    color: Color(0xFF28201B),
-    g1: Color(0xFF5A4E46),
-    g2: Color(0xFF28201B),
-    labelKey: 'pawmap_view_reports_btn',
-    helpKey: 'pawmap_rail_help_feed',
-  ),
+  // v602 — « Voir signaux » (le drapeau noir au point rouge) est passé dans
+  // la barre de DROITE, au-dessus du bouton Balade : [kPawFeedSpec].
 ];
+
+/// v602 — Daniel (29/09) : « le drapeau noir de la barre de gauche n'est pas
+/// à droite ». Ce bouton = « Voir signaux » (la liste des signalements
+/// autour de moi, `AlertsScreen`), pas la Balade. Il vit désormais dans la
+/// barre de droite, juste au-dessus du bouton Balade, personnalisable comme
+/// les autres boutons de cette barre. Même icône, même point rouge, même
+/// action, même explication.
+const PawRailSpec kPawFeedSpec = PawRailSpec(
+  id: 'feed',
+  icon: Icons.notifications_active_rounded,
+  svg: kRailSvgFeed,
+  color: Color(0xFF28201B),
+  g1: Color(0xFF5A4E46),
+  g2: Color(0xFF28201B),
+  labelKey: 'pawmap_view_reports_btn',
+  helpKey: 'pawmap_rail_help_feed',
+);
 
 /// v590 — handoff design : palette « bijou » (§3.2) et icône Material
 /// Symbols de chaque bouton du rail. Mêmes actions, mêmes ids.
@@ -231,6 +240,7 @@ const List<PawRailSpec> kPawCapsuleSlotSpecs = <PawRailSpec>[
     labelKey: 'v565_live_friends_fit',
     helpKey: 'pawmap601_everyone_help',
   ),
+  kPawFeedSpec,
   PawRailSpec(
     id: 'balade',
     icon: Icons.directions_walk_rounded,
@@ -275,6 +285,53 @@ List<String> normalizeCapsuleOrder(List<String>? order) {
     if (pawCapsuleSlotOf(id) != null && !out.contains(id)) out.add(id);
   }
   return out;
+}
+
+/// v602 — marqueur enregistré avec la barre de droite quand la personne a
+/// MASQUÉ « Voir signaux » : sans lui, une liste venue du 601 (qui ne
+/// connaissait pas ce bouton) ne se distinguerait pas d'un choix de masquer.
+/// Ignoré par les anciennes apps (id inconnu), accepté par le serveur.
+const String kCapsuleFeedHiddenMarker = 'no_feed';
+
+/// v602 — ce qu'on ENREGISTRE pour la barre de droite : l'ordre choisi, plus
+/// le marqueur si « Voir signaux » a été masqué.
+List<String> capsuleOrderToSave(List<String> order) => <String>[
+      ...order,
+      if (!order.contains('feed')) kCapsuleFeedHiddenMarker,
+    ];
+
+/// v602 — « Voir signaux » quitte la barre de GAUCHE pour la barre de DROITE
+/// (au-dessus de Balade). Migration propre des réglages déjà enregistrés :
+///   · la barre de droite connaît déjà ce bouton (présent, ou masqué par le
+///     marqueur) → on respecte le choix ;
+///   · sinon (jamais réglée, ou réglée au 601) : le bouton arrive à droite,
+///     juste au-dessus de Balade (en fin s'il n'y a pas de Balade) — SAUF si
+///     la personne l'avait masqué à gauche (réglage de gauche enregistré sans
+///     « feed ») : il reste masqué, à droite aussi.
+/// La barre de gauche, elle, n'a plus ce bouton : `normalizeRailOrder` le
+/// retire (aucun bouton fantôme).
+/// Renvoie l'ordre à afficher et s'il faut enregistrer le résultat (pour que
+/// la migration ne se rejoue jamais).
+({List<String> order, bool changed}) migrateCapsuleFeed602({
+  required List<String>? capsule,
+  required List<String>? rail,
+}) {
+  final bool knows = capsule != null &&
+      (capsule.contains('feed') || capsule.contains(kCapsuleFeedHiddenMarker));
+  if (knows) return (order: normalizeCapsuleOrder(capsule), changed: false);
+  final bool hadFeedLeft = rail == null || rail.contains('feed');
+  final base = capsule == null
+      ? kPawCapsuleDefaultOrder.where((id) => id != 'feed').toList()
+      : normalizeCapsuleOrder(capsule);
+  if (!hadFeedLeft) return (order: base, changed: true);
+  final out = List<String>.from(base);
+  final at = out.indexOf('balade');
+  if (at >= 0) {
+    out.insert(at, 'feed');
+  } else {
+    out.add('feed');
+  }
+  return (order: out, changed: true);
 }
 
 /// Explications des boutons du dock et de la capsule (appui long).

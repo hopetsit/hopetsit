@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:hopetsit/services/live_share_starter.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -278,7 +280,15 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
             ));
       };
     }
-    return PawfollowRequestCard(
+    // v602 — c'est moi qui partage ? La carte montre alors mon direct réel.
+    final bool iShare = pawfollowSharerIsMe(
+      requesterRole: message.pawfollowRequesterRole,
+      isMine: message.isFromCurrentUser,
+    );
+    return LiveShareStarter.withMyLiveState((liveNow) => PawfollowRequestCard(
+      iShare: iShare,
+      liveNow: liveNow,
+      onStartLive: () => unawaited(LiveShareStarter.startWithFeedback()),
       messageId: message.id,
       requesterRole: message.pawfollowRequesterRole,
       responderRole: message.pawfollowResponderRole,
@@ -300,7 +310,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
       lastLat: message.pawfollowLastLat,
       lastLng: message.pawfollowLastLng,
       serviceType: message.pawfollowServiceType,
-    );
+    ));
   }
 
   // v566 — réponses Accepter / Refuser en cours (anti double-tap).
@@ -351,14 +361,28 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         action: action,
       );
       if (!mounted) return;
-      CustomSnackbar.showSuccess(
-        title: action == 'accept'
-            ? 'pawfollow_accepted_title'.tr
-            : 'pawfollow_refused_title'.tr,
-        message: action == 'accept'
-            ? 'pawfollow_accepted_msg'.tr
-            : 'pawfollow_refused_msg'.tr,
-      );
+      // v602 — Daniel : « j'accepte le suivi depuis les messages, ma position
+      // précise ne part pas, je dois appuyer sur Direct sur la carte ».
+      // Accepter une demande qui me SUIT = démarrer mon direct, par le même
+      // chemin que le bouton Balade (permission, GPS réel, socket) : le
+      // chat, la PawMap et la Balade lisent la même vérité.
+      final bool iShare = action == 'accept' &&
+          pawfollowSharerIsMe(
+            requesterRole: message.pawfollowRequesterRole,
+            isMine: message.isFromCurrentUser,
+          );
+      if (iShare) {
+        await LiveShareStarter.startWithFeedback();
+      } else {
+        CustomSnackbar.showSuccess(
+          title: action == 'accept'
+              ? 'pawfollow_accepted_title'.tr
+              : 'pawfollow_refused_title'.tr,
+          message: action == 'accept'
+              ? 'pawfollow_accepted_msg'.tr
+              : 'pawfollow_refused_msg'.tr,
+        );
+      }
       // Refresh la conversation pour récupérer le statut mis à jour.
       await chatController.loadChatMessages(
         widget.conversationId,

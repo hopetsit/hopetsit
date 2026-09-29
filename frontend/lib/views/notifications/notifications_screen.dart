@@ -16,7 +16,6 @@ import 'package:hopetsit/repositories/chat_repository.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/models/app_notification_model.dart';
-import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -24,8 +23,6 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/services/deep_link_service.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 // v23.1.319 — Daniel (audit) : routage des notifs paiement/wallet/boutique.
-import 'package:hopetsit/views/wallet/wallet_screen.dart';
-import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/notifications/notification_post_view_screen.dart';
 import 'package:hopetsit/views/notifications/notification_sitter_application_card_view_screen.dart';
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
@@ -35,15 +32,7 @@ import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 // du service" vers l'écran Réservations du prestataire (bouton 🐾).
 // v532 — écrans cibles des types de notification qui n'étaient routés nulle part.
 import 'package:hopetsit/views/pet_owner/booking/owner_bookings_screen.dart';
-import 'package:hopetsit/views/profile/profile_screen.dart';
-import 'package:hopetsit/views/pet_sitter/profile/sitter_profile_screen.dart';
-import 'package:hopetsit/views/pet_walker/profile/walker_profile_screen.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
-import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
-import 'package:hopetsit/views/pet_sitter/booking/sitter_bookings_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
-import 'package:hopetsit/views/pet_walker/booking/walker_bookings_screen.dart';
-import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
@@ -365,8 +354,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     // un `Get.to(() => const XScreen())` qui afficherait un écran d'onglet
     // sans menu (cf. test/no_tab_push_test.dart).
     Future<void> openByRoute() async {
-      final route = DeepLinkService.routeForNotification(type, data);
+      final route =
+          DeepLinkService.routeForNotification(type, data, role: role);
       await DeepLinkService.instance.openRoute(route);
+    }
+
+    // v602 (PAM) — suivi en direct : la demande / l'acceptation / le refus
+    // ouvrent LA conversation de la carte (Accepter / Refuser, « Voir sur la
+    // carte »), la balade ouvre la balade, « toujours actif » les personnes
+    // en direct. Avant : `contains('live_tracking')` → écran Amis, et
+    // `live_tracking_accepted` tombait d'abord dans la branche « réservation
+    // acceptée » du propriétaire (`contains('accepted')`).
+    if (type.startsWith('live_tracking') ||
+        type == 'live_still_active' ||
+        type == 'live_session_ended' ||
+        type == 'walk_started' ||
+        type == 'walk_finished') {
+      await openByRoute();
+      return;
     }
 
     // Session v16.3b - route for BOTH sitter AND walker (both are providers
@@ -378,15 +383,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       // service". La notif 'service_start_due' (C'est l'heure ! 🐾) ouvre
       // DIRECTEMENT l'écran Réservations du prestataire, où se trouve le
       // bouton « 🐾 J'ai récupéré l'animal » qui confirme le début du service.
-      if (type == 'service_start_due') {
-        if (role == 'walker') {
-          openMainTabOr(3, () => const WalkerBookingsScreen());
-        } else {
-          openMainTabOr(3, () => const SitterBookingsScreen());
-        }
-        return;
-      }
-
+      // v602 (ZOE) — « C'est l'heure ! » ouvre LA réservation (fiche avec
+      // « J'ai récupéré l'animal »), plus la liste des réservations.
       final bookingId = _dataString(data, 'bookingId');
 
       if (bookingId != null && bookingId.isNotEmpty) {
@@ -429,10 +427,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             (b) => b.id == bookingId,
           );
           if (booking == null) {
-            CustomSnackbar.showWarning(
-              title: 'common_error'.tr,
-              message: 'notifications_application_not_found'.tr,
+            // v602 — réservation disparue : message clair + la liste.
+            CustomSnackbar.showInfo(
+              title: 'notifications_title'.tr,
+              message: 'notif602_booking_gone'.tr,
             );
+            openMainTabOr(3, () => const OwnerBookingsScreen());
             return;
           }
           if (!context.mounted) return;
@@ -446,7 +446,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           // OwnerBookingDetailScreen because there's nothing to pay.
           final bool isAcceptedNotif =
               type == 'booking_accepted' || type.contains('accepted');
+          // v602 (ZOE) — une réservation annulée / refusée / remboursée n'est
+          // plus à payer : on montre sa fiche (avant : page de paiement).
+          final bool isClosed = const <String>{
+            'cancelled', 'canceled', 'rejected', 'refunded', 'completed', 'expired',
+          }.contains(booking.status.toLowerCase());
           final bool isPayable = isAcceptedNotif &&
+              !isClosed &&
               (booking.paymentStatus ?? '').toLowerCase() != 'paid';
 
           if (isPayable) {
@@ -565,45 +571,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     }
 
+    // v602 (ZOE) — candidature : avant, le tap du propriétaire ACCEPTAIT la
+    // candidature sans confirmation (et refusait les autres candidats). Le
+    // routeur ouvre désormais LA candidature (candidats de la demande, choix
+    // confirmé, puis paiement) ; côté prestataire, la demande concernée.
     if (type == 'application_new' ||
         (type.contains('application') && !type.contains('post'))) {
-      // Session v17.4 — one-tap accept flow for owners. The owner no longer
-      // lands on the "Demande du sitter" full screen (which got stuck on
-      // "Acceptée" after re-opening). Instead we show a compact dialog
-      // with Accept / Refuse and navigate straight to AirwallexPaymentScreen
-      // on accept. Same path whether it's a sitter or walker application;
-      // provider role drives dialog colours (green walker / blue sitter)
-      // and is forwarded to AirwallexPaymentScreen.providerType.
-      final applicationId = _dataString(data, 'applicationId');
-      final providerRoleFromData = _dataString(data, 'providerRole');
-      final sitterId = _dataString(data, 'sitterId');
-      // v575 — audit P1-4 : côté prestataire, `application_rejected` et
-      // `application_rejected_other_accepted` sortaient ICI sans rien ouvrir.
-      if (role != 'owner') {
-        await openByRoute();
-        return;
-      }
-      if (applicationId != null && applicationId.isNotEmpty) {
-        await _showOwnerApplicationDialog(
-          context: context,
-          applicationId: applicationId,
-          providerRoleHint: providerRoleFromData,
-        );
-        return;
-      }
-      // Fallback: no applicationId → keep legacy behaviour (sitter profile).
-      if (sitterId != null) {
-        Get.to(
-          () => ServiceProviderDetailScreen(
-            sitterId: sitterId,
-            status: 'pending',
-          ),
-        );
-      } else {
-        // v575 — audit P1-4 : ni applicationId ni sitterId → au moins la
-        // destination générique du type, plutôt que rien.
-        await openByRoute();
-      }
+      await openByRoute();
       return;
     }
 
@@ -627,93 +601,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return;
     }
 
-    // v23.1.319 — Daniel (audit) : ~30 types de notifs n'avaient AUCUNE
-    // destination au tap (cul-de-sac silencieux). On route les grandes
-    // catégories restantes vers l'écran pertinent.
-    // Paiement / wallet / retrait / payout → écran Wallet.
-    if (type.contains('wallet') ||
-        type.contains('payout') ||
-        type.contains('withdrawal') ||
-        type.contains('payment')) {
-      Get.to(() => const WalletScreen());
-      return;
-    }
-    // Boutique : boost profil/map, abonnement PawFollow, add-on chat → boutique.
-    if (type.contains('boost') ||
-        type.contains('subscription') ||
-        type.contains('addon') ||
-        type == 'premium_achieved') {
-      Get.to(() => const CoinShopScreen());
-      return;
-    }
-
-    // v23.1.254 — Daniel : "verifie tt les bouton quon recois sur mail
-    // messag etc qui soit connecter". Les notifs amis / famille / suivi en
-    // direct étaient un no-op au tap (la bande notif s'ouvrait mais rien ne
-    // se passait). Or `friend_request_received` / `family_invitation_received`
-    // / `live_tracking_request_received` sont ACTIONNABLES (accepter/refuser).
-    // On ouvre FriendsScreen (onglet "Mes amis", index 0) où l'user gère
-    // demandes, famille et suivi live. Couvre aussi les variantes _accepted.
-    if (type.contains('friend_request') ||
-        type.contains('family') ||
-        type.contains('live_tracking')) {
+    // v602 (ZOE) — Daniel : « chaque notification renvoie à la tâche
+    // précise ». Les anciennes branches génériques (portefeuille pour tout ce
+    // qui contenait « payment » — y compris l'identité —, boutique sur le
+    // 1er onglet, écran Amis, LISTE des réservations, carte non centrée…)
+    // passent par le routeur commun, qui ouvre la cible exacte.
+    // Suivi en direct (live_tracking_*) : comportement inchangé (PAM).
+    if (type.contains('live_tracking')) {
       Get.to(() => const FriendsScreen());
-      return;
-    }
-
-    // v532 — 18 types de notification n'étaient routés NULLE PART : taper
-    // dessus ne faisait rien du tout (l'utilisateur croyait l'app figée).
-    // On les rattache aux écrans correspondants. Regroupés par destination,
-    // du plus spécifique au plus général.
-    //
-    // 1) Tout ce qui concerne le déroulé d'une garde → écran Réservations du
-    //    rôle concerné (c'est là que se trouvent les boutons d'action).
-    if (type == 'service_started' ||
-        type == 'service_confirmed' ||
-        type == 'service_disputed' ||
-        type == 'service_end_soon' ||
-        type == 'service_start_t72h' ||
-        type == 'service_completion_request' ||
-        type == 'booking_completed' ||
-        type == 'booking_cancelled_by_owner' ||
-        type == 'booking_cancelled_by_provider' ||
-        type == 'booking_refunded' ||
-        type == 'visit_report') {
-      if (role == 'walker') {
-        openMainTabOr(3, () => const WalkerBookingsScreen());
-      } else if (role == 'sitter') {
-        openMainTabOr(3, () => const SitterBookingsScreen());
-      } else {
-        openMainTabOr(3, () => const OwnerBookingsScreen());
-      }
-      return;
-    }
-
-    // 2) Avis reçu, badge Top obtenu, vérification d'identité validée → mon
-    //    profil : c'est là que s'affichent la note, le badge Top et le ✓.
-    if (type == 'new_review' ||
-        type == 'top_sitter_achieved' ||
-        type == 'kyc_verified') {
-      if (role == 'walker') {
-        openMainTabOr(4, () => const WalkerProfileScreen());
-      } else if (role == 'sitter') {
-        openMainTabOr(4, () => const SitterProfileScreen());
-      } else {
-        openMainTabOr(4, () => const ProfileScreen());
-      }
-      return;
-    }
-
-    // 3) Crédit de parrainage → le classement/récompenses PawPoints.
-    if (type == 'referral_credited') {
-      Get.to(() => const PawspotLeaderboardScreen());
-      return;
-    }
-
-    // 5) Animal perdu signalé à proximité + nouvelle demande près de chez moi
-    //    → la carte, où le signalement est affiché.
-    if (type == 'lost_pet_sighting' || type == 'new_request_nearby') {
-      openMainTabOr(2, () => const PawMapScreen());
       return;
     }
 
@@ -721,7 +616,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         type == 'chat_auto_welcome' ||
         type.contains('message')) {
       final conversationId = _dataString(data, 'conversationId');
-      if (conversationId == null) return;
+      if (conversationId == null) {
+        await openByRoute();
+        return;
+      }
       // v23.1.286 — walker partage l'écran chat des prestataires (comme sitter).
       // Avant, walker tombait dans la branche owner → mauvais écran de conv.
       final isSitter = role == 'sitter' || role == 'walker';
@@ -1079,245 +977,5 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }),
         ),
     );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // Session v17.4 — Owner application acceptance dialog
-  //
-  // Replaces the full-screen NotificationApplicationViewScreen detour.
-  // Owner taps the application_new notif → we fetch the application and:
-  //   • status = pending   → show a compact Accept / Refuse dialog
-  //                          coloured by provider role. On Accept we call
-  //                          OwnerRepository.respondToApplication and
-  //                          Get.to() AirwallexPaymentScreen. On Refuse we
-  //                          just call respondToApplication(reject).
-  //   • status = accepted  → resolve the Booking from bookingsController
-  //                          and push AirwallexPaymentScreen directly.
-  //                          NO dead-end "Acceptée" card.
-  //   • status = rejected  → snackbar "already rejected" and close.
-  // ═══════════════════════════════════════════════════════════════════
-  Future<void> _showOwnerApplicationDialog({
-    required BuildContext context,
-    required String applicationId,
-    String? providerRoleHint,
-  }) async {
-    final ownerRepo = Get.find<OwnerRepository>();
-
-    // 1) Fetch the application from the owner's pending list.
-    Map<String, dynamic>? appJson;
-    try {
-      final apps = await ownerRepo.getMyApplications();
-      final match = apps.firstWhereOrNull((a) => a.id == applicationId);
-      if (match != null) {
-        appJson = {
-          'id': match.id,
-          'status': match.status,
-          'bookingId': null, // populated below if we fetch raw
-          'sitter': {
-            'id': match.sitter.id,
-            'name': match.sitter.name,
-            'service': match.sitter.service,
-            'currency': match.sitter.currency,
-            'hourlyRate': match.sitter.hourlyRate,
-          },
-          'pricing': match.pricing == null
-              ? null
-              : {
-                  'totalPrice': match.pricing?.totalPrice,
-                  'currency': match.pricing?.currency,
-                },
-          'pet': {'name': match.petName},
-          'serviceDate': match.serviceDate,
-          'timeSlot': match.timeSlot,
-          'description': match.description,
-          'bookingIdRaw': match.bookingId,
-        };
-      }
-    } catch (e) {
-      AppLogger.logError('dialog: fetch application failed', error: e);
-    }
-
-    if (appJson == null) {
-      CustomSnackbar.showWarning(
-        title: 'common_error'.tr,
-        message: 'notifications_application_not_found'.tr,
-      );
-      return;
-    }
-
-    // 2) Resolve provider type for colour + AirwallexPaymentScreen param.
-    String resolvedProviderType = (providerRoleHint ?? '').toLowerCase();
-    if (resolvedProviderType != 'walker' && resolvedProviderType != 'sitter') {
-      final services = ((appJson['sitter']?['service'] as List?) ?? const [])
-          .map((s) => s.toString().toLowerCase())
-          .toList();
-      resolvedProviderType = services
-              .any((s) => s.contains('dog_walking') || s.contains('walking'))
-          ? 'walker'
-          : 'sitter';
-    }
-    final String status = (appJson['status'] as String? ?? '').toLowerCase();
-
-    // 3) Already-accepted path → jump straight to AirwallexPaymentScreen.
-    if (status == 'accepted') {
-      await _openPaymentForAcceptedApplication(
-        ownerRepo: ownerRepo,
-        bookingIdHint: appJson['bookingIdRaw']?.toString(),
-        providerType: resolvedProviderType,
-      );
-      return;
-    }
-
-    // 4) Rejected path — nothing to do.
-    if (status == 'rejected') {
-      CustomSnackbar.showWarning(
-        title: 'common_error'.tr,
-        message: 'application_reject_success'.tr,
-      );
-      return;
-    }
-
-    // 5) Pending → v18.6 : on saute le dialog "Accepter et payer" et on
-    // envoie direct sur la page paiement. La nouvelle AirwallexPaymentScreen
-    // (v18.5) affiche déjà provider + service + date + montant dans le
-    // summary card, donc le dialog faisait doublon. Pour rejeter une
-    // candidature, l'owner passe par l'onglet "Réservations" qui a déjà
-    // un bouton reject. Tap sur la notif = consentement à accepter et
-    // payer. Le bouton "Annuler" de la AirwallexPaymentScreen laisse quand
-    // même un retour arrière sans charge (PaymentIntent pas confirmé).
-    if (!context.mounted) return;
-
-    Map<String, dynamic>? response;
-    try {
-      response = await ownerRepo.respondToApplication(
-        applicationId: applicationId,
-        action: 'accept',
-      );
-    } catch (e) {
-      AppLogger.logError('notif accept failed', error: e);
-      // v22.2 — Bug 16d : afficher le VRAI message backend (ApiException
-      // contient le payload error) plutot que le generique. Permet de voir
-      // si c'est "missing pricing", "invalid action", "permission" etc.
-      final raw = e.toString();
-      final apiMatch = RegExp(r'\{.*"error"\s*:\s*"([^"]+)".*\}').firstMatch(raw);
-      final detailedMsg = apiMatch?.group(1) ??
-          (raw.contains('Exception:') ? raw.split('Exception:').last.trim() : null);
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: detailedMsg != null && detailedMsg.isNotEmpty
-            ? detailedMsg
-            : 'application_action_failed'.tr,
-      );
-      return;
-    }
-
-    // Re-use BookingModel parser so AirwallexPaymentScreen gets a real object.
-    final bookingMap = response['booking'];
-    if (bookingMap is Map) {
-      try {
-        final booking = BookingModel.fromJson(
-          Map<String, dynamic>.from(bookingMap),
-        );
-        final pricing = booking.pricing;
-        final base = (pricing?.totalPrice
-                ?? pricing?.resolvedBaseAmount
-                ?? booking.totalAmount
-                ?? booking.basePrice) ??
-            0.0;
-        if (!context.mounted) return;
-        Get.to(
-          () => AirwallexPaymentScreen(
-            booking: booking,
-            totalAmount: base,
-            currency: pricing?.currency ?? booking.sitter.currency,
-            providerType: resolvedProviderType,
-          ),
-        );
-        if (Get.isRegistered<BookingsController>()) {
-          unawaited(Get.find<BookingsController>().loadBookings());
-        }
-      } catch (e) {
-        // v18.8 — si le parser BookingModel explose sur la réponse de
-        // /applications/:id/respond, on ne montre PLUS un popup rouge
-        // "Paiement indisponible". On tente un fallback transparent :
-        // on recharge les bookings via GET /bookings/:id et on ouvre la
-        // page paiement. Le popup d'erreur ne doit s'afficher que si
-        // même ce fallback échoue.
-        AppLogger.logError('notif accept: parse booking failed', error: e);
-        final bookingIdHint = (bookingMap['id'] ??
-                bookingMap['_id'] ??
-                appJson['bookingIdRaw'])
-            ?.toString();
-        await _openPaymentForAcceptedApplication(
-          ownerRepo: ownerRepo,
-          bookingIdHint: bookingIdHint,
-          providerType: resolvedProviderType,
-        );
-      }
-    } else {
-      // Pas de booking dans la réponse → fallback GET /bookings/:id avant
-      // tout popup d'erreur. Avant v18.8, on balançait directement
-      // "Paiement momentanément indisponible" sur chaque candidature,
-      // même si l'acceptation avait réussi côté backend.
-      await _openPaymentForAcceptedApplication(
-        ownerRepo: ownerRepo,
-        bookingIdHint: appJson['bookingIdRaw']?.toString(),
-        providerType: resolvedProviderType,
-      );
-    }
-  }
-
-  /// v17.4 — shared helper: resolve a Booking by id and open PaymentPage.
-  Future<void> _openPaymentForAcceptedApplication({
-    required OwnerRepository ownerRepo,
-    required String? bookingIdHint,
-    required String providerType,
-  }) async {
-    try {
-      final bookings = await ownerRepo.getMyBookings();
-      final booking = bookings.firstWhereOrNull(
-            (b) => b.id == bookingIdHint,
-          ) ??
-          bookings.firstWhereOrNull((b) =>
-              (b.status.toLowerCase() == 'agreed' ||
-                  b.status.toLowerCase() == 'accepted') &&
-              (b.paymentStatus?.toLowerCase() ?? '') != 'paid');
-      if (booking == null) {
-        CustomSnackbar.showWarning(
-          title: 'common_error'.tr,
-          message: 'notifications_application_not_found'.tr,
-        );
-        return;
-      }
-      if ((booking.paymentStatus ?? '').toLowerCase() == 'paid') {
-        CustomSnackbar.showSuccess(
-          title: 'common_success'.tr,
-          message: 'application_accept_success'.tr,
-        );
-        return;
-      }
-      final pricing = booking.pricing;
-      final base = (pricing?.totalPrice
-              ?? pricing?.resolvedBaseAmount
-              ?? booking.totalAmount
-              ?? booking.basePrice) ??
-          0.0;
-      Get.to(
-        () => AirwallexPaymentScreen(
-          booking: booking,
-          totalAmount: base,
-          currency: pricing?.currency ?? booking.sitter.currency,
-          providerType: providerType,
-        ),
-      );
-    } catch (e) {
-      // v18.8 — plus de e.toString() en dur (fuite de stack en anglais
-      // dans le snackbar). Message générique traduit.
-      AppLogger.logError('open-payment-for-accepted failed', error: e);
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: 'common_error_message'.tr,
-      );
-    }
   }
 }

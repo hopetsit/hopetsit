@@ -132,7 +132,8 @@ void main() {
       )));
       await tester.pump(const Duration(milliseconds: 60));
       expect(kPawRailDefaultOrder,
-          ['around', 'directions', 'live_friends', 'chat', 'photo', 'spots', 'tag', 'report', 'feed']);
+          // v602 — « Voir signaux » (feed) est passé dans la barre de droite.
+          ['around', 'directions', 'live_friends', 'chat', 'photo', 'spots', 'tag', 'report']);
       for (final id in kPawRailDefaultOrder) {
         await tester.tap(find.byKey(ValueKey<String>('rail_$id')));
         await tester.pump(const Duration(milliseconds: 400));

@@ -1,8 +1,8 @@
+import 'package:hopetsit/widgets/paw_count_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
-import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
 
 /// v441 — cloche de notifications affichée dans l'en-tête (hero) des 3 écrans
@@ -41,7 +41,17 @@ class ProfileNotificationBell extends StatelessWidget {
       // v569 — DESIGN UNIQUEMENT : même destination, même compteur. Pastille
       // détachée du bord (liseré blanc 1,5 lisible sur l'en-tête coloré) et
       // bouton en carré arrondi 14 façon iOS.
-      child: Container(
+      // v602 — pastille commune posée sur le coin haut-droit du bouton,
+      // ancrée par la gauche (« 99+ » s'allonge vers l'extérieur).
+      child: PawBadgeAnchor(
+        iconWidth: 42.w,
+        bite: 13,
+        lift: 6,
+        badge: Obx(() {
+          final int count = ctrl.unreadCount.value;
+          return PawCountBadge(count: count);
+        }),
+        child: Container(
         width: 42.w,
         height: 42.w,
         decoration: BoxDecoration(
@@ -52,43 +62,11 @@ class ProfileNotificationBell extends StatelessWidget {
             width: 1,
           ),
         ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: [
-            // v480 — maquette « Header v2 » : cloche en JAUNE doré (#FFCB2E)
-            // sur les 3 rôles (ne plus hériter du blanc du texte).
-            Icon(Icons.notifications_rounded,
-                color: const Color(0xFFFFCB2E), size: 22.sp),
-            Positioned(
-              top: 4.h,
-              right: 4.w,
-              child: Obx(() {
-                final count = ctrl.unreadCount.value;
-                if (count <= 0) return const SizedBox.shrink();
-                return Container(
-                  padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
-                  constraints: BoxConstraints(minWidth: 16.w),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.errorColor,
-                    borderRadius: BorderRadius.circular(999.r),
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                  child: Text(
-                    count > 99 ? '99+' : '$count',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 9.sp,
-                      fontWeight: FontWeight.w800,
-                      height: 1.15,
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ],
+        alignment: Alignment.center,
+        // v480 — maquette « Header v2 » : cloche en JAUNE doré (#FFCB2E)
+        // sur les 3 rôles (ne plus hériter du blanc du texte).
+        child: Icon(Icons.notifications_rounded,
+            color: const Color(0xFFFFCB2E), size: 22.sp),
         ),
       ),
     );

@@ -21,6 +21,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/widgets/paw_button_kit.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/chat_shared/pawfollow_widgets.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -61,9 +62,18 @@ class PawfollowRequestCard extends StatelessWidget {
     // deux qu'ils étaient l'expéditeur : « Demande envoyée · En attente »
     // des deux côtés, aucun bouton. Null = ancien calcul par rôle (tests).
     this.isMine,
+    // v602 — MON direct, vu depuis la carte du chat : si c'est moi qui
+    // partage (demande acceptée), l'état réel du partage (le même que le
+    // bouton Balade de la PawMap) et de quoi le relancer d'un appui.
+    this.iShare = false,
+    this.liveNow = false,
+    this.onStartLive,
   });
 
   final bool? isMine;
+  final bool iShare;
+  final bool liveNow;
+  final VoidCallback? onStartLive;
 
   final String messageId;
   final String requesterRole; // 'owner' | 'sitter' | 'walker'
@@ -534,6 +544,61 @@ class PawfollowRequestCard extends StatelessWidget {
                   live: trackingActive,
                   onTap: onOpenMap,
                 ),
+              ),
+            ],
+
+            // v602 — c'est MA position qui est suivie : l'état réel de mon
+            // direct (même vérité que la PawMap et la Balade).
+            if (trackingActive && iShare) ...[
+              Padding(
+                padding: EdgeInsets.fromLTRB(14.w, 6.h, 14.w, 2.h),
+                child: liveNow
+                    ? Container(
+                        key: const ValueKey<String>('pawfollow_my_live_on'),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 12.w, vertical: 10.h),
+                        decoration: BoxDecoration(
+                          color: _green.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14.r),
+                          border: Border.all(
+                              color: _green.withValues(alpha: 0.55),
+                              width: 1.2),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: _green,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Colors.white, width: 1.5),
+                              ),
+                            ),
+                            SizedBox(width: 8.w),
+                            Expanded(
+                              child: InterText(
+                                text: 'pawmap602_card_live'.tr,
+                                fontSize: 12.5.sp,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF15803D),
+                                maxLines: 2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    // Bouton du kit (norme boutons), vert du direct.
+                    : KeyedSubtree(
+                        key: const ValueKey<String>('pawfollow_my_live_start'),
+                        child: PawButton(
+                          label: 'pawmap602_card_start'.tr,
+                          icon: Icons.my_location_rounded,
+                          color: _green,
+                          onTap: onStartLive,
+                        ),
+                      ),
               ),
             ],
 

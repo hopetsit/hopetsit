@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:hopetsit/services/live_share_starter.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -147,14 +149,28 @@ class _SitterIndividualChatScreenState
         action: action,
       );
       if (!mounted) return;
-      CustomSnackbar.showSuccess(
-        title: action == 'accept'
-            ? 'pawfollow_accepted_title'.tr
-            : 'pawfollow_refused_title'.tr,
-        message: action == 'accept'
-            ? 'pawfollow_accepted_msg'.tr
-            : 'pawfollow_refused_msg'.tr,
-      );
+      // v602 — Daniel : « j'accepte le suivi depuis les messages, ma position
+      // précise ne part pas, je dois appuyer sur Direct sur la carte ».
+      // Accepter une demande qui me SUIT = démarrer mon direct, par le même
+      // chemin que le bouton Balade (permission, GPS réel, socket) : le
+      // chat, la PawMap et la Balade lisent la même vérité.
+      final bool iShare = action == 'accept' &&
+          pawfollowSharerIsMe(
+            requesterRole: message.pawfollowRequesterRole,
+            isMine: message.isFromCurrentUser,
+          );
+      if (iShare) {
+        await LiveShareStarter.startWithFeedback();
+      } else {
+        CustomSnackbar.showSuccess(
+          title: action == 'accept'
+              ? 'pawfollow_accepted_title'.tr
+              : 'pawfollow_refused_title'.tr,
+          message: action == 'accept'
+              ? 'pawfollow_accepted_msg'.tr
+              : 'pawfollow_refused_msg'.tr,
+        );
+      }
       await chatController.loadChatMessages(
         widget.conversationId,
         contactName: widget.contactName,
@@ -405,7 +421,15 @@ class _SitterIndividualChatScreenState
       final myRole = (Get.find<GetStorage>().read<String>(StorageKeys.userRole) ??
               'sitter')
           .toLowerCase();
-      return PawfollowRequestCard(
+      // v602 — c'est moi qui partage ? La carte montre alors mon direct réel.
+      final bool iShare = pawfollowSharerIsMe(
+        requesterRole: m.pawfollowRequesterRole,
+        isMine: m.isFromCurrentUser,
+      );
+      return LiveShareStarter.withMyLiveState((liveNow) => PawfollowRequestCard(
+        iShare: iShare,
+        liveNow: liveNow,
+        onStartLive: () => unawaited(LiveShareStarter.startWithFeedback()),
         messageId: m.id,
         requesterRole: m.pawfollowRequesterRole,
         responderRole: m.pawfollowResponderRole,
@@ -433,7 +457,7 @@ class _SitterIndividualChatScreenState
         lastLat: m.pawfollowLastLat,
         lastLng: m.pawfollowLastLng,
         serviceType: m.pawfollowServiceType,
-      );
+      ));
     }
     return null;
   }
