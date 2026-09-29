@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:hopetsit/controllers/auth_controller.dart';
@@ -16,6 +17,7 @@ import 'package:hopetsit/views/auth/signup_wizard_screen.dart';
 import 'package:hopetsit/views/guest/guest_discovery_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/micro_anims.dart';
+import 'package:hopetsit/widgets/paw_button_kit.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 
@@ -141,9 +143,12 @@ class GuestLandingScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // v600 — `PoppinsText` applique déjà `.sp` :
+                              // `24.sp` ici faisait une DOUBLE mise à l'échelle
+                              // (30 px sur un 17 Pro Max) → « compagn… » coupé.
                               PoppinsText(
                                 text: 'guest_hero_title_1'.tr,
-                                fontSize: 24.sp,
+                                fontSize: 24,
                                 fontWeight: FontWeight.w800,
                                 color: ink,
                                 height: 1.18,
@@ -151,15 +156,19 @@ class GuestLandingScreen extends StatelessWidget {
                               ),
                               Row(
                                 children: [
+                                  // v600 — jamais coupé (NORME_DESIGN) : une
+                                  // ligne, sinon réduction douce. Jamais « … ».
                                   Flexible(
-                                    child: PoppinsText(
+                                    child: PawButtonLabel(
                                       text: 'guest_hero_title_2'.tr,
-                                      fontSize: 24.sp,
-                                      fontWeight: FontWeight.w800,
-                                      color: brand,
-                                      height: 1.18,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.start,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 24.sp,
+                                        fontWeight: FontWeight.w800,
+                                        color: brand,
+                                        height: 1.18,
+                                      ).copyWith(
+                                          fontFamilyFallback: cjkFontFallback),
                                     ),
                                   ),
                                   SizedBox(width: 4.w),
@@ -589,14 +598,21 @@ class GuestRoleTile extends StatelessWidget {
                     padding: EdgeInsets.symmetric(horizontal: 4.w),
                     child: Row(
                       children: [
+                        // v600 — titre JAMAIS coupé (NORME_DESIGN, capture
+                        // de Daniel « Garde d'anima… » sur iPhone) : une
+                        // ligne, sinon 2 lignes coupées à un espace, sinon
+                        // réduction douce. Un seul `.sp` (le double `.sp`
+                        // d'avant grossissait le titre sur les grands iPhone).
                         Expanded(
-                          child: PoppinsText(
+                          child: PawButtonLabel(
                             text: title,
-                            fontSize: 13.5.sp,
-                            fontWeight: FontWeight.w800,
-                            color: titleColor,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.start,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13.5.sp,
+                              fontWeight: FontWeight.w800,
+                              color: titleColor,
+                              height: 1.2,
+                            ).copyWith(fontFamilyFallback: cjkFontFallback),
                           ),
                         ),
                         SizedBox(width: 4.w),

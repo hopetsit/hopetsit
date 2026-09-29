@@ -221,8 +221,16 @@ class PostRepository {
     // v587 — budget : 0 = effacé, null = inchangé.
     double? budget,
     String? budgetCurrency,
+    // v600 NEO — espèce(s) + nombre d'une demande sans fiche animal
+    // (envoyés tels quels ; le serveur ne les relit pas encore en édition).
+    List<String> animalTypes = const <String>[],
+    int? animalCount,
   }) async {
     final payload = <String, dynamic>{};
+    if (animalTypes.isNotEmpty) payload['animalTypes'] = animalTypes;
+    if (animalCount != null && animalCount > 0) {
+      payload['animalCount'] = animalCount;
+    }
     if (budget != null) {
       payload['budget'] = budget > 0 ? budget : '';
       if (budget > 0 && (budgetCurrency ?? '').isNotEmpty) {

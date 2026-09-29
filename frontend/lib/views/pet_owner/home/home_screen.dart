@@ -29,6 +29,7 @@ import 'package:hopetsit/views/pet_owner/home/widgets/walker_card.dart';
 import 'package:hopetsit/views/pet_owner/posts/edit_post_screen.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/views/friends/tabs/friends_ui.dart' as friends_invite;
+import 'package:hopetsit/controllers/publish_reservation_request_controller.dart';
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
@@ -207,8 +208,15 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openPublishRequest({String? serviceType}) {
     Get.to(
       () => PublishReservationRequestScreen(initialServiceType: serviceType),
-    )?.then((_) {
-      if (mounted) _postsController.refreshPosts();
+    )?.then((r) {
+      if (!mounted) return;
+      // v600 NEO — après « Publier », on reste sur « Mes demandes » (la
+      // demande fraîche est la première chose à voir).
+      if (r == PublishReservationRequestController.kPublishedResult600 &&
+          _selectedTabIndex != 0) {
+        setState(() => _selectedTabIndex = 0);
+      }
+      _postsController.refreshPosts();
     });
   }
 
@@ -1763,13 +1771,7 @@ class _HomeScreenState extends State<HomeScreen> {
               shape: const CircleBorder(),
               child: InkWell(
                 customBorder: const CircleBorder(),
-                onTap: () {
-                  Get.to(() => const PublishReservationRequestScreen())?.then((
-                    _,
-                  ) {
-                    _postsController.refreshPosts();
-                  });
-                },
+                onTap: () => _openPublishRequest(),
                 child: Center(
                   child: Icon(
                     Icons.add_rounded,

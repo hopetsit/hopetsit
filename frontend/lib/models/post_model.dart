@@ -28,6 +28,11 @@ class PostModel {
   /// v441 — ids des animaux sélectionnés pour l'annonce (multi-animaux). Sert
   /// au pré-remplissage du formulaire « Modifier » côté owner.
   final List<String> petIds;
+  /// v600 NEO — demande publiée SANS fiche animal : nombre + espèces
+  /// (clés du site : dog / cat / nac / bird / reptile / other). 0 / vide sur
+  /// les annonces qui passent par petIds.
+  final int animalCount;
+  final List<String> animalTypes;
   final PostLocation? location;
   final String notes;
   /// v441 — toggle « Afficher le caractère des animaux » de l'annonce.
@@ -87,6 +92,8 @@ class PostModel {
     this.budgetCurrency = '',
     this.petId,
     this.petIds = const <String>[],
+    this.animalCount = 0,
+    this.animalTypes = const <String>[],
     this.location,
     required this.notes,
     this.showAnimalCharacter = true,
@@ -183,6 +190,12 @@ class PostModel {
               .where((s) => s.isNotEmpty)
               .toList() ??
           const <String>[],
+      animalCount: (json['animalCount'] as num?)?.toInt() ?? 0,
+      animalTypes: (json['animalTypes'] as List<dynamic>?)
+              ?.map((e) => e.toString().trim())
+              .where((s) => s.isNotEmpty)
+              .toList() ??
+          const <String>[],
       location: parseLocation(json['location']),
       notes: json['notes'] as String? ?? '',
       // Défaut true : une annonce sans le champ (ancienne) affiche le caractère.
@@ -271,6 +284,8 @@ class PostModel {
       budgetCurrency: budgetCurrency,
       petId: petId,
       petIds: petIds,
+      animalCount: animalCount,
+      animalTypes: animalTypes,
       location: location,
       notes: notes,
       showAnimalCharacter: showAnimalCharacter,

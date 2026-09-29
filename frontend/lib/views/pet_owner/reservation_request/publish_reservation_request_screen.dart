@@ -20,7 +20,10 @@ import 'package:hopetsit/views/profile/my_pets_screen.dart';
 import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/utils/publish_draft600.dart';
 import 'package:hopetsit/utils/service_location587.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
+import 'package:hopetsit/widgets/paw_button_kit.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
 class PublishReservationRequestScreen extends StatefulWidget {
@@ -58,6 +61,31 @@ class _PublishReservationRequestScreenState
     final preset = widget.initialServiceType;
     if (preset != null && widget.editPost == null) {
       controller.selectServiceType(preset);
+    }
+    // v600 NEO — une demande interrompue (retour arrière, app fermée) est
+    // proposée : « Reprendre ma demande ? ». Avant, tout était perdu.
+    if (controller.pendingDraft != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _offerDraft());
+    }
+  }
+
+  Future<void> _offerDraft() async {
+    if (!mounted || controller.pendingDraft == null) return;
+    final bool? resume = await showAppConfirmDialog(
+      context,
+      title: 'neo600_draft_title'.tr,
+      message: 'neo600_draft_message'.tr,
+      confirmLabel: 'neo600_draft_resume'.tr,
+      cancelLabel: 'neo600_draft_restart'.tr,
+      icon: Icons.history_rounded,
+      accent: AppColors.primaryColor,
+      barrierDismissible: false,
+    );
+    if (!mounted) return;
+    if (resume == true) {
+      controller.restoreDraft();
+    } else {
+      controller.discardDraft();
     }
   }
 
@@ -118,8 +146,12 @@ class _PublishReservationRequestScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildPetsSection(),
-                          SizedBox(height: 14.h),
-                          _buildCharacterBlock(),
+                          // v600 NEO — le caractère vient des fiches animal :
+                          // sans fiche, ce bloc n'a rien à montrer.
+                          if (controller.myPets.isNotEmpty) ...[
+                            SizedBox(height: 14.h),
+                            _buildCharacterBlock(),
+                          ],
                         ],
                       ),
                     )),
@@ -371,7 +403,8 @@ class _PublishReservationRequestScreenState
   /// Résumé avant publication : ce que verront les prestataires.
   Widget _buildSummaryCard() {
     return Obx(() {
-      final pets = controller.selectedPetNames;
+      // v600 NEO — noms des fiches cochées, sinon « 2 · Chien, Chat ».
+      final pets = controller.animalSummary;
       final service = controller.selectedServiceLabel;
       final dates = controller.stepDatesDone
           ? '${controller.formattedStartDate} ${controller.formattedStartTime}'
@@ -739,54 +772,12 @@ class _PublishReservationRequestScreenState
         );
       }
 
-      // If owner has no pets, behave like Send Request: show link to MyPetsScreen
+      // v600 NEO — sans fiche animal : ESPÈCE (puces, mêmes clés que le site)
+      // + NOMBRE. Avant, ce bloc renvoyait vers « Mes animaux » et 17
+      // propriétaires sur 20 s'arrêtaient là. Créer la fiche reste possible,
+      // en option, sous les puces.
       if (controller.myPets.isEmpty) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InterText(
-              text: 'label_pets'.tr,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary(context),
-            ),
-            SizedBox(height: 8.h),
-            GestureDetector(
-              onTap: () => Get.to(() => const MyPetsScreen()),
-              child: Container(
-                height: 50.h,
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                decoration: BoxDecoration(
-                  color: AppColors.inputFill(context),
-                  borderRadius: BorderRadius.circular(30.r),
-                  border: Border.all(color: AppColors.divider(context), width: 1),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: InterText(
-                        text: 'send_request_no_pets_message'.tr,
-                        fontSize: 14.sp,
-                        color: AppColors.greyColor,
-                      ),
-                    ),
-                    Icon(
-                      Icons.keyboard_arrow_down,
-                      size: 20.sp,
-                      color: AppColors.greyColor,
-                    ),
-                    SizedBox(width: 8.w),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14.sp,
-                      color: AppColors.greyColor,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
+        return _buildSpeciesSection();
       }
 
       // v425 — maquette 222 : cartes premium (photo ronde + nom + race +
@@ -824,6 +815,105 @@ class _PublishReservationRequestScreenState
         ],
       );
     });
+  }
+
+  /// v600 NEO — espèce(s) + nombre quand aucune fiche animal n'existe.
+  Widget _buildSpeciesSection() {
+    final accent = AppColors.primaryColor;
+    final selected = controller.animalTypes;
+    final count = controller.animalCount.value;
+    final error = controller.petSelectionError.value && selected.isEmpty;
+    return Column(
+      key: const Key('neo600_species_section'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InterText(
+          text: 'neo600_species_title'.tr,
+          fontSize: 13.sp,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
+        ),
+        SizedBox(height: 4.h),
+        InterText(
+          text: 'neo600_species_hint'.tr,
+          fontSize: 11.5.sp,
+          color: AppColors.textSecondary(context),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        if (error) ...[
+          SizedBox(height: 4.h),
+          InterText(
+            key: const Key('neo600_species_error'),
+            text: 'neo600_species_required'.tr,
+            fontSize: 11.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.errorColor,
+          ),
+        ],
+        SizedBox(height: 10.h),
+        Wrap(
+          spacing: 8.w,
+          runSpacing: 8.h,
+          children: [
+            for (final s in kAnimalSpecies600)
+              PawChoicePill(
+                key: Key('neo600_species_$s'),
+                label: animalSpeciesI18nKey600(s).tr,
+                selected: selected.contains(s),
+                color: accent,
+                icon: petSpeciesPawIcon(s),
+                onTap: () => controller.toggleSpecies(s),
+              ),
+          ],
+        ),
+        SizedBox(height: 14.h),
+        Row(
+          children: [
+            Expanded(
+              child: InterText(
+                text: 'neo600_count_label'.tr,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondaryStrong(context),
+              ),
+            ),
+            PawRoundButton(
+              key: const Key('neo600_count_minus'),
+              icon: Icons.remove_rounded,
+              tooltip: '-',
+              color: accent,
+              size: 36,
+              onTap: count > 1 ? () => controller.setAnimalCount(count - 1) : null,
+            ),
+            SizedBox(
+              width: 44.w,
+              child: Center(
+                child: PoppinsText(
+                  key: const Key('neo600_count_value'),
+                  text: '$count',
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary(context),
+                ),
+              ),
+            ),
+            PawRoundButton(
+              key: const Key('neo600_count_plus'),
+              icon: Icons.add_rounded,
+              tooltip: '+',
+              color: accent,
+              size: 36,
+              onTap: count < PublishReservationRequestController.maxAnimalCount
+                  ? () => controller.setAnimalCount(count + 1)
+                  : null,
+            ),
+          ],
+        ),
+        SizedBox(height: 12.h),
+        _addAnimalButton(),
+      ],
+    );
   }
 
   /// v425 — carte animal sélectionnable (maquette 222).
@@ -1114,92 +1204,21 @@ class _PublishReservationRequestScreenState
               ),
             ),
           ]
-          // day_care → single-day event; show only end time (end date
-          // implicit = same day as start).
-          else if (isDayCare) ...[
-            SizedBox(height: 14.h),
-            Center(
-              child: Container(
-                width: 32.w,
-                height: 32.w,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.arrow_downward_rounded,
-                    size: 16.sp, color: AppColors.primaryColor),
-              ),
-            ),
-            SizedBox(height: 14.h),
-            InterText(
-              text: 'publish_end_time_same_day'.tr,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary(context),
-            ),
-            SizedBox(height: 8.h),
-            GestureDetector(
-              onTap: () => _pickTime(isStart: false),
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                height: 48.h,
-                padding: EdgeInsets.symmetric(horizontal: 14.w),
-                decoration: BoxDecoration(
-                  color: AppColors.inputFill(context),
-                  borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(
-                    color: controller.formattedEndTime.isEmpty
-                        ? AppColors.divider(context)
-                        : AppColors.primaryColor.withValues(alpha: 0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.access_time_rounded,
-                      size: 16.sp,
-                      color: controller.formattedEndTime.isEmpty
-                          ? AppColors.greyColor
-                          : AppColors.primaryColor,
-                    ),
-                    SizedBox(width: 8.w),
-                    InterText(
-                      text: controller.formattedEndTime.isEmpty
-                          ? 'send_request_select_time'.tr
-                          : controller.formattedEndTime,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w500,
-                      color: controller.formattedEndTime.isEmpty
-                          ? AppColors.greyColor
-                          : AppColors.textPrimary(context),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ]
-          // pet_sitting / unknown → classic start + end pair.
+          // v600 NEO — garde multi-jours ET garderie : deux lignes compactes
+          // « Début » / « Fin » (date + heure), heures 8 h – 20 h posées par
+          // défaut et changeables en un appui. La garderie garde sa règle
+          // « même jour » (la date de fin suit la date de début) ; la garde
+          // propose le lendemain. Fini le cercle-flèche et les 4 sélecteurs
+          // vides obligatoires.
           else ...[
-            SizedBox(height: 14.h),
-            Center(
-              child: Container(
-                width: 32.w,
-                height: 32.w,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.arrow_downward_rounded,
-                    size: 16.sp, color: AppColors.primaryColor),
-              ),
-            ),
-            SizedBox(height: 14.h),
+            SizedBox(height: 12.h),
             InterText(
-              text: 'send_request_end_label'.tr,
+              text: isDayCare
+                  ? 'publish_end_time_same_day'.tr
+                  : 'send_request_end_label'.tr,
               fontSize: 13.sp,
               fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary(context),
+              color: AppColors.textSecondaryStrong(context),
             ),
             SizedBox(height: 8.h),
             _dateTimeRow(
@@ -1214,6 +1233,27 @@ class _PublishReservationRequestScreenState
               isDatePlaceholder: controller.formattedEndDate.isEmpty,
               isTimePlaceholder: controller.formattedEndTime.isEmpty,
             ),
+            if (controller.hasDefaultHours) ...[
+              SizedBox(height: 8.h),
+              Row(
+                key: const Key('neo600_hours_hint'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.schedule_rounded,
+                      size: 14.sp, color: AppColors.primaryColor),
+                  SizedBox(width: 6.w),
+                  Expanded(
+                    child: InterText(
+                      text: 'neo600_hours_hint'.tr,
+                      fontSize: 11.5.sp,
+                      color: AppColors.textSecondary(context),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ],
       );
@@ -1304,8 +1344,15 @@ class _PublishReservationRequestScreenState
 
   Future<void> _pickDate({required bool isStart}) async {
     final now = DateTime.now();
+    // v600 NEO — la fin s'ouvre sur la date de début (ou le lendemain pour
+    // une garde) : un seul appui pour une garde d'une nuit.
+    final DateTime? startForEnd = controller.startDate.value == null
+        ? null
+        : (controller.selectedServiceType.value == 'pet_sitting'
+            ? controller.startDate.value!.add(const Duration(days: 1))
+            : controller.startDate.value);
     final initial =
-        (isStart ? controller.startDate.value : controller.endDate.value) ??
+        (isStart ? controller.startDate.value : (controller.endDate.value ?? startForEnd)) ??
         now;
     final picked = await showDatePicker(
       context: context,

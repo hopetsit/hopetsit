@@ -52,11 +52,16 @@ class OwnerRepository {
     // v587 — « Mon budget » facultatif (montant + devise du propriétaire).
     double? budget,
     String? budgetCurrency,
+    // v600 NEO — sans fiche animal : espèce(s) + nombre (clés du site).
+    List<String> animalTypes = const <String>[],
+    int? animalCount,
   }) async {
     final effectiveIds = petIds.isNotEmpty
         ? petIds
         : (petId != null && petId.isNotEmpty ? <String>[petId] : <String>[]);
     final requestBody = <String, dynamic>{
+      if (animalTypes.isNotEmpty) 'animalTypes': animalTypes,
+      if (animalCount != null && animalCount > 0) 'animalCount': animalCount,
       'body': body,
       'startDate': startDate.toUtc().toIso8601String(),
       'endDate': endDate.toUtc().toIso8601String(),
@@ -130,6 +135,10 @@ class OwnerRepository {
     double? budget,
     String? budgetCurrency,
     required List<File> imageFiles,
+    // v600 NEO — sans fiche animal : espèce(s) + nombre (multipart → texte,
+    // le serveur relit le JSON et fait Number()).
+    List<String> animalTypes = const <String>[],
+    int? animalCount,
   }) async {
     final effectiveIds = petIds.isNotEmpty
         ? petIds
@@ -141,6 +150,9 @@ class OwnerRepository {
     };
 
     final fields = <String, String>{
+      if (animalTypes.isNotEmpty) 'animalTypes': jsonEncode(animalTypes),
+      if (animalCount != null && animalCount > 0)
+        'animalCount': animalCount.toString(),
       'body': body,
       'startDate': startDate.toUtc().toIso8601String(),
       'endDate': endDate.toUtc().toIso8601String(),

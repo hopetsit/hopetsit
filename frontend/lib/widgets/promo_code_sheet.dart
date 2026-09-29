@@ -19,6 +19,7 @@ import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/repositories/promo_repository.dart';
 import 'package:hopetsit/services/apple_iap_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/publish_draft600.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -488,6 +489,9 @@ class _PromoPopupState extends State<PromoPopup> with SingleTickerProviderStateM
       return;
     }
     if (shown || count < 2) return;
+    // v600 NEO — jamais juste après une publication : la pop-up recouvrait
+    // la demande fraîche (mesuré le 29/09). Elle attend au moins 24 h.
+    if (promoPopupSnoozed600()) return;
     final token = SecureTokenStore.currentToken();
     if (token == null || token.isEmpty) return;
     _loadPublicPromo();
@@ -518,6 +522,8 @@ class _PromoPopupState extends State<PromoPopup> with SingleTickerProviderStateM
     if (!mounted) return;
     Future.delayed(const Duration(seconds: 6), () {
       if (!mounted) return;
+      // v600 NEO — une publication a pu partir pendant l'attente.
+      if (promoPopupSnoozed600()) return;
       setState(() => _visible = true);
       _anim.forward();
     });

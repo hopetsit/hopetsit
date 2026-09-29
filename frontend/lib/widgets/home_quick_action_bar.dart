@@ -32,6 +32,11 @@ import 'package:hopetsit/controllers/applications_controller.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
+import 'package:hopetsit/controllers/posts_controller.dart';
+import 'package:hopetsit/controllers/publish_reservation_request_controller.dart';
+import 'package:hopetsit/services/supply_city600.dart';
+import 'package:hopetsit/utils/publish_draft600.dart';
+import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/localization/app_translations.dart';
@@ -98,9 +103,54 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   // v569 — état voulu du point pulsé (cf. _syncPulse).
   bool _pulseWanted = false;
 
+  // v600 NEO — propriétaire à 0 demande : « Publie ta première demande —
+  // N gardiens et promeneurs à <ville> ». N vient de /supply/city (ville du
+  // profil) ; rien si 0 ou inconnu.
+  int? _supplyTotal600;
+  String _city600 = '';
+
+  void _loadSupply600() {
+    if (widget.role != 'owner') return;
+    _city600 = profileCity600();
+    if (_city600.isEmpty) return;
+    fetchSupplyTotal600(_city600).then((n) {
+      if (mounted && n != _supplyTotal600) setState(() => _supplyTotal600 = n);
+    });
+  }
+
+  /// Vrai quand le propriétaire n'a aucune demande publiée (liste chargée).
+  /// Lit des observables : à appeler DANS l'Obx de la bande.
+  bool _ownerFirstRequest600() {
+    if (widget.role != 'owner' || !Get.isRegistered<PostsController>()) {
+      return false;
+    }
+    final pc = Get.find<PostsController>();
+    if (pc.isLoading.value) return false;
+    String? uid;
+    try {
+      final p = GetStorage().read(StorageKeys.userProfile);
+      if (p is Map) uid = (p['id'] ?? p['_id'])?.toString();
+    } catch (_) {}
+    if (uid == null || uid.isEmpty) return false;
+    final mine = pc.posts.where((p) => p.owner.id == uid).length +
+        pc.postsWithoutMedia.where((p) => p.owner.id == uid).length;
+    return mine == 0;
+  }
+
+  void _openPublish600() {
+    Get.to(() => const PublishReservationRequestScreen())?.then((r) {
+      if (!mounted) return;
+      if (r == PublishReservationRequestController.kPublishedResult600 &&
+          Get.isRegistered<PostsController>()) {
+        Get.find<PostsController>().refreshPosts();
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSupply600());
     // v23.1 part 250 — perf : observer lifecycle pour couper le timer de
     // refresh quand l'app passe en background (cf. didChangeAppLifecycleState).
     WidgetsBinding.instance.addObserver(this);
@@ -812,10 +862,14 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       if (action == null) {
         // Neutral fallback : rien d'urgent → barre soft "tout est à jour".
         _syncPulse(false);
+        final bool first = _ownerFirstRequest600();
         child = _NeutralBar(
-          key: const ValueKey<String>('band-neutral'),
+          key: ValueKey<String>(first ? 'band-first-request' : 'band-neutral'),
           role: widget.role,
-          onTap: _onNeutralTap,
+          onTap: first ? _openPublish600 : _onNeutralTap,
+          firstRequest: first,
+          supplyTotal: _supplyTotal600,
+          city: _city600,
         );
       } else {
         final a = action;
@@ -2440,11 +2494,24 @@ class _ActionBanner extends StatelessWidget {
 class _NeutralBar extends StatelessWidget {
   final String role; // 'owner' | 'sitter' | 'walker'
   final VoidCallback onTap;
-  const _NeutralBar({super.key, required this.role, required this.onTap});
+  // v600 NEO — propriétaire sans aucune demande : le bandeau invite à
+  // publier la première, avec le nombre de prestataires de sa ville.
+  final bool firstRequest;
+  final int? supplyTotal;
+  final String city;
+  const _NeutralBar({
+    super.key,
+    required this.role,
+    required this.onTap,
+    this.firstRequest = false,
+    this.supplyTotal,
+    this.city = '',
+  });
 
   Color _accent() => ActionTone.forRole(role);
 
   String _title() {
+    if (firstRequest) return 'neo600_home_first_title'.tr;
     switch (role) {
       case 'walker':
       case 'sitter':
@@ -2456,6 +2523,15 @@ class _NeutralBar extends StatelessWidget {
   }
 
   String _subtitle() {
+    if (firstRequest) {
+      final n = supplyTotal;
+      if (n != null && n > 0 && city.isNotEmpty) {
+        return 'neo600_home_first_sub_count'.tr
+            .replaceAll('{n}', '$n')
+            .replaceAll('{city}', city);
+      }
+      return 'neo600_home_first_sub'.tr;
+    }
     switch (role) {
       case 'walker':
         return 'quick_action_subtitle_walker'.tr;
@@ -2474,7 +2550,7 @@ class _NeutralBar extends StatelessWidget {
     // TOUJOURS l'onglet PawMap (comportement inchangé).
     return ActionBanner(
       tone: _accent(),
-      icon: Icons.check_circle_rounded,
+      icon: firstRequest ? Icons.campaign_rounded : Icons.check_circle_rounded,
       title: _title(),
       subtitle: _subtitle(),
       onTap: onTap,

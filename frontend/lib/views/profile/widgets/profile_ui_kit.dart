@@ -692,7 +692,10 @@ class ProfileSheetHandle extends StatelessWidget {
         height: 4.h,
         margin: EdgeInsets.only(top: 10.h, bottom: 14.h),
         decoration: BoxDecoration(
-          color: AppColors.greyColor.withValues(alpha: 0.5),
+          // v600 — poignée à la couleur du rôle (le beige à 50 % sur blanc
+          // se lisait gris).
+          color: AppColors.accentOn(context, AppColors.activeRoleAccent())
+              .withValues(alpha: 0.45),
           borderRadius: BorderRadius.circular(2.r),
         ),
       ),

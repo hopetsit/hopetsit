@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,8 +13,10 @@ import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
+import 'package:hopetsit/services/supply_city600.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/publish_draft600.dart';
 import 'package:hopetsit/utils/service_location587.dart';
 // v575 — audit P1-7 : bornes de durée de promenade partagées avec le serveur.
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -105,6 +108,42 @@ class PublishReservationRequestController extends GetxController {
 
   final RxList<PetModel> myPets = <PetModel>[].obs;
   final RxBool isPetsLoading = false.obs;
+
+  // ── v600 NEO — publier SANS animal enregistré ─────────────────────────────
+  // 17 propriétaires sur 20 n'ont jamais créé de fiche animal : le mur
+  // « ajoute d'abord un animal » est tombé. Sans fiche, le bloc 1 propose
+  // l'ESPÈCE (mêmes clés que le site) et le NOMBRE, envoyés au serveur en
+  // `animalTypes` / `animalCount` (déjà acceptés par POST /posts et
+  // /posts/with-media). Avec des fiches, on coche ses animaux comme avant.
+  final RxList<String> animalTypes = <String>[].obs;
+  final RxInt animalCount = 1.obs;
+  static const int maxAnimalCount = 20;
+
+  /// Vrai quand le formulaire passe par les puces d'espèce (aucune fiche
+  /// animal chargée).
+  bool get usesSpeciesPills => !isPetsLoading.value && myPets.isEmpty;
+
+  void toggleSpecies(String species) {
+    if (animalTypes.contains(species)) {
+      animalTypes.remove(species);
+    } else {
+      animalTypes.add(species);
+    }
+    if (animalTypes.isNotEmpty) petSelectionError.value = false;
+  }
+
+  void setAnimalCount(int n) {
+    animalCount.value = n.clamp(1, maxAnimalCount);
+  }
+
+  /// Résumé des animaux : noms des fiches cochées, sinon « 2 · Chien, Chat ».
+  String get animalSummary {
+    final names = selectedPetNames;
+    if (names.isNotEmpty) return names;
+    if (animalTypes.isEmpty) return '';
+    final labels = animalTypes.map((s) => animalSpeciesI18nKey600(s).tr).join(', ');
+    return '${animalCount.value} · $labels';
+  }
   // v23.1 — multi-pet selection. selectedPetId kept for backwards compat
   // (returns the first selected) but the UI now toggles selectedPetIds.
   final RxList<String> selectedPetIds = <String>[].obs;
@@ -215,9 +254,16 @@ class PublishReservationRequestController extends GetxController {
   // v18.8 — dates + heures localisées via DateFormat (intl) au lieu des
   // tableaux statiques anglais. L'owner FR voit "ven. 24 avr. 2026" et
   // "23:24" au lieu de "Fri, Apr 24, 2026" et "11:24 PM".
+  // v600 NEO — les heures par défaut s'affichent dès le premier rendu : si
+  // les données de locale d'intl ne sont pas chargées (langue imprévue,
+  // tests), on retombe sur un format simple plutôt que de planter l'écran.
   String _formatDate(DateTime d) {
     final lang = Get.locale?.languageCode ?? 'fr';
-    return DateFormat('EEE, d MMM y', lang).format(d);
+    try {
+      return DateFormat('EEE, d MMM y', lang).format(d);
+    } catch (_) {
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    }
   }
 
   String _formatTime(TimeOfDay t) {
@@ -225,7 +271,11 @@ class PublishReservationRequestController extends GetxController {
     final dt = DateTime(0, 1, 1, t.hour, t.minute);
     // Formats 24h pour fr/de/es/it/pt, 12h avec AM/PM pour en.
     final pattern = lang == 'en' ? 'h:mm a' : 'HH:mm';
-    return DateFormat(pattern, lang).format(dt);
+    try {
+      return DateFormat(pattern, lang).format(dt);
+    } catch (_) {
+      return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    }
   }
 
   String get formattedStartDate =>
@@ -284,8 +334,166 @@ class PublishReservationRequestController extends GetxController {
     // myPets chargé (cf loadMyPets).
     if (isEditMode) {
       _prefillFromEditPost();
+    } else {
+      // v600 NEO — la ville du profil est pré-remplie (elle était vide alors
+      // que le profil la connaît : une friction mesurée le 29/09). Le
+      // propriétaire peut la changer ; sans coordonnées, le serveur géocode.
+      final c = profileCity600();
+      if (c.isNotEmpty && cityController.text.trim().isEmpty) {
+        cityController.text = c;
+      }
+      // v600 NEO — brouillon d'une demande interrompue (retour arrière,
+      // fermeture de l'app) : proposé par l'écran (« Reprendre ma demande ? »).
+      final d = readPublishDraft600();
+      if (publishDraftIsMeaningful600(d)) {
+        pendingDraft = d;
+      } else {
+        _draftReady = true;
+      }
     }
+    _watchDraft();
     loadMyPets();
+  }
+
+  // ── v600 NEO — brouillon local ────────────────────────────────────────────
+  /// Brouillon trouvé à l'ouverture, en attente de la décision du
+  /// propriétaire (« Reprendre » / « Recommencer »). Null sinon.
+  Map<String, dynamic>? pendingDraft;
+  bool _draftReady = false;
+  Timer? _draftTimer;
+  List<String> _draftPetIds = const <String>[];
+  final List<Worker> _draftWorkers = <Worker>[];
+
+  void _watchDraft() {
+    if (isEditMode) return;
+    _draftWorkers.add(everAll(<RxInterface>[
+      startDate, endDate, startTime, endTime, selectedServiceType,
+      selectedDuration, serviceLocation, animalTypes, animalCount,
+      selectedPetIds, showAnimalCharacter, meetingPointText, budgetText,
+      cityText,
+    ], (_) => _scheduleDraftSave()));
+    notesController.addListener(_scheduleDraftSave);
+  }
+
+  void _scheduleDraftSave() {
+    if (isEditMode || !_draftReady) return;
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 350), saveDraftNow);
+  }
+
+  /// Écrit le brouillon tout de suite (utile aux tests). Un formulaire qui ne
+  /// porte rien de plus que le service pré-réglé n'est pas gardé.
+  void saveDraftNow() {
+    if (isEditMode || !_draftReady) return;
+    final d = toDraft();
+    if (publishDraftIsMeaningful600(d)) {
+      writePublishDraft600(d);
+    } else {
+      clearPublishDraft600();
+    }
+  }
+
+  String? _hm(TimeOfDay? t) => t == null
+      ? null
+      : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  TimeOfDay? _parseHm(Object? v) {
+    if (v is! String || !v.contains(':')) return null;
+    final p = v.split(':');
+    final h = int.tryParse(p[0]);
+    final m = int.tryParse(p[1]);
+    if (h == null || m == null) return null;
+    return TimeOfDay(hour: h.clamp(0, 23), minute: m.clamp(0, 59));
+  }
+
+  DateTime? _parseDay(Object? v) {
+    if (v is! String || v.isEmpty) return null;
+    final d = DateTime.tryParse(v);
+    return d == null ? null : DateTime(d.year, d.month, d.day);
+  }
+
+  /// Le formulaire tel qu'il est (sans les photos : un chemin de fichier
+  /// temporaire ne survit pas à la fermeture de l'app).
+  Map<String, dynamic> toDraft() => <String, dynamic>{
+        'serviceType': selectedServiceType.value,
+        'duration': selectedDuration.value,
+        'serviceLocation': serviceLocation.value,
+        'meetingPoint': meetingPointText.value.trim(),
+        'startDate': startDate.value?.toIso8601String(),
+        'endDate': endDate.value?.toIso8601String(),
+        'startTime': _hm(startTime.value),
+        'endTime': _hm(endTime.value),
+        'city': cityController.text.trim(),
+        'lat': userLat.value,
+        'lng': userLng.value,
+        'notes': notesController.text.trim(),
+        'budget': budgetText.value.trim(),
+        'animalTypes': animalTypes.toList(),
+        'animalCount': animalCount.value,
+        'petIds': selectedPetIds.toList(),
+        'showAnimalCharacter': showAnimalCharacter.value,
+      };
+
+  /// « Reprendre » : remet le formulaire dans l'état du brouillon.
+  void restoreDraft() {
+    final d = pendingDraft;
+    pendingDraft = null;
+    if (d != null) applyDraft(d);
+    _draftReady = true;
+  }
+
+  /// « Recommencer » : le brouillon est effacé, le formulaire reste tel quel.
+  void discardDraft() {
+    pendingDraft = null;
+    clearPublishDraft600();
+    _draftReady = true;
+  }
+
+  void applyDraft(Map<String, dynamic> d) {
+    final st = (d['serviceType'] ?? '').toString();
+    if (st.isNotEmpty) selectedServiceType.value = st;
+    final du = (d['duration'] ?? '').toString();
+    selectedDuration.value = du.isNotEmpty ? du : null;
+    final sl = (d['serviceLocation'] ?? '').toString();
+    serviceLocation.value =
+        sl.isNotEmpty && serviceLocationFits(selectedServiceType.value, sl) ? sl : null;
+    final mp = (d['meetingPoint'] ?? '').toString();
+    meetingPointController.text = mp;
+    meetingPointText.value = mp;
+    startDate.value = _parseDay(d['startDate']);
+    endDate.value = _parseDay(d['endDate']);
+    startTime.value = _parseHm(d['startTime']);
+    endTime.value = _parseHm(d['endTime']);
+    final city = (d['city'] ?? '').toString();
+    if (city.isNotEmpty) {
+      cityController.text = city;
+      final lat = d['lat'], lng = d['lng'];
+      if (lat is num && lng is num) {
+        userLat.value = lat.toDouble();
+        userLng.value = lng.toDouble();
+        _coordsCity = city.toLowerCase();
+      }
+    }
+    notesController.text = (d['notes'] ?? '').toString();
+    final b = (d['budget'] ?? '').toString();
+    budgetController.text = b;
+    budgetText.value = b;
+    final at = d['animalTypes'];
+    if (at is List) {
+      animalTypes.assignAll(at.map((e) => e.toString()).where(kAnimalSpecies600.contains));
+    }
+    final ac = d['animalCount'];
+    if (ac is num) setAnimalCount(ac.toInt());
+    final ids = d['petIds'];
+    if (ids is List) {
+      _draftPetIds = ids.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+      // Les fiches sont peut-être déjà chargées (sinon : loadMyPets).
+      final existing = myPets.map((p) => p.id).toSet();
+      final keep = _draftPetIds.where(existing.contains).toList();
+      if (keep.isNotEmpty) selectedPetIds.assignAll(keep);
+    }
+    final sac = d['showAnimalCharacter'];
+    if (sac is bool) showAnimalCharacter.value = sac;
   }
 
   /// v441 — pré-remplit tous les champs du formulaire à partir de l'annonce en
@@ -372,10 +580,24 @@ class PublishReservationRequestController extends GetxController {
 
     // Toggle « Afficher le caractère des animaux ».
     showAnimalCharacter.value = p.showAnimalCharacter;
+
+    // v600 NEO — demande publiée sans fiche animal : espèces + nombre.
+    if (p.animalTypes.isNotEmpty) {
+      animalTypes.assignAll(p.animalTypes.where(kAnimalSpecies600.contains));
+    }
+    if (p.animalCount > 0) setAnimalCount(p.animalCount);
   }
 
   @override
   void onClose() {
+    // v600 NEO — retour arrière ou fermeture : le brouillon est écrit une
+    // dernière fois (le débounce n'a peut-être pas encore tiré).
+    _draftTimer?.cancel();
+    if (_draftReady && !isEditMode) saveDraftNow();
+    for (final w in _draftWorkers) {
+      w.dispose();
+    }
+    notesController.removeListener(_scheduleDraftSave);
     notesController.dispose();
     cityController.dispose();
     meetingPointController.dispose();
@@ -402,6 +624,12 @@ class PublishReservationRequestController extends GetxController {
         if (preselected.isNotEmpty) {
           selectedPetIds.assignAll(preselected);
         }
+      } else if (_draftPetIds.isNotEmpty) {
+        // v600 NEO — fiches cochées dans le brouillon, rétablies une fois la
+        // liste connue (un animal supprimé entre-temps est simplement omis).
+        final existing = myPets.map((p) => p.id).toSet();
+        final keep = _draftPetIds.where(existing.contains).toList();
+        if (keep.isNotEmpty) selectedPetIds.assignAll(keep);
       }
     } catch (e) {
       AppLogger.logError('Failed to load owner pets', error: e);
@@ -437,6 +665,20 @@ class PublishReservationRequestController extends GetxController {
     // always clear the legacy venue field when the type changes.
     houseSittingVenue.value = null;
 
+    // v600 NEO — garde / garderie : heures 8 h – 20 h par défaut, modifiables
+    // en un appui (4 sélecteurs date+heure obligatoires = friction mesurée).
+    // Promenade : l'heure compte, aucune valeur par défaut ; si les heures
+    // sont encore celles posées par défaut, on les retire.
+    if (!isEditMode) {
+      if (value == 'pet_sitting' || value == 'day_care') {
+        startTime.value ??= const TimeOfDay(hour: kDefaultStartHour600, minute: 0);
+        endTime.value ??= const TimeOfDay(hour: kDefaultEndHour600, minute: 0);
+      } else if (value == 'dog_walking' && hasDefaultHours) {
+        startTime.value = null;
+        endTime.value = null;
+      }
+    }
+
     // Session v3.3 — auto-tuning of the end fields based on the service:
     //   * dog_walking: end = start + selected duration (computed below on
     //     start / duration change). UI hides the end fields entirely.
@@ -451,9 +693,30 @@ class PublishReservationRequestController extends GetxController {
     _recomputeEndForService();
   }
 
+  /// v600 NEO — les heures affichées sont-elles encore celles par défaut ?
+  bool get hasDefaultHours {
+    final s = startTime.value, e = endTime.value;
+    return s != null &&
+        e != null &&
+        s.hour == kDefaultStartHour600 &&
+        s.minute == 0 &&
+        e.hour == kDefaultEndHour600 &&
+        e.minute == 0;
+  }
+
   /// Public hook called by the view after the user picked a start date/time.
   /// Triggers the same service-aware tuning as selectServiceType/selectDuration.
-  void onDatesChanged() => _recomputeEndForService();
+  void onDatesChanged() {
+    // v600 NEO — garde multi-jours : la date de fin suit la date de début
+    // (le lendemain) tant que le propriétaire ne l'a pas choisie.
+    if (!isEditMode &&
+        selectedServiceType.value == 'pet_sitting' &&
+        startDate.value != null &&
+        endDate.value == null) {
+      endDate.value = startDate.value!.add(const Duration(days: 1));
+    }
+    _recomputeEndForService();
+  }
 
   /// Keeps end-date/time consistent with the service semantics so the owner
   /// doesn't have to input redundant fields. Called whenever service type,
@@ -571,7 +834,8 @@ class PublishReservationRequestController extends GetxController {
 
   /// Étapes complétées : animaux / service / dates / ville. Les détails et
   /// les photos sont facultatifs.
-  bool get stepPetsDone => selectedPetIds.isNotEmpty;
+  bool get stepPetsDone =>
+      selectedPetIds.isNotEmpty || (usesSpeciesPills && animalTypes.isNotEmpty);
   bool get stepServiceDone {
     final st = selectedServiceType.value;
     if (st == null || st.trim().isEmpty) return false;
@@ -623,7 +887,10 @@ class PublishReservationRequestController extends GetxController {
   /// "Veuillez remplir les champs requis". Returns null si tout est OK.
   String? _firstMissingField() {
     if (selectedPetIds.isEmpty) {
-      return 'pet';
+      // v600 NEO — sans fiche animal, l'espèce suffit ; avec des fiches, on
+      // en coche au moins une (comportement conservé).
+      if (!usesSpeciesPills) return 'pet';
+      if (animalTypes.isEmpty) return 'species';
     }
     if (startDate.value == null) return 'startDate';
     if (endDate.value == null) return 'endDate';
@@ -653,6 +920,8 @@ class PublishReservationRequestController extends GetxController {
     switch (field) {
       case 'pet':
         return 'publish_request_pet_required'.tr;
+      case 'species':
+        return 'neo600_species_required'.tr;
       case 'startDate':
         return 'publish_request_start_date_required'.tr;
       case 'endDate':
@@ -684,7 +953,7 @@ class PublishReservationRequestController extends GetxController {
     final missing = _firstMissingField();
     // v21 — flag the pet selector specifically if it's the missing field,
     // so the user sees a red border instead of just a generic snackbar.
-    if (missing == 'pet') petSelectionError.value = true;
+    if (missing == 'pet' || missing == 'species') petSelectionError.value = true;
     if (!isValid || missing != null) {
       // v22.1 — Bug 13c : message clair indiquant LE champ manquant exact.
       CustomSnackbar.showWarning(
@@ -736,6 +1005,13 @@ class PublishReservationRequestController extends GetxController {
         ? roundToWalkDuration(int.tryParse(selectedDuration.value ?? ''))
         : null;
 
+    // v600 NEO — sans fiche animal : espèce(s) + nombre partent avec la
+    // demande (mêmes champs que le site). Avec des fiches cochées, le serveur
+    // lit les animaux dans petIds comme avant.
+    final List<String> speciesToSend =
+        petIdsList.isEmpty ? animalTypes.toList() : const <String>[];
+    final int? countToSend = petIdsList.isEmpty ? animalCount.value : null;
+
     isSubmitting.value = true;
     try {
       if (isEditMode) {
@@ -766,6 +1042,8 @@ class PublishReservationRequestController extends GetxController {
           // v587 — 0 = budget effacé.
           budget: budgetAmount ?? 0,
           budgetCurrency: budgetCurrency,
+          animalTypes: speciesToSend,
+          animalCount: countToSend,
         );
 
         // v449 — Daniel : « modifier l'annonce MÊME les photos ». Si l'owner a
@@ -790,11 +1068,16 @@ class PublishReservationRequestController extends GetxController {
         return;
       }
 
+      // v600 NEO — « Envoyée à N gardiens et promeneurs » : N vient de la
+      // réponse du serveur si elle le dit un jour, sinon de /supply/city
+      // (demandé en parallèle de l'envoi, jamais bloquant).
+      final Future<int?> supplyFuture = fetchSupplyTotal600(city);
+      Map<String, dynamic> created;
       if (imageFiles.isEmpty) {
         // v565 — lat/lng (détection GPS ou carte) envoyés avec la ville :
         // le serveur en a besoin pour prévenir les prestataires PROCHES
         // (repli sur la ville seule sinon).
-        await _ownerRepository.createReservationRequest(
+        created = await _ownerRepository.createReservationRequest(
           body: body,
           startDate: start,
           endDate: end,
@@ -811,9 +1094,11 @@ class PublishReservationRequestController extends GetxController {
           walkDurationMinutes: walkMinutes,
           budget: budgetAmount,
           budgetCurrency: budgetCurrency,
+          animalTypes: speciesToSend,
+          animalCount: countToSend,
         );
       } else {
-        await _ownerRepository.createReservationRequestWithMedia(
+        created = await _ownerRepository.createReservationRequestWithMedia(
           body: body,
           startDate: start,
           endDate: end,
@@ -831,19 +1116,33 @@ class PublishReservationRequestController extends GetxController {
           budget: budgetAmount,
           budgetCurrency: budgetCurrency,
           imageFiles: imageFiles.toList(),
+          animalTypes: speciesToSend,
+          animalCount: countToSend,
         );
       }
+
+      // v600 NEO — la demande est partie : plus de brouillon, et la pop-up
+      // « Un cadeau pour toi » attend (elle recouvrait la demande fraîche).
+      _draftReady = false;
+      clearPublishDraft600();
+      snoozePromoPopup600();
 
       // Session v15 — refresh the feeds BEFORE popping the screen so the user
       // lands back on "Mes publications" with the freshly-published request
       // already visible. Used to require a full logout/login to show up.
       await _refreshFeedsAfterPublish();
 
+      final int? notified = notifiedCountFromResponse(created) ??
+          await supplyFuture.timeout(const Duration(seconds: 3),
+              onTimeout: () => null);
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
-        message: 'publish_request_success'.tr,
+        message: notified != null && notified > 0
+            ? 'neo600_sent_to'.tr.replaceAll('{n}', '$notified')
+            : 'publish_request_success'.tr,
       );
-      Get.back();
+      // v600 NEO — l'accueil lit ce résultat pour rester sur « Mes demandes ».
+      Get.back(result: kPublishedResult600);
     } on ApiException catch (error) {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
@@ -860,6 +1159,22 @@ class PublishReservationRequestController extends GetxController {
     } finally {
       isSubmitting.value = false;
     }
+  }
+
+  /// v600 NEO — valeur rendue par `Get.back` après une publication réussie.
+  static const String kPublishedResult600 = 'published600';
+
+  /// v600 NEO — nombre de prestataires prévenus si le serveur le renvoie
+  /// (`notified`, `notifiedCount`, ou dans `post`) ; null sinon.
+  static int? notifiedCountFromResponse(Map<String, dynamic> res) {
+    int? pick(Object? v) => v is num && v > 0 ? v.toInt() : null;
+    final direct = pick(res['notified']) ?? pick(res['notifiedCount']);
+    if (direct != null) return direct;
+    final post = res['post'];
+    if (post is Map) {
+      return pick(post['notified']) ?? pick(post['notifiedCount']);
+    }
+    return null;
   }
 
   /// Re-fetches the feeds that depend on the list of reservation posts so a

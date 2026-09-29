@@ -559,16 +559,57 @@ class _PawButtonState extends State<PawButton> with TickerProviderStateMixin {
 ///      coupure à l'espace le plus central + réduction douce (FittedBox).
 /// Jamais « … ». Le texte reste celui de la traduction dans les cas 1 et 2
 /// (les tests `find.text(...)` le retrouvent tel quel).
-class PawButtonLabel extends StatelessWidget {
-  const PawButtonLabel({super.key, required this.text, required this.style});
+class PawButtonLabel extends StatefulWidget {
+  const PawButtonLabel({
+    super.key,
+    required this.text,
+    required this.style,
+    this.textAlign = TextAlign.center,
+  });
   final String text;
   final TextStyle style;
 
+  /// v600 — alignement du libellé : centré dans un bouton (défaut), à gauche
+  /// quand il sert de titre (tuiles de l'accueil invité).
+  final TextAlign textAlign;
+
+  @override
+  State<PawButtonLabel> createState() => _PawButtonLabelState();
+}
+
+class _PawButtonLabelState extends State<PawButtonLabel> {
+  // v600 — Poppins (google_fonts) arrive APRÈS la première mise en page : la
+  // décision « tient sur une ligne » était prise avec la police de repli, puis
+  // le paragraphe se recalculait plus large et la dernière lettre était rognée
+  // (« Garde d'animau|x » sur iPhone, mesuré le 29/09). On refait la décision
+  // à chaque police chargée.
+  @override
+  void initState() {
+    super.initState();
+    PaintingBinding.instance.systemFonts.addListener(_fontsChanged);
+  }
+
+  @override
+  void dispose() {
+    PaintingBinding.instance.systemFonts.removeListener(_fontsChanged);
+    super.dispose();
+  }
+
+  void _fontsChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
+    final String text = widget.text;
+    final TextAlign textAlign = widget.textAlign;
     final TextScaler scaler = MediaQuery.textScalerOf(context);
     // Le même style que `Text` rendra (thème fusionné : interlettrage…).
-    final TextStyle style = DefaultTextStyle.of(context).style.merge(this.style);
+    final TextStyle style =
+        DefaultTextStyle.of(context).style.merge(widget.style);
+    final Alignment fitAlign = textAlign == TextAlign.center
+        ? Alignment.center
+        : AlignmentDirectional.centerStart.resolve(Directionality.of(context));
     return LayoutBuilder(builder: (context, c) {
       final double w = c.maxWidth;
       if (!w.isFinite || w <= 0) {
@@ -583,8 +624,15 @@ class PawButtonLabel extends StatelessWidget {
       final bool fitsOne = !one.didExceedMaxLines && one.width <= w + 0.5;
       one.dispose();
       if (fitsOne) {
-        return Text(text,
-            maxLines: 1, softWrap: false, textAlign: TextAlign.center, style: style);
+        // Filet de sécurité (v600) : si la police arrive plus large entre
+        // deux mesures, le texte est réduit d'un cheveu, jamais rogné.
+        // À l'échelle 1 le rendu est identique à un `Text` nu.
+        return FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: fitAlign,
+          child: Text(text,
+              maxLines: 1, softWrap: false, textAlign: textAlign, style: style),
+        );
       }
       // Chaque mot tient-il seul ? Alors Flutter coupe à un espace.
       bool wordsFit = true;
@@ -611,14 +659,15 @@ class PawButtonLabel extends StatelessWidget {
         two.dispose();
         if (fitsTwo) {
           return Text(text,
-              maxLines: 2, softWrap: true, textAlign: TextAlign.center, style: style);
+              maxLines: 2, softWrap: true, textAlign: textAlign, style: style);
         }
       }
       return FittedBox(
         fit: BoxFit.scaleDown,
+        alignment: fitAlign,
         child: Text(
           pawTwoLines(text),
-          textAlign: TextAlign.center,
+          textAlign: textAlign,
           maxLines: 2,
           softWrap: true,
           style: style,

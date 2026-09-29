@@ -156,7 +156,12 @@ class ProfileCategories extends StatelessWidget {
   static const Color _amber = Color(0xFFE8920A);
   static const Color _gold = Color(0xFFE8A00A);
   static const Color _blue = Color(0xFF1A73E8);
-  static const Color _slate = Color(0xFFB69C96);
+  /// v600 — encre chaude (terre cuite) pour « Conditions » : l'ancien taupe
+  /// #B69C96 à 12 % sur blanc rendait GRIS (règle zéro gris, Daniel 29/09).
+  static const Color _ink = Color(0xFF8B4A32);
+
+  /// Exposée pour le test `guest600_titles_test` (saturation ≥ 0,25).
+  static const Color helpInk = _ink;
   static const Color _warn = Color(0xFFF59E0B);
 
   @override
@@ -578,14 +583,14 @@ class ProfileCategories extends StatelessWidget {
             icon: PawIcon.doc,
             title: 'terms_read_button'.tr,
             subtitle: 'terms_read_subtitle'.tr,
-            color: _slate,
+            color: _ink,
             onTap: () => Get.to(() => const TermsAndConditionsScreen()),
           ),
           ProfileRow(
             icon: PawIcon.shield,
             title: 'profile_privacy'.tr,
             subtitle: 'profile_privacy_subtitle'.tr,
-            color: _slate,
+            color: accent,
             onTap: () => Get.to(() => const PrivacyPolicyScreen()),
           ),
         ]),
