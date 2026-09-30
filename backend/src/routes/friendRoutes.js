@@ -252,6 +252,18 @@ function rolePriceFrom604(d, role) {
   return nums.length ? Math.min.apply(null, nums) : 0;
 }
 
+// v605 — Daniel (30/09) : un gardien qui n'a mis QUE des tarifs à la semaine
+// ou au mois (ex. GIRMA, 100 €/sem) n'avait aucune bulle. `priceFrom` reste
+// inchangé (heure / jour / balade) pour que les apps ≤ 604 n'affichent jamais
+// « 100 € » sans unité ; le repli part dans un champ SÉPARÉ, lu par le site et
+// l'app ≥ 605 : { amount, unit: 'week' | 'month' }.
+function rolePriceAlt605(d, role, priceFrom) {
+  if (role !== 'sitter' || Number(priceFrom) > 0 || !d) return null;
+  if (Number(d.weeklyRate) > 0) return { amount: Number(d.weeklyRate), unit: 'week' };
+  if (Number(d.monthlyRate) > 0) return { amount: Number(d.monthlyRate), unit: 'month' };
+  return null;
+}
+
 router.get('/members/nearby', requireAuth, async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat);
@@ -295,7 +307,7 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       // s'affichent avec les prix ». Cette couche (membres abonnés proches)
       // PRIME sur la couche monde et ne renvoyait AUCUN tarif : un gardien +
       // promeneur abonné n'avait ni bulle duo ni bulle simple.
-      + 'hourlyRate dailyRate walkRates currency rating reviewsCount';
+      + 'hourlyRate dailyRate weeklyRate monthlyRate walkRates currency rating reviewsCount';
     // v565 §6 — présence RÉELLE (sockets connectés, identité complète), plus
     // le champ figé `isOnline` du doc. Index construit une fois par requête.
     let presenceIdx = null;
@@ -430,9 +442,11 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
           rating: Number(e.d.rating) > 0 ? Number(e.d.rating) : 0,
           reviewsCount: Number(e.d.reviewsCount) > 0 ? Number(e.d.reviewsCount) : 0,
           priceFrom: e.role === 'owner' ? 0 : rolePriceFrom604(e.d, e.role),
+          priceAlt: rolePriceAlt605(e.d, e.role, rolePriceFrom604(e.d, e.role)),
           currency: e.d.currency || 'EUR',
         })),
         priceFrom: role === 'owner' ? 0 : rolePriceFrom604(d, role),
+        priceAlt: rolePriceAlt605(d, role, rolePriceFrom604(d, role)),
         currency: d.currency || 'EUR',
         personIds: ids,
         // 28/09/2026 — prénom + initiale sauf pour mes amis (règle de Daniel).
@@ -669,7 +683,7 @@ router.get('/members/world', requireAuth, async (req, res) => {
     const sel = 'name avatar profilePicture location mapBoostExpiry isStaff '
       // v586 — visibilité à 3 états (relue aussi en JS, voir plus bas).
       + 'preferences.hideFromMap preferences.mapVisibility '
-      + 'email oldId rating reviewsCount hourlyRate dailyRate walkRates currency '
+      + 'email oldId rating reviewsCount hourlyRate dailyRate weeklyRate monthlyRate walkRates currency '
       // v585 — position de profil, ville, fraîcheur (personMapPosition).
       + '+homeLocation city updatedAt createdAt '
       // v584 — drapeaux d'épingle.
@@ -765,6 +779,7 @@ router.get('/members/world', requireAuth, async (req, res) => {
         rating: Number(rd.rating) > 0 ? Number(rd.rating) : 0,
         reviewsCount: Number(rd.reviewsCount) > 0 ? Number(rd.reviewsCount) : 0,
         priceFrom: rr === 'owner' ? 0 : priceFrom(rd, rr),
+        priceAlt: rolePriceAlt605(rd, rr, priceFrom(rd, rr)),
         currency: rd.currency || 'EUR',
         isPremium: subSet.has(String(rd._id)) || rd.isStaff === true,
       }));
@@ -787,6 +802,7 @@ router.get('/members/world', requireAuth, async (req, res) => {
         rating: Number(d.rating) > 0 ? Number(d.rating) : 0,
         reviewsCount: Number(d.reviewsCount) > 0 ? Number(d.reviewsCount) : 0,
         priceFrom: role === 'owner' ? 0 : priceFrom(d, role),
+        priceAlt: rolePriceAlt605(d, role, priceFrom(d, role)),
         currency: d.currency || 'EUR',
         ...mapVisibility.pinFlags(d, nowDate),
         // v585 (bug 11) — PawBoost acheté sous un autre rôle : vaut pour la personne.
@@ -3611,3 +3627,4 @@ router.post('/family/invitation/:id/refuse', requireAuth, async (req, res) => {
 
 module.exports = router;
 module.exports.rolePriceFrom604 = rolePriceFrom604;
+module.exports.rolePriceAlt605 = rolePriceAlt605;
