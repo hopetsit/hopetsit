@@ -101,6 +101,7 @@ import { usePresence } from "@/lib/usePresence";
 import { getSocket } from "@/lib/socket";
 import type { FriendLivePosition } from "@/components/FriendsLiveMap";
 import { haversineKm } from "@/lib/mapCluster";
+import { formatPriceUnit, priceUnitLabels } from "@/lib/priceUnit";
 import { ROLE_COLOR, blurLatLng, formatPrice, placePinHtml, reportPinHtml, spotPinHtml, roleKey, showsPriceBubble } from "@/lib/pawmapLegend";
 import { expandRows, formatKm, friendIdSetFrom, isFriendMember, locateFriend, mergePersons, personIdsOf, placeFriendsFromList, rolesMatching } from "@/lib/memberPersons";
 import type { Map as LeafletMap } from "leaflet";
@@ -2298,7 +2299,7 @@ export default function MapPage() {
                   const x = byId.get(m.id)!;
                   const key = roleKey(r.role);
                   // 590 (§1) — tarifs visibles seulement de l'autre côté du marché.
-                  const price = key !== "owner" && showsPriceBubble(myRole, key) ? formatPrice(r.priceFrom, r.currency) : null;
+                  const price = key !== "owner" && showsPriceBubble(myRole, key) ? formatPriceUnit(r.priceFrom, r.currency, r.priceAlt, priceUnitLabels(t)) : null;
                   return { id: `${m.id}-${r.id}`, lat: x.lat, lng: x.lng, km: x.shownKm, pin: "", title: m.name || t("common_member"), sub: `${t(`role_${key}`)}${price ? ` · ${t("map_member_price_from")} ${price}` : ""}${(r.rating ?? 0) > 0 ? ` · ★ ${(r.rating ?? 0).toFixed(1)}` : ""}`, photo: m.avatar || "", meta: m.approx ? t("map_member_approx").replace("{km}", String(m.approxKm ?? 1)) : "", color: ROLE_COLOR[key], book: key !== "owner" ? `/book/${key}/${r.id}` : undefined, friend };
                 });
               }

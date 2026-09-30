@@ -56,7 +56,6 @@ import {
   dominantRole,
   reportPinHtml,
   requestBubbleHtml,
-  formatPrice,
   ROLE_COLOR,
   PAWFOLLOW_VIOLET,
   PAWMAP_KEYFRAMES,
@@ -71,6 +70,8 @@ import {
 import { safeFly } from "@/lib/safeFly";
 import { ensureOwnerProfile, isMyProfile, needsOwnerSwitch } from "@/lib/bookAsOwner";
 import { OwnerRequestsCard } from "@/components/OwnerRequestsCard";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { formatPriceUnit, priceUnitLabels, type PriceAlt } from "@/lib/priceUnit";
 import {
   expandRows,
   formatKm,
@@ -658,6 +659,9 @@ export default function PoiMap({
   /** 590 — la carte bouge : la carte focus passe à 20 % comme les barres. */
   uiFade?: boolean;
 }) {
+  // 30/09 (605) — unités « /sem », « /mois » de la bulle de prix (9 langues).
+  const { t: tUnits } = useT();
+  const priceUnits = priceUnitLabels(tUnits);
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
   const friendSet = useMemo(() => new Set(friendIds), [friendIds]);
   const liveIdSet = useMemo(() => new Set([...friendPositions.map((p) => p.userId), ...liveIdsAll]), [friendPositions, liveIdsAll]);
@@ -682,21 +686,22 @@ export default function PoiMap({
     const first = (m.name || "").trim().split(/\s+/)[0];
     return first || memberRoleLabels?.[m.role] || null;
   };
-  const priceFor = (role: string, amount?: number | null, currency?: string | null): string | null => {
+  const priceFor = (role: string, amount?: number | null, currency?: string | null, alt?: PriceAlt | null): string | null => {
     const k = roleKey(role);
     if (k === "owner" || !showsPriceBubble(userRole, k)) return null;
-    return formatPrice(amount, currency);
+    // 605 — sans tarif jour / heure : « 100 €/sem » ou « 350 €/mois ».
+    return formatPriceUnit(amount, currency, alt, priceUnits);
   };
-  const memberBubble = (role: string, amount?: number | null, currency?: string | null): string | null =>
-    showPrice ? priceFor(role, amount, currency) : null;
+  const memberBubble = (role: string, amount?: number | null, currency?: string | null, alt?: PriceAlt | null): string | null =>
+    showPrice ? priceFor(role, amount, currency, alt) : null;
   // 27/09 — gardien ET promeneur parmi les rôles montrés (filtre compris) :
   // les deux prix, gardien d'abord. Sinon null → bulle simple habituelle.
   const duoPrices = (roles: PersonRole[]): [string, string] | null => {
     const s = roles.find((r) => roleKey(r.role) === "sitter");
     const w = roles.find((r) => roleKey(r.role) === "walker");
     if (!s || !w) return null;
-    const ps = priceFor("sitter", s.priceFrom, s.currency);
-    const pw = priceFor("walker", w.priceFrom, w.currency);
+    const ps = priceFor("sitter", s.priceFrom, s.currency, s.priceAlt);
+    const pw = priceFor("walker", w.priceFrom, w.currency, w.priceAlt);
     return ps && pw ? [ps, pw] : null;
   };
   const memberDuo = (roles: PersonRole[]): [string, string] | null => (showPrice ? duoPrices(roles) : null);
@@ -850,13 +855,13 @@ export default function PoiMap({
     return formatKm(2 * R * Math.asin(Math.min(1, Math.sqrt(a))), cardLabels?.lang) || "";
   };
   const firstOf = (name: string) => (name || "").trim().split(/\s+/)[0] || name;
-  const personFocus = (m: NearbyMember, role: string, price: number | null | undefined, currency: string | null | undefined, open: () => void, friend: boolean, shown?: PersonRole[]): Focus | null => {
+  const personFocus = (m: NearbyMember, role: string, price: number | null | undefined, currency: string | null | undefined, open: () => void, friend: boolean, shown?: PersonRole[], alt?: PriceAlt | null): Focus | null => {
     const at = pointOf(m);
     if (!at) return null;
     const k = roleKey(role);
     // 27/09 — gardien + promeneur montrés : les deux prix (« 🏠 20 € · 🐾 12 € »).
     const duo = shown ? duoPrices(shown) : null;
-    const pr = duo ? `🏠 ${duo[0]} · 🐾 ${duo[1]}` : priceFor(k, price, currency);
+    const pr = duo ? `🏠 ${duo[0]} · 🐾 ${duo[1]}` : priceFor(k, price, currency, alt);
     const km = kmFrom(at);
     return {
       key: `p:${m.id}`,
@@ -1087,15 +1092,17 @@ export default function PoiMap({
             const caption = liveLabels && Number.isFinite(seenMs)
               ? (now - seenMs < 60000 ? liveLabels.seenNow : liveLabels.seenAgo.replace("{ago}", liveLabels.ago(now - seenMs)))
               : null;
-            const fBubble = memberBubble(roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency);
+            const fAlt = roles[0].priceAlt ?? m.priceAlt;
+            const fBubble = memberBubble(roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fAlt);
             const fOpen = () => flyToFriend(m);
-            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles, caption, fBubble, memberDuo(shown))} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => { const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true, shown); if (f) tapFocus(f); else fOpen(); } }} />;
+            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles, caption, fBubble, memberDuo(shown))} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => { const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true, shown, fAlt); if (f) tapFocus(f); else fOpen(); } }} />;
           }
           const r0 = roles[0];
           const pFrom = r0.priceFrom ?? m.priceFrom;
           const pCur = r0.currency ?? m.currency;
+          const pAlt = r0.priceAlt ?? m.priceAlt;
           return (
-            <Marker key={`member-${m.id}`} position={pt} icon={memberIcon(m, memberCaption({ ...m, role: r0.role }), roles, memberBubble(r0.role, pFrom, pCur), dark, memberDuo(shown))} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: () => { const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown); if (f) tapFocus(f); else open(); } }} />
+            <Marker key={`member-${m.id}`} position={pt} icon={memberIcon(m, memberCaption({ ...m, role: r0.role }), roles, memberBubble(r0.role, pFrom, pCur, pAlt), dark, memberDuo(shown))} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: () => { const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt); if (f) tapFocus(f); else open(); } }} />
           );
         })}
 
@@ -1310,6 +1317,8 @@ function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanc
   /** 590 (§1) — prix de l'autre côté du marché seulement dans les listes. */
   viewerRole?: string;
 }) {
+  const { t: tUnits } = useT();
+  const priceUnits = priceUnitLabels(tUnits);
   const dist = (m: NearbyMember) => {
     const d = formatKm(distanceKmTo(m, distanceFrom), labels.lang);
     return d ? labels.distance.replace("{d}", d) : "";
@@ -1329,7 +1338,7 @@ function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanc
   // Une ligne « photo · prénom · rôle coloré · distance · Voir ».
   const RoleRow = ({ m, r, friend, onSee }: { m: NearbyMember; r: PersonRole; friend: boolean; onSee: () => void }) => {
     const k = roleKey(r.role);
-    const price = k !== "owner" && showsPriceBubble(viewerRole, k) ? formatPrice(r.priceFrom, r.currency) : null;
+    const price = k !== "owner" && showsPriceBubble(viewerRole, k) ? formatPriceUnit(r.priceFrom, r.currency, r.priceAlt, priceUnits) : null;
     return (
       <li>
         <button type="button" onClick={onSee} className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl bg-[#FDF8F7] px-2.5 py-2 text-left transition hover:bg-[#FAF1EC]">
@@ -1451,6 +1460,8 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
   onMessage?: (who: { id: string; role: string; name: string }) => void;
   onMessageMember?: (m: NearbyMember) => (() => void) | null;
 }) {
+  const { t: tUnits } = useT();
+  const priceUnits = priceUnitLabels(tUnits);
   const [state, setState] = useState<"idle" | "busy" | "sent" | "already" | "error">("idle");
   const [bookState, setBookState] = useState<"idle" | "busy" | "error">("idle");
   const [asOwner, setAsOwner] = useState(false);
@@ -1460,10 +1471,10 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
   const [reqCount, setReqCount] = useState(0);
   const k = roleKey(r.role);
   const provider = k === "sitter" || k === "walker";
-  const price = provider ? formatPrice(r.priceFrom, r.currency) : null;
+  const price = provider ? formatPriceUnit(r.priceFrom, r.currency, r.priceAlt, priceUnits) : null;
   // Le membre « vu sous ce rôle » : id et rôle du profil choisi (fiche,
   // réservation, demande d'ami, conversation prestataire).
-  const asRole: NearbyMember = { ...m, id: r.id, role: k, priceFrom: r.priceFrom, currency: r.currency, rating: r.rating, reviewsCount: r.reviewsCount };
+  const asRole: NearbyMember = { ...m, id: r.id, role: k, priceFrom: r.priceFrom, priceAlt: r.priceAlt, currency: r.currency, rating: r.rating, reviewsCount: r.reviewsCount };
   const pt = pointOf(m);
   const seenIso = personIdsOf(m).map((x) => friendSeen[x]).find(Boolean) || null;
   const age = seenIso ? Math.max(0, now - new Date(seenIso).getTime()) : null;

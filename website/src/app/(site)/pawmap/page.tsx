@@ -10,7 +10,8 @@ import { PageTitle } from "@/components/PageTitle";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 import { getCitySupply, type PublicProvider } from "@/lib/api";
-import { formatPrice, ROLE_COLOR } from "@/lib/pawmapLegend";
+import { ROLE_COLOR } from "@/lib/pawmapLegend";
+import { formatPriceUnit, priceUnitLabels } from "@/lib/priceUnit";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { askHref, askLabel, askNote } from "@/lib/i18n/demander2809";
 
@@ -229,7 +230,7 @@ export default function PawMapPage() {
           <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {nearest.map((p) => {
               const color = ROLE_COLOR[p.role];
-              const price = formatPrice(p.priceFrom, p.currency);
+              const price = formatPriceUnit(p.priceFrom, p.currency, p.priceAlt, priceUnitLabels(t));
               // 28/09 (LEO) — « Demander à <prénom> » : la demande de NEO, ville du
               // prestataire pré-remplie, compte créé sur le même écran.
               const ville = cityLabel || p.city;
@@ -284,9 +285,10 @@ export default function PawMapPage() {
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-[#6E4F48] md:text-base">{t("pawmap_public_places_note")}</p>
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {cats.map((c) => (
-            <div key={c.label} className="flex items-center gap-3 rounded-[18px] bg-[#FAF1EC] p-3.5">
+            <div key={c.label} className="flex min-w-0 items-center gap-3 rounded-[18px] bg-[#FAF1EC] p-3.5">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-[#C92A12]"><AppIcon name={c.icon} size={20} /></span>
-              <span className="text-sm font-semibold text-[#231715]">{c.label}</span>
+              {/* 30/09 (605) — « Haustierfreundliche Hotels » (de) débordait de 19 px à 375 px. */}
+              <span className="min-w-0 hyphens-auto text-sm font-semibold text-[#231715] [overflow-wrap:anywhere]">{c.label}</span>
             </div>
           ))}
         </div>

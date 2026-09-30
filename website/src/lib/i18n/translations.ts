@@ -9782,3 +9782,7 @@ for (const code of Object.keys(PAWMAP601) as Lang[]) Object.assign(t[code], PAWM
 // 30/09/2026 — build 604 (ZOE) : statut « ended » des demandes de suivi en direct du chat.
 import { PAWFOLLOW604 } from "./pawfollow604";
 for (const code of Object.keys(PAWFOLLOW604) as Lang[]) Object.assign(t[code], PAWFOLLOW604[code]);
+
+// 30/09/2026 — LEO (605) : sommaire de « Comprendre la PawMap » + unités de prix semaine / mois.
+import { SITE605 } from "./site605";
+for (const code of Object.keys(SITE605) as Lang[]) Object.assign(t[code], SITE605[code]);

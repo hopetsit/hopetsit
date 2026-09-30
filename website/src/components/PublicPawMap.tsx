@@ -18,12 +18,12 @@ import L from "leaflet";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 import { getPublicProviders, type PublicProvider } from "@/lib/api";
+import { formatPriceUnit, priceUnitLabels } from "@/lib/priceUnit";
 import { clusterize, haversineKm, MEMBER_CELL_PX } from "@/lib/mapCluster";
 import {
   memberPinHtml,
   memberClusterHtml,
   dominantRole,
-  formatPrice,
   ROLE_COLOR,
   PAWMAP_KEYFRAMES,
   PIN_Z,
@@ -191,7 +191,9 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   // 28/09 (LEO) — le PRIX se voit dès le zoom 11 (la carte s'ouvre au 12) :
   // avant, il n'apparaissait qu'au zoom de rue (14) et le visiteur ne voyait
   // que des ronds. Prix public déjà servi par /sitters|walkers/nearby.
-  const bubbleOf = (p: PublicProvider) => (view.zoom >= 11 ? formatPrice(p.priceFrom, p.currency) : null);
+  // 30/09 (605) — gardien sans tarif jour / heure : « 100 €/sem », « 350 €/mois ».
+  const priceOf = (p: PublicProvider) => formatPriceUnit(p.priceFrom, p.currency, p.priceAlt, priceUnitLabels(t));
+  const bubbleOf = (p: PublicProvider) => (view.zoom >= 11 ? priceOf(p) : null);
 
   return (
     <div className="relative w-full overflow-hidden rounded-[28px]" style={{ height }}>
@@ -236,8 +238,8 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                     {p.rating > 0 && (
                       <span className="inline-flex items-center gap-1 font-bold"><AppIcon name="star" size={13} color="#F4C04A" />{p.rating.toFixed(1)}{p.reviewsCount > 0 ? ` (${p.reviewsCount})` : ""}</span>
                     )}
-                    {formatPrice(p.priceFrom, p.currency) && (
-                      <span className="font-bold" style={{ color }}>{t("map_member_price_from")} {formatPrice(p.priceFrom, p.currency)}</span>
+                    {priceOf(p) && (
+                      <span className="font-bold" style={{ color }}>{t("map_member_price_from")} {priceOf(p)}</span>
                     )}
                     {p.identityVerified && (
                       <span className="inline-flex items-center gap-1 font-semibold text-[#16A34A]"><AppIcon name="shield-check" size={13} color="#16A34A" />{t("trust_id_title")}</span>
@@ -362,7 +364,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-bold text-[#231715]">{p.name || roleLabel[p.role]}</span>
-                      <span className="block text-xs font-semibold" style={{ color }}>{roleLabel[p.role]}{formatPrice(p.priceFrom, p.currency) ? ` · ${t("map_member_price_from")} ${formatPrice(p.priceFrom, p.currency)}` : ""}</span>
+                      <span className="block text-xs font-semibold" style={{ color }}>{roleLabel[p.role]}{priceOf(p) ? ` · ${t("map_member_price_from")} ${priceOf(p)}` : ""}</span>
                     </span>
                     <AppIcon name="arrow-right" size={16} color={color} />
                   </Link>

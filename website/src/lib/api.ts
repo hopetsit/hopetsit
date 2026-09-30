@@ -3,6 +3,7 @@
 // REST API that the mobile app already uses, so login/signup created here
 // work seamlessly inside the app and vice-versa.
 
+import { priceAltFromRates } from "@/lib/priceUnit";
 import { blurLatLng } from "@/lib/pawmapLegend";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE
@@ -2266,13 +2267,15 @@ export type NearbyMember = {
   reviewsCount?: number;
   priceFrom?: number;
   currency?: string;
+  /** 30/09 (605) — tarif semaine / mois quand `priceFrom` = 0 (serveur a3d3a01a). */
+  priceAlt?: { amount: number; unit: "week" | "month" } | null;
   /** 24/09/2026 — légende : PawBoost (lueur turquoise) et « Identité vérifiée ». */
   isBoosted?: boolean;
   identityVerified?: boolean;
   /** v585 (serveur) — une PERSONNE = UN point : tous ses profils. Couche
    *  monde : note/prix par rôle ; couche proches : {id, role} seulement.
    *  Absents sur un ancien serveur (lib/memberPersons.ts gère le repli). */
-  roles?: { id: string; role: string; rating?: number; reviewsCount?: number; priceFrom?: number; currency?: string; isPremium?: boolean }[];
+  roles?: { id: string; role: string; rating?: number; reviewsCount?: number; priceFrom?: number; currency?: string; isPremium?: boolean; priceAlt?: { amount: number; unit: "week" | "month" } | null }[];
   personIds?: string[];
   /** v585 — l'un de ses profils est ami de l'un des miens (à lire en priorité). */
   isFriend?: boolean;
@@ -2337,6 +2340,8 @@ export type PublicProvider = {
   rating: number;
   reviewsCount: number;
   priceFrom: number | null;
+  /** 30/09 (605) — gardien sans tarif jour / heure : semaine, sinon mois. */
+  priceAlt: { amount: number; unit: "week" | "month" } | null;
   currency: string;
   identityVerified: boolean;
   /** PawBoost (profil ou carte) → lueur turquoise. */
@@ -2356,6 +2361,8 @@ type RawProvider = {
   reviewsCount?: number;
   hourlyRate?: number;
   dailyRate?: number;
+  weeklyRate?: number;
+  monthlyRate?: number;
   walkRates?: { basePrice?: number; enabled?: boolean; currency?: string }[];
   currency?: string;
   identityVerified?: boolean;
@@ -2394,6 +2401,7 @@ function normalizeProvider(r: RawProvider, role: "sitter" | "walker"): PublicPro
     rating: Number(r.averageRating || r.rating || 0),
     reviewsCount: Number(r.reviewsCount || 0),
     priceFrom,
+    priceAlt: role === "sitter" && priceFrom == null ? priceAltFromRates(r) : null,
     currency: (r.currency || (r.walkRates || [])[0]?.currency || "EUR").toUpperCase(),
     identityVerified: r.identityVerified === true,
     boosted: r.isBoosted === true || r.isMapBoosted === true,

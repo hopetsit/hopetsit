@@ -10,7 +10,7 @@
 // quoi il sert, pourquoi, le geste exact (clés h587_*, lib/i18n/help587.ts,
 // mêmes textes que l'app) ; un exemple par section ; une FAQ.
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import {
   memberPinHtml,
@@ -96,6 +96,31 @@ function RoundIcon({ name, color, filled = false }: { name: AppIconName; color: 
   );
 }
 
+// 30/09 — sommaire cliquable (demande de Daniel) : une couleur du kit par
+// section, reprise sur la pastille numérotée du sommaire ET du titre. Jamais de
+// couleur « encre » à faible opacité (elle redeviendrait grise) : les teintes
+// pâles sont des crèmes fixes, les couleurs vives restent pleines.
+const SECTION_COLOR: Record<string, string> = {
+  find: "#C92A12",
+  see: "linear-gradient(165deg,#F06AA0,#E0568B)",
+  live: "#0E7490",
+  walk: "#16A34A",
+  act: "#2563EB",
+  set: "#7C3AED",
+  faq: "#17141F",
+};
+function NumBadge({ n, id, size = 24 }: { n: number; id: string; size?: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="grid shrink-0 place-items-center rounded-full font-extrabold leading-none text-white"
+      style={{ width: size, height: size, fontSize: size >= 28 ? 14 : 12.5, background: SECTION_COLOR[id] || "#C92A12", boxShadow: "0 0 0 2px #fff, 0 4px 10px -4px rgba(35,23,21,.45)" }}
+    >
+      {n}
+    </span>
+  );
+}
+
 type Row = { html?: string; node?: ReactNode; title: string; body?: string; color?: string; /** 29/09 — petite bulle sous le titre (texte exact de la carte). */ chip?: { text: string; color: string; border: string; bg?: string } };
 type Section = { id: string; title: string; rows: Row[]; example?: string; image?: { src: string; srcSet?: string; darkSrc?: string; darkSrcSet?: string; alt: string } };
 
@@ -124,8 +149,14 @@ function menuDotHtml() {
  */
 export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onClose: () => void; role?: "owner" | "sitter" | "walker" }) {
   const { t } = useT();
+  // 30/09 — hooks AVANT le retour anticipé (piège : un hook placé après
+  // « if (!open) return null » plante la page en production).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const tocRef = useRef<HTMLElement>(null);
+  const [showBack, setShowBack] = useState(false);
   useEffect(() => {
     if (!open) return;
+    setShowBack(false);
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -294,6 +325,30 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
   // 587 — « Qui voit ma position ? » = les phrases du réglage, mot pour mot.
   const faq = [1, 2, 3, 4].map((n) => ({ q: t(`h587_q${n}`), a: n === 2 ? visExplained : t(`h587_a${n}`) }));
 
+  // 30/09 — sommaire : sections numérotées dans l'ordre d'affichage, FAQ en dernier.
+  const toc = [...sections.map((s) => ({ id: s.id, title: s.title })), { id: "faq", title: t("h587_faq_title") }].map((x, i) => ({ ...x, n: i + 1 }));
+  const reduceMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  // Défile DANS la fenêtre (le conteneur qui défile), jamais la page derrière.
+  const goTo = (id: string) => {
+    const box = scrollRef.current;
+    const target = document.getElementById(`legend-part-${id}`);
+    if (!box || !target) return;
+    const top = target.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - 12;
+    box.scrollTo({ top: Math.max(0, top), behavior: reduceMotion() ? "auto" : "smooth" });
+    document.getElementById(`legend-sec-${id}`)?.focus({ preventScroll: true });
+  };
+  const backToToc = () => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
+    tocRef.current?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+  };
+  const onScroll = () => {
+    const box = scrollRef.current;
+    const nav = tocRef.current;
+    if (!box || !nav) return;
+    const past = box.scrollTop > nav.offsetTop + nav.offsetHeight;
+    if (past !== showBack) setShowBack(past);
+  };
+
   return (
     <div
       className="fixed inset-0 z-[3000] flex items-end justify-center bg-[#231715]/55 p-0 sm:items-center sm:p-4"
@@ -304,7 +359,10 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     >
       <style dangerouslySetInnerHTML={{ __html: `${PAWMAP_KEYFRAMES}@keyframes hps-dot-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}50%{box-shadow:0 0 0 5px rgba(255,255,255,0)}}.hps-dot-pulse{animation:hps-dot-pulse 1.4s ease-out infinite}` }} />
       <div
-        className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-white p-4 shadow-2xl sm:rounded-[28px] sm:p-7 dark:bg-[#241916]"
+        ref={scrollRef}
+        onScroll={onScroll}
+        data-legend-scroll=""
+        className="relative max-h-[88vh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-[28px] bg-white p-4 shadow-2xl sm:rounded-[28px] sm:p-7 dark:bg-[#241916]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
@@ -324,6 +382,26 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
           </button>
         </div>
 
+        {/* 30/09 — sommaire cliquable : chaque titre mène directement à sa section. */}
+        <nav ref={tocRef} aria-labelledby="legend-toc-title" className="mt-4 rounded-[22px] border border-[#F1D9CC] bg-[#FFF7F2] p-3 dark:border-[#4A332C] dark:bg-[#2E201C]">
+          <p id="legend-toc-title" className="px-1 text-[12px] font-extrabold uppercase tracking-[0.06em] text-[#C92A12] dark:text-[#FF9A85]">{t("toc3009_title")}</p>
+          <ul className="mt-2 grid grid-cols-2 gap-1.5">
+            {toc.map((x) => (
+              <li key={x.id} className="min-w-0">
+                <button
+                  type="button"
+                  data-toc={x.id}
+                  onClick={() => goTo(x.id)}
+                  className="flex min-h-[44px] w-full items-center gap-2 rounded-2xl border border-[#F1D9CC] bg-white px-2.5 py-1.5 text-left transition hover:border-[#C92A12] hover:bg-[#FCEDE4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C92A12] dark:border-[#4A332C] dark:bg-[#241916] dark:hover:border-[#FF9A85] dark:hover:bg-[#3A2A25]"
+                >
+                  <NumBadge n={x.n} id={x.id} />
+                  <span className="min-w-0 break-words text-[13px] font-bold leading-tight text-[#231715] dark:text-[#FBEFE6]">{x.title}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
         <p className="mt-4 rounded-2xl bg-[#17141F] px-4 py-3 text-sm font-semibold text-[#F4C04A]">{t("legend_memo")}</p>
 
         {/* 27/09 — Daniel : positions floutées ~1 km, seul le Direct est exact. */}
@@ -337,11 +415,11 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
           </span>
         </div>
 
-        {sections.map((sec) => (
-          <section key={sec.id} aria-labelledby={`legend-sec-${sec.id}`} className="mt-6">
-            <h3 id={`legend-sec-${sec.id}`} className="flex items-center gap-2 font-display text-lg font-bold text-[#231715] dark:text-[#FBEFE6]">
-              <span aria-hidden="true" className="block h-5 w-1 shrink-0 rounded-full bg-[#C92A12]" />
-              <span className="min-w-0">{sec.title}</span>
+        {sections.map((sec, si) => (
+          <section key={sec.id} id={`legend-part-${sec.id}`} aria-labelledby={`legend-sec-${sec.id}`} className="mt-6">
+            <h3 id={`legend-sec-${sec.id}`} tabIndex={-1} className="flex items-center gap-2.5 font-display text-lg font-bold text-[#231715] outline-none dark:text-[#FBEFE6]">
+              <NumBadge n={si + 1} id={sec.id} size={28} />
+              <span className="min-w-0 break-words">{sec.title}</span>
             </h3>
             {sec.image && (
               // 29/09 — image de la section = celle de PAM (même fichier que l'app), nette à 2× / 3×,
@@ -381,10 +459,10 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
           </section>
         ))}
 
-        <section aria-labelledby="legend-faq" className="mt-6">
-          <h3 id="legend-faq" className="flex items-center gap-2 font-display text-lg font-bold text-[#231715] dark:text-[#FBEFE6]">
-            <span aria-hidden="true" className="block h-5 w-1 shrink-0 rounded-full bg-[#C92A12]" />
-            <span className="min-w-0">{t("h587_faq_title")}</span>
+        <section id="legend-part-faq" aria-labelledby="legend-sec-faq" className="mt-6">
+          <h3 id="legend-sec-faq" tabIndex={-1} className="flex items-center gap-2.5 font-display text-lg font-bold text-[#231715] outline-none dark:text-[#FBEFE6]">
+            <NumBadge n={sections.length + 1} id="faq" size={28} />
+            <span className="min-w-0 break-words">{t("h587_faq_title")}</span>
           </h3>
           <div className="mt-2 space-y-2">
             {faq.map((f) => (
@@ -404,6 +482,22 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
           <AppIcon name="check" size={18} />
           {t("legend_close")}
         </button>
+
+        {/* 30/09 — retour au sommaire : collé en bas de la fenêtre dès qu'on a dépassé le sommaire. */}
+        <div className="pointer-events-none sticky bottom-0 z-10 flex h-0 justify-end">
+          <button
+            type="button"
+            onClick={backToToc}
+            tabIndex={showBack ? 0 : -1}
+            aria-hidden={!showBack}
+            data-toc-back=""
+            className={`pointer-events-auto -mt-[60px] mb-2 inline-flex min-h-[44px] items-center gap-1.5 self-end rounded-full px-4 text-[13px] font-extrabold text-white shadow-[0_10px_22px_-10px_rgba(201,42,18,0.9)] transition-opacity duration-200 ${showBack ? "opacity-100" : "pointer-events-none opacity-0"}`}
+            style={{ background: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)", border: "1.5px solid #fff" }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 14l6-6 6 6" /></svg>
+            {t("toc3009_back")}
+          </button>
+        </div>
       </div>
     </div>
   );
