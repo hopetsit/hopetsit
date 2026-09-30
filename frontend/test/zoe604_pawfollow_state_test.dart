@@ -308,7 +308,8 @@ void main() {
       expect(src, contains('PawFollowStateStore.unwatch(widget.conversationId)'), reason: f);
       expect(src, contains('pawFollowHeaderFor('), reason: f);
       expect(src, contains('conversationId: widget.conversationId,\n        build:'), reason: f);
-      expect(src, contains('pawFollowConfirmStop(context'), reason: f);
+      // v605 — les arrêts passent par le branchement unique (feuille « En direct »).
+      expect(src, contains('openLiveSheetFromChat(context'), reason: f);
     }
   });
 }

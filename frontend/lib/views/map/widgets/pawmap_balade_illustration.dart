@@ -4,7 +4,7 @@
 // voient les autres ». SANS AUCUN MOT (retour de LEO, 29/09 : la même image
 // sert au site dans 9 langues) : les textes sont à côté, traduits. Dessinée
 // avec les VRAIS peintres des épingles (`PawMapPinPainter`) et la vraie
-// patte du menu (`PawGlyph` + `PawLiveDot`) : fidèle à la carte, nette à 2×
+// patte du menu (`PawGlyph` au contour vert, v604) : fidèle à la carte, nette à 2×
 // et 3×, en clair comme en nuit. Le même widget exporte les PNG donnés à LEO
 // (test `balade599_illustration_test.dart`).
 //
@@ -99,46 +99,19 @@ class PawMapBaladeIllustration extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              // Le point vert du menu : la vraie patte, le vrai point.
-              SizedBox(
+              // v604 — la patte du menu avec son CONTOUR VERT (un ami en
+              // direct) : plus de point vert (Daniel, 30/09 : « le contour
+              // blanc devient vert, pas le pin entier »).
+              const SizedBox(
                 width: 54,
-                height: 50,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: <Widget>[
-                    const Positioned(left: 0, top: 0, child: PawGlyph(size: 54)),
-                    // Même place que dans le menu : sur le liseré blanc de
-                    // la tête, en haut à droite (v602, `pawLiveDotCenter`,
-                    // 84 → 54).
-                    Positioned(
-                      left: pawLiveDotCenter().dx * 54 / kPawTabBarPawBox -
-                          PawLiveDot.outerSize(1) / 2,
-                      top: pawLiveDotCenter().dy * 54 / kPawTabBarPawBox -
-                          PawLiveDot.outerSize(1) / 2,
-                      child: PawLiveDot(
-                        count: 1,
-                        ring: kPawTabBarPalettes[_navRole(role)]!.top,
-                      ),
-                    ),
-                  ],
-                ),
+                height: 60,
+                child: PawGlyph(size: 54, rimColor: PawLiveDot.green),
               ),
             ],
           ),
         ),
       );
     });
-  }
-
-  static PawNavRole _navRole(String role) {
-    switch (role) {
-      case 'sitter':
-        return PawNavRole.sitter;
-      case 'walker':
-        return PawNavRole.walker;
-      default:
-        return PawNavRole.owner;
-    }
   }
 }
 

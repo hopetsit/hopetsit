@@ -117,6 +117,14 @@ PawFollowHeaderKind pawFollowHeaderKind(
   if (inc.following && inc.live && peerLiveLocal != false) {
     return PawFollowHeaderKind.peerLive;
   }
+  // v605 (ZOE) — BOB : « A suit B, puis B suit A » ne doit faire disparaître
+  // aucune pilule. Quand l'autre vient d'accepter mais ne diffuse PAS encore
+  // (suivi accepté, jamais arrêté par lui) alors que MA position part en
+  // direct, l'en-tête garde « En direct » (mon sens) au lieu d'un faux
+  // « Direct arrêté ». Réponse serveur réelle : seq605_2_accepted_A.
+  if (inc.following && !inc.live && out.following && myLive) {
+    return PawFollowHeaderKind.myLive;
+  }
   // Son direct est arrêté : suivi accepté sans diffusion, ou demande que SON
   // arrêt a terminée (jamais quand c'est moi qui ai arrêté de le suivre).
   final DateTime? endedAt = inc.endedAt;

@@ -42,11 +42,12 @@ void main() {
       expect(tester.takeException(), isNull, reason: 'débordement / exception');
       final t = help587I18n[lang]!;
       for (final k in _sections) {
-        expect(find.text(t[k]!, skipOffstage: false), findsOneWidget, reason: k);
+        // v605 — chaque titre apparaît 2 fois : la section et sa puce du sommaire.
+        expect(find.text(t[k]!, skipOffstage: false), findsNWidgets(2), reason: k);
       }
       expect(find.byKey(const ValueKey<String>('help_faq'), skipOffstage: false),
           findsOneWidget);
-      expect(find.text(t['help587_faq_title']!, skipOffstage: false), findsOneWidget);
+      expect(find.text(t['help587_faq_title']!, skipOffstage: false), findsNWidgets(2)); // v605 : + puce du sommaire
       for (final n in [1, 2, 3, 4]) {
         expect(find.text(t['help587_q$n']!, skipOffstage: false), findsOneWidget);
         if (n == 2) continue; // v587 : réponse = les phrases du réglage (plus bas)

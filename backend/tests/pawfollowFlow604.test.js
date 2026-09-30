@@ -283,6 +283,65 @@ describe('suivi MUTUEL : B arrête son direct pendant que A le suit encore', () 
   });
 });
 
+// v605 (ZOE, 30/09) — BOB : « A suit B, puis B suit A » ne doit faire
+// disparaître AUCUNE des deux pilules d'en-tête. Étape par étape, les
+// réponses réelles sont écrites en fixtures (seq605_*) pour le test Flutter.
+describe('SÉQUENCE 605 : un sens, puis l\'autre (aucune pilule ne disparaît)', () => {
+  let conv;
+  let aMsg; let bMsg;
+  beforeAll(async () => {
+    await resetLive();
+    await Message.deleteMany({});
+    conv = await friendChat(A, B);
+  });
+
+  test('1) premier sens : la demande de A acceptée par B, A diffuse', async () => {
+    aMsg = (await api.ask(A, conv)).body.chatMessageId;
+    expect((await api.respond(B, aMsg, 'accept')).status).toBe(200);
+    expect((await api.goLive(A)).status).toBe(200);
+    await flush();
+    const sa = (await api.state(A, conv)).body;
+    const sb = (await api.state(B, conv)).body;
+    expect(sa.outgoing).toMatchObject({ following: true, live: true, messageId: aMsg });
+    expect(sa.incoming.following).toBe(false);
+    expect(sb.incoming).toMatchObject({ following: true, live: true, messageId: aMsg });
+    saveFixture('seq605_1_A', sa);
+    saveFixture('seq605_1_B', sb);
+  });
+
+  test('2) l\'autre sens est demandé puis accepté, B pas encore en direct', async () => {
+    bMsg = (await api.ask(B, conv)).body.chatMessageId;
+    expect(bMsg).not.toBe(aMsg);
+    const pa = (await api.state(A, conv)).body;
+    const pb = (await api.state(B, conv)).body;
+    saveFixture('seq605_2_pending_A', pa);
+    saveFixture('seq605_2_pending_B', pb);
+    expect((await api.respond(A, bMsg, 'accept')).status).toBe(200);
+    await flush();
+    const sa = (await api.state(A, conv)).body;
+    const sb = (await api.state(B, conv)).body;
+    // Le premier sens n'a pas bougé.
+    expect(sa.outgoing).toMatchObject({ following: true, live: true, messageId: aMsg });
+    expect(sb.incoming).toMatchObject({ following: true, live: true, messageId: aMsg });
+    expect(sa.incoming).toMatchObject({ following: true, live: false, messageId: bMsg });
+    saveFixture('seq605_2_accepted_A', sa);
+    saveFixture('seq605_2_accepted_B', sb);
+  });
+
+  test('3) B diffuse à son tour : les deux sens en direct', async () => {
+    expect((await api.goLive(B)).status).toBe(200);
+    await flush();
+    const sa = (await api.state(A, conv)).body;
+    const sb = (await api.state(B, conv)).body;
+    expect(sa.outgoing).toMatchObject({ following: true, live: true, messageId: aMsg });
+    expect(sa.incoming).toMatchObject({ following: true, live: true, messageId: bMsg });
+    expect(sb.outgoing).toMatchObject({ following: true, live: true, messageId: bMsg });
+    expect(sb.incoming).toMatchObject({ following: true, live: true, messageId: aMsg });
+    saveFixture('seq605_3_A', sa);
+    saveFixture('seq605_3_B', sb);
+  });
+});
+
 describe('un seul sens : O (propriétaire) suit A (gardien)', () => {
   let conv;
   let oMsg;

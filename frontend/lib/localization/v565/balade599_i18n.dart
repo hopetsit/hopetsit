@@ -17,9 +17,9 @@ const Map<String, Map<String, String>> balade599I18n =
     'help599_t_others': 'Ce que voient les autres',
     'help599_b_others':
         'Tes amis, ta famille, et le propriétaire pendant une réservation en cours : ton rond porte ta photo, un anneau violet qui respire, la bulle « en direct · maintenant » et ton tracé. Sans signal pendant 2 min, le rond s\'éteint et affiche « Vu il y a X » ; après 10 min, il disparaît.',
-    'help599_t_dot': 'Le point vert du menu',
+    'help599_t_dot': 'Le contour de la patte du menu',
     'help599_b_dot':
-        'Sans ouvrir la carte : un petit point vert apparaît en haut à droite de la patte du menu dès qu\'un ami est en balade (le nombre s\'ils sont plusieurs). Touche la patte : la carte s\'ouvre sur lui. Le point s\'efface quand la balade s\'arrête.',
+        'Sans ouvrir la carte : le contour blanc de la patte du menu devient vert dès qu\'un ami est en direct. Il devient rouge si ton propre direct est lancé mais que ta position ne part plus (GPS ou réseau coupé). Touche la patte : la carte s\'ouvre. Le contour redevient blanc quand plus personne n\'est en direct.',
     'help599_img_caption':
         'À gauche : ce que voit la personne en balade. À droite : ce que voient les autres.',
   },
@@ -34,9 +34,9 @@ const Map<String, Map<String, String>> balade599I18n =
     'help599_t_others': 'What others see',
     'help599_b_others':
         'Your friends, your family, and the owner during a booking in progress: your circle shows your photo, a breathing purple ring, the bubble “live · right now” and your trail. After 2 min without signal, the circle dims and shows “Seen X ago”; after 10 min, it disappears.',
-    'help599_t_dot': 'The green dot on the menu',
+    'help599_t_dot': 'The menu paw outline',
     'help599_b_dot':
-        'Without opening the map: a small green dot appears at the top right of the menu paw as soon as a friend is on a walk (with the number if there are several). Tap the paw: the map opens on them. The dot vanishes when the walk stops.',
+        'Without opening the map: the white outline of the menu paw turns green as soon as a friend is live. It turns red if your own live is on but your position is no longer being sent (GPS or network lost). Tap the paw: the map opens. The outline goes back to white when nobody is live any more.',
     'help599_img_caption':
         'Left: what the person on a walk sees. Right: what others see.',
   },
@@ -51,9 +51,9 @@ const Map<String, Map<String, String>> balade599I18n =
     'help599_t_others': 'Lo que ven los demás',
     'help599_b_others':
         'Tus amigos, tu familia y el propietario durante una reserva en curso: tu círculo lleva tu foto, un anillo morado que respira, la burbuja «en directo · ahora mismo» y tu trazo. Tras 2 min sin señal, el círculo se apaga y muestra «Visto hace X»; a los 10 min desaparece.',
-    'help599_t_dot': 'El punto verde del menú',
+    'help599_t_dot': 'El contorno de la huella del menú',
     'help599_b_dot':
-        'Sin abrir el mapa: un pequeño punto verde aparece arriba a la derecha de la huella del menú en cuanto un amigo está de paseo (con el número si son varios). Toca la huella: el mapa se abre sobre él. El punto desaparece cuando el paseo termina.',
+        'Sin abrir el mapa: el contorno blanco de la huella del menú se vuelve verde en cuanto un amigo está en directo. Se vuelve rojo si tu propio directo está activado pero tu posición ya no se envía (GPS o red cortados). Toca la huella: el mapa se abre. El contorno vuelve a ser blanco cuando ya nadie está en directo.',
     'help599_img_caption':
         'Izquierda: lo que ve la persona de paseo. Derecha: lo que ven los demás.',
   },
@@ -68,9 +68,9 @@ const Map<String, Map<String, String>> balade599I18n =
     'help599_t_others': 'Was die anderen sehen',
     'help599_b_others':
         'Deine Freunde, deine Familie und der Besitzer während einer laufenden Buchung: Dein Kreis trägt dein Foto, einen atmenden violetten Ring, die Blase „live · gerade jetzt“ und deine Spur. Nach 2 Min ohne Signal wird der Kreis dunkler und zeigt „Zuletzt vor X“; nach 10 Min verschwindet er.',
-    'help599_t_dot': 'Der grüne Punkt im Menü',
+    'help599_t_dot': 'Der Rand der Menü-Pfote',
     'help599_b_dot':
-        'Ohne die Karte zu öffnen: Ein kleiner grüner Punkt erscheint oben rechts an der Pfote des Menüs, sobald ein Freund unterwegs ist (mit der Zahl, wenn es mehrere sind). Tippe auf die Pfote: Die Karte öffnet sich auf ihm. Der Punkt verschwindet, wenn der Spaziergang endet.',
+        'Ohne die Karte zu öffnen: Der weiße Rand der Menü-Pfote wird grün, sobald ein Freund live ist. Er wird rot, wenn dein eigenes Live läuft, deine Position aber nicht mehr gesendet wird (GPS oder Netz weg). Tippe auf die Pfote: Die Karte öffnet sich. Der Rand wird wieder weiß, wenn niemand mehr live ist.',
     'help599_img_caption':
         'Links: was die Person unterwegs sieht. Rechts: was die anderen sehen.',
   },
@@ -85,9 +85,9 @@ const Map<String, Map<String, String>> balade599I18n =
     'help599_t_others': 'Cosa vedono gli altri',
     'help599_b_others':
         'I tuoi amici, la tua famiglia e il proprietario durante una prenotazione in corso: il tuo cerchio porta la tua foto, un anello viola che respira, la bolla «in diretta · adesso» e la tua scia. Dopo 2 min senza segnale, il cerchio si spegne e mostra «Visto X fa»; dopo 10 min scompare.',
-    'help599_t_dot': 'Il punto verde del menu',
+    'help599_t_dot': 'Il contorno della zampa del menu',
     'help599_b_dot':
-        'Senza aprire la mappa: un piccolo punto verde appare in alto a destra della zampa del menu appena un amico è in passeggiata (con il numero se sono più di uno). Tocca la zampa: la mappa si apre su di lui. Il punto sparisce quando la passeggiata finisce.',
+        'Senza aprire la mappa: il contorno bianco della zampa del menu diventa verde appena un amico è in diretta. Diventa rosso se la tua diretta è attiva ma la tua posizione non viene più inviata (GPS o rete assenti). Tocca la zampa: la mappa si apre. Il contorno torna bianco quando nessuno è più in diretta.',
     'help599_img_caption':
         'A sinistra: cosa vede chi è in passeggiata. A destra: cosa vedono gli altri.',
   },
@@ -102,9 +102,9 @@ const Map<String, Map<String, String>> balade599I18n =
     'help599_t_others': 'O que os outros veem',
     'help599_b_others':
         'Os teus amigos, a tua família e o dono durante uma reserva em curso: o teu círculo mostra a tua foto, um anel roxo que respira, o balão «em direto · agora mesmo» e o teu traço. Após 2 min sem sinal, o círculo apaga-se e mostra «Visto há X»; após 10 min, desaparece.',
-    'help599_t_dot': 'O ponto verde do menu',
+    'help599_t_dot': 'O contorno da pata do menu',
     'help599_b_dot':
-        'Sem abrir o mapa: um pequeno ponto verde aparece no canto superior direito da pata do menu assim que um amigo está a passear (com o número se forem vários). Toca na pata: o mapa abre-se sobre ele. O ponto desaparece quando o passeio termina.',
+        'Sem abrir o mapa: o contorno branco da pata do menu fica verde assim que um amigo está em direto. Fica vermelho se o teu direto estiver ligado mas a tua posição já não for enviada (GPS ou rede em falta). Toca na pata: o mapa abre-se. O contorno volta a ficar branco quando já ninguém está em direto.',
     'help599_img_caption':
         'À esquerda: o que vê quem está a passear. À direita: o que os outros veem.',
   },
@@ -119,9 +119,9 @@ const Map<String, Map<String, String>> balade599I18n =
     'help599_t_others': 'Co widzą inni',
     'help599_b_others':
         'Twoi znajomi, rodzina i właściciel podczas trwającej rezerwacji: twoje kółko ma twoje zdjęcie, pulsującą fioletową obwódkę, dymek „na żywo · teraz” i twój ślad. Po 2 min bez sygnału kółko gaśnie i pokazuje „Widziano X temu”; po 10 min znika.',
-    'help599_t_dot': 'Zielona kropka w menu',
+    'help599_t_dot': 'Obramowanie łapki w menu',
     'help599_b_dot':
-        'Bez otwierania mapy: mała zielona kropka pojawia się w prawym górnym rogu łapki w menu, gdy tylko znajomy jest na spacerze (z liczbą, jeśli jest ich kilku). Dotknij łapki: mapa otworzy się na nim. Kropka znika, gdy spacer się kończy.',
+        'Bez otwierania mapy: białe obramowanie łapki w menu staje się zielone, gdy tylko znajomy jest na żywo. Staje się czerwone, gdy twoja transmisja jest włączona, ale pozycja nie jest już wysyłana (brak GPS lub sieci). Dotknij łapki: mapa się otworzy. Obramowanie wraca do białego, gdy nikt nie jest już na żywo.',
     'help599_img_caption':
         'Po lewej: co widzi osoba na spacerze. Po prawej: co widzą inni.',
   },
@@ -136,9 +136,9 @@ const Map<String, Map<String, String>> balade599I18n =
     'help599_t_others': '他の人に見えるもの',
     'help599_b_others':
         '友だち、家族、そして予約中の飼い主には：あなたの丸に写真、呼吸するような紫のリング、「ライブ・たった今」の吹き出し、軌跡が表示されます。2分間信号がないと丸は暗くなり「X前に確認」と表示、10分後に消えます。',
-    'help599_t_dot': 'メニューの緑の点',
+    'help599_t_dot': 'メニューの肉球のふち',
     'help599_b_dot':
-        '地図を開かなくても：友だちがお散歩を始めると、メニューの肉球の右上に小さな緑の点が出ます（複数なら人数も）。肉球をタップすると地図がその人の位置で開きます。お散歩が終わると点は消えます。',
+        '地図を開かなくても：友だちがライブを始めると、メニューの肉球の白いふちが緑になります。自分のライブがオンなのに位置が送られていないとき（GPSや通信の切断）は赤になります。肉球をタップすると地図が開きます。誰もライブをしていなくなると、ふちは白に戻ります。',
     'help599_img_caption': '左：お散歩中の人に見える画面。右：他の人に見える画面。',
   },
   'ko': <String, String>{
@@ -152,9 +152,9 @@ const Map<String, Map<String, String>> balade599I18n =
     'help599_t_others': '다른 사람에게 보이는 것',
     'help599_b_others':
         '친구, 가족, 그리고 진행 중인 예약의 반려인에게는: 내 원에 사진, 숨 쉬듯 반짝이는 보라색 링, 「라이브 · 지금」 말풍선, 그리고 자취가 보여요. 2분간 신호가 없으면 원이 어두워지며 「X 전에 확인」이 표시되고, 10분 후 사라져요.',
-    'help599_t_dot': '메뉴의 초록 점',
+    'help599_t_dot': '메뉴 발바닥의 테두리',
     'help599_b_dot':
-        '지도를 열지 않아도: 친구가 산책을 시작하면 메뉴 발바닥의 오른쪽 위에 작은 초록 점이 나타나요(여럿이면 숫자도 함께). 발바닥을 누르면 지도가 그 친구 위치에서 열려요. 산책이 끝나면 점은 사라져요.',
+        '지도를 열지 않아도: 친구가 실시간 공유를 시작하면 메뉴 발바닥의 흰 테두리가 초록색으로 바뀌어요. 내 실시간 공유가 켜져 있는데 위치가 더 이상 전송되지 않으면(GPS나 네트워크 끊김) 빨간색이 돼요. 발바닥을 누르면 지도가 열려요. 아무도 실시간 공유를 하지 않으면 테두리는 다시 흰색이 돼요.',
     'help599_img_caption': '왼쪽: 산책 중인 사람이 보는 화면. 오른쪽: 다른 사람이 보는 화면.',
   },
 };

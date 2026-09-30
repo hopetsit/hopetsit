@@ -86,6 +86,8 @@ import 'package:hopetsit/widgets/pawmap_header_badge.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_signal.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_announcement.dart';
+import 'package:hopetsit/views/map/pawmap_camera605.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_live_sheet.dart';
 
 /// PawMap — Phase 2 Couche 1 (POIs) + Phase 3 Couche 2 (reports 48h).
 ///
@@ -475,6 +477,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   String _followName = '';
   Worker? _followWorker;
   Worker? _followEndWorker;
+  Worker? _followSharedWorker; // v605
   // v23.1.294 — worker de suivi de MA position quand « Me suivre » est actif.
   Worker? _myFollowWorker;
   /// v584 — zoom de suivi « joli » (Daniel, 23/09) : rue lisible, 16-17.
@@ -821,6 +824,17 @@ class _PawMapScreenState extends State<PawMapScreen>
     // fraîcheur (30 s) et à chaque changement de la liste.
     _followEndWorker = ever<int>(_liveMap.staleTick, (_) => _endFollowIfGone());
 
+    // v605 — la vérité du suivi est `LiveMapService.followingUserId` : un
+    // arrêt fait ailleurs (feuille « En direct », chat) lâche aussi la
+    // caméra ici, sans renvoyer d'arrêt au serveur.
+    _followSharedWorker = ever<String?>(_liveMap.followingUserId, (v) {
+      if (!mounted) return;
+      final cur = _followUserId;
+      if (cur == null) return;
+      if (v == cur) return;
+      _stopFollowLocal();
+    });
+
     // v23.1.294 — « Me suivre » : suit MA position à la trace. Quand je diffuse
     // (broadcasting), chaque mise à jour GPS recentre la caméra sur moi, comme
     // une appli de navigation. On ne vole pas la caméra si on suit déjà un ami.
@@ -829,8 +843,20 @@ class _PawMapScreenState extends State<PawMapScreen>
       (pos) {
         if (pos == null) return;
         if (!_liveMap.broadcasting.value) return;
-        if ((_followUserId ?? '').isNotEmpty) return;
         _userPosition = pos;
+        // v605 — Daniel : « j'ai laissé la carte sur ton profil et ça m'est
+        // revenu sur ma position ». Pendant MA balade, chaque point GPS
+        // recollait la caméra sur moi, même si je regardais quelqu'un
+        // d'autre. Seulement en mode « me suivre » (départ de la balade ou
+        // bouton « Ma position »), jamais après un geste / une fiche.
+        if (!pawMapMayRecenterOnMe(PawAutoRecenter.myLiveGps,
+            cameraHeld: _userMovedMap,
+            following: (_followUserId ?? '').isNotEmpty,
+            focusOpen: _focusCard.value != null,
+            routeActive: _routePolylines.isNotEmpty,
+            meFollow: _meFollowCamera)) {
+          return;
+        }
         _animateFollowCamera(pos);
       },
     );
@@ -1255,6 +1281,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               rating: (p['rating'] as num?)?.toDouble() ?? 0,
               reviewsCount: (p['reviewsCount'] as num?)?.toInt() ?? 0,
               priceFrom: (p['priceFrom'] as num?)?.toDouble() ?? 0,
+              priceAlt: p['priceAlt'] is Map ? p['priceAlt'] as Map : null,
               currency: (p['currency'] ?? 'EUR').toString(),
               verified: p['kycVerified'] == true,
               boosted: p['isBoosted'] == true,
@@ -1325,6 +1352,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     double rating = 0,
     int reviewsCount = 0,
     double priceFrom = 0,
+    // v605 — tarif semaine / mois quand il n'y a pas de tarif jour.
+    Map? priceAlt,
     String currency = 'EUR',
     bool verified = false,
     bool boosted = false,
@@ -1343,6 +1372,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     // de la fiche, bouton « Profil » multicolore, bulle duo).
     List<Map<String, dynamic>> roleEntries = const [],
   }) {
+    _holdCamera(); // v605 — un profil ouvert garde la caméra
     final List<String> personRoleList = roleEntries.length > 1
         ? pawMapOrderedRoles(roleEntries
             .map((e) => (e['_role'] ?? e['role'] ?? '').toString()))
@@ -1364,14 +1394,17 @@ class _PawMapScreenState extends State<PawMapScreen>
               shows: (r) => pawMapShowsPriceBubble(_role, r),
               shownRoles: const <String>{},
               format: CurrencyHelper.formatCompact,
+              unitSuffix: _priceUnitSuffix,
             )
           : null;
       final String price = duo != null
           ? duo.text.replaceAll('|', ' · ')
           : ((role == 'sitter' || role == 'walker') &&
-                  priceFrom > 0 &&
                   pawMapShowsPriceBubble(_role, role)
-              ? CurrencyHelper.formatCompact(currency, priceFrom)
+              ? pawMapRolePriceText(
+                  {'priceFrom': priceFrom, 'priceAlt': priceAlt, 'currency': currency},
+                  format: CurrencyHelper.formatCompact,
+                  unitSuffix: _priceUnitSuffix)
               : '');
       final bool walking = liveState == PawFollowState.live;
       final String info = [
@@ -1407,6 +1440,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             rating: rating,
             reviewsCount: reviewsCount,
             priceFrom: priceFrom,
+            priceAlt: priceAlt,
             currency: currency,
             verified: verified,
             boosted: boosted,
@@ -1466,9 +1500,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       hasOpenRequest: hasOpenRequest,
       distanceLabel: approx ? '' : _distanceLabelTo(lat, lng),
     );
-    final priceLabel = priceFrom > 0
-        ? CurrencyHelper.formatCompact(currency, priceFrom)
-        : '';
+    // v605 — « dès 100 €/sem » quand seul un tarif semaine / mois existe.
+    final priceLabel = pawMapRolePriceText(
+        {'priceFrom': priceFrom, 'priceAlt': priceAlt, 'currency': currency},
+        format: CurrencyHelper.formatCompact,
+        unitSuffix: _priceUnitSuffix);
     PawFriendState reqState =
         _relationState(id, serverFriend: friendNow, personIds: personIds);
     showPawMapSheet<void>(
@@ -1971,6 +2007,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             rating: (p['rating'] as num?)?.toDouble() ?? 0,
             reviewsCount: (p['reviewsCount'] as num?)?.toInt() ?? 0,
             priceFrom: (p['priceFrom'] as num?)?.toDouble() ?? 0,
+            priceAlt: p['priceAlt'] is Map ? p['priceAlt'] as Map : null,
             currency: (p['currency'] ?? 'EUR').toString(),
             verified: item.verified,
             boosted: p['isBoosted'] == true,
@@ -2080,6 +2117,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     _walkTimer = null;
     _followWorker?.dispose();
     _followEndWorker?.dispose();
+    _followSharedWorker?.dispose();
     _myFollowWorker?.dispose();
     // v414 — Daniel : "qd l'app se ferme le direct s'éteint, je veux qu'il
     // reste allumé". On NE coupe PLUS le broadcast quand l'écran PawMap est
@@ -2108,13 +2146,18 @@ class _PawMapScreenState extends State<PawMapScreen>
       // placement en cours).
       final pausedAt = _pausedAt;
       _pausedAt = null;
+      // v605 — plus jamais si la caméra est à l'utilisateur (geste, fiche,
+      // ami montré) : Daniel regardait le profil de son frère.
       if (pausedAt != null &&
           DateTime.now().difference(pausedAt) >= const Duration(minutes: 2) &&
-          _routePolylines.isEmpty &&
-          _followUserId == null &&
-          !_pickingSpotPos.value &&
-          !_pickingReportPos.value &&
-          !_pickingRoutePos.value) {
+          pawMapMayRecenterOnMe(PawAutoRecenter.appResume,
+              cameraHeld: _userMovedMap || _explicitStart || _friendFocusRequested,
+              following: _followUserId != null,
+              focusOpen: _focusCard.value != null,
+              routeActive: _routePolylines.isNotEmpty,
+              picking: _pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value)) {
         unawaited(_recenterOnUser());
       }
       if (_haloTimer == null || !(_haloTimer!.isActive)) {
@@ -2170,6 +2213,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// contrôleur (la v523 animait deux cartes, il n'y en a plus qu'une).
   Future<void> _goToCity(LatLng target, {double zoom = 13}) async {
     if (!mounted) return;
+    _holdCamera(); // v605
     setState(() => _currentCenter = target);
     if (_mapCtl.isCompleted) {
       try {
@@ -2259,9 +2303,12 @@ class _PawMapScreenState extends State<PawMapScreen>
       // FIX : si on a un initialLat/Lng on garde le centre demande
       // (sitter, walker, ami). On set juste _userPosition pour pouvoir
       // afficher MON point bleu en plus, dans un coin de la carte.
+      // v605 — une demande d'un autre écran (lien, ville, chat) ou une
+      // fiche ouverte pendant l'attente du GPS compte aussi comme un focus.
       final hasInitialFocus =
           (widget.initialLat != null && widget.initialLng != null) ||
-              _friendFocusRequested;
+              _friendFocusRequested ||
+              _explicitStart;
       setState(() {
         // _userPosition reste toujours MA position (overlay perso).
         _userPosition = myCenter;
@@ -2277,16 +2324,23 @@ class _PawMapScreenState extends State<PawMapScreen>
       // the map widget never builds (e.g. user switched tabs immediately).
       // v240 — on anime la camera vers MA position UNIQUEMENT si pas de
       // focus initial (sinon on reste sur le sitter/walker/ami).
-      if (!hasInitialFocus &&
-          !_userMovedMap &&
-          shouldAutoRecenter(myCenter)) {
+      bool mayFly() => pawMapMayRecenterOnMe(PawAutoRecenter.gpsFirstFix,
+          cameraHeld: hasInitialFocus || _userMovedMap || _friendFocusRequested,
+          following: _followUserId != null,
+          focusOpen: _focusCard.value != null,
+          routeActive: _routePolylines.isNotEmpty,
+          picking: _pickingSpotPos.value ||
+              _pickingReportPos.value ||
+              _pickingRoutePos.value);
+      if (mayFly() && shouldAutoRecenter(myCenter)) {
         try {
           final ctl = await _mapCtl.future.timeout(
             const Duration(seconds: 6),
             onTimeout: () => throw TimeoutException('map controller not ready'),
           );
-          // Geste pendant l'attente de la carte : on ne vole plus.
-          if (!_userMovedMap && mounted) {
+          // Geste (ou fiche, ami, suivi) pendant l'attente de la carte : on
+          // ne vole plus.
+          if (mounted && mayFly()) {
             _autoRecenterAt = DateTime.now();
             _autoRecenterTarget = myCenter;
             // v584 — ma position, au ZOOM retenu (plus un 13 en dur).
@@ -3038,6 +3092,14 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Démarre le partage en direct pour [chosen] (GPS frais d'abord, puis
   /// zoom piéton) — chemin unique du bouton Direct et de la feuille.
   Future<void> _startBroadcastWith(LiveShareDuration chosen) async {
+    // v605 — départ de MA balade : la caméra me suit (jusqu'au 1er geste),
+    // SAUF si je suis quelqu'un : la caméra reste sur lui (suivi mutuel,
+    // Daniel : « si l'un veut suivre l'autre ça coupe »).
+    final bool keepOnFollowed = _followUserId != null;
+    if (!keepOnFollowed) {
+      _userMovedMap = false;
+      _meFollowCamera = true;
+    }
     // v19.1.5 — refresh GPS FIRST, then zoom. Before this fix we used the
     // stale `_currentCenter` which could be the last panned position on the
     // map (parfois "à côté" de l'utilisateur réel).
@@ -3055,7 +3117,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         target = LatLng(loc.latitude, loc.longitude);
         if (mounted) {
           setState(() {
-            _currentCenter = target;
+            if (!keepOnFollowed) _currentCenter = target;
             _userPosition = target; // v237 : ce que le broadcast doit suivre.
           });
         }
@@ -3085,6 +3147,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
 
     // Zoom "piéton" (street level ~17) centré sur la position GPS fraîche.
+    // v605 — jamais pendant un suivi (la caméra reste sur la personne).
+    if (keepOnFollowed || _followUserId != null) return;
     try {
       final ctl = await _mapCtl.future;
       await ctl.animateCamera(
@@ -3872,14 +3936,20 @@ class _PawMapScreenState extends State<PawMapScreen>
     final r1 = withLabel ? (rating * 10).round() / 10 : 0.0;
     final key =
         'member:$role:${crown ? 1 : 0}:$phase:${verified ? 1 : 0}:${online ? 1 : 0}:${selected ? 1 : 0}:${priceLabel ?? ''}:$r1:${priceBubble ?? ''}';
-    final w = PawMapPinPainter.memberBitmapSize(size);
+    // v605 — bitmap élargi à la bulle (duo, prix longs) : plus de bulle rognée.
+    final w = PawMapPinPainter.memberBitmapWidth(size,
+        priceBubble: withBubble ? priceBubble : null);
+    final double dx = (w - PawMapPinPainter.memberBitmapSize(size)) / 2;
     final h = PawMapPinPainter.memberBitmapSize(size,
         withLabel: withLabel, withBubble: withBubble);
     return _pins.getOrBuild(
           key,
           w,
           h,
-          (c) => PawMapPinPainter.paintMemberDot(
+          (c) {
+            c.save();
+            c.translate(dx, 0);
+            PawMapPinPainter.paintMemberDot(
             c,
             role: role,
             size: size,
@@ -3891,7 +3961,9 @@ class _PawMapScreenState extends State<PawMapScreen>
             priceLabel: priceLabel,
             rating: r1,
             priceBubble: withBubble ? priceBubble : null,
-          ),
+          );
+            c.restore();
+          },
           slot: slot,
         ) ??
         BitmapDescriptor.defaultMarkerWithHue(role == 'sitter'
@@ -4168,6 +4240,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       rating: (e['rating'] as num?)?.toDouble() ?? 0,
       reviewsCount: (e['reviewsCount'] as num?)?.toInt() ?? 0,
       priceFrom: (e['priceFrom'] as num?)?.toDouble() ?? 0,
+      priceAlt: e['priceAlt'] is Map ? e['priceAlt'] as Map : null,
       currency: (e['currency'] ?? 'EUR').toString(),
       verified: e['kycVerified'] == true,
       boosted: e['isBoosted'] == true,
@@ -4214,12 +4287,12 @@ class _PawMapScreenState extends State<PawMapScreen>
     return _worldMembers.any(hit) || _nearbyProviders.any(hit);
   }
 
-  String _priceLabelFor(Map<String, dynamic> p) {
-    final price = (p['priceFrom'] as num?)?.toDouble() ?? 0;
-    if (price <= 0) return '';
-    final cur = (p['currency'] ?? 'EUR').toString();
-    return CurrencyHelper.formatCompact(cur, price);
-  }
+  String _priceLabelFor(Map<String, dynamic> p) => pawMapRolePriceText(p,
+      format: CurrencyHelper.formatCompact, unitSuffix: _priceUnitSuffix);
+
+  /// v605 — « /sem » / « /mois » (9 langues).
+  static String _priceUnitSuffix(String unit) =>
+      unit == 'month' ? 'pm605_per_month'.tr : 'pm605_per_week'.tr;
 
   Set<Marker> _buildMarkers() {
     final Set<Marker> markers = {};
@@ -4507,6 +4580,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 shows: (r) => pawMapShowsPriceBubble(_role, r),
                 shownRoles: _memberRoles.toSet(),
                 format: CurrencyHelper.formatCompact,
+                unitSuffix: _priceUnitSuffix,
               );
         final String priceLabel = priceBub == null
             ? ''
@@ -4669,6 +4743,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               rating: (p['rating'] as num?)?.toDouble() ?? 0,
               reviewsCount: (p['reviewsCount'] as num?)?.toInt() ?? 0,
               priceFrom: (p['priceFrom'] as num?)?.toDouble() ?? 0,
+              priceAlt: p['priceAlt'] is Map ? p['priceAlt'] as Map : null,
               currency: (p['currency'] ?? 'EUR').toString(),
               verified: verified,
               boosted: boosted,
@@ -4874,14 +4949,12 @@ class _PawMapScreenState extends State<PawMapScreen>
               // (Daniel : capture du 27/09, halo absent sur le rond éteint).
               boosted: liveBoosted,
               // v584 — auréole violette qui respire sur la personne SUIVIE.
-              followPhase: _followUserId != null &&
-                      _followUserId!.trim().toLowerCase() == normPosId &&
-                      !_reduceMotion
-                  ? _boostPhaseIdx
-                  : (_followUserId != null &&
-                          _followUserId!.trim().toLowerCase() == normPosId
-                      ? 0
-                      : -1),
+              // v605 — Daniel : « t'es pas violet ». La personne que JE
+              // suis est violette même boostée (pickPhotoHalo), et « je la
+              // suis » se lit aussi dans la vérité partagée du service.
+              followPhase: _followedByMe(pos)
+                  ? (_reduceMotion ? 0 : _boostPhaseIdx)
+                  : -1,
               label: _focusTapId == pos.userId || _pinZoom >= _priceZoom
                   ? pawMapShortName(displayName)
                   : null,
@@ -5309,7 +5382,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (_followUserId != null) {
           // v604 — retour Android : la caméra lâche la personne et ne la
           // re-suit plus d'elle-même (la demande de suivi reste active).
-          _liveMap.followDeclined.add(_followUserId!);
+          _liveMap.declineFollow(_followUserId!);
           _stopFollow();
           return;
         }
@@ -5653,12 +5726,14 @@ class _PawMapScreenState extends State<PawMapScreen>
                                     live: live,
                                     followers: live ? _liveMap.myFollowers.value : 0,
                                     elsewhere: !live && _liveMap.liveElsewhere.value,
+                                    following:
+                                        _liveMap.followingUserId.value != null,
                                     startedAt: _liveMap.sessionStartedAt.value,
                                     noGps: live &&
                                         _liveMap.liveStatus.value ==
                                             LiveShareStatus.lost &&
                                         _liveMap.myLivePosition.value == null,
-                                    onTap: () => unawaited(_toggleDirect()),
+                                    onTap: () => unawaited(_onBaladeTap()),
                                     onLongPress: () => _showCapsuleHelp('direct'),
                                   );
                                 })),
@@ -5789,6 +5864,29 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// automatique au démarrage.
   bool _userMovedMap = false;
 
+  /// v605 — mode « me suivre » : la caméra suit MA position pendant ma
+  /// balade. Allumé par le départ de la balade et le bouton « Ma position »,
+  /// éteint par tout geste / fiche / ami montré ([_holdCamera]).
+  bool _meFollowCamera = false;
+
+  /// v605 — la caméra appartient désormais à l'utilisateur : aucun
+  /// recentrage automatique sur « Moi » (voir pawmap_camera605.dart).
+  void _holdCamera() {
+    _userMovedMap = true;
+    _lastGestureAt = DateTime.now();
+    _meFollowCamera = false;
+  }
+
+  /// v605 — bouton « Ma position » : la caméra revient à moi (et me suit
+  /// pendant ma balade).
+  Future<void> _onMyPositionButton() async {
+    _userMovedMap = false;
+    _friendFocusRequested = false;
+    _explicitStart = false;
+    _meFollowCamera = _liveMap.broadcasting.value;
+    await _recenterOnUser();
+  }
+
   /// v594 — Daniel : « au début, quand je me connecte, ça revient DEUX fois
   /// sur ma position si je ne touche pas l'écran 5 s ». Après la connexion,
   /// l'écran PawMap est reconstruit (nouvel état → 2e `_bootstrap`) : le
@@ -5800,23 +5898,21 @@ class _PawMapScreenState extends State<PawMapScreen>
   static LatLng? _autoRecenterTarget;
   static DateTime? _lastGestureAt;
 
-  static bool shouldAutoRecenter(LatLng target, {DateTime? now}) {
-    final t = now ?? DateTime.now();
-    final at = _autoRecenterAt;
-    final prev = _autoRecenterTarget;
-    if (at == null || prev == null) return true;
-    if (t.difference(at) > const Duration(minutes: 10)) return true;
-    final g = _lastGestureAt;
-    if (g != null && g.isAfter(at)) return false;
-    return pawMapDistanceKm(prev, target) > 0.3;
-  }
+  static bool shouldAutoRecenter(LatLng target, {DateTime? now}) =>
+      pawMapShouldAutoRecenterAgain(
+        now: now ?? DateTime.now(),
+        lastAutoAt: _autoRecenterAt,
+        lastAutoKmFromTarget: _autoRecenterTarget == null
+            ? null
+            : pawMapDistanceKm(_autoRecenterTarget!, target),
+        lastGestureAt: _lastGestureAt,
+      );
 
   void _onMapPointerDown(PointerDownEvent e) {
     // v601 — premier geste : la photo de lancement s'en va.
     if (_snapshotShown.value) _snapshotShown.value = false;
     if (_dragWatch.down(e.position)) {
-      _userMovedMap = true;
-      _lastGestureAt = DateTime.now();
+      _holdCamera();
       _pauseFollow();
       if (_focusCard.value != null) _clearFocus();
     }
@@ -5825,8 +5921,7 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   void _onMapPointerMove(PointerMoveEvent e) {
     if (_dragWatch.move(e.position)) {
-      _userMovedMap = true;
-      _lastGestureAt = DateTime.now();
+      _holdCamera();
       _pauseFollow();
       // v590 — début de déplacement : le focus s'annule (handoff §2).
       if (_focusCard.value != null) _clearFocus();
@@ -6180,7 +6275,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           label: 'pawmap_quick_follow'.tr,
           // v585 (bug 8) — « ma position » à l'accent du rôle.
           tint: roleTint,
-          onTap: _recenterOnUser,
+          onTap: () => unawaited(_onMyPositionButton()),
         ),
         // v598 — + / − à l'accent du rôle (jamais gris), comme « ma position ».
         PawCapsuleButton(
@@ -6298,6 +6393,13 @@ class _PawMapScreenState extends State<PawMapScreen>
           final elsewhere = !live && _liveMap.liveElsewhere.value;
           final n = live ? _liveMap.myFollowers.value : 0;
           final startedAt = _liveMap.sessionStartedAt.value;
+          // v605 — le bouton Balade = tableau de bord du direct : noir,
+          // vert (je partage), violet (je suis quelqu'un), vert + pastille
+          // violette (les deux).
+          final walkState = pawLiveButtonState(
+              meLive: live || elsewhere,
+              following: _liveMap.followingUserId.value != null ||
+                  _followUserId != null);
           return Column(
             key: const ValueKey<String>('capsule_balade'),
             mainAxisSize: MainAxisSize.min,
@@ -6311,18 +6413,26 @@ class _PawMapScreenState extends State<PawMapScreen>
                     elsewhere: elsewhere,
                   ),
                 ),
-              PawJewel(
-                key: const ValueKey<String>('pawmap_walk_btn'),
-                palette: live ? kJewelWalkOn : kJewelWalkOff,
-                icon: PawSymbols.walk,
-                label: live
-                    ? 'pawmap590_walk_live'.tr
-                    : 'pawmap590_walk'.tr,
-                size: 38,
-                active: live,
-                badge: n > 0 ? PawFollowersBadge(count: n) : null,
-                onTap: () => unawaited(_toggleDirect()),
-                onLongPress: () => _showCapsuleHelp('direct'),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  PawJewel(
+                    key: const ValueKey<String>('pawmap_walk_btn'),
+                    palette: pawLiveJewelPalette(walkState),
+                    icon: PawSymbols.walk,
+                    label: live
+                        ? 'pawmap590_walk_live'.tr
+                        : 'pawmap590_walk'.tr,
+                    size: 38,
+                    active: walkState != PawLiveButtonState.off,
+                    badge: n > 0 ? PawFollowersBadge(count: n) : null,
+                    onTap: () => unawaited(_onBaladeTap()),
+                    onLongPress: () => _showCapsuleHelp('direct'),
+                  ),
+                  if (walkState == PawLiveButtonState.both)
+                    const Positioned(
+                        left: -3, top: -3, child: PawFollowingDot()),
+                ],
               ),
               Transform.translate(
                 offset: const Offset(0, -4),
@@ -6331,7 +6441,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
-                  live ? 'pawmap590_walk_live'.tr : 'pawmap590_walk'.tr,
+                  live
+                      ? 'pawmap590_walk_live'.tr
+                      : (walkState == PawLiveButtonState.following
+                          ? 'pm605_live_title'.tr
+                          : 'pawmap590_walk'.tr),
                   maxLines: 1,
                   softWrap: false,
                   style: GoogleFonts.poppins(
@@ -6339,6 +6453,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                     fontWeight: FontWeight.w700,
                     color: live
                         ? const Color(0xFF2A9A48)
+                        : walkState == PawLiveButtonState.following
+                        ? (PawMapTheme.isDark(context)
+                            ? const Color(0xFFC4B5FD)
+                            : const Color(0xFF5B21B6))
                         : (PawMapTheme.isDark(context)
                             ? const Color(0xFFF6F1EE)
                             : const Color(0xFF17141F)),
@@ -6476,6 +6594,41 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// sont ignorés, et un appui < 1,5 s après un arrêt ne relance rien.
   bool _directBusy = false;
 
+  /// v605 — appui sur Balade (ou la pilule Direct) : rien en cours →
+  /// démarrer ma balade ; sinon la feuille unique « En direct ».
+  Future<void> _onBaladeTap() async {
+    if (!_viewerLoggedIn) {
+      SignupWallSheet.show(trigger: 'pawmap');
+      return;
+    }
+    final state = pawLiveButtonState(
+        meLive: _liveMap.meLive.value,
+        following: _liveMap.followingUserId.value != null || _followUserId != null);
+    if (state == PawLiveButtonState.off) {
+      await _toggleDirect();
+      return;
+    }
+    await _openLiveSheet();
+  }
+
+  Future<void> _openLiveSheet() => showPawLiveSheet(
+        context,
+        onStartWalk: _toggleDirect,
+        onFollowFriend: (fp) {
+          if (!mounted) return;
+          unawaited(_focusFriend(PawMapFriendFocus(
+            userId: fp.userId,
+            role: fp.role.isEmpty ? 'owner' : fp.role,
+            name: fp.name,
+            avatar: fp.avatar,
+            lat: fp.latitude,
+            lng: fp.longitude,
+            live: true,
+            personIds: fp.personIds,
+          )));
+        },
+      );
+
   Future<void> _toggleDirect() async {
     if (_directBusy) return;
     _directBusy = true;
@@ -6533,6 +6686,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// (+ la mienne).
   Future<void> _fitAllFriends() async {
     if (!_mapCtl.isCompleted) return;
+    _holdCamera(); // v605
     final pts = _liveMap.friendPositions.values
         .where((p) => !(p.latitude == 0 && p.longitude == 0))
         .map((p) => LatLng(p.latitude, p.longitude))
@@ -6608,6 +6762,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       );
       return;
     }
+    _holdCamera(); // v605 — le suivi garde la caméra sur la personne
     setState(() {
       _followUserId = userId;
       _followName = name;
@@ -6618,7 +6773,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     });
     _animateFollowCamera(pos, zoom: zoom ?? _followZoom);
     // v604 — vérité partagée « je le suis » (chat, carte, feuilles).
-    _liveMap.markFollowing(userId);
+    _liveMap.markFollowing(userId, name: name, avatar: avatar, role: role);
     // v589 — la personne suivie voit « un œil + le nombre » sur sa pilule.
     unawaited(_liveMap.followPresence(userId, true));
     _followPresenceTimer?.cancel();
@@ -6630,11 +6785,26 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   Timer? _followPresenceTimer;
 
+  /// v605 — cette position est-elle celle de la personne que JE suis ?
+  /// (suivi de la carte OU vérité partagée [LiveMapService.followingUserId],
+  /// tous ses ids de profil).
+  bool _followedByMe(FriendPosition pos) {
+    final ids = <String>{
+      for (final id in pos.allIds) id.trim().toLowerCase(),
+    };
+    for (final f in <String?>[_followUserId, _liveMap.followingUserId.value]) {
+      final k = (f ?? '').trim().toLowerCase();
+      if (k.isNotEmpty && ids.contains(k)) return true;
+    }
+    return false;
+  }
+
   /// v588 — Daniel : « dans la liste d'amis, quand je clique sur sa photo, ça
   /// ne me renvoie pas vers lui sur la map ». Vol doux jusqu'à l'ami (zoom
   /// 16), sa fiche courte ouverte ; en direct, le suivi démarre.
   Future<void> _focusFriend(PawMapFriendFocus f) async {
     if (!mounted) return;
+    _holdCamera(); // v605
     if (_followUserId != null &&
         !{f.userId, ...f.personIds}.contains(_followUserId)) {
       _stopFollow();
@@ -6725,9 +6895,10 @@ class _PawMapScreenState extends State<PawMapScreen>
           Navigator.of(context).pop();
           _resumeFollow();
         },
+        // v605 — arrêter passe par la feuille unique « En direct ».
         onStop: () {
           Navigator.of(context).pop();
-          _stopFollow(byUser: true);
+          unawaited(_openLiveSheet());
         },
         onDirections: fp == null
             ? null
@@ -6788,9 +6959,17 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// sens seulement (son suivi à elle, si elle me suit, continue).
   void _stopFollow({bool byUser = false}) {
     if (_followUserId == null) return;
+    final uid = _followUserId!;
+    _stopFollowLocal();
+    unawaited(_liveMap.stopFollowing(uid, byUser: byUser));
+  }
+
+  /// v605 — lâche la caméra et le tracé ICI seulement (l'arrêt côté service
+  /// / serveur est fait par l'appelant).
+  void _stopFollowLocal() {
+    if (_followUserId == null) return;
     _followPresenceTimer?.cancel();
     _followPresenceTimer = null;
-    unawaited(_liveMap.stopFollowing(_followUserId!, byUser: byUser));
     setState(() {
       _followUserId = null;
       _followName = '';
@@ -6951,7 +7130,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   Future<void> _zoomIn() async {
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
-    _userMovedMap = true;
+    _holdCamera();
     // Zoomer ne coupe pas le suivi (seul un vrai geste le met en pause).
     _fade.pulse();
     await ctl.animateCamera(CameraUpdate.zoomBy(0.8));
@@ -6960,7 +7139,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   Future<void> _zoomOut() async {
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
-    _userMovedMap = true;
+    _holdCamera();
     _fade.pulse();
     await ctl.animateCamera(CameraUpdate.zoomBy(-0.8));
   }
@@ -8911,6 +9090,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// au-dessus du centre, +1,5 niveau de zoom), la carte focus apparaît.
   /// Le cadrage d'avant est retenu pour ✕.
   void _focusFirstTap(LatLng target, PawFocusInfo info) {
+    _holdCamera(); // v605 — une fiche ouverte garde la caméra
     _focusSavedCam ??= CameraPosition(target: _currentCenter, zoom: _zoomLevel);
     _focusTapId = info.key;
     _focusTapAt = DateTime.now();
@@ -9026,6 +9206,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v552 — ouvre l'élément partagé par un lien (`/spot/:id`, `/alert/:id`).
   /// Daniel : « selon ce qu'on partage, que ça tombe sur la chose précise ».
   Future<void> _openSharedTarget({String? spotId, String? reportId}) async {
+    _holdCamera(); // v605
     final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
     if (api == null) return;
     spotId ??= '';
@@ -10340,6 +10521,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// suivre, spot / signalement partagé, itinéraire, ou simple centre.
   Future<void> _applyIntent(PawMapIntent i) async {
     if (!mounted) return;
+    _holdCamera(); // v605 — demande d'un autre écran : la caméra y reste
     if (i.hasUser) {
       final uid = i.focusUserId!;
       final role = (i.focusUserRole ?? '').toLowerCase();
@@ -10374,6 +10556,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         _followRole = role;
         _followPaused = false;
       });
+      // v605 — même vérité partagée que `_startFollow`.
+      _liveMap.markFollowing(uid,
+          name: i.focusUserName ?? '',
+          avatar: i.focusUserAvatar ?? '',
+          role: role);
       return;
     }
     if (i.hasShared) {

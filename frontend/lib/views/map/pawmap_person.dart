@@ -55,6 +55,8 @@ List<Map<String, dynamic>> pawMapExpandRoles(Map p) {
         '_role': r['role'].toString().toLowerCase(),
         'role': r['role'].toString().toLowerCase(),
         if (r['priceFrom'] is num) 'priceFrom': r['priceFrom'],
+        // v605 — tarif à la semaine / au mois (gardien sans tarif jour).
+        if (r['priceAlt'] is Map) 'priceAlt': r['priceAlt'],
         if (r['rating'] is num) 'rating': r['rating'],
         if (r['reviewsCount'] is num) 'reviewsCount': r['reviewsCount'],
         if (r['currency'] != null) 'currency': r['currency'],
@@ -156,11 +158,34 @@ List<String> pawMapPersonRoles(Map p) {
 /// prix du seul rôle visible, à sa couleur. null = pas de bulle.
 /// [shows] (rôle du spectateur, rôle du membre) = règle du marché
 /// (`pawMapShowsPriceBubble`) ; [shownRoles] = filtre de rôles de la carte.
+/// v605 (30/09, Daniel) — tarif affichable d'un rôle : `priceFrom` (jour /
+/// heure / balade) s'il existe, sinon le tarif SEMAINE ou MOIS du serveur
+/// (`priceAlt: {amount, unit: 'week'|'month'}`) avec son unité : GIRMA,
+/// gardien à 100 €/semaine seulement, n'avait AUCUNE bulle. '' = rien.
+/// [unitSuffix] : 'week' → « /sem », 'month' → « /mois » (traduit). Pure.
+String pawMapRolePriceText(
+  Map r, {
+  required String Function(String currency, double price) format,
+  String Function(String unit)? unitSuffix,
+}) {
+  final cur = (r['currency'] ?? 'EUR').toString();
+  final price = (r['priceFrom'] as num?)?.toDouble() ?? 0;
+  if (price > 0) return format(cur, price);
+  if (unitSuffix == null) return '';
+  final alt = r['priceAlt'];
+  if (alt is! Map) return '';
+  final amount = (alt['amount'] as num?)?.toDouble() ?? 0;
+  final unit = (alt['unit'] ?? '').toString();
+  if (amount <= 0 || (unit != 'week' && unit != 'month')) return '';
+  return '${format(cur, amount)}${unitSuffix(unit)}';
+}
+
 ({String text, String role})? pawMapPersonPriceBubble(
   List<Map<String, dynamic>> personRoles, {
   required bool Function(String targetRole) shows,
   required Set<String> shownRoles,
   required String Function(String currency, double price) format,
+  String Function(String unit)? unitSuffix,
 }) {
   final byRole = <String, String>{};
   for (final r in personRoles) {
@@ -168,9 +193,10 @@ List<String> pawMapPersonRoles(Map p) {
     if (role != 'sitter' && role != 'walker') continue;
     if (shownRoles.isNotEmpty && !shownRoles.contains(role)) continue;
     if (!shows(role)) continue;
-    final price = (r['priceFrom'] as num?)?.toDouble() ?? 0;
-    if (price <= 0 || byRole.containsKey(role)) continue;
-    byRole[role] = format((r['currency'] ?? 'EUR').toString(), price);
+    if (byRole.containsKey(role)) continue;
+    final text = pawMapRolePriceText(r, format: format, unitSuffix: unitSuffix);
+    if (text.isEmpty) continue;
+    byRole[role] = text;
   }
   if (byRole.containsKey('sitter') && byRole.containsKey('walker')) {
     return (text: '${byRole['sitter']}|${byRole['walker']}', role: 'duo');
@@ -228,7 +254,7 @@ Map<String, dynamic> pawMapWithWorldPrices(
   if (tr is List) {
     for (final r in tr.whereType<Map>()) {
       final price = (r['priceFrom'] as num?)?.toDouble() ?? 0;
-      if (price <= 0) continue;
+      if (price <= 0 && r['priceAlt'] is! Map) continue;
       byId[(r['id'] ?? '').toString().toLowerCase()] = r;
       byRole.putIfAbsent((r['role'] ?? '').toString().toLowerCase(), () => r);
     }
@@ -247,6 +273,8 @@ Map<String, dynamic> pawMapWithWorldPrices(
             return <String, dynamic>{
               ...Map<String, dynamic>.from(r),
               'priceFrom': src['priceFrom'],
+              if (r['priceAlt'] is! Map && src['priceAlt'] is Map)
+                'priceAlt': src['priceAlt'],
               if (r['currency'] == null && src['currency'] != null)
                 'currency': src['currency'],
             };
@@ -261,6 +289,9 @@ Map<String, dynamic> pawMapWithWorldPrices(
     if (src != null) {
       out['priceFrom'] = src['priceFrom'];
       out['currency'] ??= src['currency'];
+      if (p['priceAlt'] is! Map && src['priceAlt'] is Map) {
+        out['priceAlt'] = src['priceAlt'];
+      }
     }
   }
   return out;

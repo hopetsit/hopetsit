@@ -16,7 +16,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/controllers/chat_controller.dart';
+import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/services/live_map_service.dart';
+import 'package:hopetsit/utils/map_ui_state.dart';
+import 'package:hopetsit/views/map/pawmap_friend_focus.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_live_sheet.dart';
 import 'package:hopetsit/services/live_share_starter.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
@@ -250,6 +255,90 @@ Future<void> pawFollowConfirmStop(
       }
     },
   );
+}
+
+/// v605 (ZOE) — Daniel (30/09) : « tout le direct passe par le bouton
+/// Balade ». Les arrêts du chat (« Arrêter de suivre », « Arrêter mon
+/// direct ») passent TOUS par cette fonction unique, que BOB reliera à la
+/// feuille « En direct » de PAM (ma balade / ceux que je suis / ceux qui me
+/// suivent). Tant qu'elle n'est pas reliée : la confirmation du 604, qui
+/// arrête le bon sens côté serveur.
+Future<void> openLiveSheetFromChat(
+  BuildContext context, {
+  required String conversationId,
+  required String messageId,
+  required bool iShare,
+}) {
+  // v605 (PAM) — BRANCHEMENT 605 fait : la feuille unique « En direct »
+  // (`showPawLiveSheet`, pawmap_live_sheet.dart). Mon direct (iShare) : la
+  // ligne « Ma balade → Arrêter » de la feuille ; si ce téléphone ne sait pas
+  // encore que je diffuse (état serveur seul), la confirmation du 604 qui
+  // arrête côté serveur. Suivi (suiveur) : la ligne « Tu suis … → Arrêter de
+  // suivre », qui termine CE sens côté serveur (PawFollowStateStore.stop).
+  final LiveMapService? live =
+      Get.isRegistered<LiveMapService>() ? Get.find<LiveMapService>() : null;
+  if (live == null || (iShare && !live.meLive.value)) {
+    return pawFollowConfirmStop(context,
+        conversationId: conversationId, messageId: messageId, iShare: iShare);
+  }
+  final peer = _chatPeerOf(conversationId);
+  if (!iShare && peer.$1.isEmpty && live.followingUserId.value == null) {
+    // Correspondant introuvable (liste pas encore chargée) : l'arrêt serveur
+    // de CE sens, sans feuille vide.
+    return pawFollowConfirmStop(context,
+        conversationId: conversationId, messageId: messageId, iShare: iShare);
+  }
+  return showPawLiveSheet(
+    context,
+    chatFollow: iShare || peer.$1.isEmpty
+        ? null
+        : PawLiveChatFollow(
+            userId: peer.$1,
+            name: peer.$2,
+            avatar: peer.$3,
+            onStop: () async {
+              try {
+                await PawFollowStateStore.stop(conversationId,
+                    scope: 'following', messageId: messageId);
+                CustomSnackbar.showSuccess(
+                    title: 'chat604_stopped_following'.tr, message: '');
+              } catch (_) {
+                CustomSnackbar.showError(
+                    title: 'chat604_stop_error'.tr, message: '');
+              }
+            },
+          ),
+    onFollowFriend: (fp) => openPawMapOnFriend(PawMapFriendFocus(
+      userId: fp.userId,
+      role: fp.role.isEmpty ? 'owner' : fp.role,
+      name: fp.name,
+      avatar: fp.avatar,
+      lat: fp.latitude,
+      lng: fp.longitude,
+      live: true,
+      personIds: fp.personIds,
+    )),
+  ).then((_) {
+    // Relecture de l'état par sens (l'arrêt est traité en < 1 s).
+    unawaited(Future<void>.delayed(const Duration(milliseconds: 900),
+        () => PawFollowStateStore.refresh(conversationId)));
+  });
+}
+
+/// v605 — (id, nom, photo) du correspondant d'une conversation, lus dans
+/// les listes de conversations déjà chargées (propriétaire ou prestataire).
+(String, String, String) _chatPeerOf(String conversationId) {
+  final lists = <Iterable<ChatConversationBase>>[
+    if (Get.isRegistered<ChatController>()) Get.find<ChatController>().conversations,
+    if (Get.isRegistered<SitterChatController>())
+      Get.find<SitterChatController>().conversations,
+  ];
+  for (final l in lists) {
+    for (final c in l) {
+      if (c.id == conversationId) return (c.contactId, c.contactName, c.contactImage);
+    }
+  }
+  return ('', '', '');
 }
 
 /// v604 (ZOE) — pilule d'en-tête : ce qu'elle montre et la demande concernée.

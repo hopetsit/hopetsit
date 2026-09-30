@@ -1,6 +1,6 @@
 // v599 (29/09/2026) — illustration « La Balade » : se construit dans les
 // 9 langues, clair et nuit, et EXPORT des PNG pour LEO (site) :
-// ~/hopetsit-social/pawmap_601/balade/balade_ (v601 : badge à droite ; 599 = ancienne)
+// ~/hopetsit-social/pawmap_604/balade/balade_ (v601 : badge à droite ; 599 = ancienne)
 // balade_{clair,nuit}@{2x,3x}.png (français).
 import 'dart:io';
 import 'dart:typed_data';
@@ -89,12 +89,21 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final home = Platform.environment['HOME'] ?? '';
-    final dir = Directory('$home/hopetsit-social/pawmap_601/balade');
+    final dir = Directory('$home/hopetsit-social/pawmap_604/balade');
     if (!dir.existsSync()) dir.createSync(recursive: true);
     for (final dark in [false, true]) {
       final key = GlobalKey();
       await tester.pumpWidget(_app(const Locale('fr'), dark, key));
       await tester.pump(const Duration(milliseconds: 1300)); // point vert au repos
+      // v604 — l'œil du logo est une image : la décoder AVANT la capture
+      // (sinon la 1re image exportée sort sans œil).
+      await tester.runAsync(() async {
+        for (final el in find.byType(Image).evaluate()) {
+          await precacheImage((el.widget as Image).image, el);
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump(const Duration(milliseconds: 50));
       final boundary = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
       // Le rendu en image est un vrai travail asynchrone : hors de la
       // boucle simulée du test (sinon il n'aboutit jamais).

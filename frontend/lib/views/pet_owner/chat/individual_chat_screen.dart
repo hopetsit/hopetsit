@@ -24,7 +24,7 @@ import 'package:hopetsit/views/chat_shared/chat_composer.dart';
 import 'package:hopetsit/views/chat_shared/chat_conversation_body.dart';
 import 'package:hopetsit/views/chat_shared/chat_gates.dart';
 import 'package:hopetsit/views/chat_shared/chat_header.dart';
-import 'package:hopetsit/views/chat_shared/chat_peer_sheet.dart';
+import 'package:hopetsit/views/chat_shared/chat_peer_map605.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/views/chat_shared/contacts_locked_sheet.dart';
@@ -297,7 +297,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         build: (liveNow, peerLiveNow) => PawfollowRequestCard(
       peerLiveNow: peerLiveNow,
       // v604 (ZOE) — arrêter CE sens (suiveur) ou mon direct (partageur).
-      onStop: () => pawFollowConfirmStop(context,
+      onStop: () => openLiveSheetFromChat(context,
           conversationId: widget.conversationId,
           messageId: message.id,
           iShare: iShare),
@@ -742,14 +742,16 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         session: chatController,
         theme: t,
         // v569 — tap sur la photo / le nom : ajouter en ami ou bloquer.
-        onTitleTap: () => showChatPeerSheet(
+        // v605 (ZOE) — Daniel : si c'est un AMI, sa position sur la PawMap
+        // (onglet du menu ; suivie s'il est en direct) ; sinon la fiche v569.
+        onTitleTap: () => unawaited(onChatPeerTap(
           context,
           session: chatController,
           conversationId: widget.conversationId,
           contactName: widget.contactName,
           contactImage: widget.contactImage,
           theme: t,
-        ),
+        )),
         contactName: widget.contactName,
         contactImage: widget.contactImage,
         actions: [

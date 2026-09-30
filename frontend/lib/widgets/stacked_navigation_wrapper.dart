@@ -222,8 +222,8 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
       // sur l'onglet).
       if (one != null &&
           one.userId.isNotEmpty &&
-          !live.followDeclined.contains(one.userId) &&
-          !one.personIds.any(live.followDeclined.contains)) {
+          // v605 — tous ses ids, jusqu'à une NOUVELLE session de direct.
+          !live.isFollowDeclined(one)) {
         pawMapPendingFriend.value = PawMapFriendFocus(
           userId: one.userId,
           role: one.role.isEmpty ? 'owner' : one.role,

@@ -161,7 +161,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_halo_t':
         "Un seul halo à la fois",
     'help2709_halo_b':
-        "Turquoise = PawBoost, violet = suivi en direct (PawFollow), rose = ami. Si plusieurs s'appliquent, le PawBoost passe devant, puis le PawFollow, puis l'ami. La couronne dorée PawPremium reste toujours visible en plus.",
+        "Turquoise = PawBoost, violet = suivi en direct (PawFollow), rose = ami. La personne que tu suis en direct est toujours violette. Pour les autres, si plusieurs s'appliquent, le PawBoost passe devant, puis le PawFollow, puis l'ami. La couronne dorée PawPremium reste toujours visible en plus.",
     'help2709_spotname_b':
         "Au zoom rue, son nom s'affiche sous la goutte : étiquette noire, contour et texte or.",
   },
@@ -321,7 +321,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_halo_t':
         "One halo at a time",
     'help2709_halo_b':
-        "Turquoise = PawBoost, purple = live tracking (PawFollow), pink = friend. If several apply, PawBoost comes first, then PawFollow, then friend. The gold PawPremium crown always stays visible on top.",
+        "Turquoise = PawBoost, purple = live tracking (PawFollow), pink = friend. The person you are following live is always purple. For everyone else, if several apply, PawBoost comes first, then PawFollow, then friend. The gold PawPremium crown always stays visible on top.",
     'help2709_spotname_b':
         "At street zoom, its name appears under the drop: black label, gold border and text.",
   },
@@ -481,7 +481,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_halo_t':
         "Un solo halo a la vez",
     'help2709_halo_b':
-        "Turquesa = PawBoost, violeta = seguimiento en vivo (PawFollow), rosa = amigo. Si se aplican varios, primero el PawBoost, luego el PawFollow y luego el amigo. La corona dorada PawPremium siempre sigue visible además.",
+        "Turquesa = PawBoost, violeta = seguimiento en vivo (PawFollow), rosa = amigo. La persona que sigues en vivo siempre es violeta. Para los demás, si se aplican varios, primero el PawBoost, luego el PawFollow y luego el amigo. La corona dorada PawPremium siempre sigue visible además.",
     'help2709_spotname_b':
         "Con zoom de calle, su nombre aparece bajo la gota: etiqueta negra, borde y texto dorados.",
   },
@@ -641,7 +641,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_halo_t':
         "Immer nur ein Schein",
     'help2709_halo_b':
-        "Türkis = PawBoost, Violett = Live-Verfolgung (PawFollow), Rosa = Freund. Treffen mehrere zu, geht PawBoost vor, dann PawFollow, dann Freund. Die goldene PawPremium-Krone bleibt immer zusätzlich sichtbar.",
+        "Türkis = PawBoost, Violett = Live-Verfolgung (PawFollow), Rosa = Freund. Die Person, der du live folgst, ist immer violett. Bei allen anderen gilt, wenn mehrere zutreffen: zuerst PawBoost, dann PawFollow, dann Freund. Die goldene PawPremium-Krone bleibt immer zusätzlich sichtbar.",
     'help2709_spotname_b':
         "Beim Straßen-Zoom erscheint sein Name unter dem Tropfen: schwarzes Schild, goldener Rand und goldene Schrift.",
   },
@@ -801,7 +801,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_halo_t':
         "Un solo alone alla volta",
     'help2709_halo_b':
-        "Turchese = PawBoost, viola = monitoraggio in diretta (PawFollow), rosa = amico. Se ne valgono più di uno, prima il PawBoost, poi il PawFollow, poi l'amico. La corona dorata PawPremium resta sempre visibile in più.",
+        "Turchese = PawBoost, viola = monitoraggio in diretta (PawFollow), rosa = amico. La persona che segui in diretta è sempre viola. Per gli altri, se ne valgono più di uno, prima il PawBoost, poi il PawFollow, poi l'amico. La corona dorata PawPremium resta sempre visibile in più.",
     'help2709_spotname_b':
         "Allo zoom stradale, il suo nome compare sotto la goccia: etichetta nera, bordo e testo oro.",
   },
@@ -961,7 +961,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_halo_t':
         "Um só halo de cada vez",
     'help2709_halo_b':
-        "Turquesa = PawBoost, violeta = acompanhamento em direto (PawFollow), rosa = amigo. Se vários se aplicarem, primeiro o PawBoost, depois o PawFollow e depois o amigo. A coroa dourada PawPremium continua sempre visível.",
+        "Turquesa = PawBoost, violeta = acompanhamento em direto (PawFollow), rosa = amigo. A pessoa que acompanhas em direto é sempre violeta. Para os outros, se vários se aplicarem, primeiro o PawBoost, depois o PawFollow e depois o amigo. A coroa dourada PawPremium continua sempre visível.",
     'help2709_spotname_b':
         "Com zoom de rua, o nome aparece por baixo da gota: etiqueta preta, contorno e texto dourados.",
   },
@@ -1121,7 +1121,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_halo_t':
         "후광은 한 번에 하나",
     'help2709_halo_b':
-        "청록 = PawBoost, 보라 = 실시간 따라가기(PawFollow), 분홍 = 친구. 여러 개가 해당되면 PawBoost, PawFollow, 친구 순서예요. 금색 PawPremium 왕관은 항상 함께 보여요.",
+        "청록 = PawBoost, 보라 = 실시간 따라가기(PawFollow), 분홍 = 친구. 내가 실시간으로 따라가는 사람은 항상 보라색이에요. 다른 사람은 여러 개가 해당되면 PawBoost, PawFollow, 친구 순서예요. 금색 PawPremium 왕관은 항상 함께 보여요.",
     'help2709_spotname_b':
         "거리 단위로 확대하면 물방울 아래에 이름이 표시돼요: 검은 라벨, 금색 테두리와 글자.",
   },
@@ -1281,7 +1281,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_halo_t':
         "光は一度にひとつ",
     'help2709_halo_b':
-        "ターコイズ＝PawBoost、紫＝ライブ追跡（PawFollow）、ピンク＝友達。複数あてはまる場合は PawBoost、PawFollow、友達の順。金色の PawPremium の王冠はいつも追加で表示されます。",
+        "ターコイズ＝PawBoost、紫＝ライブ追跡（PawFollow）、ピンク＝友達。あなたがライブで追跡している人はいつも紫。ほかの人は、複数あてはまる場合は PawBoost、PawFollow、友達の順。金色の PawPremium の王冠はいつも追加で表示されます。",
     'help2709_spotname_b':
         "通りが見えるまで拡大すると、しずくの下に名前が表示されます：黒いラベルに金の縁と金の文字。",
   },
@@ -1441,7 +1441,7 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_halo_t':
         "Jedna poświata naraz",
     'help2709_halo_b':
-        "Turkus = PawBoost, fiolet = śledzenie na żywo (PawFollow), róż = znajomy. Jeśli pasuje kilka, najpierw PawBoost, potem PawFollow, potem znajomy. Złota korona PawPremium zawsze pozostaje widoczna.",
+        "Turkus = PawBoost, fiolet = śledzenie na żywo (PawFollow), róż = znajomy. Osoba, którą śledzisz na żywo, jest zawsze fioletowa. U pozostałych, jeśli pasuje kilka, najpierw PawBoost, potem PawFollow, potem znajomy. Złota korona PawPremium zawsze pozostaje widoczna.",
     'help2709_spotname_b':
         "Po przybliżeniu do poziomu ulicy pod kroplą pojawia się jego nazwa: czarna etykieta, złote obramowanie i napis.",
   },

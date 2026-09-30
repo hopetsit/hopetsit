@@ -346,6 +346,40 @@ bool liveActiveIsStaleAfterStop({
 /// est ignoré (le 2e appui d'un double-tap ne relance pas le direct).
 const Duration kLiveRestartDebounce = Duration(milliseconds: 1500);
 
+/// v605 — une position « en direct » que le serveur ne liste plus doit
+/// s'éteindre : vraie si elle est encore live/lost et que son dernier signe
+/// de vie a plus de [grace]. Pure, testée.
+bool pawLiveEntryVanished(FriendPosition fp, DateTime now,
+    {Duration grace = const Duration(seconds: 30)}) {
+  if (fp.liveState == FriendLiveState.seen) return false;
+  return now.difference(fp.seenAt) > grace;
+}
+
+/// v605 — prénoms des suiveurs envoyés par le serveur (liste de chaînes ou
+/// d'objets `{name}`). Pure.
+List<String> parseFollowerNames(dynamic raw) {
+  if (raw is! List) return const <String>[];
+  final out = <String>[];
+  for (final e in raw) {
+    final n = e is Map ? (e['name'] ?? '').toString() : (e ?? '').toString();
+    if (n.trim().isNotEmpty) out.add(n.trim());
+  }
+  return out;
+}
+
+/// v605 — état du bouton Balade (barre de droite) = le tableau de bord du
+/// direct. Noir = rien ; vert = je partage ; violet = je suis quelqu'un sans
+/// partager ; vert + pastille violette = les deux.
+enum PawLiveButtonState { off, sharing, following, both }
+
+PawLiveButtonState pawLiveButtonState(
+    {required bool meLive, required bool following}) {
+  if (meLive && following) return PawLiveButtonState.both;
+  if (meLive) return PawLiveButtonState.sharing;
+  if (following) return PawLiveButtonState.following;
+  return PawLiveButtonState.off;
+}
+
 class LiveMapService extends GetxService {
   LiveMapService({GetStorage? storage}) : _storage = storage ?? GetStorage();
 
@@ -403,6 +437,69 @@ class LiveMapService extends GetxService {
   /// re-suit plus d'elle-même (onglet PawMap « un seul ami en balade »).
   final Set<String> followDeclined = <String>{};
 
+  /// v605 — Daniel : « après avoir arrêté le suivi, le pop-up Suivre le
+  /// direct sort ». Une personne lâchée n'est plus JAMAIS reproposée tant
+  /// qu'elle n'a pas relancé une NOUVELLE session de direct : sa session
+  /// d'alors doit d'abord finir (`map:friend-offline`, ou le serveur ne la
+  /// dit plus en partage), puis un nouveau direct arriver.
+  final Set<String> _declinedSessionEnded = <String>{};
+
+  /// v605 — je lâche [userId] (tous ses ids connus) : plus de re-suivi
+  /// automatique ni de proposition pour la session en cours.
+  void declineFollow(String userId, {Iterable<String> personIds = const []}) {
+    for (final id in <String>{userId, ...personIds}) {
+      final k = id.trim().toLowerCase();
+      if (k.isEmpty) continue;
+      followDeclined.add(k);
+      if (id != k) followDeclined.add(id);
+      _declinedSessionEnded.remove(k);
+    }
+  }
+
+  /// v605 — cette personne a-t-elle été lâchée (session en cours) ?
+  bool isFollowDeclined(FriendPosition fp) {
+    for (final id in <String>{fp.userId, ...fp.personIds, ...fp.allIds}) {
+      if (followDeclined.contains(id) ||
+          followDeclined.contains(id.trim().toLowerCase())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// v605 — suivi de la session de direct d'une personne lâchée : fin de
+  /// session notée, puis au 1er direct d'une NOUVELLE session la personne
+  /// redevient proposable.
+  void _trackDeclinedSession(FriendPosition fp, {required bool live}) {
+    if (!isFollowDeclined(fp)) return;
+    final ids = <String>{
+      for (final id in <String>{fp.userId, ...fp.personIds})
+        if (id.trim().isNotEmpty) id.trim().toLowerCase(),
+    };
+    if (!live) {
+      _declinedSessionEnded.addAll(ids);
+      return;
+    }
+    if (ids.any(_declinedSessionEnded.contains)) {
+      for (final id in <String>{fp.userId, ...fp.personIds}) {
+        followDeclined.remove(id);
+        followDeclined.remove(id.trim().toLowerCase());
+      }
+      _declinedSessionEnded.removeAll(ids);
+    }
+  }
+
+  /// v605 — nom / photo / rôle de la personne que je suis (feuille unique
+  /// « En direct », pilule, chat).
+  final RxString followingName = ''.obs;
+  final RxString followingAvatar = ''.obs;
+  final RxString followingRole = ''.obs;
+
+  /// v605 — prénoms des personnes qui me suivent, quand le serveur les
+  /// envoie (`map:followers` → `names`, `/friends/live-state` →
+  /// `followerNames`). Vide = on n'affiche que le nombre.
+  final RxList<String> followerNames = <String>[].obs;
+
   /// v604 — MON direct est lancé mais ma position ne part plus (GPS muet,
   /// réseau coupé) : contour rouge de la patte du menu. Lit des observables
   /// (à appeler dans un Obx).
@@ -423,9 +520,20 @@ class LiveMapService extends GetxService {
   }
 
   /// Je commence à suivre [userId] (caméra de la carte collée sur lui).
-  void markFollowing(String userId) {
+  void markFollowing(String userId,
+      {String name = '', String avatar = '', String role = ''}) {
     if (userId.isEmpty) return;
     followDeclined.remove(userId);
+    followDeclined.remove(userId.trim().toLowerCase());
+    final fp = friendPositions[userId];
+    if (fp != null) {
+      for (final id in fp.allIds) {
+        followDeclined.remove(id);
+      }
+    }
+    followingName.value = name.isNotEmpty ? name : (fp?.name ?? '');
+    followingAvatar.value = avatar.isNotEmpty ? avatar : (fp?.avatar ?? '');
+    followingRole.value = role.isNotEmpty ? role : (fp?.role ?? '');
     followingUserId.value = userId;
   }
 
@@ -435,10 +543,21 @@ class LiveMapService extends GetxService {
   /// seulement : si elle me suit aussi, son suivi continue).
   Future<void> stopFollowing(String userId, {bool byUser = false}) async {
     if (userId.isEmpty) return;
-    if (followingUserId.value == userId) followingUserId.value = null;
+    if (followingUserId.value == userId) {
+      followingUserId.value = null;
+      followingName.value = '';
+      followingAvatar.value = '';
+      followingRole.value = '';
+    }
     await followPresence(userId, false);
     if (!byUser) return;
-    followDeclined.add(userId);
+    final fp = friendPositions[userId];
+    declineFollow(userId, personIds: fp?.personIds ?? const <String>[]);
+    // v605 — « le pin reste vert » : après l'arrêt, le serveur peut ne plus
+    // me donner cette personne ; on relit sa liste pour ne pas garder un
+    // « direct » fantôme jusqu'à 10 min.
+    unawaited(Future<void>.delayed(
+        const Duration(milliseconds: 1500), refreshFriendPositions));
     try {
       if (!Get.isRegistered<ApiClient>()) return;
       await Get.find<ApiClient>().post('/friends/follow-stop',
@@ -714,28 +833,7 @@ class LiveMapService extends GetxService {
     socket.on('map:friend-position', (raw) {
       try {
         final map = (raw as Map).cast<String, dynamic>();
-        final fp = FriendPosition.fromJson(map);
-        // v565 — une position live = signe de vie frais : jamais « stale ».
-        // v584 — et c'est la preuve d'un PARTAGE actif.
-        // v587 — l'événement arrive EN DIRECT : sa réception EST le signe de
-        // vie, mesuré à l'heure du téléphone (avant : `at` du serveur, faux
-        // si l'horloge du téléphone dérive, et faux pour un battement qui
-        // rejoue une position plus ancienne).
-        // v589 — rangée PAR PERSONNE : jamais un second rond.
-        final key = friendPositionKey(friendPositions, fp);
-        final prev = friendPositions[key];
-        final merged = fp.copyWith(
-            userId: key,
-            personIds: mergedPersonIds(prev, fp),
-            // v599 — un serveur qui n'envoie pas encore nom/photo ne les
-            // efface pas.
-            name: fp.name.isNotEmpty ? fp.name : prev?.name,
-            avatar: fp.avatar.isNotEmpty ? fp.avatar : prev?.avatar);
-        friendPositions[key] = applyLiveEvent(merged, DateTime.now());
-        // v590 — le tracé de l'ami avance avec son direct.
-        friendTrails[key] = appendTrailPoint(
-            friendTrails[key] ?? const <LatLng>[],
-            LatLng(fp.latitude, fp.longitude));
+        ingestLivePosition(FriendPosition.fromJson(map));
       } catch (e) {
         debugPrint('[LiveMap] friend-position parse error: $e');
       }
@@ -765,6 +863,7 @@ class LiveMapService extends GetxService {
           final cur = friendPositions[key];
           if (cur != null) {
             friendPositions[key] = cur.copyWith(sharing: false, stale: true);
+            _trackDeclinedSession(cur, live: false);
           }
         }
       } catch (_) {}
@@ -796,6 +895,7 @@ class LiveMapService extends GetxService {
       try {
         final n = ((raw as Map)['count'] as num?)?.toInt() ?? 0;
         myFollowers.value = n < 0 ? 0 : n;
+        followerNames.assignAll(parseFollowerNames(raw['names']));
       } catch (_) {/* payload inattendu */}
     });
 
@@ -816,6 +916,34 @@ class LiveMapService extends GetxService {
     // event) avant de le remettre → idempotent à chaque reconnexion.
     socket.off('presence:update', _onPresenceUpdate);
     socket.on('presence:update', _onPresenceUpdate);
+  }
+
+  /// v605 — une position EN DIRECT reçue (`map:friend-position`) : rangée
+  /// par personne, signe de vie = heure de réception, tracé allongé, et
+  /// session suivie pour les personnes lâchées (voir [declineFollow]).
+  void ingestLivePosition(FriendPosition fp) {
+    // v565 — une position live = signe de vie frais : jamais « stale ».
+    // v584 — et c'est la preuve d'un PARTAGE actif.
+    // v587 — l'événement arrive EN DIRECT : sa réception EST le signe de
+    // vie, mesuré à l'heure du téléphone (avant : `at` du serveur, faux
+    // si l'horloge du téléphone dérive, et faux pour un battement qui
+    // rejoue une position plus ancienne).
+    // v589 — rangée PAR PERSONNE : jamais un second rond.
+    final key = friendPositionKey(friendPositions, fp);
+    final prev = friendPositions[key];
+    final merged = fp.copyWith(
+        userId: key,
+        personIds: mergedPersonIds(prev, fp),
+        // v599 — un serveur qui n'envoie pas encore nom/photo ne les
+        // efface pas.
+        name: fp.name.isNotEmpty ? fp.name : prev?.name,
+        avatar: fp.avatar.isNotEmpty ? fp.avatar : prev?.avatar);
+    friendPositions[key] = applyLiveEvent(merged, DateTime.now());
+    _trackDeclinedSession(friendPositions[key]!, live: true);
+    // v590 — le tracé de l'ami avance avec son direct.
+    friendTrails[key] = appendTrailPoint(
+        friendTrails[key] ?? const <LatLng>[],
+        LatLng(fp.latitude, fp.longitude));
   }
 
   /// v565 — contrat §6 : `userId → en ligne ?` alimenté par `presence:update`.
@@ -844,6 +972,7 @@ class LiveMapService extends GetxService {
           .get('/friends/live-state', requiresAuth: true);
       if (raw is! Map) return;
       myFollowers.value = (raw['followers'] as num?)?.toInt() ?? 0;
+      followerNames.assignAll(parseFollowerNames(raw['followerNames']));
       final d = liveStateDecision(raw.cast<String, dynamic>(),
           broadcasting: broadcasting.value,
           localStartedAt: sessionStartedAt.value);
@@ -937,10 +1066,12 @@ class LiveMapService extends GetxService {
       final list = (r is Map && r['positions'] is List)
           ? r['positions'] as List
           : const [];
+      final seenKeys = <String>{};
       for (final item in list) {
         if (item is! Map) continue;
         final raw = FriendPosition.fromJson(item.cast<String, dynamic>());
         if (raw.userId.isEmpty) continue;
+        seenKeys.add(friendPositionKey(friendPositions, raw));
         // v589 — rangée PAR PERSONNE (voir friendPositionKey).
         final key = friendPositionKey(friendPositions, raw);
         final cur = friendPositions[key];
@@ -971,6 +1102,24 @@ class LiveMapService extends GetxService {
           );
         }
       }
+      // v605 — « le pin reste vert » : une personne que le serveur ne me
+      // donne PLUS (suivi arrêté, partage coupé, droit retiré) ne peut pas
+      // rester « en direct » chez moi jusqu'à 10 min. Seulement si son
+      // dernier signe de vie a plus de 30 s (pas de course avec un direct
+      // qui vient de démarrer et que le serveur n'a pas encore listé).
+      final now = DateTime.now();
+      for (final e in friendPositions.entries.toList()) {
+        if (seenKeys.contains(e.key)) continue;
+        if (!pawLiveEntryVanished(e.value, now)) continue;
+        friendPositions[e.key] = e.value.copyWith(sharing: false, stale: true);
+        _trackDeclinedSession(e.value, live: false);
+      }
+      for (final e in friendPositions.entries.toList()) {
+        if (e.value.liveState == FriendLiveState.seen) {
+          _trackDeclinedSession(e.value, live: false);
+        }
+      }
+      recountLiveFriends();
       debugPrint('[LiveMap] refreshed ${list.length} friend position(s)');
       return true;
     } catch (e) {
@@ -1365,6 +1514,7 @@ class LiveMapService extends GetxService {
   @override
   void onClose() {
     _staleTicker?.cancel();
+    _recountTimer?.cancel(); // v605 — oublié jusqu'ici
     _refreshTimer?.cancel();
     stopBroadcasting();
     super.onClose();

@@ -483,6 +483,28 @@ class PawGlyphs {
 /// Peintres purs. Toutes les coordonnées sont en pixels LOGIQUES : l'appelant
 /// applique `canvas.scale(dpr, dpr)` avant et alloue une image à la même
 /// densité après (voir [renderPinPng]).
+/// v605 — le halo d'un rond photo (un seul à la fois).
+enum PawPhotoHalo { follow, boost, pawFollow, friend, me, none }
+
+/// v605 (30/09) — Daniel : « t'es pas violet ». La personne que JE suis en
+/// direct est TOUJOURS violette sur ma carte, même si elle a un PawBoost
+/// (la fusée reste). Pour les autres : PawBoost > PawFollow > ami > moi.
+/// Même règle sur le site (`photoPinHtml`, website/src/lib/pawmapLegend.ts).
+PawPhotoHalo pickPhotoHalo({
+  required bool boosted,
+  required bool followed,
+  bool pawFollowGlow = false,
+  bool isFriend = false,
+  bool isMe = false,
+}) {
+  if (followed) return PawPhotoHalo.follow;
+  if (boosted) return PawPhotoHalo.boost;
+  if (pawFollowGlow) return PawPhotoHalo.pawFollow;
+  if (isFriend) return PawPhotoHalo.friend;
+  if (isMe) return PawPhotoHalo.me;
+  return PawPhotoHalo.none;
+}
+
 class PawMapPinPainter {
   PawMapPinPainter._();
 
@@ -887,6 +909,17 @@ class PawMapPinPainter {
       (withLabel ? 12 : 0) +
       (withBubble ? priceBubbleZone : 0);
 
+  /// v605 (30/09) — largeur du bitmap d'un rond de membre SANS photo : la
+  /// bulle de prix plus large que le rond (bulle duo « 20 €|12 € », prix à
+  /// 4 chiffres) était ROGNÉE des deux côtés — la v592 n'élargissait que le
+  /// rond photo. Le rond reste centré (ancre x = 0,5) ; décaler le dessin de
+  /// `(largeur − memberBitmapSize(size)) / 2`.
+  static double memberBitmapWidth(double size, {String? priceBubble}) {
+    final base = memberBitmapSize(size);
+    if (priceBubble == null || priceBubble.isEmpty) return base;
+    return math.max(base, priceBubbleWidth(priceBubble) + 8);
+  }
+
   /// Ancre verticale (0..1) d'un rond de membre : le centre du cercle.
   static double memberAnchorY(double size,
       {bool withLabel = false, bool withBubble = false}) {
@@ -1286,12 +1319,19 @@ class PawMapPinPainter {
     if (contour.isEmpty) contour.add(isFriend ? fallbackTint : ringColor);
     final double glowR = r;
 
-    // 1. Halo : PawBoost > suivi en direct > PawFollow (famille) > moi.
+    // 1. Halo : v605 — suivi en direct (la personne que JE suis) > PawBoost
+    //    > PawFollow (famille) > ami > moi. Voir [pickPhotoHalo].
     final circle = Path()..addOval(Rect.fromCircle(center: c, radius: r));
-    if (boostPhase != null) {
-      drawBoostGlow(canvas, c, glowR, boostPhase, maxR: maxR);
-    } else if (followPhase != null) {
-      drawGlow(canvas, c, glowR, followPhase, PawMapLegend.pawFollow, maxR: maxR);
+    final halo = pickPhotoHalo(
+        boosted: boostPhase != null,
+        followed: followPhase != null,
+        pawFollowGlow: pawFollowGlow,
+        isFriend: isFriend,
+        isMe: isMe);
+    if (halo == PawPhotoHalo.follow) {
+      drawGlow(canvas, c, glowR, followPhase!, PawMapLegend.pawFollow, maxR: maxR);
+    } else if (halo == PawPhotoHalo.boost) {
+      drawBoostGlow(canvas, c, glowR, boostPhase!, maxR: maxR);
     } else if (pawFollowGlow) {
       drawCssGlow(canvas, c, glowR, maxR, PawMapLegend.pawFollow,
           [(4, 0, 0.35), (5, 16, 0.55)]);

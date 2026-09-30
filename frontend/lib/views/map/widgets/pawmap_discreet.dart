@@ -1034,10 +1034,15 @@ class PawMapDirectPill extends StatefulWidget {
     this.followers = 0,
     this.onLongPress,
     this.now,
+    this.following = false,
   });
 
   /// v589 — personnes qui suivent mon direct (œil + nombre sur la pilule).
   final int followers;
+
+  /// v605 — je suis quelqu'un en direct : même état que le bouton Balade
+  /// (violet seul ; pastille violette quand je partage aussi).
+  final bool following;
 
   final bool live;
   final DateTime? startedAt;
@@ -1123,8 +1128,16 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
     final String label = lit
         ? 'pawmap590_on_walk'.tr +
             (dot > 0 ? baseLabel.substring(dot) : '')
-        : (!greenLook ? 'pawmap590_direct_off'.tr : baseLabel);
-    final Gradient gradient = !greenLook
+        : (!greenLook
+            ? (widget.following ? 'pm605_live_title'.tr : 'pawmap590_direct_off'.tr)
+            : baseLabel);
+    final Gradient gradient = !greenLook && widget.following
+        ? const LinearGradient(
+            colors: [Color(0xFF9B6BFF), Color(0xFF5B21B6)],
+            begin: Alignment(-0.17, -1),
+            end: Alignment(0.17, 1),
+          )
+        : !greenLook
         ? const LinearGradient(
             colors: [Color(0xFF2C2540), Color(0xFF17121F)],
             begin: Alignment(-0.17, -1),
@@ -1192,7 +1205,9 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
                     height: 9,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: greenLook ? Colors.white : const Color(0xFFE8402C),
+                      color: greenLook || widget.following
+                          ? Colors.white
+                          : const Color(0xFFE8402C),
                       boxShadow: lit
                           ? [
                               BoxShadow(
@@ -1223,6 +1238,21 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
                   ),
                 ),
               ),
+              // v605 — je suis quelqu'un ET je partage : pastille violette.
+              if (greenLook && widget.following)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Container(
+                    key: const ValueKey<String>('pawmap_direct_following_dot'),
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: PawMapLegend.pawFollow,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ),
               // v590 — « 👥 3 te suivent » dans une puce blanche.
               if (widget.live && widget.followers > 0)
                 Container(

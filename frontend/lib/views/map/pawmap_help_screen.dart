@@ -31,6 +31,7 @@
 // Noms, icônes et couleurs des boutons : UNE source, `kPawRailSpecs` /
 // `kPawDockSpecs` (`pawmap_rail.dart`) et `kPawCapsuleSpecs` — les mêmes que
 // le menu de personnalisation du rail et l'appui long sur la carte.
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -59,7 +60,7 @@ const Color _cardDarkDeep = Color(0xFF241916);
 const Color _lineLight = Color(0xFFF3E3DA);
 const Color _lineDark = Color(0xFF3A2A25);
 
-class PawMapHelpScreen extends StatelessWidget {
+class PawMapHelpScreen extends StatefulWidget {
   const PawMapHelpScreen({super.key, this.fromMap = false, this.role});
 
   /// Route nommée (facultative) : `Get.toNamed(PawMapHelpScreen.routeName)`.
@@ -76,6 +77,46 @@ class PawMapHelpScreen extends StatelessWidget {
   /// v587 — rôle à expliquer (`owner` / `sitter` / `walker`) ; `null` = le
   /// rôle du compte. Un bouton absent de ce rôle n'est pas décrit.
   final String? role;
+
+  @override
+  State<PawMapHelpScreen> createState() => _PawMapHelpScreenState();
+}
+
+/// v605 (30/09) — Daniel : « vu que tout est numéroté, fais un menu avec les
+/// titres pour aller directement à la section sans défiler ». Les sections
+/// du sommaire, dans l'ordre de l'écran (id, numéro, clé du titre).
+const List<(String, int?, String)> kPawHelpSections = <(String, int?, String)>[
+  ('find', 1, 'help587_sec_find'),
+  ('see', 2, 'help587_sec_see'),
+  ('live', 3, 'help587_sec_live'),
+  ('balade', 4, 'help599_sec_balade'),
+  ('act', 5, 'help587_sec_act'),
+  ('set', 6, 'help587_sec_set'),
+  ('faq', null, 'help587_faq_title'),
+];
+
+class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
+  bool get fromMap => widget.fromMap;
+  String? get role => widget.role;
+
+  /// Ancre de chaque section (sommaire → défilement jusqu'à elle).
+  final Map<String, GlobalKey> _anchors = <String, GlobalKey>{
+    for (final s in kPawHelpSections)
+      s.$1: GlobalKey(debugLabel: 'help_anchor_${s.$1}'),
+  };
+
+  Future<void> _goTo(String id) async {
+    final ctx = _anchors[id]?.currentContext;
+    if (ctx == null) return;
+    await Scrollable.ensureVisible(
+      ctx,
+      duration: _reduceMotion(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      alignment: 0, // section plus haute que l'écran : son HAUT en haut
+    );
+  }
 
   void _seeMap(BuildContext context) {
     if (fromMap && Navigator.of(context).canPop()) {
@@ -251,9 +292,16 @@ class PawMapHelpScreen extends StatelessWidget {
               const _Reveal(child: _HeroCard()),
               SizedBox(height: 12.h),
               const _Reveal(child: _PrivacyCard(key: ValueKey<String>('help_privacy'))),
+              SizedBox(height: 12.h),
+              // v605 — sommaire cliquable (numéros + titres des sections).
+              _HelpToc(
+                key: const ValueKey<String>('help_toc'),
+                onTap: (id) => unawaited(_goTo(id)),
+              ),
 
               // ── 1. Se repérer ──────────────────────────────────────────
               _SectionCard(
+                anchorKey: _anchors['find'],
                 id: 'find',
                 number: 1,
                 icon: Icons.explore_rounded,
@@ -299,6 +347,7 @@ class PawMapHelpScreen extends StatelessWidget {
 
               // ── 2. Voir qui est autour ─────────────────────────────────
               _SectionCard(
+                anchorKey: _anchors['see'],
                 id: 'see',
                 number: 2,
                 icon: Icons.groups_rounded,
@@ -318,6 +367,7 @@ class PawMapHelpScreen extends StatelessWidget {
 
               // ── 3. Être visible / en direct ────────────────────────────
               _SectionCard(
+                anchorKey: _anchors['live'],
                 id: 'live',
                 number: 3,
                 icon: Icons.sensors_rounded,
@@ -338,6 +388,7 @@ class PawMapHelpScreen extends StatelessWidget {
 
               // ── 4. La Balade (v599, Daniel 29/09) ─────────────────────
               _SectionCard(
+                anchorKey: _anchors['balade'],
                 id: 'balade',
                 number: 4,
                 icon: Icons.directions_walk_rounded,
@@ -365,10 +416,10 @@ class PawMapHelpScreen extends StatelessWidget {
                   ),
                   _ButtonRow(
                     key: const ValueKey<String>('help_balade_dot'),
-                    icon: const _RoundIcon(
-                        icon: Icons.circle,
-                        color: PawLiveDot.green,
-                        filled: true),
+                    // v605 — « Le contour de la patte du menu » : une
+                    // petite patte au contour vert (le vrai dessin du menu).
+                    icon: const _GreenRimPaw(
+                        key: ValueKey<String>('help_balade_dot_paw')),
                     title: 'help599_t_dot'.tr,
                     help: 'help599_b_dot'.tr,
                   ),
@@ -377,6 +428,7 @@ class PawMapHelpScreen extends StatelessWidget {
 
               // ── 5. Agir ────────────────────────────────────────────────
               _SectionCard(
+                anchorKey: _anchors['act'],
                 id: 'act',
                 number: 5,
                 icon: Icons.touch_app_rounded,
@@ -397,6 +449,7 @@ class PawMapHelpScreen extends StatelessWidget {
 
               // ── 5. Réglages ────────────────────────────────────────────
               _SectionCard(
+                anchorKey: _anchors['set'],
                 id: 'set',
                 number: 6,
                 icon: Icons.tune_rounded,
@@ -418,6 +471,7 @@ class PawMapHelpScreen extends StatelessWidget {
 
               // ── FAQ ────────────────────────────────────────────────────
               _SectionCard(
+                anchorKey: _anchors['faq'],
                 id: 'faq',
                 icon: Icons.help_rounded,
                 title: 'help587_faq_title'.tr,
@@ -904,6 +958,7 @@ class _RadiusPainter extends CustomPainter {
 /// séparées par un filet chaud, puis l'encadré 💡.
 class _SectionCard extends StatelessWidget {
   const _SectionCard({
+    this.anchorKey,
     required this.id,
     required this.icon,
     required this.title,
@@ -914,6 +969,8 @@ class _SectionCard extends StatelessWidget {
     this.dividers = true,
   });
 
+  /// v605 — ancre du sommaire (défilement jusqu'à la section).
+  final Key? anchorKey;
   final String id;
   final int? number;
   final IconData icon;
@@ -934,6 +991,7 @@ class _SectionCard extends StatelessWidget {
       body.add(_Reveal(child: children[i]));
     }
     return Padding(
+      key: anchorKey,
       padding: EdgeInsets.only(top: 16.h),
       child: Container(
         width: double.infinity,
@@ -1606,6 +1664,169 @@ class _ButtonRow extends StatelessWidget {
             child: Padding(padding: EdgeInsets.only(top: 2.h), child: texts),
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+/// v605 — sommaire de « Comprendre la PawMap » : une puce par section
+/// (numéro doré sur encre + titre), au dégradé orange de la PawMap. Un appui
+/// fait défiler jusqu'à la section. Retour à la ligne, jamais de défilement
+/// horizontal (règle de Daniel).
+class _HelpToc extends StatelessWidget {
+  const _HelpToc({super.key, required this.onTap});
+
+  final ValueChanged<String> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool dark = PawMapTheme.isDark(context);
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 12.h),
+      decoration: _cardDecoration(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.format_list_numbered_rounded,
+                  size: 18.sp, color: PawMapTheme.accent),
+              SizedBox(width: 8.w),
+              Flexible(
+                child: Text(
+                  'pm605_help_toc'.tr,
+                  style: PawMapTheme.fontOn(context,
+                      size: 14.sp,
+                      weight: FontWeight.w800,
+                      color: _titleInk(context)),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
+            children: [
+              for (final s in kPawHelpSections)
+                _TocChip(
+                  key: ValueKey<String>('help_toc_${s.$1}'),
+                  number: s.$2,
+                  label: s.$3.tr,
+                  dark: dark,
+                  onTap: () => onTap(s.$1),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TocChip extends StatelessWidget {
+  const _TocChip({
+    super.key,
+    required this.number,
+    required this.label,
+    required this.dark,
+    required this.onTap,
+  });
+
+  final int? number;
+  final String label;
+  final bool dark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color fill = dark ? const Color(0xFF3A2420) : const Color(0xFFFCE4D8);
+    final Color ink = dark ? const Color(0xFFFBEFE6) : const Color(0xFF7A1D0C);
+    return Semantics(
+      button: true,
+      label: number == null ? label : '$number. $label',
+      child: Material(
+        color: fill,
+        shape: StadiumBorder(
+            side: BorderSide(
+                color: PawMapTheme.accent.withValues(alpha: dark ? 0.7 : 0.45),
+                width: 1.2)),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: 36.h),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(5.w, 4.h, 12.w, 4.h),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 24.w,
+                    height: 24.w,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFE0553F), PawMapTheme.accent, Color(0xFF9E1F0B)],
+                      ),
+                      border: Border.all(color: Colors.white, width: 1.4),
+                    ),
+                    child: number == null
+                        ? Icon(Icons.help_rounded, size: 14.sp, color: Colors.white)
+                        : Text('$number',
+                            style: TextStyle(
+                                fontSize: 11.sp,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                height: 1)),
+                  ),
+                  SizedBox(width: 7.w),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: PawMapTheme.fontOn(context,
+                          size: 12.5.sp, weight: FontWeight.w700, color: ink),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// v605 — la patte du menu en petit, CONTOUR VERT (un ami est en direct) :
+/// le même dessin que le menu (`PawGlyph`), jamais un simple point.
+class _GreenRimPaw extends StatelessWidget {
+  const _GreenRimPaw({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 44.w,
+      height: 44.w,
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: SizedBox(
+          width: kPawTabBarPawBox,
+          height: kPawTabBarPawBox,
+          child: PawGlyph(
+            size: kPawTabBarPawBox,
+            rimColor: PawLiveDot.green,
+            toeProgress: const <double>[1, 1, 1, 1],
+            toeOpacity: const <double>[1, 1, 1, 1],
+          ),
+        ),
       ),
     );
   }
