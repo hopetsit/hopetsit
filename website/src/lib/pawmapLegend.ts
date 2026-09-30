@@ -380,11 +380,14 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   const size = o.me ? 56 : 50;
   const ring = o.me ? color : FRIEND_PINK;
   const ringStyle = o.friendsOnly ? "dashed" : "solid";
-  // 27/09 — UN seul halo : PawBoost > suivi > PawFollow > ami (rose).
-  const glow = o.boosted
-    ? boostGlowStyle(true)
-    : o.followed
-      ? `box-shadow:0 0 0 3px rgba(124,58,237,.45),0 0 10px 3px rgba(124,58,237,.5);animation:hps-follow 1.8s ease-in-out infinite;`
+  // 27/09 — UN seul halo. 30/09 (Daniel, « t'es pas violet ») : la personne
+  // que JE suis en direct est TOUJOURS violette, même boostée (la fusée
+  // reste) ; pour les autres : PawBoost > PawFollow > ami (rose). Même règle
+  // que l'app (`pickPhotoHalo`, pawmap_pins.dart).
+  const glow = o.followed
+    ? `box-shadow:0 0 0 3px rgba(124,58,237,.45),0 0 10px 3px rgba(124,58,237,.5);animation:hps-follow 1.8s ease-in-out infinite;`
+    : o.boosted
+      ? boostGlowStyle(true)
       : o.pawFollow
         ? `box-shadow:0 0 0 4px rgba(124,58,237,.35),0 0 16px 5px rgba(124,58,237,.55),0 3px 8px rgba(23,20,31,.35);`
         : o.me
