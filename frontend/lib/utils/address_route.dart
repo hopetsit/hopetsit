@@ -6,7 +6,7 @@
 import 'package:get/get.dart';
 
 import 'package:hopetsit/services/location_service.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
+import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 Future<void> openAddressInPawMap({
@@ -30,11 +30,6 @@ Future<void> openAddressInPawMap({
     );
     return;
   }
-  Get.to(() => PawMapScreen(
-        initialLat: la,
-        initialLng: lo,
-        initialZoom: 15,
-        routeToLat: la,
-        routeToLng: lo,
-      ));
+  // v604 — l'onglet PawMap du menu (jamais une page sans menu).
+  openPawMapWithRoute(la, lo);
 }

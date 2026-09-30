@@ -345,12 +345,18 @@ class PawGlyph extends StatelessWidget {
     required this.size,
     this.toeProgress,
     this.toeOpacity,
+    this.rimColor = Colors.white,
   });
 
   final PawGlyphSpec spec;
   final double size;
   final List<double>? toeProgress;
   final List<double>? toeOpacity;
+
+  /// v604 — couleur du CONTOUR (coussinet + 4 doigts). Blanc d'habitude ;
+  /// vert quand un ami est en direct, rouge quand MON direct ne part plus
+  /// (Daniel, 30/09 : « le contour blanc devient vert, pas le pin entier »).
+  final Color rimColor;
 
   @override
   Widget build(BuildContext context) {
@@ -415,7 +421,7 @@ class PawGlyph extends StatelessWidget {
           radius: 0.95, // farthest-corner
           colors: <Color>[t.light, t.dark],
         ),
-        border: Border.all(color: Colors.white, width: spec.toeBorder),
+        border: Border.all(color: rimColor, width: spec.toeBorder),
         boxShadow: spec.toeShadow,
       ),
     );
@@ -438,7 +444,7 @@ class PawGlyph extends StatelessWidget {
             bottomRight: Radius.circular(r),
             bottomLeft: Radius.zero,
           ),
-          border: Border.all(color: Colors.white, width: spec.padBorder),
+          border: Border.all(color: rimColor, width: spec.padBorder),
           boxShadow: spec.padShadow,
         ),
         child: Center(
@@ -513,6 +519,7 @@ class PawTabBar extends StatefulWidget {
     // au moins un ami / membre de la famille / personne suivie est en
     // balade ; le nombre en tout petit s'ils sont plusieurs. Rien d'autre.
     this.liveFriends = 0,
+    this.myLiveLost = false,
     required this.systemInset,
     required this.labels,
     this.badges = const <int, WidgetBuilder>{},
@@ -523,8 +530,12 @@ class PawTabBar extends StatefulWidget {
   final ValueChanged<int> onTap;
   final PawNavRole role;
 
-  /// Nombre de personnes en balade (0 = aucun point).
+  /// Nombre de personnes en balade (0 = contour blanc).
   final int liveFriends;
+
+  /// v604 — MON direct est lancé mais ma position ne part plus (GPS perdu,
+  /// hors ligne) : contour ROUGE (prioritaire sur le vert).
+  final bool myLiveLost;
 
   /// Inset système (viewPadding.bottom) à ajouter sous la pilule.
   final double systemInset;
@@ -874,46 +885,42 @@ class _PawTabBarState extends State<PawTabBar>
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: <Widget>[
+                    // v604 — Daniel (30/09) : le point vert est remplacé
+                    // par le CONTOUR de la patte (coussinet + doigts) qui
+                    // passe du blanc au vert quand un ami est en direct, et
+                    // au rouge quand mon direct ne part plus. Fondu 250 ms.
                     Positioned.fill(
-                      child: AnimatedBuilder(
-                        animation: _toeCtl,
-                        builder: (BuildContext context, Widget? _) {
-                          final double v = _toeCtl.value;
-                          return PawGlyph(
-                            size: kPawTabBarPawBox,
-                            toeProgress: <double>[
-                              _toeProgress(0, v),
-                              _toeProgress(1, v),
-                              _toeProgress(2, v),
-                              _toeProgress(3, v),
-                            ],
-                            toeOpacity: List<double>.filled(4, _toeOpacity(v)),
-                          );
-                        },
-                      ),
-                    ),
-                    // v599 — point vert « un ami est en balade ».
-                    // v602 — Daniel : « un petit point vert qui est sorti ».
-                    // Au 599 son CENTRE était posé sur le bord extérieur de
-                    // la tête (rayon 24) : la moitié dépassait dans le vide,
-                    // avec un liseré brun-rouge — un point orphelin. Il est
-                    // désormais posé SUR le liseré blanc de la tête (centre
-                    // à [kPawLiveDotRadius] du centre, à 45°) : il mord le
-                    // noir du coussinet et le blanc du bord, jamais le vide.
-                    // Liseré blanc puis contour encre (identiques de jour et
-                    // de nuit), coordonnées fixes de la patte (aucun .w/.sp).
-                    if (widget.liveFriends > 0)
-                      Positioned(
-                        left: pawLiveDotCenter().dx -
-                            PawLiveDot.outerSize(widget.liveFriends) / 2,
-                        top: pawLiveDotCenter().dy -
-                            PawLiveDot.outerSize(widget.liveFriends) / 2,
-                        child: PawLiveDot(
-                          key: const ValueKey<String>('paw_tab_live_dot'),
-                          count: widget.liveFriends,
-                          ring: palette.top,
+                      child: TweenAnimationBuilder<Color?>(
+                        key: const ValueKey<String>('paw_tab_rim'),
+                        tween: ColorTween(end: pawTabRimColor(
+                          liveFriends: widget.liveFriends,
+                          myLiveLost: widget.myLiveLost,
+                        )),
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOut,
+                        builder: (BuildContext context, Color? rim, Widget? _) =>
+                            AnimatedBuilder(
+                          animation: _toeCtl,
+                          builder: (BuildContext context, Widget? _) {
+                            final double v = _toeCtl.value;
+                            return PawGlyph(
+                              size: kPawTabBarPawBox,
+                              rimColor: rim ?? Colors.white,
+                              toeProgress: <double>[
+                                _toeProgress(0, v),
+                                _toeProgress(1, v),
+                                _toeProgress(2, v),
+                                _toeProgress(3, v),
+                              ],
+                              toeOpacity:
+                                  List<double>.filled(4, _toeOpacity(v)),
+                            );
+                          },
                         ),
                       ),
+                    ),
+                    // v599-v602 — l'ancien point vert (`PawLiveDot`) n'est
+                    // plus affiché (v604 : contour vert, voir plus haut).
                   ],
                 ),
               ),
@@ -976,6 +983,18 @@ class _PressScaleState extends State<_PressScale> {
   }
 }
 
+
+/// v604 — rouge du contour « mon direct ne part plus ».
+const Color kPawRimLost = Color(0xFFDC2626);
+
+/// v604 — couleur du contour de la patte du menu (pure, testée) :
+/// rouge si MON direct est lancé mais ne part plus, vert si ≥ 1 ami est en
+/// direct, blanc sinon.
+Color pawTabRimColor({required int liveFriends, bool myLiveLost = false}) {
+  if (myLiveLost) return kPawRimLost;
+  if (liveFriends > 0) return PawLiveDot.green;
+  return Colors.white;
+}
 
 /// v602 — distance entre le centre de la tête de l'épingle (coussinet de
 /// 48 dp, rayon 24, liseré blanc de 3 dp) et le centre du point vert : le

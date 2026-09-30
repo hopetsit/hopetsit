@@ -1,0 +1,25 @@
+{
+  "conversationId": "6abc7a36da4c7fe48eed6fb2",
+  "outgoing": {
+    "status": "none",
+    "following": false,
+    "live": false,
+    "messageId": null,
+    "sharerId": null,
+    "followerId": null,
+    "since": null,
+    "endedAt": null,
+    "endReason": null
+  },
+  "incoming": {
+    "status": "pending",
+    "following": false,
+    "live": false,
+    "messageId": "6abc7a36da4c7fe48eed6fbe",
+    "sharerId": null,
+    "followerId": "6abc7a33da4c7fe48eed6bf0",
+    "since": null,
+    "endedAt": null,
+    "endReason": null
+  }
+}

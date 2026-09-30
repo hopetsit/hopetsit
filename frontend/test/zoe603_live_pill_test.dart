@@ -221,7 +221,8 @@ void main() {
       'lib/views/pet_sitter/chat/sitter_individual_chat_screen.dart',
     ]) {
       final src = File(f).readAsStringSync();
-      expect(src, contains('pawFollowLiveStatusFor('), reason: f);
+      // v604 — l'en-tête passe par l'état SERVEUR par sens (repli 603 dedans).
+      expect(src, contains('pawFollowHeaderFor('), reason: f);
       expect(src, contains("'chat603_live_restart'.tr"), reason: f);
       expect(src, contains('pawFollowWithLiveState('), reason: f);
       expect(src, contains('peerLiveNow: peerLiveNow'), reason: f);

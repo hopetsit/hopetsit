@@ -221,7 +221,7 @@ void main() {
   });
 
   // ── 3. Point vert du menu ─────────────────────────────────────────────
-  group('point vert du menu posé sur le bord de la tête', () {
+  group('point vert du menu posé sur le bord de la tête (v604 : contour vert)', () {
     test('géométrie : à cheval sur le liseré blanc, jamais dans le vide', () {
       const head = Offset(kPawTabBarPawBox / 2, kPawTabBarPawBox - 24);
       final c = pawLiveDotCenter();
@@ -267,15 +267,13 @@ void main() {
             ),
           ));
           await tester.pump(const Duration(milliseconds: 900));
+          // v604 — Daniel (30/09) : le point est remplacé par le CONTOUR de
+          // la patte, vert (« le contour blanc devient vert, pas le pin
+          // entier »), à la même place que la patte, onglet ouvert ou non.
           final dot = find.byKey(const ValueKey<String>('paw_tab_live_dot'));
-          expect(dot, findsOneWidget);
-          // Le point vit dans le même bloc que la patte : son centre est à
-          // pawLiveDotCenter() du coin de la boîte de la patte.
-          final glyph = find.byType(PawGlyph);
-          final box = tester.getTopLeft(glyph);
-          final center = tester.getCenter(dot);
-          final expected = box + pawLiveDotCenter();
-          expect((center - expected).distance, lessThan(1.0));
+          expect(dot, findsNothing);
+          final glyph = tester.widget<PawGlyph>(find.byType(PawGlyph));
+          expect(glyph.rimColor, PawLiveDot.green);
         });
       }
     }

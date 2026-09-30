@@ -20,7 +20,6 @@ import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
 import 'package:hopetsit/views/kyc/kyc_verification_screen.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/notifications/notification_test_screen.dart';
 import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
@@ -262,7 +261,7 @@ class ProfileCategories extends StatelessWidget {
             title: 'profile_pawmap'.tr,
             subtitle: _isOwner ? 'profile_pawmap_subtitle'.tr : 'sitter_pawmap_subtitle'.tr,
             color: _purple,
-            onTap: () => openMainTabOr(2, () => const PawMapScreen()),
+            onTap: () => openPawMap(),
           ),
         ]),
       ],

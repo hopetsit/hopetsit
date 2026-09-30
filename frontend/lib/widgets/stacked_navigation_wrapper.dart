@@ -65,13 +65,17 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   /// v603 — délai de montage de la PawMap après la 1re image de l'accueil
   /// (mesuré au 603 : voir PAM_rapport). Réglable pour les mesures A/B
   /// seulement (`--dart-define=HPS_MOUNT_MS=…`), jamais dans les stores.
-  static const int kPawMapMountMs =
-      int.fromEnvironment('HPS_MOUNT_MS', defaultValue: 300);
+  static const int kPawMapMountMs = int.fromEnvironment(
+    'HPS_MOUNT_MS',
+    defaultValue: 300,
+  );
 
   /// v603 — mesures seulement : ouvre l'onglet PawMap tout seul N ms après
   /// la 1re image de l'accueil (-1 = jamais, valeur des stores).
-  static final int _kAutoTabMs = pawMap603Int('HPS_AUTOTAB_MS',
-      const int.fromEnvironment('HPS_AUTOTAB_MS', defaultValue: -1));
+  static final int _kAutoTabMs = pawMap603Int(
+    'HPS_AUTOTAB_MS',
+    const int.fromEnvironment('HPS_AUTOTAB_MS', defaultValue: -1),
+  );
   static final int _mountMs = pawMap603Int('HPS_MOUNT_MS', kPawMapMountMs);
 
   void _mountPawMap() {
@@ -103,15 +107,19 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      pawMap603Log('ACCUEIL 1re image (auto-onglet $_kAutoTabMs ms, '
-          'montage $_mountMs ms, sans photo dessus $pawMap603NoCover)');
+      pawMap603Log(
+        'ACCUEIL 1re image (auto-onglet $_kAutoTabMs ms, '
+        'montage $_mountMs ms, sans photo dessus $pawMap603NoCover)',
+      );
       if (kPawMap603Probe) {
         SchedulerBinding.instance.addTimingsCallback(_onProbeTimings);
         Future.delayed(const Duration(milliseconds: 2500), () {
           SchedulerBinding.instance.removeTimingsCallback(_onProbeTimings);
-          pawMap603Log('JANK 2,5 s : $_probeFrames images, '
-              'retard cumulé $_probeJankMs ms, pire $_probeWorstMs ms ; '
-              'lentes (début:durée ms) ${_probeSlow.join(' ')}');
+          pawMap603Log(
+            'JANK 2,5 s : $_probeFrames images, '
+            'retard cumulé $_probeJankMs ms, pire $_probeWorstMs ms ; '
+            'lentes (début:durée ms) ${_probeSlow.join(' ')}',
+          );
         });
       }
       if (_kAutoTabMs >= 0) {
@@ -147,6 +155,15 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
       requestedTab.value = -1;
       if (i < widget.screens.length) _onTap(i);
     });
+    // v604 — une demande de carte arrivée AVANT le menu (lien, notification
+    // au démarrage à froid) : l'onglet PawMap s'ouvre dès le montage.
+    if (pawMapOpenOnMount || requestedTab.value == kPawMapTabIndex) {
+      pawMapOpenOnMount = false;
+      requestedTab.value = -1;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onTap(kPawMapTabIndex);
+      });
+    }
   }
 
   @override
@@ -178,7 +195,9 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
       if (Get.isRegistered<BookingsController>()) {
         return Get.find<BookingsController>().pendingActionCount;
       }
-    } catch (_) {/* defensive */}
+    } catch (_) {
+      /* defensive */
+    }
     return 0;
   }
 
@@ -186,11 +205,25 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     // v599 — un seul ami en balade : l'onglet PawMap ouvre la carte SUR lui
     // (vol doux, fiche courte, suivi), uniquement en arrivant d'un autre
     // onglet ; sinon l'onglet se comporte comme d'habitude.
+    // v604 — sauf si un autre écran vient de demander la carte sur un point
+    // précis (chat, lien, ami) : sa demande passe avant.
+    final explicitAt = pawMapExplicitOpenAt;
+    final explicitNow =
+        explicitAt != null &&
+        DateTime.now().difference(explicitAt) < const Duration(seconds: 3);
     if (index == kPawMapTabIndex &&
         _currentIndex != kPawMapTabIndex &&
+        !explicitNow &&
         Get.isRegistered<LiveMapService>()) {
-      final one = Get.find<LiveMapService>().singleLiveFriend;
-      if (one != null && one.userId.isNotEmpty) {
+      final live = Get.find<LiveMapService>();
+      final one = live.singleLiveFriend;
+      // v604 — sauf si j'ai volontairement arrêté de le suivre (Daniel :
+      // « Arrêter le suivre marche pas » : il était re-suivi à chaque retour
+      // sur l'onglet).
+      if (one != null &&
+          one.userId.isNotEmpty &&
+          !live.followDeclined.contains(one.userId) &&
+          !one.personIds.any(live.followDeclined.contains)) {
         pawMapPendingFriend.value = PawMapFriendFocus(
           userId: one.userId,
           role: one.role.isEmpty ? 'owner' : one.role,
@@ -297,7 +330,9 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
                                   excluding: _currentIndex != kPawMapTabIndex,
                                   child: TickerMode(
                                     enabled: _currentIndex == kPawMapTabIndex,
-                                    child: _pawMapMounted || _currentIndex == kPawMapTabIndex
+                                    child:
+                                        _pawMapMounted ||
+                                            _currentIndex == kPawMapTabIndex
                                         ? widget.screens[kPawMapTabIndex]
                                         : const SizedBox.shrink(),
                                   ),
@@ -308,7 +343,11 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
                               child: IndexedStack(
                                 index: _currentIndex,
                                 children: [
-                                  for (var i = 0; i < widget.screens.length; i++)
+                                  for (
+                                    var i = 0;
+                                    i < widget.screens.length;
+                                    i++
+                                  )
                                     i == kPawMapTabIndex
                                         ? const SizedBox.shrink()
                                         : widget.screens[i],
@@ -335,33 +374,39 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
         ),
         // v465 — en mode « carte agrandie » (PawMap), on MASQUE le menu pour
         // que la carte soit plein écran.
-        bottomNavigationBar: Obx(
-          () => pawMapExpanded.value
-              ? const SizedBox.shrink()
-              // v570 — barre « PawMap » variante 12d (handoff hi-fi).
-              : PawTabBar(
-                  currentIndex: _currentIndex,
-                  onTap: _onTap,
-                  role: role,
-                  // v599 — point vert : un ami / la famille / une personne
-                  // suivie est en balade (lu en direct, socket + relecture).
-                  liveFriends: Get.isRegistered<LiveMapService>()
-                      ? Get.find<LiveMapService>().liveFriendsCount.value
-                      : 0,
-                  systemInset: bottomInset,
-                  labels: [
-                    'nav_home'.tr,
-                    'nav_chat'.tr,
-                    'nav_pawmap'.tr,
-                    'nav_bookings'.tr,
-                    'nav_profile'.tr,
-                  ],
-                  badges: {
-                    1: (_) => _chatBadge(role),
-                    3: (_) => _bookingsBadge(role),
-                  },
-                ),
-        ),
+        // v604 — Daniel (30/09) : « Le menu ne doit JAMAIS disparaître !! ».
+        // Plus aucune condition ne le masque (l'ancien mode « carte
+        // agrandie » v465 n'existe plus depuis la fusion des cartes).
+        bottomNavigationBar: Obx(() {
+          // Un observable toujours lu (Obx) même sans LiveMapService.
+          currentMainTab.value;
+          return PawTabBar(
+            currentIndex: _currentIndex,
+            onTap: _onTap,
+            role: role,
+            // v599 — point vert : un ami / la famille / une personne
+            // suivie est en balade (lu en direct, socket + relecture).
+            liveFriends: Get.isRegistered<LiveMapService>()
+                ? Get.find<LiveMapService>().liveFriendsCount.value
+                : 0,
+            // v604 — contour rouge : mon direct ne part plus.
+            myLiveLost:
+                Get.isRegistered<LiveMapService>() &&
+                Get.find<LiveMapService>().myLiveIsLost,
+            systemInset: bottomInset,
+            labels: [
+              'nav_home'.tr,
+              'nav_chat'.tr,
+              'nav_pawmap'.tr,
+              'nav_bookings'.tr,
+              'nav_profile'.tr,
+            ],
+            badges: {
+              1: (_) => _chatBadge(role),
+              3: (_) => _bookingsBadge(role),
+            },
+          );
+        }),
       ),
     );
   }
@@ -384,6 +429,9 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   /// Badge « action requise » Réservations (pendingActionCount).
   Widget _bookingsBadge(PawNavRole role) {
     return Obx(() {
+      // v604 — un observable toujours lu (aucun contrôleur de réservations
+      // encore enregistré juste après la connexion : Obx sans observable).
+      currentMainTab.value;
       final n = _bookingsBadgeCount();
       if (n <= 0) return const SizedBox.shrink();
       return _pill(n > 9 ? '9+' : n.toString(), role);

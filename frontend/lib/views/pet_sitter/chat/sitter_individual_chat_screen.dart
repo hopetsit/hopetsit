@@ -20,8 +20,9 @@ import 'package:hopetsit/views/chat_shared/chat_peer_sheet.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
 import 'package:hopetsit/views/chat_shared/chat_theme.dart';
 import 'package:hopetsit/views/chat_shared/contacts_locked_sheet.dart';
+import 'package:hopetsit/views/chat_shared/pawfollow_state604.dart';
 import 'package:hopetsit/views/chat_shared/pawfollow_widgets.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
+import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/widgets/pawfollow_request_card.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
@@ -59,6 +60,8 @@ class _SitterIndividualChatScreenState
   @override
   void initState() {
     super.initState();
+    // v604 (ZOE) — état SERVEUR du suivi en direct de ce fil.
+    PawFollowStateStore.watch(widget.conversationId);
     chatController = Get.find<SitterChatController>();
     // Create a local controller that syncs with the shared one
     _localMessageController = TextEditingController(
@@ -128,6 +131,7 @@ class _SitterIndividualChatScreenState
     }
     _localMessageController.dispose();
     _inputFocusNode.dispose();
+    PawFollowStateStore.unwatch(widget.conversationId);
     super.dispose();
   }
 
@@ -428,8 +432,14 @@ class _SitterIndividualChatScreenState
       );
       return pawFollowWithLiveState(m,
         contactId: pawFollowContactId(chatController.conversations, widget.conversationId),
+        conversationId: widget.conversationId,
         build: (liveNow, peerLiveNow) => PawfollowRequestCard(
       peerLiveNow: peerLiveNow,
+        // v604 (ZOE) — arrêter CE sens (suiveur) ou mon direct (partageur).
+        onStop: () => pawFollowConfirmStop(context,
+            conversationId: widget.conversationId,
+            messageId: m.id,
+            iShare: iShare),
         iShare: iShare,
         liveNow: liveNow,
         onStartLive: () => unawaited(LiveShareStarter.startWithFeedback()),
@@ -445,10 +455,10 @@ class _SitterIndividualChatScreenState
         // v566 — « Suivi actif → Ouvrir la carte » aussi côté prestataire
         // (il voit sa propre position partagée sur la PawMap).
         onOpenMap: m.pawfollowStatus == 'accepted'
-            ? () => Get.to(() => PawMapScreen(
-                  initialLat: m.pawfollowLastLat,
-                  initialLng: m.pawfollowLastLng,
-                ))
+            ? () => openPawMap(
+                  lat: m.pawfollowLastLat,
+                  lng: m.pawfollowLastLng,
+                )
             : null,
         busy: _respondingIds.contains(m.id),
         expiresAt: m.pawfollowExpiresAt,
@@ -547,38 +557,44 @@ class _SitterIndividualChatScreenState
           // direct) : arrêté → « Relancer le direct » (ma position) ou
           // « Direct arrêté · redemander » (celle de l'autre).
           Obx(() {
+            // v604 (ZOE) — état SERVEUR par sens, croisé avec mon direct et
+            // ce que la PawMap reçoit de l'autre. Un gardien / promeneur ne
+            // peut pas « demander à suivre » (sa demande PARTAGE sa position) :
+            // son direct arrêté côté autre = « Direct arrêté », tap = carte.
             final msgs = chatController.currentChatMessages;
-            final live = pawFollowLiveMessage(msgs);
-            final status = pawFollowLiveStatusFor(
+            final h = pawFollowHeaderFor(
               msgs,
+              conversationId: widget.conversationId,
               contactId: pawFollowContactId(
                   chatController.conversations, widget.conversationId),
             );
-            final bool iShare = live != null &&
-                pawfollowSharerIsMe(
-                  requesterRole: live.pawfollowRequesterRole,
-                  isMine: live.isFromCurrentUser,
+            final ChatMessageBase? m = h.message;
+            void openMap() => openPawMap(
+                  lat: m?.pawfollowLastLat,
+                  lng: m?.pawfollowLastLng,
                 );
             return PawFollowPill(
-              key: ValueKey<String>('chat_pf_pill_${status.name}'),
+              key: ValueKey<String>('chat_pf_pill_${h.kind.name}'),
               icon: Icons.share_location_rounded,
               // v583 (lot A) — libellé court, jamais coupé (9 langues).
               label: 'cs_pf_pill_share'.tr,
-              live: status == PawFollowLiveStatus.live,
-              stoppedLabel: status == PawFollowLiveStatus.stopped
-                  ? (iShare
-                      ? 'chat603_live_restart'.tr
-                      : 'chat603_live_stopped_ask'.tr)
-                  : null,
-              onTap: switch (status) {
-                PawFollowLiveStatus.live => () => Get.to(() => PawMapScreen(
-                      initialLat: live!.pawfollowLastLat,
-                      initialLng: live.pawfollowLastLng,
-                    )),
-                PawFollowLiveStatus.stopped => iShare
-                    ? () => unawaited(LiveShareStarter.startWithFeedback())
-                    : _onFollowMeSheet,
-                PawFollowLiveStatus.none => _onFollowMeSheet,
+              live: h.live,
+              stoppedLabel: switch (h.kind) {
+                PawFollowHeaderKind.myStopped => 'chat603_live_restart'.tr,
+                PawFollowHeaderKind.peerStopped => 'chat604_peer_live_off'.tr,
+                _ => null,
+              },
+              stoppedIcon: h.kind == PawFollowHeaderKind.peerStopped
+                  ? Icons.location_off_rounded
+                  : Icons.replay_rounded,
+              onTap: switch (h.kind) {
+                PawFollowHeaderKind.peerLive ||
+                PawFollowHeaderKind.myLive ||
+                PawFollowHeaderKind.peerStopped =>
+                  openMap,
+                PawFollowHeaderKind.myStopped => () =>
+                    unawaited(LiveShareStarter.startWithFeedback()),
+                PawFollowHeaderKind.none => _onFollowMeSheet,
               },
             );
           }),

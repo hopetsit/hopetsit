@@ -21,7 +21,6 @@ import 'package:hopetsit/views/friends/friends_screen.dart';
 // v532 — lien de partage d'un PawSpot (/spot/<id>) → ouvre la carte.
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/services/location_service.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 // v23.1.286 — Daniel : "un mail message m'a ouvert la page Signaler".
@@ -376,18 +375,18 @@ class DeepLinkService {
       // à la carte, qui se centre sur le spot et ouvre sa fiche au lieu de
       // s'ouvrir n'importe où.
       final spotId = rest.isNotEmpty ? rest.first : (uri.queryParameters['id'] ?? '');
-      Get.to(() => PawMapScreen(
-            focusSpotId: _objectIdRegex.hasMatch(spotId) ? spotId : null,
-          ));
+      // v604 — onglet PawMap du menu (le menu ne disparaît jamais).
+      openPawMap(
+        focusSpotId: _objectIdRegex.hasMatch(spotId) ? spotId : null,
+      );
     } else if (first == 'alert' || first == 'alerte' || first == 'report') {
       // v552 — lien de partage d'un signalement / d'un SOS animal :
       // https://hopetsit.com/alert/<id> → carte centrée + fiche ouverte.
       final reportId =
           rest.isNotEmpty ? rest.first : (uri.queryParameters['id'] ?? '');
-      Get.to(() => PawMapScreen(
-            focusReportId:
-                _objectIdRegex.hasMatch(reportId) ? reportId : null,
-          ));
+      openPawMap(
+        focusReportId: _objectIdRegex.hasMatch(reportId) ? reportId : null,
+      );
     } else if (first == 'map' || first == 'pawmap') {
       // v552 — « Partager la carte » : https://hopetsit.com/map?lat&lng&z
       // rouvre la PawMap exactement au même endroit et au même zoom.
@@ -400,22 +399,15 @@ class DeepLinkService {
       // v584 — acquisition : `?city=paris` (lien partagé, page de ville du
       // site) → la carte s'ouvre sur cette ville, avec le menu.
       final city = (uri.queryParameters['city'] ?? '').trim();
+      // v604 — toujours l'onglet PawMap du menu, jamais une page poussée.
       if (route && lat != null && lng != null) {
-        openPawMapWithRoute(lat, lng); // onglet PawMap (menu conservé) si possible
-      } else if (lat != null && lng != null && navWrapperMounted.value) {
+        openPawMapWithRoute(lat, lng);
+      } else if (lat != null && lng != null) {
         openPawMapAt(lat, lng, zoom: z ?? 13);
-      } else if (lat == null && lng == null && city.isNotEmpty) {
+      } else if (city.isNotEmpty) {
         await _openPawMapOnCity(city, zoom: z ?? 12);
-      } else if (lat == null && lng == null && navWrapperMounted.value) {
-        // v561 — /pawmap ou /map sans position : l'onglet PawMap (menu
-        // conservé) au lieu d'une carte poussée sans menu.
-        _goToTab(kPawMapTabIndex);
       } else {
-        Get.to(() => PawMapScreen(
-              initialLat: lat,
-              initialLng: lng,
-              initialZoom: z,
-            ));
+        openPawMap();
       }
     } else if (first == 'request') {
       // v602 — nouvelle demande de réservation (prestataire) : la carte de la
@@ -509,9 +501,7 @@ class DeepLinkService {
       title: 'PawMap',
       message: 'pawmap_link_city_unknown'.tr,
     );
-    if (!_goToTab(kPawMapTabIndex)) {
-      Get.to(() => const PawMapScreen());
-    }
+    openPawMap();
   }
 
   // ───────────────────────── v561 — routeur unifié ─────────────────────────

@@ -1,0 +1,25 @@
+{
+  "conversationId": "6abc7a36da4c7fe48eed6fb2",
+  "outgoing": {
+    "status": "none",
+    "following": false,
+    "live": false,
+    "messageId": null,
+    "sharerId": null,
+    "followerId": null,
+    "since": null,
+    "endedAt": null,
+    "endReason": null
+  },
+  "incoming": {
+    "status": "accepted",
+    "following": true,
+    "live": false,
+    "messageId": "6abc7a36da4c7fe48eed6fbe",
+    "sharerId": "6abc7a33da4c7fe48eed6bee",
+    "followerId": "6abc7a33da4c7fe48eed6bf0",
+    "since": "2026-09-30T02:55:50.438Z",
+    "endedAt": null,
+    "endReason": null
+  }
+}

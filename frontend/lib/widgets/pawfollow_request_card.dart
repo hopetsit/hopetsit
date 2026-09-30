@@ -71,8 +71,13 @@ class PawfollowRequestCard extends StatelessWidget {
     // v603 (ZOE) — direct de l'AUTRE personne (c'est elle qui partage) tel
     // que la PawMap le reçoit ; null = inconnu (rien ne m'arrive).
     this.peerLiveNow,
+    // v604 (ZOE) — « Arrêter de suivre » (je suis l'autre : ne termine QUE ce
+    // sens) / « Arrêter mon direct » (ma position part : coupe ma diffusion,
+    // jamais mon suivi de l'autre).
+    this.onStop,
   });
 
+  final VoidCallback? onStop;
   final bool? isMine;
   final bool iShare;
   final bool liveNow;
@@ -82,7 +87,7 @@ class PawfollowRequestCard extends StatelessWidget {
   final String messageId;
   final String requesterRole; // 'owner' | 'sitter' | 'walker'
   final String responderRole; // 'owner' | 'sitter' | 'walker'
-  final String status; // 'pending' | 'accepted' | 'refused'
+  final String status; // 'pending' | 'accepted' | 'refused' | 'expired' | 'ended'
   final String myRole; // current user role
   final VoidCallback onAccept;
   final VoidCallback onRefuse;
@@ -134,9 +139,12 @@ class PawfollowRequestCard extends StatelessWidget {
 
     // v566 — une demande restée sans réponse après `expiresAt` est EXPIRÉE :
     // état clair, plus de boutons (le serveur refuserait de toute façon).
-    final bool ended = status == 'accepted' &&
-        endAt != null &&
-        endAt!.isBefore(DateTime.now());
+    // v604 (ZOE) — 'ended' : le serveur a terminé ce sens (direct arrêté par
+    // le partageur, fin de durée, ou « Arrêter de suivre »).
+    final bool ended = status == 'ended' ||
+        (status == 'accepted' &&
+            endAt != null &&
+            endAt!.isBefore(DateTime.now()));
     final bool expired = status == 'expired' ||
         (status == 'pending' &&
             expiresAt != null &&
@@ -611,6 +619,35 @@ class PawfollowRequestCard extends StatelessWidget {
                           onTap: onStartLive,
                         ),
                       ),
+              ),
+            ],
+
+            // v604 (ZOE) — suiveur : arrêter CE sens seulement (l'autre sens
+            // d'un suivi mutuel n'est pas touché) ; partageur en direct :
+            // arrêter mon direct.
+            if (trackingActive && onStop != null && (!iShare || liveNow)) ...[
+              Padding(
+                padding: EdgeInsets.fromLTRB(14.w, 8.h, 14.w, 2.h),
+                // Bouton du kit (norme boutons), secondaire : l'arrêt ne doit
+                // pas voler la vedette au bouton « Ouvrir la carte ».
+                child: KeyedSubtree(
+                  key: ValueKey<String>(iShare
+                      ? 'pawfollow_stop_my_live'
+                      : 'pawfollow_stop_following'),
+                  child: PawButton(
+                    label: iShare
+                        ? 'chat604_stop_my_live'.tr
+                        : 'chat604_stop_following'.tr,
+                    icon: iShare
+                        ? Icons.location_disabled_rounded
+                        : Icons.visibility_off_rounded,
+                    kind: PawButtonKind.secondary,
+                    compact: true,
+                    color: kPawFollowPurple,
+                    enabled: !busy,
+                    onTap: onStop,
+                  ),
+                ),
               ),
             ],
 

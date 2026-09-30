@@ -205,9 +205,11 @@ void main() {
           'En balade · 12 min · 2 te suivent');
     });
 
-    test('écran : pilule du haut retirée, drapeau AU-DESSUS du bouton Balade', () {
+    test('écran : pilule Direct revenue en haut (v604), drapeau AU-DESSUS du bouton Balade', () {
       final src = File('lib/views/map/paw_map_screen.dart').readAsStringSync();
-      expect(src.contains('PawMapDirectPill('), isFalse);
+      // v604 — Daniel : « remettre le bouton Direct en haut à gauche » ; il
+      // coexiste avec le drapeau Balade de la barre de droite.
+      expect(src.contains('PawMapDirectPill('), isTrue);
       final slot = src.indexOf("case 'balade':");
       final badge = src.indexOf('PawWalkBadge(', slot);
       final jewel = src.indexOf("ValueKey<String>('pawmap_walk_btn')", slot);

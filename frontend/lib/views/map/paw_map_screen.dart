@@ -852,7 +852,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     // chercher, on centre la carte dessus et on ouvre sa fiche.
     if ((widget.focusSpotId ?? '').isNotEmpty ||
         (widget.focusReportId ?? '').isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _openSharedTarget());
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openSharedTarget(
+          spotId: widget.focusSpotId, reportId: widget.focusReportId));
     }
     // v559 — itinéraire demandé par un autre écran : on attend que la carte
     // et MA position soient prêtes (jusqu'à ~10 s), puis on trace.
@@ -905,6 +906,22 @@ class _PawMapScreenState extends State<PawMapScreen>
       _friendFocusRequested = true;
       WidgetsBinding.instance
           .addPostFrameCallback((_) => unawaited(_focusFriend(v)));
+    });
+    // v604 — Daniel : « Le menu ne doit JAMAIS disparaître ». Chat, lien,
+    // notification : la carte n'est plus poussée en page, la demande arrive
+    // ici (onglet du menu) et n'est consommée qu'une fois.
+    final pendingIntent = pawMapPendingIntent.value;
+    if (pendingIntent != null) {
+      pawMapPendingIntent.value = null;
+      _prepareIntentAtMount(pendingIntent);
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => unawaited(_applyIntent(pendingIntent)));
+    }
+    _pendingIntentWorker = ever<PawMapIntent?>(pawMapPendingIntent, (v) {
+      if (v == null || !mounted) return;
+      pawMapPendingIntent.value = null;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => unawaited(_applyIntent(v)));
     });
     // v23.1.353 — refonte PawSpot : les anciens halos "map boost" (tier
     // bronze/silver/gold/platinum + self-halo) sont SUPPRIMÉS de la carte.
@@ -2051,6 +2068,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     _pendingRouteWorker?.dispose();
     _pendingCenterWorker?.dispose();
     _pendingFriendWorker?.dispose();
+    _pendingIntentWorker?.dispose();
     _reloadDebounce?.cancel();
     _snapshotTimer?.cancel();
     _cover.dispose();
@@ -4284,11 +4302,13 @@ class _PawMapScreenState extends State<PawMapScreen>
       for (final p in placed.extra) {
         nearbyIds.addAll(pawMapPersonIds(p));
       }
+      final worldIdx = pawMapWorldIndex(placed.world);
       for (final p in placed.nearby) {
         // v585 — tous les ids de la personne : son point « monde » (posé
         // avec l'id d'un AUTRE de ses rôles) ne doit pas la dédoubler.
         nearbyIds.addAll(pawMapPersonIds(p));
-        combined.add(p);
+        // v604 — tarifs par rôle repris de la couche monde s'ils manquent.
+        combined.add(pawMapWithWorldPrices(p, worldIdx));
       }
       // v550 — plafond d'affichage de la couche monde (les plus proches).
       final worldPool = <Map<String, dynamic>>[];
@@ -5011,7 +5031,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           proposeState: _proposeStates[r.id] ?? PawProposeState.idle,
           onOpenMine: () {
             Navigator.of(ctx).pop();
-            openMainTabOr(0, () => const PawMapScreen());
+            openMainTab(0);
           },
           onOwnerProfile: () {
             Navigator.of(ctx).pop();
@@ -5287,6 +5307,9 @@ class _PawMapScreenState extends State<PawMapScreen>
           return;
         }
         if (_followUserId != null) {
+          // v604 — retour Android : la caméra lâche la personne et ne la
+          // re-suit plus d'elle-même (la demande de suivi reste active).
+          _liveMap.followDeclined.add(_followUserId!);
           _stopFollow();
           return;
         }
@@ -5611,10 +5634,36 @@ class _PawMapScreenState extends State<PawMapScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _fading(_buildFloatingHeader()),
-                          // v601 — la pilule « ● Direct / En balade » qui
-                          // vivait ici (v587) est devenue le drapeau vert posé
-                          // au-dessus du bouton Balade de la barre de droite
-                          // (`PawWalkBadge`), visible seulement en balade.
+                          // v587 (point 1a) — la pilule « ● Direct » sous le
+                          // logo PawMap, pour les 3 profils.
+                          // v604 — Daniel (30/09) : « remettre le bouton
+                          // Direct qu'il y avait en haut à gauche ». Elle
+                          // COEXISTE avec le drapeau Balade de la barre de
+                          // droite (`PawWalkBadge`) : même vérité
+                          // (`LiveMapService.broadcasting`).
+                          if (pawMapShowsDirectPill(_role))
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Padding(
+                                padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
+                                child: _fading(Obx(() {
+                                  final live = _liveMap.broadcasting.value;
+                                  return PawMapDirectPill(
+                                    key: const ValueKey<String>('pawmap_direct_pill'),
+                                    live: live,
+                                    followers: live ? _liveMap.myFollowers.value : 0,
+                                    elsewhere: !live && _liveMap.liveElsewhere.value,
+                                    startedAt: _liveMap.sessionStartedAt.value,
+                                    noGps: live &&
+                                        _liveMap.liveStatus.value ==
+                                            LiveShareStatus.lost &&
+                                        _liveMap.myLivePosition.value == null,
+                                    onTap: () => unawaited(_toggleDirect()),
+                                    onLongPress: () => _showCapsuleHelp('direct'),
+                                  );
+                                })),
+                              ),
+                            ),
                           // v590 — « ma mère ne voit personne » : des filtres
                           // enregistrés sur son compte cachaient les gens sans
                           // rien dire. Dès qu'un filtre cache des personnes :
@@ -6422,7 +6471,22 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Démarrage sans question (durée « jusqu'à l'arrêt », modifiable par la
   /// puce « En direct » de la feuille), sauf la toute première fois (une
   /// phrase d'explication) ; confirmation courte à l'ARRÊT seulement.
+  /// v604 — un seul appui à la fois (Daniel : « même le bouton Balade
+  /// bugue ») : pendant la feuille ou le GPS du départ, les autres appuis
+  /// sont ignorés, et un appui < 1,5 s après un arrêt ne relance rien.
+  bool _directBusy = false;
+
   Future<void> _toggleDirect() async {
+    if (_directBusy) return;
+    _directBusy = true;
+    try {
+      await _toggleDirectOnce();
+    } finally {
+      _directBusy = false;
+    }
+  }
+
+  Future<void> _toggleDirectOnce() async {
     if (!_viewerLoggedIn) {
       SignupWallSheet.show(trigger: 'pawmap');
       return;
@@ -6448,6 +6512,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
       return;
     }
+    if (_liveMap.justStopped) return; // 2e appui d'un double-tap
     if (!await _liveFirstHintOk()) return;
     await _startBroadcastWith(LiveShareDuration.untilStop);
     if (_visibility == 'hidden' && mounted) {
@@ -6552,6 +6617,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       _followTrail = <LatLng>[pos];
     });
     _animateFollowCamera(pos, zoom: zoom ?? _followZoom);
+    // v604 — vérité partagée « je le suis » (chat, carte, feuilles).
+    _liveMap.markFollowing(userId);
     // v589 — la personne suivie voit « un œil + le nombre » sur sa pilule.
     unawaited(_liveMap.followPresence(userId, true));
     _followPresenceTimer?.cancel();
@@ -6660,7 +6727,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         },
         onStop: () {
           Navigator.of(context).pop();
-          _stopFollow();
+          _stopFollow(byUser: true);
         },
         onDirections: fp == null
             ? null
@@ -6715,11 +6782,15 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   /// Arrête le suivi (bouton Stop, retour Android).
-  void _stopFollow() {
+  /// v604 — [byUser] : bouton « Arrêter de suivre » (Daniel : « Arrêter le
+  /// suivre marche pas ») — la personne n'est plus re-suivie d'elle-même en
+  /// revenant sur l'onglet, et le serveur termine la demande de suivi de CE
+  /// sens seulement (son suivi à elle, si elle me suit, continue).
+  void _stopFollow({bool byUser = false}) {
     if (_followUserId == null) return;
     _followPresenceTimer?.cancel();
     _followPresenceTimer = null;
-    unawaited(_liveMap.followPresence(_followUserId!, false));
+    unawaited(_liveMap.stopFollowing(_followUserId!, byUser: byUser));
     setState(() {
       _followUserId = null;
       _followName = '';
@@ -8549,7 +8620,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (_role == 'owner' || _role.isEmpty) {
       unawaited(_openPublishForm());
     } else {
-      openMainTabOr(4, () => const PawMapScreen());
+      openMainTab(4);
     }
   }
 
@@ -8954,11 +9025,11 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// v552 — ouvre l'élément partagé par un lien (`/spot/:id`, `/alert/:id`).
   /// Daniel : « selon ce qu'on partage, que ça tombe sur la chose précise ».
-  Future<void> _openSharedTarget() async {
+  Future<void> _openSharedTarget({String? spotId, String? reportId}) async {
     final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
     if (api == null) return;
-    final spotId = widget.focusSpotId ?? '';
-    final reportId = widget.focusReportId ?? '';
+    spotId ??= '';
+    reportId ??= '';
     try {
       if (spotId.isNotEmpty) {
         final res = await api.get('/pawspots/$spotId', requiresAuth: true);
@@ -9137,7 +9208,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   double _railAvailableHeight() {
     final mq = MediaQuery.of(context);
     final double fallback = math.max(mq.viewPadding.top, 28.0) +
-        48.h; // v601 — plus de pilule Direct en haut à gauche.
+        48.h +
+        // v604 — la pilule Direct est revenue en haut à gauche.
+        (pawMapShowsDirectPill(_role) ? 42.h : 0);
     final double topBottom =
         _topChromeBottom > 0 ? _topChromeBottom : fallback;
     return mq.size.height - topBottom - 14.h - _railBottom(context, picking: false);
@@ -9165,7 +9238,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// jamais le menu ; au-delà, elles défilent.
   double _railMaxHeight() {
     final mq = MediaQuery.of(context);
-    final double fallback = math.max(mq.viewPadding.top, 28.0) + 48.h;
+    final double fallback = math.max(mq.viewPadding.top, 28.0) +
+        48.h +
+        (pawMapShowsDirectPill(_role) ? 42.h : 0); // v604 — pilule Direct
     final double topBottom =
         _topChromeBottom > 0 ? _topChromeBottom : fallback;
     final double maxH =
@@ -9186,7 +9261,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     // Repli avant la 1re mesure : barre d'état (28 dp au moins) + en-tête
     // (≈ 48) + pilule Direct (≈ 42).
     final double fallback = math.max(mq.viewPadding.top, 28.0) +
-        48.h; // v601 — plus de pilule Direct en haut à gauche.
+        48.h +
+        // v604 — la pilule Direct est revenue en haut à gauche.
+        (pawMapShowsDirectPill(_role) ? 42.h : 0);
     final double topBottom =
         _topChromeBottom > 0 ? _topChromeBottom : fallback;
     // 14 dp d'air sous la pilule Direct, jamais moins.
@@ -10240,6 +10317,77 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// v588 — un ami a été demandé : le bootstrap garde la caméra sur lui.
   bool _friendFocusRequested = false;
+
+  Worker? _pendingIntentWorker;
+
+  /// v604 — centre / zoom de départ d'une demande arrivée avant le montage.
+  void _prepareIntentAtMount(PawMapIntent i) {
+    LatLng? at;
+    if (i.hasCenter) {
+      at = LatLng(i.lat!, i.lng!);
+    } else if (i.hasRoute) {
+      at = LatLng(i.routeToLat!, i.routeToLng!);
+    }
+    if (at == null) return;
+    _currentCenter = at;
+    _zoomLevel = i.zoom ?? (i.hasUser ? kPawMapFriendFocusZoom : 16.0);
+    _idleZoom = _zoomLevel;
+    _explicitStart = true;
+    _friendFocusRequested = true; // le GPS ne recentre pas sur moi
+  }
+
+  /// v604 — applique une demande (chat, lien, notification) : personne à
+  /// suivre, spot / signalement partagé, itinéraire, ou simple centre.
+  Future<void> _applyIntent(PawMapIntent i) async {
+    if (!mounted) return;
+    if (i.hasUser) {
+      final uid = i.focusUserId!;
+      final role = (i.focusUserRole ?? '').toLowerCase();
+      if (i.hasCenter) {
+        // Position connue (chat : peer-position) → même chemin que « voir
+        // cet ami sur la carte » : vol doux, fiche courte, suivi en direct.
+        // Pas de position inventée : seul un partage réel (couche amis)
+        // lance le suivi ; sinon vol doux + fiche courte.
+        final prev = _liveMap.friendPositions[uid];
+        final bool liveNow =
+            prev != null && prev.liveState != FriendLiveState.seen;
+        _friendFocusRequested = true;
+        await _focusFriend(PawMapFriendFocus(
+          userId: uid,
+          role: role.isEmpty ? 'owner' : role,
+          name: i.focusUserName ?? prev?.name ?? '',
+          avatar: (i.focusUserAvatar ?? '').isNotEmpty
+              ? i.focusUserAvatar!
+              : (prev?.avatar ?? ''),
+          lat: i.lat!,
+          lng: i.lng!,
+          live: liveNow,
+        ));
+        return;
+      }
+      // Sans position : on s'accroche à la personne, la caméra la rejoint
+      // dès sa prochaine position (worker de suivi).
+      setState(() {
+        _followUserId = uid;
+        _followName = i.focusUserName ?? '';
+        _followAvatar = i.focusUserAvatar ?? '';
+        _followRole = role;
+        _followPaused = false;
+      });
+      return;
+    }
+    if (i.hasShared) {
+      await _openSharedTarget(spotId: i.focusSpotId, reportId: i.focusReportId);
+      return;
+    }
+    if (i.hasRoute) {
+      await _startPendingRoute(LatLng(i.routeToLat!, i.routeToLng!));
+      return;
+    }
+    if (i.hasCenter) {
+      await _goToCity(LatLng(i.lat!, i.lng!), zoom: i.zoom ?? 16);
+    }
+  }
 
   Future<void> _startPendingRoute(LatLng dest) async {
     for (int i = 0; i < 10; i++) {

@@ -191,3 +191,77 @@ double pawMapDistanceKm(LatLng a, LatLng b) {
       math.cos(la1) * math.cos(la2) * math.sin(dLng / 2) * math.sin(dLng / 2);
   return 2 * r * math.asin(math.min(1.0, math.sqrt(h)));
 }
+
+/// v604 — Daniel (30/09) : « vérifie que les doubles et triples bulles
+/// s'affichent avec les prix ». La couche « membres proches » (abonnés)
+/// prime sur la couche monde, mais le serveur ≤ 603 n'y mettait AUCUN tarif :
+/// un gardien + promeneur abonné n'avait ni bulle duo ni bulle simple. On
+/// reprend les tarifs PAR RÔLE de la même personne dans la couche monde
+/// quand ils manquent (un tarif présent n'est jamais écrasé ; un rôle sans
+/// tarif n'efface pas les autres). Pure.
+/// Index « id de rôle (minuscules) → personne » de la couche monde, construit
+/// une fois par reconstruction des marqueurs.
+Map<String, Map<String, dynamic>> pawMapWorldIndex(
+    Iterable<Map<String, dynamic>> world) {
+  final idx = <String, Map<String, dynamic>>{};
+  for (final w in world) {
+    for (final id in pawMapPersonIds(w)) {
+      idx.putIfAbsent(id.toLowerCase(), () => w);
+    }
+  }
+  return idx;
+}
+
+Map<String, dynamic> pawMapWithWorldPrices(
+    Map<String, dynamic> p, Map<String, Map<String, dynamic>> worldIndex) {
+  final ids = pawMapPersonIds(p).map((e) => e.toLowerCase());
+  Map<String, dynamic>? twin;
+  for (final id in ids) {
+    twin = worldIndex[id];
+    if (twin != null) break;
+  }
+  if (twin == null) return p;
+  // Tarifs du jumeau, par id de rôle ET par rôle.
+  final byId = <String, Map>{};
+  final byRole = <String, Map>{};
+  final tr = twin['roles'];
+  if (tr is List) {
+    for (final r in tr.whereType<Map>()) {
+      final price = (r['priceFrom'] as num?)?.toDouble() ?? 0;
+      if (price <= 0) continue;
+      byId[(r['id'] ?? '').toString().toLowerCase()] = r;
+      byRole.putIfAbsent((r['role'] ?? '').toString().toLowerCase(), () => r);
+    }
+  }
+  bool has(Object? v) => ((v as num?)?.toDouble() ?? 0) > 0;
+  final out = Map<String, dynamic>.from(p);
+  final roles = p['roles'];
+  if (roles is List) {
+    out['roles'] = [
+      for (final r in roles)
+        if (r is Map && !has(r['priceFrom']))
+          () {
+            final src = byId[(r['id'] ?? '').toString().toLowerCase()] ??
+                byRole[(r['role'] ?? '').toString().toLowerCase()];
+            if (src == null) return r;
+            return <String, dynamic>{
+              ...Map<String, dynamic>.from(r),
+              'priceFrom': src['priceFrom'],
+              if (r['currency'] == null && src['currency'] != null)
+                'currency': src['currency'],
+            };
+          }()
+        else
+          r,
+    ];
+  }
+  if (!has(p['priceFrom'])) {
+    final role = (p['_role'] ?? p['role'] ?? '').toString().toLowerCase();
+    final src = byId[(p['id'] ?? '').toString().toLowerCase()] ?? byRole[role];
+    if (src != null) {
+      out['priceFrom'] = src['priceFrom'];
+      out['currency'] ??= src['currency'];
+    }
+  }
+  return out;
+}

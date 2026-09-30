@@ -9,6 +9,8 @@
 //    la boutique quand PawFollow / une réservation est nécessaire).
 //  • pawFollowIsLive : vrai si la conversation porte une demande ACCEPTÉE
 //    encore valable.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -21,7 +23,10 @@ import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/chat_shared/chat_avatar.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
+import 'package:hopetsit/views/chat_shared/pawfollow_state604.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// Violet PawFollow (CLAUDE.md « Marque »).
 const Color kPawFollowPurple = Color(0xFF7C3AED);
@@ -159,19 +164,164 @@ PawFollowLiveStatus pawFollowLiveStatusFor(
 
 /// Construit [build] avec MON direct réel et celui de l'AUTRE personne de la
 /// demande [m] (null = inconnu), reconstruit à chaque événement du direct.
+///
+/// v604 (ZOE) — avec [conversationId], l'état SERVEUR du sens de cette
+/// demande s'ajoute (socket `pawfollow:state` + relecture) : l'autre n'est
+/// « en direct » que si le serveur le dit ET que la PawMap ne dit pas le
+/// contraire ; ma position ne part « en direct » que si ce sens est encore
+/// suivi côté serveur.
 Widget pawFollowWithLiveState(
   ChatMessageBase m, {
   String contactId = '',
+  String conversationId = '',
   required Widget Function(bool myLive, bool? peerLive) build,
 }) {
   if (!Get.isRegistered<LiveMapService>()) return build(false, null);
   final live = Get.find<LiveMapService>();
   return Obx(() {
-    final bool myLive = live.broadcasting.value || live.liveElsewhere.value;
-    final bool? peerLive =
+    bool myLive = live.broadcasting.value || live.liveElsewhere.value;
+    bool? peerLive =
         pawFollowPeerLiveNow(live, pawFollowPeerIds(m, contactId: contactId));
+    final PawFollowConvState? s = conversationId.isEmpty
+        ? null
+        : PawFollowStateStore.states[conversationId];
+    if (s != null) {
+      if (s.outgoing.messageId == m.id && !s.outgoing.following) {
+        myLive = false;
+      }
+      if (s.incoming.messageId == m.id) {
+        peerLive = s.incoming.live && peerLive != false;
+      }
+    }
     return build(myLive, peerLive);
   });
+}
+
+/// v604 (ZOE) — « Arrêter de suivre » / « Arrêter mon direct » depuis la
+/// carte du chat, avec confirmation.
+///   · je SUIS l'autre ([iShare] false) : le serveur ne termine QUE ce sens
+///     (POST /conversations/:id/pawfollow/stop, scope 'following') ; mon
+///     propre direct et le sens inverse d'un suivi mutuel restent intacts ;
+///   · c'est MA position ([iShare] true) : j'arrête mon direct (même chemin
+///     que la PawMap) ; le serveur termine alors les suivis de ma position,
+///     jamais mon suivi de l'autre.
+Future<void> pawFollowConfirmStop(
+  BuildContext context, {
+  required String conversationId,
+  required String messageId,
+  required bool iShare,
+}) async {
+  await showAppConfirmDialog(
+    context,
+    title: iShare
+        ? 'chat604_stop_live_title'.tr
+        : 'chat604_stop_following_title'.tr,
+    message: iShare
+        ? 'chat604_stop_live_msg'.tr
+        : 'chat604_stop_following_msg'.tr,
+    confirmLabel:
+        iShare ? 'chat604_stop_my_live'.tr : 'chat604_stop_following'.tr,
+    cancelLabel: 'common_cancel'.tr,
+    destructive: true,
+    icon: iShare
+        ? Icons.location_disabled_rounded
+        : Icons.visibility_off_rounded,
+    accent: kPawFollowPurple,
+    onConfirm: () async {
+      try {
+        if (iShare) {
+          if (Get.isRegistered<LiveMapService>()) {
+            await Get.find<LiveMapService>().stopEverywhere();
+          }
+          // Relecture : l'arrêt est traité côté serveur en < 1 s.
+          unawaited(Future<void>.delayed(const Duration(milliseconds: 900),
+              () => PawFollowStateStore.refresh(conversationId)));
+          CustomSnackbar.showSuccess(
+              title: 'chat604_stopped_live'.tr, message: '');
+        } else {
+          await PawFollowStateStore.stop(conversationId,
+              scope: 'following', messageId: messageId);
+          CustomSnackbar.showSuccess(
+              title: 'chat604_stopped_following'.tr, message: '');
+        }
+      } catch (_) {
+        CustomSnackbar.showError(
+            title: 'chat604_stop_error'.tr, message: '');
+      }
+    },
+  );
+}
+
+/// v604 (ZOE) — pilule d'en-tête : ce qu'elle montre et la demande concernée.
+class PawFollowHeader {
+  const PawFollowHeader(this.kind, this.message);
+  final PawFollowHeaderKind kind;
+
+  /// Demande du sens affiché (null si inconnue dans les messages chargés).
+  final ChatMessageBase? message;
+
+  bool get live =>
+      kind == PawFollowHeaderKind.peerLive || kind == PawFollowHeaderKind.myLive;
+  bool get stopped =>
+      kind == PawFollowHeaderKind.peerStopped ||
+      kind == PawFollowHeaderKind.myStopped;
+}
+
+/// v604 (ZOE) — état de la pilule d'en-tête, lu dans un `Obx` : l'état
+/// SERVEUR par sens de la conversation (jamais un cache seul), croisé avec
+/// mon direct local et ce que la PawMap reçoit de l'autre. Tant que le
+/// serveur n'a pas répondu : la règle du 603 (demande acceptée + direct réel).
+PawFollowHeader pawFollowHeaderFor(
+  Iterable<ChatMessageBase> messages, {
+  required String conversationId,
+  String contactId = '',
+}) {
+  final LiveMapService? live =
+      Get.isRegistered<LiveMapService>() ? Get.find<LiveMapService>() : null;
+  final bool myLive =
+      live != null && (live.broadcasting.value || live.liveElsewhere.value);
+  final PawFollowConvState? s = PawFollowStateStore.states[conversationId];
+  ChatMessageBase? byId(String id) {
+    if (id.isEmpty) return null;
+    for (final m in messages) {
+      if (m.id == id) return m;
+    }
+    return null;
+  }
+
+  if (s != null) {
+    final inc = byId(s.incoming.messageId);
+    final bool? peerLocal = live == null
+        ? null
+        : pawFollowPeerLiveNow(
+            live,
+            inc == null
+                ? {if (contactId.isNotEmpty) contactId.toLowerCase()}
+                : pawFollowPeerIds(inc, contactId: contactId));
+    final kind =
+        pawFollowHeaderKind(s, myLive: myLive, peerLiveLocal: peerLocal);
+    final bool isIncoming = kind == PawFollowHeaderKind.peerLive ||
+        kind == PawFollowHeaderKind.peerStopped;
+    return PawFollowHeader(
+        kind, isIncoming ? inc : byId(s.outgoing.messageId));
+  }
+
+  // Repli (serveur pas encore lu) : règle du 603.
+  final accepted = pawFollowLiveMessage(messages);
+  if (accepted == null) return const PawFollowHeader(PawFollowHeaderKind.none, null);
+  final bool iShare = pawfollowSharerIsMe(
+    requesterRole: accepted.pawfollowRequesterRole,
+    isMine: accepted.isFromCurrentUser,
+  );
+  final st = pawFollowLiveStatusFor(messages, contactId: contactId);
+  final PawFollowHeaderKind kind = switch (st) {
+    PawFollowLiveStatus.none => PawFollowHeaderKind.none,
+    PawFollowLiveStatus.live =>
+      iShare ? PawFollowHeaderKind.myLive : PawFollowHeaderKind.peerLive,
+    PawFollowLiveStatus.stopped =>
+      iShare ? PawFollowHeaderKind.myStopped : PawFollowHeaderKind.peerStopped,
+  };
+  return PawFollowHeader(kind, accepted);
 }
 
 /// Id du contact de la conversation [conversationId] (vide si inconnu).

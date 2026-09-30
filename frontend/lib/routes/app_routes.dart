@@ -67,7 +67,7 @@ class AppRoutes {
   static const String notifications = '/notifications';
 
   // Map / discovery — PawMap is the only map screen since session 2 fusion.
-  // The legacy `petsMap` route was removed; use `Get.to(() => const PawMapScreen())`
+  // The legacy `petsMap` route was removed; use `openPawMap()` (lib/utils/map_ui_state.dart, v604 : jamais de page sans menu)
   // from anywhere that needs to push the map.
   static const String serviceProviderDetail = '/service-provider';
   static const String sendRequest = '/send-request';

@@ -23,7 +23,7 @@ import 'package:hopetsit/models/map_report_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/pawmap_theme.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
+import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/map/widgets/map_sheet_kit.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
@@ -1154,13 +1154,11 @@ class _ReportCard extends StatelessWidget {
           if (report.latitude == 0 && report.longitude == 0) {
             // Defensive : un report a (0,0) est invalide → on n'ouvre
             // pas la map (eviterait de zoomer au large de l'Afrique).
-            Get.off(() => const PawMapScreen());
+            openPawMap();
             return;
           }
-          Get.off(() => PawMapScreen(
-                initialLat: report.latitude,
-                initialLng: report.longitude,
-              ));
+          // v604 — l'onglet PawMap du menu (jamais une page sans menu).
+          openPawMap(lat: report.latitude, lng: report.longitude, zoom: 16);
         },
         child: Container(
       padding: EdgeInsets.all(12.w),

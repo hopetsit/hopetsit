@@ -316,6 +316,36 @@ LiveStateDecision liveStateDecision(Map<String, dynamic> state,
   return LiveStateDecision(stopLocal: false, elsewhere: active);
 }
 
+/// v604 — Daniel (30/09) : « Balade arrêter reste en direct ». Juste après
+/// un arrêt fait ICI, le serveur peut encore dire « actif » quelques
+/// secondes (événement `map:self-live` de mon propre démarrage arrivé en
+/// retard, battement HTTP parti avant l'arrêt, position socket en cours de
+/// traitement) : l'app affichait alors « en direct sur un autre téléphone »
+/// (pilule, drapeau Balade et chat restaient verts). Un état serveur « actif »
+/// est ignoré s'il arrive moins de [kLiveStopGrace] après mon arrêt, ou s'il
+/// décrit une session commencée AVANT mon arrêt (au plus 2 min après).
+const Duration kLiveStopGrace = Duration(seconds: 20);
+
+bool liveActiveIsStaleAfterStop({
+  required DateTime? localStopAt,
+  required DateTime now,
+  DateTime? serverStartedAt,
+}) {
+  if (localStopAt == null) return false;
+  final since = now.difference(localStopAt);
+  if (since < kLiveStopGrace) return true;
+  if (since < const Duration(minutes: 2) &&
+      serverStartedAt != null &&
+      serverStartedAt.isBefore(localStopAt)) {
+    return true;
+  }
+  return false;
+}
+
+/// v604 — double appui : un départ demandé moins de 1,5 s après un arrêt
+/// est ignoré (le 2e appui d'un double-tap ne relance pas le direct).
+const Duration kLiveRestartDebounce = Duration(milliseconds: 1500);
+
 class LiveMapService extends GetxService {
   LiveMapService({GetStorage? storage}) : _storage = storage ?? GetStorage();
 
@@ -341,6 +371,97 @@ class LiveMapService extends GetxService {
 
   /// v589 — nombre de personnes qui suivent MON direct (jamais leurs noms).
   final RxInt myFollowers = 0.obs;
+
+  // ─── v604 — UNE seule vérité par personne et par sens ────────────────────
+  // Lue par la pilule Direct, le bouton / drapeau Balade, la feuille, le
+  // bouton « Suivre / Arrêter de suivre » de la carte ET l'en-tête du chat.
+  //   · je diffuse          → [meLive] (ce téléphone OU un autre des miens)
+  //   · il diffuse          → [isFriendLive] (couche amis, état serveur)
+  //   · je le suis          → [followingUserId] / [isFollowing]
+  //   · il me suit          → [myFollowers] (nombre seulement, jamais les noms)
+  // Les deux sens sont indépendants : arrêter MON direct ne touche pas à qui
+  // je suis ; arrêter de suivre quelqu'un ne touche pas à mon direct.
+
+  /// Je diffuse (ici ou sur un autre de mes appareils).
+  final RxBool meLive = false.obs;
+
+  /// Personne dont je suis le direct sur la carte (null = personne).
+  final RxnString followingUserId = RxnString();
+
+  /// Heure de mon dernier arrêt fait sur CE téléphone.
+  DateTime? _localStopAt;
+  DateTime? get localStopAt => _localStopAt;
+  bool _staleOfflineResent = false;
+
+  /// Arrêt fait il y a moins de [kLiveRestartDebounce] (anti double-appui).
+  bool get justStopped {
+    final t = _localStopAt;
+    return t != null && DateTime.now().difference(t) < kLiveRestartDebounce;
+  }
+
+  /// Personnes dont j'ai volontairement arrêté le suivi : la carte ne les
+  /// re-suit plus d'elle-même (onglet PawMap « un seul ami en balade »).
+  final Set<String> followDeclined = <String>{};
+
+  /// v604 — MON direct est lancé mais ma position ne part plus (GPS muet,
+  /// réseau coupé) : contour rouge de la patte du menu. Lit des observables
+  /// (à appeler dans un Obx).
+  bool get myLiveIsLost =>
+      broadcasting.value && liveStatus.value == LiveShareStatus.lost;
+
+  bool isFriendLive(String userId) {
+    final p = friendPositions[userId];
+    return p != null && p.liveState != FriendLiveState.seen;
+  }
+
+  bool isFollowing(String userId) =>
+      userId.isNotEmpty && followingUserId.value == userId;
+
+  void _recomputeMeLive() {
+    final v = broadcasting.value || liveElsewhere.value;
+    if (meLive.value != v) meLive.value = v;
+  }
+
+  /// Je commence à suivre [userId] (caméra de la carte collée sur lui).
+  void markFollowing(String userId) {
+    if (userId.isEmpty) return;
+    followDeclined.remove(userId);
+    followingUserId.value = userId;
+  }
+
+  /// Fin du suivi. [byUser] = bouton « Arrêter de suivre » : la personne
+  /// n'est plus re-suivie automatiquement, et le serveur termine la demande
+  /// de suivi dont ELLE est le partageur et MOI le suiveur (ce sens-là
+  /// seulement : si elle me suit aussi, son suivi continue).
+  Future<void> stopFollowing(String userId, {bool byUser = false}) async {
+    if (userId.isEmpty) return;
+    if (followingUserId.value == userId) followingUserId.value = null;
+    await followPresence(userId, false);
+    if (!byUser) return;
+    followDeclined.add(userId);
+    try {
+      if (!Get.isRegistered<ApiClient>()) return;
+      await Get.find<ApiClient>().post('/friends/follow-stop',
+          body: {'targetId': userId}, requiresAuth: true);
+    } catch (e) {
+      debugPrint('[LiveMap] follow-stop failed: $e');
+    }
+  }
+
+  /// Un état serveur « actif » est-il le vestige de mon propre arrêt ?
+  bool _staleActive({DateTime? serverStartedAt}) {
+    final stale = liveActiveIsStaleAfterStop(
+      localStopAt: _localStopAt,
+      now: DateTime.now(),
+      serverStartedAt: serverStartedAt,
+    );
+    if (stale && !_staleOfflineResent) {
+      // Le serveur croit encore au direct : on le lui redit, une fois.
+      _staleOfflineResent = true;
+      unawaited(_postOfflineHttp());
+    }
+    return stale;
+  }
 
   /// v599 — Daniel (29/09) : « voir qu'un ami est en balade SANS ouvrir le
   /// menu ». Nombre de personnes (amis, famille, prestataire suivi) dont le
@@ -451,6 +572,9 @@ class LiveMapService extends GetxService {
   @override
   void onInit() {
     super.onInit();
+    // v604 — « je diffuse » : une seule valeur, tenue à jour ici.
+    ever<bool>(broadcasting, (_) => _recomputeMeLive());
+    ever<bool>(liveElsewhere, (_) => _recomputeMeLive());
     // v599 — point vert sur l'onglet PawMap : recompte à chaque changement
     // de position et toutes les 30 s (fin de direct par écoulement du temps).
     ever<Map<String, FriendPosition>>(friendPositions, (_) => recountLiveFriends());
@@ -679,7 +803,10 @@ class LiveMapService extends GetxService {
     socket.on('map:self-live', (raw) {
       try {
         final map = (raw as Map).cast<String, dynamic>();
-        _applyRemoteLive(active: map['active'] == true, announce: true);
+        _applyRemoteLive(
+            active: map['active'] == true,
+            announce: true,
+            at: DateTime.tryParse((map['at'] ?? '').toString()));
       } catch (_) {/* payload inattendu */}
     });
     unawaited(syncLiveState());
@@ -723,17 +850,25 @@ class LiveMapService extends GetxService {
       if (d.stopLocal) {
         _applyRemoteLive(active: false, announce: true);
       } else {
-        liveElsewhere.value = d.elsewhere;
+        // v604 — un « actif » qui date de mon propre arrêt ne rallume rien.
+        final started = DateTime.tryParse((raw['startedAt'] ?? '').toString());
+        liveElsewhere.value =
+            d.elsewhere && !_staleActive(serverStartedAt: started);
       }
     } catch (e) {
       debugPrint('[LiveMap] live-state failed: $e');
     }
   }
 
-  void _applyRemoteLive({required bool active, bool announce = false}) {
+  void _applyRemoteLive(
+      {required bool active, bool announce = false, DateTime? at}) {
     if (active) {
       // Mon propre démarrage revient aussi dans mon salon : rien à faire.
-      if (!broadcasting.value) liveElsewhere.value = true;
+      // v604 — ni un démarrage antérieur à mon arrêt d'ici (événement en
+      // retard) : sinon « Balade arrêtée » restait « en direct ».
+      if (!broadcasting.value && !_staleActive(serverStartedAt: at)) {
+        liveElsewhere.value = true;
+      }
       return;
     }
     liveElsewhere.value = false;
@@ -755,6 +890,9 @@ class LiveMapService extends GetxService {
       stopBroadcasting();
       return;
     }
+    // v604 — même garde que l'arrêt local : l'écho « actif » est ignoré.
+    _localStopAt = DateTime.now();
+    _staleOfflineResent = false;
     await _postOfflineHttp();
   }
 
@@ -860,6 +998,9 @@ class LiveMapService extends GetxService {
     DateTime? endsAt,
   }) {
     if (broadcasting.value) return;
+    // v604 — nouveau départ voulu : l'arrêt précédent ne filtre plus rien.
+    _localStopAt = null;
+    _staleOfflineResent = false;
     broadcasting.value = true;
     liveElsewhere.value = false;
     liveStatus.value = LiveShareStatus.active;
@@ -1157,15 +1298,31 @@ class LiveMapService extends GetxService {
     // l'arrêt.
     final wasBroadcasting = broadcasting.value;
     broadcasting.value = false;
+    // v604 — arrêt voulu ici : plus de « en direct ailleurs » qui serait en
+    // fait l'écho de ce direct-ci (voir [liveActiveIsStaleAfterStop]).
+    if (notifyServer) {
+      _localStopAt = DateTime.now();
+      _staleOfflineResent = false;
+      liveElsewhere.value = false;
+    }
     if (wasBroadcasting && notifyServer) {
-      final svc = Get.find<SocketService>();
-      final socket = svc.socket;
-      if (socket != null && svc.isConnected) {
-        socket.emit('map:go-offline');
-      } else {
-        // Socket coupée : le serveur est prévenu par HTTP (offline:true).
-        unawaited(_postOfflineHttp());
-      }
+      // v604 — Daniel : « Arrêter mon direct marche pas ». La socket seule
+      // pouvait se perdre (connexion à moitié morte, événement parti avant
+      // l'identification) : le serveur gardait le direct. On prévient
+      // TOUJOURS par HTTP aussi (idempotent), en plus de la socket.
+      try {
+        final svc = Get.find<SocketService>();
+        final socket = svc.socket;
+        if (socket != null && svc.isConnected) {
+          socket.emit('map:go-offline');
+        }
+      } catch (_) {/* pas de socket : HTTP ci-dessous */}
+      unawaited(_postOfflineHttp());
+      // Puis on relit l'état serveur : une position partie juste avant
+      // l'arrêt a pu le rallumer — il est alors ré-éteint (une fois).
+      Timer(const Duration(seconds: 5), () {
+        if (!broadcasting.value) unawaited(syncLiveState());
+      });
     }
     // v416 — coupe aussi le service de fond (il enverra un ping offline final).
     try {

@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/map/pawmap_friend_focus.dart';
 
 /// v465 — état partagé « carte PawMap agrandie ».
@@ -40,19 +39,118 @@ final RxInt currentMainTab = 0.obs;
 final Rxn<LatLng> pawMapPendingCenter = Rxn<LatLng>();
 final RxDouble pawMapPendingZoom = 13.0.obs;
 
-/// Ouvre la PawMap centrée sur (lat, lng) : via l'onglet quand le menu est
-/// monté, sinon en écran poussé.
-void openPawMapAt(double lat, double lng, {double zoom = 13}) {
-  if (navWrapperMounted.value) {
-    try {
-      Get.until((route) => route.isFirst);
-    } catch (_) {/* pile déjà à la racine */}
-    pawMapPendingZoom.value = zoom;
-    pawMapPendingCenter.value = LatLng(lat, lng);
-    requestedTab.value = kPawMapTabIndex;
-    return;
+/// v604 — Daniel (30/09) : « Le menu ne doit JAMAIS disparaître !! ».
+/// Toute ouverture de la PawMap passe par l'ONGLET du menu : on revient à la
+/// racine, on confie la demande à la carte (valeur observée), puis on
+/// sélectionne l'onglet. Menu pas encore monté (démarrage à froid par un
+/// lien ou une notification) : la demande attend, et le menu ouvre l'onglet
+/// PawMap dès qu'il se monte. On ne POUSSE plus jamais la carte en page.
+///
+/// `true` quand le menu doit ouvrir l'onglet PawMap à son montage.
+bool pawMapOpenOnMount = false;
+
+/// Heure de la dernière ouverture EXPLICITE de la carte (lien, chat, ami…) :
+/// le menu ne remplace pas alors la demande par « l'unique ami en balade ».
+DateTime? pawMapExplicitOpenAt;
+
+/// Demande générique confiée à la PawMap (centre, suivi d'une personne,
+/// spot ou signalement partagé, itinéraire). Consommée une seule fois.
+class PawMapIntent {
+  final double? lat;
+  final double? lng;
+  final double? zoom;
+  final String? focusUserId;
+  final String? focusUserRole;
+  final String? focusUserName;
+  final String? focusUserAvatar;
+  final String? focusSpotId;
+  final String? focusReportId;
+  final double? routeToLat;
+  final double? routeToLng;
+
+  const PawMapIntent({
+    this.lat,
+    this.lng,
+    this.zoom,
+    this.focusUserId,
+    this.focusUserRole,
+    this.focusUserName,
+    this.focusUserAvatar,
+    this.focusSpotId,
+    this.focusReportId,
+    this.routeToLat,
+    this.routeToLng,
+  });
+
+  bool get hasCenter => lat != null && lng != null;
+  bool get hasUser => (focusUserId ?? '').isNotEmpty;
+  bool get hasShared =>
+      (focusSpotId ?? '').isNotEmpty || (focusReportId ?? '').isNotEmpty;
+  bool get hasRoute => routeToLat != null && routeToLng != null;
+  bool get isEmpty => !hasCenter && !hasUser && !hasShared && !hasRoute;
+}
+
+final Rxn<PawMapIntent> pawMapPendingIntent = Rxn<PawMapIntent>();
+
+/// Revient à la racine (le menu) ; renvoie `false` si le menu n'est pas monté.
+bool _pawMapGoRoot() {
+  pawMapExplicitOpenAt = DateTime.now();
+  if (!navWrapperMounted.value) {
+    pawMapOpenOnMount = true;
+    return false;
   }
-  Get.to(() => PawMapScreen(initialLat: lat, initialLng: lng, initialZoom: zoom));
+  try {
+    Get.until((route) => route.isFirst);
+  } catch (_) {/* pile déjà à la racine */}
+  return true;
+}
+
+void _pawMapSelectTab(bool mounted) {
+  if (mounted) requestedTab.value = kPawMapTabIndex;
+}
+
+/// Ouvre l'onglet PawMap (menu toujours visible) avec une demande facultative.
+void openPawMap({
+  double? lat,
+  double? lng,
+  double? zoom,
+  String? focusUserId,
+  String? focusUserRole,
+  String? focusUserName,
+  String? focusUserAvatar,
+  String? focusSpotId,
+  String? focusReportId,
+  double? routeToLat,
+  double? routeToLng,
+}) {
+  final intent = PawMapIntent(
+    lat: lat,
+    lng: lng,
+    zoom: zoom,
+    focusUserId: focusUserId,
+    focusUserRole: focusUserRole,
+    focusUserName: focusUserName,
+    focusUserAvatar: focusUserAvatar,
+    focusSpotId: focusSpotId,
+    focusReportId: focusReportId,
+    routeToLat: routeToLat,
+    routeToLng: routeToLng,
+  );
+  final mounted = _pawMapGoRoot();
+  if (intent.isEmpty) {
+    pawMapExplicitOpenAt = null; // simple ouverture : comportement habituel
+  } else {
+    pawMapPendingIntent.value = intent;
+  }
+  _pawMapSelectTab(mounted);
+}
+
+/// Ouvre la PawMap centrée sur (lat, lng), toujours dans l'onglet du menu.
+void openPawMapAt(double lat, double lng, {double zoom = 13}) {
+  final mounted = _pawMapGoRoot();
+  pawMapPendingZoom.value = zoom;
+  pawMapPendingCenter.value = LatLng(lat, lng);
+  _pawMapSelectTab(mounted);
 }
 
 /// v588 — Daniel : « dans la liste d'amis, quand je clique sur sa photo, ça
@@ -61,41 +159,20 @@ void openPawMapAt(double lat, double lng, {double zoom = 13}) {
 /// est en direct).
 final Rxn<PawMapFriendFocus> pawMapPendingFriend = Rxn<PawMapFriendFocus>();
 
-/// Ouvre l'ONGLET PawMap (menu conservé) sur [focus] ; sans menu monté
-/// (app ouverte par un lien), la carte est poussée et lit la même demande.
+/// Ouvre l'ONGLET PawMap (menu conservé) sur [focus].
 void openPawMapOnFriend(PawMapFriendFocus focus) {
   // Retour à la racine D'ABORD (sinon `Get.until` refermerait la fiche que
-  // la carte ouvre en réponse), puis la demande.
-  if (openMainTab(kPawMapTabIndex)) {
-    pawMapPendingFriend.value = focus;
-    return;
-  }
+  // la carte ouvre en réponse), puis la demande, puis l'onglet.
+  final mounted = _pawMapGoRoot();
   pawMapPendingFriend.value = focus;
-  Get.to(() => PawMapScreen(
-        initialLat: focus.lat,
-        initialLng: focus.lng,
-        initialZoom: kPawMapFriendFocusZoom,
-      ));
+  _pawMapSelectTab(mounted);
 }
 
-/// Ouvre la PawMap avec un itinéraire vers (lat, lng) : via l'onglet quand le
-/// menu principal est monté (on revient d'abord à la racine de la pile),
-/// sinon en écran poussé (ex. app ouverte par un lien avant le menu).
+/// Ouvre la PawMap avec un itinéraire vers (lat, lng), dans l'onglet du menu.
 void openPawMapWithRoute(double lat, double lng) {
-  if (navWrapperMounted.value) {
-    try {
-      Get.until((route) => route.isFirst);
-    } catch (_) {/* pile déjà à la racine */}
-    pawMapPendingRoute.value = LatLng(lat, lng);
-    requestedTab.value = kPawMapTabIndex;
-    return;
-  }
-  Get.to(() => PawMapScreen(
-        initialLat: lat,
-        initialLng: lng,
-        routeToLat: lat,
-        routeToLng: lng,
-      ));
+  final mounted = _pawMapGoRoot();
+  pawMapPendingRoute.value = LatLng(lat, lng);
+  _pawMapSelectTab(mounted);
 }
 
 /// v573 — Daniel : « le menu d'en bas avait disparu ». Les 5 destinations du
@@ -115,5 +192,10 @@ bool openMainTab(int index) {
 
 /// Bascule sur l'onglet [index] ; à défaut de menu, empile [fallback].
 void openMainTabOr(int index, Widget Function() fallback) {
+  // v604 — la PawMap n'est JAMAIS empilée (elle perdrait le menu).
+  if (index == kPawMapTabIndex) {
+    openPawMap();
+    return;
+  }
   if (!openMainTab(index)) Get.to(fallback);
 }

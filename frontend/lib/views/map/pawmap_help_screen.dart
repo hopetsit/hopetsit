@@ -41,7 +41,6 @@ import '../../controllers/auth_controller.dart';
 import '../../utils/map_ui_state.dart';
 import '../../utils/pawmap_theme.dart';
 import '../profile/widgets/profile_ui_kit.dart';
-import 'paw_map_screen.dart';
 import 'widgets/paw_rail_button.dart';
 import 'widgets/pawmap_buttons.dart';
 import 'widgets/pawmap_discreet.dart';
@@ -83,7 +82,7 @@ class PawMapHelpScreen extends StatelessWidget {
       Navigator.of(context).pop();
       return;
     }
-    openMainTabOr(kPawMapTabIndex, () => const PawMapScreen());
+    openPawMap();
   }
 
   /// Rôle affiché : celui passé, sinon celui du compte (même source que la

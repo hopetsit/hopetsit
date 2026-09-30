@@ -52,7 +52,6 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/booking/handover/handover_action_sheet.dart';
 import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
@@ -1157,7 +1156,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     }
     // v571 — repli : toujours la PawMap (le bandeau dit « découvre la
     // PawMap »), plus jamais l'ancien historique des réservations.
-    openMainTabOr(2, () => const PawMapScreen());
+    openPawMap();
   }
 
   // ─── Tap handlers (graceful degradation if a route is missing) ─────────
