@@ -112,8 +112,8 @@ function walkPillHtml(minTxt: string) {
  *  blanc de la patte qui devient vert (un ami en direct) ou rouge (mon direct
  *  sans position). Deux pattes côte à côte : verte puis rouge. */
 function menuDotHtml() {
-  const paw = (ring: string) => `<svg viewBox="0 0 56 56" width="46" height="46"><circle cx="12" cy="17" r="5.5" fill="#C92A12" stroke="${ring}" stroke-width="2.5"/><circle cx="22" cy="9" r="5.5" fill="#2563EB" stroke="${ring}" stroke-width="2.5"/><circle cx="34" cy="9" r="5.5" fill="#16A34A" stroke="${ring}" stroke-width="2.5"/><circle cx="44" cy="17" r="5.5" fill="#7C3AED" stroke="${ring}" stroke-width="2.5"/><path d="M28 51c-7-6-14-12-14-20a14 14 0 0 1 28 0c0 8-7 14-14 20z" fill="#17141F" stroke="${ring}" stroke-width="3"/><circle cx="28" cy="31" r="5" fill="#fff"/><circle cx="28" cy="31" r="2.5" fill="#C92A12"/></svg>`;
-  return `<span style="display:inline-flex;gap:4px;align-items:center">${paw("#16A34A")}${paw("#DC2626")}</span>`;
+  const paw = (ring: string) => `<svg viewBox="0 0 56 56" width="27" height="27"><circle cx="12" cy="17" r="5.5" fill="#C92A12" stroke="${ring}" stroke-width="2.5"/><circle cx="22" cy="9" r="5.5" fill="#2563EB" stroke="${ring}" stroke-width="2.5"/><circle cx="34" cy="9" r="5.5" fill="#16A34A" stroke="${ring}" stroke-width="2.5"/><circle cx="44" cy="17" r="5.5" fill="#7C3AED" stroke="${ring}" stroke-width="2.5"/><path d="M28 51c-7-6-14-12-14-20a14 14 0 0 1 28 0c0 8-7 14-14 20z" fill="#17141F" stroke="${ring}" stroke-width="3"/><circle cx="28" cy="31" r="5" fill="#fff"/><circle cx="28" cy="31" r="2.5" fill="#C92A12"/></svg>`;
+  return `<span style="display:inline-flex;gap:2px;align-items:center;width:56px;justify-content:center">${paw("#16A34A")}${paw("#DC2626")}</span>`;
 }
 
 /**
@@ -212,8 +212,8 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     example: t("help599_ex_balade"),
     // 29/09 01 h 38 — l'image de PAM (même fichier que l'app, sans mot) : claire / nuit, @2x et @3x.
     image: {
-      src: "/pawmap/balade_601_clair@2x.png", srcSet: "/pawmap/balade_601_clair@2x.png 2x, /pawmap/balade_601_clair@3x.png 3x",
-      darkSrc: "/pawmap/balade_601_nuit@2x.png", darkSrcSet: "/pawmap/balade_601_nuit@2x.png 2x, /pawmap/balade_601_nuit@3x.png 3x",
+      src: "/pawmap/balade_604_clair@2x.png", srcSet: "/pawmap/balade_604_clair@2x.png 2x, /pawmap/balade_604_clair@3x.png 3x",
+      darkSrc: "/pawmap/balade_604_nuit@2x.png", darkSrcSet: "/pawmap/balade_604_nuit@2x.png 2x, /pawmap/balade_604_nuit@3x.png 3x",
       alt: t("help599_img_caption"),
     },
     rows: [
