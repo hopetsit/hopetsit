@@ -416,8 +416,11 @@ const listSitters = async (req, res) => {
   try {
     // Boosted profiles first, then by rating
     // v538 — vitrine : comptes masqués exclus partout (modération admin).
-    const sitters = await Sitter.find({ hiddenFromPublic: { $ne: true } })
-      .sort({ boostExpiry: -1, rating: -1, createdAt: -1 });
+    // v604 (ZOE) — liste publique sans session : comptes de test retirés.
+    const sitters = require('../utils/testAccountMap604').hideTestAccounts(
+      await Sitter.find({ hiddenFromPublic: { $ne: true } })
+        .sort({ boostExpiry: -1, rating: -1, createdAt: -1 }),
+    );
     const now = new Date();
     res.json({ sitters: sitters.map(s => {
       const sanitized = sanitizeUser(s);

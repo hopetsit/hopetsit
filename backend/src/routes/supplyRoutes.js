@@ -80,8 +80,22 @@ const EXCLUS = {
   isStaff: { $ne: true },
   hiddenFromPublic: { $ne: true },
   bannedAt: { $in: [null, undefined] },
-  email: { $not: /(\+test|^hopetsit@|^dadaciao84@|@invalid\.example)/i },
 };
+
+// v604 (ZOE) — comptes de test et internes retirés APRÈS lecture, sur l'e-mail
+// déchiffré (une regex Mongo ne voit pas un e-mail stocké chiffré).
+const INTERNAL_EMAIL_RE = /(\+test|^hopetsit@|^dadaciao84@|@invalid\.example)/i;
+function isRealSupply(d) {
+  if (!d) return false;
+  if (require('../utils/testAccountMap604').isTestAccountDoc(d)) return false;
+  let email = d.email;
+  try { email = require('../utils/encryption').decrypt(d.email); } catch (_) { /* en clair */ }
+  return !INTERNAL_EMAIL_RE.test(String(email || ''));
+}
+async function countReal(Model, query) {
+  const docs = await Model.find(query).select('email').limit(20000).lean();
+  return docs.filter(isRealSupply).length;
+}
 
 async function countRole(Model, rx, lat, lng, radiusKm) {
   const or = [];
@@ -95,13 +109,13 @@ async function countRole(Model, rx, lat, lng, radiusKm) {
   }
   if (!or.length) return 0;
   try {
-    return await Model.countDocuments({ ...EXCLUS, $or: or });
+    return await countReal(Model, { ...EXCLUS, $or: or });
   } catch (e) {
     // Un index géographique manquant ferait échouer $geoWithin : on ne perd
     // pas la page pour autant, on recompte sur le nom de ville seul.
     logger.warn(`[supply/city] comptage géographique impossible : ${e && e.message ? e.message : e}`);
     if (!rx) return 0;
-    return Model.countDocuments({
+    return countReal(Model, {
       ...EXCLUS,
       $or: [{ 'location.city': rx }, { city: rx }, { coverageCity: rx }],
     });
@@ -209,7 +223,7 @@ router.get('/city/faces', async (req, res) => {
       or.push({ location: { $geoWithin: { $centerSphere: [[g.lng, g.lat], DEFAULT_RADIUS_KM / 6371] } } });
     }
     const filtre = { ...EXCLUS, 'avatar.url': { $regex: /^https:\/\// }, $or: or };
-    const champs = 'firstName name avatar city location.city coverageCity averageRating rating kycStatus verified createdAt';
+    const champs = 'email firstName name avatar city location.city coverageCity averageRating rating kycStatus verified createdAt';
 
     const lire = async (Model, role) => {
       let docs;
@@ -221,7 +235,7 @@ router.get('/city/faces', async (req, res) => {
         docs = await Model.find({ ...EXCLUS, 'avatar.url': { $regex: /^https:\/\// }, $or: or.filter((o) => !o.location) })
           .select(champs).sort({ averageRating: -1, createdAt: 1 }).limit(30).lean();
       }
-      return docs.map((d) => {
+      return docs.filter(isRealSupply).map((d) => {
         const prenom = prenomAffichable(d);
         const ville = String((d.location && d.location.city) || d.city || d.coverageCity || city).slice(0, 40);
         return {
@@ -265,4 +279,5 @@ router.get('/city/faces', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.isRealSupply = isRealSupply;
 module.exports.cityRegex = cityRegex;

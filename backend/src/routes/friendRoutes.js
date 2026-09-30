@@ -132,6 +132,22 @@ router.post('/follow-presence', requireAuth, async (req, res) => {
   }
 });
 
+// v604 (PAM) — « Arrêter de suivre » depuis la PawMap : termine MON sens de
+// suiveur envers [targetId] dans chaque conversation qui nous relie (règle
+// de ZOE, scope 'following'). Suivi mutuel : son suivi à lui continue. Les
+// deux téléphones reçoivent `message:updated` + `pawfollow:state`.
+router.post('/follow-stop', requireAuth, async (req, res) => {
+  try {
+    const targetId = String((req.body && req.body.targetId) || '').trim();
+    if (!/^[a-f0-9]{24}$/i.test(targetId)) return res.status(400).json({ error: 'targetId required.' });
+    const ended = await require('../utils/followStop604').stopFollowing({ userId: me(req).id, targetId });
+    return res.json({ ok: true, ended });
+  } catch (e) {
+    logger.error('[friends/follow-stop]', e);
+    return res.status(500).json({ error: 'Unable to stop following.' });
+  }
+});
+
 router.get('/live-state', requireAuth, async (req, res) => {
   try {
     const state = await require('../utils/liveDevices589').getMyLiveState(me(req).id);
@@ -223,6 +239,19 @@ async function _friendIdsOf(userId) {
   return mapVisibility.friendIdsOf(userId);
 }
 
+// v604 (PAM) — tarif le plus bas d'un rôle (même règle que la couche monde).
+function rolePriceFrom604(d, role) {
+  const nums = [];
+  if (role === 'walker' && Array.isArray(d.walkRates)) {
+    for (const w of d.walkRates) {
+      if (w && w.enabled !== false && Number(w.basePrice) > 0) nums.push(Number(w.basePrice));
+    }
+  }
+  if (Number(d.hourlyRate) > 0) nums.push(Number(d.hourlyRate));
+  if (Number(d.dailyRate) > 0) nums.push(Number(d.dailyRate));
+  return nums.length ? Math.min.apply(null, nums) : 0;
+}
+
 router.get('/members/nearby', requireAuth, async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat);
@@ -261,7 +290,12 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       'boostExpiry kycStatus identityVerification.status availableDates ' +
       'unavailableDates availableTimeSlots availableDays '
       // v585 — position de profil + fraîcheur (utils/personMapPosition.js).
-      + '+homeLocation city updatedAt createdAt';
+      + '+homeLocation city updatedAt createdAt '
+      // v604 (PAM) — Daniel : « vérifie que les doubles et triples bulles
+      // s'affichent avec les prix ». Cette couche (membres abonnés proches)
+      // PRIME sur la couche monde et ne renvoyait AUCUN tarif : un gardien +
+      // promeneur abonné n'avait ni bulle duo ni bulle simple.
+      + 'hourlyRate dailyRate walkRates currency rating reviewsCount';
     // v565 §6 — présence RÉELLE (sockets connectés, identité complète), plus
     // le champ figé `isOnline` du doc. Index construit une fois par requête.
     let presenceIdx = null;
@@ -359,6 +393,8 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       if (selfOldId && d.oldId != null && String(d.oldId) === selfOldId) continue;
       // v551 / v584 — « masquer mon profil sur la carte » : visible de ses amis.
       if (!mapVisibility.visibleToViewer(d, { friendIds })) continue;
+      // v604 (ZOE) — compte de test : jamais sur la carte d'un inconnu.
+      if (!require('../utils/testAccountMap604').testAccountVisibleTo(d, { friendIds })) continue;
       const coords = d.location?.coordinates;
       if (!Array.isArray(coords) || coords.length < 2) continue;
       eligible.push(t);
@@ -387,7 +423,17 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       members.push({
         id: idStr,
         role,
-        roles: ordered.map((e) => ({ id: String(e.d._id), role: e.role })),
+        // v604 (PAM) — tarif, note et devise PAR RÔLE (bulles duo / simple).
+        roles: ordered.map((e) => ({
+          id: String(e.d._id),
+          role: e.role,
+          rating: Number(e.d.rating) > 0 ? Number(e.d.rating) : 0,
+          reviewsCount: Number(e.d.reviewsCount) > 0 ? Number(e.d.reviewsCount) : 0,
+          priceFrom: e.role === 'owner' ? 0 : rolePriceFrom604(e.d, e.role),
+          currency: e.d.currency || 'EUR',
+        })),
+        priceFrom: role === 'owner' ? 0 : rolePriceFrom604(d, role),
+        currency: d.currency || 'EUR',
         personIds: ids,
         // 28/09/2026 — prénom + initiale sauf pour mes amis (règle de Daniel).
         name: ids.some((x) => friendIds.has(x))
@@ -1400,11 +1446,18 @@ router.get('/search', requireAuth, async (req, res) => {
       ? { $and: andClauses }
       : { $or: [{ email: re }, { firstName: re }, { lastName: re }] };
 
-    const [owners, sitters, walkers] = await Promise.all([
+    const [owners0, sitters0, walkers0, searchFriendIds] = await Promise.all([
       Owner.find(matchQuery).select(projection).limit(10).lean(),
       Sitter.find(matchQuery).select(projection).limit(10).lean(),
       Walker.find(matchQuery).select(projection).limit(10).lean(),
+      mapVisibility.friendIdsOf(meId),
     ]);
+    // v604 (ZOE) — comptes de test : jamais proposés à un inconnu (amis exceptés).
+    const { hideTestAccounts } = require('../utils/testAccountMap604');
+    const tctx = { viewerIds: new Set([String(meId)]), friendIds: searchFriendIds };
+    const owners = hideTestAccounts(owners0, tctx);
+    const sitters = hideTestAccounts(sitters0, tctx);
+    const walkers = hideTestAccounts(walkers0, tctx);
 
     const _avatarUrl = (a) => (a && (a.url || a)) || '';
     // v23.1 part 220 — name fallback intelligent : firstName + lastName,
@@ -3557,3 +3610,4 @@ router.post('/family/invitation/:id/refuse', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.rolePriceFrom604 = rolePriceFrom604;

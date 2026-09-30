@@ -5399,10 +5399,13 @@ const requestLiveTracking = async (req, res) => {
         // Anti-spam : si une demande pending existe < 5 min, on ne crée
         // pas de doublon.
         const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+        // v604 (ZOE) — l'anti-doublon ne regarde que MES demandes : la demande
+        // en attente de l'AUTRE (sens inverse) ne doit pas absorber la mienne.
         const existing = await Message.findOne({
           conversationId: conversation._id,
           type: 'pawfollow_request',
           'metadata.status': 'pending',
+          'metadata.requesterId': { $in: await _pf604MyIds(userId) },
           createdAt: { $gt: fiveMinAgo },
         });
         if (!existing) {
@@ -5603,6 +5606,16 @@ const requestLiveTracking = async (req, res) => {
  * parties via socket. Si action='accept', on déclenche le suivi live
  * (le provider doit déjà avoir broadcasté sa position via le flow normal).
  */
+/** v604 — tous mes ids de profil (chaînes), pour l'anti-doublon par personne. */
+async function _pf604MyIds(userId) {
+  try {
+    const { identityGroup } = require('../utils/identityGroup');
+    const g = await identityGroup(userId);
+    if (g && Array.isArray(g.ids) && g.ids.length) return g.ids.map(String);
+  } catch (_) { /* id de session seul */ }
+  return [String(userId)];
+}
+
 const respondToPawfollowRequest = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -5704,6 +5717,10 @@ const respondToPawfollowRequest = async (req, res) => {
       emitChatMessage(conv, 'message:updated', payload);
       emitChatMessage(conv, 'message:new', payload);
     } catch (_) {/* defensive */}
+    // v604 (ZOE) — état par sens poussé aux deux personnes (pilule d'en-tête).
+    Promise.resolve()
+      .then(() => require('../utils/pawfollowState604').emitStateToParticipants(conv))
+      .catch(() => {});
 
     // v566 — le DEMANDEUR est prévenu de la réponse (push + cloche). Les
     // gabarits `live_tracking_accepted` / `live_tracking_refused` existaient
@@ -5917,11 +5934,15 @@ const requestLiveTrackingByConversation = async (req, res) => {
     }
 
     // Anti-spam : pas de doublon < 5 min.
+    // v604 (ZOE) — suivi MUTUEL : l'anti-doublon ne regarde que MES demandes.
+    // Avant, la demande en attente de l'autre (sens inverse) était renvoyée
+    // comme « duplicate » et la mienne n'était jamais créée.
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
     const existing = await Message.findOne({
       conversationId: conversation._id,
       type: 'pawfollow_request',
       'metadata.status': 'pending',
+      'metadata.requesterId': { $in: await _pf604MyIds(userId) },
       createdAt: { $gt: fiveMinAgo },
     });
     if (existing) {

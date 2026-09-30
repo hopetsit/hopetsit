@@ -98,8 +98,15 @@ const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'frida
 /** Compte de test, staff ou masqué par la modération → jamais en public. */
 function isTestOrStaff(doc) {
   if (!doc) return true;
+  // v604 (ZOE) — règle unique des comptes de test (e-mail déchiffré si besoin).
+  if (require('./testAccountMap604').isTestAccountDoc(doc)) return true;
+  return isStaffOrHidden(doc);
+}
+
+/** Staff, sonde ou masqué par la modération (sans la règle des comptes de test). */
+function isStaffOrHidden(doc) {
+  if (!doc) return true;
   const email = String(doc.email || '').toLowerCase();
-  if (/\+test/.test(email)) return true;
   if (email === 'probe-565@invalid.example') return true;
   if (doc.isStaff === true) return true;
   if (doc.hiddenFromPublic === true) return true;
@@ -195,8 +202,11 @@ function pinFlags(doc, now = new Date()) {
  */
 function applyPublicPrivacy(docs, { viewerIds, friendIds } = {}) {
   const out = [];
+  const { testAccountVisibleTo } = require('./testAccountMap604');
   for (const d of docs || []) {
-    if (isTestOrStaff(d)) continue;
+    if (isStaffOrHidden(d)) continue;
+    // v604 (ZOE) — compte de test : visible de lui-même et de ses amis seulement.
+    if (!testAccountVisibleTo(d, { viewerIds, friendIds })) continue;
     if (!visibleToViewer(d, { viewerIds, friendIds })) continue;
     // v585 — `homeLocation` (position de profil exacte) ne sort jamais :
     // les agrégations ($geoNear) ignorent le `select: false` du schéma.
@@ -255,6 +265,7 @@ module.exports = {
   strictestVisibility,
   personMapVisibility,
   isTestOrStaff,
+  isStaffOrHidden,
   visibleToViewer,
   publicLocationFor,
   isBoosted,

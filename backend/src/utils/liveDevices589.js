@@ -99,6 +99,14 @@ async function stopEverywhere(userId, { now = new Date(), notifyFriends = true }
     }
   }
   emitSelfLive(g.docs, { active: false, at: now.toISOString(), reason: 'user_stopped' });
+  // v604 (ZOE) — les demandes de suivi acceptées dont je suis le partageur
+  // passent à « terminée » ; les deux téléphones de chaque conversation sont
+  // prévenus (message:updated + pawfollow:state). Best-effort.
+  try {
+    await require('./pawfollowState604').endPawfollowForSharer(userId, { reason: 'live_stopped', now });
+  } catch (e) {
+    logger.warn(`[liveDevices] pawfollow end failed: ${e.message}`);
+  }
   return g.docs.map((d) => d.id);
 }
 
@@ -137,6 +145,13 @@ async function markStartedByUser(userId, { role, now = new Date() } = {}) {
 /** Annonce aux autres appareils qu'un direct vient de démarrer. */
 function announceStarted(docs, { role, userId, at = new Date() } = {}) {
   emitSelfLive(docs, { active: true, at: at.toISOString(), role: role || null, fromId: userId ? String(userId) : null });
+  // v604 (ZOE) — les conversations où je suis le partageur d'une demande
+  // acceptée passent « en direct » tout de suite (pilule d'en-tête).
+  if (userId) {
+    Promise.resolve()
+      .then(() => require('./pawfollowState604').announceSharerLive(userId))
+      .catch(() => {});
+  }
 }
 
 /**

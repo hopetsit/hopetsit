@@ -207,6 +207,12 @@ async function endLiveSessionByDuration(s) {
   } catch (e) {
     logger.warn(`[live] friend-offline (duration end) failed : ${e.message}`);
   }
+  // v604 (ZOE) — fin de la durée choisie = fin du suivi dans le chat aussi.
+  try {
+    await require('../utils/pawfollowState604').endPawfollowForSharer(s.userId, { reason: 'duration_ended' });
+  } catch (e) {
+    logger.warn(`[live] pawfollow end (duration end) failed : ${e.message}`);
+  }
   // Le diffuseur lui-même : son écran repasse sur « arrêté ».
   emitToUser(s.role, s.userId, 'map:live-session-ended', {
     userId: s.userId,
@@ -718,6 +724,30 @@ function registerMapHandlers(io, socket) {
       } catch (e) {
         // Best-effort persist — never block the real-time fanout.
         logger.warn(`[mapSocket:position-update] DB persist failed : ${e.message}`);
+      }
+
+      // v604 (PAM) — Daniel : « Balade arrêter reste en direct ». Une
+      // position partie JUSTE AVANT l'arrêt était encore dans les écritures
+      // ci-dessus quand `map:go-offline` est arrivé : elle recréait ensuite
+      // la session et se diffusait aux amis → le direct « revenait ». Si
+      // l'arrêt a été noté pendant ce traitement, on s'arrête là (et on
+      // rétablit le drapeau d'arrêt que l'écriture ci-dessus a pu écraser).
+      if (socket.data.lastLocationDbWrite === now) {
+        try {
+          const liveDevices = require('../utils/liveDevices589');
+          if (await liveDevices.isStoppedByUser(identity.userId)) {
+            const { LIVE_STOP_SET } = require('../utils/liveShareStart');
+            let M = null;
+            if (identity.role === 'walker') M = require('../models/Walker');
+            else if (identity.role === 'sitter') M = require('../models/Sitter');
+            else if (identity.role === 'owner') M = require('../models/Owner');
+            if (M) await M.updateOne({ _id: identity.userId }, { $set: { ...LIVE_STOP_SET } });
+            clearLiveSession(identity.userId);
+            return;
+          }
+        } catch (e) {
+          logger.warn(`[mapSocket:position-update] stop re-check failed : ${e.message}`);
+        }
       }
 
       // v565 (contrat §8) — dernière position en RAM 24 h + durée choisie

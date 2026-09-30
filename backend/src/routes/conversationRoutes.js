@@ -686,6 +686,72 @@ router.get('/:id/peer-position', requireAuth, async (req, res) => {
   }
 });
 
+// v604 (ZOE, 30/09) — ÉTAT RÉEL du suivi en direct de la conversation.
+// Daniel : l'en-tête montrait encore « En direct » après l'arrêt du direct.
+// L'app relit cette route à l'ouverture du fil (jamais un cache seul), puis
+// suit l'événement socket `pawfollow:state`. Voir utils/pawfollowState604.js.
+//   GET  /conversations/:id/pawfollow-state
+//     → { conversationId, outgoing: Dir, incoming: Dir } POUR LE LECTEUR
+//       outgoing = ma position part vers l'autre ; incoming = je suis l'autre
+//       Dir = { status: none|pending|accepted|refused|expired|ended,
+//               following, live, messageId, sharerId, followerId, since,
+//               endedAt, endReason }
+//   POST /conversations/:id/pawfollow/stop  body { scope?, messageId? }
+//     scope 'following' (défaut) = j'arrête de suivre l'autre (mon sens
+//     entrant seulement) ; 'sharing' = je coupe le partage de MA position
+//     vers lui ; 'all' = les deux. Réponse : même forme + `ended` (nombre).
+//     Les deux téléphones reçoivent `message:updated` + `pawfollow:state`.
+const _pf604Participant = async (req, conv) => {
+  const { participantIds } = require('../utils/pawfollowRespond599');
+  let myIds = [String(req.user?.id || '')];
+  try {
+    const { identityGroup } = require('../utils/identityGroup');
+    const g = await identityGroup(req.user.id);
+    if (g && Array.isArray(g.ids) && g.ids.length) myIds = g.ids.map(String);
+  } catch (_) { /* id de session seul */ }
+  const parts = participantIds(conv);
+  return parts.some((p) => myIds.includes(p));
+};
+
+router.get('/:id/pawfollow-state', requireAuth, async (req, res) => {
+  try {
+    const conv = await Conversation.findById(req.params.id).lean();
+    if (!conv) return res.status(404).json({ error: 'Conversation not found.' });
+    if (!(await _pf604Participant(req, conv))) {
+      return res.status(403).json({ error: 'Not a chat participant.' });
+    }
+    const st = await require('../utils/pawfollowState604').readConversationState(conv._id, req.user.id);
+    return res.json({ conversationId: String(conv._id), ...st });
+  } catch (e) {
+    if (e && e.name === 'CastError') return res.status(400).json({ error: 'Invalid id.' });
+    logger.error('[conversations/pawfollow-state]', e);
+    return res.status(500).json({ error: 'Unable to read follow state.' });
+  }
+});
+
+router.post('/:id/pawfollow/stop', requireAuth, async (req, res) => {
+  try {
+    const conv = await Conversation.findById(req.params.id).lean();
+    if (!conv) return res.status(404).json({ error: 'Conversation not found.' });
+    if (!(await _pf604Participant(req, conv))) {
+      return res.status(403).json({ error: 'Not a chat participant.' });
+    }
+    const pf = require('../utils/pawfollowState604');
+    const body = req.body || {};
+    const scope = ['following', 'sharing', 'all'].includes(body.scope) ? body.scope : 'following';
+    const messageId = body.messageId ? String(body.messageId) : null;
+    const ended = await pf.endPawfollowInConversation({
+      conversation: conv, userId: req.user.id, scope, messageId,
+    });
+    const st = await pf.readConversationState(conv._id, req.user.id);
+    return res.json({ conversationId: String(conv._id), ended, ...st });
+  } catch (e) {
+    if (e && e.name === 'CastError') return res.status(400).json({ error: 'Invalid id.' });
+    logger.error('[conversations/pawfollow/stop]', e);
+    return res.status(500).json({ error: 'Unable to stop following.' });
+  }
+});
+
 // v23.1.182 — Daniel : "sa mouvre pas de balade en cour au lieu denvoyer
 // linviutation au walker ou sitter". Le bouton "Suivre en direct mon
 // animal" dans le chat doit pouvoir envoyer la demande même SANS booking

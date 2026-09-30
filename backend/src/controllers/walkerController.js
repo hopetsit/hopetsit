@@ -66,7 +66,8 @@ const listWalkers = async (req, res) => {
     // Only findNearbyWalkers had them. Now we enrich + bubble boosted
     // walkers to the top here too. Mirrored on sitterController.
     const _now = new Date();
-    const enriched = walkers.map((w) => {
+    // v604 (ZOE) — liste publique sans session : comptes de test retirés.
+    const enriched = require('../utils/testAccountMap604').hideTestAccounts(walkers).map((w) => {
       const safe = sanitizeUser(w);
       // v538 — endpoint public : champs sensibles retirés.
       delete safe.firebaseUid;
