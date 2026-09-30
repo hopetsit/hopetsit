@@ -108,9 +108,12 @@ function walkPillHtml(minTxt: string) {
   const walker = '<svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><circle cx="13.5" cy="4.5" r="2"/><path d="M9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3A7.3 7.3 0 0 0 19 13v-2a5 5 0 0 1-4.3-2.4l-1-1.6a2 2 0 0 0-1.7-1c-.3 0-.5.1-.8.1L6 8.3V13h2V9.6z"/></svg>';
   return `<span style="display:inline-flex;flex-direction:column;align-items:center;gap:3px"><span style="display:flex;flex-direction:column;align-items:center;width:44px;padding:4px 3px;border-radius:12px;background:linear-gradient(170deg,#7FE39A -20%,#2E9E48 45%,#1D7A34 100%);border:1.4px solid #fff;box-shadow:0 3px 8px rgba(29,122,52,.35);color:#fff;font:800 10.5px/1.05 Poppins,Inter,system-ui,sans-serif;white-space:nowrap"><span>${minTxt}</span><span style="display:inline-flex;align-items:center;gap:2px;margin-top:2px;font-size:9.5px;font-weight:700">${eye}2</span></span><span style="display:grid;place-items:center;width:38px;height:38px;border-radius:999px;background:linear-gradient(170deg,#7FE39A -20%,#2E9E48 40%,#1D7A34 100%);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3),0 6px 12px -5px #2E9E48CC">${walker}</span></span>`;
 }
-/** 29/09 — patte du menu de l'app avec le point vert « un ami est en balade ». */
+/** 30/09 (604) — patte du menu de l'app : plus de point vert, c'est le CONTOUR
+ *  blanc de la patte qui devient vert (un ami en direct) ou rouge (mon direct
+ *  sans position). Deux pattes côte à côte : verte puis rouge. */
 function menuDotHtml() {
-  return `<span style="position:relative;display:grid;place-items:center;width:56px;height:56px"><svg viewBox="0 0 56 56" width="56" height="56"><path d="M28 50c-7-7-16-15-16-24a16 16 0 0 1 32 0c0 9-9 17-16 24z" fill="#17141F"/><circle cx="28" cy="25" r="6" fill="#fff"/><circle cx="28" cy="25" r="3" fill="#C92A12"/><circle cx="12" cy="13" r="4.5" fill="#C92A12"/><circle cx="21" cy="6" r="4.5" fill="#2563EB"/><circle cx="35" cy="6" r="4.5" fill="#16A34A"/><circle cx="44" cy="13" r="4.5" fill="#7C3AED"/></svg><span style="position:absolute;top:2px;right:4px;width:14px;height:14px;border-radius:999px;background:#16A34A;border:2px solid #fff;box-shadow:0 0 0 3px rgba(22,163,74,.25)"></span></span>`;
+  const paw = (ring: string) => `<svg viewBox="0 0 56 56" width="46" height="46"><circle cx="12" cy="17" r="5.5" fill="#C92A12" stroke="${ring}" stroke-width="2.5"/><circle cx="22" cy="9" r="5.5" fill="#2563EB" stroke="${ring}" stroke-width="2.5"/><circle cx="34" cy="9" r="5.5" fill="#16A34A" stroke="${ring}" stroke-width="2.5"/><circle cx="44" cy="17" r="5.5" fill="#7C3AED" stroke="${ring}" stroke-width="2.5"/><path d="M28 51c-7-6-14-12-14-20a14 14 0 0 1 28 0c0 8-7 14-14 20z" fill="#17141F" stroke="${ring}" stroke-width="3"/><circle cx="28" cy="31" r="5" fill="#fff"/><circle cx="28" cy="31" r="2.5" fill="#C92A12"/></svg>`;
+  return `<span style="display:inline-flex;gap:4px;align-items:center">${paw("#16A34A")}${paw("#DC2626")}</span>`;
 }
 
 /**
@@ -202,7 +205,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
   // 29/09 — Daniel : « La Balade » expliquée. TEXTES DE PAM (help599_*,
   // ~/hopetsit-social/pawmap_599/balade_textes_9langues.json), mot pour mot :
   // site et app disent la même chose. Visible aussi sur la carte publique.
-  // Le point vert de la patte du menu n'existe que dans l'app → « Dans l'app ».
+  // Le contour vert/rouge de la patte du menu n'existe que dans l'app → « Dans l'app ».
   const walkSection: Section = {
     id: "walk",
     title: t("help599_sec_balade"),
