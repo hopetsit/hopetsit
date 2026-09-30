@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 
-const { createOrUpdatePet, listPets, getPetById, uploadPetMedia, getMyPets, getAllPets, updatePetProfile, updatePetMedia, deletePet } = require('../controllers/petController');
+const { createOrUpdatePet, listPets, getPetById, uploadPetMedia, getMyPets, updatePetProfile, updatePetMedia, deletePet } = require('../controllers/petController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -433,7 +433,7 @@ router.get('/me', requireAuth, requireRole('owner'), getMyPets);
  *                   items:
  *                     $ref: '#/components/schemas/Pet'
  */
-router.get('/all', getAllPets);
+router.get('/all', requireAuth, listPets); // v605 ZOE — était public : TOUS les animaux + e-mail des propriétaires (aucun client ne l'appelle)
 
 /**
  * @swagger
@@ -490,7 +490,7 @@ router.get('/', requireAuth, listPets); // v599 FLO — plus de liste publique d
  *       404:
  *         description: Pet not found
  */
-router.get('/:id', getPetById);
+router.get('/:id', requireAuth, getPetById); // v605 ZOE — connexion exigée (l'app l'envoie déjà : requiresAuth)
 router.delete('/:id', requireAuth, requireRole('owner'), deletePet);
 
 module.exports = router;

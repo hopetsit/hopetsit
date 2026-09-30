@@ -328,10 +328,13 @@ const getPetById = async (req, res) => {
 
     // Get owner information (without card)
     const owner = pet.ownerId;
+    // v605 ZOE — l'e-mail du propriétaire n'est donné qu'à lui-même (avant :
+    // à toute personne, même sans connexion, qui connaissait l'id de l'animal).
+    const isOwnPet = Boolean(owner && req.user?.id && owner._id?.toString() === String(req.user.id));
     const ownerData = owner ? {
       id: owner._id?.toString() || '',
       name: owner.name || '',
-      email: owner.email || '',
+      email: isOwnPet ? (owner.email || '') : '',
       avatar: owner.avatar?.url || '',
     } : null;
 
