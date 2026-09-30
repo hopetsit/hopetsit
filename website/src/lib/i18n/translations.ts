@@ -9778,3 +9778,7 @@ for (const code of Object.keys(BALADE2909) as Lang[]) Object.assign(t[code], BAL
 // 29/09/2026 — PawMap 601 (parité app, PAM) : barre de droite personnalisable + drapeau Balade.
 import { PAWMAP601 } from "./pawmap601";
 for (const code of Object.keys(PAWMAP601) as Lang[]) Object.assign(t[code], PAWMAP601[code]);
+
+// 30/09/2026 — build 604 (ZOE) : statut « ended » des demandes de suivi en direct du chat.
+import { PAWFOLLOW604 } from "./pawfollow604";
+for (const code of Object.keys(PAWFOLLOW604) as Lang[]) Object.assign(t[code], PAWFOLLOW604[code]);

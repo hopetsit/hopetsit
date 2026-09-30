@@ -431,6 +431,19 @@ export default function ChatPage() {
     },
   );
 
+  // 604 (ZOE) — une carte de suivi en direct change de statut côté serveur
+  // (acceptée → « ended » quand la balade, la durée ou le partage s'arrête) :
+  // le serveur émet `message:updated { conversationId, message }`. On relit
+  // les messages de la conversation ouverte (même forme que le chargement
+  // initial) pour que la carte passe à « Suivi terminé » sans recharger.
+  useSocketEvent<{ conversationId?: string }>("message:updated", (data) => {
+    const cid = String((data && data.conversationId) || "");
+    if (!cid || cid !== activeId) return;
+    void getMessages(cid)
+      .then((list) => setMessages(list))
+      .catch(() => {});
+  });
+
   // v569 — Daniel : « que tout soit bien synchronisé Android / iOS / web ».
   // Le serveur émet `conversation:deleted { conversationId }` vers MES trois
   // rooms de rôle quand je supprime une conversation (sur n'importe lequel de
@@ -714,7 +727,7 @@ export default function ChatPage() {
         </div>
       )}
 
-      <div className="mt-8 grid gap-4 md:grid-cols-[280px_1fr] md:gap-6">
+      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-[280px_minmax(0,1fr)] md:gap-6">
         {/* Liste conversations */}
         <div
           className={`${
@@ -820,7 +833,7 @@ export default function ChatPage() {
         <div
           className={`${
             activeId ? "block" : "hidden md:flex md:items-center md:justify-center"
-          } flex min-h-[400px] flex-col rounded-2xl border border-ink/5 bg-white shadow-card md:min-h-[600px]`}
+          } flex min-h-[400px] w-full min-w-0 flex-col rounded-2xl border border-ink/5 bg-white shadow-card md:min-h-[600px]`}
         >
           {!activeId ? (
             <div className="p-12 text-center text-sm text-ink-muted">
@@ -828,7 +841,7 @@ export default function ChatPage() {
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between gap-2 border-b border-ink/5 p-3">
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-ink/5 p-3">
                 <button
                   type="button"
                   onClick={() => setActiveId(null)}
@@ -861,9 +874,14 @@ export default function ChatPage() {
                   type="button"
                   onClick={handleRequestFollow}
                   disabled={followBusy}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-owner/40 px-3 py-1.5 text-xs font-semibold text-owner transition hover:bg-owner-light/40 disabled:opacity-60"
+                  // 604 — sous 400 px : icône seule (libellé gardé pour les
+                  // lecteurs d'écran), sinon le bouton poussait la page à 410 px.
+                  aria-label={t("chat_request_follow")}
+                  title={t("chat_request_follow")}
+                  className="inline-flex min-w-0 shrink items-center gap-1.5 rounded-full border border-owner/40 px-3 py-1.5 text-xs font-semibold text-owner transition hover:bg-owner-light/40 disabled:opacity-60"
                 >
-                  📍 {t("chat_request_follow")}
+                  <span aria-hidden="true">📍</span>
+                  <span className="hidden truncate min-[400px]:inline">{t("chat_request_follow")}</span>
                 </button>
               </div>
               <div className="flex-1 space-y-2 overflow-y-auto p-4">
@@ -886,7 +904,11 @@ export default function ChatPage() {
                           ? t("chat_follow_accepted")
                           : status === "refused"
                             ? t("chat_follow_refused")
-                            : t("chat_follow_pending");
+                            : status === "ended"
+                              ? t("chat_follow_ended")
+                              : status === "expired"
+                                ? t("chat_follow_expired")
+                                : t("chat_follow_pending");
                       return (
                         <div key={m.id} className="flex justify-center">
                           <div className="w-full max-w-[88%] rounded-2xl border border-owner/30 bg-owner-light/30 p-3">
@@ -894,7 +916,17 @@ export default function ChatPage() {
                               <span>📍</span>
                               {t("chat_follow_card_title")}
                             </div>
-                            <div className="mt-1 text-xs text-ink-muted">{statusLabel}</div>
+                            {status === "ended" ? (
+                              // 604 (ZOE) — suivi terminé (endReason : live_stopped |
+                              // duration_ended | follow_stopped | share_stopped) :
+                              // pastille neutre chaude du kit, jamais de gris.
+                              <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-ink-line bg-bg-panel px-2.5 py-0.5 text-xs font-semibold text-ink-muted">
+                                <span className="inline-block h-1.5 w-1.5 rounded-full bg-ink-soft" />
+                                {statusLabel}
+                              </div>
+                            ) : (
+                              <div className="mt-1 text-xs text-ink-muted">{statusLabel}</div>
+                            )}
                             {canRespond && (
                               <div className="mt-2 flex gap-2">
                                 <button
@@ -1117,7 +1149,7 @@ export default function ChatPage() {
                     if (e.key === "Escape" && replyTo) setReplyTo(null);
                   }}
                   placeholder={t("chat_placeholder")}
-                  className="flex-1 rounded-full border border-ink/15 px-4 py-2 text-sm focus:border-walker focus:outline-none focus:ring-2 focus:ring-walker/20"
+                  className="min-w-0 flex-1 rounded-full border border-ink/15 px-4 py-2 text-sm focus:border-walker focus:outline-none focus:ring-2 focus:ring-walker/20"
                 />
                 <button
                   type="submit"
