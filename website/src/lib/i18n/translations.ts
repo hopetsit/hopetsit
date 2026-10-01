@@ -9786,3 +9786,6 @@ for (const code of Object.keys(PAWFOLLOW604) as Lang[]) Object.assign(t[code], P
 // 30/09/2026 — LEO (605) : sommaire de « Comprendre la PawMap » + unités de prix semaine / mois.
 import { SITE605 } from "./site605";
 for (const code of Object.keys(SITE605) as Lang[]) Object.assign(t[code], SITE605[code]);
+// 02/10 (607, LEO) — aide « Ramène tes clients / Pionnier » et « Les peluches de la Balade » (clés help607_*, mêmes que l'app).
+import { SITE607 } from "./site607";
+for (const code of Object.keys(SITE607) as Lang[]) Object.assign(t[code], SITE607[code]);

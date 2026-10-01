@@ -108,7 +108,23 @@ const SECTION_COLOR: Record<string, string> = {
   act: "#2563EB",
   set: "#7C3AED",
   faq: "#17141F",
+  pioneer: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)",
+  plush: "linear-gradient(165deg,#34B857,#16A34A)",
 };
+
+// 02/10 (607) — badge « Pionnier » (même dessin que la page /s et la fiche
+// membre de /map) et peluche de la Balade (PNG de PAM, même fichier que l'app).
+export function pioneerBadgeHtml(label: string): string {
+  // Rond drapeau (jamais de texte coupé) + mot « Pionnier » en dessous, sur 2 lignes au besoin.
+  return `<span style="display:inline-flex;flex-direction:column;align-items:center;gap:3px;width:60px"><span style="display:grid;place-items:center;width:40px;height:40px;border-radius:999px;background:linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C);border:1.5px solid #fff;box-shadow:0 6px 14px -6px #C92A12"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg></span><span style="max-width:60px;text-align:center;color:#C92A12;font:800 10px/1.1 Poppins,Inter,system-ui,sans-serif;overflow-wrap:anywhere">${label}</span></span>`;
+}
+// Petit ourson dessiné (rond vert de la Balade) ; remplacé par le PNG de PAM
+// (même fichier que l'app) dès qu'il est livré : PLUSH_PIN_SRC.
+export const PLUSH_PIN_SRC: string | null = null;
+function plushHtml(): string {
+  if (PLUSH_PIN_SRC) return `<img src="${PLUSH_PIN_SRC}" alt="" width="48" height="48" style="width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(22,163,74,.45))"/>`;
+  return `<span style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#43B862,#1F7A37);border:2px solid #fff;box-shadow:0 6px 14px -6px #16A34A"><svg viewBox="0 0 40 40" width="32" height="32"><circle cx="11" cy="11" r="6" fill="#B7793F"/><circle cx="29" cy="11" r="6" fill="#B7793F"/><circle cx="11" cy="11" r="3" fill="#F2C9A0"/><circle cx="29" cy="11" r="3" fill="#F2C9A0"/><circle cx="20" cy="21" r="13" fill="#C98A4B"/><ellipse cx="20" cy="26" rx="6.5" ry="5" fill="#F2C9A0"/><circle cx="15" cy="19" r="1.8" fill="#231715"/><circle cx="25" cy="19" r="1.8" fill="#231715"/><ellipse cx="20" cy="24.5" rx="2.4" ry="1.7" fill="#231715"/><path d="M17.5 28.2q2.5 1.8 5 0" stroke="#231715" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg></span>`;
+}
 function NumBadge({ n, id, size = 24 }: { n: number; id: string; size?: number }) {
   return (
     <span
@@ -254,6 +270,14 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     ],
   };
 
+  // 02/10 (607) — décision de Daniel : « Ramène tes clients / Pionnier » et
+  // « Les peluches de la Balade », mêmes clés et mêmes textes que l'app
+  // (help607_*, lib/i18n/site607.ts). Visibles aussi sur la carte publique.
+  const sections607: Section[] = [
+    { id: "pioneer", title: t("help607_pioneer_title"), rows: [{ html: pioneerBadgeHtml(t("help607_pioneer_badge")), title: "", body: t("help607_pioneer_body") }] },
+    { id: "plush", title: t("help607_plush_title"), rows: [{ html: plushHtml(), title: "", body: t("help607_plush_body") }] },
+  ];
+
   const sections: Section[] = full
     ? [
         {
@@ -319,8 +343,9 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
             { html: customHtml(), title: `${t("p589_custom_t")} · ${t("p589_in_app")}`, body: t("p589_b_custom"), color: "#C92A12" },
           ],
         },
+        ...sections607,
       ]
-    : [{ id: "find", title: t("h587_sec_find"), rows: [{ node: <RoundIcon name="pin" color="#C92A12" />, title: t("h587_t_pins"), body: t("h587_b_pins") }, ...pins] }, walkSection];
+    : [{ id: "find", title: t("h587_sec_find"), rows: [{ node: <RoundIcon name="pin" color="#C92A12" />, title: t("h587_t_pins"), body: t("h587_b_pins") }, ...pins] }, walkSection, ...sections607];
 
   // 587 — « Qui voit ma position ? » = les phrases du réglage, mot pour mot.
   const faq = [1, 2, 3, 4].map((n) => ({ q: t(`h587_q${n}`), a: n === 2 ? visExplained : t(`h587_a${n}`) }));
@@ -441,7 +466,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
                     ? <span className="grid h-14 w-14 shrink-0 place-items-center">{r.node}</span>
                     : <span className="grid h-14 w-14 shrink-0 place-items-center sm:h-16 sm:w-16" dangerouslySetInnerHTML={{ __html: r.html || "" }} />}
                   <span className="min-w-0 flex-1 pt-1">
-                    <span className="block break-words text-sm font-bold dark:!text-[#FBEFE6]" style={{ color: r.color || "#231715" }}>{r.title}</span>
+                    {r.title && <span className="block break-words text-sm font-bold dark:!text-[#FBEFE6]" style={{ color: r.color || "#231715" }}>{r.title}</span>}
                     {r.chip && (
                       <span className="mt-1 inline-block rounded-full px-2 py-[1px] text-[11px] font-bold leading-[1.3]" style={{ color: r.chip.color, background: r.chip.bg || "#fff", border: `1.5px solid ${r.chip.border}`, boxShadow: "0 1px 4px rgba(23,20,31,.25)" }}>{r.chip.text}</span>
                     )}

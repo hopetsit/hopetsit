@@ -19,7 +19,18 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 import { getPublicProviders, type PublicProvider } from "@/lib/api";
 import { formatPriceUnit, priceUnitLabels } from "@/lib/priceUnit";
-import { clusterize, haversineKm, MEMBER_CELL_PX } from "@/lib/mapCluster";
+import { clusterize, haversineKm } from "@/lib/mapCluster";
+import {
+  PRICE_ZOOM_607,
+  CITY_PRICE_ZOOM_607,
+  MEMBER_CELL_PX_607,
+  mercatorPx,
+  mergeCloseGroups,
+  bubbleHasRoom,
+  circleRect,
+  textWidth,
+  type Rect,
+} from "@/lib/pawmapOverlap607";
 import {
   memberPinHtml,
   memberClusterHtml,
@@ -169,11 +180,22 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view.lat, view.lng]);
 
-  const clusters = useMemo(
-    () => clusterize(providers, view.zoom, (p) => [p.lat, p.lng], MEMBER_CELL_PX),
-    [providers, view.zoom],
-  );
-  const showCaption = view.zoom >= 14;
+  // 607 (02/10, aligné sur /map et l'app — pawmap_overlap607.dart) : cases de
+  // 44 px PUIS fusion de tout groupe à moins de 50 px d'un autre. Avant :
+  // cases de 36 px seules → pastilles « 5 », « 3 », « 2 » collées au zoom pays.
+  const clusters = useMemo(() => {
+    const cells = clusterize(providers, view.zoom, (p) => [p.lat, p.lng], MEMBER_CELL_PX_607).map((g) => g.items);
+    const merged = mergeCloseGroups(cells, (p) => mercatorPx(p.lat, p.lng, view.zoom));
+    return merged.map((items) => {
+      let la = 0;
+      let ln = 0;
+      for (const p of items) { la += p.lat; ln += p.lng; }
+      return { items, center: [la / items.length, ln / items.length] as [number, number] };
+    });
+  }, [providers, view.zoom]);
+  // 607 — mêmes seuils que l'app : prénom + prix au zoom rue (13) ; dès le
+  // zoom ville (9) une épingle SEULE porte sa bulle si la place est libre.
+  const showCaption = view.zoom >= PRICE_ZOOM_607;
   const roleLabel: Record<string, string> = { sitter: t("role_sitter"), walker: t("role_walker"), owner: t("role_owner") };
   // Membres DANS la zone visible : l'état vide ne s'affiche que s'il n'y a
   // vraiment personne à l'écran (avant : dès que la dernière requête, faite
@@ -193,7 +215,27 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   // que des ronds. Prix public déjà servi par /sitters|walkers/nearby.
   // 30/09 (605) — gardien sans tarif jour / heure : « 100 €/sem », « 350 €/mois ».
   const priceOf = (p: PublicProvider) => formatPriceUnit(p.priceFrom, p.currency, p.priceAlt, priceUnitLabels(t));
-  const bubbleOf = (p: PublicProvider) => (view.zoom >= 11 ? priceOf(p) : null);
+  // Ce qui est posé à l'écran (px) : une bulle de zoom ville n'apparaît que
+  // si elle ne touche aucun autre rond, pastille ou bulle déjà posée.
+  const placedBubbles: Rect[] = [];
+  const pinRects: { p: PublicProvider | null; c: { x: number; y: number }; r: number }[] = clusters.map((g) => ({
+    p: g.items.length === 1 ? g.items[0] : null,
+    c: mercatorPx(g.center[0], g.center[1], view.zoom),
+    r: g.items.length > 1 ? 24.5 : 46 / 2 + 1,
+  }));
+  const bubbleOf = (p: PublicProvider) => {
+    const label = priceOf(p);
+    if (!label || view.zoom < CITY_PRICE_ZOOM_607) return null;
+    if (view.zoom >= PRICE_ZOOM_607) return label;
+    const me = pinRects.find((x) => x.p === p);
+    if (!me) return label;
+    const w = textWidth(label, "700 11.5px Poppins, Inter, system-ui, sans-serif", 11.5) + 16 + 15 + 8;
+    const others: Rect[] = [...placedBubbles];
+    for (const o of pinRects) if (o !== me && Math.abs(o.c.x - me.c.x) < 260 && Math.abs(o.c.y - me.c.y) < 260) others.push(circleRect(o.c, o.r));
+    if (!bubbleHasRoom(me.c, me.r, w, others)) return null;
+    placedBubbles.push({ l: me.c.x - w / 2, t: me.c.y - me.r - 32, r: me.c.x + w / 2, b: me.c.y - me.r - 2 });
+    return label;
+  };
 
   return (
     <div className="relative w-full overflow-hidden rounded-[28px]" style={{ height }}>
