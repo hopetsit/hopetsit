@@ -56,7 +56,10 @@ function normalizeMapPrefs(existing, patch) {
   }
 
   // Calques (booléens seulement, clés connues).
-  const LAYER_KEYS = ['places', 'reports', 'members', 'pawspots', 'live', 'requests', 'friends', 'premium'];
+  // v607 (décision 4.4) — `everyone` = bouton rose « tout le monde » :
+  // afficher / masquer TOUS les membres (app ≥ 607 et site). Absent = visible ;
+  // les apps ≤ 606 ne l'envoient pas et la fusion clé par clé le garde.
+  const LAYER_KEYS = ['places', 'reports', 'members', 'pawspots', 'live', 'requests', 'friends', 'premium', 'everyone'];
   const layersSrc = { ...(base.layers || {}), ...(p.layers || {}) };
   const layers = {};
   for (const k of LAYER_KEYS) {
