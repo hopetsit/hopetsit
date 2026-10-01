@@ -9,6 +9,8 @@ const Walker = require('../models/Walker');
 // v575 — audit P1-9 : un code promo se consomme PAR PERSONNE, pas par profil.
 const { selfIdSet } = require('../utils/identityGroup');
 const logger = require('../utils/logger');
+// 606 — refus Apple 3.1.1 : aucun code maison depuis une app iOS ≥ 606.
+const { refuseHouseCodesOnIos606 } = require('../utils/iosHouseCodes606');
 
 // v402 — Chantier 2 : redemption d'un code promo côté UTILISATEUR.
 // 100% additif. L'app ne l'appelle PAS encore (l'onglet "Offre / code promo"
@@ -106,7 +108,7 @@ async function grantPromoSubscription({ userId, role, plan: rawPlan, intervalDay
 }
 
 // POST /promo/check  { code } — prévisualise sans consommer.
-router.post('/check', requireAuth, async (req, res) => {
+router.post('/check', requireAuth, refuseHouseCodesOnIos606, async (req, res) => {
   try {
     const code = String(req.body?.code || '').trim().toUpperCase();
     if (!code) return res.status(400).json({ error: 'Code requis.' });
@@ -130,7 +132,7 @@ router.post('/check', requireAuth, async (req, res) => {
 });
 
 // POST /promo/redeem  { code } — consomme le code + active la récompense.
-router.post('/redeem', requireAuth, async (req, res) => {
+router.post('/redeem', requireAuth, refuseHouseCodesOnIos606, async (req, res) => {
   try {
     const code = String(req.body?.code || '').trim().toUpperCase();
     const userId = req.user.id;

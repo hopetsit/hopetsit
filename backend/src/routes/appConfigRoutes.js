@@ -8,6 +8,7 @@
 // Côté serveur, un drapeau à false fait répondre la route correspondante
 // 403 { code: 'FEATURE_DISABLED', feature } (voir conversationController).
 const express = require('express');
+const { isIosStoreClient606 } = require('../utils/iosHouseCodes606');
 const { requireAuth, requireRole, optionalAuth } = require('../middleware/auth');
 const AppConfig = require('../models/AppConfig');
 const logger = require('../utils/logger');
@@ -58,6 +59,11 @@ router.patch('/admin/chat-features', requireAdmin, async (req, res) => {
 //   GET   /app-config/admin/public-promo  (admin) → idem
 //   PATCH /app-config/admin/public-promo  (admin, corps partiel { code, enabled, message })
 router.get('/public-promo', requireAuth, async (req, res) => {
+  // 606 — refus Apple 3.1.1 : jamais de « code du moment » pour une app iOS
+  // ≥ 606 (le pop-up n'existe plus sur iOS ; ceinture et bretelles).
+  if (isIosStoreClient606(req)) {
+    return res.json({ code: '', enabled: false, message: '' });
+  }
   try {
     return res.json(await AppConfig.getPublicPromo());
   } catch (e) {
