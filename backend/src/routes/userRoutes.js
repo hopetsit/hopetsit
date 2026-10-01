@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 
+const { refuseReferralCodesOnIos607 } = require('../utils/iosHouseCodes606');
 const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken, acceptTerms, updateAppLocale, getMyLoyalty, getMyReferralsRoute, addFavoriteProvider, removeFavoriteProvider, getFavoriteProviders,
   // v565
   getNotificationPrefs, updateNotificationPrefs, requestEmailChange, confirmEmailChange, resendEmailChange } = require('../controllers/userController');
@@ -743,7 +744,8 @@ router.post('/me/email-change/resend', requireAuth, requireRole('owner', 'sitter
 router.get('/me/loyalty', requireAuth, requireRole('owner'), getMyLoyalty);
 
 // Sprint 7 step 3 — referral program (owner + sitter)
-router.get('/me/referrals', requireAuth, getMyReferralsRoute);
+// 607 (ZOE) — refus propre pour l'app iOS ≥ 607 (codes de parrainage masqués).
+router.get('/me/referrals', requireAuth, refuseReferralCodesOnIos607, getMyReferralsRoute);
 
 // v444 — Favoris prestataires (cœur sur les cartes de recherche owner).
 // Owner-only. 100 % additif. Le cœur des SitterCard/WalkerCard les persiste.

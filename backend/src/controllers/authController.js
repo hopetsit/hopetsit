@@ -687,7 +687,15 @@ const signup = async (req, res) => {
     }
 
     // Sprint 7 step 3 — referral code & referrer.
-    const referralInput = (user.referralCode || user.referredBy || '').toString().toUpperCase().trim();
+    // 607 (ZOE, 01/10) — app iOS ≥ 607 : aucun code de parrainage n'est pris
+    // en compte (règle App Store 3.1.1, décision de Daniel). L'inscription
+    // elle-même n'est JAMAIS refusée pour ça : le code est simplement ignoré.
+    const rawReferralInput = (user.referralCode || user.referredBy || '').toString().toUpperCase().trim();
+    const { isIosNoReferralClient607 } = require('../utils/iosHouseCodes606');
+    const referralInput = rawReferralInput && isIosNoReferralClient607(req) ? '' : rawReferralInput;
+    if (rawReferralInput && !referralInput) {
+      logger.info('[signup] code de parrainage ignoré : app iOS >= 607');
+    }
     const { generateUniqueReferralCode } = require('../utils/referralCode');
     // Extend referral uniqueness check to include Walker model.
     const newReferralCode = await generateUniqueReferralCode({ Owner, Sitter, Walker }).catch(() => null);

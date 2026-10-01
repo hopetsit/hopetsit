@@ -12,6 +12,11 @@
  * Anciennes apps iOS (< 606 ou sans en-tête), Android et site : inchangés.
  */
 const IOS_NO_HOUSE_CODES_MIN_BUILD = 606;
+// 607 (ZOE, 01/10/2026) — décision de Daniel : les codes de PARRAINAGE suivent
+// la même règle (ils débloquent -10 % sur PawFollow/PawFamily pour le parrain).
+// Refusés pour l'app iOS ≥ 607 seulement ; les 606 et plus anciennes gardent
+// leur comportement (elles affichent encore le champ).
+const IOS_NO_REFERRAL_CODES_MIN_BUILD = 607;
 
 function buildFromVersionHeader(raw) {
   const v = String(raw || '').trim();
@@ -20,11 +25,20 @@ function buildFromVersionHeader(raw) {
   return null;
 }
 
-function isIosStoreClient606(req) {
+function isIosClientAtLeast(req, minBuild) {
   const h = (name) => String((req && req.headers && req.headers[name]) || '').trim().toLowerCase();
   if (h('x-app-platform') !== 'ios') return false;
   const build = buildFromVersionHeader(h('x-app-version'));
-  return build !== null && build >= IOS_NO_HOUSE_CODES_MIN_BUILD;
+  return build !== null && build >= minBuild;
+}
+
+function isIosStoreClient606(req) {
+  return isIosClientAtLeast(req, IOS_NO_HOUSE_CODES_MIN_BUILD);
+}
+
+/** 607 — app iOS qui ne doit plus utiliser de code de parrainage. */
+function isIosNoReferralClient607(req) {
+  return isIosClientAtLeast(req, IOS_NO_REFERRAL_CODES_MIN_BUILD);
 }
 
 const IOS_CODES_MESSAGE = {
@@ -42,8 +56,21 @@ function refuseHouseCodesOnIos606(req, res, next) {
   });
 }
 
+/** 607 : même refus propre pour le parrainage (GET /users/me/referrals). */
+function refuseReferralCodesOnIos607(req, res, next) {
+  if (!isIosNoReferralClient607(req)) return next();
+  const lang = String(req.headers['accept-language'] || '').slice(0, 2).toLowerCase();
+  return res.status(403).json({
+    error: IOS_CODES_MESSAGE[lang] || IOS_CODES_MESSAGE.en,
+    code: 'IOS_APP_STORE_CODES_ONLY',
+  });
+}
+
 module.exports = {
   IOS_NO_HOUSE_CODES_MIN_BUILD,
+  IOS_NO_REFERRAL_CODES_MIN_BUILD,
+  isIosNoReferralClient607,
+  refuseReferralCodesOnIos607,
   buildFromVersionHeader,
   isIosStoreClient606,
   refuseHouseCodesOnIos606,
