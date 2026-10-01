@@ -113,6 +113,15 @@ export default function ArticleLeavingCatAlone() {
         <Link href="/download" className="mt-5 inline-block rounded-full bg-owner px-7 py-3 text-sm font-bold text-white">
           Download the HoPetSit app
         </Link>
+        {/* 01/10/2026 (SAM, demandé par BOB) : maillage vers les pages villes US. */}
+        <p className="mt-4 text-sm text-ink-muted">
+          Find a sitter near you:{" "}
+          <Link href="/pet-sitting/new-york" className="font-semibold text-owner-dark underline">New York</Link>
+          {" · "}
+          <Link href="/pet-sitting/san-francisco" className="font-semibold text-owner-dark underline">San Francisco</Link>
+          {" · "}
+          <Link href="/pet-sitting/dallas" className="font-semibold text-owner-dark underline">Dallas</Link>
+        </p>
       </div>
     </div>
   );

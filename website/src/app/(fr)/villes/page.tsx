@@ -33,6 +33,8 @@ const BIG_CITIES: { href: string; label: string }[] = [
   { href: "/devenir-petsitter/paris", label: "Devenir pet sitter à Paris" },
   { href: "/pet-sitting/dallas", label: "Pet sitting in Dallas" },
   { href: "/pet-sitting/new-york", label: "Pet sitting in New York" },
+  // 01/10 (SAM) — push USA gratuit : San Francisco relié depuis le hub.
+  { href: "/pet-sitting/san-francisco", label: "Pet sitting in San Francisco" },
   { href: "/petsitter/madrid", label: "Cuidador en Madrid" },
 ];
 

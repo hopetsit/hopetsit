@@ -2,6 +2,7 @@ import { TrackedLink } from "@/components/TrackedLink";
 import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
 import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalPlaces";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
+import UsLocalGuide, { usFaq } from "@/components/UsLocalGuide";
 
 // v547 — page « devenir pet sitter à <ville> » (composant serveur statique,
 // indexable). Copie par langue, détail local injecté pour que chaque page
@@ -286,7 +287,7 @@ export function recruitMetadata(c: RecruitCity, canonical: string) {
 export default function RecruitCityPage({ city }: { city: RecruitCity }) {
   const copy = COPY[city.lang];
   const paris = city.lang === "fr" && !!parisEntry(city.slug);
-  const faq = paris ? parisFaq(city.slug, "recruit") : copy.faq(city);
+  const faq = paris ? parisFaq(city.slug, "recruit") : [...copy.faq(city), ...usFaq(city.slug, city.lang, "recruit")];
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -335,6 +336,9 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
         <h2 className="font-display text-xl font-extrabold text-ink">{copy.localTitle(city)}</h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">{city.local}</p>
       </div>
+
+      {/* 01/10 (SAM) — guide local réel (New York, San Francisco, Dallas). */}
+      <UsLocalGuide slug={city.slug} lang={city.lang} name={city.name} mode="recruit" />
 
       {paris && <ParisLocalPlaces slug={city.slug} mode="recruit" />}
 

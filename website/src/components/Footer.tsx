@@ -99,6 +99,10 @@ export function Footer() {
         { href: "/petsitter/madrid", label: "Cuidador en Madrid" },
         { href: "/pet-sitting/dallas", label: "Pet sitters in Dallas" },
         { href: "/become-a-pet-sitter/dallas", label: "Become a pet sitter in Dallas" },
+        // 01/10/2026 (SAM, demandé par BOB) : push USA gratuit, New York et
+        // San Francisco reliés depuis toutes les pages déjà indexées.
+        { href: "/pet-sitting/new-york", label: "Pet sitters in New York" },
+        { href: "/pet-sitting/san-francisco", label: "Pet sitters in San Francisco" },
       ],
     },
   ];

@@ -5,6 +5,7 @@ import { CitySupplyProof } from "@/components/CitySupplyProof";
 import { TrackedLink } from "@/components/TrackedLink";
 import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
 import OwnerPageEngagement from "@/components/OwnerPageEngagement";
+import UsLocalGuide, { usFaq } from "@/components/UsLocalGuide";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 
 // v560 — moteur de croissance : pages « trouver un pet sitter à <ville> »
@@ -448,7 +449,7 @@ export default function OwnerCityPage({
   const copy = COPY[city.lang];
   // v562 — arrondissement de Paris : contenu local réel à la place des blocs génériques.
   const paris = city.lang === "fr" && !!parisEntry(city.slug);
-  const faq = paris ? parisFaq(city.slug, "owner") : copy.faq(city);
+  const faq = paris ? parisFaq(city.slug, "owner") : [...copy.faq(city), ...usFaq(city.slug, city.lang, "owner")];
   const heading = h1 ?? (paris ? `Pet sitter ${city.name} : garde et promenade` : copy.h1(city));
   const jsonLd = {
     "@context": "https://schema.org",
@@ -541,6 +542,9 @@ export default function OwnerCityPage({
       </div>
 
       {children}
+
+      {/* 01/10 (SAM) — guide local réel (New York, San Francisco, Dallas). */}
+      <UsLocalGuide slug={city.slug} lang={city.lang} name={city.name} mode="owner" />
 
       {paris && <ParisLocalPlaces slug={city.slug} mode="owner" />}
 
