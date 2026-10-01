@@ -184,6 +184,10 @@ describe('GET /public/providers/:slug — uniquement la fiche publique', () => {
       expect(r.status).toBe(404);
       const pdf = await request(app).get(`/api/v1/public/providers/${slug}/poster.pdf`);
       expect(pdf.status).toBe(404);
+      // La personne elle-même garde l'aperçu de sa page (jamais indexée).
+      const me = await request(app).get(`/api/v1/public/providers/${slug}`).set('Authorization', `Bearer ${tok(s, 'sitter')}`);
+      expect(me.status).toBe(200);
+      expect(me.body.provider.indexable).toBe(false);
     }
     expect((await request(app).get('/api/v1/public/providers/inconnu-x')).status).toBe(404);
     expect((await request(app).get('/api/v1/public/providers/..%2Fadmin')).status).toBe(404);

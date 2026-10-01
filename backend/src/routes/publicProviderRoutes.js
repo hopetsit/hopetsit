@@ -50,13 +50,16 @@ async function findVisible(slug, req) {
     // eslint-disable-next-line no-await-in-loop
     const d = await Model.findOne({ publicSlug: slug }).select('+homeLocation').lean();
     if (!d) continue;
-    if (hiddenProfile(d)) return null;
     const { isTestAccountDoc } = require('../utils/testAccountMap604');
     const isTest = isTestAccountDoc(d);
-    if (isTest) {
+    const hidden = hiddenProfile(d);
+    if (hidden || isTest) {
+      // La personne elle-même voit toujours SA page et SON affiche (aperçu
+      // depuis l'app), jamais indexée ; tout autre lecteur reçoit 404.
       // eslint-disable-next-line no-await-in-loop
-      const mine = await viewerIds(req);
+      const mine = req && req.user ? await viewerIds(req) : new Set();
       if (!mine.has(String(d._id))) return null;
+      return { doc: d, role, indexable: false };
     }
     return { doc: d, role, indexable: !isTest && d.isStaff !== true };
   }
