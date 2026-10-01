@@ -92,6 +92,14 @@ const onReferredFirstBookingCompleted = async ({ bookingId, userId, role }) => {
   referral.creditAwarded = true;
   await referral.save();
 
+  // 607b (ZOE, 01/10/2026) — décision de BOB : la réduction ne s'utilise pas
+  // via Apple. Parrain dont la dernière app connue est iOS ≥ 607 → aucune
+  // annonce (push, cloche, e-mail). La récompense reste enregistrée ci-dessus
+  // (rien n'est retiré). Plateforme inconnue → annonce envoyée comme avant.
+  if (await require('../utils/iosReferralNotice607').shouldSkipReferralNotice(referral.referrerId)) {
+    return;
+  }
+
   // Notify the referrer — réduction -10% disponible.
   sendNotification({
     userId: String(referral.referrerId),

@@ -122,6 +122,18 @@ const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false, incl
       'blockedUsers', 'notificationPreferences',
       // v566 — données fiscales (NIF, SIRET, TVA…) : profil propre / admin seulement.
       'billingInfo',
+      // 607b (ZOE, 01/10/2026) — FUITE relevée par PAM : GET /sitters (public,
+      // sans connexion) renvoyait les réglages de compte de chaque gardien.
+      // Aucun écran de l'app ni du site ne lit ces champs pour une AUTRE
+      // personne (vérifié : ProfileModel, SitterModel, WalkerModel,
+      // RawProvider du site) ; la personne les reçoit toujours par son propre
+      // profil (includeEmail: true). `pendingEmailCodeHash` et `homeLocation`
+      // sont `select: false`, mais une agrégation $geoNear (promeneurs
+      // proches) ignore `select: false` : on les retire aussi ici.
+      'preferences', 'notificationPrefs', 'searchPreferences', 'servicePreferences',
+      'pendingEmail', 'pendingEmailExpiresAt', 'pendingEmailSentAt', 'pendingEmailCodeHash',
+      'marketingOptOut', 'twoFactorEnabled', 'referralCode', 'referredBy',
+      'favoriteProviders', 'homeLocation',
     ]) {
       delete sanitized[k];
     }

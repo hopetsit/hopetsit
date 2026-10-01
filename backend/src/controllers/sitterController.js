@@ -433,7 +433,9 @@ const listSitters = async (req, res) => {
       const isBoosted = s.boostExpiry && new Date(s.boostExpiry) > now;
       sanitized.isBoosted = isBoosted || false;
       sanitized.boostTier = isBoosted ? (s.boostTier || null) : null;
-      return sanitized;
+      // 607b (ZOE, 01/10) — prénom + initiale et position floutée ~1 km,
+      // comme la fiche et /nearby (cette liste renvoyait l'exact).
+      return require('../utils/publicListEntry607b').toPublicListEntry(s, sanitized);
     }) });
   } catch (error) {
     logger.error('Fetch sitters error', error);
@@ -607,9 +609,13 @@ const getSitterProfile = async (req, res) => {
       // v406 — préférences + 2FA (onglets Préférences/Sécurité). Hand-built →
       // SANS ces lignes, le reload après sauvegarde les perdrait (cf mémoire
       // getSitterProfile). preferences a des défauts si absent.
-      preferences: sitter.preferences || {},
-      searchPreferences: sitter.searchPreferences || {},
-      twoFactorEnabled: sitter.twoFactorEnabled === true,
+      // 607b (ZOE, 01/10) — réservés à la personne elle-même : cette fiche est
+      // PUBLIQUE et les renvoyait à n'importe qui (fuite relevée par PAM).
+      ...(isSelf ? {
+        preferences: sitter.preferences || {},
+        searchPreferences: sitter.searchPreferences || {},
+        twoFactorEnabled: sitter.twoFactorEnabled === true,
+      } : {}),
       createdAt: sitter.createdAt,
       updatedAt: sitter.updatedAt,
     };

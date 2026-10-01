@@ -74,6 +74,9 @@ const listWalkers = async (req, res) => {
       delete safe.twoFactorEnabled;
       delete safe.referralCode;
       delete safe.referredBy;
+      // 607b (ZOE, 01/10) — prénom + initiale et position floutée ~1 km,
+      // comme la fiche et /nearby (cette liste renvoyait l'exact).
+      require('../utils/publicListEntry607b').toPublicListEntry(w, safe);
       const isBoosted = w.boostExpiry && new Date(w.boostExpiry) > _now;
       const isMapBoosted = w.mapBoostExpiry && new Date(w.mapBoostExpiry) > _now;
       return {
