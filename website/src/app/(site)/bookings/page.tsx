@@ -24,6 +24,7 @@ import {
 } from "@/lib/api";
 import { ServiceConfirmationCard } from "@/components/ServiceConfirmation";
 import { useSocketEvent } from "@/lib/useSocket";
+import { localizedTimeSlot } from "@/lib/timeSlot";
 
 // v569 — la carte affichait la valeur TECHNIQUE du backend (« house_sitting »),
 // une date formatée dans la locale du NAVIGATEUR (et non celle du site) et un
@@ -327,7 +328,7 @@ function BookingCard({
             {booking.timeSlot && (
               <>
                 {" · "}
-                <span className="inline-flex items-center gap-0.5">🕑 {booking.timeSlot}</span>
+                <span className="inline-flex items-center gap-0.5">🕑 {localizedTimeSlot(booking.timeSlot, lang)}</span>
               </>
             )}
             {price > 0 && (

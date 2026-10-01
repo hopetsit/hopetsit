@@ -8,6 +8,7 @@ import BackLink from "@/components/BackLink";
 import { petTraitLabel } from "@/lib/petTraits";
 import { locationDisplay } from "@/lib/i18n/publish587";
 import { formatPrice } from "@/lib/pawmapLegend";
+import { localizedTimeSlot } from "@/lib/timeSlot";
 import {
   ApiError,
   RequestPost,
@@ -243,7 +244,7 @@ function PostCard({
   const startTime = fmtTime(post.startDate);
   const endTime = fmtTime(post.endDate);
   const timeLabel =
-    post.timeSlot ||
+    localizedTimeSlot(post.timeSlot, lang) ||
     (startTime && endTime && startTime !== endTime
       ? `${startTime} → ${endTime}`
       : startTime || endTime);
