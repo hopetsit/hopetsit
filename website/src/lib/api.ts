@@ -3025,7 +3025,8 @@ export async function sendFeedback(opts: {
 // 25/09/2026 (PawMap 585, lot 2 — bug 15) — préférences de la PawMap sur le
 // COMPTE (GET/PATCH /users/me/map-prefs, backend mapPrefsController, suivies
 // sur les 3 profils et l'app). Calques connus : friends, pawspots, premium…
-export type MapLayerPrefs = Partial<Record<"places" | "reports" | "members" | "pawspots" | "live" | "requests" | "friends" | "premium", boolean>>;
+// 01/10 (607) — `everyone` : bouton rose « tout le monde » (afficher / masquer tous les membres).
+export type MapLayerPrefs = Partial<Record<"places" | "reports" | "members" | "pawspots" | "live" | "requests" | "friends" | "premium" | "everyone", boolean>>;
 export async function getMapLayerPrefs(): Promise<MapLayerPrefs | null> {
   try {
     const raw = await request<{ pawMap?: { layers?: MapLayerPrefs } }>(`/users/me/map-prefs`);

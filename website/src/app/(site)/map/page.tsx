@@ -1113,6 +1113,9 @@ export default function MapPage() {
         if (layers.friends && !friendsLoadedRef.current) { friendsLoadedRef.current = true; void loadFriends(); }
       }
       if (typeof layers.pawspots === "boolean") setShowSpots(layers.pawspots);
+      // 01/10 (607, décision 4.4) — bouton rose « tout le monde » retenu sur le
+      // compte, comme dans l'app (absent = membres visibles).
+      if (typeof layers.everyone === "boolean") setShowMembers(layers.everyone);
     })();
   }, [benefits, loadFriends]);
 
@@ -1813,8 +1816,11 @@ export default function MapPage() {
                   </CapsuleBtn>
                 );
                 if (id === "everyone") return (
-                  <CapsuleBtn key="cap-everyone" dark={dark} color="#E8448F" label={showMembers ? t("map_members_hide") : t("map_members_show")} pressed={showMembers} onClick={() => setShowMembers((v) => !v)}>
-                    <PawSymbol name="groups" size={21} />
+                  <CapsuleBtn key="cap-everyone" dark={dark} color="#E8448F" label={showMembers ? t("map_members_hide") : t("map_members_show")} pressed={showMembers} onClick={() => { const v = !showMembers; setShowMembers(v); saveLayers({ everyone: v }); }}>
+                    {/* 01/10 (607, décision 4.4) — UN comportement : afficher / masquer
+                        tous les membres. Allumé = rose appuyé ; éteint = icône barrée. Même
+                        état que l'app (pawMap.layers.everyone, PAM) et mêmes textes. */}
+                    <PawSymbol name={showMembers ? "groups" : "group_off"} size={21} />
                   </CapsuleBtn>
                 );
                 // 602 — « Voir signaux » : même pierre (drapeau noir), même point
@@ -2482,7 +2488,7 @@ export default function MapPage() {
             { id: "report", label: t("p601_pawmap_btn_send"), help: t("p601_pawmap_rail_help_report"), icon: "warning", pal: JEWEL.report },
           ] : [
             { id: "satellite", label: t("p601_pawmap601_satellite"), help: t("p601_pawmap601_satellite_help"), icon: "public", pal: JEWEL_ROLE[roleKey(myRole)] },
-            { id: "everyone", label: t("map_members_show"), help: "", icon: "groups", pal: JEWEL.friends },
+            { id: "everyone", label: t("map_members_show"), help: t("h587_b_members"), icon: "groups", pal: JEWEL.friends },
             { id: "feed", label: t("p601_pawmap_view_reports_btn"), help: t("p601_pawmap_rail_help_feed"), icon: "tour", pal: JEWEL.feed },
             { id: "balade", label: t("p601_pawmap590_walk"), help: t("p601_pawmap586_direct_help"), icon: "directions_walk", pal: WALK_ON },
             { id: "eye", label: t("p601_pawmap586_vis_btn"), help: t("p601_pawmap586_vis_help"), icon: "visibility", pal: WALK_OFF },

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { formatMoney, providerCurrency, providerFrom, type ProviderRateSource } from "@/lib/providerRates";
 import BackLink from "@/components/BackLink";
 import {
   ApiError,
@@ -165,10 +166,14 @@ function ProviderCard({
     .filter((r) => r.enabled !== false)
     .map((r) => r.basePrice)
     .sort((a, b) => a - b)[0];
-  const startingPrice =
-    kind === "walker"
-      ? cheapestWalk ?? provider.hourlyRate
-      : provider.dailyRate || provider.hourlyRate;
+  // 01/10 (607, décision 4.3) — même règle que la fiche et la carte : un
+  // gardien qui n'a QU'un tarif semaine / mois affiche « dès 100 €/sem. »,
+  // toujours avec son unité (providerFrom : jour, heure, semaine, mois).
+  const { t, lang } = useT();
+  const from = providerFrom(kind === "walker" ? "walker" : "sitter", provider as ProviderRateSource);
+  const startingPrice = from
+    ? `${formatMoney(from.value, providerCurrency(provider as ProviderRateSource), lang)}/${t(from.unitKey)}`
+    : cheapestWalk ? `${cheapestWalk} €` : null;
   const color = kind === "walker" ? "walker" : "sitter";
 
   return (
@@ -226,8 +231,8 @@ function ProviderCard({
       <div className="mt-4 flex items-center justify-between">
         {startingPrice ? (
           <div className="text-sm">
-            <span className="text-xs text-ink-muted">À partir de</span>{" "}
-            <span className="font-bold text-ink">{startingPrice} €</span>
+            <span className="text-xs text-ink-muted">{t("map_member_price_from")}</span>{" "}
+            <span className="font-bold text-ink">{startingPrice}</span>
           </div>
         ) : (
           <div className="text-xs text-ink-muted">Tarif sur demande</div>

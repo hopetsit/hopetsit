@@ -278,7 +278,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
           rows: [
             { html: seeChipsHtml(), title: t("m586_see_title"), body: t("h587_b_see") },
             { node: <RoundIcon name="friends" color={FRIEND_PINK} />, title: t("map_live_friends"), body: t("h587_b_live_friends"), color: FRIEND_PINK },
-            { node: <RoundIcon name="people" color="#17141F" />, title: t("map_members_show"), body: t("h587_b_members") },
+            { node: <RoundIcon name="people" color="#E8448F" />, title: t("map_members_show"), body: t("h587_b_members"), color: "#E8448F" },
             { node: <RoundIcon name="friends" color={FRIEND_PINK} filled />, title: t("map_friends_btn"), body: t("h587_b_friends"), color: FRIEND_PINK },
             { html: railHtml("spot", "#FAC346", "#E2981A"), title: t("map_panel_spots_title"), body: t("h587_b_spots") },
             { html: railHtml("feed", "#6B5A50", "#2E231D"), title: t("map_panel_reports_title"), body: t("h587_b_feed") },
