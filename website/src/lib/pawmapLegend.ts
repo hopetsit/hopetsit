@@ -209,16 +209,18 @@ export function crownBadge(size: number): string {
   return `<span style="position:absolute;top:-${Math.round(size * 0.35)}px;right:-${Math.round(size * 0.3)}px;width:${size}px;height:${size}px;border-radius:50%;background:${PREMIUM_GOLD};border:1.5px solid ${INK};display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(23,20,31,.35);"><svg viewBox="0 0 24 24" width="${r + 2}" height="${r + 2}" fill="${INK}" aria-hidden="true"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.6 10H4.6z"/></svg></span>`;
 }
 /** Fusée PawBoost : blanche sur pastille turquoise, en bas à gauche. */
-export function rocketBadge(size: number): string {
-  return `<span style="position:absolute;bottom:-${Math.round(size * 0.25)}px;left:-${Math.round(size * 0.3)}px;width:${size}px;height:${size}px;border-radius:50%;background:${PAWBOOST_TURQUOISE};border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(23,20,31,.3);"><svg viewBox="0 0 24 24" width="${Math.round(size * 0.62)}" height="${Math.round(size * 0.62)}" fill="#fff" aria-hidden="true"><path d="M14.5 2.5c3.3 0 6.4 1.6 7 4-3.2 6.4-6.7 9.6-9.7 11.2l-3.5-3.5C10 11.2 11.3 6 14.5 2.5zM8 14.7 4.4 13c1-2.2 2.4-3.9 4.1-5.1zM9.3 16 11 19.6c2.2-1 3.9-2.4 5.1-4.1zM4 20c1.1-2.6 2.2-3.5 3.6-3.6.2 1.4-.9 2.5-3.6 3.6zM15 7a1.6 1.6 0 1 0 0 3.2A1.6 1.6 0 0 0 15 7z"/></svg></span>`;
+export function rocketBadge(size: number, bottomPx?: number): string {
+  // 607 — sur MON rond, remontée (bottom -1) : elle mordait l'étiquette « Moi ».
+  return `<span style="position:absolute;bottom:${bottomPx ?? -Math.round(size * 0.25)}px;left:-${Math.round(size * 0.3)}px;width:${size}px;height:${size}px;border-radius:50%;background:${PAWBOOST_TURQUOISE};border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(23,20,31,.3);"><svg viewBox="0 0 24 24" width="${Math.round(size * 0.62)}" height="${Math.round(size * 0.62)}" fill="#fff" aria-hidden="true"><path d="M14.5 2.5c3.3 0 6.4 1.6 7 4-3.2 6.4-6.7 9.6-9.7 11.2l-3.5-3.5C10 11.2 11.3 6 14.5 2.5zM8 14.7 4.4 13c1-2.2 2.4-3.9 4.1-5.1zM9.3 16 11 19.6c2.2-1 3.9-2.4 5.1-4.1zM4 20c1.1-2.6 2.2-3.5 3.6-3.6.2 1.4-.9 2.5-3.6 3.6zM15 7a1.6 1.6 0 1 0 0 3.2A1.6 1.6 0 0 0 15 7z"/></svg></span>`;
 }
 /** Point vert « en ligne / en direct » en bas à droite. */
 export function onlineDot(size: number, online: boolean): string {
   return `<span style="position:absolute;bottom:0;right:0;width:${size}px;height:${size}px;border-radius:50%;border:2px solid #fff;background:${online ? "#16A34A" : "#C2410C"};box-shadow:0 1px 3px rgba(23,20,31,.3);"></span>`;
 }
-/** Œil barré noir (mode « amis seulement »), en bas à gauche de MON rond. */
+/** Œil barré noir (mode « amis seulement »), en bas à DROITE de MON rond.
+ *  607 (PAM) — il était en bas à gauche, empilé sur la fusée PawBoost. */
 function eyeOffBadge(size: number): string {
-  return `<span style="position:absolute;bottom:-${Math.round(size * 0.2)}px;left:-${Math.round(size * 0.3)}px;width:${size}px;height:${size}px;border-radius:50%;background:${INK};border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="${Math.round(size * 0.65)}" height="${Math.round(size * 0.65)}" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.3A10.5 10.5 0 0 1 12 5.2c5 0 8.6 4.2 9.6 6.8-.4 1-1.2 2.3-2.4 3.5M6.6 6.6C4.3 8.1 2.9 10.4 2.4 12c1 2.6 4.6 6.8 9.6 6.8 1.7 0 3.2-.4 4.5-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></span>`;
+  return `<span style="position:absolute;bottom:-1px;right:-${Math.round(size * 0.3)}px;width:${size}px;height:${size}px;border-radius:50%;background:${INK};border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="${Math.round(size * 0.65)}" height="${Math.round(size * 0.65)}" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.3A10.5 10.5 0 0 1 12 5.2c5 0 8.6 4.2 9.6 6.8-.4 1-1.2 2.3-2.4 3.5M6.6 6.6C4.3 8.1 2.9 10.4 2.4 12c1 2.6 4.6 6.8 9.6 6.8 1.7 0 3.2-.4 4.5-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></span>`;
 }
 
 export function boostGlowStyle(active: boolean): string {
@@ -362,6 +364,8 @@ export type PhotoPinOptions = {
   priceDuo?: [string, string] | null;
   /** 590 — étiquette sur fond sombre (mode nuit). */
   dark?: boolean;
+  /** 607 — « Vu il y a … » posé AU-DESSUS du rond (la place dessous est prise). */
+  captionAbove?: boolean;
 };
 
 function initials(name: string): string {
@@ -399,7 +403,7 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   const label = o.me
     ? `<span style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);background:${INK};color:#fff;border-radius:999px;padding:1px 8px;font:700 11px/1.3 Inter,system-ui,sans-serif;white-space:nowrap;">${escapeHtml(o.meLabel || "Moi")}</span>`
     : o.caption
-      ? `<span style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);background:${o.lost ? "#FFF4E5" : "#fff"};color:${o.lost ? "#9A3412" : color};border:1.5px solid ${o.lost ? "#EA580C" : FRIEND_PINK};border-radius:999px;padding:1px 8px;font:700 11px/1.3 Inter,system-ui,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(23,20,31,.25);">${escapeHtml(o.caption)}</span>`
+      ? `<span style="position:absolute;${o.captionAbove ? "bottom" : "top"}:${size + 3}px;left:50%;transform:translateX(-50%);background:${o.lost ? "#FFF4E5" : "#fff"};color:${o.lost ? "#9A3412" : color};border:1.5px solid ${o.lost ? "#EA580C" : FRIEND_PINK};border-radius:999px;padding:1px 8px;font:700 11px/1.3 Inter,system-ui,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(23,20,31,.25);">${escapeHtml(o.caption)}</span>`
       : "";
   // 27/09 — plus d'anneaux de rôle empilés autour d'un ami : son contour
   // porte ses rôles, le rose passe dans le halo (FRIEND_GLOW).
@@ -415,7 +419,7 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   const disc = o.friendsOnly
     ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};background-clip:padding-box;border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div>`
     : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${grad};padding:3px;${glow}box-sizing:border-box;"><div style="width:100%;height:100%;border-radius:50%;border:2px solid #fff;background:${ringGradient(key)};display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div></div>`;
-  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}${disc}${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? rocketBadge(o.me ? 20 : 18) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${label}${bubble}</div>`;
+  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}${disc}${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? (o.me ? rocketBadge(20, -1) : rocketBadge(18)) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${label}${bubble}</div>`;
 }
 
 /**

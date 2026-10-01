@@ -44,7 +44,23 @@ import {
 } from "@/lib/api";
 import { makeAvatarIcon } from "@/components/FriendsLiveMap";
 import type { FriendLivePosition, Role } from "@/components/FriendsLiveMap";
-import { clusterize, MEMBER_CELL_PX } from "@/lib/mapCluster";
+import { clusterize } from "@/lib/mapCluster";
+import {
+  PRICE_ZOOM_607,
+  CITY_PRICE_ZOOM_607,
+  MEMBER_CELL_PX_607,
+  mercatorPx,
+  mergeCloseGroups,
+  repelShift,
+  pickLabelSide,
+  bubbleHasRoom,
+  labelRect,
+  circleRect,
+  textWidth,
+  type Px,
+  type Rect,
+  type LabelSide,
+} from "@/lib/pawmapOverlap607";
 import {
   memberPinHtml,
   photoPinHtml,
@@ -169,11 +185,11 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
   });
 }
 /** Ami à sa position de PROFIL (floutée) : photo, anneau rose, pas de direct. */
-function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[], caption?: string | null, bubble?: string | null, duo?: [string, string] | null): L.DivIcon {
+function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[], caption?: string | null, bubble?: string | null, duo?: [string, string] | null, captionAbove = false): L.DivIcon {
   return L.divIcon({
     className: "",
     // 25/09 (585, bug 11) — un ami boosté garde sa lueur turquoise + fusée.
-    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role), caption, priceBubble: bubble, priceDuo: duo ?? null }),
+    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role), caption, captionAbove, priceBubble: bubble, priceDuo: duo ?? null }),
     iconSize: [50, 50],
     iconAnchor: [25, 25],
     popupAnchor: [0, -28],
@@ -317,13 +333,17 @@ function PlaceCluster({ center, count, category }: { center: [number, number]; c
  * liste — zoomer ne les séparerait jamais. Sinon on cadre le groupe pour que
  * ses points se séparent vraiment ; déjà au zoom rue = liste.
  */
-function MemberCluster({ center, items, onList, friendSet }: { center: [number, number]; items: NearbyMember[]; onList: (l: NearbyMember[]) => void; friendSet: Set<string> }) {
+function MemberCluster({ center, items, onList, friendSet, shift }: { center: [number, number]; items: NearbyMember[]; onList: (l: NearbyMember[]) => void; friendSet: Set<string>; shift?: Px }) {
   const map = useMap();
   const count = items.length;
   const dom = dominantRole(items.map((m) => m.role));
   const hasFriend = items.some((m) => isFriendMember(m, friendSet));
   const sz = count >= 10 ? 44 : 40;
-  const icon = useMemo(() => L.divIcon({ className: "", html: memberClusterHtml(count, dom, hasFriend), iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] }), [count, dom, hasFriend, sz]);
+  // 607 — décalée (au plus 28 px) quand elle toucherait « Moi » ou un ami :
+  // le DESSIN bouge, la position du groupe reste la même (comme l'app).
+  const sx = Math.round(shift?.x ?? 0);
+  const sy = Math.round(shift?.y ?? 0);
+  const icon = useMemo(() => L.divIcon({ className: "", html: memberClusterHtml(count, dom, hasFriend), iconSize: [sz, sz], iconAnchor: [sz / 2 - sx, sz / 2 - sy] }), [count, dom, hasFriend, sz, sx, sy]);
   const onClick = () => {
     if (isStackedGroup(items) || map.getZoom() >= 17) { onList(items); return; }
     const pts = items.map(pointOf).filter((p): p is [number, number] => !!p);
@@ -677,7 +697,12 @@ export default function PoiMap({
     setZoomLevel(z);
     onZoomChange?.(z);
   };
-  const showPrice = zoomLevel >= 15;
+  // 607 — seuils de l'app : prénom + prix au zoom rue (13, `_priceZoom`) ;
+  // dès le zoom ville (9, `_cityPriceZoom`) une épingle SEULE porte déjà sa
+  // bulle si la place est libre au-dessus d'elle (décision de BOB, réversible
+  // dans lib/pawmapOverlap607.ts).
+  const showPrice = zoomLevel >= PRICE_ZOOM_607;
+  const cityZoom = !showPrice && zoomLevel >= CITY_PRICE_ZOOM_607;
   // 590 (§1, §4) — au zoom rue : le PRÉNOM sous le rond ; le prix part dans
   // une bulle à la couleur du service AU-DESSUS du rond, seulement s'il est
   // de l'autre côté du marché (propriétaire → tarifs ; prestataire → rien).
@@ -693,7 +718,7 @@ export default function PoiMap({
     return formatPriceUnit(amount, currency, alt, priceUnits);
   };
   const memberBubble = (role: string, amount?: number | null, currency?: string | null, alt?: PriceAlt | null): string | null =>
-    showPrice ? priceFor(role, amount, currency, alt) : null;
+    showPrice || cityZoom ? priceFor(role, amount, currency, alt) : null;
   // 27/09 — gardien ET promeneur parmi les rôles montrés (filtre compris) :
   // les deux prix, gardien d'abord. Sinon null → bulle simple habituelle.
   const duoPrices = (roles: PersonRole[]): [string, string] | null => {
@@ -704,7 +729,7 @@ export default function PoiMap({
     const pw = priceFor("walker", w.priceFrom, w.currency, w.priceAlt);
     return ps && pw ? [ps, pw] : null;
   };
-  const memberDuo = (roles: PersonRole[]): [string, string] | null => (showPrice ? duoPrices(roles) : null);
+  const memberDuo = (roles: PersonRole[]): [string, string] | null => (showPrice || cityZoom ? duoPrices(roles) : null);
 
   const poiClusters = useMemo(
     () => clusterize(pois, zoomLevel, (poi) => (Array.isArray(poi.location?.coordinates) && poi.location.coordinates.length >= 2 ? [poi.location.coordinates[1], poi.location.coordinates[0]] : null)),
@@ -721,10 +746,19 @@ export default function PoiMap({
     return members.find((m) => personIdsOf(m).some((x) => String(x).toLowerCase() === k));
   };
   const otherMembers = useMemo(() => members.filter((m) => !isFriendMember(m, friendSet)), [members, friendSet]);
-  const memberClusters = useMemo(
-    () => clusterize(otherMembers, zoomLevel, (m) => (Array.isArray(m.location?.coordinates) && m.location.coordinates.length >= 2 ? [m.location.coordinates[1], m.location.coordinates[0]] : null), MEMBER_CELL_PX),
-    [otherMembers, zoomLevel],
-  );
+  // 607 (PAM) — cases de 44 px PUIS fusion de tout groupe à moins de 50 px
+  // d'un autre : plus de pastilles « 29 », « 3 », « 2 » empilées au zoom pays.
+  const memberClusters = useMemo(() => {
+    const posOf = (m: NearbyMember): [number, number] | null => (Array.isArray(m.location?.coordinates) && m.location.coordinates.length >= 2 ? [m.location.coordinates[1], m.location.coordinates[0]] : null);
+    const cells = clusterize(otherMembers, zoomLevel, posOf, MEMBER_CELL_PX_607).map((g) => g.items);
+    const merged = mergeCloseGroups(cells, (m) => { const p = posOf(m)!; return mercatorPx(p[0], p[1], zoomLevel); });
+    return merged.map((items) => {
+      let la = 0;
+      let ln = 0;
+      for (const m of items) { const p = posOf(m)!; la += p[0]; ln += p[1]; }
+      return { items, center: [la / items.length, ln / items.length] as [number, number] };
+    });
+  }, [otherMembers, zoomLevel]);
   const spotClusters = useMemo(() => clusterize(spots, zoomLevel, (s) => [s.lat, s.lng]), [spots, zoomLevel]);
 
   // Suivi : point suivi + tracé violet (positions reçues, en mémoire de la session).
@@ -747,6 +781,68 @@ export default function PoiMap({
   const trail = followUserId ? trails.current.get(followUserId) || [] : [];
 
   const requestMineLabel = requestLabels?.mine || "";
+
+  // ── 607 (PAM) — ce qui est posé à l'écran, en px, pour que les pastilles
+  // s'écartent de Moi / des amis, que « Vu il y a » ne se pose sur rien et
+  // qu'une bulle de prix de zoom ville n'apparaisse que si la place est libre.
+  // Même ordre et mêmes rayons que paw_map_screen.dart. Calcul simple (pas de
+  // hook) : refait à chaque rendu, dans l'ordre de dessin des épingles.
+  const lay = (() => {
+    const pxOf = (p: [number, number]) => mercatorPx(p[0], p[1], zoomLevel);
+    const fixedPx: Px[] = [];
+    const meRects: Rect[] = [];
+    if (userLocation) {
+      const c = pxOf([userLocation.lat, userLocation.lng]);
+      fixedPx.push(c);
+      const meW = textWidth(meLabel || "Moi", "700 11px Inter, system-ui, sans-serif", 11) + 16;
+      meRects.push(circleRect(c, 56 / 2 + 2), labelRect(c, 56 / 2, meW, "below", 16.3));
+    }
+    for (const fp of friendPositions) fixedPx.push(pxOf([fp.lat, fp.lng])); // en direct ou signal perdu
+    const entries: { items: NearbyMember[]; c: Px; r: number; friend: boolean }[] = [];
+    for (const g of memberClusters) entries.push({ items: g.items, c: pxOf(g.center), r: g.items.length > 1 ? 24.5 : 46 / 2 + 1, friend: false });
+    for (const m of friendMembers) { const p = pointOf(m); if (p) entries.push({ items: [m], c: pxOf(p), r: 50 / 2 + 2, friend: true }); }
+    for (const e of entries) if (e.friend) fixedPx.push(e.c);
+    const shifts: Px[] = entries.map((e) => {
+      if (e.items.length < 2) return { x: 0, y: 0 };
+      const s = repelShift(e.c, fixedPx);
+      e.c = { x: e.c.x + s.x, y: e.c.y + s.y };
+      return s;
+    });
+    const indexOf = new Map<NearbyMember, number>();
+    entries.forEach((e, i) => { if (e.items.length === 1) indexOf.set(e.items[0], i); });
+    const placed: Rect[] = [];
+    const near = (a: Px, b: Px) => Math.abs(a.x - b.x) < 260 && Math.abs(a.y - b.y) < 260;
+    const obstaclesBut = (self: number): Rect[] => {
+      const c = entries[self].c;
+      const out: Rect[] = [...meRects];
+      entries.forEach((e, j) => { if (j !== self && near(c, e.c)) out.push(circleRect(e.c, e.r)); });
+      out.push(...placed);
+      return out;
+    };
+    const POP = "700 11.5px Poppins, Inter, system-ui, sans-serif";
+    const bubbleW = (bubble: string | null, duo: [string, string] | null): number =>
+      duo
+        ? textWidth(duo[0], POP, 11.5) + textWidth(duo[1], POP, 11.5) + textWidth("·", POP, 11.5) + 16 + 22 + 12
+        : textWidth(bubble || "", POP, 11.5) + 16 + 15;
+    /** Bulle(s) de prix d'une épingle seule, retirées au zoom ville sans place. */
+    const priceFit = (m: NearbyMember, bubble: string | null, duo: [string, string] | null): { bubble: string | null; duo: [string, string] | null } => {
+      if (!cityZoom || (!bubble && !duo)) return { bubble, duo };
+      const i = indexOf.get(m);
+      if (i === undefined) return { bubble, duo };
+      return bubbleHasRoom(entries[i].c, entries[i].r, bubbleW(bubble, duo) + 8, obstaclesBut(i)) ? { bubble, duo } : { bubble: null, duo: null };
+    };
+    /** Côté de l'étiquette d'un ami (« Vu il y a … »), ou "none". */
+    const friendSide = (m: NearbyMember, caption: string | null, hasBubble: boolean): LabelSide => {
+      if (!caption) return "none";
+      const i = indexOf.get(m);
+      if (i === undefined) return "below";
+      const w = textWidth(caption, "700 11px Inter, system-ui, sans-serif", 11) + 16 + 3;
+      const side = pickLabelSide({ center: entries[i].c, radius: 50 / 2, width: w, obstacles: obstaclesBut(i), allowAbove: !hasBubble });
+      if (side !== "none") placed.push(labelRect(entries[i].c, 50 / 2, w, side));
+      return side;
+    };
+    return { shifts, priceFit, friendSide };
+  })();
 
   // 25/09 — « Itinéraire » ferme la fiche ouverte : le trajet et sa carte
   // de résumé restent visibles (avant, la fiche les recouvrait à 375 px).
@@ -1071,7 +1167,7 @@ export default function PoiMap({
         {/* MEMBRES : UNE personne = UN rond (liseré de chacun de ses rôles),
             rond de groupe à la couleur dominante. Clic = fiche du bas. */}
         {memberClusters.map((g, i) =>
-          g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} items={g.items} onList={(items) => openSheet({ kind: "list", items }, g.center)} friendSet={friendSet} /> : null,
+          g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} items={g.items} onList={(items) => openSheet({ kind: "list", items }, g.center)} friendSet={friendSet} shift={lay.shifts[i]} /> : null,
         )}
         {[...memberClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]), ...friendMembers].map((m) => {
           const pt = pointOf(m);
@@ -1089,20 +1185,24 @@ export default function PoiMap({
             // « Vu il y a X » sous son rond (dernier signe de vie connu).
             const seenIso = personIdsOf(m).map((x) => friendSeen?.[x]).find(Boolean) || null;
             const seenMs = seenIso ? new Date(seenIso).getTime() : NaN;
-            const caption = liveLabels && Number.isFinite(seenMs)
+            const rawCaption = liveLabels && Number.isFinite(seenMs)
               ? (now - seenMs < 60000 ? liveLabels.seenNow : liveLabels.seenAgo.replace("{ago}", liveLabels.ago(now - seenMs)))
               : null;
             const fAlt = roles[0].priceAlt ?? m.priceAlt;
-            const fBubble = memberBubble(roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fAlt);
+            const fFit = lay.priceFit(m, memberBubble(roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fAlt), memberDuo(shown));
+            // 607 — dessous si libre, sinon dessus (sans bulle), sinon rien.
+            const side = lay.friendSide(m, rawCaption, !!(fFit.bubble || fFit.duo));
+            const caption = side === "none" ? null : rawCaption;
             const fOpen = () => flyToFriend(m);
-            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles, caption, fBubble, memberDuo(shown))} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => { const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true, shown, fAlt); if (f) tapFocus(f); else fOpen(); } }} />;
+            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles, caption, fFit.bubble, fFit.duo, side === "above")} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => { const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true, shown, fAlt); if (f) tapFocus(f); else fOpen(); } }} />;
           }
           const r0 = roles[0];
           const pFrom = r0.priceFrom ?? m.priceFrom;
           const pCur = r0.currency ?? m.currency;
           const pAlt = r0.priceAlt ?? m.priceAlt;
+          const fit = lay.priceFit(m, memberBubble(r0.role, pFrom, pCur, pAlt), memberDuo(shown));
           return (
-            <Marker key={`member-${m.id}`} position={pt} icon={memberIcon(m, memberCaption({ ...m, role: r0.role }), roles, memberBubble(r0.role, pFrom, pCur, pAlt), dark, memberDuo(shown))} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: () => { const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt); if (f) tapFocus(f); else open(); } }} />
+            <Marker key={`member-${m.id}`} position={pt} icon={memberIcon(m, memberCaption({ ...m, role: r0.role }), roles, fit.bubble, dark, fit.duo)} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: () => { const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt); if (f) tapFocus(f); else open(); } }} />
           );
         })}
 
