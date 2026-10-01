@@ -344,6 +344,9 @@ const versionedRoutes = [
   // 22/09/2026 — nombre de prestataires par ville, PUBLIC et anonyme (que des
   // chiffres) : les pages villes montrent enfin une preuve d'offre réelle.
   { path: '/supply', mw: [], router: require('./routes/supplyRoutes') },
+  // 607 (NEO, 02/10) — lien personnel hopetsit.com/s/<slug>, affiche A4 + QR,
+  // badge Pionnier (« ramène tes clients »). Public en lecture seule.
+  { path: '/public/providers', mw: [], router: require('./routes/publicProviderRoutes') },
   { path: '/subscriptions', mw: [sensitiveLimiter], router: subscriptionRoutes },
   // v503 — Apple IAP (StoreKit 2) : validation des achats de l'app iOS.
   { path: '/apple-iap', mw: [sensitiveLimiter], router: require('./routes/appleIapRoutes') },

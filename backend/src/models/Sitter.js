@@ -168,6 +168,10 @@ const sitterSchema = new mongoose.Schema(
     averageRating: { type: Number, default: 0 },
     // Sprint 7 step 3 — referral program.
     referralCode: { type: String, unique: true, sparse: true, index: true },
+    // 607 (NEO, 02/10) — lien personnel public hopetsit.com/s/<publicSlug>
+    // (« ramène tes clients »). Créé à la volée au 1er appel, stable, unique
+    // sur gardiens ET promeneurs (contrôle dans utils/publicSlug607.js).
+    publicSlug: { type: String, unique: true, sparse: true, trim: true, lowercase: true },
     referredBy: { type: String, default: '' },
     // Sprint 7 step 6 — admin moderation.
     status: { type: String, enum: ['active', 'suspended', 'banned'], default: 'active', index: true },
