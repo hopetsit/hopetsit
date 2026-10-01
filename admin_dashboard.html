@@ -5503,10 +5503,14 @@ function renderRecentSignups() {
       <td style="color:var(--text-muted)">${escapeHtml(u.email || '-')}</td>
       <td style="white-space:nowrap">${zoneLabel(u)}</td>
       <td style="white-space:nowrap">${fmtDate(signupTs(u), true)}</td>
+      <td style="white-space:nowrap">${(u.status === 'banned' || u.status === 'suspended')
+        ? `<button class="action-btn" style="background:#16A34A;color:#fff" onclick="unblockUser('${u._role}','${u._id}')">✅ ${t('unblock_btn')}</button>`
+        : `<button class="action-btn" style="background:#17141f;color:#fff" onclick="blockUser('${u._role}','${u._id}')">⛔ ${t('block_btn')}</button>`}
+        <button class="action-btn btn-delete" onclick="deleteUnifiedUser('${u._role}','${u._id}')">Supprimer</button></td>
     </tr>`;
   }).join('');
   el.innerHTML = rows
-    ? `<table class="table"><thead><tr><th>${t('th_role')}</th><th>${t('th_name')}</th><th>${t('th_email')}</th><th>${t('th_country')} / ${t('th_city')}</th><th>${t('th_registered')}</th></tr></thead><tbody>${rows}</tbody></table>`
+    ? `<table class="table"><thead><tr><th>${t('th_role')}</th><th>${t('th_name')}</th><th>${t('th_email')}</th><th>${t('th_country')} / ${t('th_city')}</th><th>${t('th_registered')}</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
     : `<div style="color:var(--text-muted);font-size:13px;padding:12px">Aucune inscription sur la période.</div>`;
 }
 
@@ -5775,6 +5779,8 @@ async function deleteUnifiedUser(role, id) {
     await api(endpoint + id, 'DELETE');
     allOwners = allOwners.filter(u => u._id !== id);
     renderOwners();
+    renderRecentSignups(); // v605 — Daniel : Bloquer / Supprimer aussi dans « Dernières inscriptions »
+    loadDeletedAccounts();
     showToast(`${role} supprimé.`, 'success');
   } catch (e) { showToast(t('error_prefix') + e.message, 'error'); }
 }
