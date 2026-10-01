@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -16,6 +14,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/promo_code_sheet.dart';
+import 'package:hopetsit/utils/ios_store_rules606.dart';
 
 /// Écran de saisie d'un code promo (accessible depuis les 3 profils).
 ///
@@ -134,6 +133,8 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
       title: 'promo_screen_title'.tr,
       accent: widget.accent,
       actions: [
+        // 606 — formulaire maison jamais proposé sur iOS (refus Apple 3.1.1).
+        if (houseCodesAllowed())
         IconButton(
           tooltip: 'promo_popup_cta'.tr,
           icon: Icon(Icons.bolt_rounded, color: widget.accent),
@@ -185,7 +186,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
             // v506 — refus Apple 3.1.1 : sur iOS le formulaire de code serveur
             // est remplacé par la feuille de code OFFICIELLE App Store (offer
             // codes App Store Connect). Android/web gardent les codes maison.
-            if (!Platform.isIOS) ...[
+            if (houseCodesAllowed()) ...[
             // Code input.
             InterText(
               text: 'promo_field_label'.tr,

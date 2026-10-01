@@ -19,6 +19,7 @@ import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/repositories/promo_repository.dart';
 import 'package:hopetsit/services/apple_iap_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/ios_store_rules606.dart';
 import 'package:hopetsit/utils/publish_draft600.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
@@ -71,6 +72,12 @@ Future<bool> showPromoCodeSheet(
   String? initialCode,
   bool autoApply = false,
 }) async {
+  // 606 (refus Apple 3.1.1 du 01/10) — sur iOS, JAMAIS de formulaire de code
+  // maison : seule la feuille officielle d'Apple (offer codes) s'ouvre.
+  if (!houseCodesAllowed()) {
+    await presentAppleOfferCodeSheet();
+    return false;
+  }
   final result = await showProfileSheet<bool>(
     context,
     builder: (ctx) => _PromoCodeSheetBody(
@@ -81,6 +88,32 @@ Future<bool> showPromoCodeSheet(
   );
   return result == true;
 }
+
+/// 606 — feuille OFFICIELLE d'Apple pour saisir un « offer code » créé dans
+/// App Store Connect (StoreKit). Seul chemin de code autorisé sur iOS ; la
+/// transaction offerte arrive par le purchaseStream d'[AppleIapService].
+Future<void> presentAppleOfferCodeSheet() async {
+  if (!isAppleStoreBuild606) return;
+  final hook = debugAppleOfferCodeSheet606;
+  if (hook != null) return hook();
+  try {
+    AppleIapService.init();
+  } catch (_) {/* best-effort */}
+  try {
+    final addition = InAppPurchase.instance
+        .getPlatformAddition<InAppPurchaseStoreKitPlatformAddition>();
+    await addition.presentCodeRedemptionSheet();
+  } catch (e) {
+    try {
+      Get.snackbar('common_error'.tr, e.toString(),
+          snackPosition: SnackPosition.BOTTOM, margin: EdgeInsets.all(12.w));
+    } catch (_) {/* pas d'overlay */}
+  }
+}
+
+/// 606 — tests uniquement : remplace l'appel StoreKit (absent hors appareil).
+@visibleForTesting
+Future<void> Function()? debugAppleOfferCodeSheet606;
 
 class _PromoCodeSheetBody extends StatefulWidget {
   const _PromoCodeSheetBody({
@@ -478,6 +511,8 @@ class _PromoPopupState extends State<PromoPopup> with SingleTickerProviderStateM
   }
 
   void _decide() {
+    // 606 (refus Apple 3.1.1) — aucun pop-up de code maison sur iOS.
+    if (!houseCodesAllowed()) return;
     int count = 0;
     bool shown = false;
     try {

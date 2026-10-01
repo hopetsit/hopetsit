@@ -190,15 +190,16 @@ void main() async {
   // fenêtre ATT ; requestTrackingAfterEntry() la pose seulement quand
   // l'utilisateur est entré dans l'app ET que la fenêtre des notifications a
   // déjà sa réponse (jamais deux fenêtres système dans la même session).
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    // ignore: discarded_futures
-    MetaEventsService.instance.init();
-    // ignore: discarded_futures
-    MetaEventsService.instance.requestTrackingAfterEntry();
+  // 606 (refus Apple 2.1) — ordre fixe : Firebase (signaux pub refusés sur
+  // iOS) → Meta (aligné sur la réponse ATT connue) → fenêtre ATT si un compte
+  // est déjà connecté. L'accueil la redemande aussi après connexion.
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
     // v532 — Firebase Analytics : canal par lequel Google Ads reçoit les events
     // in-app (sign_up). Sans lui, Google n'optimise que sur le volume d'installs.
+    await FirebaseAnalyticsService.instance.init();
+    await MetaEventsService.instance.init();
     // ignore: discarded_futures
-    FirebaseAnalyticsService.instance.init();
+    MetaEventsService.instance.requestTrackingAfterEntry();
   });
 
   // Sprint 8 step 6 — optional Sentry. Opt-in via SENTRY_DSN_FRONTEND in .env.
@@ -218,6 +219,18 @@ void main() async {
     bootMark('runApp');
     runApp(MyApp());
     WidgetsBinding.instance.addPostFrameCallback((_) => bootMark('1re image Flutter'));
+  }
+  // 606 (BOB, captures App Store) — DEBUG SEULEMENT : la clé locale `hps_shot_route`
+  // (posée dans GetStorage.gs, app fermée) ouvre un écran sans lien — un lien poserait
+  // « Ouvrir dans HoPetSit ? » sur le simulateur. Jamais actif en release (kReleaseMode).
+  if (!kReleaseMode) {
+    final box = GetStorage();
+    final shotRoute = (box.read('hps_shot_route') ?? '').toString();
+    if (shotRoute.startsWith('/')) {
+      box.remove('hps_shot_route');
+      Future.delayed(const Duration(seconds: 4),
+          () => DeepLinkService.instance.openRoute(shotRoute));
+    }
   }
 }
 

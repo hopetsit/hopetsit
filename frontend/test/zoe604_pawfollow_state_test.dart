@@ -153,6 +153,11 @@ void main() {
     testWidgets('O : en direct → direct arrêté · redemander en un événement', (t) async {
       final live = fx('single_live_O');
       final stopped = fx('single_stopped_O');
+      // 01/10 (ZOE) — la réponse serveur enregistrée date du 30/09 : passé
+      // 12 h, la règle « direct arrêté ≤ 12 h » la masque à juste titre et le
+      // test échouait selon l'HEURE. On date l'arrêt de maintenant.
+      (stopped['incoming'] as Map)['endedAt'] =
+          DateTime.now().toUtc().toIso8601String();
       final cid = live['conversationId'] as String;
       final inc = (live['incoming'] as Map)['messageId'] as String;
       final msgs = <ChatMessageBase>[_msg(inc, mine: true, role: 'owner')];

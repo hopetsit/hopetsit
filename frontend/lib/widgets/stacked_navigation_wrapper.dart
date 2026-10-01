@@ -18,8 +18,10 @@ import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/services/app_update_service.dart';
+import 'package:hopetsit/services/meta_events_service.dart';
 // v565 — pop-up promo discret (docs/v565_contracts.md §9), monté une fois ici.
 import 'package:hopetsit/widgets/promo_code_sheet.dart';
+import 'package:hopetsit/utils/ios_store_rules606.dart';
 // v570 — rendu de la barre (handoff hi-fi « PawMap Tab Bar » variante 12d).
 import 'package:hopetsit/widgets/paw_tab_bar.dart';
 
@@ -107,6 +109,11 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 606 (refus Apple 2.1) — arrivée sur l'accueil (connexion, inscription,
+      // relance) : fenêtre de suivi publicitaire d'Apple, juste après la
+      // question « notifications ». No-op hors iOS ou si Apple a sa réponse.
+      // ignore: discarded_futures
+      MetaEventsService.instance.requestTrackingAfterEntry();
       pawMap603Log(
         'ACCUEIL 1re image (auto-onglet $_kAutoTabMs ms, '
         'montage $_mountMs ms, sans photo dessus $pawMap603NoCover)',
@@ -369,7 +376,9 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
             // v585 — jamais par-dessus la feuille de la PawMap (elle cachait
             // son bouton principal, vu sur iPhone) : la pop-up attend un
             // autre onglet.
-            if (_currentIndex != kPawMapTabIndex) const PromoPopup(),
+            // 606 — jamais sur iOS (refus Apple 3.1.1 : codes maison).
+            if (_currentIndex != kPawMapTabIndex && houseCodesAllowed())
+              const PromoPopup(),
           ],
         ),
         // v465 — en mode « carte agrandie » (PawMap), on MASQUE le menu pour

@@ -60,6 +60,7 @@ import 'package:hopetsit/views/payment/paypal_payment_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/promo_code_sheet.dart';
+import 'package:hopetsit/utils/ios_store_rules606.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
@@ -1237,6 +1238,8 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen>
         ),
       );
       // v565 (point 27) — entrée claire « J'ai un code ».
+      // 606 — jamais sur iOS (refus Apple 3.1.1 : codes maison).
+      if (houseCodesAllowed()) {
       children.add(
         Align(
           alignment: Alignment.centerRight,
@@ -1263,6 +1266,7 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen>
           ),
         ),
       );
+      }
       children.add(
         CustomButton(
           title: 'payment_pay_with_card'.tr.replaceAll(

@@ -153,6 +153,14 @@ class PushNotificationService extends GetxService {
   /// même session : une seule fenêtre système par lancement.
   static bool systemPromptRequestedThisSession = false;
 
+  /// 606 (ZOE, refus Apple 2.1 du 01/10) — vrai PENDANT qu'une question
+  /// « notifications » est en cours (explication maison + fenêtre système).
+  /// La fenêtre de suivi publicitaire (ATT) attend que ce soit fini, puis
+  /// s'affiche JUSTE APRÈS, dans la même session (avant : jamais la même
+  /// session → un examinateur qui ne relance pas l'app ne la voyait jamais).
+  static int _notificationFlowsInFlight = 0;
+  static bool get notificationFlowBusy => _notificationFlowsInFlight > 0;
+
   /// v566 — vrai sur iOS quand la bannière SYSTÈME s'affiche déjà pour un push reçu
   /// app ouverte (autorisation accordée + setForegroundNotificationPresentationOptions).
   /// Sert à ne pas afficher EN PLUS le bandeau in-app (demandes d'ami / famille).
@@ -188,15 +196,20 @@ class PushNotificationService extends GetxService {
           systemPromptRequestedThisSession = true; // v583 — fenêtre posée
           _markPromptAsked();
         }
-        final settings = await _messaging.requestPermission(
-          alert: true,
-          badge: true,
-          sound: true,
-          provisional: false,
-        );
-        _systemBannersAuthorized =
-            settings.authorizationStatus == AuthorizationStatus.authorized ||
-                settings.authorizationStatus == AuthorizationStatus.provisional;
+        _notificationFlowsInFlight++; // 606 — l'ATT attend la réponse
+        try {
+          final settings = await _messaging.requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+            provisional: false,
+          );
+          _systemBannersAuthorized =
+              settings.authorizationStatus == AuthorizationStatus.authorized ||
+                  settings.authorizationStatus == AuthorizationStatus.provisional;
+        } finally {
+          _notificationFlowsInFlight--;
+        }
       }
 
       // Configure local notifications (used for foreground messages).
@@ -348,7 +361,18 @@ class PushNotificationService extends GetxService {
   /// lancement suivant (compte connecté → comportement d'avant).
   /// Plusieurs appelants attendent le MÊME Future (connexion + assistant).
   Future<void> askAfterEntryIfUndecided({String? role}) =>
-      _entryAsk ??= _askAfterEntry(role);
+      _entryAsk ??= _askAfterEntryTracked(role);
+
+  /// 606 — marque la question « notifications » comme en cours dès l'appel
+  /// (délai d'affichage compris) : la fenêtre ATT passe toujours APRÈS.
+  Future<void> _askAfterEntryTracked(String? role) async {
+    _notificationFlowsInFlight++;
+    try {
+      await _askAfterEntry(role);
+    } finally {
+      _notificationFlowsInFlight--;
+    }
+  }
 
   Future<void> _askAfterEntry(String? role) async {
     try {

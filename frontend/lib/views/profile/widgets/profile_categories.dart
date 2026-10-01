@@ -53,6 +53,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/loyalty_card.dart';
 import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:hopetsit/widgets/promo_code_sheet.dart';
+import 'package:hopetsit/utils/ios_store_rules606.dart';
 import 'package:hopetsit/widgets/top_sitter_card.dart';
 import 'package:hopetsit/widgets/top_walker_card.dart';
 
@@ -411,6 +412,8 @@ class ProfileCategories extends StatelessWidget {
         ProfileSectionTitle('profile_cat_shop'.tr, icon: Icons.storefront_rounded),
         ProfileGroupCard(children: [
           // v565 — point 27 : entrée « Code promo » VISIBLE en tête.
+          // 606 — masquée sur iOS (refus Apple 3.1.1 : codes maison).
+          if (houseCodesAllowed())
           ProfileRow(
             icon: PawIcon.gift,
             title: 'promo_screen_title'.tr,
@@ -446,6 +449,8 @@ class ProfileCategories extends StatelessWidget {
             color: accent,
             onTap: () => Get.to(() => const CoinShopScreen()),
           ),
+          // 607 — parrainage masqué sur iOS (même règle que les codes promo).
+          if (referralCodesAllowed())
           ProfileRow(
             // v585 — icône « cadeau » : l'icône Amis appartient à Mes amis.
             icon: PawIcon.coin,

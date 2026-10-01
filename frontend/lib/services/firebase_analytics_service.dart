@@ -1,5 +1,7 @@
+import 'dart:io' show Platform;
+
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 
 /// v532 — Service Firebase Analytics (canal Google Ads).
 ///
@@ -26,11 +28,33 @@ class FirebaseAnalyticsService {
   final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
 
   /// À appeler une fois au démarrage, après l'initialisation de Firebase.
+  /// 606 (refus Apple 2.1) — sur iOS, les signaux PUBLICITAIRES (stockage pub,
+  /// données utilisateur pour la pub, personnalisation) restent refusés tant
+  /// que l'utilisateur n'a pas répondu « Autoriser » à la fenêtre ATT : seule
+  /// la mesure d'audience interne de l'app tourne. Android : inchangé.
   Future<void> init() async {
     try {
+      if (!kIsWeb && Platform.isIOS) {
+        await applyAdConsent(false);
+      }
       await _analytics.setAnalyticsCollectionEnabled(true);
     } catch (e) {
       debugPrint('FirebaseAnalyticsService.init error: $e');
+    }
+  }
+
+  /// 606 — consentement publicitaire (Consent Mode) aligné sur la réponse
+  /// ATT : appelé par [MetaEventsService] après la réponse d'Apple.
+  Future<void> applyAdConsent(bool granted) async {
+    try {
+      await _analytics.setConsent(
+        analyticsStorageConsentGranted: true,
+        adStorageConsentGranted: granted,
+        adUserDataConsentGranted: granted,
+        adPersonalizationSignalsConsentGranted: granted,
+      );
+    } catch (e) {
+      debugPrint('FirebaseAnalyticsService.applyAdConsent error: $e');
     }
   }
 

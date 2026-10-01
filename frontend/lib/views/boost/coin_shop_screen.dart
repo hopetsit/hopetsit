@@ -7,6 +7,7 @@ import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hopetsit/widgets/paw_card_icons.dart';
 import 'package:hopetsit/widgets/promo_code_sheet.dart';
+import 'package:hopetsit/utils/ios_store_rules606.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -3734,12 +3735,22 @@ Widget shopHelpCard(
           ),
         ),
       if (currencyRow != null) currencyRow,
-      ShopInfoRow(
-        icon: Icons.confirmation_number_outlined,
-        label: 'v565_promo_have_code'.tr,
-        accent: accent,
-        onTap: onPromo,
-      ),
+      // 606 (refus Apple 3.1.1) — code maison hors iOS seulement ; sur iOS,
+      // seule la feuille officielle d'Apple (offer codes App Store Connect).
+      if (houseCodesAllowed())
+        ShopInfoRow(
+          icon: Icons.confirmation_number_outlined,
+          label: 'v565_promo_have_code'.tr,
+          accent: accent,
+          onTap: onPromo,
+        )
+      else
+        ShopInfoRow(
+          icon: Icons.apple,
+          label: 'promo_ios_button'.tr,
+          accent: accent,
+          onTap: presentAppleOfferCodeSheet,
+        ),
       // v503 — « Restaurer mes achats » : exigence Apple, iOS uniquement.
       if (Platform.isIOS)
         ShopInfoRow(
