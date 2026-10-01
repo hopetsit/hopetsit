@@ -4,9 +4,12 @@ import Link from "next/link";
 // 2026-W38 — SEO US : Austin, angle PROPRIÉTAIRES (semaine ISO paire). Ville
 // en rotation (index 6/8), données reprises de lib/recruit-cities.ts (austin).
 export const metadata: Metadata = {
-  title: "Finding a trusted dog sitter in Austin, TX (2026 guide)",
+  // 01/10/2026 — GUS : 197 impressions sur « dog sitting » en position 6,7
+  // et 0 clic en 28 j. Titre et description réécrits pour répondre à la
+  // requête (prix, comment choisir) au lieu de l'ancien titre « Finding… ».
+  title: "Dog Sitting in Austin, TX: 2026 Rates & Tips",
   description:
-    "Austin dog owners: realistic pet sitting rates ($30-55/day, $15-25/walk), how to vet a sitter, and why secure in-app payment and live GPS tracking matter.",
+    "Dog sitting in Austin costs $30–55 a day and $15–25 a walk. How to vet a sitter, what to ask at the meet-and-greet, and how to pay safely. A 5-minute read.",
   alternates: {
     canonical: "https://www.hopetsit.com/blog/finding-a-pet-sitter-in-austin",
   },
@@ -176,6 +179,13 @@ export default function ArticleFindingSitterAustin() {
         >
           See sitters in Austin
         </Link>
+        <p className="mt-4 text-sm text-ink-muted">
+          Elsewhere in Texas?{" "}
+          <Link href="/pet-sitting/dallas" className="font-semibold text-owner underline">
+            Dog sitters in Dallas
+          </Link>
+          {" "}— Uptown, Lakewood, Plano and Frisco.
+        </p>
       </div>
     </div>
   );
