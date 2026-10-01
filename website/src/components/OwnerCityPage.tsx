@@ -53,6 +53,9 @@ type Copy = {
   metaTitle: (c: RecruitCity) => string;
 };
 
+// 01/10 (SAM) — fin du bandeau Toussaint (lundi 3 novembre 2026, 0 h Paris).
+const TOUSSAINT_FIN = Date.parse("2026-11-03T00:00:00+01:00");
+
 const COPY: Record<RecruitLang, Copy> = {
   fr: {
     kicker: (c) => c.region,
@@ -487,6 +490,15 @@ export default function OwnerCityPage({
           décalage de mise en page. Le texte long (intro) passe sous le pli. */}
       {/* 29/09 (SAM) — fil d'Ariane : Accueil › Toutes les villes › Paris › Paris 11e. */}
       <CityBreadcrumb city={city} mode="owner" />
+      {/* 01/10 (SAM) — même message que la 2e pub Meta (« Vacances de la
+          Toussaint ») : le visiteur retrouve en haut de page ce qui l'a fait
+          cliquer. Pages françaises seulement ; disparaît au 1er build après le
+          2 novembre (page statique : la date est celle du build). */}
+      {city.lang === "fr" && Date.now() < TOUSSAINT_FIN && (
+        <p className="mt-3 rounded-2xl bg-owner-light px-4 py-2.5 text-sm font-semibold leading-snug text-owner-dark">
+          🍂 Vacances de la Toussaint (17 oct. – 2 nov.) : les gardiens se réservent maintenant.
+        </p>
+      )}
       {!paris && <p className="mt-3 text-sm font-semibold text-owner">{copy.kicker(city)}</p>}
       <h1 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-[1.15] tracking-tight text-ink md:mt-2 md:text-4xl">{heading}</h1>
 
