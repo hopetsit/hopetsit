@@ -59,7 +59,8 @@ function normalizeMapPrefs(existing, patch) {
   // v607 (décision 4.4) — `everyone` = bouton rose « tout le monde » :
   // afficher / masquer TOUS les membres (app ≥ 607 et site). Absent = visible ;
   // les apps ≤ 606 ne l'envoient pas et la fusion clé par clé le garde.
-  const LAYER_KEYS = ['places', 'reports', 'members', 'pawspots', 'live', 'requests', 'friends', 'premium', 'everyone'];
+  // 607 (PAM, 02/10) — `plush` = afficher / masquer les mini-peluches (Balade).
+  const LAYER_KEYS = ['places', 'reports', 'members', 'pawspots', 'live', 'requests', 'friends', 'premium', 'everyone', 'plush'];
   const layersSrc = { ...(base.layers || {}), ...(p.layers || {}) };
   const layers = {};
   for (const k of LAYER_KEYS) {

@@ -357,6 +357,8 @@ const versionedRoutes = [
   { path: '/lifecycle', mw: [], router: require('./routes/lifecycleRoutes') },
   // v414 — PawPoints : catalogue de récompenses (public), mes points, échange.
   { path: '/pawpoints', mw: [], router: require('./routes/pawPointsRoutes') },
+  // 607 (PAM) — mini-peluches de la PawMap (Balade seulement, PawPoints).
+  { path: '/plush', mw: [], router: require('./routes/plushRoutes') },
   { path: '/bug-reports', mw: [sensitiveLimiter], router: bugReportRoutes },
   // v23.1 part 72 — Bug 11 : in-chat translation (POST /translate).
   { path: '/translate', mw: [], router: require('./routes/translateRoutes') },
