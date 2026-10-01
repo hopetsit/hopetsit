@@ -73,8 +73,17 @@ describe('outils purs', () => {
   });
   test('jour local : Dallas est encore la veille quand Paris a changé de jour', () => {
     const t = Date.parse('2026-10-03T03:00:00Z');
-    expect(plush.dayKeyFor(2.35, t)).toBe('2026-10-03');
-    expect(plush.dayKeyFor(-96.8, t)).toBe('2026-10-02');
+    expect(plush.dayKeyFor(2.35, t, 48.85)).toBe('2026-10-03');
+    expect(plush.dayKeyFor(-96.8, t, 32.78)).toBe('2026-10-02');
+  });
+  test('jour local : Paris passe minuit à minuit (heure d\'été), pas à 2 h', () => {
+    // 01 h 50 à Paris le 02/10 = 23 h 50 UTC le 01/10 (cas mesuré en prod)
+    const t = Date.parse('2026-10-01T23:50:00Z');
+    expect(plush.dayKeyFor(2.3522, t, 48.8566)).toBe('2026-10-02');
+    expect(plush.dayKeyFor(2.3522, t)).toBe('2026-10-02');
+    expect(plush.timeZoneFor(48.8566, 2.3522)).toBe('Europe/Paris');
+    expect(plush.timeZoneFor(51.5, -0.12)).toBe('Europe/London');
+    expect(plush.timeZoneFor(32.78, -96.8)).toBe('America/Chicago');
   });
   test('tirage : 3 à 5 peluches, parcs distincts, même ville + même jour = même tirage', () => {
     const parks = PARKS.map(([lat, lng], i) => ({ _id: `p${i}`, lat, lng }));
@@ -315,6 +324,14 @@ describe('API réelle', () => {
     expect(r.body.streak).toBe(7);
     expect(r.body.points).toBe(220);
     expect(r.body.bonuses).toEqual([expect.objectContaining({ kind: 'streak7', points: 200, days: 7 })]);
+  });
+
+  test('un parc ne porte qu\'une peluche par jour, même entre deux villes actives', async () => {
+    const day = plush.dayKeyFor(PARIS.lng, Date.now(), PARIS.lat);
+    await plush.ensureDraw({ key: 'villevoisine', label: 'Ville voisine', lat: PARIS.lat, lng: PARIS.lng });
+    const all = await PawPlush.find({ day, poiId: { $ne: null } }).select('poiId').lean();
+    const ids = all.map((x) => String(x.poiId));
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   test('dorée : exactement 1 jour par semaine et par ville', () => {

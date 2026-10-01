@@ -35,7 +35,7 @@ const CATCH_RADIUS_M = 30;
 const VIEW_RADIUS_M = 5000;
 const MAX_SPEED_KMH = 25;
 const ACTIVE_DAYS = 30;
-const PARK_RADIUS_KM = 8; // parcs retenus autour du centre de la ville
+const PARK_RADIUS_KM = 5; // parcs retenus autour du centre de la ville
 const CITY_REACH_KM = 25; // villes dont on tire les peluches autour de moi
 const CITY_CACHE_MS = 30 * 60 * 1000;
 const WALK_FRESH_MS = 5 * 60 * 1000; // Balade « en cours » : signal < 5 min
@@ -67,8 +67,40 @@ function normalizeCityKey(city) {
     .trim();
 }
 
-/** Jour LOCAL approché d'un lieu (fuseau ≈ longitude / 15), AAAA-MM-JJ. */
-function dayKeyFor(lng, now = Date.now()) {
+/**
+ * Fuseau horaire approché d'un lieu (heure d'été comprise) — mesuré en prod
+ * le 02/10 : avec « longitude / 15 », Paris (UTC+2 en été) changeait de jour
+ * à 2 h du matin. Europe et Amérique du Nord : vrais fuseaux ; ailleurs :
+ * longitude / 15.
+ */
+function timeZoneFor(lat, lng) {
+  const la = Number(lat);
+  const ln = Number(lng);
+  if (!Number.isFinite(la) || !Number.isFinite(ln)) return null;
+  if (la > 34 && la < 72 && ln > -11 && ln < 41) {
+    if (ln < -5.5 || (la > 49.8 && ln < 1.8 && la < 61)) return 'Europe/London';
+    if (ln > 22 && la < 60) return 'Europe/Athens';
+    return 'Europe/Paris';
+  }
+  if (la > 14 && la < 72 && ln > -170 && ln < -50) {
+    if (ln < -114) return 'America/Los_Angeles';
+    if (ln < -101) return 'America/Denver';
+    if (ln < -86) return 'America/Chicago';
+    return 'America/New_York';
+  }
+  return null;
+}
+
+/** Jour LOCAL d'un lieu, AAAA-MM-JJ. [lat] facultatif (sans : Europe supposée si la longitude y est). */
+function dayKeyFor(lng, now = Date.now(), lat = null) {
+  const la = lat === null || lat === undefined ? (Number(lng) > -11 && Number(lng) < 41 ? 48 : (Number(lng) < -50 ? 35 : 0)) : lat;
+  const tz = timeZoneFor(la, lng);
+  if (tz) {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' })
+        .format(new Date(now));
+    } catch (_) { /* repli ci-dessous */ }
+  }
   const off = Math.round((Number(lng) || 0) / 15);
   return new Date(now + off * 3600 * 1000).toISOString().slice(0, 10);
 }
@@ -232,7 +264,7 @@ async function activeCities({ now = Date.now(), force = false } = {}) {
 // ── tirage ──────────────────────────────────────────────────────────────────
 
 async function ensureDraw(city, { now = Date.now() } = {}) {
-  const day = dayKeyFor(city.lng, now);
+  const day = dayKeyFor(city.lng, now, city.lat);
   if (await PawPlush.exists({ cityKey: city.key, day })) return { day, created: 0 };
   const pois = await MapPOI.find({
     category: 'park',
@@ -240,7 +272,11 @@ async function ensureDraw(city, { now = Date.now() } = {}) {
     source: 'seed',
     location: { $geoWithin: { $centerSphere: [[city.lng, city.lat], PARK_RADIUS_KM / 6371] } },
   }).select('title category status source osmId location').limit(500).lean();
-  const parks = pois.filter(isUsablePark).map((p) => ({
+  // Un parc ne porte qu'UNE peluche par jour, même s'il est proche de deux
+  // villes actives (vu en prod le 02/10 : deux peluches au même point).
+  const taken = new Set((await PawPlush.find({ day, poiId: { $in: pois.map((p) => p._id) } })
+    .select('poiId').lean()).map((x) => String(x.poiId)));
+  const parks = pois.filter((p) => isUsablePark(p) && !taken.has(String(p._id))).map((p) => ({
     _id: p._id, lng: p.location.coordinates[0], lat: p.location.coordinates[1],
   }));
   if (!parks.length) return { day, created: 0 };
@@ -311,8 +347,8 @@ async function listActive({ userId, lat, lng, now = Date.now() }) {
   for (const c of cities) {
     try { await ensureDraw(c, { now }); } catch (e) { logger.warn(`[plush] ${c.key} : ${e.message}`); }
   }
-  const today = dayKeyFor(lng, now);
-  const days = [...new Set([today, ...cities.map((c) => dayKeyFor(c.lng, now))])];
+  const today = dayKeyFor(lng, now, lat);
+  const days = [...new Set([today, ...cities.map((c) => dayKeyFor(c.lng, now, c.lat))])];
   const found = await PawPlush.find({
     day: { $in: days },
     caughtByPerson: null,
@@ -341,7 +377,7 @@ async function catchPlush({ userId, role, plushId, lat, lng, now = Date.now() })
   const plush = await PawPlush.findById(plushId).lean();
   if (!plush) throw new PlushError(404, 'NOT_FOUND');
   const [pLng, pLat] = plush.location.coordinates;
-  if (plush.day !== dayKeyFor(pLng, now)) throw new PlushError(410, 'EXPIRED');
+  if (plush.day !== dayKeyFor(pLng, now, pLat)) throw new PlushError(410, 'EXPIRED');
   if (plush.caughtByPerson) throw new PlushError(409, 'ALREADY_CAUGHT');
   const here = { lat, lng, t: now };
   // Vitesse : depuis la dernière position du direct ET depuis mon dernier appel.
@@ -509,6 +545,7 @@ module.exports = {
   PLUSH_TYPES,
   PlushError,
   metersBetween,
+  timeZoneFor,
   normalizeCityKey,
   dayKeyFor,
   pickPlushies,
