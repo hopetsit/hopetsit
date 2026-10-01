@@ -138,7 +138,7 @@ const bookingCountFor = (role, id) =>
   Booking.countDocuments(role === 'owner' ? { ownerId: id } : role === 'sitter' ? { sitterId: id } : { walkerId: id });
 
 /** Envoie (ou marque) une étape pour un utilisateur. Retourne true si un e-mail est parti. */
-const deliver = async ({ user, role, step, refId = '', vars = {} }) => {
+const deliver = async ({ user, role, step, refId = '', vars = {}, omitReferral = false }) => {
   const id = user._id;
   let email = '';
   try { email = decrypt(user.email || '') || ''; } catch (_) { email = ''; }
@@ -160,14 +160,14 @@ const deliver = async ({ user, role, step, refId = '', vars = {} }) => {
   const data = { name: firstName(user.name) || (cat.friend || ''), ...vars };
   const html = wrapHtml({
     title: render(tpl.title, data),
-    paragraphs: (tpl.paragraphs || []).map((p) => render(p, data)),
+    paragraphs: paragraphsFor(tpl, { omitReferral }).map((p) => render(p, data)),
     cta: tpl.cta ? render(tpl.cta, data) : '',
     ctaUrl: tpl.ctaUrl ? render(tpl.ctaUrl, data) : SITE,
     footer: cat.footer || '',
     unsubscribe: cat.unsubscribe || 'unsubscribe',
     unsubscribeUrl: unsubscribeUrl(role, id),
   });
-  const text = [render(tpl.title, data), ...(tpl.paragraphs || []).map((p) => render(p, data).replace(/<[^>]+>/g, ''))].join('\n\n');
+  const text = [render(tpl.title, data), ...paragraphsFor(tpl, { omitReferral }).map((p) => render(p, data).replace(/<[^>]+>/g, ''))].join('\n\n');
   // v566 — audit : en-tête List-Unsubscribe (lien « Se désabonner » natif de Gmail /
   // Apple Mail, meilleure délivrabilité) + le lien de désabonnement aussi dans le repli texte.
   const uUrl = unsubscribeUrl(role, id);
@@ -183,6 +183,16 @@ const deliver = async ({ user, role, step, refId = '', vars = {} }) => {
   return true;
 };
 
+// 607 (ZOE, 02/10) — « ton code de parrainage est dans ton profil » : 2e paragraphe
+// de review_after_booking (9 langues). Taire pour une personne dont la dernière
+// app connue est iOS ≥ 607 (codes de parrainage masqués sur iPhone/iPad, même
+// détection que utils/iosReferralNotice607). Autres comptes : inchangé.
+const REVIEW_REFERRAL_PARAGRAPH = 1;
+function paragraphsFor(tpl, { omitReferral = false } = {}) {
+  const list = (tpl && tpl.paragraphs) || [];
+  return omitReferral ? list.filter((_, i) => i !== REVIEW_REFERRAL_PARAGRAPH) : list;
+}
+
 const baseFilter = {
   isStaff: { $ne: true },
   marketingOptOut: { $ne: true },
@@ -197,14 +207,20 @@ async function runLifecycleOnce({ max = Number(process.env.LIFECYCLE_MAX_PER_RUN
   const budgetLeft = () => sent < max;
   const touched = new Set(); // 1 e-mail max par compte et par passage
 
-  const consider = async (user, role, step, cond, refId = '', vars = {}) => {
+  const consider = async (user, role, step, cond, refId = '', vars = {}, opts = {}) => {
     const key = `${role}:${user._id}`;
     if (!budgetLeft() || touched.has(key)) return;
     if (await LifecycleEmail.exists({ userId: user._id, role, step, refId })) return;
     if (await LifecycleEmail.exists({ userId: user._id, role, skipped: false, sentAt: { $gte: new Date(now - MIN_GAP_MS) } })) return;
     if (!(await cond())) return;
     touched.add(key);
-    if (await deliver({ user, role, step, refId, vars })) sent += 1;
+    let omitReferral = false;
+    if (opts.referralParagraph) {
+      try {
+        omitReferral = await require('../utils/iosReferralNotice607').shouldSkipReferralNotice(user._id);
+      } catch (_) { omitReferral = false; }
+    }
+    if (await deliver({ user, role, step, refId, vars, omitReferral })) sent += 1;
   };
 
   for (const role of ['sitter', 'walker', 'owner']) {
@@ -262,7 +278,7 @@ async function runLifecycleOnce({ max = Number(process.env.LIFECYCLE_MAX_PER_RUN
       for (const [role, id] of pairs) {
         const u = await modelFor(role).findById(id).select('name email appLocale language isStaff marketingOptOut referralCode').lean();
         if (!u) continue;
-        await consider(u, role, 'review_after_booking', async () => true, String(b._id));
+        await consider(u, role, 'review_after_booking', async () => true, String(b._id), {}, { referralParagraph: true });
       }
     }
   }
@@ -297,6 +313,8 @@ function stopLifecycleEmailScheduler() {
 }
 
 module.exports = {
+  paragraphsFor,
+  REVIEW_REFERRAL_PARAGRAPH,
   startLifecycleEmailScheduler,
   stopLifecycleEmailScheduler,
   runLifecycleOnce,

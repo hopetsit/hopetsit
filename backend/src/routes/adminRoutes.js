@@ -6070,6 +6070,62 @@ router.put('/pawpoints/redemptions/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── 607 (ZOE, 02/10) — PAWPOINTS : catalogue UNIQUE + activité ──────────
+// Ce que voit l'admin = ce que voient l'app et le site (pawPointsCatalog607).
+// Gains d'activité récents (journal PawPointsEvent), captures de peluches
+// (modèle PawPlush de PAM, s'il est en ligne), anciennes réductions encore
+// valables (migration douce : échangées avant le 607, non utilisées).
+router.get('/pawpoints/overview', requireAdmin, async (req, res) => {
+  try {
+    const pawPointsSvc = require('../services/pawPointsService');
+    const catalog = pawPointsSvc.CATALOG607.buildCatalog607(pawPointsSvc.LEVELS);
+    const since30 = new Date(Date.now() - 30 * 86400000);
+    let events = [];
+    let gains30 = [];
+    try {
+      const PawPointsEvent = require('../models/PawPointsEvent');
+      events = await PawPointsEvent.find({}).sort({ at: -1 }).limit(100)
+        .select('userId role key points credited at').lean();
+      gains30 = await PawPointsEvent.aggregate([
+        { $match: { at: { $gte: since30 } } },
+        { $group: { _id: '$key', count: { $sum: 1 }, points: { $sum: '$credited' } } },
+        { $sort: { count: -1 } },
+      ]);
+    } catch (_) { /* journal vide */ }
+    let plush = { available: false, recent: [], byDay: [] };
+    try {
+      const PawPlush = require('../models/PawPlush');
+      const recent = await PawPlush.find({ caughtByPerson: { $type: 'string' } })
+        .sort({ 'caughtBy.at': -1 }).limit(50)
+        .select('type cityLabel day caughtBy').lean();
+      const byDay = await PawPlush.aggregate([
+        { $match: { caughtByPerson: { $type: 'string' }, 'caughtBy.at': { $gte: since30 } } },
+        { $group: { _id: '$day', count: { $sum: 1 } } },
+        { $sort: { _id: -1 } },
+        { $limit: 30 },
+      ]);
+      plush = {
+        available: true,
+        recent: recent.map((r) => ({
+          type: r.type, city: r.cityLabel || '', day: r.day,
+          userId: r.caughtBy && r.caughtBy.userId, role: r.caughtBy && r.caughtBy.role,
+          at: r.caughtBy && r.caughtBy.at,
+        })),
+        byDay: byDay.map((d) => ({ day: d._id, count: d.count })),
+      };
+    } catch (_) { /* peluches pas encore en ligne */ }
+    const redemptions = await PawRewardRedemption.find({}).sort({ createdAt: -1 }).limit(50)
+      .select('rewardKey title cost userName role status createdAt').lean();
+    const legacyDiscountsPending = await PawRewardRedemption.countDocuments({
+      rewardKey: { $regex: '^sub_disc_' }, status: 'pending',
+    });
+    return res.json({ catalog, events, gains30, plush, redemptions, legacyDiscountsPending });
+  } catch (e) {
+    logger.error('[admin/pawpoints/overview]', e);
+    return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
 // ─── v565 — LOT ADMIN : ANIMAUX + DÉTAIL RÉSERVATION ────────────────────────
 // GET /admin/pets?withOwner=1&limit=500&page=1&q=rex&ownerId=…
 // Point 31 : le compteur « Animaux » du tableau de bord ouvre cette liste, avec

@@ -59,14 +59,24 @@ const modelFor = (role) => {
   return r === 'walker' ? Walker : r === 'sitter' ? Sitter : Owner;
 };
 
-const earnRules = () => ([
-  { key: 'spotCreated', points: pawPoints.POINTS.spotCreated, label: 'Ajouter un PawSpot', icon: '📍' },
-  { key: 'photoAdded', points: pawPoints.POINTS.photoAdded, label: 'Ajouter une photo', icon: '📷' },
-  { key: 'spotValidated', points: pawPoints.POINTS.spotValidated, label: 'Spot validé par la communauté', icon: '✅' },
-  { key: 'usefulComment', points: pawPoints.POINTS.usefulComment, label: 'Commentaire utile', icon: '💬' },
-  { key: 'correctReport', points: pawPoints.POINTS.correctReport, label: 'Signalement confirmé', icon: '🚧' },
-  { key: 'spotPopular', points: pawPoints.POINTS.spotPopular, label: 'Spot très populaire (50 likes)', icon: '⭐' },
-]);
+// 607 (ZOE) — barème lu dans le catalogue UNIQUE (pawPointsCatalog607).
+// Les apps ≤ 606 traduisent `pawpoints_earn_<key>` et retombent sinon sur
+// `label` (français) : on ne leur envoie que les 6 gains qu'elles savent
+// traduire. 607+, site et admin : tout le barème.
+const LEGACY_EARN_KEYS = ['spotCreated', 'photoAdded', 'spotValidated', 'usefulComment', 'correctReport', 'spotPopular'];
+const _clientBuild = (req) => {
+  const v = String((req && req.headers && req.headers['x-app-version']) || '').trim();
+  if (!v) return null;
+  const m = v.match(/(?:\+|^)(\d{1,6})$/);
+  return m ? Number(m[1]) : null;
+};
+const isLegacyApp = (req) => {
+  const b = _clientBuild(req);
+  return b !== null && b < 607;
+};
+const earnRules = (req) => pawPoints.CATALOG607.EARN_RULES
+  .filter((r) => !isLegacyApp(req) || LEGACY_EARN_KEYS.includes(r.key))
+  .map((r) => ({ key: r.key, points: r.points, label: r.t.fr, icon: r.icon, limit: r.limit }));
 
 // Niveaux exposés (avec index, label, seuil, couleur, emoji, bonus, perks).
 const levelsList = () => pawPoints.LEVELS.map((l) => ({
@@ -77,9 +87,15 @@ const levelsList = () => pawPoints.LEVELS.map((l) => ({
 // ─── GET /catalog ───────────────────────────────────────────────────────────
 router.get('/catalog', async (req, res) => {
   try {
-    const customRewards = await PawReward.find({ isActive: true })
-      .sort({ sortOrder: 1, cost: 1 }).lean();
+    // 607 — plus aucune « réduction » : une récompense admin de type
+    // `discount` n'est plus proposée (ni échangeable, cf. /redeem).
+    const customRewards = (await PawReward.find({ isActive: true })
+      .sort({ sortOrder: 1, cost: 1 }).lean())
+      .filter((r) => (r.kind || 'discount') !== 'discount');
     res.json({
+      // 607 (ZOE) — catalogue UNIQUE app / site / admin, textes 9 langues.
+      catalog607: pawPoints.CATALOG607.buildCatalog607(pawPoints.LEVELS),
+      // Apps ≤ 606 : seulement les paliers 30 / 30 / 90 jours (voir service).
       subscriptionRewards: pawPoints.SUBSCRIPTION_REWARDS,
       rewards: customRewards.map((r) => ({
         id: String(r._id), title: r.title, description: r.description || '',
@@ -88,7 +104,7 @@ router.get('/catalog', async (req, res) => {
         soldOut: !!(r.stock && r.stock > 0 && (r.redeemedCount || 0) >= r.stock),
       })),
       levels: levelsList(),
-      earnRules: earnRules(),
+      earnRules: earnRules(req),
       goldCreatorMin: pawPoints.GOLD_CREATOR_MIN,
     });
   } catch (e) {
@@ -127,9 +143,19 @@ router.get('/me', requireAuth, async (req, res) => {
       ...(me?.email
         ? { userEmail: me.email }
         : { userId: req.user.id }),
-      rewardKey: { $regex: '^sub_' },
+      rewardKey: { $regex: '^(sub_|perk_)' },
       status: { $ne: 'cancelled' },
     }).select('rewardKey status').lean();
+    // 607 — derniers gains d'activité (journal PawPointsEvent, la personne).
+    let history = [];
+    try {
+      const PawPointsEvent = require('../models/PawPointsEvent');
+      const { personKeyFromEmail } = require('../services/pawPointsActivity607');
+      const pk = personKeyFromEmail(me.email) || `id:${req.user.id}`;
+      history = (await PawPointsEvent.find({ personKey: pk })
+        .sort({ at: -1 }).limit(20).select('key points credited at').lean())
+        .map((h) => ({ key: h.key, points: h.points, credited: h.credited, at: h.at }));
+    } catch (_) { /* best-effort */ }
     res.json({
       points: st.lifetime,           // total à vie (= niveau)
       lifetime: st.lifetime,
@@ -142,12 +168,30 @@ router.get('/me', requireAuth, async (req, res) => {
       isGoldCreator: st.isGoldCreator,
       goldCreatorMin: st.goldCreatorMin,
       levels: levelsList(),
-      earnRules: earnRules(),
+      earnRules: earnRules(req),
       claimedRewardKeys: claimed.map((c) => c.rewardKey),
+      history,
+      catalogVersion: 607,
     });
   } catch (e) {
     logger.error('[pawpoints/me]', e);
     res.status(500).json({ error: 'Erreur points.' });
+  }
+});
+
+// ─── POST /checkin (607) ─────────────────────────────────────────────────────
+// « Je suis là aujourd'hui » : série de 7 jours, profil complet, Pionnier.
+// Le début de session (utils/activity590) le fait déjà pour toutes les apps ;
+// l'app 607 l'appelle en ouvrant la page PawPoints pour afficher le gain.
+router.post('/checkin', requireAuth, async (req, res) => {
+  try {
+    const role = String(req.user?.role || 'owner').toLowerCase();
+    const awarded = await require('../services/pawPointsActivity607')
+      .checkIn({ userId: req.user.id, role });
+    res.json({ ok: true, awarded });
+  } catch (e) {
+    logger.error('[pawpoints/checkin]', e);
+    res.status(500).json({ error: 'Erreur.' });
   }
 });
 
@@ -223,59 +267,78 @@ router.post('/redeem/:id', requireAuth, async (req, res) => {
     const userModel = ROLE_TO_MODEL_NAME[role] || 'Owner';
     const Model = modelFor(role);
 
-    // ── Récompense ABONNEMENT (code-définie) ───────────────────────────────
-    const subReward = pawPoints.subscriptionRewardById(id);
-    if (subReward) {
-      // 1×/user — v532 : dédup sur l'EMAIL, pas sur le document de rôle
-      // (sinon la même récompense était réclamable une fois par profil).
+    // 607 — anciennes réductions en % : plus échangeables (celles déjà
+    // échangées restent valables au prochain achat, cf. snapshot).
+    if (pawPoints.CATALOG607.isLegacyDiscountId(id)) {
+      return res.status(410).json({ error: 'Récompense retirée.', code: 'REWARD_RETIRED' });
+    }
+
+    // ── Récompense du CATALOGUE 607 (code-définie) ─────────────────────────
+    const catReward = pawPoints.CATALOG607.rewardById(id);
+    if (catReward) {
       const ident = await _identity(req.user.id, role);
-      const already = await PawRewardRedemption.findOne({
-        ...(ident.email ? { userEmail: ident.email } : { userId: req.user.id }),
-        rewardKey: subReward.id,
-        status: { $ne: 'cancelled' },
-      }).lean();
-      if (already) {
-        return res.status(409).json({ error: 'Récompense déjà utilisée.', code: 'ALREADY_CLAIMED' });
+      if (catReward.once) {
+        // 1×/personne — dédup sur l'EMAIL (v532), pas sur le document de rôle.
+        const already = await PawRewardRedemption.findOne({
+          ...(ident.email ? { userEmail: ident.email } : { userId: req.user.id }),
+          rewardKey: catReward.id,
+          status: { $ne: 'cancelled' },
+        }).lean();
+        if (already) {
+          return res.status(409).json({ error: 'Récompense déjà utilisée.', code: 'ALREADY_CLAIMED' });
+        }
       }
-      const newBalance = await spendPoints(Model, req.user.id, subReward.cost, role);
+      const newBalance = await spendPoints(Model, req.user.id, catReward.cost, role);
       if (newBalance === null) {
         return res.status(400).json({ error: 'Pas assez de PawPoints.', code: 'INSUFFICIENT' });
       }
-
-      let applied = 'pending';
+      let grantedUntil = null;
       try {
-        if (subReward.kind === 'free_month') {
-          // Choix de plan possible (200k : PawFollow ou PawSpot).
-          const chosen = typeof req.body?.plan === 'string' && req.body.plan
-            ? req.body.plan : subReward.plan;
-          await grantFreePeriod({ userId: req.user.id, role, plan: chosen, days: subReward.days });
-          applied = 'fulfilled';
+        if (catReward.kind === 'free_days') {
+          // Palier PawFollow : l'app ≤ 606 pouvait choisir PawSpot à la place.
+          const asked = typeof req.body?.plan === 'string' ? req.body.plan : '';
+          const plan = catReward.plan === 'monthly' && ['monthly', 'pawspot'].includes(asked)
+            ? asked : catReward.plan;
+          const sub = await grantFreePeriod({ userId: req.user.id, role, plan, days: catReward.days });
+          grantedUntil = sub && (sub.premiumExpiry || sub.pawspotExpiry || sub.currentPeriodEnd) || null;
+        } else if (catReward.kind === 'pawboost') {
+          const now = new Date();
+          const u = await Model.findById(req.user.id).select('boostExpiry boostTier');
+          if (!u) throw new Error('profil introuvable');
+          const base = u.boostExpiry && new Date(u.boostExpiry) > now ? new Date(u.boostExpiry) : now;
+          u.boostExpiry = new Date(base.getTime() + catReward.days * 86400000);
+          if (!u.boostTier) u.boostTier = catReward.boostTier || 'bronze';
+          await u.save();
+          grantedUntil = u.boostExpiry;
+        } else if (catReward.kind === 'avatar_frame') {
+          // Les 3 profils de la personne (même e-mail).
+          const ids = ident.ids && ident.ids.length ? ident.ids : [req.user.id];
+          await Promise.all([Owner, Sitter, Walker].map((M) => M.updateMany(
+            { _id: { $in: ids } }, { $set: { pawGoldFrame: true } },
+          ).catch(() => {})));
+        } else {
+          throw new Error(`type inconnu ${catReward.kind}`);
         }
-        // discount → reste 'pending', consommé au prochain /subscribe.
       } catch (e) {
-        // Si l'octroi échoue, on rembourse les points dépensés.
         logger.error('[pawpoints/redeem] grant failed, refunding', e);
-        await _refundPoints(req.user.id, role, subReward.cost);
+        await _refundPoints(req.user.id, role, catReward.cost);
         return res.status(500).json({ error: 'Échec de l\'application, points remboursés.' });
       }
-
       const me = await Model.findById(req.user.id).select('name email').lean();
       const redemption = await PawRewardRedemption.create({
-        rewardKey: subReward.id,
-        title: subReward.kind === 'discount'
-          ? `-${subReward.percent}% ${subReward.target}`
-          : `${subReward.days >= 90 ? '3 mois' : '1 mois'} gratuit ${subReward.target}`,
-        cost: subReward.cost,
+        rewardKey: catReward.id,
+        title: catReward.t.fr,
+        cost: catReward.cost,
         userId: req.user.id, userModel, role,
         userName: me?.name || '', userEmail: me?.email || '',
-        status: applied,
-        snapshot: { ...subReward },
+        status: 'fulfilled',
+        snapshot: { id: catReward.id, kind: catReward.kind, days: catReward.days || 0, plan: catReward.plan || '', catalog: 607 },
       });
-      logger.info(`🎁 [pawpoints] redeem ${subReward.id} (-${subReward.cost}) → ${role}:${req.user.id} (${applied})`);
+      logger.info(`🎁 [pawpoints] redeem ${catReward.id} (-${catReward.cost}) → ${role}:${req.user.id}`);
       return res.json({
-        ok: true, newBalance, applied,
+        ok: true, newBalance, applied: 'fulfilled', grantedUntil,
         redemptionId: String(redemption._id),
-        reward: { id: subReward.id, kind: subReward.kind, cost: subReward.cost },
+        reward: { id: catReward.id, kind: catReward.kind, cost: catReward.cost },
       });
     }
 
@@ -284,7 +347,8 @@ router.post('/redeem/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Récompense indisponible.' });
     }
     const reward = await PawReward.findById(id);
-    if (!reward || !reward.isRedeemable()) {
+    // 607 — plus aucune réduction échangeable (même règle que le catalogue).
+    if (!reward || !reward.isRedeemable() || (reward.kind || 'discount') === 'discount') {
       return res.status(404).json({ error: 'Récompense indisponible.' });
     }
     const newBalance = await spendPoints(Model, req.user.id, reward.cost, role);

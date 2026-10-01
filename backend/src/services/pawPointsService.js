@@ -30,24 +30,27 @@ const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const logger = require('../utils/logger');
 
-const POINTS = Object.freeze({
-  spotCreated: 10,
-  photoAdded: 5,
-  spotValidated: 10,
-  usefulComment: 2,
-  correctReport: 1,
-  spotPopular: 25,
-});
+// 607 (ZOE, 02/10) — barème UNIQUE app / site / admin : la source de vérité
+// est pawPointsCatalog607.EARN_RULES ; POINTS en est la vue « clé → points »
+// (mêmes valeurs qu'avant pour les 6 gains PawSpot / carte).
+const CATALOG607 = require('./pawPointsCatalog607');
+const POINTS = Object.freeze(
+  Object.fromEntries(CATALOG607.EARN_RULES.map((r) => [r.key, r.points])),
+);
 
 // Source de vérité unique des niveaux. `index` = numéro affiché (1..7).
+// 607 — `perks` = avantages RÉELLEMENT accordés (badge + bonus de points).
+// Les anciens (coffres, visibilité, PawBoost gratuit, couronne, « avantages
+// ultimes ») n'étaient tenus par aucun code : retirés. Clés connues des apps
+// ≤ 606 (LEVEL_PERKS_LEGACY) ; le 607 lit le catalogue (bonus_15 compris).
 const LEVELS = Object.freeze([
-  { index: 1, key: 'explorer',    label: 'Explorateur',  min: 1000,    emoji: '🧭', color: '#22C55E', bonusPct: 0,  perks: ['badge', 'chests_basic'] },
-  { index: 2, key: 'contributor', label: 'Contributeur', min: 5000,    emoji: '🐾', color: '#3B82F6', bonusPct: 0,  perks: ['badge', 'map_visibility'] },
-  { index: 3, key: 'expert',      label: 'Expert',       min: 10000,   emoji: '⭐', color: '#8B5CF6', bonusPct: 5,  perks: ['badge', 'bonus_5'] },
-  { index: 4, key: 'ambassador',  label: 'Ambassadeur',  min: 20000,   emoji: '🦴', color: '#F97316', bonusPct: 10, perks: ['badge', 'bonus_10'] },
-  { index: 5, key: 'pawmaster',   label: 'PawMaster',    min: 50000,   emoji: '👑', color: '#7C3AED', bonusPct: 10, perks: ['badge', 'free_pawboost'] },
-  { index: 6, key: 'legend',      label: 'Légendaire',   min: 200000,  emoji: '👑', color: '#111827', bonusPct: 10, perks: ['legendary_frame', 'legendary_status'] },
-  { index: 7, key: 'paw_legend',  label: 'Paw Legend',   min: 1000000, emoji: '👑', color: '#EC4899', bonusPct: 15, perks: ['pink_crown', 'ultimate'] },
+  { index: 1, key: 'explorer',    label: 'Explorateur',  min: 1000,    emoji: '🧭', color: '#22C55E', bonusPct: 0,  perks: CATALOG607.LEVEL_PERKS_LEGACY.explorer },
+  { index: 2, key: 'contributor', label: 'Contributeur', min: 5000,    emoji: '🐾', color: '#3B82F6', bonusPct: 0,  perks: CATALOG607.LEVEL_PERKS_LEGACY.contributor },
+  { index: 3, key: 'expert',      label: 'Expert',       min: 10000,   emoji: '⭐', color: '#8B5CF6', bonusPct: 5,  perks: CATALOG607.LEVEL_PERKS_LEGACY.expert },
+  { index: 4, key: 'ambassador',  label: 'Ambassadeur',  min: 20000,   emoji: '🦴', color: '#F97316', bonusPct: 10, perks: CATALOG607.LEVEL_PERKS_LEGACY.ambassador },
+  { index: 5, key: 'pawmaster',   label: 'PawMaster',    min: 50000,   emoji: '👑', color: '#7C3AED', bonusPct: 10, perks: CATALOG607.LEVEL_PERKS_LEGACY.pawmaster },
+  { index: 6, key: 'legend',      label: 'Légendaire',   min: 200000,  emoji: '👑', color: '#111827', bonusPct: 10, perks: CATALOG607.LEVEL_PERKS_LEGACY.legend },
+  { index: 7, key: 'paw_legend',  label: 'Paw Legend',   min: 1000000, emoji: '👑', color: '#EC4899', bonusPct: 15, perks: CATALOG607.LEVEL_PERKS_LEGACY.paw_legend },
 ]);
 
 // Compat : ancien tableau BADGES (clés réutilisées par l'app/leaderboard).
@@ -57,19 +60,28 @@ const BADGES = Object.freeze(
 
 const GOLD_CREATOR_MIN = 1000;
 
-// v416 — récompenses "abonnement" ÉCHANGEABLES contre des points dépensables.
-// Auto-appliquées (mois gratuit = crédité tout de suite ; réduction = au
-// prochain achat). 1 seule fois par utilisateur (cf pawPointsRoutes).
-//   tier : 1..6 → icône (médailles bronze/argent/or puis pièces violet/or/rose)
-//   kind : 'discount' (percent + plans éligibles) | 'free_month' (days + plan)
-const SUBSCRIPTION_REWARDS = Object.freeze([
-  { id: 'sub_disc_10', tier: 1, cost: 20000,   kind: 'discount',   percent: 10, target: 'PawFollow / PawSpot', plans: ['monthly', 'yearly', 'pawspot'] },
-  { id: 'sub_disc_25', tier: 2, cost: 50000,   kind: 'discount',   percent: 25, target: 'Paw Premium',         plans: ['premium_monthly', 'premium_yearly'] },
-  { id: 'sub_disc_50', tier: 3, cost: 100000,  kind: 'discount',   percent: 50, target: 'Paw Premium',         plans: ['premium_monthly', 'premium_yearly'] },
-  { id: 'sub_free_pf_1m', tier: 4, cost: 200000,  kind: 'free_month', days: 30, target: 'PawFollow / PawSpot', plan: 'monthly' },
-  { id: 'sub_free_pp_1m', tier: 5, cost: 500000,  kind: 'free_month', days: 30, target: 'Paw Premium',         plan: 'premium_monthly' },
-  { id: 'sub_free_pp_3m', tier: 6, cost: 1000000, kind: 'free_month', days: 90, target: 'Paw Premium',         plan: 'premium_monthly' },
-]);
+// v416 → 607 (ZOE, 02/10) — LISTE LUE PAR LES APPS ≤ 606 (champ
+// `subscriptionRewards` du catalogue). Elles n'affichent correctement que
+// 'free_month' (30 j → « 1 mois », 90 j → « 3 mois ») : on n'y met donc QUE
+// les trois paliers à 30 / 30 / 90 jours. Les réductions -10 / -25 / -50 %
+// (tiers 1-3) sont RETIRÉES : impossibles dans les achats Apple (même motif
+// 3.1.1 que les codes). Le catalogue complet 607 est dans
+// pawPointsCatalog607.REWARDS (jours offerts, PawBoost, cadre doré).
+// Celles déjà échangées restent valables : leur définition est copiée dans la
+// trace d'échange (`snapshot`) que lit discountReservationService.
+const SUBSCRIPTION_REWARDS = Object.freeze(
+  CATALOG607.REWARDS
+    .filter((r) => r.kind === 'free_days' && r.days >= 30)
+    .map((r, i) => ({
+      id: r.id,
+      tier: 4 + i,
+      cost: r.cost,
+      kind: 'free_month',
+      days: r.days,
+      target: r.plan === 'monthly' ? 'PawFollow / PawSpot' : 'Paw Premium',
+      plan: r.plan,
+    })),
+);
 
 const subscriptionRewardById = (id) =>
   SUBSCRIPTION_REWARDS.find((r) => r.id === id) || null;
@@ -372,6 +384,7 @@ async function getPawState(userId, role) {
 }
 
 module.exports = {
+  CATALOG607,
   POINTS,
   LEVELS,
   BADGES,

@@ -67,6 +67,18 @@ function emitSelfLive(docs, payload) {
 async function stopEverywhere(userId, { now = new Date(), notifyFriends = true } = {}) {
   const g = await groupOf(userId);
   const map = require('../sockets/mapSocket');
+  // 607 (ZOE) — PawPoints « Balade terminée » : on lit la session AVANT de
+  // l'effacer (durée + tracé). Best-effort, n'attend rien, ne bloque rien.
+  try {
+    const sess = typeof map.getLiveSessionForIds === 'function'
+      ? map.getLiveSessionForIds(g.ids.map(String)) : null;
+    if (sess) {
+      const snap = { ...sess, trail: Array.isArray(sess.trail) ? sess.trail.slice() : [] };
+      require('../services/pawPointsActivity607')
+        .onBaladeEnded({ userId: snap.userId, role: snap.role, session: snap, now })
+        .catch(() => {});
+    }
+  } catch (_) { /* jamais bloquant */ }
   for (const d of g.docs) {
     try {
       await modelOf(d.model).updateOne(

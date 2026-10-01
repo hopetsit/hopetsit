@@ -153,6 +153,11 @@ const createReview = async (req, res) => {
       recomputeSitterStatus(revieweeId).catch(() => {});
     }
 
+    // 607 (ZOE) — PawPoints : +50 au PREMIER avis reçu (une fois par personne).
+    require('../services/pawPointsActivity607')
+      .onReviewCreated({ revieweeId, revieweeRole })
+      .catch(() => {});
+
     // Sprint 4 step 3 — NEW_REVIEW to reviewee
     sendNotification({
       userId: String(revieweeId),

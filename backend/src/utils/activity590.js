@@ -64,7 +64,7 @@ async function recordActivity(req, userId, role, now = Date.now()) {
     const platform = _header(req, 'x-app-platform').toLowerCase()
       || (/android/i.test(_header(req, 'user-agent')) ? 'android'
         : /iphone|ipad|darwin|cfnetwork/i.test(_header(req, 'user-agent')) ? 'ios' : '');
-    return await ActivityEvent.create({
+    const ev = await ActivityEvent.create({
       userId: id,
       role,
       at: new Date(now),
@@ -73,6 +73,14 @@ async function recordActivity(req, userId, role, now = Date.now()) {
       city: (doc && ((doc.location && doc.location.city) || doc.city)) || '',
       country: (doc && doc.country) || '',
     });
+    // 607 (ZOE) — PawPoints : chaque début de session compte pour la série de
+    // 7 jours, et vérifie profil complet / Pionnier. Best-effort, sans attendre.
+    try {
+      require('../services/pawPointsActivity607')
+        .checkIn({ userId: id, role, now: new Date(now) })
+        .catch(() => {});
+    } catch (_) { /* jamais bloquant */ }
+    return ev;
   } catch (e) {
     logger.warn(`[activity] ${e?.message || e}`);
     return null;
