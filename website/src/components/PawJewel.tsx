@@ -36,6 +36,21 @@ export const JEWEL_ROLE: Record<"owner" | "sitter" | "walker", JewelPalette> = {
   sitter: ["#8AB8FF", "#3B78E8", "#1F4FBF"],
   walker: ["#7FE39A", "#2E9E48", "#1D7A34"],
 };
+/**
+ * 02/10 (607, Daniel) — couleur du MENU de chaque rôle = `kPawTabBarPalettes`
+ * de l'app (haut → bas de la pilule) : 4 boutons du haut à droite de /map et
+ * languettes des barres, icône / flèche blanches, contour blanc.
+ */
+export const MENU_PALETTE: Record<"owner" | "sitter" | "walker", { top: string; bottom: string; shadow: string }> = {
+  owner: { top: "#C92A12", bottom: "#9E1F0B", shadow: "rgba(201,42,18,.4)" },
+  sitter: { top: "#2F6FD6", bottom: "#1E4FB0", shadow: "rgba(47,111,214,.4)" },
+  walker: { top: "#2FAE4E", bottom: "#15803D", shadow: "rgba(47,174,78,.4)" },
+};
+export const JEWEL_MENU: Record<"owner" | "sitter" | "walker", JewelPalette> = {
+  owner: [MENU_PALETTE.owner.top, MENU_PALETTE.owner.top, MENU_PALETTE.owner.bottom],
+  sitter: [MENU_PALETTE.sitter.top, MENU_PALETTE.sitter.top, MENU_PALETTE.sitter.bottom],
+  walker: [MENU_PALETTE.walker.top, MENU_PALETTE.walker.top, MENU_PALETTE.walker.bottom],
+};
 /** §9 — couleur « solide » du rôle (libellés, chevrons). */
 export const ROLE_SOLID_UI: Record<"owner" | "sitter" | "walker", string> = { owner: "#D8352A", sitter: "#2F6FE0", walker: "#2A9A48" };
 

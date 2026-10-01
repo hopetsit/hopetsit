@@ -49,7 +49,7 @@ import StoreBadges from "@/components/StoreBadges";
 import { EyeIcon, VisibilityPills } from "@/components/MapVisibility";
 import { ensureOwnerProfile } from "@/lib/bookAsOwner";
 import type { MapRequest, LiveLabels, CardLabels, FocusLabels } from "@/components/PoiMap";
-import { PawJewel, PawMapFonts, PawSymbol, JewelDot, JEWEL, JEWEL_ROLE, JEWEL_CSS, ROLE_SOLID_UI, barGlass, type JewelPalette } from "@/components/PawJewel";
+import { PawJewel, PawMapFonts, PawSymbol, JewelDot, JEWEL, JEWEL_ROLE, JEWEL_CSS, ROLE_SOLID_UI, JEWEL_MENU, MENU_PALETTE, barGlass, type JewelPalette } from "@/components/PawJewel";
 import {
   ApiError,
   FriendItem,
@@ -1586,9 +1586,9 @@ export default function MapPage() {
               (mêmes pour les 3 rôles, comme l'app) : ? (légende), loupe
               (recherche de ville), Actualiser, Options. */}
           <div onPointerDown={revealControls} className={`absolute right-2 top-2 z-[1000] flex items-center gap-1 ${fadeCls}`}>
-            <PawJewel palette={JEWEL.header} icon="question_mark" size={40} label={t("legend_btn")} onClick={() => setLegendOpen(true)} />
+            <PawJewel palette={JEWEL_MENU[roleKey(myRole)]} icon="question_mark" size={40} label={t("legend_btn")} onClick={() => setLegendOpen(true)} />
             <PawJewel
-              palette={JEWEL.header}
+              palette={JEWEL_MENU[roleKey(myRole)]}
               icon="search"
               size={40}
               label={t("map_search_city_ph")}
@@ -1599,10 +1599,10 @@ export default function MapPage() {
                 el.focus({ preventScroll: true });
               }}
             />
-            <PawJewel palette={JEWEL.header} icon="refresh" size={40} label={t("p589_refresh")} onClick={manualRefresh}>
+            <PawJewel palette={JEWEL_MENU[roleKey(myRole)]} icon="refresh" size={40} label={t("p589_refresh")} onClick={manualRefresh}>
               {refreshing ? <span className="h-5 w-5 animate-spin rounded-full border-[2.5px] border-white border-t-transparent" /> : undefined}
             </PawJewel>
-            <PawJewel palette={JEWEL.header} icon="settings" size={40} label={t("p589_options")} onClick={openOptions} />
+            <PawJewel palette={JEWEL_MENU[roleKey(myRole)]} icon="settings" size={40} label={t("p589_options")} onClick={openOptions} />
           </div>
           {locateMsg && (
             <div className="absolute bottom-[270px] right-[72px] z-[1100] max-w-[230px] rounded-2xl bg-white px-3 py-2 text-[12px] font-medium text-[#231715] shadow-[0_10px_26px_-10px_rgba(120,53,15,0.45)]">
@@ -1783,7 +1783,7 @@ export default function MapPage() {
               <BarEditBtn dark={dark} label={t("p601_pawmap_rail_customize")} onClick={() => setCustomizeBar("rail")} />
             </div>
           </div>
-          <BarTab side="left" collapsed={railCollapsed} dark={dark} color={ROLE_SOLID_UI[roleKey(myRole)]} className={fadeCls} label={railCollapsed ? t("m587_rail_show") : t("m587_rail_hide")} onClick={() => { revealControls(); toggleBar("railCollapsed"); }} />
+          <BarTab side="left" collapsed={railCollapsed} dark={dark} color={ROLE_SOLID_UI[roleKey(myRole)]} menu={MENU_PALETTE[roleKey(myRole)]} className={fadeCls} label={railCollapsed ? t("m587_rail_show") : t("m587_rail_hide")} onClick={() => { revealControls(); toggleBar("railCollapsed"); }} />
           </div>
 
           {/* BARRE DROITE — 590 (§3.3) : même verre, même largeur (50 px) que
@@ -1894,7 +1894,7 @@ export default function MapPage() {
               )}
             </div>
           </div>
-          <BarTab side="right" collapsed={capsuleCollapsed} dark={dark} color={ROLE_SOLID_UI[roleKey(myRole)]} className={fadeCls} label={capsuleCollapsed ? t("m587_caps_show") : t("m587_caps_hide")} onClick={() => { revealControls(); toggleBar("capsuleCollapsed"); }} />
+          <BarTab side="right" collapsed={capsuleCollapsed} dark={dark} color={ROLE_SOLID_UI[roleKey(myRole)]} menu={MENU_PALETTE[roleKey(myRole)]} className={fadeCls} label={capsuleCollapsed ? t("m587_caps_show") : t("m587_caps_hide")} onClick={() => { revealControls(); toggleBar("capsuleCollapsed"); }} />
           </div>
 
           {/* 26/09 (589) — la pilule « Options » du bas est SUPPRIMÉE (elle
@@ -2841,15 +2841,17 @@ function inertIf(on: boolean): Record<string, string> {
  * verre teinté au bord INTÉRIEUR de la barre (elle suit la barre quand elle
  * glisse et reste seule visible au bord de l'écran). Zone tactile 44 × 48.
  */
-function BarTab({ side, collapsed, dark, label, onClick, color, className = "" }: { side: "left" | "right"; collapsed: boolean; dark: boolean; label: string; onClick: () => void; color: string; className?: string }) {
+function BarTab({ side, collapsed, label, onClick, menu, className = "" }: { side: "left" | "right"; collapsed: boolean; dark: boolean; label: string; onClick: () => void; color: string; menu: { top: string; bottom: string; shadow: string }; className?: string }) {
   // Barre gauche : « < » la range, « > » la ramène ; barre droite : l'inverse.
   // 29/09 (LEO) — même languette que l'app (598, `PawBarCollapseTab`) : fond
   // de verre teinté du rôle (mélange PLEIN, jamais gris), contour + chevron
   // dans l'orange du MENU (#C92A12 ; éclairci en nuit). Rangée, elle se colle
   // au bord de l'écran, arrondie du seul côté intérieur (24 × 44).
   const pointLeft = side === "left" ? !collapsed : collapsed;
-  const ink = dark ? mixHex(MENU_ORANGE, "#FFFFFF", 0.65) : MENU_ORANGE;
-  const glass = dark ? mixHex(color, "#221A2E", 0.3) : mixHex(color, "#FFFFFF", 0.16);
+  // 02/10 (607, Daniel) — intérieur PLEIN à la couleur du menu du rôle
+  // (kPawTabBarPalettes), contour blanc, flèche blanche ; clair et sombre.
+  const ink = "#FFFFFF";
+  const glass = `linear-gradient(180deg, ${menu.top}, ${menu.bottom})`;
   const radius = collapsed ? (side === "left" ? "0 14px 14px 0" : "14px 0 0 14px") : "14px";
   return (
     <button
@@ -2863,7 +2865,7 @@ function BarTab({ side, collapsed, dark, label, onClick, color, className = "" }
     >
       <span
         className={`grid place-items-center transition-transform duration-200 hover:scale-[1.06] active:scale-95 ${collapsed ? "h-11 w-6" : "h-[46px] w-6"}`}
-        style={{ background: glass, borderRadius: radius, border: `1.2px solid ${ink}`, boxShadow: `0 2px 8px ${color}38` }}
+        style={{ background: glass, borderRadius: radius, border: `1.5px solid ${ink}`, boxShadow: `0 3px 10px ${menu.shadow}` }}
       >
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={ink} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d={pointLeft ? "M14 7l-5 5 5 5" : "M10 7l5 5-5 5"} />
@@ -2872,8 +2874,6 @@ function BarTab({ side, collapsed, dark, label, onClick, color, className = "" }
     </button>
   );
 }
-/** Orange du MENU (haut de la pilule du bas) — contour et chevron des languettes, comme l'app 598. */
-const MENU_ORANGE = "#C92A12";
 /**
  * 590 (§3.3) — bouton OUTIL de la barre droite : rond 38 px (zone 44), fond
  * teinté doux PLEIN (jamais une opacité posée sur du blanc = gris), liseré
