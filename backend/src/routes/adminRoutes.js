@@ -6070,6 +6070,52 @@ router.put('/pawpoints/redemptions/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── 607 (ZOE, 02/10) — AJUSTEMENT PawPoints des COMPTES DE TEST seulement ─
+// Demande de Daniel : vérifier toutes les récompenses en production sans
+// tricher sur les règles. Fixe le total à vie et/ou le solde dépensable d'un
+// compte `+test` (ses 3 profils, même e-mail) ; refusé (403) pour tout autre
+// compte. Chaque appel est journalisé (journal PawPointsEvent + logs) avec
+// l'avant / après, pour remettre le compte dans son état de départ.
+router.post('/pawpoints/test-adjust', requireAdmin, async (req, res) => {
+  try {
+    const role = String(req.body?.role || '').toLowerCase();
+    const userId = String(req.body?.userId || '');
+    const set = req.body?.set || {};
+    const M = role === 'walker' ? Walker : role === 'sitter' ? Sitter : role === 'owner' ? Owner : null;
+    if (!M || !require('mongoose').isValidObjectId(userId)) return res.status(400).json({ error: 'role/userId invalide.' });
+    const doc = await M.findById(userId).select('email pawPoints pawPointsSpendable').lean();
+    if (!doc) return res.status(404).json({ error: 'Compte introuvable.' });
+    const { isTestAccountEmail } = require('../utils/testAccount2809');
+    if (!isTestAccountEmail(doc.email)) {
+      return res.status(403).json({ error: 'Comptes de test seulement.', code: 'TEST_ACCOUNTS_ONLY' });
+    }
+    const $set = {};
+    for (const k of ['lifetime', 'spendable']) {
+      if (set[k] === undefined) continue;
+      const n = Math.floor(Number(set[k]));
+      if (!Number.isFinite(n) || n < 0 || n > 10000000) return res.status(400).json({ error: `${k} invalide.` });
+      $set[k === 'lifetime' ? 'pawPoints' : 'pawPointsSpendable'] = n;
+    }
+    if (!Object.keys($set).length) return res.status(400).json({ error: 'Rien à changer.' });
+    const before = { lifetime: Number(doc.pawPoints) || 0, spendable: Number(doc.pawPointsSpendable ?? doc.pawPoints) || 0 };
+    await Promise.all([Owner, Sitter, Walker].map((X) => X.updateMany({ email: doc.email }, { $set })));
+    const after = await M.findById(userId).select('pawPoints pawPointsSpendable').lean();
+    try {
+      const PawPointsEvent = require('../models/PawPointsEvent');
+      const crypto = require('crypto');
+      await PawPointsEvent.create({
+        personKey: `admin:${userId}`, userId, role, key: 'admin_test_adjust', points: 0, credited: 0,
+        refId: JSON.stringify({ before, set }), dedupeKey: `admin_test_adjust:${crypto.randomBytes(8).toString('hex')}`,
+      });
+    } catch (_) { /* journal best-effort */ }
+    logger.info(`[admin/pawpoints/test-adjust] ${role}:${userId} ${JSON.stringify(before)} → ${JSON.stringify(set)}`);
+    return res.json({ ok: true, before, after: { lifetime: after.pawPoints || 0, spendable: after.pawPointsSpendable || 0 } });
+  } catch (e) {
+    logger.error('[admin/pawpoints/test-adjust]', e);
+    return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
 // ─── 607 (ZOE, 02/10) — PAWPOINTS : catalogue UNIQUE + activité ──────────
 // Ce que voit l'admin = ce que voient l'app et le site (pawPointsCatalog607).
 // Gains d'activité récents (journal PawPointsEvent), captures de peluches

@@ -146,6 +146,13 @@ router.get('/me', requireAuth, async (req, res) => {
       rewardKey: { $regex: '^(sub_|perk_)' },
       status: { $ne: 'cancelled' },
     }).select('rewardKey status').lean();
+    // 607 — cadre doré obtenu (récompense perk_gold_frame), sur l'un des 3 profils.
+    let goldFrame = false;
+    try {
+      const ids = me.ids.length ? me.ids : [req.user.id];
+      goldFrame = (await Promise.all([Owner, Sitter, Walker].map((M) => M.exists({ _id: { $in: ids }, pawGoldFrame: true }))))
+        .some(Boolean);
+    } catch (_) { /* best-effort */ }
     // 607 — derniers gains d'activité (journal PawPointsEvent, la personne).
     let history = [];
     try {
@@ -172,6 +179,7 @@ router.get('/me', requireAuth, async (req, res) => {
       claimedRewardKeys: claimed.map((c) => c.rewardKey),
       history,
       catalogVersion: 607,
+      goldFrame,
     });
   } catch (e) {
     logger.error('[pawpoints/me]', e);
@@ -259,6 +267,8 @@ async function _refundPoints(userId, role, cost) {
   }
 }
 
+const _redeemLocks = new Set();
+
 // ─── POST /redeem/:id ─────────────────────────────────────────────────────────
 router.post('/redeem/:id', requireAuth, async (req, res) => {
   try {
@@ -277,6 +287,15 @@ router.post('/redeem/:id', requireAuth, async (req, res) => {
     const catReward = pawPoints.CATALOG607.rewardById(id);
     if (catReward) {
       const ident = await _identity(req.user.id, role);
+      // 607 — double clic / deux requêtes en même temps : un seul échange à la
+      // fois par personne (le contrôle « déjà obtenu » puis le débit ne sont
+      // pas atomiques ensemble).
+      const lockKey = `${(ident.email || req.user.id)}`;
+      if (_redeemLocks.has(lockKey)) {
+        return res.status(409).json({ error: 'Échange déjà en cours.', code: 'IN_PROGRESS' });
+      }
+      _redeemLocks.add(lockKey);
+      try {
       if (catReward.once) {
         // 1×/personne — dédup sur l'EMAIL (v532), pas sur le document de rôle.
         const already = await PawRewardRedemption.findOne({
@@ -340,6 +359,9 @@ router.post('/redeem/:id', requireAuth, async (req, res) => {
         redemptionId: String(redemption._id),
         reward: { id: catReward.id, kind: catReward.kind, cost: catReward.cost },
       });
+      } finally {
+        _redeemLocks.delete(lockKey);
+      }
     }
 
     // ── Récompense ADMIN custom (ObjectId) ──────────────────────────────────

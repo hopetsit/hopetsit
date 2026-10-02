@@ -11,6 +11,8 @@ jest.mock('../src/middleware/auth', () => ({
     req.user = { id, role: req.headers['x-test-role'] || 'owner' };
     return next();
   },
+  requireRole: () => (req, res, next) => next(),
+  optionalAuth: (req, res, next) => next(),
 }));
 jest.mock('../src/services/notificationSender', () => ({ sendNotification: jest.fn(async () => ({ ok: true })) }));
 
@@ -142,6 +144,36 @@ describe('échanges 607', () => {
     expect(Math.round((new Date(sub.pawspotExpiry).getTime() - t0) / 86400000)).toBe(7);
   });
 
+  test('double requête simultanée sur une récompense « 1 fois » : un seul échange, un seul débit', async () => {
+    const u = await person({ points: 2000 });
+    const rs = await Promise.all([1, 2, 3].map(() => request(app).post('/pawpoints/redeem/perk_gold_frame').set(as(u))));
+    expect(rs.filter((r) => r.status === 200)).toHaveLength(1);
+    expect((await Owner.findById(u._id).lean()).pawPointsSpendable).toBe(1000);
+    expect(await PawRewardRedemption.countDocuments({ userId: u._id, rewardKey: 'perk_gold_frame' })).toBe(1);
+  });
+
+  test('admin : ajustement réservé aux comptes +test, journalisé', async () => {
+    const router = require('../src/routes/adminRoutes');
+    const layer = router.stack.find((l) => l.route && l.route.path === '/pawpoints/test-adjust');
+    const h = layer.route.stack[layer.route.stack.length - 1].handle;
+    const callAdj = (body) => new Promise((resolve) => {
+      const res = { statusCode: 200, status(c) { this.statusCode = c; return this; }, json(b) { resolve({ status: this.statusCode, body: b }); } };
+      h({ body }, res);
+    });
+    const real = await person({ points: 10 });
+    const r1 = await callAdj({ role: 'owner', userId: String(real._id), set: { spendable: 99999 } });
+    expect(r1.status).toBe(403);
+    expect((await Owner.findById(real._id).lean()).pawPointsSpendable).toBe(10);
+    n += 1;
+    const t = await Owner.create({ name: 'Test Adj', email: `dadaciao84+testadj${n}@example.test`, password: 'MotDePasse607!' });
+    await Sitter.create({ name: 'Test Adj', email: t.email, password: 'MotDePasse607!' });
+    const r2 = await callAdj({ role: 'owner', userId: String(t._id), set: { spendable: 5000, lifetime: 7 } });
+    expect(r2.status).toBe(200);
+    expect(r2.body.after).toEqual({ lifetime: 7, spendable: 5000 });
+    expect((await Sitter.findOne({ email: t.email }).lean()).pawPointsSpendable).toBe(5000);
+    expect(await PawPointsEvent.countDocuments({ key: 'admin_test_adjust', userId: String(t._id) })).toBe(1);
+  });
+
   test('500 pts → 24 h de PawBoost', async () => {
     const u = await person({ points: 500 });
     const t0 = Date.now();
@@ -193,6 +225,7 @@ describe('échanges 607', () => {
     expect((await request(app).post('/pawpoints/redeem/perk_gold_frame').set(as(u))).status).toBe(409);
     const me = await request(app).get('/pawpoints/me').set(as(u));
     expect(me.body.claimedRewardKeys).toContain('perk_gold_frame');
+    expect(me.body.goldFrame).toBe(true);
   });
 
   test('migration douce : une réduction -25 % échangée avant le 607 s\'applique encore à l\'achat', async () => {
