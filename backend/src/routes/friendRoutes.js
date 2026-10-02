@@ -1048,7 +1048,7 @@ async function fetchUserMini(id, modelName) {
   const Model = MODEL_BY_NAME[modelName];
   if (!Model) return null;
   const u = await Model.findById(id)
-    .select('firstName lastName profilePicture location city avatar email oldId mapBoostExpiry mapBoostTier isStaff')
+    .select('name firstName lastName profilePicture location city avatar email oldId mapBoostExpiry mapBoostTier isStaff')
     .lean();
   if (!u) return null;
   // v23.1.280 — Daniel : "si l'ami a l'option PawSpot, anneau doré/bleu selon
@@ -1134,10 +1134,9 @@ async function fetchUserMini(id, modelName) {
   // ALLO MOTEUR = "contact"). C'est privacy-safe (l'email complet reste
   // masque) tout en donnant un nom identifiable.
   let name = [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
-  if (!name && u.email) {
-    const at = String(u.email).indexOf('@');
-    if (at > 0) name = String(u.email).slice(0, at);
-  }
+  // 607 (ZOE) — secours = nom du compte, JAMAIS un morceau de l'e-mail
+  // (« dadaciao84 » sortait chez un inconnu qui recevait la demande).
+  if (!name) name = String(u.name || '').trim();
   // v23.1 part 244 — Daniel : "mettre les photo du profil" sur la liste
   // d'amis. Root cause : avatar dans les models Owner/Sitter/Walker est
   // un objet { url, publicId } (Cloudinary), pas une string. Avant on
@@ -1312,7 +1311,7 @@ router.get('/diagnose', requireAuth, async (req, res) => {
           ];
         const otherDoc = OtherModel
           ? await OtherModel.findById(otherId)
-              .select('firstName lastName email avatar mapBoostExpiry mapBoostTier isStaff oldId')
+              .select('name firstName lastName email avatar mapBoostExpiry mapBoostTier isStaff oldId')
               .lean()
           : null;
         // v23.1 part 220 — name fallback : firstName+lastName, sinon
@@ -1321,10 +1320,8 @@ router.get('/diagnose', requireAuth, async (req, res) => {
         if (otherDoc) {
           otherName = [otherDoc.firstName, otherDoc.lastName]
               .filter(Boolean).join(' ').trim();
-          if (!otherName && otherDoc.email) {
-            const at = String(otherDoc.email).indexOf('@');
-            if (at > 0) otherName = String(otherDoc.email).slice(0, at);
-          }
+          // 607 (ZOE) — jamais un morceau d'e-mail comme nom.
+          if (!otherName) otherName = String(otherDoc.name || '').trim() || null;
         }
         // v23.1 part 222 — flag PawFollow actif sur l'ami pour que le
         // frontend l'affiche dans "Personnes en live" + unlock chat auto.
@@ -1453,27 +1450,24 @@ router.get('/search', requireAuth, async (req, res) => {
     // Fix : on cherche sur firstName ET lastName (OR email) et on
     // projete les bons champs. La synthese name = firstName + lastName
     // se fait apres au moment du mapping.
-    const projection = 'firstName lastName email profilePicture avatar';
-
-    // v23.1 part 243 — Daniel : "difficulute a rajouter amis". Quand on
-    // tape un nom complet comme "Daniel Smith", la query precedente
-    // matchait juste /Daniel Smith/i sur firstName et lastName SEPARES,
-    // mais aucun doc n'a "Daniel Smith" stocke entierement dans un seul
-    // champ → 0 resultat alors que le user EST en base.
-    //
-    // Fix : on split la query en tokens. Chaque token doit matcher au
-    // moins UN des champs (firstName | lastName | email) — AND multi-token.
-    // Donc "Daniel Smith" trouve un user avec firstName=Daniel + lastName=Smith,
-    // ET un user avec firstName=Smith + lastName=Daniel, ET un user avec
-    // email=daniel.smith@... etc.
+    // 607 (ZOE, 02/10) — FUITE fermée (mesurée en ligne par NEO) : la
+    // recherche renvoyait l'e-mail complet de chaque personne trouvée, et un
+    // morceau d'e-mail (« gmail.com ») listait n'importe qui. Désormais :
+    //   · on cherche sur le prénom / nom / nom du compte ;
+    //   · l'e-mail ne sert QUE s'il est tapé en entier (égalité exacte) ;
+    //   · la réponse = fiche publique : Prénom I., photo, rôle, ville.
+    //     Jamais d'e-mail, de téléphone, d'adresse ni de position.
+    // e-mail lu (repérer les comptes de test), jamais renvoyé.
+    const projection = 'name firstName lastName email profilePicture avatar city location.city';
+    const isFullEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q);
     const tokens = q.split(/\s+/).filter((t) => t.length >= 1);
-    const andClauses = tokens.map((t) => {
-      const tre = new RegExp(escape(t), 'i');
-      return { $or: [{ email: tre }, { firstName: tre }, { lastName: tre }] };
-    });
-    const matchQuery = andClauses.length > 0
-      ? { $and: andClauses }
-      : { $or: [{ email: re }, { firstName: re }, { lastName: re }] };
+    const matchQuery = isFullEmail
+      ? { email: q }
+      : { $and: tokens.map((t) => {
+        const tre = new RegExp(escape(t), 'i');
+        return { $or: [{ firstName: tre }, { lastName: tre }, { name: tre }] };
+      }) };
+    void re;
 
     const [owners0, sitters0, walkers0, searchFriendIds] = await Promise.all([
       Owner.find(matchQuery).select(projection).limit(10).lean(),
@@ -1489,43 +1483,22 @@ router.get('/search', requireAuth, async (req, res) => {
     const walkers = hideTestAccounts(walkers0, tctx);
 
     const _avatarUrl = (a) => (a && (a.url || a)) || '';
-    // v23.1 part 220 — name fallback intelligent : firstName + lastName,
-    // sinon partie email avant @ (privacy : on cache l'email complet
-    // mais on garde un handle identifiable).
-    const buildName = (u) => {
-      let n = [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
-      if (!n && u.email) {
-        const at = String(u.email).indexOf('@');
-        if (at > 0) n = String(u.email).slice(0, at);
-      }
-      return n;
-    };
+    const { publicNameFields } = require('../utils/publicName2809');
+    const card = (u, role) => ({
+      id: u._id.toString(),
+      role,
+      name: publicNameFields(u).name,
+      avatar: _avatarUrl(u.profilePicture || u.avatar),
+      city: String((u.location && u.location.city) || u.city || '').trim().slice(0, 80),
+    });
     const merged = [
-      ...owners.map((u) => ({
-        id: u._id.toString(),
-        role: 'owner',
-        name: buildName(u),
-        email: u.email || '',
-        avatar: _avatarUrl(u.profilePicture || u.avatar),
-      })),
-      ...sitters.map((u) => ({
-        id: u._id.toString(),
-        role: 'sitter',
-        name: buildName(u),
-        email: u.email || '',
-        avatar: _avatarUrl(u.profilePicture || u.avatar),
-      })),
-      ...walkers.map((u) => ({
-        id: u._id.toString(),
-        role: 'walker',
-        name: buildName(u),
-        email: u.email || '',
-        avatar: _avatarUrl(u.profilePicture || u.avatar),
-      })),
+      ...owners.map((u) => card(u, 'owner')),
+      ...sitters.map((u) => card(u, 'sitter')),
+      ...walkers.map((u) => card(u, 'walker')),
     ].filter((u) => u.id !== meId).slice(0, 10);
 
     logger.info(
-      `[friends/search] q="${q}" meId=${meId} found=${merged.length}`,
+      `[friends/search] ${isFullEmail ? 'e-mail exact' : `${tokens.length} mot(s)`} meId=${meId} found=${merged.length}`,
     );
     res.json({ users: merged });
   } catch (e) {
@@ -2846,7 +2819,10 @@ router.get('/family/members', requireAuth, async (req, res) => {
         byId.set(id, {
           userId: id,
           userModel: m.userModel,
-          email: m.email || null,
+          // 607 (ZOE) — membre d'une famille dont je ne suis PAS titulaire :
+          // je ne reçois pas l'e-mail des autres membres (seul le titulaire,
+          // qui les a invités par e-mail, le voit).
+          email: null,
           addedAt: m.addedAt,
           status: m.status || 'active',
         });

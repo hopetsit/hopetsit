@@ -409,7 +409,7 @@ const getChatList = async (req, res) => {
                 otherParty = {
                   id: otherDoc._id?.toString() || '',
                   name: otherDoc.name || '',
-                  email: otherDoc.email || '',
+                  email: '', // 607 (ZOE) — jamais l'e-mail de l'autre personne
                   avatar: otherDoc.avatar?.url || '',
                   role: ROLE_MODELS[o.userModel] || 'owner',
                   ...pres,
@@ -435,7 +435,7 @@ const getChatList = async (req, res) => {
             otherParty = {
               id: provider._id?.toString() || '',
               name: provider.name || '',
-              email: provider.email || '',
+              email: '', // 607 (ZOE) — jamais l'e-mail de l'autre personne
               avatar: provider.avatar?.url || '',
               role: conversation.sitterId ? 'sitter' : 'walker',
               ...pres,
@@ -448,7 +448,7 @@ const getChatList = async (req, res) => {
             otherParty = {
               id: owner._id?.toString() || '',
               name: owner.name || '',
-              email: owner.email || '',
+              email: '', // 607 (ZOE) — jamais l'e-mail de l'autre personne
               avatar: owner.avatar?.url || '',
               role: 'owner',
               ...pres,
