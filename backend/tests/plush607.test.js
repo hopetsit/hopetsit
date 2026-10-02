@@ -130,8 +130,23 @@ describe('API réelle', () => {
   test('villes actives : Paris oui (vrais comptes), Lyon non (compte +test seul)', async () => {
     const cities = await plush.activeCities({ force: true });
     const keys = cities.map((c) => c.key);
-    expect(keys).toContain('paris');
-    expect(keys).not.toContain('lyon');
+    expect(keys).toContain(plush.zoneKeyFor(PARIS.lat, PARIS.lng));
+    expect(keys).not.toContain(plush.zoneKeyFor(45.764, 4.8357));
+  });
+
+  test('zone de tirage par coordonnées : Paris / Parigi / París = UNE seule zone', async () => {
+    await makeOwner({ lat: 48.8606, lng: 2.3376, city: 'Parigi' });
+    await makeOwner({ lat: 48.8530, lng: 2.3499, city: 'París' });
+    const cities = await plush.activeCities({ force: true });
+    const zParis = plush.zoneKeyFor(PARIS.lat, PARIS.lng);
+    expect(plush.zoneKeyFor(48.8606, 2.3376)).toBe(zParis);
+    expect(plush.zoneKeyFor(48.8530, 2.3499)).toBe(zParis);
+    const paris = cities.filter((c) => c.key === zParis);
+    expect(paris).toHaveLength(1);
+    expect(paris[0].users).toBeGreaterThanOrEqual(4);
+    // libellé = le plus fréquent (Paris 11e ×2 avant Parigi, París)
+    expect(paris[0].label).toBe('Paris 11e');
+    expect(cities.some((c) => /parigi|parís/i.test(c.key))).toBe(false);
   });
 
   test('sans Balade en cours : AUCUNE position, juste le nombre ; capture refusée', async () => {
@@ -142,6 +157,8 @@ describe('API réelle', () => {
     const n = await PawPlush.countDocuments();
     expect(n).toBeGreaterThanOrEqual(3);
     expect(r.body.nearbyCount).toBe(n);
+    // une seule zone tirée pour Paris (pas une par libellé)
+    expect((await PawPlush.distinct('cityKey')).length).toBe(1);
     expect(JSON.stringify(r.body)).not.toMatch(/"lat"|"lng"|coordinates/);
     const c = await request(app).post(`/plush/${new mongoose.Types.ObjectId()}/catch`).set('Authorization', `Bearer ${tokA}`).send(PARIS);
     expect(c.status).toBe(403);
@@ -431,5 +448,15 @@ describe('API réelle', () => {
     expect((await request(app).post(`/plush/${a._id}/catch`).set('Authorization', `Bearer ${tok}`).send(at)).status).toBe(200);
     expect((await request(app).post(`/plush/${b._id}/catch`).set('Authorization', `Bearer ${tok}`).send(at)).status).toBe(200);
     expect(await PawPlush.countDocuments({ caughtByPerson: String(tst._id), testCopy: true })).toBe(2);
+  });
+
+  test('nettoyage : un ancien tirage « par ville » encore libre est retiré, une capture reste', async () => {
+    const today = plush.dayKeyFor(PARIS.lng, Date.now(), PARIS.lat);
+    const free = await PawPlush.create({ cityKey: 'parigi', day: today, slot: 0, type: 'fox', location: { type: 'Point', coordinates: [PARIS.lng + 0.01, PARIS.lat] } });
+    const kept = await PawPlush.create({ cityKey: 'parigi', day: today, slot: 1, type: 'kitty', caughtByPerson: 'x', caughtBy: { userId: 'x', at: new Date() }, location: { type: 'Point', coordinates: [PARIS.lng + 0.011, PARIS.lat] } });
+    plush._resetIndexFixForTests();
+    await plush.listActive({ userId: String(alice._id), lat: PARIS.lat, lng: PARIS.lng });
+    expect(await PawPlush.findById(free._id)).toBeNull();
+    expect(await PawPlush.findById(kept._id)).not.toBeNull();
   });
 });

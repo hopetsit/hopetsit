@@ -42,6 +42,19 @@ async function fixIndexesOnce() {
   } catch (e) {
     logger.warn(`[plush] index : ${e.message}`);
   }
+  // 607 — tirages « par libellé » (Paris + Parigi…) encore libres : retirés
+  // une fois, la zone de grille refait le tirage. Les peluches DÉJÀ
+  // attrapées restent dans les collections.
+  try {
+    const r = await PawPlush.deleteMany({
+      cityKey: { $not: /^(g:|test:)/ },
+      caughtByPerson: null,
+      testCopy: { $ne: true },
+    });
+    if (r && r.deletedCount) logger.info(`[plush] ${r.deletedCount} peluche(s) d'anciens tirages par ville retirée(s)`);
+  } catch (e) {
+    logger.warn(`[plush] nettoyage anciens tirages : ${e.message}`);
+  }
 }
 
 const REWARD_POINTS = 20;              // chaque peluche (1 par jour)
@@ -243,6 +256,19 @@ function median(xs) {
 }
 
 /** [{ key, label, lat, lng, users }] — calculé au plus toutes les 30 min. */
+/**
+ * 607 (BOB/ADA, 02/10) — ZONE de tirage = cellule de grille fixe, jamais le
+ * libellé de ville (« Paris », « Parigi », « París » faisaient 3 tirages et un
+ * Italien à Paris ne voyait pas les mêmes peluches qu'un Français).
+ * 0,2° de latitude × 0,3° de longitude ≈ 22 × 22 km à Paris. La clé ne
+ * dépend que des coordonnées : stable, la même pour tous.
+ */
+const ZONE_LAT_DEG = 0.2;
+const ZONE_LNG_DEG = 0.3;
+function zoneKeyFor(lat, lng) {
+  return `g:${Math.floor(lat / ZONE_LAT_DEG)}:${Math.floor(lng / ZONE_LNG_DEG)}`;
+}
+
 async function activeCities({ now = Date.now(), force = false } = {}) {
   if (!force && _cities && now - _citiesAt < CITY_CACHE_MS) return _cities;
   const since = new Date(now - ACTIVE_DAYS * 86400000);
@@ -260,19 +286,27 @@ async function activeCities({ now = Date.now(), force = false } = {}) {
     }
     for (const d of docs) {
       if (!isRealEmail(d.email)) continue;
-      const label = (d.location && d.location.city) || d.city || '';
-      const key = normalizeCityKey(label);
+      const label = String((d.location && d.location.city) || d.city || '').trim();
       const c = d.location && d.location.coordinates;
-      if (!key || !Array.isArray(c) || c.length !== 2) continue;
-      if (!groups.has(key)) groups.set(key, { key, label: String(label).trim(), lats: [], lngs: [] });
+      if (!Array.isArray(c) || c.length !== 2) continue;
+      if (!Number.isFinite(c[0]) || !Number.isFinite(c[1])) continue;
+      const key = zoneKeyFor(c[1], c[0]);
+      if (!groups.has(key)) groups.set(key, { key, labels: new Map(), lats: [], lngs: [] });
       const g = groups.get(key);
+      if (label) {
+        const base = normalizeCityKey(label) || label;
+        const e = g.labels.get(base) || { n: 0, raw: label };
+        e.n += 1;
+        g.labels.set(base, e);
+      }
       g.lats.push(c[1]);
       g.lngs.push(c[0]);
     }
   }
   _cities = [...groups.values()].map((g) => ({
     key: g.key,
-    label: g.label,
+    // Libellé affiché (collection) : le nom le plus fréquent de la zone.
+    label: [...g.labels.values()].sort((a, b) => b.n - a.n)[0]?.raw || '',
     lat: median(g.lats),
     lng: median(g.lngs),
     users: g.lats.length,
@@ -651,6 +685,8 @@ module.exports = {
   CATCH_RADIUS_M,
   VIEW_RADIUS_M,
   MAX_SPEED_KMH,
+  zoneKeyFor,
+  _resetIndexFixForTests: () => { _indexFixed = false; },
   PLUSH_TYPES,
   PlushError,
   metersBetween,
