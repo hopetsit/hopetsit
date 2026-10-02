@@ -37,6 +37,19 @@ const { liveState } = require('../utils/liveState');
 
 const router = express.Router();
 
+// 02/10/2026 (NEO, fuite relevée par LEO) — une « ville » qui est un e-mail,
+// une adresse web, un numéro ou plus de 60 caractères n'est JAMAIS renvoyée
+// par ces routes (liste d'amis, demandes, recherche, carte) : même filtre que
+// les routes publiques (utils/publicCity607). La donnée en base n'est pas touchée.
+router.use((req, res, next) => {
+  const json = res.json.bind(res);
+  res.json = (body) => {
+    try { require('../utils/publicCity607').scrubCities(body); } catch (_) { /* jamais bloquant */ }
+    return json(body);
+  };
+  next();
+});
+
 /**
  * v576 — déduplique une liste d'amitiés PAR PERSONNE.
  *

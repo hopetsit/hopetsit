@@ -361,6 +361,24 @@ describe('FUITE 02/10 : une « ville » qui est un e-mail, un lien ou un numéro
   });
 });
 
+describe('FUITE 02/10 (suite) : liste d\'amis sans « ville » e-mail', () => {
+  test('GET /friends : l\'ami est là, sa ville e-mail n\'est pas renvoyée', async () => {
+    const Friendship = require('../src/models/Friendship');
+    const me = await mk(Owner, { firstName: 'Moi', location: at(0) });
+    const ami = await mk(Sitter, { firstName: 'Ami', lastName: 'Fuite', city: 'neo607ami@gmail.com', location: { ...at(1), city: 'neo607ami@gmail.com' } });
+    await Friendship.collection.insertOne({
+      requesterId: me._id, requesterModel: 'Owner', addresseeId: ami._id, addresseeModel: 'Sitter',
+      status: 'accepted', acceptedAt: new Date(), createdAt: new Date(), updatedAt: new Date(),
+      requesterSharesPosition: true, addresseeSharesPosition: true,
+    });
+    const r = await request(app).get('/api/v1/friends').set('Authorization', `Bearer ${tok(me, 'owner')}`);
+    expect(r.status).toBe(200);
+    const raw = JSON.stringify(r.body);
+    expect(raw).toContain(String(ami._id));
+    expect(raw).not.toMatch(/neo607ami|gmail/);
+  });
+});
+
 describe('affiche A4 + QR', () => {
   test('GET poster.pdf → 200 application/pdf, A4, lien imprimé, sans photo ni réseau', async () => {
     const s = await mk(Sitter, { firstName: 'Nora', lastName: 'Test', location: at(0) });
