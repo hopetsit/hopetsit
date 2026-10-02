@@ -122,3 +122,23 @@ describe('vérifications d\'identité : même total sur les 4 écrans', () => {
     expect(lignes.some((p) => String(p.paidAt).startsWith('2026-09-18'))).toBe(true);
   });
 });
+
+describe('GET /admin/dashboard607/email-status', () => {
+  test('e-mail vérifié par PERSONNE, identité à part, validation d\'identité admin = incertain, sans e-mail', async () => {
+    await Promise.all([Sitter.deleteMany({}), Walker.deleteMany({}), Owner.deleteMany({})]);
+    const o = await mk(Owner, { email: 'pers1@example.org', verified: true });
+    const s = await mk(Sitter, { email: 'pers1@example.org', verified: false }); // même personne : vérifié par son profil propriétaire
+    const w = await mk(Walker, { email: 'pers2@example.org', verified: false });
+    const k = await mk(Sitter, { email: 'pers3@example.org', verified: true, kycStatus: 'verified',
+      identityVerification: { status: 'verified', reviewedAt: new Date() } }); // vérifié seulement par l'admin (identité)
+    const r = await request(app).get('/admin/dashboard607/email-status').set(ADMIN).expect(200);
+    const p = r.body.people;
+    expect(p[`owner:${o._id}`]).toMatchObject({ emailVerified: true, uncertain: false, identityVerified: false });
+    expect(p[`sitter:${s._id}`]).toMatchObject({ emailVerified: true, uncertain: false });
+    expect(p[`walker:${w._id}`]).toMatchObject({ emailVerified: false });
+    expect(p[`sitter:${k._id}`]).toMatchObject({ emailVerified: true, uncertain: true, identityVerified: true });
+    expect(r.body.summary).toEqual({ verified: 3, total: 4, uncertain: 1 });
+    expect(JSON.stringify(r.body)).not.toMatch(/@/);
+    await request(app).get('/admin/dashboard607/email-status').set({ 'x-test-user': 'u', 'x-test-role': 'owner' }).expect(403);
+  });
+});

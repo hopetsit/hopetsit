@@ -198,4 +198,46 @@ router.get('/', requireAdmin, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/v1/admin/dashboard607/email-status — e-mail vérifié (adresse validée par code ou
+ * lien) pour CHAQUE profil, calculé par PERSONNE : depuis le 565, /auth/verify pose
+ * `verified:true` sur les 3 profils d'un même e-mail (markVerifiedAcrossRoles).
+ * Ambiguïté connue (FLO) : sur un gardien / promeneur, l'admin qui valide l'IDENTITÉ pose aussi
+ * `verified:true` (et `false` s'il la refuse). Un profil dont le seul « vérifié » vient d'une
+ * validation d'identité par l'admin est donc marqué `uncertain`. Lecture seule, sans e-mail.
+ */
+router.get('/email-status', requireAdmin, async (req, res) => {
+  try {
+    const sel = 'email verified createdAt kycStatus identityVerification.status identityVerification.reviewedAt';
+    const lists = await Promise.all(['owner', 'sitter', 'walker'].map((r) => MODELS[r]().find({}).select(sel).lean()));
+    const byEmail = new Map();
+    const rows = [];
+    ['owner', 'sitter', 'walker'].forEach((role, i) => lists[i].forEach((d) => {
+      const email = String(plainEmail(d.email) || '').trim().toLowerCase();
+      const iv = d.identityVerification || {};
+      const identityVerified = role !== 'owner' && (d.kycStatus === 'verified' || iv.status === 'verified');
+      // « vérifié » qui peut venir de la validation d'identité par l'admin (pas de l'e-mail).
+      const fromAdminIdentity = role !== 'owner' && iv.status === 'verified' && !!iv.reviewedAt;
+      const row = { role, id: String(d._id), email, verified: d.verified === true, fromAdminIdentity, identityVerified, createdAt: d.createdAt || null, internal: isInternal(d) };
+      rows.push(row);
+      if (email) (byEmail.get(email) || byEmail.set(email, []).get(email)).push(row);
+    }));
+    const people = {};
+    let verified = 0; let uncertain = 0;
+    rows.forEach((r) => {
+      const group = r.email ? byEmail.get(r.email) : [r];
+      const sure = group.some((x) => x.verified && !x.fromAdminIdentity);
+      const maybe = !sure && group.some((x) => x.verified);
+      const ok = sure || maybe;
+      if (ok) verified += 1;
+      if (maybe) uncertain += 1;
+      people[`${r.role}:${r.id}`] = { emailVerified: ok, uncertain: maybe, identityVerified: r.identityVerified, since: r.createdAt };
+    });
+    return res.json({ generatedAt: new Date().toISOString(), summary: { verified, total: rows.length, uncertain }, people });
+  } catch (e) {
+    logger.error({ err: e }, '[admin/dashboard607/email-status]');
+    return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
 module.exports = router;
