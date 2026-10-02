@@ -329,6 +329,9 @@ const versionedRoutes = [
   // 607 (ADA, 02/10) — onglet PawPoints de l'admin : chiffres, peluches, Pionniers,
   // liens /s. Lecture seule, requireAdmin dans le routeur (même schéma que ci-dessus).
   { path: '/admin/pawpoints-insights', mw: [], router: require('./routes/adminPawPointsInsights607') },
+  // 607 (FLO, 02/10) — vérifications d'identité : vérifiés (méthode), payés non
+  // vérifiés, revenus KYC par période. Lecture seule, requireAdmin dans le routeur.
+  { path: '/admin/kyc-people', mw: [], router: require('./routes/adminKycRoutes607') },
   // v23.1 part 36 — KYC verification (Persona) payante 3 EUR pour sitter/walker.
   { path: '/kyc', mw: [], router: require('./routes/kycRoutes') },
   { path: '/donations', mw: [sensitiveLimiter], router: donationRoutes },

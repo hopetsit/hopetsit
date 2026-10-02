@@ -156,7 +156,9 @@ const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false, incl
     sanitized.identityVerification &&
     typeof sanitized.identityVerification === 'object' &&
     sanitized.identityVerification.status === 'verified';
-  sanitized.identityVerified = kycVerified || legacyManualVerified;
+  // 02/10 (FLO) — toujours un booléen : `false || undefined` donnait
+  // undefined → la clé disparaissait du JSON public.
+  sanitized.identityVerified = !!(kycVerified || legacyManualVerified);
   if (sanitized.identityVerification && typeof sanitized.identityVerification === 'object') {
     if (!includeIdentityDoc) {
       delete sanitized.identityVerification.documentUrl;

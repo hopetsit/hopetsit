@@ -85,7 +85,12 @@ function toPublicProvider(doc, role, extra = {}) {
     rating: Math.round(rating * 10) / 10,
     reviewsCount: Math.max(num(d.reviewsCount), reviews.length),
     reviews,
-    verified: d.verified === true,
+    // 02/10 (FLO) — le badge du site s'appelle « Identité vérifiée »
+    // (trust_id_title) mais lisait `verified`, qui est le drapeau « E-MAIL
+    // vérifié » : 38 prestataires (22 gardiens, 16 promeneurs) l'auraient
+    // affiché sans aucune vérification d'identité. Même règle que l'app.
+    verified: d.kycStatus === 'verified'
+      || !!(d.identityVerification && d.identityVerification.status === 'verified'),
     isPioneer: extra.isPioneer === true,
     indexable: extra.indexable !== false,
   };

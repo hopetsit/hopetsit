@@ -571,6 +571,15 @@ const getSitterProfile = async (req, res) => {
       // Service type (array)
       service: Array.isArray(sitter.service) ? sitter.service : sitter.service ? [sitter.service] : [],
       verified: sitter.verified || false,
+      // 02/10/2026 (FLO) — badge « Identité vérifiée » ABSENT de la fiche
+      // détaillée : l'app (SitterModel.identityVerified) et le site
+      // (/p/sitter/:id) lisent `identityVerified`, que seule la LISTE
+      // renvoyait. Résultat : aucun gardien vérifié n'avait le badge sur sa
+      // fiche. `verified` reste le drapeau « e-mail vérifié ». Même règle que
+      // la liste (sitterController.listSitters) et utils/mapVisibility.
+      identityVerified:
+        sitter.kycStatus === 'verified' ||
+        sitter.identityVerification?.status === 'verified',
       // Location information
       // 22/09/2026 — la position EXACTE (donc le domicile) sortait ici pour
       // n'importe quel lecteur, alors que la couche monde de la PawMap
