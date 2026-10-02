@@ -200,6 +200,10 @@ function describeLiveSession(s) {
     stale: isLiveStale(s.lastSeenAt),
     duration: s.duration,
     expiresAt: s.expiresAt ? new Date(s.expiresAt).toISOString() : null,
+    // 607 (PAM) — début réel de la session (repris après un redémarrage) et
+    // nombre de points du tracé : l'app peut recaler sa durée affichée.
+    startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : null,
+    trailPoints: Array.isArray(s.trail) ? s.trail.length : 0,
   };
 }
 
