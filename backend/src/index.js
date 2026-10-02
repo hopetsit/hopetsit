@@ -115,6 +115,13 @@ async function startServer() {
     } catch (e) {
       logger.error('[boot] ensureStaff failed (non-fatal)', e);
     }
+    // 607 (PAM) — Balades en cours reprises après un redémarrage (avant :
+    // effacées à chaque publication). Avant d'accepter des requêtes.
+    try {
+      await require('./sockets/mapSocket').restoreLiveSessions();
+    } catch (e) {
+      logger.warn(`[boot] reprise des Balades : ${e.message}`);
+    }
     server.listen(PORT, () => {
       logger.info(`PetsInsta backend listening at http://localhost:${PORT}`);
     });

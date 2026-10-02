@@ -92,6 +92,7 @@ function touchLiveSession({ userId, role, lat, lng, city, duration, heartbeat })
       lastStillActiveNoticeAt: now,
     };
     liveSessions.set(key, s);
+    _store().save(s, { now: true }); // 607 — survit à un redémarrage
   }
   if (role) s.role = String(role).toLowerCase();
   if (hasPos) {
@@ -108,6 +109,7 @@ function touchLiveSession({ userId, role, lat, lng, city, duration, heartbeat })
     s.expiresAt = ms ? s.startedAt + ms : null;
   }
   void heartbeat;
+  _store().save(s);
   return s;
 }
 
@@ -156,7 +158,32 @@ function getLiveSessionForIds(ids = []) {
 }
 
 function clearLiveSession(userId) {
+  _store().remove(String(userId));
   return liveSessions.delete(String(userId));
+}
+
+// 607 (PAM) — persistance (utils/liveSessionStore607.js).
+function _store() {
+  return require('../utils/liveSessionStore607');
+}
+
+/**
+ * 607 (PAM, 02/10) — au démarrage du serveur : recharge en mémoire les
+ * Balades en cours (avant : un redémarrage Render les effaçait toutes —
+ * direct, peluches, « Balade terminée +15 »). Une session déjà présente en
+ * RAM (arrivée pendant le rechargement) n'est jamais écrasée.
+ */
+async function restoreLiveSessions({ now = Date.now() } = {}) {
+  const list = await _store().loadAll({ now });
+  let n = 0;
+  for (const s of list) {
+    if (!s || !s.userId || liveSessions.has(s.userId)) continue;
+    if (now - s.lastSeenAt > LIVE_RAM_TTL_MS) continue;
+    liveSessions.set(s.userId, s);
+    n += 1;
+  }
+  if (n) logger.info(`[live] ${n} session(s) en direct reprise(s) après redémarrage`);
+  return n;
 }
 
 const isLiveStale = (lastSeenAt) => (Date.now() - Number(lastSeenAt || 0)) > LIVE_STALE_MS;
@@ -183,6 +210,7 @@ function describeLiveSession(s) {
  */
 async function endLiveSessionByDuration(s) {
   liveSessions.delete(s.userId);
+  _store().remove(s.userId);
   const model = ROLE_TO_MODEL_NAME[s.role];
   if (model) {
     try {
@@ -250,6 +278,7 @@ async function tickLiveShare() {
     try {
       if (now - s.lastSeenAt > LIVE_RAM_TTL_MS) {
         liveSessions.delete(s.userId);
+        _store().remove(s.userId);
         continue;
       }
       if (s.expiresAt && now >= s.expiresAt) {
@@ -825,6 +854,8 @@ module.exports.touchLiveSession = touchLiveSession;
 module.exports.getLiveSession = getLiveSession;
 module.exports.getLiveSessionForIds = getLiveSessionForIds;
 module.exports.clearLiveSession = clearLiveSession;
+module.exports.restoreLiveSessions = restoreLiveSessions;
+module.exports._liveSessionsForTests = liveSessions;
 module.exports.describeLiveSession = describeLiveSession;
 module.exports.tickLiveShare = tickLiveShare;
 module.exports.trailOf = trailOf;
