@@ -273,17 +273,43 @@ describe('Pionnier : jamais influencé par les comptes de test / masqués / staf
 });
 
 describe('badge Pionnier sur la fiche de l\'app', () => {
-  test('GET /public/providers/badge/:role/:id', async () => {
-    const s = await mk(Sitter, { firstName: 'Seule', lastName: 'Test', location: at(0) });
+  test('GET /public/providers/badge/:role/:id → isPioneer + lien /s (profil complet seulement)', async () => {
+    const s = await mk(Sitter, { firstName: 'Seule', lastName: 'Test', location: at(0), bio: 'Je garde les chats.' });
     const r = await request(app).get(`/api/v1/public/providers/badge/sitter/${s._id}`);
-    expect(r.body).toEqual({ isPioneer: true });
-    const w = await mk(Walker, { location: at(3) });
+    expect(r.body).toEqual({ isPioneer: true, slug: 'seule-t-zone-test', url: 'https://www.hopetsit.com/s/seule-t-zone-test' });
+    const w = await mk(Walker, { location: at(3) }); // coquille vide : ni photo, ni bio, ni tarif
     _resetPioneerCache();
-    expect((await request(app).get(`/api/v1/public/providers/badge/sitter/${s._id}`)).body).toEqual({ isPioneer: false });
-    expect((await request(app).get(`/api/v1/public/providers/badge/walker/${w._id}`)).body).toEqual({ isPioneer: false });
-    const t = await mk(Sitter, { location: at(300), email: 'x+test@example.org' });
-    expect((await request(app).get(`/api/v1/public/providers/badge/sitter/${t._id}`)).body).toEqual({ isPioneer: false });
-    expect((await request(app).get('/api/v1/public/providers/badge/owner/abc')).body).toEqual({ isPioneer: false });
+    expect((await request(app).get(`/api/v1/public/providers/badge/sitter/${s._id}`)).body.isPioneer).toBe(false);
+    const rw = await request(app).get(`/api/v1/public/providers/badge/walker/${w._id}`);
+    expect(rw.body).toEqual({ isPioneer: false, slug: '', url: '' });
+    expect((await Walker.findById(w._id).lean()).publicSlug).toBeUndefined();
+    const t = await mk(Sitter, { location: at(300), email: 'x+test@example.org', bio: 'test' });
+    expect((await request(app).get(`/api/v1/public/providers/badge/sitter/${t._id}`)).body).toEqual({ isPioneer: false, slug: '', url: '' });
+    expect((await request(app).get('/api/v1/public/providers/badge/owner/abc')).body).toEqual({ isPioneer: false, slug: '', url: '' });
+  });
+});
+
+describe('GET /public/providers/sitemap', () => {
+  test('profils publics complets seulement ; test, masqué, banni, staff et coquilles vides absents', async () => {
+    require('../src/routes/publicProviderRoutes')._resetSitemapCache();
+    await mk(Sitter, { firstName: 'Photo', lastName: 'Ok', location: at(0), avatar: { url: 'https://example.org/p.jpg' } });
+    await mk(Walker, { firstName: 'Tarif', lastName: 'Ok', location: at(0), walkRates: [{ durationMinutes: 30, basePrice: 10 }] });
+    await mk(Sitter, { firstName: 'Bio', lastName: 'Ok', location: at(0), bio: 'Bonjour' });
+    const vide = await mk(Sitter, { firstName: 'Vide', lastName: 'X', location: at(0) });
+    await mk(Sitter, { firstName: 'Testeur', lastName: 'X', email: 'z+test@example.org', bio: 'x' });
+    await mk(Sitter, { firstName: 'Cache', lastName: 'X', hiddenFromPublic: true, bio: 'x' });
+    await mk(Walker, { firstName: 'Banni', lastName: 'X', status: 'banned', bio: 'x' });
+    await mk(Walker, { firstName: 'Staff', lastName: 'X', isStaff: true, bio: 'x' });
+    const r = await request(app).get('/api/v1/public/providers/sitemap');
+    expect(r.status).toBe(200);
+    expect(r.body.providers.map((p) => p.slug)).toEqual(['bio-o-zone-test', 'photo-o-zone-test', 'tarif-o-zone-test']);
+    expect(r.body.providers.every((p) => ['sitter', 'walker'].includes(p.role) && p.updatedAt)).toBe(true);
+    expect(Object.keys(r.body.providers[0]).sort()).toEqual(['role', 'slug', 'updatedAt']);
+    expect((await Sitter.findById(vide._id).lean()).publicSlug).toBeUndefined();
+    // Chaque slug listé ouvre bien sa page publique.
+    for (const p of r.body.providers) {
+      expect((await request(app).get(`/api/v1/public/providers/${p.slug}`)).status).toBe(200);
+    }
   });
 });
 

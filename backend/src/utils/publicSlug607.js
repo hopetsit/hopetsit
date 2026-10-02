@@ -21,7 +21,7 @@
  */
 
 const MAX_BASE = 48;
-const RESERVED = new Set(['me', 'api', 'admin', 'new', 'edit', 'poster', 'www']);
+const RESERVED = new Set(['me', 'api', 'admin', 'new', 'edit', 'poster', 'www', 'sitemap', 'badge']);
 
 function asciiWords(s) {
   return String(s || '')

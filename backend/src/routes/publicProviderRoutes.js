@@ -118,20 +118,89 @@ router.get('/me/link', requireAuth, async (req, res) => {
  *   GET /api/v1/public/providers/badge/:role/:id → { isPioneer: bool }
  * Profil masqué / inconnu / de test → false (jamais d'erreur visible).
  */
+/**
+ * Profil PUBLIC et COMPLET : visible (ni masqué, banni, suspendu, staff ni
+ * compte de test) ET avec au moins une photo, une bio ou un tarif. Seuls ces
+ * profils reçoivent un slug sans ouvrir l'app (sitemap, fiche de /map) : on ne
+ * fabrique jamais de lien vers une coquille vide.
+ */
+function isListableProfile(d, role) {
+  if (!d || hiddenProfile(d) || d.isStaff === true) return false;
+  const { isRealSupply } = require('./supplyRoutes');
+  if (!isRealSupply(d)) return false;
+  const photo = !!(d.avatar && String(d.avatar.url || '').trim());
+  const bio = String(d.bio || '').trim().length > 0;
+  const { ratesOf } = require('../utils/publicProvider607');
+  return photo || bio || ratesOf(d, role).length > 0;
+}
+
+/**
+ * Badge « Pionnier » + lien /s de la fiche (app et /map du site).
+ *   GET /api/v1/public/providers/badge/:role/:id → { isPioneer, slug, url }
+ * Profil masqué / inconnu / de test → { isPioneer:false, slug:'', url:'' }.
+ * Slug créé à la volée seulement pour un profil public complet.
+ */
 router.get('/badge/:role/:id', async (req, res) => {
+  const none = { isPioneer: false, slug: '', url: '' };
   try {
     const role = req.params.role === 'walker' ? 'walker' : (req.params.role === 'sitter' ? 'sitter' : '');
     const id = String(req.params.id || '');
-    if (!role || !/^[a-f0-9]{24}$/i.test(id)) return res.json({ isPioneer: false });
+    if (!role || !/^[a-f0-9]{24}$/i.test(id)) return res.json(none);
     const d = await modelFor(role).findById(id).select('+homeLocation').lean();
     const { isTestAccountDoc } = require('../utils/testAccountMap604');
-    if (!d || hiddenProfile(d) || isTestAccountDoc(d)) return res.json({ isPioneer: false });
+    if (!d || hiddenProfile(d) || isTestAccountDoc(d)) return res.json(none);
     const v = (await computeIsPioneer(d)) === true;
+    let slug = d.publicSlug || '';
+    if (!slug && isListableProfile(d, role)) slug = await ensurePublicSlug(d, role);
     res.set('Cache-Control', 'public, max-age=600');
-    return res.json({ isPioneer: v });
+    return res.json({ isPioneer: v, slug, url: slug ? `${SITE}/s/${slug}` : '' });
   } catch (e) {
     logger.warn(`[public/providers/badge] ${e && e.message}`);
-    return res.json({ isPioneer: false });
+    return res.json(none);
+  }
+});
+
+/**
+ * Sitemap du site (LEO) : une URL /s/<slug> par prestataire public complet.
+ *   GET /api/v1/public/providers/sitemap → { providers: [{ slug, role, updatedAt }] }
+ * Crée le slug manquant des profils publics complets (jamais d'une coquille
+ * vide). Mis en cache 1 h.
+ */
+let _sitemap = null;
+const SITEMAP_TTL_MS = 60 * 60 * 1000;
+function _resetSitemapCache() { _sitemap = null; }
+
+router.get('/sitemap', async (req, res) => {
+  try {
+    if (_sitemap && Date.now() - _sitemap.at < SITEMAP_TTL_MS) {
+      res.set('Cache-Control', 'public, max-age=3600');
+      return res.json(_sitemap.body);
+    }
+    const sel = 'publicSlug name firstName lastName city location.city email avatar bio hourlyRate dailyRate weeklyRate monthlyRate walkRates currency hiddenFromPublic bannedAt status isStaff updatedAt';
+    const out = [];
+    for (const role of ['sitter', 'walker']) {
+      // eslint-disable-next-line no-await-in-loop
+      const docs = await modelFor(role).find({
+        isStaff: { $ne: true },
+        hiddenFromPublic: { $ne: true },
+        bannedAt: { $in: [null, undefined] },
+        status: { $nin: ['banned', 'suspended'] },
+      }).select(sel).limit(5000).lean();
+      for (const d of docs) {
+        if (!isListableProfile(d, role)) continue;
+        // eslint-disable-next-line no-await-in-loop
+        const slug = d.publicSlug || await ensurePublicSlug(d, role).catch(() => '');
+        if (slug) out.push({ slug, role, updatedAt: d.updatedAt || null });
+      }
+    }
+    out.sort((x, y) => x.slug.localeCompare(y.slug));
+    const body = { providers: out };
+    _sitemap = { at: Date.now(), body };
+    res.set('Cache-Control', 'public, max-age=3600');
+    return res.json(body);
+  } catch (e) {
+    logger.error({ err: e }, '[public/providers/sitemap]');
+    return res.status(500).json({ error: 'unavailable' });
   }
 });
 
@@ -219,3 +288,5 @@ router.get('/:slug/poster.pdf', optionalAuth, async (req, res) => {
 
 module.exports = router;
 module.exports._fetchPhotoJpeg = fetchPhotoJpeg;
+module.exports._resetSitemapCache = _resetSitemapCache;
+module.exports.isListableProfile = isListableProfile;
