@@ -12,6 +12,7 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 import { getPawCatalog607, ppText, type PawCatalog607 } from "@/lib/api";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
+import { PlushVideo } from "@/components/PlushVideo";
 import { EarnGrid, RewardsGrid, LevelsLadder, PlushShowcase, PpTitle } from "@/components/PawPointsSections";
 
 const GOLD = "#B7791F";
@@ -64,8 +65,15 @@ export function PawPointsGuide({ initial }: { initial: PawCatalog607 | null }) {
       )}
 
       <section className="mt-12 rounded-[28px] p-5 md:p-8" style={{ background: "linear-gradient(160deg,#EFFAF2,#FFFFFF 70%)", boxShadow: "inset 0 0 0 1px #BFE8CC, 0 20px 40px -30px #16A34A" }} data-ppg-plush="">
-        <h2 className="font-display text-2xl font-extrabold tracking-[-0.02em] md:text-[28px]" style={{ color: "#0F5C2B" }}>{t("ppg_plush_title")} 🧸</h2>
-        <p className="mb-4 mt-1 whitespace-pre-line text-sm leading-relaxed" style={{ color: "#23352A" }}>{t("help607_plush_body")}</p>
+        <div className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_260px]">
+          <div className="min-w-0">
+            <h2 className="font-display text-2xl font-extrabold tracking-[-0.02em] md:text-[28px]" style={{ color: "#0F5C2B" }}>{t("ppg_plush_title")} 🧸</h2>
+            <p className="mt-1 whitespace-pre-line text-sm leading-relaxed" style={{ color: "#23352A" }}>{t("help607_plush_body")}</p>
+          </div>
+          {/* 02/10 (609) — vidéo « attraper une peluche » (capture réelle de l'app). */}
+          <PlushVideo />
+        </div>
+        <div className="mt-6" />
         <PlushShowcase t={t}>
           <p className="mt-4 whitespace-pre-line rounded-[18px] bg-white p-4 text-sm font-semibold leading-relaxed" style={{ color: INK }}>{t("help607_plush_bonus")}</p>
         </PlushShowcase>

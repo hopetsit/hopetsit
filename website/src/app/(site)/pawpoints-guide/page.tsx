@@ -23,6 +23,26 @@ async function catalog(): Promise<PawCatalog607 | null> {
   }
 }
 
+// 02/10 (609) — données VideoObject de la vidéo « attraper une peluche » (page servie en français).
+const VIDEO_LD = {
+  "@context": "https://schema.org",
+  "@type": "VideoObject",
+  name: "Attraper une peluche pendant une Balade — HoPetSit",
+  description: "Capture de l'app HoPetSit : le rappel des peluches sur la PawMap, on lance une Balade, on s'approche à 30 m et on gagne +20 PawPoints.",
+  thumbnailUrl: ["https://www.hopetsit.com/video/peluche_fr_poster.webp"],
+  uploadDate: "2026-10-02T17:00:00+02:00",
+  duration: "PT23S",
+  contentUrl: "https://www.hopetsit.com/video/peluche_fr.mp4",
+  embedUrl: "https://www.hopetsit.com/pawpoints-guide",
+  inLanguage: "fr",
+  publisher: { "@type": "Organization", name: "HoPetSit", logo: { "@type": "ImageObject", url: "https://hopetsit.com/logo.png" } },
+};
+
 export default async function Page() {
-  return <PawPointsGuide initial={await catalog()} />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(VIDEO_LD).replace(/</g, "\\u003c") }} />
+      <PawPointsGuide initial={await catalog()} />
+    </>
+  );
 }

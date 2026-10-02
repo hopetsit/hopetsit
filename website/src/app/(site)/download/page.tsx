@@ -25,7 +25,7 @@ export default function DownloadPage() {
       <div className="bg-[#FAF1EC] py-16">
         <div className="mx-auto flex max-w-5xl snap-x snap-mandatory gap-6 overflow-x-auto px-4 pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {screensPreviewFor(lang).map((s) => (
-            <PhoneFrame key={s.src} src={s.src} alt={`HoPetSit — ${s.alt}`} className="w-48 shrink-0 snap-center first:ml-auto last:mr-auto" />
+            <PhoneFrame key={s.src} src={s.src} w={s.w} h={s.h} alt={`HoPetSit — ${s.alt}`} className="w-48 shrink-0 snap-center first:ml-auto last:mr-auto" />
           ))}
         </div>
       </div>

@@ -170,7 +170,7 @@ export default function HomePage() {
             </ul>
           </div>
           <div className="hidden justify-center lg:flex">
-            <PhoneFrame src={pawmapShot} alt="HoPetSit — PawMap" className="w-64" priority />
+            <PhoneFrame src={pawmapShot} alt={t("hero609_alt")} className="w-64" priority w={768} h={1669} />
           </div>
         </div>
       </section>

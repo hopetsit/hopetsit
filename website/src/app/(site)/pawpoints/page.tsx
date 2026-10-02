@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import BackLink from "@/components/BackLink";
+import { PlushVideo } from "@/components/PlushVideo";
 import { EarnGrid, RewardsGrid, LevelsLadder, PlushShowcase, PpTitle } from "@/components/PawPointsSections";
 import {
   getPawCatalog607,
@@ -165,7 +166,11 @@ export default function PawPointsPage() {
             <h2 className="font-display text-2xl font-extrabold tracking-[-0.02em] md:text-[28px]" style={{ color: "#0F5C2B" }}>{ppText(catalog?.collection?.texts.title, lang) || t("plush607_collection_title")} 🧸</h2>
             {plush && <span className="rounded-full bg-[#16A34A] px-3 py-1 text-[13px] font-extrabold text-white">{t("plush607_total").replace("{count}", String(plush.total))}</span>}
           </div>
-          <p className="mb-4 text-sm" style={{ color: "#23352A" }}>{t("plush607_collection_sub")}</p>
+          <div className="mb-5 grid items-center gap-5 md:grid-cols-[minmax(0,1fr)_240px]">
+            <p className="text-sm" style={{ color: "#23352A" }}>{t("plush607_collection_sub")}</p>
+            {/* 02/10 (609) — vidéo « attraper une peluche ». */}
+            <PlushVideo />
+          </div>
           <PlushShowcase t={t} counts={plush?.counts ?? {}} golden={plush?.golden ?? 0}>
             {plush && (plush.streak > 0 || plush.badges.includes("collector")) && (
               <div className="mt-4 flex flex-wrap gap-2 text-[13px] font-bold">
