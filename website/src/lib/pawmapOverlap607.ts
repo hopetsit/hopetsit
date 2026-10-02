@@ -268,3 +268,63 @@ export function textWidth(text: string, font: string, sizePx: number): number {
   }
   return text.length * sizePx * 0.6;
 }
+
+// ─── 02/10 (607, PAM v2, CONTRAT_607_bulles §3) — BOÎTES RÉELLES ─────────
+// Copie de pawPinBox / pawBoxesTouch / pawFreeSpot / pawRepelBoxes
+// (frontend/lib/views/map/widgets/pawmap_overlap607.dart) : chaque rond porte
+// sa boîte relative à son centre = rond ∪ prénom mesuré (dessous) ∪ bulle
+// de prix (dessus) ; collision boîte contre boîte avec 4 px d'air.
+
+/** Boîte relative au centre (l, t, r, b). */
+export function pinBox(r: number, o: { labelW?: number; labelH?: number; labelGap?: number; bubbleW?: number; bubbleH?: number } = {}): Rect {
+  const labelW = o.labelW ?? 0, labelH = o.labelH ?? 20, labelGap = o.labelGap ?? 4, bubbleW = o.bubbleW ?? 0, bubbleH = o.bubbleH ?? 30;
+  const box: Rect = { l: -r, t: -r, r, b: r };
+  if (labelW > 0) { box.l = Math.min(box.l, -labelW / 2); box.r = Math.max(box.r, labelW / 2); box.b = Math.max(box.b, r + labelGap + labelH); }
+  if (bubbleW > 0) { box.l = Math.min(box.l, -bubbleW / 2); box.r = Math.max(box.r, bubbleW / 2); box.t = Math.min(box.t, -r - bubbleH - 2); }
+  return box;
+}
+export function boxesTouch(a: Px, ra: Rect, b: Px, rb: Rect, air = AIR_PX_607): boolean {
+  const h = air / 2;
+  const A = { l: ra.l + a.x - h, t: ra.t + a.y - h, r: ra.r + a.x + h, b: ra.b + a.y + h };
+  const B = { l: rb.l + b.x - h, t: rb.t + b.y - h, r: rb.r + b.x + h, b: rb.b + b.y + h };
+  return overlaps(A, B);
+}
+export type PlacedBox = { at: Px; box: Rect };
+/** Décalage le plus petit qui libère la boîte (anneaux de 4 px, tous les 15°, d'abord à l'opposé) ; null = aucune place. */
+export function freeSpot(at: Px, box: Rect, obstacles: PlacedBox[], maxShift = 90, air = AIR_PX_607): Px | null {
+  const free = (p: Px) => !obstacles.some((o) => boxesTouch(p, box, o.at, o.box, air));
+  if (free(at)) return { x: 0, y: 0 };
+  let away = { x: 0.7071, y: 0.7071 };
+  let best = Infinity;
+  for (const o of obstacles) {
+    if (!boxesTouch(at, box, o.at, o.box, air)) continue;
+    const d = Math.hypot(at.x - o.at.x, at.y - o.at.y);
+    if (d < best) { best = d; away = d < 0.5 ? { x: 0.7071, y: 0.7071 } : { x: (at.x - o.at.x) / d, y: (at.y - o.at.y) / d }; }
+  }
+  const a0 = Math.atan2(away.y, away.x);
+  for (let d = 4; d <= maxShift; d += 4) {
+    for (let k = 0; k <= 12; k++) {
+      for (const sign of k === 0 ? [1] : [1, -1]) {
+        const a = a0 + (sign * k * 15 * Math.PI) / 180;
+        const p = { x: at.x + Math.cos(a) * d, y: at.y + Math.sin(a) * d };
+        if (free(p)) return { x: p.x - at.x, y: p.y - at.y };
+      }
+    }
+  }
+  return null;
+}
+/** Place les ronds MOBILES (du plus proche d'un obstacle au plus loin) sans toucher les fixes ni un rond déjà posé. */
+export function repelBoxes(at: Px[], boxes: Rect[], fixed: PlacedBox[], movable?: boolean[], maxShift = 90): Px[] {
+  const n = at.length;
+  const shift: Px[] = at.map(() => ({ x: 0, y: 0 }));
+  const placed: PlacedBox[] = [...fixed];
+  for (let i = 0; i < n; i++) if (movable && !movable[i]) placed.push({ at: at[i], box: boxes[i] });
+  const near = (i: number) => (fixed.length ? Math.min(...fixed.map((f) => Math.hypot(f.at.x - at[i].x, f.at.y - at[i].y))) : 0);
+  const order = [...Array(n).keys()].filter((i) => !movable || movable[i]).sort((a, b) => near(a) - near(b));
+  for (const i of order) {
+    const s = freeSpot(at[i], boxes[i], placed, maxShift) ?? freeSpot(at[i], boxes[i], placed, maxShift * 2) ?? { x: 0, y: 0 };
+    shift[i] = s;
+    placed.push({ at: { x: at[i].x + s.x, y: at[i].y + s.y }, box: boxes[i] });
+  }
+  return shift;
+}

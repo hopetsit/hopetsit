@@ -53,7 +53,9 @@ import {
   MEMBER_CELL_PX_607,
   mercatorPx,
   mergeCloseGroups,
-  repelAll,
+  pinBox,
+  repelBoxes,
+  type PlacedBox,
   mercatorToLatLng,
   pickLabelSide,
   bubbleHasRoom,
@@ -77,6 +79,7 @@ import {
   requestBubbleHtml,
   ROLE_COLOR,
   PAWFOLLOW_VIOLET,
+  FRIEND_PINK,
   PAWMAP_KEYFRAMES,
   PIN_Z,
   roleKey,
@@ -817,26 +820,61 @@ export default function PoiMap({
   // hook) : refait à chaque rendu, dans l'ordre de dessin des épingles.
   const lay = (() => {
     const pxOf = (p: [number, number]) => mercatorPx(p[0], p[1], zoomLevel);
-    const fixedPx: Px[] = [];
-    const fixedR: number[] = []; // 02/10 (607, CONTRAT_607_bulles §3) — rayons dessinés des obstacles
     const meRects: Rect[] = [];
-    if (userLocation) {
-      const c = pxOf([userLocation.lat, userLocation.lng]);
-      fixedPx.push(c);
-      fixedR.push(56 / 2 + 2 + 6); // + 6 : l'étiquette « Moi » dépasse sous la photo
-      const meW = textWidth(meLabel || "Moi", "700 11px Inter, system-ui, sans-serif", 11) + 16;
-      meRects.push(circleRect(c, 56 / 2 + 2), labelRect(c, 56 / 2, meW, "below", 16.3));
-    }
-    for (const fp of friendPositions) { fixedPx.push(pxOf([fp.lat, fp.lng])); fixedR.push(50 / 2 + 2.5); } // en direct ou signal perdu
+    const POP0 = "700 11.5px Poppins, Inter, system-ui, sans-serif";
+    const bubbleW0 = (bubble: string | null, duo: [string, string] | null): number =>
+      duo
+        ? textWidth(duo[0], POP0, 11.5) + textWidth(duo[1], POP0, 11.5) + textWidth("·", POP0, 11.5) + 16 + 22 + 12
+        : textWidth(bubble || "", POP0, 11.5) + 16 + 15;
+    // 02/10 (607, PAM v2 — CONTRAT_607_bulles §3) : collision par BOÎTES RÉELLES.
+    const meAt: Px | null = userLocation ? pxOf([userLocation.lat, userLocation.lng]) : null;
+    const meW = textWidth(meLabel || "Moi", "700 11px Inter, system-ui, sans-serif", 11) + 16;
+    const meBox = pinBox(56 / 2 + 2, { labelW: meW, labelH: 16.3, labelGap: 3 });
+    if (meAt) meRects.push(circleRect(meAt, 56 / 2 + 2), labelRect(meAt, 56 / 2, meW, "below", 16.3));
+    const friendBox = pinBox(50 / 2 + 2.5);
     const entries: { items: NearbyMember[]; c: Px; r: number; friend: boolean }[] = [];
-    // Membre seul : + 10 au zoom rue (le prénom pend sous le rond), comme l'app.
     for (const g of memberClusters) entries.push({ items: g.items, c: pxOf(g.center), r: g.items.length > 1 ? 24.5 : 46 / 2 + 1 + (showPrice ? 10 : 0), friend: false });
     for (const m of friendMembers) { const p = pointOf(m); if (p) entries.push({ items: [m], c: pxOf(p), r: 50 / 2 + 2, friend: true }); }
-    for (const e of entries) if (e.friend) { fixedPx.push(e.c); fixedR.push(50 / 2 + 2.5); }
-    // 02/10 (607, PAM) — pawRepelAll final : pastilles ET membres seuls non amis
-    // s'écartent (≤ 60 px, puis tour de l'obstacle tous les 15°, ≤ 90 px).
-    const shifts: Px[] = repelAll(entries.map((e) => e.c), entries.map((e) => e.items.length > 1 || !e.friend), fixedPx, fixedR, entries.map((e) => e.r));
+    // A. Amis trop près de « Moi » : décalés en éventail (un trait rose relie leur vraie position).
+    const friendIdx = entries.map((e, i) => (e.friend ? i : -1)).filter((i) => i >= 0);
+    const fanAt: Px[] = [...friendPositions.map((fp) => pxOf([fp.lat, fp.lng])), ...friendIdx.map((i) => entries[i].c)];
+    const fanShift: Px[] = meAt ? repelBoxes(fanAt, fanAt.map(() => friendBox), [{ at: meAt, box: meBox }]) : fanAt.map(() => ({ x: 0, y: 0 }));
+    const fixedBoxes: PlacedBox[] = [...(meAt ? [{ at: meAt, box: meBox }] : []), ...fanAt.map((p, k) => ({ at: { x: p.x + fanShift[k].x, y: p.y + fanShift[k].y }, box: friendBox }))];
+    // B. Pastilles et membres seuls (jamais un ami) : place libre la plus proche (prénom et bulle compris).
+    const boxOf = (e: { items: NearbyMember[] }): Rect => {
+      if (e.items.length > 1) return pinBox(24.5);
+      const m = e.items[0];
+      const wanted = rolesMatching(m, wantedRoles);
+      const roles = wanted.length ? [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => w.id === r.id))] : rolesOf(m);
+      const shown = wanted.length ? wanted : roles;
+      const r0 = roles[0];
+      const cap = memberCaption({ ...m, role: r0.role });
+      const lw = showPrice && cap ? textWidth(cap, "700 11px Inter, system-ui, sans-serif", 11) + 16 : 0;
+      let bw = 0;
+      if (showPrice || cityZoom) {
+        const duo = memberDuo(shown);
+        const bubble = memberBubble(r0.role, r0.priceFrom ?? m.priceFrom, r0.currency ?? m.currency, r0.priceAlt ?? m.priceAlt);
+        if (duo || bubble) bw = bubbleW0(bubble, duo) + 4;
+      }
+      return pinBox(46 / 2 + 1, { labelW: lw, bubbleW: bw });
+    };
+    const movable = entries.map((e) => !e.friend);
+    const moved = repelBoxes(entries.map((e) => e.c), entries.map((e) => (e.friend ? friendBox : boxOf(e))), fixedBoxes, movable);
+    const shifts: Px[] = entries.map((e, i) => (e.friend ? fanShift[friendPositions.length + friendIdx.indexOf(i)] : moved[i]));
     entries.forEach((e, i) => { e.c = { x: e.c.x + shifts[i].x, y: e.c.y + shifts[i].y }; });
+    /** Amis en direct décalés en éventail : nouvelle position + trait vers la vraie. */
+    const liveFan = new Map<string, { pos: [number, number]; from: [number, number] }>();
+    friendPositions.forEach((fp, k) => {
+      const sh = fanShift[k];
+      if (Math.hypot(sh.x, sh.y) < 0.5) return;
+      liveFan.set(fp.userId, { pos: mercatorToLatLng({ x: fanAt[k].x + sh.x, y: fanAt[k].y + sh.y }, zoomLevel), from: [fp.lat, fp.lng] });
+    });
+    const fanLines: [number, number][][] = [];
+    fanAt.forEach((p, k) => {
+      const sh = fanShift[k];
+      if (Math.hypot(sh.x, sh.y) < 8) return;
+      fanLines.push([mercatorToLatLng(p, zoomLevel), mercatorToLatLng({ x: p.x + sh.x, y: p.y + sh.y }, zoomLevel)]);
+    });
     const indexOf = new Map<NearbyMember, number>();
     entries.forEach((e, i) => { if (e.items.length === 1) indexOf.set(e.items[0], i); });
     const placed: Rect[] = [];
@@ -873,12 +911,12 @@ export default function PoiMap({
     /** Position (lat, lng) d'un membre seul déplacé par la règle « Moi » ; null = inchangée. */
     const movedPos = (m: NearbyMember): [number, number] | null => {
       const i = indexOf.get(m);
-      if (i === undefined || entries[i].friend) return null;
+      if (i === undefined) return null;
       const sh = shifts[i];
       if (Math.abs(sh.x) < 0.5 && Math.abs(sh.y) < 0.5) return null;
       return mercatorToLatLng(entries[i].c, zoomLevel);
     };
-    return { shifts, priceFit, friendSide, movedPos };
+    return { shifts, priceFit, friendSide, movedPos, liveFan, fanLines };
   })();
 
   // 25/09 — « Itinéraire » ferme la fiche ouverte : le trajet et sa carte
@@ -1247,7 +1285,7 @@ export default function PoiMap({
             const side = lay.friendSide(m, rawCaption, !!(fFit.bubble || fFit.duo));
             const caption = side === "none" ? null : rawCaption;
             const fOpen = () => flyToFriend(m);
-            return <Marker key={`friend-${m.id}`} position={pt} icon={friendProfileIcon(m, prem, roles, caption, fFit.bubble, fFit.duo, side === "above")} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => { const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true, shown, fAlt); if (f) tapFocus(f); else fOpen(); } }} />;
+            return <Marker key={`friend-${m.id}`} position={lay.movedPos(m) ?? pt} icon={friendProfileIcon(m, prem, roles, caption, fFit.bubble, fFit.duo, side === "above")} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => { const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true, shown, fAlt); if (f) tapFocus(f); else fOpen(); } }} />;
           }
           const r0 = roles[0];
           const pFrom = r0.priceFrom ?? m.priceFrom;
@@ -1270,7 +1308,9 @@ export default function PoiMap({
             <CircleMarker key={`ws-${walkId}`} center={walkTrail[0]} radius={5} pathOptions={{ color: walkColor, weight: 3, fillColor: "#FFFFFF", fillOpacity: 1 }} />
           </>
         )}
-        {friendPositions.map((p) => (
+        {/* 02/10 (607, PAM v2) — ami décalé en éventail autour de « Moi » : trait rose 2 px vers sa vraie position. */}
+        {lay.fanLines.map((ln, i) => <Polyline key={`fan-${i}`} positions={ln} pathOptions={{ color: FRIEND_PINK, weight: 2, opacity: 1 }} />)}
+        {friendPositions.map((p0) => { const fan = lay.liveFan.get(p0.userId); const p = fan ? { ...p0, lat: fan.pos[0], lng: fan.pos[1] } : p0; return (
           <LiveFriendMarker
             key={`live-${p.userId}`}
             p={p}
@@ -1299,7 +1339,7 @@ export default function PoiMap({
               });
             }}
           />
-        ))}
+        );})}
 
         {/* ITINÉRAIRE : polyline couleur du mode + repères de virage. */}
         {routePoints && routePoints.length > 1 && (
