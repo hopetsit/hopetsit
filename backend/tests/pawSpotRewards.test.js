@@ -542,8 +542,18 @@ describe('lecture : état du lecteur, classement, /me/points', () => {
     const r = await request(app).get('/pawspots/leaderboard?scope=europe');
     expect(r.status).toBe(200);
     const names = r.body.leaderboard.map((x) => x.name);
-    expect(names).toEqual(['Bo', 'Ana']);
+    expect(names).toEqual(['Bo', 'Ana']); // noms d'un seul mot : inchangés
     expect(r.body.leaderboard[0]._email).toBeUndefined();
+  });
+
+  test('607 — classement public : ni comptes +test ni staff, nom « Prénom I. »', async () => {
+    const owner = await makeUser(Owner, 'Lucie Martin', 'lucie@x.io', { pawPoints: 300 });
+    await makeUser(Owner, 'Testeur Interne', 'dadaciao84+testowner@gmail.com', { pawPoints: 9000 });
+    await makeUser(Sitter, 'Staff Hop', 'staff@x.io', { pawPoints: 8000, isStaff: true });
+    asUser(owner);
+    const r = await request(app).get('/pawspots/leaderboard?scope=europe');
+    expect(r.status).toBe(200);
+    expect(r.body.leaderboard.map((x) => x.name)).toEqual(['Lucie M.']);
   });
 
   test('/me/points : solde dépensable (alias boutique) + tags restants', async () => {

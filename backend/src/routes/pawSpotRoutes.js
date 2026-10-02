@@ -449,7 +449,9 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
 
     const rows = [];
     for (const [Model, role] of [[Owner, 'owner'], [Sitter, 'sitter'], [Walker, 'walker']]) {
-      const filter = { pawPoints: { $gt: 0 } };
+      // 607 (ZOE) — classement PUBLIC : ni staff ni comptes de test (mesuré en
+      // ligne le 02/10 : les comptes +test y apparaissaient).
+      const filter = { pawPoints: { $gt: 0 }, isStaff: { $ne: true } };
       if (scope === 'city' && myCity) filter['location.city'] = myCity;
       if (scope === 'country' && myCountryDigits) {
         // "+34", "34", "+34 " → même pays. Regex tolérante aux formats.
@@ -458,14 +460,18 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
       const docs = await Model.find(filter)
         .sort({ pawPoints: -1 })
         .limit(50)
-        .select('name avatar email pawPoints pawBadgeColor pawGoldFrame location.city countryCode')
+        .select('name firstName lastName avatar email pawPoints pawBadgeColor pawGoldFrame location.city countryCode')
         .lean();
+      const { isTestAccountEmail } = require('../utils/testAccount2809');
+      const { publicNameFields } = require('../utils/publicName2809');
       for (const d of docs) {
+        if (isTestAccountEmail(d.email)) continue;
         const c = countryFromPhone(d.countryCode);
         rows.push({
           userId: String(d._id),
           role,
-          name: d.name || '',
+          // Fiche publique : « Prénom I. » (règle du 28/09), jamais le nom complet.
+          name: publicNameFields(d).name,
           avatar: d.avatar?.url || '',
           points: d.pawPoints || 0,
           badge: pawPoints.badgeFor(d.pawPoints),
