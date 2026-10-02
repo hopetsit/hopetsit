@@ -10,6 +10,8 @@ type D = Record<string, string>;
 
 export const SITE607: Record<Lang, D> = {
   fr: {
+    ppr607_btn: "PawPoints",
+    ppr607_help: "Ouvre ta page PawPoints : ton solde, tes peluches et les récompenses. Le chiffre vert = peluches attrapées aujourd'hui.",
     promo607_current: "Code du moment : {code} — saisis-le ci-dessous pour voir ce qu'il t'offre.",
     ppl607_here: "Tu es ici",
     ppl607_reached: "Atteint",
@@ -113,6 +115,8 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "Les peluches de la Balade",
   },
   en: {
+    ppr607_btn: "PawPoints",
+    ppr607_help: "Opens your PawPoints page: your balance, your plushies and the rewards. The green number = plushies caught today.",
     promo607_current: "Current code: {code} — enter it below to see what it gives you.",
     ppl607_here: "You are here",
     ppl607_reached: "Reached",
@@ -216,6 +220,8 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "Walk plushies",
   },
   es: {
+    ppr607_btn: "PawPoints",
+    ppr607_help: "Abre tu página PawPoints: tu saldo, tus peluches y las recompensas. El número verde = peluches atrapados hoy.",
     promo607_current: "Código del momento: {code} — escríbelo abajo para ver lo que te ofrece.",
     ppl607_here: "Estás aquí",
     ppl607_reached: "Alcanzado",
@@ -319,6 +325,8 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "Los peluches del Paseo",
   },
   de: {
+    ppr607_btn: "PawPoints",
+    ppr607_help: "Öffnet deine PawPoints-Seite: dein Stand, deine Plüschtiere und die Belohnungen. Die grüne Zahl = heute gefangene Plüschtiere.",
     promo607_current: "Aktueller Code: {code} — gib ihn unten ein, um zu sehen, was er dir bringt.",
     ppl607_here: "Du bist hier",
     ppl607_reached: "Erreicht",
@@ -422,6 +430,8 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "Die Plüschtiere des Spaziergangs",
   },
   it: {
+    ppr607_btn: "PawPoints",
+    ppr607_help: "Apre la tua pagina PawPoints: saldo, peluche e premi. Il numero verde = peluche presi oggi.",
     promo607_current: "Codice del momento: {code} — inseriscilo qui sotto per vedere cosa ti offre.",
     ppl607_here: "Sei qui",
     ppl607_reached: "Raggiunto",
@@ -525,6 +535,8 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "I peluche della Passeggiata",
   },
   pt: {
+    ppr607_btn: "PawPoints",
+    ppr607_help: "Abre a tua página PawPoints: o teu saldo, os teus peluches e as recompensas. O número verde = peluches apanhados hoje.",
     promo607_current: "Código do momento: {code} — escreve-o abaixo para ver o que te oferece.",
     ppl607_here: "Estás aqui",
     ppl607_reached: "Atingido",
@@ -628,6 +640,8 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "Os peluches do Passeio",
   },
   ko: {
+    ppr607_btn: "PawPoints",
+    ppr607_help: "PawPoints 페이지를 열어요: 잔액, 인형, 보상. 초록 숫자 = 오늘 잡은 인형 수.",
     promo607_current: "지금의 코드: {code} — 아래에 입력해 혜택을 확인하세요.",
     ppl607_here: "현재 레벨",
     ppl607_reached: "달성",
@@ -731,6 +745,8 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "산책 인형",
   },
   ja: {
+    ppr607_btn: "PawPoints",
+    ppr607_help: "PawPointsページを開きます：残高、ぬいぐるみ、特典。緑の数字＝今日つかまえたぬいぐるみの数。",
     promo607_current: "今のコード：{code} — 下に入力して特典を確認しよう。",
     ppl607_here: "いまここ",
     ppl607_reached: "達成",
@@ -834,6 +850,8 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "お散歩ぬいぐるみ",
   },
   pl: {
+    ppr607_btn: "PawPoints",
+    ppr607_help: "Otwiera stronę PawPoints: saldo, pluszaki i nagrody. Zielona liczba = pluszaki złapane dziś.",
     promo607_current: "Aktualny kod: {code} — wpisz go poniżej, aby zobaczyć, co daje.",
     ppl607_here: "Jesteś tutaj",
     ppl607_reached: "Osiągnięty",

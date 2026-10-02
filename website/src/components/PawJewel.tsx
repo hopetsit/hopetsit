@@ -51,6 +51,8 @@ export const JEWEL_MENU: Record<"owner" | "sitter" | "walker", JewelPalette> = {
   sitter: [MENU_PALETTE.sitter.top, MENU_PALETTE.sitter.top, MENU_PALETTE.sitter.bottom],
   walker: [MENU_PALETTE.walker.top, MENU_PALETTE.walker.top, MENU_PALETTE.walker.bottom],
 };
+/** 02/10 (607) — bouton PawPoints de la barre de gauche : or / ambre. */
+export const JEWEL_PAWPOINTS: JewelPalette = ["#FFD86B", "#E8A00A", "#B07800"];
 /** §9 — couleur « solide » du rôle (libellés, chevrons). */
 export const ROLE_SOLID_UI: Record<"owner" | "sitter" | "walker", string> = { owner: "#D8352A", sitter: "#2F6FE0", walker: "#2A9A48" };
 

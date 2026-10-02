@@ -338,6 +338,8 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
             ...(!provider
               ? [{ html: roundHtml("linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)", MEGAPHONE, "#C92A12"), title: t("m586_publish"), body: t("h587_b_publish"), color: ROLE_COLOR.owner }]
               : []),
+            // 02/10 (607) — bouton PawPoints de la barre de gauche.
+            { html: `<span style="display:grid;place-items:center;width:40px;height:40px;border-radius:999px;background:linear-gradient(165deg,#FFD86B,#E8A00A 50%,#B07800);border:1.5px solid #fff;box-shadow:0 6px 14px -6px #B07800"><img src="/plush/teddy.png" alt="" width="26" height="26" style="width:26px;height:26px;object-fit:contain"/></span>`, title: t("ppr607_btn"), body: t("ppr607_help"), color: "#8A5A00" },
             { html: railHtml("chat", "#5B9DFF", "#2358D6"), title: t("dash_card_messages_title"), body: t("h587_b_chat") },
             { html: railHtml("photo", "#FFB067", "#E07A12"), title: t("map_spot_photo_label"), body: t("h587_b_photo") },
             { html: railHtml("add", "#48C8BA", "#18968A"), title: t("map_tag_spot_cta"), body: t("h587_b_tag") },

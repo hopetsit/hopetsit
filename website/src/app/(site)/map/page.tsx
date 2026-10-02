@@ -49,7 +49,7 @@ import StoreBadges from "@/components/StoreBadges";
 import { EyeIcon, VisibilityPills } from "@/components/MapVisibility";
 import { ensureOwnerProfile } from "@/lib/bookAsOwner";
 import type { MapRequest, LiveLabels, CardLabels, FocusLabels } from "@/components/PoiMap";
-import { PawJewel, PawMapFonts, PawSymbol, JewelDot, JEWEL, JEWEL_ROLE, JEWEL_CSS, ROLE_SOLID_UI, JEWEL_MENU, MENU_PALETTE, barGlass, type JewelPalette } from "@/components/PawJewel";
+import { PawJewel, PawMapFonts, PawSymbol, JewelDot, JEWEL, JEWEL_ROLE, JEWEL_CSS, ROLE_SOLID_UI, JEWEL_MENU, MENU_PALETTE, JEWEL_PAWPOINTS, barGlass, type JewelPalette } from "@/components/PawJewel";
 import {
   ApiError,
   FriendItem,
@@ -97,6 +97,7 @@ import {
   visitSpot,
   getActivePlush,
   catchPlush,
+  getPlushCollection,
   type PlushActive,
 } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
@@ -372,11 +373,12 @@ export default function MapPage() {
     return () => { stop = true; };
   }, []);
   function saveBarOrder(bar: "rail" | "capsule", order: string[]) {
-    const o = bar === "rail" ? normalizeRail(order) : normalizeCapsule(order);
+    // Choix fait ici : jamais de réinsertion automatique de PawPoints.
+    const o = bar === "rail" ? normalizeRail(order, false) : normalizeCapsule(order);
     if (bar === "rail") setRailOrder(o); else setCapsuleOrder(o);
     const ref = bar === "rail" ? railSavedRef : capsuleSavedRef;
-    const kept = keepUnknownIds(ref.current, o, bar === "rail" ? RAIL_IDS : CAPSULE_IDS);
-    const full = bar === "capsule" ? capsuleToSave(kept) : kept;
+    const kept = keepUnknownIds(ref.current, o, bar === "rail" ? [...RAIL_IDS, NO_PAWPOINTS] : CAPSULE_IDS);
+    const full = bar === "capsule" ? capsuleToSave(kept) : railToSave(kept);
     ref.current = full;
     try { localStorage.setItem(bar === "rail" ? "hopetsit:mapRail" : "hopetsit:mapCapsule", JSON.stringify(full)); } catch { /* */ }
     if (getStoredUser()) void saveMapBarPrefs({ [bar]: full });
@@ -908,6 +910,18 @@ export default function MapPage() {
     try { localStorage.setItem("hopetsit:plushHintClosed", new Date().toLocaleDateString("sv")); } catch { /* */ }
   };
   const plushLoggedIn = !!getStoredUser();
+  // 02/10 — badge du bouton PawPoints : peluches attrapées aujourd'hui (collection).
+  const [plushToday, setPlushToday] = useState(0);
+  useEffect(() => {
+    if (!plushLoggedIn) return;
+    let alive = true;
+    void getPlushCollection().then((c) => {
+      if (!alive || !c) return;
+      const today = new Date().toLocaleDateString("sv");
+      setPlushToday(c.items.filter((it) => it.day === today).length);
+    });
+    return () => { alive = false; };
+  }, [plushLoggedIn, plushBanner]);
   // Lecture : à l'ouverture puis toutes les 60 s (une requête, jamais en rafale).
   useEffect(() => {
     if (!plushLoggedIn) return;
@@ -1878,8 +1892,12 @@ export default function MapPage() {
                   }, active: sidePanel === "spots" },
                   { k: "tag", pal: JEWEL.tag, icon: "add_location_alt", label: t("map_tag_spot_cta"), on: () => openCreate("spot") },
                   { k: "report", pal: JEWEL.report, icon: "warning", label: t("map_report_cta"), on: () => openCreate("report") },
+                  // 02/10 (607, idée de Daniel) — PawPoints : rond or, badge = peluches attrapées aujourd'hui.
+                  { k: "pawpoints", pal: JEWEL_PAWPOINTS, icon: "toys", label: `${t("ppr607_btn")} — ${t("ppr607_help")}`, on: () => router.push("/pawpoints"), count: plushToday,
+                    // eslint-disable-next-line @next/next/no-img-element
+                    child: <img src="/plush/teddy.png" alt="" width={26} height={26} className="relative h-[26px] w-[26px] object-contain" /> },
                   // 602 — « Voir signaux » (drapeau noir) est passé dans la barre de DROITE.
-                ] as { k: string; pal: JewelPalette; icon: string; label: string; on: () => void; active?: boolean; dot?: boolean }[]
+                ] as { k: string; pal: JewelPalette; icon: string; label: string; on: () => void; active?: boolean; dot?: boolean; count?: number; child?: React.ReactNode }[]
               ).filter((b) => railOrder.includes(b.k)).sort((a, b) => railOrder.indexOf(a.k) - railOrder.indexOf(b.k)).map((b) => (
                 <PawJewel
                   key={`rail-${b.k}`}
@@ -1890,7 +1908,8 @@ export default function MapPage() {
                   active={b.active}
                   tap={railFit.btn}
                   size={Math.min(38, railFit.btn - 6)}
-                  badge={b.dot ? <JewelDot /> : undefined}
+                  {...(b.child ? { children: b.child } : {})}
+                  badge={b.count ? <span data-pp-rail-count="" className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[#16A34A] px-1 text-[10.5px] font-extrabold leading-none text-white ring-2 ring-white">{b.count}</span> : b.dot ? <JewelDot /> : undefined}
                 />
               ))}
               {/* 601 — « Personnaliser mes boutons » (même bouton que l'app). */}
@@ -2606,6 +2625,7 @@ export default function MapPage() {
           sub={t("p601_pawmap_rail_customize_sub")}
           fixedNote={customizeBar === "capsule" ? t("p601_pawmap601_capsule_fixed") : undefined}
           specs={customizeBar === "rail" ? [
+            { id: "pawpoints", label: t("ppr607_btn"), help: t("ppr607_help"), icon: "toys", pal: JEWEL_PAWPOINTS },
             { id: "around", label: t("p601_pawmap_btn_around"), help: t("p601_pawmap_rail_help_around"), icon: "explore_nearby", pal: JEWEL.around },
             { id: "directions", label: t("p601_pawmap_btn_directions"), help: t("p601_pawmap_rail_help_directions"), icon: "route", pal: JEWEL.route },
             { id: "live_friends", label: t("p601_v565_live_friends_title"), help: t("p601_pawmap_rail_help_live_friends"), icon: "group", pal: JEWEL.friends },
@@ -2757,7 +2777,11 @@ function GearIcon({ size = 22, color = "#FFFFFF" }: { size?: number; color?: str
 /** Rail gauche : les 9 boutons, ordre d'origine (ids de l'app, kPawRailSpecs). */
 // 602 — « feed » (Voir signaux) a quitté la gauche : un réglage qui le contient
 // encore ne fait apparaître aucun bouton fantôme (comme normalizeRailOrder).
-const RAIL_IDS = ["around", "directions", "live_friends", "chat", "photo", "spots", "tag", "report"];
+// 02/10 (607) — + « pawpoints » (idée de Daniel). Un réglage enregistré avant
+// ce bouton le montre quand même (en tête, affichage seulement : rien n'est
+// réécrit sur le compte) ; le masquer enregistre le marqueur NO_PAWPOINTS.
+const RAIL_IDS = ["pawpoints", "around", "directions", "live_friends", "chat", "photo", "spots", "tag", "report"];
+const NO_PAWPOINTS = "no_pawpoints";
 /** Barre droite : boutons personnalisables, ordre d'origine (kPawCapsuleSlotSpecs). */
 // 602 — + « feed » (Voir signaux) juste au-dessus de Balade (kPawCapsuleSlotSpecs).
 const CAPSULE_IDS = ["satellite", "everyone", "feed", "balade", "eye"];
@@ -2788,11 +2812,19 @@ function migrateCapsuleFeed602(capsule: string[] | null, rail: string[] | null):
   return { order: out, changed: true };
 }
 /** Comme normalizeRailOrder de l'app : ids connus, sans doublon ; vide → ordre d'origine. */
-function normalizeRail(order: unknown): string[] {
+function normalizeRail(order: unknown, migrate = true): string[] {
   if (!Array.isArray(order)) return RAIL_IDS;
   const out: string[] = [];
   for (const v of order) { const id = String(v); if (RAIL_IDS.includes(id) && !out.includes(id)) out.push(id); }
+  const raw = order.map(String);
+  if (migrate && !raw.includes("pawpoints") && !raw.includes(NO_PAWPOINTS)) out.unshift("pawpoints");
   return out.length ? out : RAIL_IDS;
+}
+/** Ce que le site enregistre pour la barre de gauche : l'ordre + le marqueur si PawPoints est masqué. */
+function railToSave(full: string[]): string[] {
+  const out = full.filter((id) => id !== NO_PAWPOINTS);
+  if (!out.includes("pawpoints")) out.push(NO_PAWPOINTS);
+  return out;
 }
 /** Comme normalizeCapsuleOrder : ids connus, sans doublon ; liste vide permise (les fixes restent). */
 function normalizeCapsule(order: unknown): string[] {
@@ -2925,7 +2957,10 @@ function BarCustomizeSheet({ title, sub, fixedNote, specs, order, defaults, allo
             return (
               <li key={r.id} data-bar-row={r.id} className="flex items-center gap-2 rounded-[18px] px-2 py-2" style={{ background: rowTint(r.pal, 0.08), boxShadow: `inset 0 0 0 1px ${rowTint(r.pal, 0.3)}` }}>
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: `linear-gradient(170deg,${r.pal[0]} -20%,${r.pal[1]} 45%,${r.pal[2]} 100%)` }}>
-                  <PawSymbol name={r.icon} size={20} color="#FFFFFF" />
+                  {r.icon === "toys"
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src="/plush/teddy.png" alt="" width={22} height={22} className="h-[22px] w-[22px] object-contain" />
+                    : <PawSymbol name={r.icon} size={20} color="#FFFFFF" />}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-bold leading-tight text-[#231715]">{r.label}</span>
