@@ -217,8 +217,27 @@ const emitChatMessage = (conversation, event, payload) => {
       }
     }
   };
-  if (!senderRoleId) { emitAll(null); return; }
-  _senderIdsOf(senderRoleId).then(emitAll).catch(() => emitAll(null));
+  // 609 (ZOE, 02/10) — MESURÉ en production (client socket, comptes de test) :
+  // un destinataire à plusieurs profils ne recevait message:new QUE sur le
+  // profil enregistré dans le fil (ex. propriétaire) ; connecté en promeneur,
+  // son app n'avait rien → pastille Chat seulement au retour au premier plan
+  // (« en retard »). On ajoute les AUTRES profils de chaque destinataire
+  // (même personne, identityGroup), comme pour l'expéditeur et le « lu ».
+  const emitRecipientSiblings = async () => {
+    for (const p of participants.slice()) {
+      if (!p.userId) continue;
+      let sib;
+      try { sib = await _senderIdsOf(p.userId); } catch (_) { sib = new Set(); }
+      for (const id of sib) {
+        if (seenUserIds.has(id)) continue;
+        seenUserIds.add(id);
+        emitTo(id, payload);
+      }
+    }
+  };
+  const done = (senderIds) => { emitAll(senderIds); return emitRecipientSiblings(); };
+  if (!senderRoleId) { done(null).catch(() => {}); return; }
+  _senderIdsOf(senderRoleId).then(done).catch(() => done(null).catch(() => {}));
 };
 
 // v566 — accusés de réception/lecture : UNE seule diffusion vers les 3 rooms
