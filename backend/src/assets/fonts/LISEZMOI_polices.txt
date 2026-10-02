@@ -7,6 +7,6 @@ src/utils/cidFont607.js et src/utils/posterPdf607.js (sous-ensembles embarqués 
   Copie d'une version redistribuée sous le nom interne « RODE Noto Sans CJK SC R ».
 
 Les trois polices sont sous licence SIL Open Font License, Version 1.1
-(https://openfontlicense.org — texte intégral : http://scripts.sil.org/OFL). La notice de
+(texte intégral dans OFL.txt, à côté de ce fichier ; https://openfontlicense.org). La notice de
 copyright et la mention de licence sont aussi inscrites dans la table `name` de chaque fichier.
 Elles ne sont jamais vendues seules : elles servent uniquement à composer l'affiche.
