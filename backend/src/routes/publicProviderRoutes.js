@@ -19,7 +19,7 @@
 const express = require('express');
 const logger = require('../utils/logger');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
-const { ensurePublicSlug, isValidSlug } = require('../utils/publicSlug607');
+const { ensurePublicSlug, isValidSlug, isTaintedSlug } = require('../utils/publicSlug607');
 const { toPublicProvider, cityOfDoc, SITE } = require('../utils/publicProvider607');
 const { computeIsPioneer } = require('../utils/pioneer607');
 const { buildPosterPdf, posterLang } = require('../utils/posterPdf607');
@@ -50,6 +50,12 @@ async function findVisible(slug, req) {
     // eslint-disable-next-line no-await-in-loop
     const d = await Model.findOne({ publicSlug: slug }).select('+homeLocation').lean();
     if (!d) continue;
+    if (isTaintedSlug(slug, d)) {
+      // Ancien lien contenant un e-mail : remplacé, et l'ancien répond 404.
+      // eslint-disable-next-line no-await-in-loop
+      await ensurePublicSlug(d, role).catch(() => null);
+      return null;
+    }
     const { isTestAccountDoc } = require('../utils/testAccountMap604');
     const isTest = isTestAccountDoc(d);
     const hidden = hiddenProfile(d);
@@ -150,8 +156,8 @@ router.get('/badge/:role/:id', async (req, res) => {
     const { isTestAccountDoc } = require('../utils/testAccountMap604');
     if (!d || hiddenProfile(d) || isTestAccountDoc(d)) return res.json(none);
     const v = (await computeIsPioneer(d)) === true;
-    let slug = d.publicSlug || '';
-    if (!slug && isListableProfile(d, role)) slug = await ensurePublicSlug(d, role);
+    let slug = d.publicSlug && !isTaintedSlug(d.publicSlug, d) ? d.publicSlug : '';
+    if (!slug && (isListableProfile(d, role) || d.publicSlug)) slug = await ensurePublicSlug(d, role);
     res.set('Cache-Control', 'public, max-age=600');
     return res.json({ isPioneer: v, slug, url: slug ? `${SITE}/s/${slug}` : '' });
   } catch (e) {
@@ -162,7 +168,7 @@ router.get('/badge/:role/:id', async (req, res) => {
 
 /**
  * Sitemap du site (LEO) : une URL /s/<slug> par prestataire public complet.
- *   GET /api/v1/public/providers/sitemap → { providers: [{ slug, role, updatedAt }] }
+ *   GET /api/v1/public/providers/sitemap → { providers: [{ slug, role, country, updatedAt }] }
  * Crée le slug manquant des profils publics complets (jamais d'une coquille
  * vide). Mis en cache 1 h.
  */
@@ -176,7 +182,7 @@ router.get('/sitemap', async (req, res) => {
       res.set('Cache-Control', 'public, max-age=3600');
       return res.json(_sitemap.body);
     }
-    const sel = 'publicSlug name firstName lastName city location.city email avatar bio hourlyRate dailyRate weeklyRate monthlyRate walkRates currency hiddenFromPublic bannedAt status isStaff updatedAt';
+    const sel = 'publicSlug name firstName lastName city location.city country email avatar bio hourlyRate dailyRate weeklyRate monthlyRate walkRates currency hiddenFromPublic bannedAt status isStaff updatedAt';
     const out = [];
     for (const role of ['sitter', 'walker']) {
       // eslint-disable-next-line no-await-in-loop
@@ -189,8 +195,10 @@ router.get('/sitemap', async (req, res) => {
       for (const d of docs) {
         if (!isListableProfile(d, role)) continue;
         // eslint-disable-next-line no-await-in-loop
-        const slug = d.publicSlug || await ensurePublicSlug(d, role).catch(() => '');
-        if (slug) out.push({ slug, role, updatedAt: d.updatedAt || null });
+        const slug = d.publicSlug && !isTaintedSlug(d.publicSlug, d)
+          ? d.publicSlug
+          : await ensurePublicSlug(d, role).catch(() => '');
+        if (slug) out.push({ slug, role, country: String(d.country || '').toUpperCase(), updatedAt: d.updatedAt || null });
       }
     }
     out.sort((x, y) => x.slug.localeCompare(y.slug));

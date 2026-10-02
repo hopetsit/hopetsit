@@ -22,6 +22,8 @@ const { displayLocationOf } = require('./personMapPosition');
 function toPublicListEntry(raw, safe) {
   if (!safe) return safe;
   applyPublicName(safe);
+  // 02/10 (NEO) — jamais une « ville » qui est un e-mail, un lien ou un numéro.
+  require('./publicCity607').scrubCities(safe);
   const plain = raw && typeof raw.toObject === 'function' ? raw.toObject() : raw;
   const shown = displayLocationOf(plain || {});
   const c = shown && Array.isArray(shown.coordinates) ? shown.coordinates : null;

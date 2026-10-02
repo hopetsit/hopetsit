@@ -292,7 +292,7 @@ describe('badge Pionnier sur la fiche de l\'app', () => {
 describe('GET /public/providers/sitemap', () => {
   test('profils publics complets seulement ; test, masqué, banni, staff et coquilles vides absents', async () => {
     require('../src/routes/publicProviderRoutes')._resetSitemapCache();
-    await mk(Sitter, { firstName: 'Photo', lastName: 'Ok', location: at(0), avatar: { url: 'https://example.org/p.jpg' } });
+    await mk(Sitter, { firstName: 'Photo', lastName: 'Ok', location: at(0), avatar: { url: 'https://example.org/p.jpg' }, country: 'fr' });
     await mk(Walker, { firstName: 'Tarif', lastName: 'Ok', location: at(0), walkRates: [{ durationMinutes: 30, basePrice: 10 }] });
     await mk(Sitter, { firstName: 'Bio', lastName: 'Ok', location: at(0), bio: 'Bonjour' });
     const vide = await mk(Sitter, { firstName: 'Vide', lastName: 'X', location: at(0) });
@@ -304,12 +304,60 @@ describe('GET /public/providers/sitemap', () => {
     expect(r.status).toBe(200);
     expect(r.body.providers.map((p) => p.slug)).toEqual(['bio-o-zone-test', 'photo-o-zone-test', 'tarif-o-zone-test']);
     expect(r.body.providers.every((p) => ['sitter', 'walker'].includes(p.role) && p.updatedAt)).toBe(true);
-    expect(Object.keys(r.body.providers[0]).sort()).toEqual(['role', 'slug', 'updatedAt']);
+    expect(Object.keys(r.body.providers[0]).sort()).toEqual(['country', 'role', 'slug', 'updatedAt']);
+    expect(r.body.providers.find((p) => p.slug === 'photo-o-zone-test').country).toBe('FR');
     expect((await Sitter.findById(vide._id).lean()).publicSlug).toBeUndefined();
     // Chaque slug listé ouvre bien sa page publique.
     for (const p of r.body.providers) {
       expect((await request(app).get(`/api/v1/public/providers/${p.slug}`)).status).toBe(200);
     }
+  });
+});
+
+describe('FUITE 02/10 : une « ville » qui est un e-mail, un lien ou un numéro n\'est jamais publiée', () => {
+  const { isUnsafeCity } = require('../src/utils/publicCity607');
+  test('règle', () => {
+    for (const ok of ['Paris', 'Paris 11e', 'Saint-Étienne', 'Łódź', '東京', 'San Francisco', 'Zone test']) expect(isUnsafeCity(ok)).toBe(false);
+    for (const bad of ['dadaniecka@gmail.com', 'www.monsite.fr', 'https://x.io', 'monsite.com', '06 12 34 56 78', '+33612345678', 'x'.repeat(61)]) expect(isUnsafeCity(bad)).toBe(true);
+  });
+
+  test('ancien slug vicié → 404, nouveau slug sans e-mail, nulle part dans les routes publiques', async () => {
+    require('../src/routes/publicProviderRoutes')._resetSitemapCache();
+    const s = await mk(Sitter, {
+      firstName: 'Jesse', lastName: 'Tlv', city: 'neo607fuite@gmail.com', bio: 'Je garde.',
+      location: { ...at(0), city: 'neo607fuite@gmail.com' }, dailyRate: 20,
+    });
+    // Comme en production : slug fabriqué avant la règle.
+    await Sitter.collection.updateOne({ _id: s._id }, { $set: { publicSlug: 'jesse-t-neo607fuite-gmail-com' } });
+    const w = await mk(Walker, { firstName: 'Lela', lastName: 'Tlv', city: 'www.neo607.fr', location: { ...at(1), city: 'www.neo607.fr' }, bio: 'x' });
+    const old = await request(app).get('/api/v1/public/providers/jesse-t-neo607fuite-gmail-com');
+    expect(old.status).toBe(404);
+    expect((await request(app).get('/api/v1/public/providers/jesse-t-neo607fuite-gmail-com/poster.pdf')).status).toBe(404);
+    const fresh = (await Sitter.findById(s._id).lean());
+    expect(fresh.publicSlug).toBe('jesse-t');
+    expect(fresh.city).toBe('neo607fuite@gmail.com'); // la donnée n'est pas touchée
+    const sm = await request(app).get('/api/v1/public/providers/sitemap');
+    const urls = [
+      '/api/v1/public/providers/sitemap',
+      '/api/v1/public/providers/jesse-t',
+      `/api/v1/public/providers/badge/sitter/${s._id}`,
+      `/api/v1/public/providers/badge/walker/${w._id}`,
+      '/api/v1/sitters', `/api/v1/sitters/${s._id}`,
+      '/api/v1/sitters/nearby?lat=-35&lng=-30&radiusInMeters=50000',
+      '/api/v1/walkers', `/api/v1/walkers/${w._id}`,
+      '/api/v1/walkers/nearby?lat=-35&lng=-30&radiusInMeters=50000',
+    ];
+    expect(sm.body.providers.map((p) => p.slug)).toEqual(expect.arrayContaining(['jesse-t', 'lela-t']));
+    for (const u of urls) {
+      const r = await request(app).get(u);
+      expect([u, r.status]).toEqual([u, 200]);
+      const raw = JSON.stringify(r.body);
+      expect([u, /neo607fuite|gmail|www\.neo607/.test(raw)]).toEqual([u, false]);
+    }
+    expect((await request(app).get('/api/v1/public/providers/jesse-t')).body.provider.city).toBe('');
+    // La personne elle-même voit toujours son champ (écran de modification).
+    const me = await request(app).get(`/api/v1/sitters/${s._id}`).set('Authorization', `Bearer ${tok(s, 'sitter')}`);
+    expect(me.body.sitter.city).toBe('neo607fuite@gmail.com');
   });
 });
 

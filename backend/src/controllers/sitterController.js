@@ -389,6 +389,7 @@ const findNearbySitters = async (req, res) => {
       return 0; // keep original distance order within each rank group
     });
 
+    require('../utils/publicCity607').scrubCities(nearbySitters);
     res.json({
       sitters: nearbySitters,
       count: nearbySitters.length,
@@ -622,6 +623,8 @@ const getSitterProfile = async (req, res) => {
 
     // 28/09/2026 — prénom + initiale pour tout autre lecteur que soi.
     if (!isSelf) require('../utils/publicName2809').applyPublicName(sitterProfile);
+    // 02/10 (NEO) — ville non publiable (e-mail, lien, numéro) retirée pour les autres.
+    if (!isSelf) require('../utils/publicCity607').scrubCities(sitterProfile);
     res.json({ sitter: sitterProfile });
   } catch (error) {
     logger.error('Fetch sitter profile error', error);

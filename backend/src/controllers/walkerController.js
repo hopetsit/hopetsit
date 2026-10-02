@@ -162,6 +162,8 @@ const getWalkerProfile = async (req, res) => {
     payload.location = coarsenLocation(payload.location, req.params.id, isSelfWalker);
     // 28/09/2026 — prénom + initiale pour tout autre lecteur que soi.
     if (!isSelfWalker) require('../utils/publicName2809').applyPublicName(payload);
+    // 02/10 (NEO) — ville non publiable (e-mail, lien, numéro) retirée pour les autres.
+    if (!isSelfWalker) require('../utils/publicCity607').scrubCities(payload);
     payload.reviews = formattedReviews;
     // v23.1.296 — self-heal : recalcule le statut Top Walker à la lecture du
     // profil pour qu'il reflète toujours les prestations confirmées (même si le
@@ -337,6 +339,7 @@ const findNearbyWalkers = async (req, res) => {
       return 0;
     });
 
+    require('../utils/publicCity607').scrubCities(enriched);
     res.json({ walkers: enriched });
   } catch (error) {
     logger.error('findNearbyWalkers error', error);

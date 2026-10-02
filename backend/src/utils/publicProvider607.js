@@ -20,7 +20,7 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 function cityOfDoc(d) {
   const raw = (d.homeLocation && d.homeLocation.city) || d.city
     || (d.location && d.location.city) || d.coverageCity || '';
-  return String(raw).trim();
+  return require('./publicCity607').publicCity(raw);
 }
 
 function ratesOf(d, role) {

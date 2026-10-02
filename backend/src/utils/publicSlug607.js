@@ -48,12 +48,32 @@ function slugBase({ firstName, lastName, name, city } = {}, role = 'sitter') {
   const f = asciiWords(first)[0] || (role === 'walker' ? 'promeneur' : 'gardien');
   const i = (asciiWords(last)[0] || '').charAt(0);
   // « Paris 11e » → « paris » : l'arrondissement ne fait pas partie du lien.
-  const cityCore = String(city || '').split(/[(,/]/)[0];
+  const cityCore = require('./publicCity607').publicCity(city).split(/[(,/]/)[0];
   const c = asciiWords(cityCore).filter((w) => !/^\d/.test(w)).join('-');
   let base = [f, i, c].filter(Boolean).join('-').replace(/-+/g, '-');
   if (base.length > MAX_BASE) base = base.slice(0, MAX_BASE).replace(/-+$/, '');
   if (RESERVED.has(base)) base = `${base}-hps`;
   return base;
+}
+
+/**
+ * 02/10 (NEO) — un slug fabriqué AVANT la règle publicCity607 peut contenir
+ * une « ville » qui était un e-mail (…-dadaniecka-gmail-com). Il est alors
+ * « vicié » : on le remplace (l'ancien répond 404, jamais de redirection qui
+ * garderait l'e-mail dans une URL).
+ */
+function rawCityOf(d) {
+  return (d && ((d.homeLocation && d.homeLocation.city) || d.city || (d.location && d.location.city))) || '';
+}
+function isTaintedSlug(slug, d) {
+  if (!slug) return false;
+  if (/(^|-)(gmail|hotmail|yahoo|outlook|icloud|live|orange|free|wanadoo|laposte|proton|gmx|aol)(-|$)/.test(slug)
+    && /-(com|fr|net|org|es|de|it|pl|pt|co|uk|me)$/.test(slug)) return true;
+  const { isUnsafeCity } = require('./publicCity607');
+  const raw = rawCityOf(d);
+  if (!isUnsafeCity(raw)) return false;
+  const words = asciiWords(raw).filter((w) => w.length >= 3);
+  return words.some((w) => slug.split('-').includes(w));
 }
 
 /** Le slug est-il déjà pris (gardien OU promeneur, autre que `selfId`) ? */
@@ -77,13 +97,18 @@ async function slugTaken(slug, selfId) {
  */
 async function ensurePublicSlug(doc, role) {
   if (!doc || !doc._id) throw new Error('ensurePublicSlug: document manquant');
-  if (doc.publicSlug) return doc.publicSlug;
+  if (doc.publicSlug && !isTaintedSlug(doc.publicSlug, doc)) return doc.publicSlug;
   const Model = role === 'walker' ? require('../models/Walker') : require('../models/Sitter');
 
   // Relu en base : un autre appel a pu le créer entre-temps.
   const fresh = await Model.findById(doc._id).select('publicSlug firstName lastName name city location homeLocation').lean();
   if (!fresh) throw new Error('ensurePublicSlug: profil introuvable');
-  if (fresh.publicSlug) return fresh.publicSlug;
+  if (fresh.publicSlug && !isTaintedSlug(fresh.publicSlug, fresh)) return fresh.publicSlug;
+  if (fresh.publicSlug) {
+    // Slug vicié : retiré, puis recréé sans la « ville » non publiable.
+    await Model.updateOne({ _id: fresh._id, publicSlug: fresh.publicSlug }, { $unset: { publicSlug: '' } });
+    fresh.publicSlug = undefined;
+  }
 
   const city = (fresh.homeLocation && fresh.homeLocation.city)
     || fresh.city || (fresh.location && fresh.location.city) || '';
@@ -124,4 +149,4 @@ function isValidSlug(s) {
   return typeof s === 'string' && /^[a-z0-9](?:[a-z0-9-]{0,70}[a-z0-9])?$/.test(s);
 }
 
-module.exports = { slugBase, ensurePublicSlug, slugTaken, isValidSlug, asciiWords };
+module.exports = { slugBase, ensurePublicSlug, slugTaken, isValidSlug, asciiWords, isTaintedSlug };

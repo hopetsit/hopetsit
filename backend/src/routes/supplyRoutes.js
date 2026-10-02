@@ -269,6 +269,8 @@ router.get('/city/faces', async (req, res) => {
       }
     }
     const out = { city, faces: faces.map(({ _memeVille, _prenomSur, ...f }) => f) };
+    // 02/10 (NEO) — jamais une « ville » qui est un e-mail, un lien ou un numéro.
+    require('../utils/publicCity607').scrubCities(out.faces);
     _cacheSet(key, out);
     res.set('Cache-Control', 'public, max-age=600');
     return res.json(out);
