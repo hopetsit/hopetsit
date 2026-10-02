@@ -231,7 +231,7 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 const ADMIN_BUILD = 'v607';
 // 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à
 // redéployer quand seul admin_dashboard.html a bougé (ADMIN_BUILD reste celui de l'app).
-const ADMIN_DEPLOYED_AT = '2026-10-02T12:00';
+const ADMIN_DEPLOYED_AT = '2026-10-02T13:00';
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -334,6 +334,8 @@ const versionedRoutes = [
   { path: '/admin/kyc-people', mw: [], router: require('./routes/adminKycRoutes607') },
   // 607 (ADA, 02/10) — tuiles du tableau de bord de l'admin (lecture seule, comptes de test à part).
   { path: '/admin/dashboard607', mw: [], router: require('./routes/adminDashboard607') },
+  // 607 (ADA, 02/10) — « À traiter » : épingles signalées (détail) + action « Masquer », journalisée.
+  { path: '/admin/moderation607', mw: [], router: require('./routes/adminModeration607') },
   // v23.1 part 36 — KYC verification (Persona) payante 3 EUR pour sitter/walker.
   { path: '/kyc', mw: [], router: require('./routes/kycRoutes') },
   { path: '/donations', mw: [sensitiveLimiter], router: donationRoutes },
