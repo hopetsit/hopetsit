@@ -403,10 +403,11 @@ async function listActive({ userId, lat, lng, now = Date.now() }) {
   const empty = {
     walkActive: false, plushies: [], radiusM: VIEW_RADIUS_M,
     catchRadiusM: CATCH_RADIUS_M, reward: REWARD_POINTS, caughtToday: false,
+    nearbyCount: 0,
   };
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return empty;
   const me = await personOf(userId);
-  if (!walkSessionOf(me.ids, now)) return empty;
+  const walking = !!walkSessionOf(me.ids, now);
   const cities = (await activeCities({ now }))
     .filter((c) => metersBetween(lat, lng, c.lat, c.lng) <= CITY_REACH_KM * 1000);
   for (const c of cities) {
@@ -415,28 +416,36 @@ async function listActive({ userId, lat, lng, now = Date.now() }) {
   const today = dayKeyFor(lng, now, lat);
   const days = [...new Set([today, ...cities.map((c) => dayKeyFor(c.lng, now, c.lat))])];
   const area = { $geoWithin: { $centerSphere: [[lng, lat], VIEW_RADIUS_M / 6371000] } };
+  // Comptes de test : jamais « déjà attrapée aujourd'hui » (copies illimitées).
+  const caughtToday = me.test
+    ? false
+    : !!(await PawPlush.exists({ caughtByPerson: me.key, day: today, testCopy: { $ne: true } }));
   // Peluches prises par un compte de test avant la règle des copies : rendues.
   try {
     const caught = await PawPlush.find({ day: { $in: days }, caughtByPerson: { $ne: null }, testCopy: { $ne: true }, location: area }).limit(60).lean();
     if (caught.length) await releaseTestCatches(caught);
   } catch (e) { logger.warn(`[plush] libération : ${e.message}`); }
-  let found = await PawPlush.find({
-    day: { $in: days },
-    caughtByPerson: null,
-    testCopy: { $ne: true },
-    location: area,
-  }).limit(30).lean();
-  if (me.test) {
-    // Le compte de test ne revoit pas celles dont il a déjà une copie.
-    const mine = new Set((await PawPlush.find({ caughtByPerson: me.key, testCopy: true, day: { $in: days } })
-      .select('copyOf').lean()).map((x) => String(x.copyOf)));
-    found = found.filter((p) => !mine.has(String(p._id)));
+  const free = { day: { $in: days }, caughtByPerson: null, testCopy: { $ne: true }, location: area };
+  // Le compte de test ne revoit pas celles dont il a déjà une copie.
+  const mine = me.test
+    ? new Set((await PawPlush.find({ caughtByPerson: me.key, testCopy: true, day: { $in: days } })
+      .select('copyOf').lean()).map((x) => String(x.copyOf)))
+    : new Set();
+  if (!walking) {
+    // 607 (BOB/Daniel) — hors Balade : le NOMBRE seulement, jamais les
+    // positions (rappel « N peluches près de toi »). 0 si la peluche du jour
+    // est déjà prise : rien à proposer.
+    if (caughtToday) return { ...empty, caughtToday };
+    const ids = await PawPlush.find(free).select('_id').limit(200).lean();
+    const nearbyCount = ids.filter((p) => !mine.has(String(p._id))).length;
+    return { ...empty, nearbyCount };
   }
-  // Comptes de test : jamais « déjà attrapée aujourd'hui » (copies illimitées).
-  const caughtToday = me.test
-    ? false
-    : !!(await PawPlush.exists({ caughtByPerson: me.key, day: today, testCopy: { $ne: true } }));
-  return { ...empty, walkActive: true, caughtToday, plushies: found.map(publicPlush) };
+  let found = await PawPlush.find(free).limit(30).lean();
+  if (mine.size) found = found.filter((p) => !mine.has(String(p._id)));
+  return {
+    ...empty, walkActive: true, caughtToday, plushies: found.map(publicPlush),
+    nearbyCount: caughtToday ? 0 : found.length,
+  };
 }
 
 class PlushError extends Error {

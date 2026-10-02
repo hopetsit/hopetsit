@@ -2,7 +2,7 @@
  * 607 (PAM, 02/10/2026) — mini-peluches de la PawMap. Contrat JSON :
  * ~/hopetsit-social/CONTRAT_607_peluches.md (lu par LEO pour le site).
  *
- *   GET  /plush/active?lat=&lng=   peluches à 5 km (liste vide hors Balade)
+ *   GET  /plush/active?lat=&lng=   peluches à 5 km (hors Balade : nearbyCount seul, jamais les positions)
  *   POST /plush/:id/catch {lat,lng} capture (< 30 m, Balade en cours…)
  *   GET  /plush/collection          mes captures (3 profils confondus)
  *   GET  /plush/rules               barème (public)

@@ -134,11 +134,15 @@ describe('API réelle', () => {
     expect(keys).not.toContain('lyon');
   });
 
-  test('sans Balade en cours : liste vide, capture refusée', async () => {
+  test('sans Balade en cours : AUCUNE position, juste le nombre ; capture refusée', async () => {
     const r = await request(app).get(`/plush/active?lat=${PARIS.lat}&lng=${PARIS.lng}`).set('Authorization', `Bearer ${tokA}`);
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ walkActive: false, plushies: [] });
-    expect(await PawPlush.countDocuments()).toBe(0); // rien tiré pour un curieux
+    // 607 (rappel « N peluches près de toi ») : le nombre, jamais les positions
+    const n = await PawPlush.countDocuments();
+    expect(n).toBeGreaterThanOrEqual(3);
+    expect(r.body.nearbyCount).toBe(n);
+    expect(JSON.stringify(r.body)).not.toMatch(/"lat"|"lng"|coordinates/);
     const c = await request(app).post(`/plush/${new mongoose.Types.ObjectId()}/catch`).set('Authorization', `Bearer ${tokA}`).send(PARIS);
     expect(c.status).toBe(403);
     expect(c.body.code).toBe('WALK_REQUIRED');
@@ -217,6 +221,16 @@ describe('API réelle', () => {
     const la = await request(app).get(`/plush/active?lat=${p.lat}&lng=${p.lng}`).set('Authorization', `Bearer ${tokA}`);
     expect(la.body.caughtToday).toBe(true);
     expect(lb.body.caughtToday).toBe(false);
+    // Hors Balade : Alice (peluche du jour prise) n'a plus de rappel ; Bob voit
+    // le nombre des peluches encore libres.
+    plush._resetForTests();
+    map.clearLiveSession(String(alice._id));
+    map.clearLiveSession(String(bob._id));
+    const offA = await request(app).get(`/plush/active?lat=${p.lat}&lng=${p.lng}`).set('Authorization', `Bearer ${tokA}`);
+    expect(offA.body).toMatchObject({ walkActive: false, plushies: [], nearbyCount: 0, caughtToday: true });
+    const offB = await request(app).get(`/plush/active?lat=${p.lat}&lng=${p.lng}`).set('Authorization', `Bearer ${tokB}`);
+    expect(offB.body.walkActive).toBe(false);
+    expect(offB.body.nearbyCount).toBe(await PawPlush.countDocuments({ caughtByPerson: null, testCopy: { $ne: true } }));
   });
 
   test('deux captures simultanées de la même personne : une seule passe', async () => {
