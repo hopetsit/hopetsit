@@ -158,7 +158,7 @@ describe("drapeaux d'épingle", () => {
   });
   test('pinFlags regroupe les trois', () => {
     expect(pinFlags({ boostExpiry: '2026-12-01', kycStatus: 'verified', availableDays: ['thursday'] }, now))
-      .toEqual({ isBoosted: true, kycVerified: true, availableToday: true });
+      .toEqual({ isBoosted: true, kycVerified: true, identityVerified: true, availableToday: true });
   });
 });
 

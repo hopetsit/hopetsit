@@ -190,6 +190,11 @@ function pinFlags(doc, now = new Date()) {
   return {
     isBoosted: isBoosted(doc, now),
     kycVerified: isKycVerified(doc),
+    // 609 (Daniel : « que ça leur donne un plus ») — même règle, nom commun
+    // avec les fiches (sitterController, sanitizeUser) : VRAIE vérification
+    // d'identité seulement (kycStatus verified / validation admin), jamais
+    // un simple e-mail vérifié (`verified`).
+    identityVerified: isKycVerified(doc),
     availableToday: isAvailableToday(doc, now),
   };
 }

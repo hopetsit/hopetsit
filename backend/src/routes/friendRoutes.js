@@ -492,6 +492,9 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
         ...mapVisibility.pinFlags(d, now),
         // v585 (bug 11) — PawBoost de la personne (n'importe lequel de ses rôles).
         isBoosted: entries.some((e) => mapVisibility.isBoosted(e.d, now)),
+        // 609 — identité vérifiée de la PERSONNE (n'importe lequel de ses rôles).
+        identityVerified: entries.some((e) => mapVisibility.isKycVerified(e.d)),
+        kycVerified: entries.some((e) => mapVisibility.isKycVerified(e.d)),
       });
     }
     return res.json({ members, count: members.length });
@@ -656,6 +659,9 @@ async function _withHiddenFriends(req, payload) {
         ...mapVisibility.pinFlags(d, new Date()),
         // v595 — PawBoost de la personne (n'importe lequel de ses rôles).
         isBoosted: entries.some((e) => mapVisibility.isBoosted(e.d, new Date())),
+        // 609 — identité vérifiée de la PERSONNE (n'importe lequel de ses rôles).
+        identityVerified: entries.some((e) => mapVisibility.isKycVerified(e.d)),
+        kycVerified: entries.some((e) => mapVisibility.isKycVerified(e.d)),
         lastSeenAt: (() => {
           const t = entries.map((e) => (e.d.lastSeenAt ? new Date(e.d.lastSeenAt).getTime() : 0))
             .reduce((m, x) => Math.max(m, x), 0);
@@ -820,6 +826,9 @@ router.get('/members/world', requireAuth, async (req, res) => {
         ...mapVisibility.pinFlags(d, nowDate),
         // v585 (bug 11) — PawBoost acheté sous un autre rôle : vaut pour la personne.
         isBoosted: entries.some((e) => mapVisibility.isBoosted(e.d, nowDate)),
+        // 609 — identité vérifiée de la PERSONNE (n'importe lequel de ses rôles).
+        identityVerified: entries.some((e) => mapVisibility.isKycVerified(e.d)),
+        kycVerified: entries.some((e) => mapVisibility.isKycVerified(e.d)),
       });
     }
     // Centres-villes manquants : résolus en tâche de fond pour la prochaine
