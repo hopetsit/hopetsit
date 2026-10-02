@@ -1,0 +1,12 @@
+Polices de l'affiche A4 « Réserve-moi ici » (607, NEO, 02/10/2026) — utilisées par
+src/utils/cidFont607.js et src/utils/posterPdf607.js (sous-ensembles embarqués dans le PDF).
+
+- Inter-Regular.ttf, Inter-Bold.ttf : Copyright 2020 The Inter Project Authors
+  (https://github.com/rsms/inter). Les mêmes fichiers que l'app (frontend/assets/fonts).
+- NotoSansCJK-Regular.otf : Noto Sans CJK, Copyright 2014, 2015 Adobe Systems Incorporated.
+  Copie d'une version redistribuée sous le nom interne « RODE Noto Sans CJK SC R ».
+
+Les trois polices sont sous licence SIL Open Font License, Version 1.1
+(https://openfontlicense.org — texte intégral : http://scripts.sil.org/OFL). La notice de
+copyright et la mention de licence sont aussi inscrites dans la table `name` de chaque fichier.
+Elles ne sont jamais vendues seules : elles servent uniquement à composer l'affiche.

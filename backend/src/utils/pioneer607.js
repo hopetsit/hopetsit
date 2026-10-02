@@ -12,6 +12,7 @@
  * test / interne. Les autres profils de la MÊME personne (son profil
  * promeneur quand elle est gardienne) ne comptent pas : elle reste seule.
  *
+ * La personne elle-même doit être un vrai prestataire actif (sinon false).
  * Sortie : true / false, ou null quand on ne sait pas (aucune position ni
  * ville) — l'app n'affiche alors rien. Jamais une promesse : c'est un constat.
  */
@@ -36,6 +37,14 @@ async function computeIsPioneer(doc) {
   const { geocodeCity, baseCityName } = require('./geocodeCity');
 
   const plain = typeof doc.toObject === 'function' ? doc.toObject() : doc;
+  // 02/10 (BOB) — un compte de test, staff, masqué, banni ou suspendu n'est
+  // JAMAIS Pionnier : pas de badge, pas de +200 PawPoints (pawPointsActivity607).
+  if (plain.isStaff === true || plain.hiddenFromPublic === true || plain.bannedAt
+    || plain.status === 'banned' || plain.status === 'suspended'
+    || require('./testAccountMap604').isTestAccountDoc(plain)) {
+    _cache.set(key, { at: Date.now(), v: false });
+    return false;
+  }
   const city = baseCityName(cityOf(plain));
   let center = null;
   const home = homeOf(plain);

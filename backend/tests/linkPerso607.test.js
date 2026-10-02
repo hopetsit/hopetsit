@@ -27,7 +27,7 @@ const { slugBase, ensurePublicSlug } = require('../src/utils/publicSlug607');
 const { _resetPioneerCache, computeIsPioneer } = require('../src/utils/pioneer607');
 const { PUBLIC_PROVIDER_KEYS } = require('../src/utils/publicProvider607');
 const { encodeQr } = require('../src/utils/qr607');
-const { buildPosterPdf, TXT } = require('../src/utils/posterPdf607');
+const { buildPosterPdf, extractPosterText, TXT } = require('../src/utils/posterPdf607');
 
 let mongo; let app; let Sitter; let Walker; let Owner; let Booking;
 const ZONE = [-30, -35]; // [lng, lat]
@@ -242,6 +242,36 @@ describe('isPioneer : aucun autre prestataire actif à 25 km', () => {
   });
 });
 
+describe('Pionnier : jamais influencé par les comptes de test / masqués / staff', () => {
+  test.each([
+    ['compte +test', { email: 'seul+test@example.org' }],
+    ['staff', { isStaff: true }],
+    ['masqué', { hiddenFromPublic: true }],
+    ['banni', { status: 'banned' }],
+    ['suspendu', { status: 'suspended' }],
+  ])('%s seul dans sa zone → jamais Pionnier (ni badge, ni +200)', async (_l, extra) => {
+    const s = await mk(Sitter, { firstName: 'Seul', lastName: 'Test', location: at(0), ...extra });
+    expect(await computeIsPioneer(await Sitter.findById(s._id).lean())).toBe(false);
+    const gains = await require('../src/services/pawPointsActivity607').checkIn({ userId: String(s._id), role: 'sitter' });
+    expect(gains.filter((g) => g && g.key === 'pioneer')).toEqual([]);
+  });
+
+  test('un vrai prestataire seul reçoit bien le +200 une fois (contrôle du test ci-dessus)', async () => {
+    const s = await mk(Sitter, { firstName: 'Vrai', lastName: 'Seul', location: at(0) });
+    await mk(Walker, { location: at(2), email: 'voisin+test@example.org' });
+    await mk(Sitter, { location: at(3), isStaff: true });
+    await mk(Walker, { location: at(4), hiddenFromPublic: true });
+    expect(await computeIsPioneer(await Sitter.findById(s._id).lean())).toBe(true);
+    const svc = require('../src/services/pawPointsActivity607');
+    const g1 = await svc.checkIn({ userId: String(s._id), role: 'sitter' });
+    const pioneer = g1.filter((g) => g && g.key === 'pioneer');
+    expect(pioneer.length).toBe(1);
+    expect(JSON.stringify(pioneer[0])).toContain('200');
+    const g2 = await svc.checkIn({ userId: String(s._id), role: 'sitter' });
+    expect(g2.filter((g) => g && g.key === 'pioneer')).toEqual([]);
+  });
+});
+
 describe('badge Pionnier sur la fiche de l\'app', () => {
   test('GET /public/providers/badge/:role/:id', async () => {
     const s = await mk(Sitter, { firstName: 'Seule', lastName: 'Test', location: at(0) });
@@ -266,10 +296,11 @@ describe('affiche A4 + QR', () => {
     expect(r.status).toBe(200);
     expect(r.headers['content-type']).toMatch(/^application\/pdf/);
     const txt = r.body.toString('latin1');
-    expect(txt.startsWith('%PDF-1.4')).toBe(true);
+    expect(txt.startsWith('%PDF-1.6')).toBe(true);
     expect(txt).toContain('/MediaBox [0 0 595.28 841.89]');
-    expect(txt).toContain(`(hopetsit.com/s/${slug})`);
-    expect(txt).toContain('(Nora T.)');
+    const lines = extractPosterText(r.body);
+    expect(lines).toContain(`hopetsit.com/s/${slug}`);
+    expect(lines).toContain('Nora T.');
     expect(txt.trim().endsWith('%%EOF')).toBe(true);
   });
 
@@ -289,11 +320,40 @@ describe('affiche A4 + QR', () => {
     spy.mockRestore();
   });
 
-  test('textes de l\'affiche : 7 langues écrites, ja/ko en anglais, aucun texte vide', () => {
-    for (const l of Object.keys(TXT)) for (const v of Object.values(TXT[l])) expect(v.trim().length).toBeGreaterThan(3);
-    const ja = buildPosterPdf({ name: 'さくら T.', role: 'walker', city: '東京', url: 'https://www.hopetsit.com/s/promeneur-t', lang: 'ja' }).toString('latin1');
-    expect(ja).toContain('(I now walk dogs through HoPetSit.)');
-    expect(ja).toContain('(HoPetSit)');
+  test.each([
+    ['fr', 'Hélène D.', 'Saint-Étienne', 'sitter'],
+    ['en', 'Sasha B.', 'Zone test', 'walker'],
+    ['es', 'Begoña Ñ.', 'Logroño', 'sitter'],
+    ['de', 'Jürgen Ö.', 'Görlitz', 'walker'],
+    ['it', 'Niccolò È.', 'Forlì', 'sitter'],
+    ['pt', 'João Ç.', 'Évora', 'walker'],
+    ['pl', 'Łukasz Ż.', 'Łódź', 'sitter'],
+    ['ja', 'さくら T.', '東京', 'walker'],
+    ['ko', '민지 K.', '서울', 'sitter'],
+  ])('affiche %s : texte relu DANS le PDF, lettres intactes (police embarquée)', (lang, name, city, role) => {
+    const url = `https://www.hopetsit.com/s/test-${lang}`;
+    const pdf = buildPosterPdf({ name, role, city, url, lang });
+    const lines = extractPosterText(pdf);
+    const flat = lines.join(' ');
+    const squeeze = (x) => x.replace(/\s+/g, '');
+    const T = TXT[lang];
+    expect(lines).toContain(name);
+    expect(flat).toContain(city);
+    expect(flat).toContain(role === 'walker' ? T.walker : T.sitter);
+    for (const k of [role === 'walker' ? 'l1w' : 'l1', 'l2', 'l3', 'foot']) {
+      expect(squeeze(flat)).toContain(squeeze(T[k]));
+    }
+    expect(lines).toContain(`hopetsit.com/s/test-${lang}`);
+    // Les 3 polices sont embarquées en sous-ensemble (jamais Helvetica sans accents).
+    const raw = pdf.toString('latin1');
+    expect(raw).not.toContain('/BaseFont /Helvetica');
+    expect(raw).toMatch(/\/FontFile[23] /);
+    expect(pdf.length).toBeLessThan(400 * 1024);
+  });
+
+  test('texte de chaque langue écrit, aucun vide', () => {
+    expect(Object.keys(TXT).sort()).toEqual(['de', 'en', 'es', 'fr', 'it', 'ja', 'ko', 'pl', 'pt']);
+    for (const l of Object.keys(TXT)) for (const v of Object.values(TXT[l])) expect(v.trim().length).toBeGreaterThan(1);
   });
 
   test('QR identique, module pour module, à la bibliothèque Python qrcode', () => {

@@ -7,13 +7,12 @@
  * L'outil `~/hopetsit-social/affiche_commerce.py` (reportlab + qrcode) n'est
  * pas portable sur le serveur Node (pas de Python sur Render) : même charte
  * (orange #C92A12, encre #17141F), mais PDF écrit à la main ici, sans aucune
- * dépendance — polices standard Helvetica (WinAnsi), photo JPEG insérée
- * telle quelle (DCTDecode), QR dessiné en vecteurs (net à toute taille).
+ * dépendance. Photo JPEG insérée telle quelle (DCTDecode), QR en vecteurs.
  *
- * Langues : fr en es de it pt pl ; ja et ko reçoivent l'affiche en anglais
- * (les polices standard du PDF n'ont pas leurs caractères). Le polonais perd
- * ses lettres à signe (ą → a) pour la même raison. Un nom sans lettre latine
- * est remplacé par « HoPetSit » + rôle (jamais de carrés vides).
+ * 02/10 (Daniel : « impeccable ») — polices EMBARQUÉES (sous-ensembles, licence
+ * OFL, utils/cidFont607.js) : Inter (la police de l'app) pour le latin, y
+ * compris ą ę ł ś ż ; Noto Sans CJK pour le japonais et le coréen. Les 9
+ * langues de l'app ont leur affiche dans leur langue, noms et villes compris.
  */
 const { encodeQr } = require('./qr607');
 
@@ -79,6 +78,22 @@ const TXT = {
     l3: 'Zeskanuj kod QR, aby mnie zarezerwować.',
     foot: 'HoPetSit - darmowa aplikacja na iOS i Android.',
   },
+  ja: {
+    sitter: 'ペットシッター', walker: 'ドッグウォーキング',
+    l1: 'HoPetSitでペットのお世話を始めました。',
+    l1w: 'HoPetSitで犬の散歩を始めました。',
+    l2: '安全なお支払い、リアルタイムで様子を確認、本物のレビュー。',
+    l3: 'QRコードを読み取ってご予約ください。',
+    foot: 'HoPetSit - iOS・Android対応の無料アプリ。',
+  },
+  ko: {
+    sitter: '펫시팅', walker: '강아지 산책',
+    l1: '이제 HoPetSit에서 반려동물을 돌봐요.',
+    l1w: '이제 HoPetSit에서 강아지 산책을 해요.',
+    l2: '안전한 결제, 실시간 확인, 진짜 후기.',
+    l3: 'QR 코드를 스캔해 예약하세요.',
+    foot: 'HoPetSit - iOS와 Android 무료 앱.',
+  },
 };
 
 function posterLang(lang) {
@@ -86,74 +101,60 @@ function posterLang(lang) {
   return TXT[l] ? l : 'en';
 }
 
-// ── Texte : WinAnsi (cp1252) + largeurs Helvetica ──────────────────────────
-const W_REG = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];
-const W_BOLD = [278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611, 975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556, 333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584];
+// ── Texte : polices embarquées (cidFont607) ───────────────────────────────
+const { createPdfFont } = require('./cidFont607');
 
-const CP1252_EXTRA = { '€': 0x80, '‚': 0x82, '„': 0x84, '…': 0x85, 'Œ': 0x8c, '‘': 0x91, '’': 0x92, '“': 0x93, '”': 0x94, '•': 0x95, '–': 0x96, '—': 0x97, 'œ': 0x9c, 'Ÿ': 0x9f };
-
-/** Chaîne → octets WinAnsi ; ce qui n'existe pas perd son signe (ą → a) ou disparaît. */
-function toWinAnsi(s) {
-  const out = [];
-  for (const ch of String(s || '')) {
-    const c = ch.codePointAt(0);
-    if (c >= 0x20 && c <= 0x7e) out.push(c);
-    else if (c >= 0xa0 && c <= 0xff) out.push(c);
-    else if (CP1252_EXTRA[ch] != null) out.push(CP1252_EXTRA[ch]);
-    else {
-      const base = ch.normalize('NFD').replace(/[̀-ͯ]/g, '');
-      const map = { 'ł': 'l', 'Ł': 'L', 'đ': 'd', 'Đ': 'D', 'ı': 'i' };
-      const b = map[ch] || base;
-      if (b && b !== ch && b.length === 1 && b.codePointAt(0) < 0x7f) out.push(b.codePointAt(0));
+/**
+ * Jeu de polices d'UNE affiche. Chaque texte est découpé en tronçons : Inter
+ * quand il a le caractère (tout le latin, ą ę ł ś ż compris), sinon Noto Sans
+ * CJK (kana, kanji, hangeul). Gras CJK : contour + remplissage (la police CJK
+ * embarquée n'a qu'une graisse).
+ */
+function makeFonts() {
+  const fonts = {
+    F1: createPdfFont('Inter-Regular.ttf', 'HPSREG'),
+    F2: createPdfFont('Inter-Bold.ttf', 'HPSBLD'),
+    F3: createPdfFont('cjk', 'HPSCJK'),
+  };
+  const runs = (s, bold) => {
+    const latin = bold ? 'F2' : 'F1';
+    const out = [];
+    for (const ch of String(s || '')) {
+      const key = fonts[latin].has(ch) ? latin : (fonts.F3.has(ch) ? 'F3' : null);
+      if (!key) continue; // absent des deux polices : sauté, jamais de carré vide
+      const last = out[out.length - 1];
+      if (last && last.key === key) last.text += ch; else out.push({ key, text: ch });
     }
-  }
-  return out;
+    return out;
+  };
+  const width = (s, size, bold) => runs(s, bold).reduce((w, r) => w + fonts[r.key].width(r.text, size), 0);
+  return { fonts, runs, width };
 }
 
-/** Le texte reste-t-il lisible en WinAnsi ? Sinon '' (nom japonais, ville en coréen…). */
-function latinOrEmpty(s) {
-  const bytes = toWinAnsi(s);
-  const letters = bytes.filter((b) => (b >= 65 && b <= 90) || (b >= 97 && b <= 122) || b >= 0xc0).length;
-  const total = Array.from(String(s || '').replace(/[\s.\-']/g, '')).length;
-  // Moins de la moitié des lettres survit : on n'affiche pas un nom mutilé.
-  if (letters < 2 || letters * 2 < total) return '';
-  return String(s || '').trim();
+/** Reste-t-il quelque chose de lisible ? (nom/ville sans aucun glyphe → '') */
+function printable(F, s) {
+  const t = String(s || '').trim();
+  const shown = F.runs(t, false).map((r) => r.text).join('').replace(/[\s.\-']/g, '');
+  return shown.length >= 1 ? t : '';
 }
 
-function widthOf(bytes, size, bold) {
-  const tbl = bold ? W_BOLD : W_REG;
-  let w = 0;
-  for (const b of bytes) {
-    if (b >= 32 && b <= 126) w += tbl[b - 32];
-    else if (b >= 0xc0) {
-      // Lettre accentuée : même largeur que sa lettre de base.
-      const base = String.fromCharCode(b).normalize('NFD').charCodeAt(0);
-      w += base >= 32 && base <= 126 ? tbl[base - 32] : 556;
-    } else w += b === 0x85 || b === 0x97 ? 1000 : 556;
-  }
-  return (w * size) / 1000;
-}
-
-function pdfStr(bytes) {
-  let s = '(';
-  for (const b of bytes) {
-    if (b === 0x28 || b === 0x29 || b === 0x5c) s += `\\${String.fromCharCode(b)}`;
-    else if (b < 0x20 || b > 0x7e) s += `\\${b.toString(8).padStart(3, '0')}`;
-    else s += String.fromCharCode(b);
-  }
-  return `${s})`;
-}
-
-/** Coupe un texte en lignes qui tiennent dans `maxW`. */
-function wrap(text, size, bold, maxW) {
+/** Coupe en lignes : par mots, puis par caractères (japonais, sans espaces). */
+function wrap(F, text, size, bold, maxW) {
   const words = String(text || '').split(/\s+/).filter(Boolean);
   const lines = [];
   let cur = '';
-  for (const w of words) {
+  const push = (w) => {
     const t = cur ? `${cur} ${w}` : w;
-    if (widthOf(toWinAnsi(t), size, bold) <= maxW || !cur) cur = t;
-    else { lines.push(cur); cur = w; }
-  }
+    if (F.width(t, size, bold) <= maxW) { cur = t; return; }
+    if (cur) { lines.push(cur); cur = ''; }
+    if (F.width(w, size, bold) <= maxW) { cur = w; return; }
+    let part = '';
+    for (const ch of w) {
+      if (F.width(part + ch, size, bold) > maxW && part) { lines.push(part); part = ch; } else part += ch;
+    }
+    cur = part;
+  };
+  words.forEach(push);
   if (cur) lines.push(cur);
   return lines;
 }
@@ -187,15 +188,21 @@ function jpegInfo(buf) {
  */
 function buildPosterPdf({ name, role, city, url, photoJpeg = null, lang = 'fr' }) {
   const T = TXT[posterLang(lang)];
+  const F = makeFonts();
   const W = 595.28; const H = 841.89;
   const ops = [];
   const rgb = (c, stroke = false) => `${c.map((v) => v.toFixed(3)).join(' ')} ${stroke ? 'RG' : 'rg'}`;
   const text = (s, x, y, size, bold, color) => {
-    ops.push(`BT ${rgb(color)} /${bold ? 'F2' : 'F1'} ${size} Tf ${x.toFixed(2)} ${y.toFixed(2)} Td ${pdfStr(toWinAnsi(s))} Tj ET`);
+    let cx = x;
+    for (const r of F.runs(s, bold)) {
+      const font = F.fonts[r.key];
+      const fake = bold && r.key === 'F3' ? ` 2 Tr ${rgb(color, true)} ${(size * 0.035).toFixed(2)} w` : ' 0 Tr';
+      ops.push(`BT ${rgb(color)}${fake} /${r.key} ${size} Tf ${cx.toFixed(2)} ${y.toFixed(2)} Td ${font.hex(r.text)} Tj ET`);
+      cx += font.width(r.text, size);
+    }
   };
   const centered = (s, y, size, bold, color) => {
-    const w = widthOf(toWinAnsi(s), size, bold);
-    text(s, (W - w) / 2, y, size, bold, color);
+    text(s, (W - F.width(s, size, bold)) / 2, y, size, bold, color);
   };
 
   // Fond blanc + bandeau orange.
@@ -216,35 +223,33 @@ function buildPosterPdf({ name, role, city, url, photoJpeg = null, lang = 'fr' }
       + `${cx + k} ${cy - rad} ${cx + rad} ${cy - k} ${cx + rad} ${cy} c`;
   };
   const circle = circ(r);
-  // Anneau blanc autour de la photo.
   ops.push(`q 1 1 1 rg ${circ(r + 4)} f Q`);
+  const shownName = printable(F, name) || 'HoPetSit';
   if (usePhoto) {
-    // Recadrage carré centré : l'image remplit le rond.
     const side = 2 * r;
     const scale = Math.max(side / info.width, side / info.height);
     const iw = info.width * scale; const ih = info.height * scale;
     ops.push(`q ${circle} W n ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${(cx - iw / 2).toFixed(2)} ${(cy - ih / 2).toFixed(2)} cm /Im1 Do Q`);
   } else {
     ops.push(`q ${rgb(SOFT)} ${circle} f Q`);
-    const initial = (latinOrEmpty(name)[0] || 'H').toUpperCase();
-    const iw = widthOf(toWinAnsi(initial), 64, true);
-    text(initial, cx - iw / 2, cy - 22, 64, true, ORANGE);
+    const initial = Array.from(shownName)[0].toUpperCase();
+    text(initial, cx - F.width(initial, 64, true) / 2, cy - 22, 64, true, ORANGE);
   }
 
   // Nom + rôle + ville, à droite de la photo.
   const tx = cx + r + 28; const maxW = W - tx - 36;
-  let shown = latinOrEmpty(name) || 'HoPetSit';
+  let shown = shownName;
   let size = 38;
-  while (size > 20 && widthOf(toWinAnsi(shown), size, true) > maxW) size -= 2;
-  if (widthOf(toWinAnsi(shown), size, true) > maxW) shown = `${shown.slice(0, 18)}…`;
+  while (size > 20 && F.width(shown, size, true) > maxW) size -= 2;
+  while (F.width(shown, size, true) > maxW && shown.length > 4) shown = `${Array.from(shown).slice(0, -2).join('')}…`;
   text(shown, tx, cy + 18, size, true, [1, 1, 1]);
-  const roleLine = [role === 'walker' ? T.walker : T.sitter, latinOrEmpty(city)].filter(Boolean).join(' - ');
-  wrap(roleLine, 16, false, maxW).slice(0, 2).forEach((l, i) => text(l, tx, cy - 12 - i * 20, 16, false, [1, 1, 1]));
+  const roleLine = [role === 'walker' ? T.walker : T.sitter, printable(F, city)].filter(Boolean).join(' - ');
+  wrap(F, roleLine, 16, false, maxW).slice(0, 2).forEach((l, i) => text(l, tx, cy - 12 - i * 20, 16, false, [1, 1, 1]));
 
   // Les 3 lignes.
   let y = H - bandH - 58;
   for (const [s, sz, bold, col] of [[role === 'walker' ? T.l1w : T.l1, 21, true, INK], [T.l2, 15, false, MUTED], [T.l3, 15, false, MUTED]]) {
-    for (const l of wrap(s, sz, bold, W - 80)) { centered(l, y, sz, bold, col); y -= sz + 8; }
+    for (const l of wrap(F, s, sz, bold, W - 80)) { centered(l, y, sz, bold, col); y -= sz + 8; }
     y -= 6;
   }
 
@@ -275,14 +280,19 @@ function buildPosterPdf({ name, role, city, url, photoJpeg = null, lang = 'fr' }
   const content = Buffer.from(ops.join('\n'), 'latin1');
 
   // ── Assemblage des objets PDF ──
+  // 1 catalogue, 2 pages, 3 page, 4 contenu, puis 5 objets par police utilisée, puis la photo.
+  const usedKeys = Object.keys(F.fonts).filter((k) => F.fonts[k].usedCount > 0);
   const objs = [];
   objs.push(Buffer.from('<< /Type /Catalog /Pages 2 0 R >>'));
   objs.push(Buffer.from('<< /Type /Pages /Kids [3 0 R] /Count 1 >>'));
-  const xobj = usePhoto ? ' /XObject << /Im1 7 0 R >>' : '';
-  objs.push(Buffer.from(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >>${xobj} >> /Contents 6 0 R >>`));
-  objs.push(Buffer.from('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'));
-  objs.push(Buffer.from('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'));
+  const fontIds = {}; let next = 5;
+  for (const k of usedKeys) { fontIds[k] = next; next += 5; }
+  const imgId = next;
+  const fontRes = usedKeys.map((k) => `/${k} ${fontIds[k]} 0 R`).join(' ');
+  const xobj = usePhoto ? ` /XObject << /Im1 ${imgId} 0 R >>` : '';
+  objs.push(Buffer.from(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << ${fontRes} >>${xobj} >> /Contents 4 0 R >>`));
   objs.push(Buffer.concat([Buffer.from(`<< /Length ${content.length} >>\nstream\n`), content, Buffer.from('\nendstream')]));
+  for (const k of usedKeys) objs.push(...F.fonts[k].objects(fontIds[k]));
   if (usePhoto) {
     const cs = info.components === 1 ? '/DeviceGray' : '/DeviceRGB';
     objs.push(Buffer.concat([
@@ -290,7 +300,7 @@ function buildPosterPdf({ name, role, city, url, photoJpeg = null, lang = 'fr' }
       photoJpeg, Buffer.from('\nendstream'),
     ]));
   }
-  const parts = [Buffer.from('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n', 'latin1')];
+  const parts = [Buffer.from('%PDF-1.6\n%\xE2\xE3\xCF\xD3\n', 'latin1')];
   let offset = parts[0].length;
   const offsets = [];
   objs.forEach((o, i) => {
@@ -307,4 +317,36 @@ function buildPosterPdf({ name, role, city, url, photoJpeg = null, lang = 'fr' }
   return Buffer.concat(parts);
 }
 
-module.exports = { buildPosterPdf, posterLang, jpegInfo, toWinAnsi, latinOrEmpty, TXT };
+/**
+ * Texte d'une page produite par buildPosterPdf, relu DEPUIS LE PDF (codes
+ * <hex> Tj traduits par les ToUnicode embarqués) — sert aux tests.
+ */
+function extractPosterText(pdf) {
+  const s = pdf.toString('latin1');
+  const objAt = (id) => {
+    const m = new RegExp(`(?:^|\\n)${id} 0 obj\\n`).exec(s);
+    return m ? s.slice(m.index + m[0].length, s.indexOf('\nendobj', m.index + m[0].length)) : '';
+  };
+  const page = objAt(3);
+  const maps = {};
+  for (const m of page.matchAll(/\/(F\d) (\d+) 0 R/g)) {
+    const toU = /\/ToUnicode (\d+) 0 R/.exec(objAt(Number(m[2])));
+    const cm = objAt(Number(toU[1]));
+    const map = {};
+    for (const x of cm.matchAll(/<([0-9a-f]{4})> <([0-9a-f]+)>/g)) {
+      map[x[1]] = Buffer.from(x[2], 'hex').swap16().toString('utf16le');
+    }
+    maps[m[1]] = map;
+  }
+  const content = objAt(4);
+  const lines = [];
+  let lastY = null;
+  for (const m of content.matchAll(/\/(F\d) [\d.]+ Tf [\d.-]+ ([\d.-]+) Td <([0-9a-f]*)> Tj/g)) {
+    const str = (m[3].match(/.{4}/g) || []).map((h) => maps[m[1]][h] || '').join('');
+    if (lastY === m[2]) lines[lines.length - 1] += str; else lines.push(str);
+    lastY = m[2];
+  }
+  return lines;
+}
+
+module.exports = { buildPosterPdf, posterLang, jpegInfo, extractPosterText, TXT };
