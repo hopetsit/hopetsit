@@ -28,8 +28,10 @@ const CANONICAL = "https://www.hopetsit.com/garde-animaux/paris";
 // Le layout ajoute déjà « · HoPetSit » (metadata.title.template) : ne pas
 // remettre « | HoPetSit » à la main, sinon la marque sort deux fois.
 const TITLE = "Garde d'animaux à Paris — pet sitter, visites chats & promenades";
+// 02/10 (SAM) — « vérifié » retiré : 1 seul profil parisien avec photo a
+// l'identité vérifiée (/supply/city/faces) ; tutoiement aligné sur « vous ».
 const DESCRIPTION =
-  "Garde d'animaux à Paris : trouve un pet-sitter vérifié près de chez toi, arrondissement par arrondissement. Paiement sécurisé, identité vérifiée, annulation gratuite 72 h.";
+  "Garde d'animaux à Paris : des gardiens et promeneurs près de chez vous, arrondissement par arrondissement. Paiement sécurisé, chat avant de réserver, annulation gratuite 72 h.";
 
 export const metadata: Metadata = {
   title: TITLE,

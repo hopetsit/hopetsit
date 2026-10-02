@@ -55,6 +55,8 @@ type Copy = {
   metaDescription?: (c: RecruitCity) => string;
 };
 
+// 02/10 (SAM) — fr/en : plus de « pet-sitter vérifié » promis à tous (faux : peu de
+// profils ont le badge) ; le premier écran passe au « vous » comme le reste.
 // 01/10 (SAM) — fin du bandeau Toussaint (lundi 3 novembre 2026, 0 h Paris).
 const TOUSSAINT_FIN = Date.parse("2026-11-03T00:00:00+01:00");
 
@@ -62,14 +64,14 @@ const COPY: Record<RecruitLang, Copy> = {
   fr: {
     kicker: (c) => c.region,
     h1: (c) => `Pet sitter à ${c.name} : garde de chien, chat et promenades`,
-    heroLead: (c) => `Un pet-sitter vérifié près de chez toi à ${c.name}. Tu publies ta demande, tu choisis, tu ne paies qu'à la réservation.`,
-    proofs: ["Paiement sécurisé", "Identité vérifiée", "Annulation gratuite 72 h"],
+    heroLead: (c) => `Des gardiens et promeneurs près de chez vous à ${c.name}. Vous publiez votre demande, vous choisissez, vous ne payez qu'à la réservation.`,
+    proofs: ["Paiement sécurisé", "Chat avant de réserver", "Annulation gratuite 72 h"],
     heroCta: "Publier ma demande",
     heroCtaNote: "Gratuit · sans compte pour commencer · 2 minutes",
     heroAppLink: "Ou télécharger l'app HoPetSit →",
     heroSecondary: "Voir les gardiens près de chez moi →",
     intro: (c) =>
-      `Week-end, vacances, journées de travail à rallonge : à ${c.name}, HoPetSit vous met en relation avec des gardiens et promeneurs vérifiés près de chez vous. Vous publiez votre demande gratuitement, vous comparez les profils, vous discutez par chat et vous ne payez que si vous réservez.`,
+      `Week-end, vacances, journées de travail à rallonge : à ${c.name}, HoPetSit vous met en relation avec des gardiens et promeneurs près de chez vous. Vous publiez votre demande gratuitement, vous comparez les profils, vous discutez par chat et vous ne payez que si vous réservez.`,
     servicesTitle: "Les services près de chez vous",
     services: [
       { icon: "🏠", t: "Garde à domicile", p: "Votre animal reste chez vous, dans ses habitudes. Le gardien vient dormir ou passe plusieurs fois par jour." },
@@ -78,7 +80,7 @@ const COPY: Record<RecruitLang, Copy> = {
     ],
     whyTitle: "Pourquoi HoPetSit",
     why: [
-      { icon: "✓", t: "Profils vérifiés", p: "Identité contrôlée, avis réels de propriétaires, badge visible sur chaque profil." },
+      { icon: "✓", t: "Profils transparents", p: "Photo, tarifs et avis sur chaque profil. Le badge « Identité vérifiée » signale les gardiens dont l'identité a été contrôlée." },
       { icon: "🔒", t: "Paiement sécurisé", p: "L'argent est bloqué dans l'app et versé au gardien seulement une fois le service terminé." },
       { icon: "📍", t: "Suivi en direct", p: "PawFollow vous montre la promenade en temps réel. Vous savez où est votre chien, tout le temps." },
       { icon: "🗺️", t: "PawMap", p: "Les membres autour de vous, les lieux pet-friendly, leurs horaires et l'itinéraire pour y aller." },
@@ -87,7 +89,7 @@ const COPY: Record<RecruitLang, Copy> = {
     prices: (c) => `À ${c.name}, comptez ${c.dayRate} par jour pour une garde et ${c.walkRate} pour une promenade. Chaque gardien fixe ses tarifs : vous les voyez sur son profil avant de réserver, sans surprise.`,
     faqTitle: "Questions fréquentes",
     faq: (c) => [
-      { q: `Comment trouver un pet sitter de confiance à ${c.name} ?`, a: `Publiez votre demande dans l'app : les gardiens vérifiés de ${c.name} vous répondent. Regardez les avis, discutez par chat, et réservez seulement quand vous êtes à l'aise.` },
+      { q: `Comment trouver un pet sitter de confiance à ${c.name} ?`, a: `Publiez votre demande dans l'app : les gardiens de ${c.name} vous répondent. Regardez les avis, discutez par chat, et réservez seulement quand vous êtes à l'aise.` },
       { q: "Le paiement est-il vraiment sécurisé ?", a: "Oui. Le montant est bloqué dans l'app à la réservation et versé au gardien après le service. En cas de problème, notre support intervient avant tout versement." },
       { q: "Puis-je suivre la promenade de mon chien ?", a: "Oui, avec PawFollow : le trajet s'affiche en direct sur la carte, du départ au retour, avec la distance et la durée." },
       { q: "Combien coûte l'inscription ?", a: "Rien. Publier une demande et discuter avec les gardiens est gratuit. Vous payez uniquement la garde que vous réservez." },
@@ -102,14 +104,14 @@ const COPY: Record<RecruitLang, Copy> = {
   en: {
     kicker: (c) => c.region,
     h1: (c) => `Pet sitters in ${c.name}: dog boarding, cat visits and dog walks`,
-    heroLead: (c) => `A verified pet sitter near you in ${c.name}. Post your request, pick your sitter, pay only when you book.`,
-    proofs: ["Secure payment", "ID verified", "72 h free cancellation"],
+    heroLead: (c) => `Pet sitters and dog walkers near you in ${c.name}. Post your request, pick your sitter, pay only when you book.`,
+    proofs: ["Secure payment", "Chat before you book", "72 h free cancellation"],
     heroCta: "Post my request",
     heroCtaNote: "Free · no account needed to start · 2 minutes",
     heroAppLink: "Or download the HoPetSit app →",
     heroSecondary: "See sitters near me →",
     intro: (c) =>
-      `Weekends, vacations, long workdays: in ${c.name}, HoPetSit connects you with verified sitters and dog walkers near you. Post your request for free, compare profiles, chat, and only pay when you book.`,
+      `Weekends, vacations, long workdays: in ${c.name}, HoPetSit connects you with sitters and dog walkers near you. Post your request for free, compare profiles, chat, and only pay when you book.`,
     servicesTitle: "Services near you",
     services: [
       { icon: "🏠", t: "In-home sitting", p: "Your pet stays home, in its routine. The sitter sleeps over or stops by several times a day." },
@@ -118,7 +120,7 @@ const COPY: Record<RecruitLang, Copy> = {
     ],
     whyTitle: "Why HoPetSit",
     why: [
-      { icon: "✓", t: "Verified profiles", p: "ID-checked sitters, real owner reviews, a visible badge on every profile." },
+      { icon: "✓", t: "Transparent profiles", p: "Photo, rates and reviews on every profile. The “ID verified” badge marks sitters whose identity has been checked." },
       { icon: "🔒", t: "Secure payment", p: "Money is held in the app and released to the sitter only once the service is done." },
       { icon: "📍", t: "Live tracking", p: "PawFollow shows the walk in real time. You know where your dog is, always." },
       { icon: "🗺️", t: "PawMap", p: "Members around you, pet-friendly places, their opening hours and directions to get there." },
@@ -127,7 +129,7 @@ const COPY: Record<RecruitLang, Copy> = {
     prices: (c) => `In ${c.name}, expect ${c.dayRate} per day for sitting and ${c.walkRate} for a walk. Every sitter sets their own rates: you see them on the profile before booking, no surprises.`,
     faqTitle: "Frequently asked questions",
     faq: (c) => [
-      { q: `How do I find a trustworthy pet sitter in ${c.name}?`, a: `Post your request in the app: verified sitters in ${c.name} reply. Read reviews, chat, and book only when you feel comfortable.` },
+      { q: `How do I find a trustworthy pet sitter in ${c.name}?`, a: `Post your request in the app: sitters in ${c.name} reply. Read reviews, chat, and book only when you feel comfortable.` },
       { q: "Is payment really secure?", a: "Yes. The amount is held in the app at booking and released to the sitter after the service. If anything goes wrong, our support steps in before any payout." },
       { q: "Can I follow my dog's walk?", a: "Yes, with PawFollow: the route shows live on the map from start to finish, with distance and duration." },
       { q: "How much does it cost to sign up?", a: "Nothing. Posting a request and chatting with sitters is free. You only pay for the booking you make." },
