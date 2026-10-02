@@ -110,6 +110,7 @@ const SECTION_COLOR: Record<string, string> = {
   faq: "#17141F",
   pioneer: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)",
   plush: "linear-gradient(165deg,#34B857,#16A34A)",
+  points: "linear-gradient(165deg,#F4C04A,#B07800)",
 };
 
 // 02/10 (607) — badge « Pionnier » (même dessin que la page /s et la fiche
@@ -276,6 +277,8 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
   const sections607: Section[] = [
     { id: "pioneer", title: t("help607_pioneer_title"), rows: [{ html: pioneerBadgeHtml(t("help607_pioneer_badge")), title: "", body: t("help607_pioneer_body") }] },
     { id: "plush", title: t("help607_plush_title"), rows: [{ html: plushHtml(), title: "", body: t("help607_plush_body") }] },
+    // 02/10 (607, ZOE) — « Les PawPoints » : même texte que l'app (pp607_help_points_*).
+    { id: "points", title: t("pp607_help_points_title"), rows: [{ html: `<span style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800);border:2px solid #fff;box-shadow:0 6px 14px -6px #B07800;font-size:22px">🪙</span>`, title: "", body: t("pp607_help_points_body") }] },
   ];
 
   const sections: Section[] = full

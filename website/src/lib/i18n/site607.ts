@@ -10,6 +10,8 @@ type D = Record<string, string>;
 
 export const SITE607: Record<Lang, D> = {
   fr: {
+    pp607_help_points_title: "Les PawPoints 🪙",
+    pp607_help_points_body: "Sur la PawMap, bouger rapporte des PawPoints : Balade terminée (+15), peluche attrapée (+20), PawSpot ajouté (+10)… Échange-les dans la page PawPoints contre du PawBoost, un cadre doré ou des jours d'abonnement offerts. Ils ne s'achètent pas et ne valent jamais d'argent.",
     pp607_hero: "Tes PawPoints récompensent ton activité sur HoPetSit : tes Balades, tes peluches, tes PawSpots, tes avis. Échange-les contre du PawBoost ou des jours d'abonnement offerts.",
     pp607_exchange: "Échanger mes PawPoints",
     pp607_earn: "Comment gagner des PawPoints",
@@ -71,6 +73,8 @@ export const SITE607: Record<Lang, D> = {
       "Pendant une Balade, de petites peluches apparaissent sur la carte, dans les parcs publics près de toi. Approche-toi à moins de 30 mètres : tu l'attrapes et tu gagnes +20 PawPoints. Une peluche par jour et par personne. Tes peluches sont rangées dans ta collection, sur la page PawPoints.\nElles ne valent pas d'argent : seulement des PawPoints et une raison de plus de sortir. Regarde où tu marches.",
   },
   en: {
+    pp607_help_points_title: "PawPoints 🪙",
+    pp607_help_points_body: "On the PawMap, moving earns PawPoints: finished Walk (+15), plush toy caught (+20), PawSpot added (+10)… Swap them on the PawPoints page for PawBoost, a gold frame or free subscription days. They can't be bought and are never worth money.",
     pp607_hero: "Your PawPoints reward your activity on HoPetSit: your Walks, plushies, PawSpots and reviews. Exchange them for PawBoost or free subscription days.",
     pp607_exchange: "Exchange my PawPoints",
     pp607_earn: "How to earn PawPoints",
@@ -132,6 +136,8 @@ export const SITE607: Record<Lang, D> = {
       "During a Walk, small plushies appear on the map, in public parks near you. Get within 30 metres: you catch it and earn +20 PawPoints. One plushie per person per day. Your plushies are kept in your collection, on the PawPoints page.\nThey are not worth money: only PawPoints and one more reason to go out. Watch where you walk.",
   },
   es: {
+    pp607_help_points_title: "Los PawPoints 🪙",
+    pp607_help_points_body: "En la PawMap, moverte da PawPoints: Paseo terminado (+15), peluche atrapado (+20), PawSpot añadido (+10)… Cámbialos en la página PawPoints por PawBoost, un marco dorado o días de suscripción gratis. No se compran y nunca valen dinero.",
     pp607_hero: "Tus PawPoints premian tu actividad en HoPetSit: tus Paseos, peluches, PawSpots y opiniones. Cámbialos por PawBoost o días de suscripción gratis.",
     pp607_exchange: "Cambiar mis PawPoints",
     pp607_earn: "Cómo ganar PawPoints",
@@ -193,6 +199,8 @@ export const SITE607: Record<Lang, D> = {
       "Durante un Paseo, aparecen pequeños peluches en el mapa, en los parques públicos cerca de ti. Acércate a menos de 30 metros: lo atrapas y ganas +20 PawPoints. Un peluche por persona y por día. Tus peluches se guardan en tu colección, en la página PawPoints.\nNo valen dinero: solo PawPoints y una razón más para salir. Mira por dónde caminas.",
   },
   de: {
+    pp607_help_points_title: "Die PawPoints 🪙",
+    pp607_help_points_body: "Auf der PawMap bringt Bewegung PawPoints: beendeter Spaziergang (+15), gefangenes Plüschtier (+20), neuer PawSpot (+10) … Tausche sie auf der PawPoints-Seite gegen PawBoost, einen goldenen Rahmen oder geschenkte Abo-Tage. Man kann sie nicht kaufen, und sie sind nie Geld wert.",
     pp607_hero: "Deine PawPoints belohnen deine Aktivität auf HoPetSit: Spaziergänge, Plüschtiere, PawSpots, Bewertungen. Tausche sie gegen PawBoost oder geschenkte Abo-Tage.",
     pp607_exchange: "Meine PawPoints eintauschen",
     pp607_earn: "So sammelst du PawPoints",
@@ -254,6 +262,8 @@ export const SITE607: Record<Lang, D> = {
       "Während eines Spaziergangs erscheinen kleine Plüschtiere auf der Karte, in öffentlichen Parks in deiner Nähe. Komm auf weniger als 30 Meter heran: Du fängst es und bekommst +20 PawPoints. Ein Plüschtier pro Person und Tag. Deine Plüschtiere landen in deiner Sammlung auf der PawPoints-Seite.\nSie sind kein Geld wert: nur PawPoints und ein Grund mehr, rauszugehen. Achte auf deinen Weg.",
   },
   it: {
+    pp607_help_points_title: "I PawPoints 🪙",
+    pp607_help_points_body: "Sulla PawMap muoversi fa guadagnare PawPoints: Passeggiata terminata (+15), peluche preso (+20), PawSpot aggiunto (+10)… Scambiali nella pagina PawPoints con PawBoost, una cornice dorata o giorni di abbonamento in regalo. Non si comprano e non valgono mai denaro.",
     pp607_hero: "I tuoi PawPoints premiano la tua attività su HoPetSit: Passeggiate, peluche, PawSpot, recensioni. Scambiali con PawBoost o giorni di abbonamento in regalo.",
     pp607_exchange: "Scambia i miei PawPoints",
     pp607_earn: "Come guadagnare PawPoints",
@@ -315,6 +325,8 @@ export const SITE607: Record<Lang, D> = {
       "Durante una Passeggiata, piccoli peluche compaiono sulla mappa, nei parchi pubblici vicino a te. Avvicinati a meno di 30 metri: lo prendi e guadagni +20 PawPoints. Un peluche al giorno a persona. I tuoi peluche finiscono nella tua collezione, nella pagina PawPoints.\nNon valgono denaro: solo PawPoints e un motivo in più per uscire. Guarda dove cammini.",
   },
   pt: {
+    pp607_help_points_title: "Os PawPoints 🪙",
+    pp607_help_points_body: "Na PawMap, mexer-te dá PawPoints: Passeio terminado (+15), peluche apanhado (+20), PawSpot adicionado (+10)… Troca-os na página PawPoints por PawBoost, uma moldura dourada ou dias de subscrição grátis. Não se compram e nunca valem dinheiro.",
     pp607_hero: "Os teus PawPoints recompensam a tua atividade no HoPetSit: Passeios, peluches, PawSpots e avaliações. Troca-os por PawBoost ou dias de subscrição grátis.",
     pp607_exchange: "Trocar os meus PawPoints",
     pp607_earn: "Como ganhar PawPoints",
@@ -376,6 +388,8 @@ export const SITE607: Record<Lang, D> = {
       "Durante um Passeio, pequenos peluches aparecem no mapa, nos parques públicos perto de ti. Aproxima-te a menos de 30 metros: apanha-lo e ganhas +20 PawPoints. Um peluche por pessoa e por dia. Os teus peluches ficam na tua coleção, na página PawPoints.\nNão valem dinheiro: apenas PawPoints e mais uma razão para sair. Olha por onde andas.",
   },
   ko: {
+    pp607_help_points_title: "PawPoints 🪙",
+    pp607_help_points_body: "PawMap에서 움직이면 PawPoints가 쌓여요: 산책 완료(+15), 인형 잡기(+20), PawSpot 추가(+10)… PawPoints 페이지에서 PawBoost, 금색 테두리, 무료 구독일로 교환하세요. 구매할 수 없고 현금 가치도 없어요.",
     pp607_hero: "PawPoints는 HoPetSit 활동(산책, 인형, PawSpot, 후기)에 대한 보상이에요. PawBoost나 무료 구독일로 교환하세요.",
     pp607_exchange: "PawPoints 교환하기",
     pp607_earn: "PawPoints 얻는 방법",
@@ -437,6 +451,8 @@ export const SITE607: Record<Lang, D> = {
       "산책 중에 근처 공원의 지도 위에 작은 인형이 나타나요. 30미터 안으로 다가가면 인형을 잡고 +20 PawPoints를 받아요. 인형은 한 사람당 하루에 하나예요. 잡은 인형은 PawPoints 페이지의 내 컬렉션에 보관돼요.\n인형은 돈이 아니에요. PawPoints와 밖으로 나갈 이유 하나가 더 생길 뿐이에요. 걸을 때 주변을 잘 살펴보세요.",
   },
   ja: {
+    pp607_help_points_title: "PawPoints 🪙",
+    pp607_help_points_body: "PawMapで動くとPawPointsが貯まります：お散歩完了（+15）、ぬいぐるみ（+20）、PawSpot追加（+10）など。PawPointsページでPawBoost、金色フレーム、無料のサブスク日数と交換できます。購入はできず、お金の価値はありません。",
     pp607_hero: "PawPointsはHoPetSitでの活動（お散歩、ぬいぐるみ、PawSpot、口コミ）へのごほうびです。PawBoostや無料のサブスク日数と交換できます。",
     pp607_exchange: "PawPointsを交換する",
     pp607_earn: "PawPointsの貯め方",
@@ -498,6 +514,8 @@ export const SITE607: Record<Lang, D> = {
       "お散歩中、近くの公園の地図上に小さなぬいぐるみが現れます。30メートル以内に近づくとつかまえて、+20 PawPointsがもらえます。ぬいぐるみは1人1日1つまでです。ぬいぐるみはPawPointsページのコレクションに入ります。\nお金の価値はありません。PawPointsと、外に出る理由がひとつ増えるだけです。足元に気をつけて歩きましょう。",
   },
   pl: {
+    pp607_help_points_title: "PawPoints 🪙",
+    pp607_help_points_body: "Na PawMap ruch daje PawPoints: zakończony Spacer (+15), złapany pluszak (+20), dodany PawSpot (+10)… Wymień je na stronie PawPoints na PawBoost, złotą ramkę lub darmowe dni subskrypcji. Nie można ich kupić i nigdy nie są warte pieniędzy.",
     pp607_hero: "Twoje PawPoints nagradzają aktywność w HoPetSit: Spacery, pluszaki, PawSpoty i opinie. Wymień je na PawBoost lub darmowe dni subskrypcji.",
     pp607_exchange: "Wymień moje PawPoints",
     pp607_earn: "Jak zdobywać PawPoints",

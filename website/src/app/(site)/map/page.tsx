@@ -893,7 +893,7 @@ export default function MapPage() {
   // Hooks ici, AVANT tout retour anticipé (piège du 22/09).
   const [plushShown, setPlushShown] = useState(true);
   const [plush, setPlush] = useState<PlushActive | null>(null);
-  const [plushBanner, setPlushBanner] = useState<{ text: string; golden: boolean; key: number } | null>(null);
+  const [plushBanner, setPlushBanner] = useState<{ kind: "caught" | "golden" | "daily"; points: number; collector: number | null; key: number } | null>(null);
   const plushPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const plushTriedRef = useRef<Map<string, number>>(new Map());
   const plushBusyRef = useRef(false);
@@ -936,15 +936,12 @@ export default function MapPage() {
       try {
         const r = await catchPlush(near.id, pos.lat, pos.lng);
         if (r.ok) {
-          const golden = !!r.plush.golden;
-          const pts = String(r.points);
-          let text = golden ? t("plush607_golden_won").replace("{points}", pts) : t("plush607_caught").replace("{points}", pts);
+          // Texte calculé à l'AFFICHAGE (langue courante), pas ici.
           const coll = r.bonuses.find((b) => b.kind === "collector");
-          if (coll) text += ` · ${t("plush607_collector_won").replace("{points}", String(coll.points ?? 500))}`;
-          setPlushBanner({ text, golden, key: now });
+          setPlushBanner({ kind: r.plush.golden ? "golden" : "caught", points: r.points, collector: coll ? (coll.points ?? 500) : null, key: now });
           setPlush((cur) => (cur ? { ...cur, caughtToday: true, plushies: cur.plushies.filter((x) => x.id !== near.id) } : cur));
         } else if (r.code === "DAILY_LIMIT") {
-          setPlushBanner({ text: t("plush607_daily_done"), golden: false, key: now });
+          setPlushBanner({ kind: "daily", points: 0, collector: null, key: now });
           setPlush((cur) => (cur ? { ...cur, caughtToday: true } : cur));
         } else if (r.code === "ALREADY_CAUGHT" || r.code === "EXPIRED" || r.code === "NOT_FOUND") {
           setPlush((cur) => (cur ? { ...cur, plushies: cur.plushies.filter((x) => x.id !== near.id) } : cur));
@@ -1803,8 +1800,9 @@ export default function MapPage() {
           )}
           {/* 02/10 (607) — bannière de capture « +20 PawPoints ! 🧸 » (dorée : or). */}
           {plushBanner && (
-            <div key={plushBanner.key} role="status" data-plush-banner="" className="pointer-events-none absolute left-1/2 top-16 z-[1200] w-max max-w-[calc(100%-32px)] -translate-x-1/2 rounded-full px-5 py-3 text-center text-[15px] font-extrabold text-white shadow-[0_14px_30px_-12px_rgba(23,20,31,0.6)]" style={{ background: plushBanner.golden ? "linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800)" : "linear-gradient(165deg,#43B862,#16A34A 55%,#15803D)", border: "2px solid #fff" }}>
-              {plushBanner.text}
+            <div key={plushBanner.key} role="status" data-plush-banner="" className="pointer-events-none absolute left-1/2 top-16 z-[1200] w-max max-w-[calc(100%-32px)] -translate-x-1/2 rounded-full px-5 py-3 text-center text-[15px] font-extrabold text-white shadow-[0_14px_30px_-12px_rgba(23,20,31,0.6)]" style={{ background: plushBanner.kind === "golden" ? "linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800)" : "linear-gradient(165deg,#43B862,#16A34A 55%,#15803D)", border: "2px solid #fff" }}>
+              {plushBanner.kind === "daily" ? t("plush607_daily_done") : t(plushBanner.kind === "golden" ? "plush607_golden_won" : "plush607_caught").replace("{points}", String(plushBanner.points))}
+              {plushBanner.collector != null && ` · ${t("plush607_collector_won").replace("{points}", String(plushBanner.collector))}`}
             </div>
           )}
           {(liveToast || friendsOnlyMsg) && (
