@@ -1611,7 +1611,7 @@ const getMyBookings = async (req, res) => {
 
     const bookings = await Booking.find(filter)
       .sort({ updatedAt: -1 })
-      .populate('ownerId', 'name email avatar mobile address')
+      .populate('ownerId', 'name email avatar mobile address city location.city')
       .populate('sitterId', 'name email avatar mobile address location rating reviewsCount')
       .populate('walkerId', 'name email avatar mobile address location rating reviewsCount')
       .populate('petIds');
@@ -1686,6 +1686,29 @@ const _serializeHandover = (booking) => {
  * détail `GET /bookings/:id`). Le doc doit être peuplé (ownerId, sitterId,
  * walkerId, petIds). Extrait tel quel de getMyBookings.
  */
+const CONTACT_BOOKING_STATUSES = new Set(['accepted', 'agreed', 'paid', 'completed']);
+/**
+ * 607 (ZOE) — l'autre partie d'une réservation voit-elle mon téléphone et
+ * mon adresse ? Réservation acceptée / payée, puis verrou contacts
+ * (evaluateContactsAccess : seuil 700, paiement, abonnement, staff).
+ */
+async function contactsAllowedForBooking(booking, userRole, otherPartyRaw) {
+  try {
+    if (!booking || !CONTACT_BOOKING_STATUSES.has(String(booking.status || ''))) return false;
+    const idOf = (ref) => (ref && ref._id ? String(ref._id) : (ref ? String(ref) : ''));
+    const viewerId = userRole === 'owner'
+      ? idOf(booking.ownerId)
+      : idOf(booking.walkerId || booking.sitterId);
+    const otherId = idOf(otherPartyRaw);
+    if (!viewerId || !otherId) return false;
+    const { evaluateContactsAccess } = require('../services/chatAccessService');
+    const acc = await evaluateContactsAccess({ userId: viewerId, otherUserId: otherId });
+    return !acc.locked;
+  } catch (_) {
+    return false; // dans le doute, on ne donne pas les coordonnées
+  }
+}
+
 const _formatBookingForUser = async (booking, userRole) => {
       // v532 — le code de remise n'est exposé qu'au propriétaire (cf. plus bas).
       const isOwnerView = userRole === 'owner';
@@ -1704,17 +1727,28 @@ const _formatBookingForUser = async (booking, userRole) => {
         otherPartyRaw = booking.ownerId;
       }
 
+      // 607 (ZOE, 02/10) — VERROU CONTACTS (règle produit, mesuré en ligne :
+      // téléphone et adresse de l'autre partie sortaient même pour une
+      // réservation ANNULÉE). Téléphone et adresse de l'autre partie seulement
+      // pour une réservation acceptée / payée ; au-delà du seuil
+      // CONTACTS_FREE_UNTIL_USERS, seulement après paiement ou abonnement
+      // (même décision que share-phone / share-address dans le chat).
+      const contactsOk = await contactsAllowedForBooking(booking, userRole, otherPartyRaw);
+
       // Get phone number
-      const phone = otherPartyRaw?.mobile || '';
+      const phone = contactsOk ? (otherPartyRaw?.mobile || '') : '';
 
       // Get location
       let location = '';
       if (userRole === 'owner' && otherPartyRaw?.location?.city) {
         // For sitter/walker, use city from location object
         location = otherPartyRaw.location.city;
-      } else if ((userRole === 'sitter' || userRole === 'walker') && otherPartyRaw?.address) {
+      } else if ((userRole === 'sitter' || userRole === 'walker') && otherPartyRaw?.address && contactsOk) {
         // For owner, use address
         location = otherPartyRaw.address;
+      } else if (userRole === 'sitter' || userRole === 'walker') {
+        // Verrou : la ville seulement (publique), jamais l'adresse.
+        location = String(otherPartyRaw?.location?.city || otherPartyRaw?.city || '');
       }
 
       // Get rating
@@ -1872,7 +1906,7 @@ const getBookingDetail = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
     }
     const booking = await Booking.findById(req.params.id)
-      .populate('ownerId', 'name email avatar mobile address')
+      .populate('ownerId', 'name email avatar mobile address city location.city')
       .populate('sitterId', 'name email avatar mobile address location rating reviewsCount')
       .populate('walkerId', 'name email avatar mobile address location rating reviewsCount')
       .populate('petIds');
@@ -6781,6 +6815,7 @@ const resolveDispute = async (req, res) => {
 };
 
 module.exports = {
+  contactsAllowedForBooking,
   resolveDispute,
   createBooking,
   listBookings,
