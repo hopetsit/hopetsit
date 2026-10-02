@@ -310,9 +310,8 @@ class PawGlassCapsule extends StatelessWidget {
               ...lead,
               if (items.isNotEmpty) SizedBox(height: 3.h),
               Flexible(
-                child: SingleChildScrollView(
+                child: PawFitOrScroll(
                   key: const ValueKey<String>('pawmap_capsule_scroll'),
-                  physics: const ClampingScrollPhysics(),
                   child: Column(mainAxisSize: MainAxisSize.min, children: items),
                 ),
               ),
@@ -623,4 +622,85 @@ class PawGlassPill extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 607 (BOB, vu sur Android 1080×2340 et à prévoir sur iPhone SE) — une
+/// barre trop haute pour l'écran : ses boutons RÉTRÉCISSENT d'abord (jusqu'à
+/// [minScale]) pour tenir entiers ; seulement au-delà, elle défile. Avant :
+/// elle défilait tout de suite et le dernier bouton apparaissait coupé à
+/// moitié contre « Publier ».
+///
+/// La hauteur naturelle du contenu est mesurée après chaque image (sans
+/// contrainte de hauteur), puis comparée à la place disponible.
+class PawFitOrScroll extends StatefulWidget {
+  const PawFitOrScroll({
+    super.key,
+    required this.child,
+    this.minScale = 0.72,
+    this.reverse = false,
+    this.alignment = Alignment.topCenter,
+  });
+
+  final Widget child;
+  final double minScale;
+
+  /// Défilement ancré en bas (barre de gauche, alignée sur le menu).
+  final bool reverse;
+  final Alignment alignment;
+
+  @override
+  State<PawFitOrScroll> createState() => _PawFitOrScrollState();
+}
+
+class _PawFitOrScrollState extends State<PawFitOrScroll> {
+  final GlobalKey _contentKey = GlobalKey();
+  double? _natural;
+
+  void _measure() {
+    if (!mounted) return;
+    final box = _contentKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return;
+    final h = box.size.height;
+    if (_natural == null || (h - _natural!).abs() > 0.5) {
+      setState(() => _natural = h);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
+    final content = KeyedSubtree(key: _contentKey, child: widget.child);
+    return LayoutBuilder(builder: (context, c) {
+      final double avail = c.maxHeight;
+      final double? nat = _natural;
+      // Défile seulement si rétrécir ne suffit pas (échelle < minScale).
+      final bool scroll = nat != null && avail.isFinite && nat * widget.minScale > avail;
+      if (scroll) {
+        return SingleChildScrollView(
+          key: const ValueKey<String>('paw_fit_or_scroll_scroll'),
+          reverse: widget.reverse,
+          physics: const ClampingScrollPhysics(),
+          child: content,
+        );
+      }
+      // FittedBox « scaleDown » : taille réelle si ça tient, sinon réduit
+      // juste ce qu'il faut (jamais agrandi).
+      return FittedBox(
+        key: ValueKey<String>(nat != null && nat > avail + 0.5
+            ? 'paw_fit_or_scroll_fit'
+            : 'paw_fit_or_scroll_natural'),
+        fit: BoxFit.scaleDown,
+        alignment: widget.alignment,
+        child: content,
+      );
+    });
+  }
+}
+
+/// 607 — échelle appliquée par [PawFitOrScroll] pour une hauteur naturelle
+/// [natural] dans [avail] (1 = tient, null = défile). Pure, pour les tests.
+double? pawFitScale(double natural, double avail, {double minScale = 0.72}) {
+  if (natural <= avail) return 1;
+  final s = avail / natural;
+  return s >= minScale ? s : null;
 }

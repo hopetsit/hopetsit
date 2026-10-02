@@ -7088,7 +7088,10 @@ class _PawMapScreenState extends State<PawMapScreen>
             key: const ValueKey<String>('capsule_balade'),
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (live || elsewhere)
+              // 607 — plus de ligne « 0 min » au-dessus (elle faisait déborder
+              // la barre) : la durée s'écrit sous le bouton, à la place du
+              // libellé, et les suiveurs restent en pastille sur le bouton.
+              if (elsewhere)
                 Padding(
                   padding: EdgeInsets.only(bottom: 3.h),
                   child: PawWalkBadge(
@@ -7126,11 +7129,26 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // (Android) : réduit doucement, jamais rogné.
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: Text(
+                  child: live && _liveMap.serverConfirmed.value
+                      ? PawWalkMinutesText(
+                          startedAt: startedAt,
+                          style: GoogleFonts.poppins(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: live
+                        ? const Color(0xFF2A9A48)
+                        : walkState == PawLiveButtonState.following
+                        ? (PawMapTheme.isDark(context)
+                            ? const Color(0xFFC4B5FD)
+                            : const Color(0xFF5B21B6))
+                        : (PawMapTheme.isDark(context)
+                            ? const Color(0xFFF6F1EE)
+                            : const Color(0xFF17141F)),
+                  ),
+                        )
+                      : Text(
                   live
-                      ? (_liveMap.serverConfirmed.value
-                          ? 'pawmap590_walk_live'.tr
-                          : 'live607_connecting'.tr)
+                      ? 'live607_connecting'.tr
                       : (walkState == PawLiveButtonState.following
                           ? 'pm605_live_title'.tr
                           : 'pawmap590_walk'.tr),
@@ -10173,9 +10191,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         h - topBottom - 14.h - _railBottom(context, picking: false);
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxH.clamp(120.0, h)),
-      child: SingleChildScrollView(
+      // 607 — rétrécit avant de défiler (jamais un bouton coupé à moitié).
+      child: PawFitOrScroll(
         reverse: true,
-        physics: const ClampingScrollPhysics(),
+        alignment: Alignment.bottomCenter,
         child: column,
       ),
     );

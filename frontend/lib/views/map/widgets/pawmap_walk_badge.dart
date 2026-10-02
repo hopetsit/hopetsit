@@ -173,3 +173,42 @@ class _PawWalkBadgeState extends State<PawWalkBadge> {
     );
   }
 }
+
+/// 607 (BOB, barre de droite qui débordait pendant la Balade) — la durée
+/// s'écrit SOUS le bouton Balade, à la place de « En direct », au lieu
+/// d'ajouter une ligne au-dessus. Se met à jour toutes les 20 s.
+class PawWalkMinutesText extends StatefulWidget {
+  const PawWalkMinutesText({super.key, required this.startedAt, required this.style});
+  final DateTime? startedAt;
+  final TextStyle style;
+
+  @override
+  State<PawWalkMinutesText> createState() => _PawWalkMinutesTextState();
+}
+
+class _PawWalkMinutesTextState extends State<PawWalkMinutesText> {
+  Timer? _t;
+
+  @override
+  void initState() {
+    super.initState();
+    _t = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Text(
+        pawWalkBadgeMinutes(widget.startedAt, DateTime.now()),
+        key: const ValueKey<String>('pawmap_walk_minutes'),
+        maxLines: 1,
+        softWrap: false,
+        style: widget.style,
+      );
+}
