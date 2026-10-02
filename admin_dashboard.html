@@ -749,6 +749,14 @@ tr.ada-late td { background: #FFF1EE; }
               </select>
               <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="signups-hide-tests" checked onchange="setSignupsHideTests(this.checked)"> <span>Masquer les comptes de test</span></label>
             </div>
+            <!-- 02/10/2026 (BOB) — Daniel ne voyait pas la barre de renvoi : elle n'était qu'au-dessus du grand tableau.
+                 Même barre ici, mêmes fonctions (la sélection est commune aux deux tableaux). -->
+            <div class="ada-rv-bar">
+              <button class="action-btn" onclick="adaRvSelectUnverified()">☑️ Sélectionner les non vérifiés</button>
+              <button class="action-btn" onclick="adaRvClear()">✕ Vider la sélection</button>
+              <button class="action-btn btn-primary ada-rv-send2" onclick="adaResendVerification()" disabled>📧 Renvoyer la vérification (<span class="ada-rv-count2">0</span>)</button>
+              <span class="ada-rv-hint">Jamais deux e-mails à la même personne en moins de 7 jours · 50 au plus par clic · un aperçu s'affiche avant l'envoi.</span>
+            </div>
             <div id="signups-recent-count" style="font-size:14px;font-weight:600;color:var(--text);padding:0 0 10px"></div>
             <div id="signups-recent-body" style="max-height:560px;overflow:auto"><div class="loading"><div class="spinner"></div></div></div>
           </div>
@@ -4906,6 +4914,8 @@ function adaRvUpdate() {
   const n = _adaRvSel.size;
   const c = document.getElementById('ada-rv-count'); if (c) c.textContent = String(n);
   const b = document.getElementById('ada-rv-send'); if (b) b.disabled = n === 0;
+  document.querySelectorAll('.ada-rv-count2').forEach(function (e) { e.textContent = String(n); });
+  document.querySelectorAll('.ada-rv-send2').forEach(function (e) { e.disabled = n === 0; });
   document.querySelectorAll('.ada-rv-box').forEach(function (x) { x.checked = _adaRvSel.has(x.dataset.k); });
 }
 function adaRvSelectUnverified() {
