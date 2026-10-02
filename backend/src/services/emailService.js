@@ -204,6 +204,9 @@ ${t.ignore}
   <p style="margin-top:24px">— ${t.team}</p>
 </div>`;
   await sendEmail(email, subject, text, html);
+  // 607 (ADA, 02/10) — date du dernier e-mail de vérification, toutes sources confondues
+  // (règle « pas deux envois en moins de 7 jours » du renvoi groupé de l'admin).
+  try { await require('../models/VerificationEmailLog').touch(email, 'auth'); } catch (_) { /* jamais bloquant */ }
 };
 
 // ─── v566 — AUDIT NOTIFICATIONS : gabarit commun des e-mails de notification ───

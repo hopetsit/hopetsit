@@ -340,6 +340,8 @@ const versionedRoutes = [
   { path: '/admin/dashboard607', mw: [], router: require('./routes/adminDashboard607') },
   // 607 (ADA, 02/10) — « À traiter » : épingles signalées (détail) + action « Masquer », journalisée.
   { path: '/admin/moderation607', mw: [], router: require('./routes/adminModeration607') },
+  // 607 (ADA, 02/10) — renvoi groupé de l'e-mail de vérification (garde-fous, simulation, journal).
+  { path: '/admin/users/resend-verification', mw: [], router: require('./routes/adminVerificationResend607') },
   // v23.1 part 36 — KYC verification (Persona) payante 3 EUR pour sitter/walker.
   { path: '/kyc', mw: [], router: require('./routes/kycRoutes') },
   { path: '/donations', mw: [sensitiveLimiter], router: donationRoutes },
