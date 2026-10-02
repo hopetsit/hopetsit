@@ -151,7 +151,7 @@ export default function PawMapPage() {
       return 2 * R * Math.asin(Math.sqrt(x));
     };
     return [...providers].map((p) => ({ p, km: d(p) })).sort((a, b) => {
-      if (a.p.priceFrom != null && a.p.priceFrom === b.p.priceFrom && Math.abs(a.km - b.km) < 1 && a.p.identityVerified !== b.p.identityVerified) return a.p.identityVerified ? -1 : 1;
+      if (a.p.priceFrom != null && a.p.priceFrom > 0 && a.p.priceFrom === b.p.priceFrom && a.p.identityVerified !== b.p.identityVerified && Math.abs(a.km - b.km) < 0.5) return a.p.identityVerified ? -1 : 1;
       return a.km - b.km;
     }).slice(0, 6).map((x) => x.p);
   }, [providers, center]);
@@ -266,7 +266,7 @@ export default function PawMapPage() {
                         {roleLabel[p.role]}
                         {p.rating > 0 ? ` · ${p.rating.toFixed(1)} ★` : ""}
                       </span>
-                      {p.identityVerified && <span className="mt-1 block"><VerifiedPill label={t("ver609_short")} small /></span>}
+                      {p.identityVerified && <span className="mt-1 block"><VerifiedPill label={t("v609_verified_short")} small /></span>}
                     </span>
                     {price && (
                       <span className="shrink-0 text-right leading-tight">

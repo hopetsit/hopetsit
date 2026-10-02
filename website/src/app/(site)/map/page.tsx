@@ -108,7 +108,7 @@ import type { FriendLivePosition } from "@/components/FriendsLiveMap";
 import { haversineKm } from "@/lib/mapCluster";
 import { formatPriceUnit, priceUnitLabels } from "@/lib/priceUnit";
 import { ROLE_COLOR, blurLatLng, formatPrice, placePinHtml, reportPinHtml, spotPinHtml, roleKey, showsPriceBubble } from "@/lib/pawmapLegend";
-import { expandRows, formatKm, friendIdSetFrom, isFriendMember, locateFriend, mergePersons, personIdsOf, placeFriendsFromList, rolesMatching } from "@/lib/memberPersons";
+import { expandRows, formatKm, friendIdSetFrom, isFriendMember, locateFriend, mergePersons, personIdsOf, placeFriendsFromList, rolesMatching, rolesOf } from "@/lib/memberPersons";
 import type { Map as LeafletMap } from "leaflet";
 
 const roleChipColor = (role: string) => ROLE_COLOR[roleKey(role)];
@@ -1001,13 +1001,14 @@ export default function MapPage() {
   // la pastille « Amis », un autre membre que des pastilles de rôle.
   // 02/10 (609, Daniel) — filtre « Vérifiés seulement » (identité vérifiée ;
   // les amis restent toujours visibles). Mémorisé sur ce navigateur.
+  // Comme l'app (CONTRAT_609) : enregistré sur le compte (map-prefs `verifiedOnly`)
+  // mais JAMAIS restauré à l'ouverture (un filtre oublié vidait la carte, v590).
   const [verifiedOnly, setVerifiedOnly] = useState(false);
-  useEffect(() => { try { setVerifiedOnly(localStorage.getItem("hopetsit:mapVerifiedOnly") === "1"); } catch { /* */ } }, []);
-  const toggleVerifiedOnly = () => setVerifiedOnly((v) => { try { localStorage.setItem("hopetsit:mapVerifiedOnly", v ? "0" : "1"); } catch { /* */ } return !v; });
+  const toggleVerifiedOnly = () => { const v = !verifiedOnly; setVerifiedOnly(v); if (getStoredUser()) void saveMapBarPrefs({ verifiedOnly: v }); };
   const allMembers = useMemo(() => {
     if (!showMembers) return [];
     const fset = friendIdSetFrom(friendsForMap);
-    return mergedMembers.filter((m) => (isFriendMember(m, fset) ? showFriends : rolesMatching(m, memberRoles).length > 0 && (!verifiedOnly || m.identityVerified === true)));
+    return mergedMembers.filter((m) => (isFriendMember(m, fset) ? showFriends : rolesMatching(m, memberRoles).length > 0 && (!verifiedOnly || m.identityVerified === true || rolesOf(m).every((r) => roleKey(r.role) === "owner"))));
   }, [mergedMembers, memberRoles, showMembers, friendsForMap, showFriends, verifiedOnly]);
 
   // Membres à moins de 50 km (même règle que l'app) — liste + compteur.
@@ -1545,7 +1546,7 @@ export default function MapPage() {
     () => ({
       book: t("map_member_book"), priceFrom: t("map_member_price_from"), addFriend: t("map_member_add_friend"),
       sent: t("map_member_request_sent"), already: t("map_member_already"), failed: t("map_member_request_failed"),
-      approx: t("map_member_approx"), verified: t("ver609_short"), viewProfile: t("friend_view_profile"),
+      approx: t("map_member_approx"), verified: t("v609_verified_short"), viewProfile: t("friend_view_profile"),
       directions: t("map_directions_btn"), message: t("live_message"), friend: t("map_friend_badge"),
       bookAsOwner: t("m586_book_as_owner"), switchingOwner: t("m586_switching_owner"), switchOwnerError: t("m586_switch_owner_error"),
       chooseProfile: t("map_choose_profile"), profilesHere: t("map_profiles_here"), see: t("map_see"),
@@ -1559,7 +1560,7 @@ export default function MapPage() {
       profile: t("m590_focus_profile"), close: t("m590_focus_close"), request: t("m590_request"), walking: t("m590_on_walk"),
       roles: { owner: t("role_owner"), sitter: t("role_sitter"), walker: t("role_walker") },
       sitting: t("home_service_sitting"), walk: t("home_service_walk"),
-      verified: t("ver609_short"),
+      verified: t("v609_verified_short"),
     }),
     [t],
   );
@@ -2463,10 +2464,10 @@ export default function MapPage() {
                   return { id: `${m.id}-${r.id}`, lat: x.lat, lng: x.lng, km: x.shownKm, pin: "", title: m.name || t("common_member"), sub: `${t(`role_${key}`)}${price ? ` · ${t("map_member_price_from")} ${price}` : ""}${(r.rating ?? 0) > 0 ? ` · ★ ${(r.rating ?? 0).toFixed(1)}` : ""}`, photo: m.avatar || "", meta: m.approx ? t("map_member_approx").replace("{km}", String(m.approxKm ?? 1)) : "", color: ROLE_COLOR[key], book: key !== "owner" ? `/book/${key}/${r.id}` : undefined, friend, verified: m.identityVerified === true, price: typeof r.priceFrom === "number" && r.priceFrom > 0 ? r.priceFrom : null };
                 });
               }
-              // 02/10 (609) — à prix égal (et à distance comparable : positions floutées ~1 km),
+              // 02/10 (609, CONTRAT) — à prix égal (> 0) et à moins de 500 m l'un de l'autre,
               // le membre à l'identité vérifiée passe d'abord.
               rows.sort((a, b) => {
-                if (sidePanel === "members" && a.price != null && a.price === b.price && Math.abs(a.km - b.km) < 1 && !!a.verified !== !!b.verified) return a.verified ? -1 : 1;
+                if (sidePanel === "members" && a.price != null && a.price > 0 && a.price === b.price && !!a.verified !== !!b.verified && haversineKm(a.lat, a.lng, b.lat, b.lng) < 0.5) return a.verified ? -1 : 1;
                 return a.km - b.km;
               });
               return (
@@ -2479,7 +2480,7 @@ export default function MapPage() {
                   {sidePanel === "members" && (
                     <button type="button" onClick={toggleVerifiedOnly} aria-pressed={verifiedOnly} data-verified-filter="" className={`mt-2 inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-3 text-[13px] font-bold transition ${verifiedOnly ? "bg-[#2563EB] text-white" : "bg-[#EAF1FE] text-[#1E4FB0]"}`}>
                       <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-                      {t("ver609_filter")}
+                      {t("v609_filter_verified")}
                     </button>
                   )}
                   {sidePanel !== "members" && <ModePicker mode={routeMode} onChange={setRouteMode} label={t("map_route_mode_label")} labels={{ walk: t("map_route_mode_walk"), bike: t("map_route_mode_bike"), car: t("map_route_mode_car") }} />}
@@ -2499,7 +2500,7 @@ export default function MapPage() {
                               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white" style={{ background: r.color || "#6E4F48" }}><AppIcon name="profile" size={16} color="#fff" /></span>
                             )}
                             <span className="min-w-0">
-                              <span className="flex min-w-0 items-center gap-1.5"><span className="truncate text-sm font-semibold text-[#231715]">{r.title}</span>{r.friend && <span className="shrink-0 rounded-full bg-[#FDE7F0] px-1.5 py-px text-[10px] font-bold text-[#9D174D]">{t("map_friend_badge")}</span>}{r.verified && <VerifiedPill label={t("ver609_short")} small />}</span>
+                              <span className="flex min-w-0 items-center gap-1.5"><span className="truncate text-sm font-semibold text-[#231715]">{r.title}</span>{r.friend && <span className="shrink-0 rounded-full bg-[#FDE7F0] px-1.5 py-px text-[10px] font-bold text-[#9D174D]">{t("map_friend_badge")}</span>}{r.verified && <VerifiedPill label={t("v609_verified_short")} small />}</span>
                               {r.sub && <span className="block truncate text-xs font-semibold" style={{ color: r.color ? ROLE_TEXT_DARK[r.color] || r.color : "#6E4F48" }}>{r.sub}</span>}
                               <span className="block truncate text-[11px] text-[#8A6B64]">{formatKm(r.km, lang)}{r.meta ? ` · ${r.meta}` : ""}</span>
                             </span>

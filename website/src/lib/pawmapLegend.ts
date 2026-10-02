@@ -108,10 +108,10 @@ function nameTagHtml(text: string, top: number, dark?: boolean): string {
 
 /** Coche bleue « identité vérifiée » (15 px, en bas à gauche). */
 /** 02/10 (609, Daniel) — « Identité vérifiée » : coche bleue cerclée de blanc,
- *  en HAUT À GAUCHE (couronne en haut à droite, fusée en bas à gauche, point
- *  en ligne en bas à droite : jamais l'un sur l'autre). */
+ *  EN BAS À DROITE (CONTRAT_609_verifie, PAM) ; couronne en haut à droite,
+ *  fusée en bas à gauche, et le point « en ligne » passe en HAUT À GAUCHE. */
 export function verifiedBadge(): string {
-  return `<span data-verified-badge="" style="position:absolute;top:-3px;left:-3px;width:17px;height:17px;border-radius:50%;background:#2563EB;border:2px solid #fff;display:flex;align-items:center;justify-content:center;box-sizing:border-box;box-shadow:0 1px 3px rgba(23,20,31,.35);"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>`;
+  return `<span data-verified-badge="" style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:#2563EB;border:2px solid #fff;display:flex;align-items:center;justify-content:center;box-sizing:border-box;box-shadow:0 1px 3px rgba(23,20,31,.35);"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>`;
 }
 
 // ── Icônes blanches des rôles (mêmes sens que l'accueil de l'app) ──────────
@@ -217,8 +217,8 @@ export function rocketBadge(size: number, bottomPx?: number): string {
   return `<span style="position:absolute;bottom:${bottomPx ?? -Math.round(size * 0.25)}px;left:-${Math.round(size * 0.3)}px;width:${size}px;height:${size}px;border-radius:50%;background:${PAWBOOST_TURQUOISE};border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(23,20,31,.3);"><svg viewBox="0 0 24 24" width="${Math.round(size * 0.62)}" height="${Math.round(size * 0.62)}" fill="#fff" aria-hidden="true"><path d="M14.5 2.5c3.3 0 6.4 1.6 7 4-3.2 6.4-6.7 9.6-9.7 11.2l-3.5-3.5C10 11.2 11.3 6 14.5 2.5zM8 14.7 4.4 13c1-2.2 2.4-3.9 4.1-5.1zM9.3 16 11 19.6c2.2-1 3.9-2.4 5.1-4.1zM4 20c1.1-2.6 2.2-3.5 3.6-3.6.2 1.4-.9 2.5-3.6 3.6zM15 7a1.6 1.6 0 1 0 0 3.2A1.6 1.6 0 0 0 15 7z"/></svg></span>`;
 }
 /** Point vert « en ligne / en direct » en bas à droite. */
-export function onlineDot(size: number, online: boolean): string {
-  return `<span style="position:absolute;bottom:0;right:0;width:${size}px;height:${size}px;border-radius:50%;border:2px solid #fff;background:${online ? "#16A34A" : "#C2410C"};box-shadow:0 1px 3px rgba(23,20,31,.3);"></span>`;
+export function onlineDot(size: number, online: boolean, topLeft = false): string {
+  return `<span style="position:absolute;${topLeft ? "top:0;left:0" : "bottom:0;right:0"};width:${size}px;height:${size}px;border-radius:50%;border:2px solid #fff;background:${online ? "#16A34A" : "#C2410C"};box-shadow:0 1px 3px rgba(23,20,31,.3);"></span>`;
 }
 /** Œil barré noir (mode « amis seulement »), en bas à DROITE de MON rond.
  *  607 (PAM) — il était en bas à gauche, empilé sur la fusée PawBoost. */
@@ -332,7 +332,7 @@ export function memberPinHtml(o: MemberPinOptions): string {
     : `padding:${Math.round(size * 0.2)}px;border:2.5px solid #fff;`;
   // 27/09 — les liserés concentriques des autres rôles sont RETIRÉS : ils
   // recouvraient la lueur PawBoost. Les rôles sont dans le contour (`outer`).
-  return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${o.avatar ? outer : grad};${disc}${glow}display:flex;align-items:center;justify-content:center;box-sizing:border-box;position:relative;overflow:hidden;">${body}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : ""}${o.verified ? verifiedBadge() : ""}${o.online === true || o.online === false ? onlineDot(12, o.online) : ""}${caption}${bubble}</div>`;
+  return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${o.avatar ? outer : grad};${disc}${glow}display:flex;align-items:center;justify-content:center;box-sizing:border-box;position:relative;overflow:hidden;">${body}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : ""}${o.verified ? verifiedBadge() : ""}${o.online === true || o.online === false ? onlineDot(12, o.online, !!o.verified) : ""}${caption}${bubble}</div>`;
 }
 
 /** Échappe une chaîne insérée dans le HTML d'une épingle (nom, URL). */

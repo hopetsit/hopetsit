@@ -291,7 +291,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                     {priceOf(p) && (
                       <span className="font-bold" style={{ color }}>{t("map_member_price_from")} {priceOf(p)}</span>
                     )}
-                    {p.identityVerified && <VerifiedPill label={t("ver609_short")} />}
+                    {p.identityVerified && <VerifiedPill label={t("v609_verified_short")} />}
                     {p.availableToday && (
                       <span className="rounded-full bg-[#DEF7E5] px-2 py-0.5 font-semibold text-[#0F7C37]">{t("map_available_today")}</span>
                     )}
@@ -354,7 +354,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         {!compact && (
           <button type="button" onClick={() => setVerifiedOnly((v) => !v)} aria-pressed={verifiedOnly} data-verified-filter="" className={`inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-xs font-bold shadow-lg transition ${verifiedOnly ? "bg-[#2563EB] text-white" : "bg-white text-[#1E4FB0]"}`}>
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-            {t("ver609_filter")}
+            {t("v609_filter_verified")}
           </button>
         )}
         {visibleCount > 0 && (

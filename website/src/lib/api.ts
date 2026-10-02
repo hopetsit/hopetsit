@@ -3117,7 +3117,7 @@ export async function getMapBarPrefs(): Promise<MapBarPrefs | null> {
     return null;
   }
 }
-export async function saveMapBarPrefs(patch: Partial<Record<"railCollapsed" | "capsuleCollapsed", boolean> & Record<"rail" | "capsule", string[]>>): Promise<boolean> {
+export async function saveMapBarPrefs(patch: Partial<Record<"railCollapsed" | "capsuleCollapsed" | "verifiedOnly", boolean> & Record<"rail" | "capsule", string[]>>): Promise<boolean> {
   try {
     await request(`/users/me/map-prefs`, { method: "PATCH", body: JSON.stringify({ pawMap: patch }) });
     return true;
