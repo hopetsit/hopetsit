@@ -77,6 +77,7 @@ describe('catalogue 607', () => {
     expect(JSON.stringify(c)).not.toMatch(/sub_disc|"percent"/);
     expect(c.rules).toEqual({ activityOnly: true, money: false, percentDiscounts: false, premiumDoubles: true });
     // Apps ≤ 606 : seulement 30 / 30 / 90 jours (elles savent les afficher).
+    expect(c.rewards.slice(5).map((x) => [x.id, x.cost])).toEqual([['sub_days_pp_7', 10000], ['sub_days_pp_14', 20000], ['sub_free_pf_1m', 40000], ['sub_free_pp_1m', 80000], ['sub_free_pp_3m', 200000]]);
     expect(r.body.subscriptionRewards.map((x) => [x.id, x.kind, x.days]))
       .toEqual([['sub_free_pf_1m', 'free_month', 30], ['sub_free_pp_1m', 'free_month', 30], ['sub_free_pp_3m', 'free_month', 90]]);
     // Avantages de niveau : uniquement ce que le serveur tient.
@@ -159,8 +160,8 @@ describe('échanges 607', () => {
     expect(again.status).toBe(409);
   });
 
-  test('50 000 pts → 7 jours de Paw Premium', async () => {
-    const u = await person({ points: 50000 });
+  test('10 000 pts → 7 jours de Paw Premium (paliers BOB 02/10)', async () => {
+    const u = await person({ points: 10000 });
     const t0 = Date.now();
     const r = await request(app).post('/pawpoints/redeem/sub_days_pp_7').set(as(u));
     expect(r.status).toBe(200);

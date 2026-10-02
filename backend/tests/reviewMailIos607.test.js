@@ -38,10 +38,13 @@ test('le paragraphe retiré est bien celui du parrainage, dans les 9 langues', (
   for (const l of LANGS) {
     const tpl = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'src', 'locales', l, 'lifecycle.json'), 'utf8')).review_after_booking;
     expect(tpl.paragraphs).toHaveLength(2);
-    expect(tpl.paragraphs[sched.REVIEW_REFERRAL_PARAGRAPH]).toMatch(/PawPoints/);
+    expect(tpl.paragraphs[sched.REVIEW_REFERRAL_PARAGRAPH]).toMatch(/PawFollow/);
+    // Plus de fausse promesse : le parrainage ne donne pas de PawPoints.
+    expect(tpl.paragraphs.join(' ')).not.toMatch(/PawPoints/);
+    expect(tpl.paragraphs[sched.REVIEW_REFERRAL_PARAGRAPH]).toMatch(/10\s?[%％]/);
     const kept = sched.paragraphsFor(tpl, { omitReferral: true });
     expect(kept).toEqual([tpl.paragraphs[0]]);
-    expect(kept.join(' ')).not.toMatch(/PawPoints/);
+    expect(kept.join(' ')).not.toMatch(/PawFollow/);
     expect(sched.paragraphsFor(tpl)).toEqual(tpl.paragraphs);
   }
 });

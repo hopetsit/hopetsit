@@ -118,23 +118,23 @@ const REWARDS = Object.freeze([
     it: '3 giorni di PawBoost: in evidenza sulla mappa', pt: '3 dias de PawBoost: em destaque no mapa',
     ko: 'PawBoost 3일: 지도에서 돋보이기', ja: 'PawBoost 3日間：マップで目立つ', pl: '3 dni PawBoost: wyróżnienie na mapie' } },
   // Grandes récompenses (une fois par personne).
-  { id: 'sub_days_pp_7', tier: 6, cost: 50000, kind: 'free_days', days: 7, plan: 'premium_monthly', once: true, icon: '👑', t: {
+  { id: 'sub_days_pp_7', tier: 6, cost: 10000, kind: 'free_days', days: 7, plan: 'premium_monthly', once: true, icon: '👑', t: {
     fr: '7 jours de Paw Premium offerts', en: '7 days of Paw Premium free', es: '7 días de Paw Premium gratis',
     de: '7 Tage Paw Premium geschenkt', it: '7 giorni di Paw Premium in regalo', pt: '7 dias de Paw Premium grátis',
     ko: 'Paw Premium 7일 무료', ja: 'Paw Premium 7日間無料', pl: '7 dni Paw Premium gratis' } },
-  { id: 'sub_days_pp_14', tier: 7, cost: 100000, kind: 'free_days', days: 14, plan: 'premium_monthly', once: true, icon: '👑', t: {
+  { id: 'sub_days_pp_14', tier: 7, cost: 20000, kind: 'free_days', days: 14, plan: 'premium_monthly', once: true, icon: '👑', t: {
     fr: '14 jours de Paw Premium offerts', en: '14 days of Paw Premium free', es: '14 días de Paw Premium gratis',
     de: '14 Tage Paw Premium geschenkt', it: '14 giorni di Paw Premium in regalo', pt: '14 dias de Paw Premium grátis',
     ko: 'Paw Premium 14일 무료', ja: 'Paw Premium 14日間無料', pl: '14 dni Paw Premium gratis' } },
-  { id: 'sub_free_pf_1m', tier: 8, cost: 200000, kind: 'free_days', days: 30, plan: 'monthly', once: true, icon: '🟣', t: {
+  { id: 'sub_free_pf_1m', tier: 8, cost: 40000, kind: 'free_days', days: 30, plan: 'monthly', once: true, icon: '🟣', t: {
     fr: '30 jours de PawFollow offerts', en: '30 days of PawFollow free', es: '30 días de PawFollow gratis',
     de: '30 Tage PawFollow geschenkt', it: '30 giorni di PawFollow in regalo', pt: '30 dias de PawFollow grátis',
     ko: 'PawFollow 30일 무료', ja: 'PawFollow 30日間無料', pl: '30 dni PawFollow gratis' } },
-  { id: 'sub_free_pp_1m', tier: 9, cost: 500000, kind: 'free_days', days: 30, plan: 'premium_monthly', once: true, icon: '🟡', t: {
+  { id: 'sub_free_pp_1m', tier: 9, cost: 80000, kind: 'free_days', days: 30, plan: 'premium_monthly', once: true, icon: '🟡', t: {
     fr: '30 jours de Paw Premium offerts', en: '30 days of Paw Premium free', es: '30 días de Paw Premium gratis',
     de: '30 Tage Paw Premium geschenkt', it: '30 giorni di Paw Premium in regalo', pt: '30 dias de Paw Premium grátis',
     ko: 'Paw Premium 30일 무료', ja: 'Paw Premium 30日間無料', pl: '30 dni Paw Premium gratis' } },
-  { id: 'sub_free_pp_3m', tier: 10, cost: 1000000, kind: 'free_days', days: 90, plan: 'premium_monthly', once: true, icon: '🌸', t: {
+  { id: 'sub_free_pp_3m', tier: 10, cost: 200000, kind: 'free_days', days: 90, plan: 'premium_monthly', once: true, icon: '🌸', t: {
     fr: '90 jours de Paw Premium offerts', en: '90 days of Paw Premium free', es: '90 días de Paw Premium gratis',
     de: '90 Tage Paw Premium geschenkt', it: '90 giorni di Paw Premium in regalo', pt: '90 dias de Paw Premium grátis',
     ko: 'Paw Premium 90일 무료', ja: 'Paw Premium 90日間無料', pl: '90 dni Paw Premium gratis' } },
