@@ -4,9 +4,9 @@
 // catalogue UNIQUE de ZOE (`catalog607` de GET /pawpoints/catalog, 9 langues) :
 // aucun barème, palier ni texte de récompense écrit en dur ici. Plus de
 // réductions en % (remplacées par des jours offerts et du PawBoost).
-// Sections : solde + palier · échanger · ma collection de peluches (PAM,
-// GET /plush/collection) · comment gagner · paliers · derniers gains · notes
-// d'honnêteté (jamais d'argent). Tous les hooks EN HAUT (piège du 22/09).
+// Ordre (aligné sur l'app, ZOE 02/10) : solde + palier · comment gagner ·
+// échanger · collection de peluches · « ils ne s'achètent pas » · paliers ·
+// derniers gains. Tous les hooks EN HAUT (piège du 22/09).
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -141,6 +141,25 @@ export default function PawPointsPage() {
         <div role="status" className="mx-auto mt-5 max-w-2xl rounded-2xl px-4 py-3 text-center text-sm font-semibold" style={msg.ok ? { background: "#E8F8EE", color: "#0F5C2B" } : { background: "#FDECE8", color: "#9E1F0B" }}>{msg.text}</div>
       )}
 
+      {/* ── COMMENT GAGNER ── */}
+      {catalog && (
+        <section className="mt-12" data-pp-earn="">
+          <h2 className="font-display text-2xl font-extrabold" style={{ color: INK }}>{t("pp607_earn")}</h2>
+          <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+            {catalog.earn.map((e) => (
+              <li key={e.key} className="flex items-center gap-3 rounded-[20px] bg-white p-4 ring-1 ring-[#F3E6E1]">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] text-xl" style={{ background: GOLD_BG }} aria-hidden="true">{e.icon}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block break-words text-sm font-semibold leading-snug" style={{ color: INK }}>{ppText(e.texts, lang)}</span>
+                  {limitLabel(e.limit) && <span className="block text-[12px]" style={{ color: SOFT }}>{limitLabel(e.limit)}</span>}
+                </span>
+                <span className="shrink-0 text-lg font-extrabold tabular-nums" style={{ color: GOLD }}>+{fmt(e.points)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* ── ÉCHANGER ── */}
       {catalog && (
         <section className="mt-12" data-pp-rewards="">
@@ -206,22 +225,14 @@ export default function PawPointsPage() {
         </section>
       )}
 
-      {/* ── COMMENT GAGNER ── */}
-      {catalog && (
-        <section className="mt-12" data-pp-earn="">
-          <h2 className="font-display text-2xl font-extrabold" style={{ color: INK }}>{t("pp607_earn")}</h2>
-          <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-            {catalog.earn.map((e) => (
-              <li key={e.key} className="flex items-center gap-3 rounded-[20px] bg-white p-4 ring-1 ring-[#F3E6E1]">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] text-xl" style={{ background: GOLD_BG }} aria-hidden="true">{e.icon}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block break-words text-sm font-semibold leading-snug" style={{ color: INK }}>{ppText(e.texts, lang)}</span>
-                  {limitLabel(e.limit) && <span className="block text-[12px]" style={{ color: SOFT }}>{limitLabel(e.limit)}</span>}
-                </span>
-                <span className="shrink-0 text-lg font-extrabold tabular-nums" style={{ color: GOLD }}>+{fmt(e.points)}</span>
-              </li>
-            ))}
-          </ul>
+      {/* ── HONNÊTETÉ ── (textes du catalogue) */}
+      {catalog?.notes && (
+        <section className="mt-12 space-y-2 rounded-[22px] bg-[#FFF8F3] p-5 ring-1 ring-[#F3E6E1]" data-pp-notes="">
+          {Object.values(catalog.notes).map((n, i) => (
+            <p key={i} className="flex items-start gap-2 text-[13px] leading-snug" style={{ color: INK }}>
+              <span aria-hidden="true">🐾</span><span className="min-w-0">{ppText(n, lang)}</span>
+            </p>
+          ))}
         </section>
       )}
 
@@ -275,17 +286,6 @@ export default function PawPointsPage() {
               );
             })}
           </ul>
-        </section>
-      )}
-
-      {/* ── HONNÊTETÉ ── (textes du catalogue) */}
-      {catalog?.notes && (
-        <section className="mt-12 space-y-2 rounded-[22px] bg-[#FFF8F3] p-5 ring-1 ring-[#F3E6E1]" data-pp-notes="">
-          {Object.values(catalog.notes).map((n, i) => (
-            <p key={i} className="flex items-start gap-2 text-[13px] leading-snug" style={{ color: INK }}>
-              <span aria-hidden="true">🐾</span><span className="min-w-0">{ppText(n, lang)}</span>
-            </p>
-          ))}
         </section>
       )}
 

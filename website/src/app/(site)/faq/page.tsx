@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { PageHero } from "@/components/PageHero";
+import { FAQ_COUNT } from "@/lib/faqCount";
 
 /**
  * v556 — FAQ en version premium (Daniel). En-tête commun, accordéon en deux
@@ -11,7 +12,8 @@ import { PageHero } from "@/components/PageHero";
  */
 export default function FAQPage() {
   const { t } = useT();
-  const items = Array.from({ length: 10 }, (_, i) => ({
+  // 02/10 (607) — + PawPoints, peluches, « Ramène tes clients » / Pionnier (faq_q11..19).
+  const items = Array.from({ length: FAQ_COUNT }, (_, i) => ({
     q: t(`faq_q${i + 1}`),
     a: t(`faq_a${i + 1}`),
   })).filter((x) => x.q && !x.q.startsWith("faq_"));

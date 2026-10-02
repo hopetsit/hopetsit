@@ -23,6 +23,8 @@ export function Header() {
     // mes amis, les membres autour de moi, mes demandes, mon rond « Moi »).
     // Sans compte : la carte publique floutée (/pawmap).
     { href: ready && user ? "/map" : "/pawmap", label: t("nav_pawmap"), also: ["/pawmap", "/map"] },
+    // 02/10 (607, Daniel) — onglet PawPoints : page publique (la page membre reste /pawpoints).
+    { href: "/pawpoints-guide", label: t("nav_pawpoints") },
     { href: "/faq",          label: t("nav_faq") },
     { href: "/contact",      label: t("nav_contact") },
   ];

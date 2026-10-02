@@ -897,6 +897,16 @@ export default function MapPage() {
   const plushPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const plushTriedRef = useRef<Map<string, number>>(new Map());
   const plushBusyRef = useRef(false);
+  // 02/10 (607, Daniel) — rappel discret HORS Balade : « 🧸 N peluches près de toi ».
+  // Refermé = plus rien jusqu'au lendemain (date locale, sur ce navigateur).
+  const [plushHintClosed, setPlushHintClosed] = useState(true);
+  useEffect(() => {
+    try { setPlushHintClosed(localStorage.getItem("hopetsit:plushHintClosed") === new Date().toLocaleDateString("sv")); } catch { setPlushHintClosed(false); }
+  }, []);
+  const closePlushHint = () => {
+    setPlushHintClosed(true);
+    try { localStorage.setItem("hopetsit:plushHintClosed", new Date().toLocaleDateString("sv")); } catch { /* */ }
+  };
   const plushLoggedIn = !!getStoredUser();
   // Lecture : à l'ouverture puis toutes les 60 s (une requête, jamais en rafale).
   useEffect(() => {
@@ -1795,6 +1805,15 @@ export default function MapPage() {
                   {followed.state === "lost" ? t("live_state_lost") : t("live_state_live")} · {formatAgo(followed.lastSeenAt ? nowTs - new Date(followed.lastSeenAt).getTime() : 0, t)}
                 </span>
                 <span className={`shrink-0 text-[#6D28D9] transition-transform ${followSheet ? "rotate-90" : "-rotate-90"}`}><AppIcon name="arrow-right" size={14} color="#6D28D9" /></span>
+              </button>
+            </div>
+          )}
+          {/* 02/10 (607) — rappel hors Balade, près du bouton Balade (barre de droite). */}
+          {plush && !plush.walkActive && plush.nearbyCount > 0 && !plushHintClosed && (
+            <div role="status" data-plush-hint="" className="absolute bottom-[110px] right-[64px] z-[1050] flex max-w-[min(300px,calc(100%-136px))] items-center gap-2 rounded-[18px] py-2 pl-3 pr-1.5 text-[13px] font-bold leading-snug text-white shadow-[0_12px_26px_-12px_rgba(21,128,61,0.9)]" style={{ background: "linear-gradient(165deg,#43B862,#16A34A 55%,#15803D)", border: "1.5px solid #fff" }}>
+              <span className="min-w-0 break-words">{plush.nearbyCount === 1 ? t("plush607_nearby_one") : t("plush607_nearby_other").replace("{n}", String(plush.nearbyCount))}</span>
+              <button type="button" onClick={closePlushHint} aria-label={t("common_close")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/20 text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M6 18L18 6" /></svg>
               </button>
             </div>
           )}

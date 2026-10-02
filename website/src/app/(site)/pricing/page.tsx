@@ -98,7 +98,7 @@ export default function PricingPage() {
         <SubscriptionsExplainer compact />
         {/* 02/10 (607) — PawPoints : récompenses réelles du catalogue unique. */}
         <div className="mx-auto max-w-4xl px-4 pb-16">
-          <PawPointsTeaser />
+          <PawPointsTeaser href="/pawpoints-guide" />
         </div>
       </div>
 

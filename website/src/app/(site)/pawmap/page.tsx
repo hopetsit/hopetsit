@@ -1,5 +1,6 @@
 "use client";
 
+import { PawPointsTeaser } from "@/components/PawPointsTeaser";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -305,6 +306,9 @@ export default function PawMapPage() {
             </div>
           ))}
         </div>
+
+        {/* 02/10 (607) — PawPoints : récompenses du catalogue unique, vers la page publique. */}
+        <PawPointsTeaser className="mt-16" href="/pawpoints-guide" />
 
         {/* ── 6. PAWPREMIUM + APP ── une seule bande, pas de doublon. */}
         <section className="mt-16 flex flex-col items-center gap-6 rounded-[28px] bg-[#231715] p-8 text-center md:flex-row md:p-12 md:text-left">

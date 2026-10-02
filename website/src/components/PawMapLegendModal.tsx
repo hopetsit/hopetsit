@@ -139,7 +139,7 @@ function NumBadge({ n, id, size = 24 }: { n: number; id: string; size?: number }
 }
 
 type Row = { html?: string; node?: ReactNode; title: string; body?: string; color?: string; /** 29/09 — petite bulle sous le titre (texte exact de la carte). */ chip?: { text: string; color: string; border: string; bg?: string } };
-type Section = { id: string; title: string; rows: Row[]; example?: string; image?: { src: string; srcSet?: string; darkSrc?: string; darkSrcSet?: string; alt: string } };
+type Section = { id: string; title: string; rows: Row[]; example?: string; /** 02/10 (607) — petite galerie (les 5 peluches), sous le titre. */ gallery?: { src: string; label: string }[]; /** 02/10 — lien « en savoir plus ». */ link?: { href: string; label: string }; image?: { src: string; srcSet?: string; darkSrc?: string; darkSrcSet?: string; alt: string } };
 
 // 29/09 — section « La Balade » : dessins compacts (56 px) de ce que l'on voit
 // vraiment sur /map : pilule verte du direct, tracé violet PawFollow.
@@ -276,9 +276,19 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
   // (help607_*, lib/i18n/site607.ts). Visibles aussi sur la carte publique.
   const sections607: Section[] = [
     { id: "pioneer", title: t("help607_pioneer_title"), rows: [{ html: pioneerBadgeHtml(t("help607_pioneer_badge")), title: "", body: t("help607_pioneer_body") }] },
-    { id: "plush", title: t("help607_plush_title"), rows: [{ html: plushHtml(), title: "", body: t("help607_plush_body") }] },
+    {
+      id: "plush",
+      title: t("help607_plush_title"),
+      // 02/10 (Daniel) — les 5 peluches côte à côte (PNG de PAM) + la dorée à part, avec le barème.
+      gallery: ["teddy", "bunny", "kitty", "puppy", "fox"].map((ty, i) => ({ src: `/plush/${ty}.png`, label: t(`help607_plush_names_${i + 1}`) })),
+      rows: [
+        { html: plushHtml(), title: "", body: t("help607_plush_body") },
+        { html: `<img src="/plush/teddy_gold.png" alt="" width="52" height="52" style="width:52px;height:52px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(183,121,31,.5))"/>`, title: t("help607_plush_gold"), body: t("help607_plush_bonus"), color: "#8A5A00" },
+      ],
+      link: { href: "/pawpoints-guide", label: t("ppg_link") },
+    },
     // 02/10 (607, ZOE) — « Les PawPoints » : même texte que l'app (pp607_help_points_*).
-    { id: "points", title: t("pp607_help_points_title"), rows: [{ html: `<span style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800);border:2px solid #fff;box-shadow:0 6px 14px -6px #B07800;font-size:22px">🪙</span>`, title: "", body: t("pp607_help_points_body") }] },
+    { id: "points", title: t("pp607_help_points_title"), link: { href: "/pawpoints-guide", label: t("ppg_link") }, rows: [{ html: `<span style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800);border:2px solid #fff;box-shadow:0 6px 14px -6px #B07800;font-size:22px">🪙</span>`, title: "", body: t("pp607_help_points_body") }] },
   ];
 
   const sections: Section[] = full
@@ -462,6 +472,17 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
                 <figcaption className="mt-1.5 break-words text-center text-[12px] font-semibold leading-snug text-[#3B2A26] dark:text-[#EBDDD6]">{sec.image.alt}</figcaption>
               </figure>
             )}
+            {sec.gallery && (
+              <ul className="mt-3 grid grid-cols-5 gap-1.5" data-legend-gallery={sec.id}>
+                {sec.gallery.map((g) => (
+                  <li key={g.src} className="flex min-w-0 flex-col items-center rounded-2xl bg-[#EFFAF2] px-1 py-2 text-center dark:bg-[#15291B]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={g.src} alt="" width={44} height={44} className="h-11 w-11 object-contain" />
+                    <span className="mt-1 w-full break-words text-[11px] font-bold leading-tight text-[#0F5C2B] dark:text-[#BFE8CC]">{g.label}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             <ul className="mt-2 space-y-1.5">
               {sec.rows.map((r, i) => (
                 <li key={`${sec.id}-${i}`} className="flex items-start gap-3 rounded-2xl px-1 py-2 sm:gap-4 sm:px-2">
@@ -478,6 +499,11 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
                 </li>
               ))}
             </ul>
+            {sec.link && (
+              <a href={sec.link.href} className="mt-1 inline-flex min-h-[44px] items-center gap-1 px-1 text-[13px] font-extrabold text-[#9E1F0B] underline-offset-2 hover:underline dark:text-[#FF9A85]">
+                {sec.link.label} →
+              </a>
+            )}
             {sec.example && (
               <p className="mt-2 flex items-start gap-2.5 rounded-2xl border border-[#E8920A]/45 bg-[#FCEDE4] px-3.5 py-3 text-[13px] leading-snug text-[#3B2A26] dark:bg-[#2E201C] dark:text-[#EBDDD6]">
                 <span aria-hidden="true" className="shrink-0 text-base leading-none">💡</span>

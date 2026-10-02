@@ -3253,7 +3253,7 @@ export async function getMyLiveState(): Promise<MyLiveState | null> {
 
 // ─── 607 (02/10, LEO) — mini-peluches de la Balade (CONTRAT_607_peluches.md, PAM) ───
 export type ActivePlush = { id: string; type: string; golden?: boolean; lat: number; lng: number; day: string };
-export type PlushActive = { walkActive: boolean; catchRadiusM: number; reward: number; caughtToday: boolean; plushies: ActivePlush[] };
+export type PlushActive = { walkActive: boolean; catchRadiusM: number; reward: number; caughtToday: boolean; plushies: ActivePlush[]; /** 02/10 — peluches à attraper autour de moi, HORS Balade (sans positions). */ nearbyCount: number };
 /** Peluches autour de moi (liste vide hors Balade : le serveur décide). */
 export async function getActivePlush(lat: number, lng: number): Promise<PlushActive | null> {
   try {
@@ -3263,6 +3263,7 @@ export async function getActivePlush(lat: number, lng: number): Promise<PlushAct
       catchRadiusM: Number(r?.catchRadiusM) || 30,
       reward: Number(r?.reward) || 20,
       caughtToday: r?.caughtToday === true,
+      nearbyCount: Math.max(0, Math.floor(Number((r as { nearbyCount?: number })?.nearbyCount) || 0)),
       plushies: Array.isArray(r?.plushies) ? r!.plushies!.filter((x) => x && x.id && Number.isFinite(x.lat) && Number.isFinite(x.lng)) : [],
     };
   } catch {

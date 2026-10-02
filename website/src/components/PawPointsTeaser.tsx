@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { getPawCatalog607, ppText, type PawCatalog607 } from "@/lib/api";
 
-export function PawPointsTeaser({ className = "" }: { className?: string }) {
+export function PawPointsTeaser({ className = "", href = "/pawpoints" }: { className?: string; href?: string }) {
   const { t, lang } = useT();
   const [catalog, setCatalog] = useState<PawCatalog607 | null>(null);
   useEffect(() => {
@@ -28,7 +28,7 @@ export function PawPointsTeaser({ className = "" }: { className?: string }) {
   const honest = ppText(catalog?.notes?.activityOnly, lang);
   return (
     <Link
-      href="/pawpoints"
+      href={href}
       data-pp-teaser=""
       className={`flex flex-col gap-3 rounded-[22px] bg-gradient-to-r from-[#FFF6DB] to-white p-4 ring-2 ring-[#F1D9A6] transition hover:brightness-[1.02] sm:flex-row sm:items-center ${className}`}
     >

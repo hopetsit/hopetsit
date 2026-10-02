@@ -18,6 +18,8 @@ const PUBLIC_PATHS = [
   "/how-it-works",
   "/pricing",
   "/pawmap",
+  // 02/10 (607) — page publique PawPoints (priorité 0,5).
+  "/pawpoints-guide",
   "/faq",
   "/contact",
   "/download",
@@ -80,6 +82,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const US = new Set(RECRUIT_CITIES.filter((c) => c.lang === "en" && /USA/.test(c.region)).map((c) => c.slug));
   const prio = (path: string): number => {
     if (path === "") return 1;
+    if (path === "/pawpoints-guide") return 0.5;
     if (path.startsWith("/blog") || path === "/villes" || path === "/download" || path === "/pawmap") return 0.8;
     if (path.startsWith("/devenir-petsitter/") || path.startsWith("/garde-animaux/")) return 0.8;
     const m = path.match(/^\/(become-a-pet-sitter|pet-sitting)\/([^/]+)$/);
