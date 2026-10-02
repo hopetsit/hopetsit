@@ -379,6 +379,75 @@ describe('FUITE 02/10 (suite) : liste d\'amis sans « ville » e-mail', () => {
   });
 });
 
+describe('Décision Daniel 02/10 : ville = e-mail corrigée (2 comptes) + refus à l\'inscription / modification', () => {
+  const { runFixCityEmail607 } = require('../src/scripts/fixCityEmail607');
+  const { CITY_INVALID_I18N } = require('../src/middleware/cityGuard607');
+
+  test('les 2 gardiens visés : ville vidée sans position fiable, frères corrigés, autres comptes intouchés, une seule fois', async () => {
+    await mongoose.connection.db.collection('migrations').deleteMany({ _id: 'fix_city_email_607' });
+    const BAD = 'neo607cible@gmail.com';
+    const jesse = await Sitter.create({ _id: new mongoose.Types.ObjectId('6aacae41b4d70237d89c8def'), name: 'Jesse T', firstName: 'Jesse', email: 'neo607jesse@example.org', password: 'MotDePasse607!', city: BAD, location: { type: 'Point', coordinates: [-122.0841, 37.4220], city: BAD } });
+    const frere = await Walker.create({ name: 'Jesse T', email: 'neo607jesse@example.org', password: 'MotDePasse607!', city: BAD });
+    const proprio = await Owner.create({ name: 'Jesse T', email: 'neo607jesse@example.org', password: 'MotDePasse607!', city: 'Lyon' });
+    const lela = await Sitter.create({ _id: new mongoose.Types.ObjectId('6ab09f325f2c7ca4acd8c315'), name: 'Lela T', firstName: 'Lela', email: 'neo607lela@example.org', password: 'MotDePasse607!', city: BAD });
+    const autre = await Sitter.create({ name: 'Autre X', email: 'neo607autre@example.org', password: 'MotDePasse607!', city: 'autre@gmail.com' });
+    const fetchImpl = jest.fn();
+    const res = await runFixCityEmail607(mongoose.connection.db, { fetchImpl });
+    expect(fetchImpl).not.toHaveBeenCalled(); // position d'émulateur = non fiable, pas de géocodage
+    expect(res.map((r) => r.apres)).toEqual(['(vide)', '(vide)']);
+    expect(JSON.stringify(res)).not.toContain('gmail');
+    const j = await Sitter.findById(jesse._id).lean();
+    expect([j.city, j.location.city]).toEqual(['', '']);
+    expect((await Walker.findById(frere._id).lean()).city).toBe('');
+    expect((await Owner.findById(proprio._id).lean()).city).toBe('Lyon');
+    expect((await Sitter.findById(lela._id).lean()).city).toBe('');
+    expect((await Sitter.findById(autre._id).lean()).city).toBe('autre@gmail.com'); // hors décision : intouché
+    expect(await runFixCityEmail607(mongoose.connection.db, { fetchImpl })).toBeNull(); // une seule fois
+  });
+
+  test('position fiable → vraie ville par géocodage inverse (niveau ville)', async () => {
+    await mongoose.connection.db.collection('migrations').deleteMany({ _id: 'fix_city_email_607' });
+    const s = await mk(Sitter, { city: 'x@gmail.com', location: { type: 'Point', coordinates: [4.84, 45.76], city: 'x@gmail.com' } });
+    const fetchImpl = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ address: { city: 'Lyon' } }) });
+    const res = await runFixCityEmail607(mongoose.connection.db, { fetchImpl, targets: [{ id: String(s._id), model: 'Sitter', label: 'essai' }] });
+    expect(fetchImpl.mock.calls[0][0]).toContain('nominatim.openstreetmap.org/reverse');
+    expect(res[0].apres).toBe('Lyon');
+    expect((await Sitter.findById(s._id).lean()).city).toBe('Lyon');
+  });
+
+  test.each([
+    ['POST', '/api/v1/auth/signup', { role: 'owner', appLocale: 'fr', user: { name: 'A B', email: 'neo607g@example.org', password: 'MotDePasse607!', city: 'moi@gmail.com' } }, 'fr'],
+    ['POST', '/api/v1/auth/signup', { role: 'sitter', appLocale: 'ja', user: { name: 'A B', email: 'neo607h@example.org', password: 'MotDePasse607!', location: { lat: 1, lng: 1, city: 'https://moi.fr' } } }, 'ja'],
+  ])('%s %s : ville invalide refusée (400 CITY_INVALID, message dans la langue)', async (m, url, body, lang) => {
+    const r = await request(app).post(url).send(body);
+    expect(r.status).toBe(400);
+    expect(r.body).toEqual({ code: 'CITY_INVALID', error: CITY_INVALID_I18N[lang] });
+  });
+
+  test('modification du profil (3 rôles) : refusée si ville invalide, acceptée sinon', async () => {
+    const s = await mk(Sitter, { firstName: 'Mod', lastName: 'If', location: at(0) });
+    const w = await mk(Walker, { firstName: 'Mod', lastName: 'W', location: at(0) });
+    const o = await mk(Owner, { firstName: 'Mod', location: at(0) });
+    const cases = [
+      ['put', '/api/v1/sitters/me/profile', tok(s, 'sitter'), { city: '06 12 34 56 78' }],
+      ['patch', '/api/v1/walkers/me', tok(w, 'walker'), { location: { city: 'www.promeneur.fr' } }],
+      ['put', '/api/v1/users/me/profile', tok(o, 'owner'), { city: 'proprio@gmail.com' }],
+    ];
+    for (const [m, url, t, body] of cases) {
+      const r = await request(app)[m](url).set('Authorization', `Bearer ${t}`).set('Accept-Language', 'de-DE').send(body);
+      expect([url, r.status, r.body.code]).toEqual([url, 400, 'CITY_INVALID']);
+      expect(r.body.error).toBe(CITY_INVALID_I18N.de);
+    }
+    const ok = await request(app).put('/api/v1/sitters/me/profile').set('Authorization', `Bearer ${tok(s, 'sitter')}`).send({ city: 'Saint-Étienne' });
+    expect(ok.body.code).not.toBe('CITY_INVALID');
+    expect(ok.status).toBeLessThan(400);
+  });
+
+  test('les 9 langues ont leur message', () => {
+    expect(Object.keys(CITY_INVALID_I18N).sort()).toEqual(['de', 'en', 'es', 'fr', 'it', 'ja', 'ko', 'pl', 'pt']);
+  });
+});
+
 describe('affiche A4 + QR', () => {
   test('GET poster.pdf → 200 application/pdf, A4, lien imprimé, sans photo ni réseau', async () => {
     const s = await mk(Sitter, { firstName: 'Nora', lastName: 'Test', location: at(0) });

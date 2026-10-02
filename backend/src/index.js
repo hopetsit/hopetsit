@@ -56,6 +56,9 @@ async function startServer() {
     } catch (e) {
       logger.error('[boot] migration v555 failed (non-fatal)', e);
     }
+    // 607 (NEO, 02/10) — décision de Daniel : ville = e-mail de 2 gardiens
+    // corrigée UNE fois (marqueur dans `migrations`, non bloquant, journalisé).
+    require('./scripts/fixCityEmail607').runFixCityEmail607(mongoose.connection.db);
     // v404 — charge les mots interdits admin (BannedWord) dans le service de
     // modération texte → s'applique app + web. Non bloquant.
     try {

@@ -278,6 +278,10 @@ app.use(
 // AND also aliased at the root for 6-month backwards compatibility. The
 // alias logs a deprecation warning; Airwallex webhook stays at /webhooks because
 // it needs raw body processing.
+// 607 (NEO, 02/10) — une « ville » e-mail / lien / numéro / > 60 car. est refusée
+// à l'inscription et à la modification du profil (400 CITY_INVALID, 9 langues).
+app.use(require('./middleware/cityGuard607').cityGuard607);
+
 const versionedRoutes = [
   { path: '/health', mw: [], router: healthRoutes },
   // v23.1 part 229 — Daniel : "chat revient erreur 403 cherche en
