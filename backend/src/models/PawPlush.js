@@ -30,6 +30,10 @@ const pawPlushSchema = new mongoose.Schema(
       coordinates: { type: [Number], required: true }, // [lng, lat]
     },
     caughtByPerson: { type: String, default: null },
+    // Capture par un compte de TEST (+test) : copie à part, l'original reste
+    // libre pour les vrais utilisateurs (consigne BOB du 02/10).
+    copyOf: { type: mongoose.Schema.Types.ObjectId, default: null },
+    testCopy: { type: Boolean, default: false },
     caughtBy: {
       userId: { type: String, default: null },
       role: { type: String, default: null },

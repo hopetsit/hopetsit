@@ -350,4 +350,57 @@ describe('API réelle', () => {
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ perPlush: 20, golden: { points: 200, boostHours: 24 }, collector: { points: 500 }, streak: { days: 7, points: 200 } });
   });
+
+  // ── comptes de test : une COPIE, rien n'est retiré aux vrais utilisateurs ──
+  test('un compte +test attrape une copie : la peluche reste libre pour les autres', async () => {
+    const tst = await makeOwner({ email: 'dadaciao84+testplush1@gmail.com' });
+    const real = await makeOwner();
+    const today = plush.dayKeyFor(PARIS.lng, Date.now(), PARIS.lat);
+    const p = await PawPlush.create({ cityKey: 'copytest', day: today, slot: 0, type: 'teddy', location: fx(PARIS, 40) });
+    const at = { lat: PARIS.lat, lng: PARIS.lng + 0.004 };
+    startWalk(tst, at.lat, at.lng);
+    plush._resetForTests();
+    const r = await request(app).post(`/plush/${p._id}/catch`).set('Authorization', `Bearer ${tokenFor(tst._id, 'owner')}`).send(at);
+    expect(r.status).toBe(200);
+    expect(r.body.points).toBe(20);
+    const orig = await PawPlush.findById(p._id).lean();
+    expect(orig.caughtByPerson).toBeNull(); // l'original est intact
+    const copy = await PawPlush.findOne({ copyOf: p._id }).lean();
+    expect(copy).toMatchObject({ testCopy: true, caughtByPerson: String(tst._id) });
+    // le vrai utilisateur la voit et l'attrape
+    startWalk(real, at.lat, at.lng);
+    plush._resetForTests();
+    const lr = await request(app).get(`/plush/active?lat=${at.lat}&lng=${at.lng}`).set('Authorization', `Bearer ${tokenFor(real._id, 'owner')}`);
+    expect(lr.body.plushies.map((x) => x.id)).toContain(String(p._id));
+    // le compte de test, lui, ne la revoit plus
+    const lt = await request(app).get(`/plush/active?lat=${at.lat}&lng=${at.lng}`).set('Authorization', `Bearer ${tokenFor(tst._id, 'owner')}`);
+    expect(lt.body.plushies.map((x) => x.id)).not.toContain(String(p._id));
+    expect(lt.body.caughtToday).toBe(true);
+    const rr = await request(app).post(`/plush/${p._id}/catch`).set('Authorization', `Bearer ${tokenFor(real._id, 'owner')}`).send(at);
+    expect(rr.status).toBe(200);
+    expect((await PawPlush.findById(p._id).lean()).caughtByPerson).toBe(String(real._id));
+    // collection du compte de test : sa copie
+    const c = await request(app).get('/plush/collection').set('Authorization', `Bearer ${tokenFor(tst._id, 'owner')}`);
+    expect(c.body.total).toBe(1);
+  });
+
+  test('peluche prise par un compte de test AVANT la règle : rendue aux autres, copie gardée', async () => {
+    const tst = await makeOwner({ email: 'dadaciao84+testplush2@gmail.com' });
+    const real = await makeOwner();
+    const today = plush.dayKeyFor(PARIS.lng, Date.now(), PARIS.lat);
+    const at = { lat: PARIS.lat - 0.004, lng: PARIS.lng };
+    const p = await PawPlush.create({ cityKey: 'legacytest', day: today, slot: 0, type: 'bunny', location: { type: 'Point', coordinates: [at.lng, at.lat] },
+      caughtByPerson: String(tst._id), caughtBy: { userId: String(tst._id), role: 'owner', at: new Date() } });
+    startWalk(real, at.lat, at.lng);
+    plush._resetForTests();
+    const lr = await request(app).get(`/plush/active?lat=${at.lat}&lng=${at.lng}`).set('Authorization', `Bearer ${tokenFor(real._id, 'owner')}`);
+    expect(lr.body.plushies.map((x) => x.id)).toContain(String(p._id));
+    expect(await PawPlush.exists({ copyOf: p._id, caughtByPerson: String(tst._id), testCopy: true })).toBeTruthy();
+    // une vraie capture n'est JAMAIS rendue
+    const real2 = await makeOwner();
+    const q = await PawPlush.create({ cityKey: 'legacytest', day: today, slot: 1, type: 'fox', location: { type: 'Point', coordinates: [at.lng + 0.0003, at.lat] },
+      caughtByPerson: String(real2._id), caughtBy: { userId: String(real2._id), role: 'owner', at: new Date() } });
+    await request(app).get(`/plush/active?lat=${at.lat}&lng=${at.lng}`).set('Authorization', `Bearer ${tokenFor(real._id, 'owner')}`);
+    expect((await PawPlush.findById(q._id).lean()).caughtByPerson).toBe(String(real2._id));
+  });
 });

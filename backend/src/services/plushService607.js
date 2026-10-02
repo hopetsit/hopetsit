@@ -215,6 +215,7 @@ function _resetForTests() {
   _cities = null;
   _citiesAt = 0;
   _lastPos.clear();
+  _testCache.clear();
 }
 
 function median(xs) {
@@ -312,7 +313,51 @@ async function personOf(userId) {
   const { personIds } = require('../utils/personScope');
   const ids = await personIds(userId);
   const list = ids.length ? ids : [String(userId)];
-  return { ids: list, key: require('../utils/followers589').personKey(list) };
+  return { ids: list, key: require('../utils/followers589').personKey(list), test: await isTestPerson(list) };
+}
+
+/** Un des profils de la personne est un compte de test (+test) ? */
+const _testCache = new Map();
+async function isTestPerson(ids) {
+  const k = [...ids].map(String).sort().join(',');
+  if (_testCache.has(k)) return _testCache.get(k);
+  const { isTestAccountEmail } = require('../utils/testAccount2809');
+  let test = false;
+  for (const name of ['Owner', 'Sitter', 'Walker']) {
+    try {
+      const docs = await require(`../models/${name}`).find({ _id: { $in: ids } }).select('email').lean();
+      if (docs.some((d) => isTestAccountEmail(d.email))) test = true;
+    } catch (_) { /* id d'un autre modèle */ }
+  }
+  _testCache.set(k, test);
+  return test;
+}
+
+/**
+ * Peluches attrapées AVANT cette règle par un compte de test : on les rend
+ * aux vrais utilisateurs (l'original redevient libre, le compte de test garde
+ * une copie). Appelé sur les peluches de la zone affichée.
+ */
+async function releaseTestCatches(plushes) {
+  let released = 0;
+  for (const p of plushes) {
+    if (!p.caughtByPerson || p.testCopy || !p.caughtBy || !p.caughtBy.userId) continue;
+    let ids = [p.caughtBy.userId];
+    try { ids = await require('../utils/personScope').personIds(p.caughtBy.userId); } catch (_) { /* id seul */ }
+    if (!(await isTestPerson(ids))) continue;
+    try {
+      await PawPlush.updateOne({ _id: p._id, caughtByPerson: p.caughtByPerson }, { $set: { caughtByPerson: null, 'caughtBy.userId': null, 'caughtBy.role': null, 'caughtBy.at': null, expireAt: new Date(Date.now() + 3 * 86400000) } });
+      await PawPlush.create({
+        cityKey: `test:${p.cityKey}:${p.caughtByPerson}`, cityLabel: p.cityLabel, day: p.day, slot: p.slot,
+        type: p.type, golden: !!p.golden, poiId: p.poiId, location: p.location,
+        caughtByPerson: p.caughtByPerson, caughtBy: p.caughtBy, copyOf: p._id, testCopy: true,
+      }).catch(() => {});
+      released += 1;
+    } catch (e) {
+      logger.warn(`[plush] libération ${p._id} : ${e.message}`);
+    }
+  }
+  return released;
 }
 
 /** Session du direct de la personne si elle est EN COURS (signal récent). */
@@ -349,11 +394,24 @@ async function listActive({ userId, lat, lng, now = Date.now() }) {
   }
   const today = dayKeyFor(lng, now, lat);
   const days = [...new Set([today, ...cities.map((c) => dayKeyFor(c.lng, now, c.lat))])];
-  const found = await PawPlush.find({
+  const area = { $geoWithin: { $centerSphere: [[lng, lat], VIEW_RADIUS_M / 6371000] } };
+  // Peluches prises par un compte de test avant la règle des copies : rendues.
+  try {
+    const caught = await PawPlush.find({ day: { $in: days }, caughtByPerson: { $ne: null }, testCopy: { $ne: true }, location: area }).limit(60).lean();
+    if (caught.length) await releaseTestCatches(caught);
+  } catch (e) { logger.warn(`[plush] libération : ${e.message}`); }
+  let found = await PawPlush.find({
     day: { $in: days },
     caughtByPerson: null,
-    location: { $geoWithin: { $centerSphere: [[lng, lat], VIEW_RADIUS_M / 6371000] } },
+    testCopy: { $ne: true },
+    location: area,
   }).limit(30).lean();
+  if (me.test) {
+    // Le compte de test ne revoit pas celles dont il a déjà une copie.
+    const mine = new Set((await PawPlush.find({ caughtByPerson: me.key, testCopy: true, day: { $in: days } })
+      .select('copyOf').lean()).map((x) => String(x.copyOf)));
+    found = found.filter((p) => !mine.has(String(p._id)));
+  }
   const caughtToday = !!(await PawPlush.exists({ caughtByPerson: me.key, day: today }));
   return { ...empty, walkActive: true, caughtToday, plushies: found.map(publicPlush) };
 }
@@ -378,7 +436,8 @@ async function catchPlush({ userId, role, plushId, lat, lng, now = Date.now() })
   if (!plush) throw new PlushError(404, 'NOT_FOUND');
   const [pLng, pLat] = plush.location.coordinates;
   if (plush.day !== dayKeyFor(pLng, now, pLat)) throw new PlushError(410, 'EXPIRED');
-  if (plush.caughtByPerson) throw new PlushError(409, 'ALREADY_CAUGHT');
+  if (plush.testCopy) throw new PlushError(404, 'NOT_FOUND');
+  if (plush.caughtByPerson && !me.test) throw new PlushError(409, 'ALREADY_CAUGHT');
   const here = { lat, lng, t: now };
   // Vitesse : depuis la dernière position du direct ET depuis mon dernier appel.
   const fromWalk = { lat: session.lat, lng: session.lng, t: Number(session.at) };
@@ -391,7 +450,24 @@ async function catchPlush({ userId, role, plushId, lat, lng, now = Date.now() })
     throw new PlushError(429, 'DAILY_LIMIT');
   }
   let won;
-  try {
+  if (me.test) {
+    // Compte de test : une COPIE, l'original reste libre pour les autres.
+    if (await PawPlush.exists({ caughtByPerson: me.key, copyOf: plush._id })) {
+      throw new PlushError(409, 'ALREADY_CAUGHT');
+    }
+    try {
+      won = (await PawPlush.create({
+        cityKey: `test:${plush.cityKey}:${me.key}`, cityLabel: plush.cityLabel, day: plush.day, slot: plush.slot,
+        type: plush.type, golden: !!plush.golden, poiId: plush.poiId, location: plush.location,
+        caughtByPerson: me.key, caughtBy: { userId: String(userId), role: role || 'owner', at: new Date(now) },
+        copyOf: plush._id, testCopy: true,
+      })).toObject();
+    } catch (e) {
+      if (e && e.code === 11000) throw new PlushError(429, 'DAILY_LIMIT');
+      throw e;
+    }
+  }
+  if (!won) try {
     won = await PawPlush.findOneAndUpdate(
       { _id: plush._id, caughtByPerson: null },
       {
@@ -557,5 +633,6 @@ module.exports = {
   listActive,
   catchPlush,
   collection,
+  releaseTestCatches,
   _resetForTests,
 };
