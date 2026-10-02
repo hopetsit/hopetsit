@@ -229,11 +229,15 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 // de admin_dashboard.html seul (ex. aedfaab, traduction EN/ES) reste invisible en ligne :
 // toucher ce fichier. Garder un numéro en chiffres seuls (le contrôle de la page lit /v(\d+)/).
 const ADMIN_BUILD = 'v607';
+// 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à
+// redéployer quand seul admin_dashboard.html a bougé (ADMIN_BUILD reste celui de l'app).
+const ADMIN_DEPLOYED_AT = '2026-10-02T00:00';
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   res.setHeader('X-Admin-Build', ADMIN_BUILD);
+  res.setHeader('X-Admin-Deployed', ADMIN_DEPLOYED_AT);
   next();
 };
 app.get(['/admin', '/admin.html', '/admin_dashboard.html'], noAdminCache, (req, res) => {
@@ -322,6 +326,9 @@ const versionedRoutes = [
   // /admin : adminRoutes ne connaît pas ce chemin, passe la main, et le
   // rate-limit admin de /api/v1/admin s'applique quand même.
   { path: '/admin/site-analytics', mw: [], router: siteAnalyticsAdminRouter },
+  // 607 (ADA, 02/10) — onglet PawPoints de l'admin : chiffres, peluches, Pionniers,
+  // liens /s. Lecture seule, requireAdmin dans le routeur (même schéma que ci-dessus).
+  { path: '/admin/pawpoints-insights', mw: [], router: require('./routes/adminPawPointsInsights607') },
   // v23.1 part 36 — KYC verification (Persona) payante 3 EUR pour sitter/walker.
   { path: '/kyc', mw: [], router: require('./routes/kycRoutes') },
   { path: '/donations', mw: [sensitiveLimiter], router: donationRoutes },
