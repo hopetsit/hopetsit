@@ -32,6 +32,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import type { RouteStep } from "@/lib/api";
+import { getProviderBadge607 } from "@/lib/api";
 import {
   MapReport,
   MapReportType,
@@ -1607,6 +1608,15 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
   const [reqCount, setReqCount] = useState(0);
   const k = roleKey(r.role);
   const provider = k === "sitter" || k === "walker";
+  // 02/10 (607, NEO) — lien personnel /s/<slug> quand il existe (sinon /p).
+  const [sLink, setSLink] = useState<string | null>(null);
+  useEffect(() => {
+    setSLink(null);
+    if (!provider || !/^[a-f0-9]{24}$/i.test(String(r.id))) return;
+    let alive = true;
+    void getProviderBadge607(k as "sitter" | "walker", String(r.id)).then((b) => { if (alive && b?.slug) setSLink(`/s/${b.slug}`); });
+    return () => { alive = false; };
+  }, [provider, k, r.id]);
   const price = provider ? formatPriceUnit(r.priceFrom, r.currency, r.priceAlt, priceUnits) : null;
   // Le membre « vu sous ce rôle » : id et rôle du profil choisi (fiche,
   // réservation, demande d'ami, conversation prestataire).
@@ -1689,7 +1699,7 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
                 </button>
               )}
             </div>
-            <a href={`/p/${k}/${r.id}`} className="flex min-h-[44px] items-center justify-center rounded-[14px] px-2 text-center text-[13px] font-bold leading-tight underline-offset-2 hover:underline" style={{ color: ROLE_DARK[k] }}>
+            <a href={sLink ?? `/p/${k}/${r.id}`} data-profile-link={sLink ? "s" : "p"} className="flex min-h-[44px] items-center justify-center rounded-[14px] px-2 text-center text-[13px] font-bold leading-tight underline-offset-2 hover:underline" style={{ color: ROLE_DARK[k] }}>
               {labels.viewProfile} ›
             </a>
           </>

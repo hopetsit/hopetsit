@@ -1,5 +1,9 @@
 import type { MetadataRoute } from "next";
 import { RECRUIT_CITIES, recruitPaths, ownerPaths } from "../lib/recruit-cities";
+import { fetchProviderSitemap } from "../lib/publicProvider607";
+
+// 02/10 (607) — relu toutes les heures (pages /s des prestataires).
+export const revalidate = 3600;
 
 // v23.1.267 — SEO : sitemap des pages publiques (était absent). metadataBase
 // est défini dans layout.tsx (https://hopetsit.com).
@@ -58,7 +62,7 @@ const PUBLIC_PATHS = [
   "/villes",
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 26/09/2026 (SAM) — plus de « date du jour » sur les 654 URL à chaque mise
   // en ligne : Google finit par ignorer un lastmod qui change sans que la page
   // change. On ne date que les pages dont on connaît la vraie dernière
@@ -82,10 +86,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
     if (m) return US.has(m[2]) ? 0.8 : 0.4;
     return path.split("/").length > 2 ? 0.3 : 0.6;
   };
-  return all.map((path) => ({
+  const pages: MetadataRoute.Sitemap = all.map((path) => ({
     url: `${BASE}${path}`,
     ...(dateDe(path) ? { lastModified: dateDe(path) } : {}),
     changeFrequency: path === "" || path.startsWith("/blog") ? "weekly" : "monthly",
     priority: prio(path),
   }));
+  // 02/10 (607, BOB) — pages personnelles /s/<slug> : SEULEMENT les
+  // prestataires de France et des États-Unis (règle SEO du 20/09 : budget
+  // d'exploration). Les autres /s restent indexables et liées depuis la carte,
+  // hors sitemap. Le pays vient du serveur (champ `country`, ISO) : sans lui,
+  // aucune page /s n'est ajoutée (jamais de devinette).
+  const providers = await fetchProviderSitemap();
+  for (const p of providers) {
+    const c = String(p.country || "").toUpperCase();
+    if (c !== "FR" && c !== "US") continue;
+    const d = p.updatedAt ? new Date(p.updatedAt) : null;
+    pages.push({ url: `${BASE}/s/${p.slug}`, ...(d && !Number.isNaN(d.getTime()) ? { lastModified: d } : {}), changeFrequency: "weekly", priority: 0.6 });
+  }
+  return pages;
 }

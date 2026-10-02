@@ -42,8 +42,15 @@ export async function fetchPublicProvider(slug: string): Promise<PublicProvider6
   const d = (await r.json()) as { provider?: PublicProvider607 };
   const p = d.provider;
   if (!p || !p.slug || (p.role !== "sitter" && p.role !== "walker")) return null;
+  // 02/10 — garde-fou vie privée : une « ville » qui contient une adresse
+  // e-mail (vu en prod : l'e-mail saisi dans le champ ville) n'est jamais
+  // affichée, et la page n'est pas indexée.
+  const looksPrivate = (v: string) => /@|\b[\w.-]+\.(com|fr|net|org)\b/i.test(v || "");
+  const privateCity = looksPrivate(p.city) || /gmail|hotmail|yahoo|outlook/i.test(p.slug);
   return {
     ...p,
+    city: privateCity ? "" : p.city,
+    indexable: p.indexable && !privateCity,
     services: Array.isArray(p.services) ? p.services : [],
     acceptedPetTypes: Array.isArray(p.acceptedPetTypes) ? p.acceptedPetTypes : [],
     rates: Array.isArray(p.rates) ? p.rates : [],
@@ -96,3 +103,15 @@ export function petKeys(codes: string[]): string[] {
 
 export const fill = (tpl: string, vars: Record<string, string>): string =>
   tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+
+/** Sitemap : prestataires visibles et complets (route de NEO), filtrés par pays si le serveur le donne. */
+export async function fetchProviderSitemap(): Promise<{ slug: string; role: string; updatedAt?: string; country?: string }[]> {
+  try {
+    const r = await fetch(`${API_BASE}/public/providers/sitemap`, { next: { revalidate: 3600 } });
+    if (!r.ok) return [];
+    const d = (await r.json()) as { providers?: { slug: string; role: string; updatedAt?: string; country?: string }[] };
+    return (d.providers || []).filter((p) => p && SLUG_RE.test(p.slug) && !/gmail|hotmail|yahoo|outlook/i.test(p.slug));
+  } catch {
+    return [];
+  }
+}

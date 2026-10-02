@@ -3336,3 +3336,14 @@ export function ppText(texts: Pp607Texts | undefined, lang: string): string {
   return texts[lang] || texts.en || texts.fr || "";
 }
 export type MyPawPoints607 = MyPawPoints & { history?: { key: string; points: number; credited?: number; at: string }[]; catalogVersion?: number };
+
+/** 02/10 (607, NEO) — badge Pionnier + lien /s d'un prestataire (slug "" = garder /p). */
+export async function getProviderBadge607(role: "sitter" | "walker", id: string): Promise<{ isPioneer: boolean; slug: string } | null> {
+  try {
+    const r = await request<{ isPioneer?: boolean; slug?: string }>(`/public/providers/badge/${role}/${encodeURIComponent(id)}`);
+    const slug = String(r?.slug || "");
+    return { isPioneer: r?.isPioneer === true, slug: /^[a-z0-9](?:[a-z0-9-]{0,70}[a-z0-9])?$/.test(slug) ? slug : "" };
+  } catch {
+    return null;
+  }
+}
