@@ -35,6 +35,11 @@ test('11 min, ~700 m puis arrêt → +15 une fois', async () => {
   const s = require('../src/sockets/mapSocket').getLiveSession(String(w._id));
   s.startedAt -= 11 * 60000;
   await post(user, { offline: true });
-  await new Promise((r) => setTimeout(r, 500));
-  expect((await Walker.findById(w._id).lean()).pawPoints).toBe(15);
+  // Le gain est crédité sans bloquer la réponse : on attend qu'il arrive (5 s max).
+  let pts = 0;
+  for (let i = 0; i < 50 && pts === 0; i += 1) {
+    await new Promise((r) => setTimeout(r, 100));
+    pts = (await Walker.findById(w._id).lean()).pawPoints || 0;
+  }
+  expect(pts).toBe(15);
 });
