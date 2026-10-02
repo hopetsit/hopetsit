@@ -47,7 +47,7 @@ async function fixIndexesOnce() {
   // attrapées restent dans les collections.
   try {
     const r = await PawPlush.deleteMany({
-      cityKey: { $not: /^(g:|test:)/ },
+      cityKey: { $not: /^(z:|test:)/ },
       caughtByPerson: null,
       testCopy: { $ne: true },
     });
@@ -260,13 +260,14 @@ function median(xs) {
  * 607 (BOB/ADA, 02/10) — ZONE de tirage = cellule de grille fixe, jamais le
  * libellé de ville (« Paris », « Parigi », « París » faisaient 3 tirages et un
  * Italien à Paris ne voyait pas les mêmes peluches qu'un Français).
- * 0,2° de latitude × 0,3° de longitude ≈ 22 × 22 km à Paris. La clé ne
- * dépend que des coordonnées : stable, la même pour tous.
+ * 0,1° de latitude × 0,15° de longitude ≈ 11 × 11 km à Paris (mesuré :
+ * avec 22 km, il ne restait qu'UNE peluche à 5 km du centre de Paris). La
+ * clé ne dépend que des coordonnées : stable, la même pour tous.
  */
-const ZONE_LAT_DEG = 0.2;
-const ZONE_LNG_DEG = 0.3;
+const ZONE_LAT_DEG = 0.1;
+const ZONE_LNG_DEG = 0.15;
 function zoneKeyFor(lat, lng) {
-  return `g:${Math.floor(lat / ZONE_LAT_DEG)}:${Math.floor(lng / ZONE_LNG_DEG)}`;
+  return `z:${Math.floor(lat / ZONE_LAT_DEG)}:${Math.floor(lng / ZONE_LNG_DEG)}`;
 }
 
 async function activeCities({ now = Date.now(), force = false } = {}) {
