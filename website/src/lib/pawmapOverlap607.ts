@@ -17,8 +17,10 @@ export const CITY_PRICE_ZOOM_607 = 9; // `_cityPriceZoom` : bulle d'une épingle
 export const MEMBER_CELL_PX_607 = 44; // `_memberClusterCellPx`
 /** Rond 46 px + anneau ami 2,5 + 4 px d'air (`kPawGroupMinPx`). */
 export const GROUP_MIN_PX_607 = 50;
-/** 02/10 (607, PAM) — écart maximal d'une pastille loin de Moi / des amis (`kPawRepelMaxPx`, avant 28). */
-export const REPEL_MAX_PX_607 = 48;
+/** 02/10 (607, PAM, version finale CONTRAT_607_bulles §3) — écart maximal (`kPawRepelMaxPx`, avant 28 puis 48). */
+export const REPEL_MAX_PX_607 = 60;
+/** Air minimal entre deux ronds qui ne doivent pas se toucher (`kPawAirPx`). */
+export const AIR_PX_607 = 4;
 
 export type Px = { x: number; y: number };
 export type Rect = { l: number; t: number; r: number; b: number };
@@ -116,16 +118,40 @@ export function repelShift(at: Px, obstacles: Px[], minPx = GROUP_MIN_PX_607, ma
 }
 
 /**
- * 02/10 (607, PAM) — copie de `pawRepelAll` : écarte chaque PASTILLE (isGroup)
- * des ronds fixes jusqu'à 48 px, SANS jamais rapprocher deux ronds à moins de
- * `minPx` (ni plus près qu'avant), ni la rapprocher d'un rond fixe : sinon
- * l'écart est divisé par 2 (6 fois au plus), puis annulé.
+ * 02/10 (607, PAM) — copie EXACTE de `pawRepelAll` (CONTRAT_607_bulles.md §3,
+ * frontend/lib/views/map/widgets/pawmap_overlap607.dart) : chaque rond mobile
+ * (isGroup) s'écarte des ronds fixes (Moi, amis ; rayons fixedR) jusqu'à ce
+ * que les DESSINS ne se touchent plus (atR + fixedR + 4 px), au plus 60 px,
+ * sans rapprocher deux ronds à moins de 50 px ni d'un autre obstacle ; sinon
+ * il fait le TOUR de l'obstacle le plus gênant tous les 15° et prend la place
+ * libre la plus proche (≤ 60 px, puis ≤ 90 px) ; aucune place = il ne bouge pas.
  */
-export function repelAll(at: Px[], isGroup: boolean[], fixed: Px[], minPx = GROUP_MIN_PX_607, maxShift = REPEL_MAX_PX_607): Px[] {
+export function repelAll(at: Px[], isGroup: boolean[], fixed: Px[], fixedR?: number[], atR?: number[], minPx = GROUP_MIN_PX_607, maxShift = REPEL_MAX_PX_607): Px[] {
   const n = at.length;
   const shift: Px[] = at.map(() => ({ x: 0, y: 0 }));
   const pos: Px[] = at.map((p) => ({ ...p }));
   const d = (a: Px, b: Px) => Math.hypot(a.x - b.x, a.y - b.y);
+  const rOf = (i: number) => (atR && i < atR.length ? atR[i] : 24.5);
+  const fR = (k: number) => (fixedR && k < fixedR.length ? fixedR[k] : 28);
+  const clear = (i: number, k: number) => rOf(i) + fR(k) + AIR_PX_607;
+  const push = (i: number): Px => {
+    let sx = 0;
+    let sy = 0;
+    for (let k = 0; k < fixed.length; k++) {
+      let dx = at[i].x - fixed[k].x;
+      let dy = at[i].y - fixed[k].y;
+      let dist = Math.hypot(dx, dy);
+      const need = clear(i, k);
+      if (dist >= need) continue;
+      if (dist < 0.5) { dx = 0.7071; dy = 0.7071; dist = 1; }
+      const pp = need - dist;
+      sx += (dx / dist) * pp;
+      sy += (dy / dist) * pp;
+    }
+    const len = Math.hypot(sx, sy);
+    if (len === 0) return { x: 0, y: 0 };
+    return len <= maxShift ? { x: sx, y: sy } : { x: (sx / len) * maxShift, y: (sy / len) * maxShift };
+  };
   const ok = (i: number, p: Px) => {
     for (let j = 0; j < n; j++) {
       if (j === i) continue;
@@ -133,20 +159,66 @@ export function repelAll(at: Px[], isGroup: boolean[], fixed: Px[], minPx = GROU
       const after = d(p, pos[j]);
       if (after < minPx && after < before) return false;
     }
-    for (const f of fixed) if (d(p, f) < d(at[i], f) - 0.01) return false;
+    for (let k = 0; k < fixed.length; k++) {
+      const before = d(at[i], fixed[k]);
+      const after = d(p, fixed[k]);
+      if (after < clear(i, k) && after < before - 0.01) return false;
+    }
     return true;
+  };
+  const stillTouches = (p: Px, i: number) => {
+    for (let k = 0; k < fixed.length; k++) if (d(p, fixed[k]) < clear(i, k) - 0.5) return true;
+    return false;
+  };
+  const aroundBest = (i: number, limit: number): Px | null => {
+    let worstK = -1;
+    let worst = 0;
+    for (let k = 0; k < fixed.length; k++) {
+      const over = clear(i, k) - d(at[i], fixed[k]);
+      if (over > worst) { worst = over; worstK = k; }
+    }
+    if (worstK < 0) return null;
+    const o = fixed[worstK];
+    const rad = clear(i, worstK) + 0.5;
+    let best: Px | null = null;
+    let bestD = Infinity;
+    for (let deg = 0; deg < 360; deg += 15) {
+      const a = (deg * Math.PI) / 180;
+      const p = { x: o.x + rad * Math.cos(a), y: o.y + rad * Math.sin(a) };
+      const dd = d(p, at[i]);
+      if (dd > limit || dd >= bestD) continue;
+      if (!ok(i, p) || stillTouches(p, i)) continue;
+      best = { x: p.x - at[i].x, y: p.y - at[i].y };
+      bestD = dd;
+    }
+    return best;
   };
   for (let i = 0; i < n; i++) {
     if (!isGroup[i]) continue;
-    let s = repelShift(at[i], fixed, minPx, maxShift);
+    let s = push(i);
     if (s.x === 0 && s.y === 0) continue;
-    let tries = 0;
-    while (Math.hypot(s.x, s.y) > 0.5 && !ok(i, { x: at[i].x + s.x, y: at[i].y + s.y }) && tries++ < 6) s = { x: s.x / 2, y: s.y / 2 };
-    if (Math.hypot(s.x, s.y) <= 0.5 || !ok(i, { x: at[i].x + s.x, y: at[i].y + s.y })) s = { x: 0, y: 0 };
+    const tgt = { x: at[i].x + s.x, y: at[i].y + s.y };
+    if (!ok(i, tgt) || stillTouches(tgt, i)) {
+      let best: Px | null = null;
+      for (const limit of [maxShift, maxShift * 1.5]) {
+        best = aroundBest(i, limit);
+        if (best) break;
+      }
+      s = best ?? { x: 0, y: 0 };
+    }
     shift[i] = s;
     pos[i] = { x: at[i].x + s.x, y: at[i].y + s.y };
   }
   return shift;
+}
+
+/** Inverse de mercatorPx : (lat, lng) d'un pixel « monde » au zoom donné. */
+export function mercatorToLatLng(px: Px, zoom: number): [number, number] {
+  const scale = 256 * Math.pow(2, zoom);
+  const lng = (px.x / scale) * 360 - 180;
+  const nn = Math.PI - (2 * Math.PI * px.y) / scale;
+  const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(nn) - Math.exp(-nn)));
+  return [lat, lng];
 }
 
 export type LabelSide = "below" | "above" | "none";

@@ -41,13 +41,14 @@ import {
 } from "@/lib/pawmapLegend";
 import { safeFly } from "@/lib/safeFly";
 import { AppIcon } from "@/components/AppIcon";
+import { CollisionPass607 } from "@/components/CollisionPass607";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { askHref, askLabel, askNote, dm } from "@/lib/i18n/demander2809";
 
 function memberIcon(p: PublicProvider, caption: string | null, bubble: string | null): L.DivIcon {
   return L.divIcon({
-    className: "",
+    className: "hps-l-member",
     html: memberPinHtml({
       role: p.role,
       boosted: p.boosted,
@@ -64,7 +65,7 @@ function memberIcon(p: PublicProvider, caption: string | null, bubble: string | 
 }
 function clusterIcon(items: PublicProvider[]): L.DivIcon {
   const sz = items.length >= 10 ? 44 : 40;
-  return L.divIcon({ className: "", html: memberClusterHtml(items.length, dominantRole(items.map((p) => p.role))), iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
+  return L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(items.length, dominantRole(items.map((p) => p.role))), iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
 }
 
 /**
@@ -249,6 +250,8 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         )}
         <Recenter center={center} zoom={zoom} focusKey={focusKey} />
         <Watcher onChange={setView} />
+        {/* 02/10 (607) — même passe de mise en page que /map (CONTRAT_607_bulles §2). */}
+        <CollisionPass607 />
         {clusters.map((g, i) =>
           g.items.length > 1 ? (
             <ClusterMarker key={`c-${i}-${g.items.length}-${g.center[0].toFixed(3)}`} center={g.center} items={g.items} onList={setClusterList} />

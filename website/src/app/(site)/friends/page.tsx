@@ -232,7 +232,7 @@ export default function FriendsPage() {
                     <Avatar url={r.other?.avatar} name={r.other?.name} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold text-ink">
-                        {r.other?.name || r.other?.email || "—"}
+                        {r.other?.name || r.other?.city || "—"}
                         {r.other?.isPremium ? " 👑" : ""}
                       </div>
                       <div className="text-xs text-ink-muted">
@@ -276,7 +276,7 @@ export default function FriendsPage() {
                     <Avatar url={r.other?.avatar} name={r.other?.name} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold text-ink">
-                        {r.other?.name || r.other?.email || "—"}
+                        {r.other?.name || r.other?.city || "—"}
                       </div>
                       <div className="text-xs text-ink-muted">
                         {t(roleKey(r.other?.model))} · {t("friends_pending_out")}
@@ -317,7 +317,7 @@ export default function FriendsPage() {
                     <Avatar url={f.other?.avatar} name={f.other?.name} online={online} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold text-ink">
-                        {f.other?.name || f.other?.email || "—"}
+                        {f.other?.name || f.other?.city || "—"}
                         {f.other?.isPremium ? " 👑" : ""}
                       </div>
                       <div className="text-xs text-ink-muted">
@@ -371,7 +371,7 @@ export default function FriendsPage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold text-ink">
-                        {m.name || m.email || m.id}
+                        {m.name || "—"}
                       </div>
                       <div className="text-xs text-ink-muted">
                         {m.status === "pending" ? t("family_pending") : t("family_active")}

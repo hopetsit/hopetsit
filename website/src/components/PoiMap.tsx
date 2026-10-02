@@ -33,6 +33,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import type { RouteStep } from "@/lib/api";
 import { getProviderBadge607 } from "@/lib/api";
+import { CollisionPass607 } from "@/components/CollisionPass607";
 import {
   MapReport,
   MapReportType,
@@ -53,6 +54,7 @@ import {
   mercatorPx,
   mergeCloseGroups,
   repelAll,
+  mercatorToLatLng,
   pickLabelSide,
   bubbleHasRoom,
   labelRect,
@@ -152,19 +154,19 @@ function placeIcon(category: PoiCategory): L.DivIcon {
   let ic = placeIconCache.get(category);
   if (!ic) {
     // 25/09 — lieux ordinaires plus discrets (26 px) : les personnes passent devant.
-    ic = L.divIcon({ className: "", html: placePinHtml(category, 26), iconSize: [26, 34], iconAnchor: [13, 33], popupAnchor: [0, -30] });
+    ic = L.divIcon({ className: "hps-l-place", html: placePinHtml(category, 26), iconSize: [26, 34], iconAnchor: [13, 33], popupAnchor: [0, -30] });
     placeIconCache.set(category, ic);
   }
   return ic;
 }
 // 590 (§6) — goutte 40 px noir / or à TOUS les zooms, pointe = position.
 function spotIcon(type: PawSpotType, golden: boolean, label?: string | null): L.DivIcon {
-  return L.divIcon({ className: "", html: spotPinHtml(type, golden, { label }), iconSize: [40, 50], iconAnchor: spotPinAnchor(40), popupAnchor: [0, -44] });
+  return L.divIcon({ className: "hps-l-spot", html: spotPinHtml(type, golden, { label }), iconSize: [40, 50], iconAnchor: spotPinAnchor(40), popupAnchor: [0, -44] });
 }
-const reportIcon = () => L.divIcon({ className: "", html: reportPinHtml(30), iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] });
+const reportIcon = () => L.divIcon({ className: "hps-l-report", html: reportPinHtml(30), iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] });
 function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], bubble: string | null, dark: boolean, duo?: [string, string] | null): L.DivIcon {
   return L.divIcon({
-    className: "",
+    className: "hps-l-member",
     html: memberPinHtml({
       role: roles[0]?.role || m.role,
       roles: roles.map((r) => r.role),
@@ -188,7 +190,7 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
 /** Ami à sa position de PROFIL (floutée) : photo, anneau rose, pas de direct. */
 function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[], caption?: string | null, bubble?: string | null, duo?: [string, string] | null, captionAbove = false): L.DivIcon {
   return L.divIcon({
-    className: "",
+    className: "hps-l-friend",
     // 25/09 (585, bug 11) — un ami boosté garde sa lueur turquoise + fusée.
     html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role), caption, captionAbove, priceBubble: bubble, priceDuo: duo ?? null }),
     iconSize: [50, 50],
@@ -198,7 +200,7 @@ function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[
 }
 function meIcon(o: { role: string; name: string; avatar?: string | null; premium?: boolean; meLabel?: string; friendsOnly?: boolean; boosted?: boolean; pawFollow?: boolean }): L.DivIcon {
   return L.divIcon({
-    className: "",
+    className: "hps-l-me",
     html: `<div style="position:relative;width:56px;height:56px;"><div style="position:absolute;inset:-8px;border-radius:50%;border:3px solid ${ROLE_COLOR[roleKey(o.role)]};animation:hps-pulse 2s ease-out infinite;"></div>${photoPinHtml({ ...o, me: true })}</div>`,
     iconSize: [56, 56],
     iconAnchor: [28, 28],
@@ -207,7 +209,7 @@ function meIcon(o: { role: string; name: string; avatar?: string | null; premium
 }
 function requestIcon(r: MapRequest, mineLabel: string): L.DivIcon {
   return L.divIcon({
-    className: "",
+    className: "hps-l-request",
     html: requestBubbleHtml({ service: r.service, priceLabel: r.priceLabel, boosted: r.boosted, mine: r.mine, mineLabel }),
     // 590 — bulle 26 + pointe 7 : la pointe touche la position (floutée).
     iconSize: [96, 34],
@@ -325,7 +327,7 @@ function RouteFit({ points }: { points: { lat: number; lng: number }[] | null })
 
 function PlaceCluster({ center, count, category }: { center: [number, number]; count: number; category: PoiCategory | null }) {
   const map = useMap();
-  const icon = useMemo(() => L.divIcon({ className: "", html: placeClusterHtml(count, category), iconSize: [32, 32], iconAnchor: [16, 16] }), [count, category]);
+  const icon = useMemo(() => L.divIcon({ className: "hps-l-pgroup", html: placeClusterHtml(count, category), iconSize: [32, 32], iconAnchor: [16, 16] }), [count, category]);
   return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.place + 50} eventHandlers={{ click: () => safeFly(map, center, Math.min(map.getZoom() + 2.2, 19), 0.8) }} />;
 }
 /**
@@ -344,7 +346,7 @@ function MemberCluster({ center, items, onList, friendSet, shift }: { center: [n
   // le DESSIN bouge, la position du groupe reste la même (comme l'app).
   const sx = Math.round(shift?.x ?? 0);
   const sy = Math.round(shift?.y ?? 0);
-  const icon = useMemo(() => L.divIcon({ className: "", html: memberClusterHtml(count, dom, hasFriend), iconSize: [sz, sz], iconAnchor: [sz / 2 - sx, sz / 2 - sy] }), [count, dom, hasFriend, sz, sx, sy]);
+  const icon = useMemo(() => L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(count, dom, hasFriend), iconSize: [sz, sz], iconAnchor: [sz / 2 - sx, sz / 2 - sy] }), [count, dom, hasFriend, sz, sx, sy]);
   const onClick = () => {
     if (isStackedGroup(items) || map.getZoom() >= 17) { onList(items); return; }
     const pts = items.map(pointOf).filter((p): p is [number, number] => !!p);
@@ -359,7 +361,7 @@ function MemberCluster({ center, items, onList, friendSet, shift }: { center: [n
 }
 function SpotCluster({ center, count }: { center: [number, number]; count: number }) {
   const map = useMap();
-  const icon = useMemo(() => L.divIcon({ className: "", html: spotClusterHtml(count), iconSize: [36, 36], iconAnchor: [18, 18] }), [count]);
+  const icon = useMemo(() => L.divIcon({ className: "hps-l-sgroup", html: spotClusterHtml(count), iconSize: [36, 36], iconAnchor: [18, 18] }), [count]);
   return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.spot} eventHandlers={{ click: () => safeFly(map, center, Math.min(map.getZoom() + 2.2, 19), 0.8) }} />;
 }
 
@@ -398,7 +400,7 @@ function LiveFriendMarker({ p, isFamily, isPremium, boosted, roles, followed, la
   const lost = p.state === "lost";
   const icon = useMemo(
     () => L.divIcon({
-      className: "",
+      className: "hps-l-friend",
       html: photoPinHtml({ role: p.role, name: p.name, avatar: p.avatar, premium: isPremium, boosted, roles, pawFollow: isFamily && !followed, followed, lost, caption: lost ? labels?.lost : null, online: lost ? false : true }),
       iconSize: [50, 50],
       iconAnchor: [25, 25],
@@ -537,7 +539,7 @@ function plushIcon(type: string, golden: boolean): L.DivIcon {
   if (hit) return hit;
   const sz = golden ? 46 : 40;
   const icon = L.divIcon({
-    className: "",
+    className: "hps-l-plush",
     html: `<img src="/plush/${key}.png" alt="" width="${sz}" height="${sz}" data-plush="${key}" style="display:block;width:${sz}px;height:${sz}px;object-fit:contain;filter:drop-shadow(0 4px 6px rgba(23,20,31,.35));animation:hps-plush-float 2.6s ease-in-out infinite"/>`,
     iconSize: [sz, sz],
     iconAnchor: [sz / 2, sz / 2],
@@ -816,20 +818,24 @@ export default function PoiMap({
   const lay = (() => {
     const pxOf = (p: [number, number]) => mercatorPx(p[0], p[1], zoomLevel);
     const fixedPx: Px[] = [];
+    const fixedR: number[] = []; // 02/10 (607, CONTRAT_607_bulles §3) — rayons dessinés des obstacles
     const meRects: Rect[] = [];
     if (userLocation) {
       const c = pxOf([userLocation.lat, userLocation.lng]);
       fixedPx.push(c);
+      fixedR.push(56 / 2 + 2 + 6); // + 6 : l'étiquette « Moi » dépasse sous la photo
       const meW = textWidth(meLabel || "Moi", "700 11px Inter, system-ui, sans-serif", 11) + 16;
       meRects.push(circleRect(c, 56 / 2 + 2), labelRect(c, 56 / 2, meW, "below", 16.3));
     }
-    for (const fp of friendPositions) fixedPx.push(pxOf([fp.lat, fp.lng])); // en direct ou signal perdu
+    for (const fp of friendPositions) { fixedPx.push(pxOf([fp.lat, fp.lng])); fixedR.push(50 / 2 + 2.5); } // en direct ou signal perdu
     const entries: { items: NearbyMember[]; c: Px; r: number; friend: boolean }[] = [];
-    for (const g of memberClusters) entries.push({ items: g.items, c: pxOf(g.center), r: g.items.length > 1 ? 24.5 : 46 / 2 + 1, friend: false });
+    // Membre seul : + 10 au zoom rue (le prénom pend sous le rond), comme l'app.
+    for (const g of memberClusters) entries.push({ items: g.items, c: pxOf(g.center), r: g.items.length > 1 ? 24.5 : 46 / 2 + 1 + (showPrice ? 10 : 0), friend: false });
     for (const m of friendMembers) { const p = pointOf(m); if (p) entries.push({ items: [m], c: pxOf(p), r: 50 / 2 + 2, friend: true }); }
-    for (const e of entries) if (e.friend) fixedPx.push(e.c);
-    // 02/10 (607, PAM) — pawRepelAll : jusqu'à 48 px, jamais deux ronds à moins de 50 px.
-    const shifts: Px[] = repelAll(entries.map((e) => e.c), entries.map((e) => e.items.length > 1), fixedPx);
+    for (const e of entries) if (e.friend) { fixedPx.push(e.c); fixedR.push(50 / 2 + 2.5); }
+    // 02/10 (607, PAM) — pawRepelAll final : pastilles ET membres seuls non amis
+    // s'écartent (≤ 60 px, puis tour de l'obstacle tous les 15°, ≤ 90 px).
+    const shifts: Px[] = repelAll(entries.map((e) => e.c), entries.map((e) => e.items.length > 1 || !e.friend), fixedPx, fixedR, entries.map((e) => e.r));
     entries.forEach((e, i) => { e.c = { x: e.c.x + shifts[i].x, y: e.c.y + shifts[i].y }; });
     const indexOf = new Map<NearbyMember, number>();
     entries.forEach((e, i) => { if (e.items.length === 1) indexOf.set(e.items[0], i); });
@@ -864,7 +870,15 @@ export default function PoiMap({
       if (side !== "none") placed.push(labelRect(entries[i].c, 50 / 2, w, side));
       return side;
     };
-    return { shifts, priceFit, friendSide };
+    /** Position (lat, lng) d'un membre seul déplacé par la règle « Moi » ; null = inchangée. */
+    const movedPos = (m: NearbyMember): [number, number] | null => {
+      const i = indexOf.get(m);
+      if (i === undefined || entries[i].friend) return null;
+      const sh = shifts[i];
+      if (Math.abs(sh.x) < 0.5 && Math.abs(sh.y) < 0.5) return null;
+      return mercatorToLatLng(entries[i].c, zoomLevel);
+    };
+    return { shifts, priceFit, friendSide, movedPos };
   })();
 
   // 25/09 — « Itinéraire » ferme la fiche ouverte : le trajet et sa carte
@@ -1036,6 +1050,8 @@ export default function PoiMap({
         <RouteFit points={routePoints} />
         <FollowController target={followTarget} onUserGesture={() => onFollowPause?.()} />
         <FocusWatcher onClear={clearFocus} />
+        {/* 02/10 (607, PAM) — passe de mise en page unique (CONTRAT_607_bulles §2). */}
+        <CollisionPass607 />
 
         {/* Ma position : cercle de précision honnête + « Moi » (56 px). */}
         {userLocation && userAccuracy != null && userAccuracy > 25 && (
@@ -1239,7 +1255,7 @@ export default function PoiMap({
           const pAlt = r0.priceAlt ?? m.priceAlt;
           const fit = lay.priceFit(m, memberBubble(r0.role, pFrom, pCur, pAlt), memberDuo(shown));
           return (
-            <Marker key={`member-${m.id}`} position={pt} icon={memberIcon(m, memberCaption({ ...m, role: r0.role }), roles, fit.bubble, dark, fit.duo)} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: () => { const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt); if (f) tapFocus(f); else open(); } }} />
+            <Marker key={`member-${m.id}`} position={lay.movedPos(m) ?? pt} icon={memberIcon(m, memberCaption({ ...m, role: r0.role }), roles, fit.bubble, dark, fit.duo)} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: () => { const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt); if (f) tapFocus(f); else open(); } }} />
           );
         })}
 
