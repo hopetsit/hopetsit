@@ -103,13 +103,15 @@ router.get('/', requireAdmin, async (req, res) => {
       PawPlush ? PawPlush.find({ caughtByPerson: { $type: 'string' }, 'caughtBy.at': { $gte: since30 } })
         .sort({ 'caughtBy.at': -1 }).select('type golden cityLabel day caughtByPerson caughtBy testCopy').lean() : [],
       PawPlushBonus ? PawPlushBonus.find({ at: { $gte: since30 } }).select('personKey kind points at').lean() : [],
-      PawRewardRedemption.find({ createdAt: { $gte: since30 } }).select('status createdAt').lean(),
+      PawRewardRedemption.find({ createdAt: { $gte: since30 } }).select('status createdAt userId userModel role').lean(),
     ]);
 
     // Profils cités (événements, peluches, pionniers).
     const ids = { owner: [], sitter: [], walker: [] };
     events30.concat(pioneerEvents).forEach((e) => ids[normRole(e.role)].push(e.userId));
     plush30.forEach((p) => p.caughtBy && ids[normRole(p.caughtBy.role)].push(p.caughtBy.userId));
+    const redRole = (r) => normRole(r.role || String(r.userModel || '').toLowerCase());
+    redemptions30.forEach((r) => ids[redRole(r)].push(String(r.userId)));
     const people = await loadPeople(ids);
     const who = (role, id) => people.get(`${normRole(role)}:${String(id)}`) || { name: '', kind: 'real', city: '', person: `id:${id}` };
 
@@ -151,7 +153,12 @@ router.get('/', requireAdmin, async (req, res) => {
       if (new Date(b.at) >= since7) k.points7 += pts;
     });
     const redStatus = { pending: 0, fulfilled: 0, cancelled: 0 };
-    redemptions30.forEach((r) => { redStatus[r.status] = (redStatus[r.status] || 0) + 1; });
+    let redReal = 0; let redTest = 0;
+    redemptions30.forEach((r) => {
+      if (who(redRole(r), r.userId).kind !== 'real') { redTest += 1; return; }
+      redReal += 1;
+      redStatus[r.status] = (redStatus[r.status] || 0) + 1;
+    });
 
     // ── Peluches : tirages du jour par ville (jour LOCAL de la ville : on
     // garde le jour le plus récent de chaque ville parmi hier/aujourd'hui/demain UTC) ──
@@ -245,7 +252,8 @@ router.get('/', requireAdmin, async (req, res) => {
         points30: k.points30,
         parts30: { journal: k.journal30, plush: k.plushPoints30, plushBonus: k.bonusPoints30 },
         activeUsers30: active.size,
-        redemptions30: redemptions30.length,
+        redemptions30: redReal,
+        redemptions30Test: redTest,
         redemptionsByStatus30: redStatus,
         plush7, plush7Test, plush30: plush30Real,
       },

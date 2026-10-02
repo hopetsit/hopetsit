@@ -92,6 +92,7 @@ describe('GET /admin/pawpoints-insights', () => {
     await plush({ slot: 4, copyOf: orig._id, testCopy: true, caughtByPerson: 'k-test',
       caughtBy: { userId: String(test._id), role: 'walker', at: now } });
     await PawRewardRedemption.create({ userId: real._id, userModel: 'Sitter', role: 'sitter', title: 'x', cost: 500, status: 'fulfilled' });
+    await PawRewardRedemption.create({ userId: test._id, userModel: 'Walker', role: 'walker', title: 'y', cost: 500, status: 'fulfilled' });
 
     const r = await request(app).get('/admin/pawpoints-insights').set(ADMIN).expect(200);
     const b = r.body;
@@ -101,7 +102,8 @@ describe('GET /admin/pawpoints-insights', () => {
     expect(b.kpis.activeUsers30).toBe(1);
     expect(b.kpis.plush7).toBe(1);
     expect(b.kpis.plush7Test).toBe(1);
-    expect(b.kpis.redemptions30).toBe(1);
+    expect(b.kpis.redemptions30).toBe(1); // l'échange du compte +test est à part
+    expect(b.kpis.redemptions30Test).toBe(1);
     const paris = b.plush.draws.find((d) => d.city === 'Paris');
     expect(paris).toMatchObject({ total: 3, golden: 1, caught: 1 });
     expect(b.plush.goldenWeek).toHaveLength(1);
