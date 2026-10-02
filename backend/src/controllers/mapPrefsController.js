@@ -112,6 +112,10 @@ function normalizeMapPrefs(existing, patch) {
   const availSrc = p.availableTodayOnly !== undefined ? p.availableTodayOnly : base.availableTodayOnly;
   if (typeof availSrc === 'boolean') out.availableTodayOnly = availSrc;
 
+  // 609 — filtre « Vérifiés seulement » (identité vérifiée, gardiens/promeneurs).
+  const verSrc = p.verifiedOnly !== undefined ? p.verifiedOnly : base.verifiedOnly;
+  if (typeof verSrc === 'boolean') out.verifiedOnly = verSrc;
+
   const radiusSrc = p.aroundRadiusKm !== undefined ? p.aroundRadiusKm : base.aroundRadiusKm;
   const radius = num(radiusSrc, 1, 50);
   if (radius !== undefined) out.aroundRadiusKm = radius;
