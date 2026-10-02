@@ -32,6 +32,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:hopetsit/controllers/home_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
+import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
@@ -59,7 +60,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:hopetsit/services/deep_link_service.dart';
 
 /// Controller handling user authentication flows.
-class AuthController extends GetxController {
+class AuthController extends GetxController with WidgetsBindingObserver {
   AuthController(
     this._authRepository,
     this._storage, [
@@ -139,7 +140,10 @@ class AuthController extends GetxController {
     // v23.1.254 — confort total : refresh silencieux du token au démarrage
     // (expiration glissante). Garde le token frais 365j + reconnecte le
     // socket temps réel avec un token valide. Best-effort, n'attend pas.
-    unawaited(refreshToken());
+    // 607 (ZOE) — puis profil de session (réinstallation iPhone : jeton gardé
+    // dans le trousseau, profil local effacé → « Utilisateur » sans photo).
+    unawaited(refreshToken().whenComplete(ensureSessionProfile));
+    WidgetsBinding.instance.addObserver(this);
     // v574 — « Mes profils » : la liste des rôles n'arrivait qu'à la connexion
     // et vivait en mémoire → vide après un redémarrage, jamais à jour quand un
     // rôle était activé sur un AUTRE appareil. On restaure la dernière liste
@@ -187,10 +191,107 @@ class AuthController extends GetxController {
     } finally {
       _refreshingRoles = false;
     }
+    unawaited(ensureSessionProfile());
+  }
+
+  /// 607 (ZOE, 02/10) — bug vu sur iPhone après désinstallation /
+  /// réinstallation : iOS garde le jeton dans le trousseau, l'app démarre
+  /// connectée, mais `user_profile` (GetStorage) a disparu et AUCUN appel au
+  /// profil n'était fait — ProfileController ne charge qu'au démarrage, quand
+  /// le jeton du trousseau n'est pas encore relu, et SitterProfileController
+  /// exige l'id stocké. Résultat : accueil « Utilisateur », profil sans nom
+  /// ni photo. Ici : jeton présent + profil local absent ou sans nom →
+  /// GET /users/me/profile, écrit le profil local (id, rôle, nom, photo…),
+  /// puis relance le chargement des contrôleurs d'en-tête déjà créés.
+  /// Appelé au démarrage (après le refresh du jeton), après
+  /// [refreshAvailableRoles] et au retour au premier plan.
+  bool _ensuringProfile = false;
+  Future<bool> ensureSessionProfile() async {
+    if (_ensuringProfile) return false;
+    final token = SecureTokenStore.instance.tokenSync ??
+        SecureTokenStore.currentToken();
+    if (token == null || token.isEmpty) return false;
+    final raw = _storage.read(StorageKeys.userProfile);
+    final storedName =
+        raw is Map ? (raw['name'] ?? '').toString().trim() : '';
+    final storedId =
+        raw is Map ? (raw['id'] ?? raw['_id'] ?? '').toString().trim() : '';
+    if (storedName.isNotEmpty && storedId.isNotEmpty) {
+      _reloadHeaderControllers();
+      return false;
+    }
+    _ensuringProfile = true;
+    try {
+      if (!Get.isRegistered<ApiClient>()) return false;
+      final r = await Get.find<ApiClient>()
+          .get('/users/me/profile', requiresAuth: true);
+      final p = r is Map && r['profile'] is Map
+          ? Map<String, dynamic>.from(r['profile'] as Map)
+          : null;
+      if (p == null) return false;
+      final role = ((userRole.value ?? '').isNotEmpty
+              ? userRole.value!
+              : (p['role'] ?? '').toString())
+          .toLowerCase();
+      final flat = <String, dynamic>{
+        if (raw is Map) ...Map<String, dynamic>.from(raw),
+        ...p,
+        'id': (p['id'] ?? p['_id'] ?? storedId).toString(),
+        if (role.isNotEmpty) 'role': role,
+      };
+      if ((flat['name'] ?? '').toString().trim().isEmpty) {
+        flat['name'] = [p['firstName'], p['lastName']]
+            .map((e) => (e ?? '').toString().trim())
+            .where((e) => e.isNotEmpty)
+            .join(' ');
+      }
+      await _saveUserProfile(flat);
+      if (role.isNotEmpty &&
+          (_storage.read(StorageKeys.userRole) ?? '').toString().isEmpty) {
+        await _storage.write(StorageKeys.userRole, role);
+        userRole.value = role;
+      }
+      _reloadHeaderControllers();
+      return true;
+    } catch (_) {
+      return false; // hors ligne / 401 : on réessaiera à la reprise
+    } finally {
+      _ensuringProfile = false;
+    }
+  }
+
+  /// Relance les en-têtes (nom + photo) restés vides faute de profil local.
+  void _reloadHeaderControllers() {
+    try {
+      if (Get.isRegistered<ProfileController>()) {
+        final pc = Get.find<ProfileController>();
+        pc.applyStoredUserProfileDisplay();
+        if ((pc.userName.value.isEmpty || pc.profile.value == null) &&
+            !pc.isLoading.value) {
+          unawaited(pc.loadMyProfile());
+        }
+      }
+    } catch (_) {/* non bloquant */}
+    try {
+      if (Get.isRegistered<SitterProfileController>()) {
+        final sc = Get.find<SitterProfileController>();
+        if (sc.userName.value.isEmpty && !sc.isLoading.value) {
+          unawaited(sc.loadMyProfile());
+        }
+      }
+    } catch (_) {/* non bloquant */}
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(ensureSessionProfile());
+    }
   }
 
   @override
   void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
     // Don't dispose controllers here - they should persist during auth flow
     // Since AuthController is permanent, controllers will persist across navigation
     // They will only be cleared (not disposed) in logout() method

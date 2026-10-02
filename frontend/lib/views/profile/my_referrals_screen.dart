@@ -8,6 +8,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/utils/ios_store_rules606.dart';
 
 /// Sprint 7 step 3 — user-facing referral program screen.
 class MyReferralsScreen extends StatefulWidget {
@@ -31,6 +32,13 @@ class _MyReferralsScreenState extends State<MyReferralsScreen> {
   @override
   void initState() {
     super.initState();
+    // 607 — sur iOS, l'écran n'est plus proposé (entrée du profil masquée) ;
+    // s'il est quand même ouvert (route nommée /referrals), il ne charge ni
+    // n'affiche aucun code : simple message, aucun appel serveur.
+    if (!referralCodesAllowed()) {
+      _loading = false;
+      return;
+    }
     _load();
   }
 
@@ -67,7 +75,13 @@ class _MyReferralsScreenState extends State<MyReferralsScreen> {
       title: 'referrals_title'.tr,
       accent: accent,
       scroll: false,
-      body: _loading
+      body: !referralCodesAllowed()
+          ? ProfileEmptyState(
+              icon: Icons.info_outline_rounded,
+              title: 'referrals_unavailable'.tr,
+              accent: accent,
+            )
+          : _loading
           ? Center(child: CircularProgressIndicator(color: accent))
           : _error
               ? ProfileEmptyState(

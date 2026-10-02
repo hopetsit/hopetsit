@@ -74,6 +74,7 @@ import 'package:hopetsit/widgets/submit_review_dialog.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 
 class HomeQuickActionBar extends StatefulWidget {
   final String role; // 'owner' | 'sitter' | 'walker'
@@ -1698,7 +1699,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     final ownerAvatar = b.owner.avatar.url;
     final petLabel = b.petName;
     final dateLbl = _dateLabel(b);
-    final timeLbl = b.timeSlot.isNotEmpty ? b.timeSlot : '';
+    final timeLbl = BookingDateFormat.localizedTime(b.timeSlot);
     final svcLbl = _serviceLabel(b.serviceType);
     // BookingModel has no locationType getter; we just use owner.address.
     final addressLbl = b.owner.address.isNotEmpty ? b.owner.address : '';
@@ -1831,7 +1832,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     final providerAvatar = app.sitter.avatar.url;
     final petLabel = app.petName;
     final dateLbl = (app.serviceDate ?? '').split('T').first;
-    final timeLbl = app.timeSlot;
+    final timeLbl = BookingDateFormat.localizedTime(app.timeSlot);
     final addrLbl = app.sitter.city ?? app.sitter.address;
     final rating = app.sitter.rating;
     final priceLbl = (app.pricing != null && app.pricing!.totalPrice != null)

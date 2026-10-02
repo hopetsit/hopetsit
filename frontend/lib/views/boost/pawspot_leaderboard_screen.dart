@@ -5,17 +5,26 @@
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/pawspot_controller.dart' show pawSpotTr;
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_button_kit.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_plush607.dart' show PawPlushCollectionSection;
 
 class PawspotLeaderboardScreen extends StatefulWidget {
-  const PawspotLeaderboardScreen({super.key});
+  const PawspotLeaderboardScreen({super.key, this.initialTab = 0});
+
+  /// 607 — onglet ouvert (3 = Récompenses : solde, peluches, échanges ;
+  /// utilisé par le bouton PawPoints de la PawMap).
+  final int initialTab;
 
   @override
   State<PawspotLeaderboardScreen> createState() =>
@@ -150,6 +159,7 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 4,
+      initialIndex: widget.initialTab.clamp(0, 3),
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
         appBar: AppBar(
@@ -344,6 +354,39 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
     );
   }
 }
+/// 607 (ZOE) — clé du message à afficher quand un échange PawPoints échoue.
+/// Jamais le texte brut de l'exception (on lisait « ApiException(statusCode… »).
+String pawPoints607ErrorKey(Object e) {
+  // Mêmes messages que la page PawPoints du site (LEO).
+  if (e is ApiException) {
+    switch (e.statusCode) {
+      case 409:
+        return 'pp607_btn_used';
+      case 404:
+      case 410:
+        return 'pp607_retired';
+    }
+  }
+  return 'pp607_error';
+}
+
+/// 607 — nombre affiché comme sur le site (séparateur de milliers de la langue).
+String pawPoints607Num(num n) {
+  try {
+    return NumberFormat.decimalPattern(Get.locale?.toLanguageTag() ?? 'fr').format(n);
+  } catch (_) {
+    return '$n';
+  }
+}
+
+/// 607 (ZOE) — texte du catalogue (9 langues) dans la langue de l'app.
+String pawPoints607Text(dynamic texts) {
+  if (texts is! Map) return '';
+  final lang = (Get.locale?.languageCode ?? 'fr').toLowerCase();
+  final v = texts[lang] ?? texts['en'] ?? texts['fr'];
+  return v == null ? '' : v.toString();
+}
+
 /// v416 — Feuille « Mes PawPoints » (refonte design Daniel) : stats, barre de
 /// niveau, réductions/mois gratuits sur abonnements (échange auto, 1×/user),
 /// 7 niveaux exclusifs + objectif Paw Legend, et barème de gains.
@@ -391,12 +434,50 @@ class _RewardsSheetState extends State<_RewardsSheet> {
   // récompenses créées dans l'admin (PawReward) arrivent dans cat['rewards']
   // mais n'étaient jamais lues → invisibles dans l'app. On les charge ici.
   List<Map<String, dynamic>> _customRewards = const [];
+  // 607 (ZOE) — catalogue UNIQUE app / site / admin (GET /pawpoints/catalog →
+  // catalog607, textes 9 langues). Null = ancien serveur : ancien affichage.
+  Map<String, dynamic>? _cat607;
+  List<Map<String, dynamic>> _earn607 = const [];
+  List<Map<String, dynamic>> _rewards607 = const [];
+  List<Map<String, dynamic>> _levels607 = const [];
+  List<Map<String, dynamic>> _history = const [];
+  bool _checkedIn = false;
 
   @override
   void initState() {
     super.initState();
     _spendable = widget.myPoints;
     _load();
+  }
+
+  Map<String, dynamic> _map(dynamic v) =>
+      v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};
+
+  /// 607 — « je suis là aujourd'hui » : série de 7 jours, profil complet,
+  /// Pionnier. Le gain éventuel s'affiche, puis le solde se recharge.
+  Future<void> _checkIn() async {
+    if (_checkedIn) return;
+    _checkedIn = true;
+    try {
+      final res = await Get.find<ApiClient>()
+          .post('/pawpoints/checkin', body: const {}, requiresAuth: true);
+      final awarded = res is Map ? _list(res['awarded']) : const <Map<String, dynamic>>[];
+      if (!mounted || awarded.isEmpty) return;
+      for (final g in awarded) {
+        final rule = _earn607.firstWhere(
+            (r) => r['key'] == g['key'], orElse: () => const <String, dynamic>{});
+        Get.snackbar(
+          'pp607_gain_toast'.trParams({'pts': '${(g['credited'] as num?)?.toInt() ?? 0}'}),
+          pawPoints607Text(rule['texts']),
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 4),
+        );
+      }
+      await widget.onChanged();
+      await _load();
+    } catch (_) {
+      // best-effort : le gain est déjà crédité côté serveur au début de session.
+    }
   }
 
   List<Map<String, dynamic>> _list(dynamic v) => (v as List? ?? [])
@@ -414,6 +495,13 @@ class _RewardsSheetState extends State<_RewardsSheet> {
         if (cat is Map) {
           _subRewards = _list(cat['subscriptionRewards']);
           _customRewards = _list(cat['rewards']);
+          final c = cat['catalog607'];
+          if (c is Map) {
+            _cat607 = Map<String, dynamic>.from(c);
+            _earn607 = _list(c['earn']);
+            _rewards607 = _list(c['rewards']);
+            _levels607 = _list(c['levels']);
+          }
         }
         if (me is Map) {
           _lifetime = (me['lifetime'] as num?)?.toInt() ?? 0;
@@ -428,8 +516,10 @@ class _RewardsSheetState extends State<_RewardsSheet> {
           // claimedRewardKeys est une liste de strings (sub_*).
           final ck = me['claimedRewardKeys'];
           _claimed = ck is List ? ck.map((e) => e.toString()).toSet() : <String>{};
+          _history = _list(me['history']);
         }
       });
+      if (_cat607 != null) _checkIn();
     } catch (_) {
       // best-effort
     } finally {
@@ -508,11 +598,319 @@ class _RewardsSheetState extends State<_RewardsSheet> {
       await widget.onChanged();
       await _load();
     } catch (e) {
-      Get.snackbar('common_error'.tr, e.toString(),
+      Get.snackbar('common_error'.tr, pawPoints607ErrorKey(e).tr,
           snackPosition: SnackPosition.BOTTOM);
     } finally {
       if (mounted) setState(() => _busyId = null);
     }
+  }
+
+  /// 607 — échange d'une récompense du catalogue, APRÈS confirmation.
+  Future<void> _redeem607(Map<String, dynamic> r) async {
+    final id = (r['id'] ?? '').toString();
+    final cost = (r['cost'] as num?)?.toInt() ?? 0;
+    if (id.isEmpty || _busyId != null || _spendable < cost) return;
+    final label = pawPoints607Text(r['texts']);
+    // Pop-up de confirmation standard de l'app (app_dialog_kit) : un
+    // AlertDialog avec les boutons du kit plantait (LayoutBuilder dans les
+    // « actions », mesurées en largeur intrinsèque) — vu par le test 607.
+    final ok = await showAppConfirmDialog(
+      context,
+      title: 'pp607_exchange'.tr,
+      message: 'pp607_confirm'.trParams({'cost': pawPoints607Num(cost), 'label': label}),
+      confirmLabel: 'pp607_btn_redeem'.tr,
+      cancelLabel: 'pp607_cancel'.tr,
+      icon: Icons.stars_rounded,
+      accent: _gold,
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _busyId = id);
+    try {
+      await Get.find<ApiClient>()
+          .post('/pawpoints/redeem/$id', body: const {}, requiresAuth: true);
+      if (!mounted) return;
+      Get.snackbar('pp607_done'.trParams({'label': label}), '',
+          snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
+      await widget.onChanged();
+      await _load();
+    } catch (e) {
+      Get.snackbar('common_error'.tr, pawPoints607ErrorKey(e).tr,
+          snackPosition: SnackPosition.BOTTOM);
+      if (e is ApiException && (e.statusCode == 410 || e.statusCode == 409)) {
+        await _load();
+      }
+    } finally {
+      if (mounted) setState(() => _busyId = null);
+    }
+  }
+
+  /// 607 — page PawPoints alignée sur celle du site (LEO), mêmes libellés :
+  /// mon solde et mon palier → comment gagner → échanger → ma collection de
+  /// peluches → « ils ne s'achètent pas… » → paliers → derniers gains.
+  /// Tout vient de GET /pawpoints/catalog (aucun chiffre en dur).
+  List<Widget> _sections607(BuildContext context) {
+    final notes = _map(_cat607?['notes']);
+    final perkTexts = _map(_cat607?['perkTexts']);
+    final levels = _levels607.map((l) {
+      final perks = (l['perks'] as List? ?? const []).map((e) => e.toString()).toList();
+      return <String, dynamic>{
+        ...l,
+        'label': pawPoints607Text(l['texts']),
+        'perkLabels': perks.map((p) => pawPoints607Text(perkTexts[p])).toList(),
+      };
+    }).toList();
+    return <Widget>[
+      InterText(
+        key: const ValueKey<String>('pp607_hero'),
+        text: 'pp607_hero'.tr,
+        fontSize: 13.sp,
+        color: AppColors.textSecondary(context),
+      ),
+      SizedBox(height: 12.h),
+      _balance607(context),
+      SizedBox(height: 22.h),
+      _sectionTitle(context, 'pp607_earn'.tr, ''),
+      SizedBox(height: 10.h),
+      ..._earn607.map((e) => _earn607Row(context, e)),
+      SizedBox(height: 22.h),
+      _sectionTitle(context, 'pp607_exchange'.tr, ''),
+      SizedBox(height: 10.h),
+      ..._rewards607.map((r) => _reward607Row(context, r)),
+      if (_customRewards.isNotEmpty) ...[
+        SizedBox(height: 12.h),
+        ..._customRewards.map((r) => _customRewardRow(context, r)),
+      ],
+      SizedBox(height: 22.h),
+      // Collection de peluches (widget de PAM : 5 visuels + dorées).
+      const PawPlushCollectionSection(key: ValueKey<String>('pp607_collection')),
+      SizedBox(height: 16.h),
+      for (final k in const ['activityOnly', 'premiumDouble', 'lifetimeLevel'])
+        if (pawPoints607Text(notes[k]).isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(bottom: 6.h),
+            child: InterText(
+              key: ValueKey<String>('pp607_note_$k'),
+              text: pawPoints607Text(notes[k]),
+              fontSize: 11.5.sp,
+              color: AppColors.textSecondary(context),
+            ),
+          ),
+      SizedBox(height: 18.h),
+      _sectionTitle(context, 'pp607_levels'.tr, ''),
+      SizedBox(height: 10.h),
+      ...levels.map((l) => _levelCard(context, l)),
+      SizedBox(height: 16.h),
+      _pawLegendCard(context),
+      if (_history.isNotEmpty) ...[
+        SizedBox(height: 22.h),
+        _sectionTitle(context, 'pp607_history'.tr, ''),
+        SizedBox(height: 8.h),
+        ..._history.take(10).toList().asMap().entries.map((en) {
+          final h = en.value;
+          final rule = _earn607.firstWhere((r) => r['key'] == h['key'],
+              orElse: () => const <String, dynamic>{});
+          return _earn607Row(context, <String, dynamic>{
+            ...rule,
+            'points': (h['credited'] as num?)?.toInt() ?? (h['points'] as num?)?.toInt() ?? 0,
+            'limit': '',
+          }, keyId: 'pp607_hist_${en.key}');
+        }),
+      ],
+    ];
+  }
+
+  /// 607 — « mon solde et mon palier », comme la carte du site.
+  Widget _balance607(BuildContext context) {
+    Map<String, dynamic>? current;
+    Map<String, dynamic>? next;
+    for (final l in _levels607) {
+      final min = (l['min'] as num?)?.toInt() ?? 0;
+      if (_lifetime >= min) {
+        current = l;
+      } else {
+        next ??= l;
+      }
+    }
+    final bonus = (current?['bonusPct'] as num?)?.toInt() ?? 0;
+    Widget stat(String label, String value, {bool gold = false}) => Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InterText(text: label.toUpperCase(), fontSize: 10.sp, fontWeight: FontWeight.w700,
+                  color: gold ? _gold : AppColors.textSecondary(context), maxLines: 2),
+              SizedBox(height: 2.h),
+              PoppinsText(text: value, fontSize: 20.sp, fontWeight: FontWeight.w800,
+                  color: gold ? _gold : AppColors.textPrimary(context)),
+            ],
+          ),
+        );
+    return Container(
+      key: const ValueKey<String>('pp607_balance'),
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: _gold.withValues(alpha: 0.45), width: 1.2),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            stat('pp607_spendable'.tr, pawPoints607Num(_spendable), gold: true),
+            SizedBox(width: 10.w),
+            stat('pp607_lifetime'.tr, pawPoints607Num(_lifetime)),
+          ]),
+          SizedBox(height: 12.h),
+          InterText(text: 'pp607_level'.tr.toUpperCase(), fontSize: 10.sp, fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary(context)),
+          SizedBox(height: 2.h),
+          PoppinsText(
+            text: current == null
+                ? '—'
+                : '${current['emoji'] ?? ''} ${pawPoints607Text(current['texts'])}'.trim(),
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary(context),
+          ),
+          SizedBox(height: 2.h),
+          InterText(
+            text: next != null
+                ? 'pp607_next'.trParams({
+                    'pts': pawPoints607Num(((next['min'] as num?)?.toInt() ?? 0) - _lifetime),
+                    'level': pawPoints607Text(next['texts']),
+                  })
+                : 'pp607_max'.tr,
+            fontSize: 12.sp,
+            color: AppColors.textSecondary(context),
+          ),
+          if (bonus > 0) ...[
+            SizedBox(height: 4.h),
+            InterText(text: 'pp607_bonus'.trParams({'pct': '$bonus'}), fontSize: 12.sp,
+                fontWeight: FontWeight.w700, color: _gold),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _reward607Row(BuildContext context, Map<String, dynamic> r) {
+    final id = (r['id'] ?? '').toString();
+    final cost = (r['cost'] as num?)?.toInt() ?? 0;
+    final once = r['once'] == true;
+    final claimed = once && _claimed.contains(id);
+    final affordable = _spendable >= cost;
+    final busy = _busyId == id;
+    final label = pawPoints607Text(r['texts']);
+    final String btn = claimed
+        ? 'pp607_btn_used'.tr
+        : affordable
+            ? 'pp607_btn_redeem'.tr
+            : 'pp607_btn_missing'.trParams({'pts': pawPoints607Num(cost - _spendable)});
+    return Container(
+      key: ValueKey<String>('pp607_reward_$id'),
+      margin: EdgeInsets.only(bottom: 8.h),
+      padding: EdgeInsets.all(10.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(14.r),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40.w,
+            height: 40.w,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF4DC),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text((r['icon'] ?? '🎁').toString(), style: TextStyle(fontSize: 19.sp)),
+            ),
+          ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InterText(
+                  text: label,
+                  fontSize: 12.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 3,
+                ),
+                SizedBox(height: 2.h),
+                InterText(
+                  text: '${pawPoints607Num(cost)} pts',
+                  fontSize: 10.5.sp,
+                  fontWeight: FontWeight.w600,
+                  color: _gold,
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 8.w),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 118.w),
+            child: PawButton(
+              key: ValueKey<String>('pp607_redeem_$id'),
+              label: btn,
+              onTap: () => _redeem607(r),
+              enabled: !(claimed || !affordable || busy),
+              loading: busy,
+              color: _gold,
+              compact: true,
+              expand: false,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _earn607Row(BuildContext context, Map<String, dynamic> r,
+      {String keyId = ''}) {
+    final pts = (r['points'] as num?)?.toInt() ?? 0;
+    final limit = (r['limit'] ?? '').toString();
+    final limitLabel = limit.isEmpty ? '' : 'pp607_limit_$limit'.tr;
+    return Padding(
+      key: ValueKey<String>(keyId.isNotEmpty ? keyId : 'pp607_earn_${r['key']}'),
+      padding: EdgeInsets.only(bottom: 8.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text((r['icon'] ?? '➕').toString(), style: TextStyle(fontSize: 16.sp)),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InterText(
+                  text: pawPoints607Text(r['texts']),
+                  fontSize: 12.5.sp,
+                  color: AppColors.textPrimary(context),
+                ),
+                if (limitLabel.isNotEmpty && limitLabel != 'pp607_limit_$limit')
+                  InterText(
+                    text: limitLabel,
+                    fontSize: 10.5.sp,
+                    color: AppColors.textSecondary(context),
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(width: 8.w),
+          PoppinsText(
+            text: '+$pts',
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w800,
+            color: _gold,
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _rewardsList(ScrollController? scroll) {
@@ -527,10 +925,16 @@ class _RewardsSheetState extends State<_RewardsSheet> {
       }
       return const Center(child: CircularProgressIndicator());
     }
-    final children = <Widget>[
+    // 607 (ZOE) — serveur ≥ 607 : page alignée sur le site (_sections607) ;
+    // sinon ancien affichage (stats, niveau, collection de PAM, récompenses).
+    final children = _cat607 != null ? _sections607(context) : <Widget>[
       _statsRow(context),
       SizedBox(height: 12.h),
       _levelBar(context),
+      // 607 (PAM) — mini-peluches : ma collection (3 rôles).
+      SizedBox(height: 16.h),
+      const PawPlushCollectionSection(),
+      ...[
       SizedBox(height: 22.h),
       _sectionTitle(context, 'pawpoints_sub_rewards_title'.tr,
           'pawpoints_sub_rewards_sub'.tr),
@@ -556,6 +960,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
         _sectionTitle(context, 'pawpoints_how_to_earn'.tr, ''),
         SizedBox(height: 10.h),
         ..._earn.map((e) => _earnRow(context, e)),
+      ],
       ],
     ];
     // v440 — encart boutique PawSpot : Column non-scrollable (le parent
@@ -1047,7 +1452,10 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                   color: AppColors.textSecondary(context),
                 ),
                 SizedBox(height: 4.h),
-                ...perks.map((p) => Padding(
+                ...((l['perkLabels'] is List
+                        ? (l['perkLabels'] as List).map((e) => e.toString()).where((e) => e.isNotEmpty)
+                        : perks.map(_perkLabel)))
+                    .map((p) => Padding(
                       padding: EdgeInsets.only(top: 2.h),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1055,7 +1463,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                           InterText(text: '✓ ', fontSize: 11.sp, color: color),
                           Expanded(
                             child: InterText(
-                              text: _perkLabel(p),
+                              text: p,
                               fontSize: 11.sp,
                               color: AppColors.textPrimary(context),
                             ),
@@ -1069,6 +1477,14 @@ class _RewardsSheetState extends State<_RewardsSheet> {
         ],
       ),
     );
+  }
+
+  String _legendPerks() {
+    if (_cat607 == null || _levels607.isEmpty) return '';
+    final perkTexts = _map(_cat607?['perkTexts']);
+    final perks = (_levels607.last['perks'] as List? ?? const []);
+    return perks.map((p) => pawPoints607Text(perkTexts[p.toString()]))
+        .where((t) => t.isNotEmpty).join(' · ');
   }
 
   Widget _pawLegendCard(BuildContext context) {
@@ -1118,7 +1534,9 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                 ),
                 SizedBox(height: 2.h),
                 InterText(
-                  text: 'pawpoints_legend_sub'.tr,
+                  // 607 — avantages RÉELS du dernier niveau (catalogue), plus
+                  // la promesse vague « avantages les plus exclusifs ».
+                  text: _legendPerks().isNotEmpty ? _legendPerks() : 'pawpoints_legend_sub'.tr,
                   fontSize: 11.sp,
                   color: AppColors.textPrimary(context),
                   maxLines: 3,

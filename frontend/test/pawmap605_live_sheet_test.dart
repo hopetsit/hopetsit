@@ -177,6 +177,32 @@ void main() {
     expect(started, isTrue);
   });
 
+  testWidgets('3c. (607) un ami en direct : pas de « Rien en direct » au-dessus de lui', (t) async {
+    final live = LiveMapService();
+    live.friendPositions['j'] = _pos('j', name: 'John');
+    await t.pumpWidget(_app(PawLiveSheet(live: live, onStartWalk: () async {})));
+    await t.pump();
+    expect(find.text('John est en direct'), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('live_sheet_nothing')), findsNothing);
+    expect(find.byKey(const ValueKey<String>('live_sheet_start_walk')), findsOneWidget);
+    await t.pump(const Duration(seconds: 6));
+  });
+
+  testWidgets('3d. (607) je suis quelqu\'un sans être en balade : « Démarrer ma balade » reste là', (t) async {
+    final live = LiveMapService();
+    live.friendPositions['b'] = _pos('b');
+    live.markFollowing('b', name: 'Kathy');
+    var started = false;
+    await t.pumpWidget(_app(PawLiveSheet(live: live, onStartWalk: () async => started = true)));
+    await t.pump();
+    expect(find.text('Tu suis Kathy'), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('live_sheet_nothing')), findsNothing);
+    await t.tap(find.byKey(const ValueKey<String>('live_sheet_start_walk')));
+    await t.pump();
+    expect(started, isTrue);
+    await t.pump(const Duration(seconds: 6));
+  });
+
   test('4. personne lâchée : pas reproposée avant une NOUVELLE session', () async {
     final live = LiveMapService();
     live.friendPositions['b'] = _pos('b');

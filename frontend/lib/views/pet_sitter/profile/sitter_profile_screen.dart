@@ -1,4 +1,5 @@
 import 'package:hopetsit/widgets/active_benefits_row.dart';
+import 'package:hopetsit/widgets/bring_clients607.dart';
 import 'package:hopetsit/views/profile/widgets/profile_load_reveal.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
@@ -105,6 +106,8 @@ class SitterProfileScreen extends StatelessWidget {
                   const KycStatusBanner(),
                   const BoostProfileCard(role: 'sitter'),
                   SizedBox(height: 16.h),
+                  // 607 NEO — « Ramène tes clients » : lien, message prêt, affiche QR.
+                  const MyLinkProfileTile607(role: 'sitter'),
                   const MyProfilesCard(),
                   SizedBox(height: 8.h),
 

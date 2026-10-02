@@ -336,7 +336,10 @@ void main() {
             (WidgetTester tester) async {
           for (final String lang in _langs) {
             _screen(tester, w, height: 1600);
-            await tester.pumpWidget(_app(_profilePage(), lang: lang, b: b));
+            // 607 (ZOE) — page construite SOUS ScreenUtilInit (Builder) : ses
+            // `.h` / `.w` échouaient si aucun test précédent n'avait initialisé
+            // ScreenUtil (ordre aléatoire → LateInitializationError).
+            await tester.pumpWidget(_app(Builder(builder: (_) => _profilePage()), lang: lang, b: b));
             await tester.pump(const Duration(milliseconds: 60));
             expect(tester.takeException(), isNull, reason: lang);
             expect(find.byType(PublicProfileHero), findsOneWidget);
@@ -355,7 +358,7 @@ void main() {
     testWidgets('sans photo : initiale sur l\'aplat du rôle, aucune image',
         (WidgetTester tester) async {
       _screen(tester, 360, height: 1600);
-      await tester.pumpWidget(_app(_profilePage(name: 'Sophie Marchand')));
+      await tester.pumpWidget(_app(Builder(builder: (_) => _profilePage(name: 'Sophie Marchand'))));
       await tester.pump(const Duration(milliseconds: 60));
       expect(tester.takeException(), isNull);
       expect(find.text('S'), findsOneWidget);

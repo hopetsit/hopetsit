@@ -48,7 +48,7 @@ class MapReportController extends GetxController {
       }
     } catch (e) {
       debugPrint('[MapReports] loadNearby error: $e');
-      reports.clear();
+      // 607 (PAM) — erreur réseau : les signalements affichés restent.
     } finally {
       isLoading.value = false;
     }

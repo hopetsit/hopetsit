@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hopetsit/widgets/bring_clients607.dart';
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
@@ -828,6 +829,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                       return 'sitter';
                     }(),
                   ),
+                  // 607 NEO — « Ramène tes clients » (0 réservation) ou carte
+                  // « Pionnier » honnête. Rien pour un propriétaire.
+                  const BringClientsHomeCard607(),
                   Obx(() {
                     // Session v15-6 — the Sitter/Walker feed is now driven by
                     // `reservationRequests` which comes from /posts/requests

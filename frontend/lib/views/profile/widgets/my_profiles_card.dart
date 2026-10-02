@@ -178,14 +178,20 @@ class _ProfileRow extends StatelessWidget {
                   child: Icon(icon, size: 21.sp, color: Colors.white),
                 ),
                 SizedBox(width: 10.w),
+                // 607 (PAM, vu au simulateur) — « Mon profil propriéta… »
+                // était coupé à côté de la pastille « Activé » : réduit
+                // doucement, jamais rogné.
                 Expanded(
-                  child: PoppinsText(
-                    text: title,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w700,
-                    color: isActive ? accent : AppColors.textPrimary(context),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: PoppinsText(
+                      text: title,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                      color: isActive ? accent : AppColors.textPrimary(context),
+                      maxLines: 1,
+                    ),
                   ),
                 ),
                 SizedBox(width: 8.w),

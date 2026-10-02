@@ -155,8 +155,22 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     // remettait alors le drapeau à false et le bandeau « Tout est à jour »
     // retombait sur l'historique des réservations au lieu d'ouvrir la PawMap.
     _mountedWrappers++;
-    navWrapperMounted.value = true;
-    currentMainTab.value = _currentIndex;
+    // 607 (PAM, mesuré au simulateur) — au changement de rôle par « Mes
+    // profils », ce menu se monte PENDANT un build alors que l'ancien menu
+    // est encore là : écrire ces Rx tout de suite marquait les Obx de
+    // l'ancien menu → écran rouge « setState() or markNeedsBuild() called
+    // during build » (BottomNavWrapper / SitterNavWrapper). En plein build,
+    // on écrit juste après l'image.
+    void publish() {
+      navWrapperMounted.value = _mountedWrappers > 0;
+      if (mounted) currentMainTab.value = _currentIndex;
+    }
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => publish());
+    } else {
+      publish();
+    }
     _tabRequestWorker = ever<int>(requestedTab, (i) {
       if (i < 0 || !mounted) return;
       requestedTab.value = -1;

@@ -15,6 +15,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:intl/intl.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 
 /// v23.1 part 64 — Écran de paiement de réservation, pure Airwallex.
 ///
@@ -219,7 +220,8 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
       final pattern = lang == 'en' ? 'h:mm a' : 'HH:mm';
       return DateFormat(pattern, lang).format(dt);
     }
-    return raw;
+    // 607 (ZOE) — créneau nommé (« morning », « All Day »…) traduit.
+    return BookingDateFormat.namedSlot(raw, lang) ?? raw;
   }
 
   String _dateLabel() {

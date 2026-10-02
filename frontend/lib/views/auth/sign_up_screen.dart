@@ -23,6 +23,7 @@ import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/utils/ios_store_rules606.dart';
 
 class SignUpScreen extends StatelessWidget {
   final String userType; // 'pet_owner' or 'pet_sitter'
@@ -592,12 +593,14 @@ class SignUpScreen extends StatelessWidget {
                       _sectionTitle(context, 'auth569_section_finish'.tr),
                       SizedBox(height: 14.h),
                       // Sprint 7 step 3 — referral code (optional).
-                      CustomTextField(
-                        labelText: 'signup_referral_code_label'.tr,
-                        hintText: 'XXXXXXXX',
-                        controller: controller.referralCodeController,
-                        textInputAction: TextInputAction.next,
-                      ),
+                      // 607 — masqué sur iOS (codes de parrainage).
+                      if (referralCodesAllowed())
+                        CustomTextField(
+                          labelText: 'signup_referral_code_label'.tr,
+                          hintText: 'XXXXXXXX',
+                          controller: controller.referralCodeController,
+                          textInputAction: TextInputAction.next,
+                        ),
 
                       SizedBox(height: 24.h),
                       // Terms and Conditions

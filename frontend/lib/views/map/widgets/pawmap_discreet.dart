@@ -28,9 +28,10 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
 import '../../../utils/pawmap_theme.dart';
+import 'pawmap_walk_badge.dart' show pawFollowersLabel;
 import '../../../widgets/paw_button_kit.dart' show pawRoleGradient;
 import '../../../widgets/paw_icons.dart';
-import 'pawmap_jewel.dart' show kPawMenuOrange;
+import '../../../widgets/paw_tab_bar.dart' show PawNavRole, PawTabBarPalette, kPawTabBarPalettes;
 import 'pawmap_pins.dart';
 
 /// Nombre d'ouvertures de la PawMap mémorisé sur l'appareil ; `bump` à
@@ -1035,7 +1036,12 @@ class PawMapDirectPill extends StatefulWidget {
     this.onLongPress,
     this.now,
     this.following = false,
+    this.connecting = false,
   });
+
+  /// 607 — Balade lancée mais PAS ENCORE confirmée par le serveur : on
+  /// n'affiche pas « En balade » (il ne voit rien), on dit « connexion… ».
+  final bool connecting;
 
   /// v589 — personnes qui suivent mon direct (œil + nombre sur la pilule).
   final int followers;
@@ -1084,7 +1090,7 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
   }
 
   void _sync() {
-    if (widget.live && !widget.noGps) {
+    if (widget.live && !widget.noGps && !widget.connecting) {
       if (!_breath.isAnimating) _breath.repeat(reverse: true);
     } else if (_breath.isAnimating) {
       _breath.stop();
@@ -1122,10 +1128,12 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
     // v590 — handoff §3.4 : « Direct off » à l'arrêt, « En balade » en
     // direct (les cas « sans GPS » et « autre téléphone » gardent leur texte).
     final bool greenLook = widget.live || widget.elsewhere;
-    final bool lit = widget.live && !widget.noGps;
+    final bool lit = widget.live && !widget.noGps && !widget.connecting;
     // La durée reste affichée : « En balade · 12 min ».
     final int dot = baseLabel.indexOf(' · ');
-    final String label = lit
+    final String label = widget.live && widget.connecting
+        ? 'live607_connecting'.tr
+        : lit
         ? 'pawmap590_on_walk'.tr +
             (dot > 0 ? baseLabel.substring(dot) : '')
         : (!greenLook
@@ -1265,7 +1273,7 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '👥 ${'pawmap590_followers'.tr.replaceAll('{n}', '${widget.followers}')}',
+                    '👥 ${pawFollowersLabel(widget.followers)}',
                     style: GoogleFonts.poppins(
                       color: Color(0xFF1F7A37),
                       fontSize: 11,
@@ -1283,6 +1291,20 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
 
 // ─── v587 (point 3) — barres repliables ──────────────────────────────────
 
+/// 607 (Daniel, 02/10) — couleurs du MENU (pilule du bas) pour un rôle :
+/// orange-rouge propriétaire, bleu gardien, vert promeneur. Source unique :
+/// `kPawTabBarPalettes`. Utilisé par les flèches des barres et les 4 boutons
+/// ronds du haut de la PawMap.
+PawTabBarPalette pawMenuPaletteFor(String role) {
+  final r = role.toLowerCase();
+  final nav = r == 'sitter'
+      ? PawNavRole.sitter
+      : r == 'walker'
+          ? PawNavRole.walker
+          : PawNavRole.owner;
+  return kPawTabBarPalettes[nav] ?? kPawTabBarPalettes[PawNavRole.owner]!;
+}
+
 /// Petite flèche en verre teinté posée au bord INTÉRIEUR d'une barre (rail
 /// gauche : bord droit ; capsule droite : bord gauche). Barre rangée : la
 /// même pastille devient la LANGUETTE collée au bord de l'écran, flèche
@@ -1294,6 +1316,7 @@ class PawBarCollapseTab extends StatelessWidget {
     required this.collapsed,
     required this.tint,
     required this.onTap,
+    this.role = 'owner',
   });
 
   /// Barre de GAUCHE (rail) ; sinon capsule de droite.
@@ -1302,16 +1325,17 @@ class PawBarCollapseTab extends StatelessWidget {
   final Color tint;
   final VoidCallback onTap;
 
+  /// 607 — rôle actif : la languette prend la couleur de SON menu.
+  final String role;
+
   @override
   Widget build(BuildContext context) {
     // Flèche : vers le bord qui range la barre ; inversée une fois rangée.
     final bool pointsLeft = left ? !collapsed : collapsed;
-    final bool dark = Theme.of(context).brightness == Brightness.dark;
-    final Color glass = dark
-        ? Color.alphaBlend(tint.withValues(alpha: 0.30), const Color(0xFF221A2E))
-        : Color.alphaBlend(tint.withValues(alpha: 0.16), Colors.white);
-    final Color menuInk =
-        dark ? Color.lerp(kPawMenuOrange, Colors.white, 0.35)! : kPawMenuOrange;
+    // 607 (Daniel, 02/10) — intérieur PLEIN à la couleur du menu du rôle
+    // (même dégradé que la pilule du bas), contour blanc, flèche blanche ;
+    // identique en clair et en sombre (le menu ne change pas non plus).
+    final PawTabBarPalette menu = pawMenuPaletteFor(role);
     final BorderRadius radius = collapsed
         ? (left
             ? const BorderRadius.horizontal(right: Radius.circular(14))
@@ -1338,17 +1362,18 @@ class PawBarCollapseTab extends StatelessWidget {
             child: Container(
               width: collapsed ? 24.w : 22.w,
               height: collapsed ? 44.h : 36.h,
+              key: const ValueKey<String>('pawmap_bar_tab_fill'),
               decoration: BoxDecoration(
-                color: glass.withValues(alpha: 0.94),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [menu.top, menu.bottom],
+                ),
                 borderRadius: radius,
-                // v598 (28/09) — Daniel : contour ET flèche dans l'orange du
-                // MENU (kPawMenuOrange, la constante de la pilule), le fond
-                // garde la couleur du rôle. En nuit l'orange est éclairci
-                // (35 % vers le blanc) pour rester lisible sur le verre sombre.
-                border: Border.all(color: menuInk.withValues(alpha: dark ? 0.9 : 0.85), width: 1.2),
+                border: Border.all(color: Colors.white, width: 1.6),
                 boxShadow: [
                   BoxShadow(
-                    color: tint.withValues(alpha: 0.22),
+                    color: menu.shadow,
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -1359,7 +1384,7 @@ class PawBarCollapseTab extends StatelessWidget {
                     ? Icons.chevron_left_rounded
                     : Icons.chevron_right_rounded,
                 size: 20.sp,
-                color: menuInk,
+                color: Colors.white,
               ),
             ),
           ),
@@ -1384,7 +1409,11 @@ class PawCollapsibleBar extends StatefulWidget {
     required this.child,
     this.edgeGap = 12,
     this.tabBottom = 18,
+    this.role = 'owner',
   });
+
+  /// 607 — rôle actif (couleur du menu sur la languette).
+  final String role;
 
   /// v589 — distance fixe entre le bas de la barre et sa flèche.
   final double tabBottom;
@@ -1427,6 +1456,7 @@ class _PawCollapsibleBarState extends State<PawCollapsibleBar> {
       collapsed: widget.collapsed,
       tint: widget.tint,
       onTap: widget.onToggle,
+      role: widget.role,
     );
     final double shift = _barWidth + widget.edgeGap;
     return TweenAnimationBuilder<double>(

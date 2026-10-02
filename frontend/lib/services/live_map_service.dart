@@ -279,6 +279,7 @@ extension LiveShareDurationApi on LiveShareDuration {
 ///   lost   : socket coupée ET dernier battement HTTP en échec (ou GPS muet)
 enum LiveShareStatus { off, active, lost }
 
+
 /// Bridges the socket layer with the PawMap UI:
 ///   - Emits `map:identify` after connection so backend knows who we are.
 ///   - Emits `map:position-update` when we want to broadcast our location.
@@ -665,10 +666,7 @@ class LiveMapService extends GetxService {
   String? _city;
   DateTime? _lastGpsAt;
   DateTime? _lastHttpAt;
-  bool _lastHttpOk = true;
   bool _gpsDegraded = false;
-  /// Battement HTTP quand la socket est coupée (contrat §8 : toutes les 60 s).
-  static const Duration _httpHeartbeatEvery = Duration(seconds: 60);
   /// Rafraîchissement des positions amis (stale / lastSeenAt) par HTTP.
   static const Duration _refreshEvery = Duration(minutes: 2);
   /// v587 — relecture rapide quand au moins un ami partage.
@@ -818,9 +816,14 @@ class LiveMapService extends GetxService {
     final role = _storage.read<String>(StorageKeys.userRole);
     final profile = _storage.read<Map<String, dynamic>>(StorageKeys.userProfile);
     final userId = profile?['id']?.toString();
-    if (role != null && userId != null) {
-      socket.emit('map:identify', {'role': role, 'userId': userId});
-    }
+    // 607 (PAM) — sans profil local (vu après une réinstallation) on
+    // n'identifiait JAMAIS la socket : le serveur jetait toutes mes
+    // positions. Le serveur prend l'identité dans le jeton : on s'identifie
+    // toujours, avec ce qu'on a.
+    socket.emit('map:identify', {
+      if (role != null) 'role': role,
+      if (userId != null) 'userId': userId,
+    });
 
     // v23.1.351 — Daniel : "à la 1re connexion sur la PawMap, tous les amis/
     // famille doivent apparaître". Avant : friendPositions n'était rempli QUE
@@ -1201,7 +1204,10 @@ class LiveMapService extends GetxService {
     _startGpsStream();
 
     // Emit once immediately (si on a une position), puis toutes les 10 s.
+    // 607 — et CONFIRMATION serveur tout de suite, par HTTP.
+    serverConfirmed.value = false;
     if (hasInitial) _emitPosition(initial, city: city);
+    unawaited(_postHttp(hasInitial ? initial : null));
     _broadcastTicker?.cancel();
     _broadcastTicker = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!broadcasting.value) return;
@@ -1243,10 +1249,20 @@ class LiveMapService extends GetxService {
         locationSettings: _buildLocationSettings(degraded: _gpsDegraded),
       ).listen((pos) {
         final p = LatLng(pos.latitude, pos.longitude);
+        final bool firstFix = _lastKnownGps == null;
         _lastKnownGps = p;
         _lastGpsAt = DateTime.now();
         _gpsError = false;
         myLivePosition.value = p; // la PawMap suit la caméra « à la trace »
+        // 607 (PAM, mesuré au simulateur) — Balade lancée SANS position :
+        // « Connexion… » restait ~10 s (attente du tick). Dès le 1er point
+        // GPS, on fait confirmer par le serveur tout de suite.
+        if (broadcasting.value &&
+            !serverConfirmed.value &&
+            (firstFix || !_lastHttpHadPos) &&
+            !_httpInFlight) {
+          unawaited(_postHttp(p));
+        }
       }, onError: (e) {
         debugPrint('[LiveMap] GPS stream error: $e');
         _gpsError = true;
@@ -1283,23 +1299,23 @@ class LiveMapService extends GetxService {
   /// (`liveStatus`) reflète ce qui est RÉELLEMENT passé.
   void _tick(LatLng? pos) {
     final svc = Get.find<SocketService>();
-    if (svc.isConnected && svc.socket != null) {
-      if (pos != null) _emitPosition(pos, city: _city);
-      // v587 — sans AUCUNE position GPS réelle, rien ne part : on ne se dit
-      // pas « en direct » (jamais le centre de la carte à la place).
-      _setStatus(_gpsSilent || pos == null
-          ? LiveShareStatus.lost
-          : LiveShareStatus.active);
-      return;
-    }
-    // Socket coupée : on la relance et on passe par HTTP.
-    unawaited(svc.reconnectIfNeeded());
+    final bool socketUp = svc.isConnected && svc.socket != null;
+    // 607 — la socket accélère (amis à jour en temps réel)…
+    if (socketUp && pos != null) _emitPosition(pos, city: _city);
+    if (!socketUp) unawaited(svc.reconnectIfNeeded());
+    // … mais c'est le HTTP qui fait foi : tant que le serveur n'a pas
+    // confirmé, à chaque tick (10 s) ; ensuite toutes les 30 s, et tout de
+    // suite pour la 1re vraie position après un battement vide.
     final last = _lastHttpAt;
-    if (last == null ||
-        DateTime.now().difference(last) >= _httpHeartbeatEvery) {
+    final bool firstRealPos = pos != null && !_lastHttpHadPos;
+    final bool due = !serverConfirmed.value ||
+        last == null ||
+        firstRealPos ||
+        DateTime.now().difference(last) >= _httpConfirmedEvery;
+    if (due) {
       unawaited(_postHttp(pos));
     } else {
-      _setStatus(_lastHttpOk && !_gpsSilent
+      _setStatus(serverConfirmed.value && !_gpsSilent && pos != null
           ? LiveShareStatus.active
           : LiveShareStatus.lost);
     }
@@ -1325,11 +1341,33 @@ class LiveMapService extends GetxService {
 
   /// v565 — POST /friends/live-position (contrat §8) : position + `duration`,
   /// ou `heartbeat: true` seul quand on n'a pas de position.
+  bool _lastHttpHadPos = false;
+
+  /// 607 (PAM, 02/10) — LE SERVEUR FAIT FOI. Vu à l'écran : bouton « En
+  /// direct » vert, pilule « En balade », mais le serveur répondait
+  /// `walkActive:false` pendant plus d'une minute (session sans profil local
+  /// → la socket n'était jamais identifiée → positions ignorées, et la voie
+  /// HTTP n'était tentée que socket coupée). Désormais chaque Balade est
+  /// confirmée par HTTP (POST /friends/live-position, réponse avec `session`)
+  /// et réaffirmée toutes les 30 s ; la socket n'est qu'un accélérateur.
+  /// Tant que ce n'est pas confirmé, l'écran dit « connexion… », pas « en
+  /// direct ».
+  final RxBool serverConfirmed = false.obs;
+  static const Duration _httpConfirmedEvery = Duration(seconds: 30);
+
+  /// 607 — test : rejoue la confirmation HTTP sans GPS ni socket.
+  @visibleForTesting
+  Future<void> postHttpForTest(LatLng? pos) => _postHttp(pos);
+
+  bool _httpInFlight = false;
+
   Future<void> _postHttp(LatLng? pos) async {
     _lastHttpAt = DateTime.now();
+    _lastHttpHadPos = pos != null;
+    _httpInFlight = true;
     try {
       if (!Get.isRegistered<ApiClient>()) throw StateError('no api');
-      await Get.find<ApiClient>().post(
+      final res = await Get.find<ApiClient>().post(
         '/friends/live-position',
         body: {
           if (pos != null) 'lat': pos.latitude,
@@ -1340,14 +1378,18 @@ class LiveMapService extends GetxService {
         },
         requiresAuth: true,
       );
-      _lastHttpOk = true;
-      _setStatus(_gpsSilent || pos == null
+      // Confirmé seulement si le serveur renvoie une session en cours.
+      final confirmed = res is Map && res['session'] is Map && res['ignored'] != true;
+      if (broadcasting.value) serverConfirmed.value = confirmed;
+      _setStatus(!confirmed || _gpsSilent || pos == null
           ? LiveShareStatus.lost
           : LiveShareStatus.active);
     } catch (e) {
-      _lastHttpOk = false;
+      if (broadcasting.value) serverConfirmed.value = false;
       _setStatus(LiveShareStatus.lost);
       debugPrint('[LiveMap] HTTP heartbeat failed: $e');
+    } finally {
+      _httpInFlight = false;
     }
   }
 
@@ -1432,6 +1474,7 @@ class LiveMapService extends GetxService {
     _lastGpsAt = null;
     _gpsError = false;
     _lastHttpAt = null;
+    _lastHttpHadPos = false; // 607
     _gpsDegraded = false;
     myLivePosition.value = null;
     sessionEndsAt.value = null;
@@ -1440,6 +1483,7 @@ class LiveMapService extends GetxService {
       _storage.write(_kStartedAt, 0);
     } catch (_) {/* stockage plein */}
     liveStatus.value = LiveShareStatus.off;
+    serverConfirmed.value = false; // 607
     // v532 — CE `return` RENDAIT L'ARRÊT IMPOSSIBLE APRÈS UN SWIPE-KILL.
     // `broadcasting` ne vit qu'en mémoire, alors que le service de fond, lui,
     // survit à la fermeture de l'app (START_STICKY). On coupe donc TOUJOURS
@@ -1484,7 +1528,7 @@ class LiveMapService extends GetxService {
     }
   }
 
-  Future<void> _postOfflineHttp() async {
+  Future<void> _postOfflineHttp({int attempt = 0}) async {
     try {
       if (!Get.isRegistered<ApiClient>()) return;
       await Get.find<ApiClient>().post(
@@ -1494,6 +1538,11 @@ class LiveMapService extends GetxService {
       );
     } catch (e) {
       debugPrint('[LiveMap] offline HTTP failed: $e');
+      // 607 — l'arrêt doit arriver au serveur : 3 nouveaux essais (3, 6, 9 s).
+      if (attempt < 3 && !broadcasting.value) {
+        Timer(Duration(seconds: 3 * (attempt + 1)),
+            () => unawaited(_postOfflineHttp(attempt: attempt + 1)));
+      }
     }
   }
 

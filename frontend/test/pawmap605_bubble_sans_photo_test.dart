@@ -79,7 +79,7 @@ Future<_Px> _memberDot(WidgetTester t, String role, String bubble) {
 Future<_Px> _photoDotNoAvatar(WidgetTester t, String bubble, String priceRole) {
   const m = PawMapPinPainter.photoMarginGlow;
   final baseW = PawMapPinPainter.photoBitmapSize(ms, margin: m);
-  final bubbleW = PawMapPinPainter.priceBubbleWidth(bubble) + 8;
+  final bubbleW = PawMapPinPainter.priceBubbleBitmapWidth(bubble); // 607 — ombre comprise
   final labelW = PawMapPinPainter.photoLabelWidth('frederic');
   final w = [baseW, bubbleW, labelW].reduce((a, b) => a > b ? a : b);
   final h = PawMapPinPainter.photoBitmapSize(ms, withLabel: true, margin: m) +

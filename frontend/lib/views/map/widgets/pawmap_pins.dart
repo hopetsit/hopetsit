@@ -46,7 +46,7 @@
 
 import 'dart:async';
 import 'dart:convert' show utf8;
-import 'dart:io' show Directory, File;
+import 'dart:io' show Directory, File, Platform;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -896,6 +896,15 @@ class PawMapPinPainter {
   /// DANS le bitmap au lieu d'être coupée.
   static const double memberMargin = 22;
 
+  /// 607 (02/10) — marge ADAPTÉE au rond : 22 seulement pour la lueur
+  /// PawBoost ; couronne / sélection 17 ; sinon 11. Mesuré au simulateur :
+  /// la réserve de textures du SDK Google Maps iOS déborde (« Reached the max
+  /// number of texture atlases … Failed to allocate texture space for
+  /// marker ») et les marqueurs sortent alors coupés net. Un rond simple
+  /// passe de 90 × 90 à 68 × 68 : −43 % de pixels.
+  static double memberMarginFor({bool boosted = false, bool crown = false, bool selected = false}) =>
+      boosted ? memberMargin : ((crown || selected) ? 17 : 11);
+
   /// Hauteur réservée AU-DESSUS du rond pour la bulle de prix (22 de bulle +
   /// 6 de pointe + marges).
   static const double priceBubbleZone = 32;
@@ -903,10 +912,12 @@ class PawMapPinPainter {
   /// Taille d'un bitmap de membre (avec la marge basse pour l'étiquette et,
   /// v592, la zone de la bulle de prix au-dessus).
   static double memberBitmapSize(double size,
-          {bool withLabel = false, bool withBubble = false}) =>
+          {bool withLabel = false, bool withBubble = false, double margin = memberMargin}) =>
       size +
-      2 * memberMargin +
-      (withLabel ? 12 : 0) +
+      2 * margin +
+      // 607 — 18 (et non 12) : l'ombre du prénom (flou 6, décalage 2) était
+      // coupée au bas de l'image.
+      (withLabel ? 18 : 0) +
       (withBubble ? priceBubbleZone : 0);
 
   /// v605 (30/09) — largeur du bitmap d'un rond de membre SANS photo : la
@@ -914,18 +925,52 @@ class PawMapPinPainter {
   /// 4 chiffres) était ROGNÉE des deux côtés — la v592 n'élargissait que le
   /// rond photo. Le rond reste centré (ancre x = 0,5) ; décaler le dessin de
   /// `(largeur − memberBitmapSize(size)) / 2`.
-  static double memberBitmapWidth(double size, {String? priceBubble}) {
-    final base = memberBitmapSize(size);
-    if (priceBubble == null || priceBubble.isEmpty) return base;
-    return math.max(base, priceBubbleWidth(priceBubble) + 8);
+  ///
+  /// 607 (02/10, travail de fond « bulles ») — le PRÉNOM sous le rond
+  /// (« Christine H. ★ 4,9 », jusqu'à 160 px) n'était pas compté : l'image
+  /// faisait 90 px et le nom sortait coupé des deux côtés. La largeur est
+  /// maintenant celle du plus large des trois (rond, bulle, prénom), ombres
+  /// comprises.
+  static double memberBitmapWidth(double size,
+      {String? priceBubble, String? priceLabel, double rating = 0, double margin = memberMargin}) {
+    var w = memberBitmapSize(size, margin: margin);
+    if (priceBubble != null && priceBubble.isNotEmpty) {
+      w = math.max(w, priceBubbleBitmapWidth(priceBubble));
+    }
+    if (priceLabel != null && priceLabel.isNotEmpty) {
+      w = math.max(w, nameTagWidth(priceLabel, rating: rating) + 20);
+    }
+    return w;
+  }
+
+  /// 607 — largeur EXACTE de l'étiquette prénom/prix sous un rond de membre
+  /// (même calcul que `_paintPill` : texte mesuré, note, plafond 160).
+  static double nameTagWidth(String text, {double rating = 0}) {
+    final style = _pinStyle(10.5, FontWeight.w600, const Color(0xFF1B1616));
+    double extra = 0;
+    if (rating > 0) {
+      final rp = TextPainter(
+        text: TextSpan(text: rating.toStringAsFixed(1), style: style),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout();
+      extra = 4 + 10 + 1 + rp.width;
+    }
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: math.max(10, 160 - 16 - extra));
+    return tp.width + 16 + extra;
   }
 
   /// Ancre verticale (0..1) d'un rond de membre : le centre du cercle.
   static double memberAnchorY(double size,
-      {bool withLabel = false, bool withBubble = false}) {
+      {bool withLabel = false, bool withBubble = false, double margin = memberMargin}) {
     final zone = withBubble ? priceBubbleZone : 0.0;
-    return (zone + memberMargin + size / 2) /
-        memberBitmapSize(size, withLabel: withLabel, withBubble: withBubble);
+    return (zone + margin + size / 2) /
+        memberBitmapSize(size, withLabel: withLabel, withBubble: withBubble, margin: margin);
   }
 
   /// Rond de MEMBRE sans photo (site : `memberPinHtml` sans avatar) : disque
@@ -944,18 +989,18 @@ class PawMapPinPainter {
     String? priceLabel,
     double rating = 0,
     String? priceBubble,
+    double margin = memberMargin,
   }) {
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
     if (withBubble) {
       drawPriceBubble(canvas,
-          cx: memberMargin + size / 2,
-          bottom: priceBubbleZone + memberMargin - 3,
+          cx: margin + size / 2,
+          bottom: priceBubbleZone + margin - 3,
           text: priceBubble,
           role: role);
       canvas.save();
       canvas.translate(0, priceBubbleZone);
     }
-    const margin = memberMargin;
     final r = size / 2;
     final c = Offset(margin + r, margin + r);
     final color = PawMapLegend.roleColor(role);
@@ -1010,9 +1055,28 @@ class PawMapPinPainter {
 
   /// Couronne en haut à droite (site : top −35 %, right −30 % de sa taille).
   static void _crownAt(Canvas canvas, Offset c, double r, double s) {
+    drawCrown(canvas, crownCenter(c, r, s), s);
+  }
+
+  /// Centre de la couronne (coin haut-droit du rond, comme le site).
+  static Offset crownCenter(Offset c, double r, double s) {
     final top = (s * 0.35).roundToDouble();
     final right = (s * 0.3).roundToDouble();
-    drawCrown(canvas, Offset(c.dx + r + right - s / 2, c.dy - r - top + s / 2), s);
+    return Offset(c.dx + r + right - s / 2, c.dy - r - top + s / 2);
+  }
+
+  /// 607 (PAM, capture de Daniel du 01/10) — l'œil barré de « Moi » (mode
+  /// amis seulement) était en BAS À GAUCHE, exactement là où se pose la fusée
+  /// PawBoost : les deux pastilles s'empilaient sur la photo. Il passe sur
+  /// l'anneau en bas à DROITE (40° sous l'horizontale) — place libre chez
+  /// « Moi », qui n'a jamais le point « en ligne » —, à l'écart de la
+  /// couronne (haut-droit), de la fusée (bas-gauche) et de l'étiquette
+  /// « Moi » (dessous). Si un point « en ligne » occupe ce coin, il monte en
+  /// HAUT À GAUCHE.
+  static Offset eyeOffBadgeCenter(Offset c, double r, {bool online = false}) {
+    const a = 40 * math.pi / 180;
+    final dx = r * math.cos(a), dy = r * math.sin(a);
+    return online ? Offset(c.dx - dx, c.dy - dy) : Offset(c.dx + dx, c.dy + dy);
   }
 
   /// Couleurs de la bulle par service (dégradé clair → foncé ; pointe =
@@ -1044,6 +1108,12 @@ class PawMapPinPainter {
     )..layout();
     return tp.width + 2 * 9.5 + 6;
   }
+
+  /// 607 — largeur d'IMAGE nécessaire pour une bulle de prix : la bulle
+  /// + son liseré blanc (2 × 2) + son ombre (flou 10, étalement −4 ≈ 7 de
+  /// chaque côté). Avant : « + 8 » partout → bulles longues et duos coupés
+  /// net à gauche et à droite (test pam607d : 44 px de bord touchés).
+  static double priceBubbleBitmapWidth(String text) => priceBubbleWidth(text) + 20;
 
   /// v594 — largeur d'une bulle de prix ; « A|B » = bulle DUO gardien/promeneur.
   static double priceBubbleWidth(String text) {
@@ -1295,7 +1365,7 @@ class PawMapPinPainter {
     final bool hasLabel = label != null && label.isNotEmpty;
     // v598 — étiquette au-dessus : le rond descend de la hauteur réservée à
     // l'étiquette (le bitmap garde la même taille, voir photoBitmapSize).
-    final c = Offset(margin + r, margin + r + (labelAbove && hasLabel ? photoLabelExtra : 0));
+    final c = Offset(margin + r, margin + r + (labelAbove && hasLabel ? photoLabelZoneFor(margin) : 0));
     final bool isFriend = ringColor == PawMapLegend.friend;
     final bool isMe = !isFriend &&
         (dashedRing || eyeOff || size >= PawMapLegend.meSize);
@@ -1447,7 +1517,7 @@ class PawMapPinPainter {
       drawVerifiedBadge(canvas, Offset(c.dx - (r + 2 - 7.5), c.dy + r + 1 - 7.5));
     }
     if (eyeOff) {
-      drawEyeOffBadge(canvas, Offset(c.dx - (r + 6 - 10), c.dy + r + 4 - 10), 20);
+      drawEyeOffBadge(canvas, eyeOffBadgeCenter(c, r, online: online || dimmed), 20);
     }
     if (crown) {
       _crownAt(canvas, c, r, crownSize);
@@ -1519,6 +1589,9 @@ class PawMapPinPainter {
   /// pixels par rond dans la réserve de textures du SDK iOS (cause des ronds
   /// rognés), sans rien changer à l'image. Les ronds à halo gardent 30.
   static const double photoMarginTight = 16;
+  /// 607 — rond photo SANS couronne, œil barré ni halo : 11 dp suffisent
+  /// (anneau, point « en ligne », ombre) — test pam607d.
+  static const double photoMarginBare = 11;
   // v594 — marge des ronds À HALO (ami, PawBoost, suivi, plusieurs rôles) :
   // la lueur doit dépasser les 3 anneaux de rôles (15 px). Les autres ronds
   // gardent 22 : Google compte toute l'image comme zone de toucher, une
@@ -1530,7 +1603,13 @@ class PawMapPinPainter {
   static const double photoLabelExtra = 14;
   static double photoBitmapSize(double size,
           {bool withLabel = false, double margin = photoMargin}) =>
-      size + 2 * margin + (withLabel ? photoLabelExtra : 0);
+      size + 2 * margin + (withLabel ? photoLabelZoneFor(margin) : 0);
+
+  /// 607 — place de l'étiquette sous (ou au-dessus) d'un rond photo, en plus
+  /// de la marge : l'étiquette + son ombre dépassent de 31 dp le bord du
+  /// rond ; à marge 11 il faut donc 20 (et non 14).
+  static double photoLabelZoneFor(double margin) =>
+      margin >= photoMarginTight ? photoLabelExtra : math.max(photoLabelExtra, 31 - margin);
 
   /// Ancre verticale (0..1) d'un rond photo : le centre du cercle.
   /// v598 — [labelAbove] : l'étiquette est au-dessus, le rond est descendu
@@ -1541,7 +1620,7 @@ class PawMapPinPainter {
       double margin = photoMargin,
       bool labelAbove = false}) {
     final zone = withBubble ? priceBubbleZone : 0.0;
-    final double shift = withLabel && labelAbove ? photoLabelExtra : 0.0;
+    final double shift = withLabel && labelAbove ? photoLabelZoneFor(margin) : 0.0;
     return (zone + shift + margin + size / 2) /
         (photoBitmapSize(size, withLabel: withLabel, margin: margin) + zone);
   }
@@ -1681,7 +1760,9 @@ class PawMapPinPainter {
       textDirection: TextDirection.ltr,
       maxLines: 1,
     )..layout();
-    return math.min(150, tp.width + 2 * 7 + 3) + 4;
+    // 607 — + 12 (et non + 4) : l'ombre du nom (flou 4) sortait de l'image
+    // pour un nom au plafond de 150 px (coupé net, test pam607d).
+    return math.min(150, tp.width + 2 * 7 + 3) + 12;
   }
 
   static void paintPawSpotLabel(Canvas canvas,
@@ -1858,6 +1939,15 @@ class PawMapPinPainter {
       PawMapLegend.requestBubbleHeight + 8 + 7 + 8;
 }
 
+/// 607 (02/10) — densité des ronds de MEMBRES (les plus nombreux : 81 sur
+/// 111 marqueurs à Paris zoom 13, 5,0 des 5,6 mégapixels de textures).
+/// iOS : 2× (au lieu de 2,5×) — la réserve de textures du SDK Google Maps
+/// iOS débordait (« Reached the max number of texture atlases », mesuré au
+/// simulateur) et des marqueurs sortaient coupés net. Moi, amis, groupes :
+/// densité de l'écran inchangée. Android : inchangé.
+double pawMemberPinScale() =>
+    defaultTargetPlatform == TargetPlatform.iOS ? 2.0 : pawPinRenderScale();
+
 /// Style de l'étiquette sous un rond photo (v592, pastilles du site).
 enum PawPinLabelStyle { me, friend, lost, name }
 
@@ -1950,6 +2040,16 @@ Future<ui.Image?> decodeAvatar(Uint8List? bytes, {int target = 320}) async {
 /// Cache des épingles de la carte (idée 10 : chaque épingle dessinée UNE fois
 /// puis réutilisée). Clé = description complète de l'épingle. Les photos
 /// (Moi, amis) sont téléchargées une fois et gardées en mémoire.
+/// 607 — PNG 1 × 1 entièrement transparent (67 octets).
+final Uint8List kPawTransparentPng = Uint8List.fromList(const <int>[
+  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
+  0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+  0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
+  0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+]);
+
 class PawMapPinCache extends GetxService {
   final Map<String, BitmapDescriptor> _cache = {};
   final Set<String> _building = {};
@@ -1958,6 +2058,37 @@ class PawMapPinCache extends GetxService {
 
   /// Incrémenté à chaque épingle prête → l'écran reconstruit ses marqueurs.
   final RxInt rev = 0.obs;
+
+  /// 607 (PAM, 02/10) — Daniel : « des mini-lags ». Chaque épingle prête
+  /// incrémentait [rev] tout de suite : 80 ronds redessinés après un zoom =
+  /// 80 reconstructions complètes de la carte, l'une après l'autre (mesuré :
+  /// 24 à 31 reconstructions par parcours). Les épingles prêtes dans la même
+  /// fenêtre de 48 ms ne déclenchent plus qu'UNE reconstruction.
+  Timer? _revTimer;
+  static final bool _inTests = Platform.environment.containsKey('FLUTTER_TEST');
+  void _bumpRev() {
+    if (_inTests) {
+      rev.value++;
+      return;
+    }
+    if (_revTimer != null) return;
+    _revTimer = Timer(const Duration(milliseconds: 48), () {
+      _revTimer = null;
+      rev.value++;
+    });
+  }
+
+  /// 607 — taille logique (px) de chaque image d'épingle produite ici, pour
+  /// la passe de mise en page (`pawResolveCollisions`). Null = inconnue.
+  static final Expando<Size> _sizes = Expando<Size>('pawPinSize');
+  static Size? sizeOf(BitmapDescriptor d) => _sizes[d];
+  static void rememberSize(BitmapDescriptor d, Size s) => _sizes[d] = s;
+
+  /// 607 — image VIDE (1 × 1 transparent) posée le temps qu'une épingle se
+  /// dessine, à la place de l'épingle Google rose/orange qui « clignotait »
+  /// avant le vrai rond.
+  static final BitmapDescriptor transparent =
+      BitmapDescriptor.bytes(kPawTransparentPng, width: 1, height: 1);
 
   @override
   void onInit() {
@@ -2003,6 +2134,8 @@ class PawMapPinCache extends GetxService {
     // du dessin, la carte montrait une épingle Google rose. Avec [slot]
     // (un marqueur), on garde sa DERNIÈRE image jusqu'à la nouvelle.
     String? slot,
+    // 607 — densité de rendu propre à cette image (null = écran).
+    double? scale,
   }) {
     final cached = _cache[key];
     if (cached != null) {
@@ -2010,7 +2143,7 @@ class PawMapPinCache extends GetxService {
       return cached;
     }
     if (_building.add(key)) {
-      unawaited(_build(key, logicalW, logicalH, paint));
+      unawaited(_build(key, logicalW, logicalH, paint, scale));
     }
     return slot == null ? null : _lastBySlot[slot];
   }
@@ -2018,11 +2151,13 @@ class PawMapPinCache extends GetxService {
   final Map<String, BitmapDescriptor> _lastBySlot = {};
 
   Future<void> _build(String key, double w, double h,
-      void Function(Canvas canvas) paint) async {
+      void Function(Canvas canvas) paint, [double? scale]) async {
     try {
-      final png = await renderPinPng(w, h, paint);
-      _cache[key] = BitmapDescriptor.bytes(png, width: w);
-      rev.value++;
+      final png = await renderPinPng(w, h, paint, scale: scale);
+      final d = BitmapDescriptor.bytes(png, width: w);
+      _sizes[d] = Size(w, h); // 607 — taille logique (mise en page)
+      _cache[key] = d;
+      _bumpRev();
     } catch (e) {
       debugPrint('[PawMapPinCache] $key : $e');
     } finally {
@@ -2051,7 +2186,7 @@ class PawMapPinCache extends GetxService {
         final img = await decodeAvatar(await file.readAsBytes());
         if (img != null) {
           _avatars[url] = img;
-          rev.value++;
+          _bumpRev();
           _building.remove('avatar:$url');
           return;
         }
@@ -2064,7 +2199,7 @@ class PawMapPinCache extends GetxService {
       ).timeout(const Duration(seconds: 8));
       if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
         _avatars[url] = await decodeAvatar(resp.bodyBytes);
-        rev.value++;
+        _bumpRev();
         if (file != null && _avatars[url] != null) {
           unawaited(file.writeAsBytes(resp.bodyBytes, flush: false).then((_) {}, onError: (_) {}));
         }

@@ -13,6 +13,7 @@
 //   · la ville / l'adresse (même expression qu'avant) remonte dans l'en-tête
 //     au lieu d'une carte à elle seule — rien n'est perdu.
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/bring_clients607.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
@@ -147,6 +148,8 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             _buildHero(w),
+            // 607 NEO — badge « Pionnier » (seul à 25 km).
+            PioneerFicheBadge607(role: 'walker', providerId: w.id),
             SizedBox(height: 18.h),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.w),

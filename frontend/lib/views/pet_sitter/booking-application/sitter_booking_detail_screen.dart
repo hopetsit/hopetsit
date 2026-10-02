@@ -19,6 +19,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 
 /// Detail screen for a booking request (sitter view).
 /// Shows: Requests (client card), Pets, Note, Accept/Decline.
@@ -206,7 +207,11 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
     'sitter_month_dec'.tr,
   ];
 
-  String _formatBookingDate(String? dateIso, String? timeSlot) {
+  String _formatBookingDate(String? dateIso, String? rawTimeSlot) {
+    // 607 (ZOE) — créneau traduit (« morning » → « Matin »…, heure locale).
+    final timeSlot = rawTimeSlot == null
+        ? null
+        : BookingDateFormat.localizedTime(rawTimeSlot.trim());
     if (dateIso == null || dateIso.isEmpty) {
       return timeSlot?.trim().isNotEmpty == true ? timeSlot! : '';
     }

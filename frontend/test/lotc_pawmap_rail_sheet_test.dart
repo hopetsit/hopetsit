@@ -23,6 +23,7 @@ import 'package:hopetsit/utils/pawmap_theme.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_rail.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
+import 'package:hopetsit/localization/v565/plush607_i18n.dart';
 
 const List<String> _langs = ['en', 'fr', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl'];
 
@@ -133,7 +134,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 60));
       expect(kPawRailDefaultOrder,
           // v602 — « Voir signaux » (feed) est passé dans la barre de droite.
-          ['around', 'directions', 'live_friends', 'chat', 'photo', 'spots', 'tag', 'report']);
+          // 607 — + PawPoints en tête (idée de Daniel, mêmes ids que le site).
+          ['pawpoints', 'around', 'directions', 'live_friends', 'chat', 'photo', 'spots', 'tag', 'report']);
       for (final id in kPawRailDefaultOrder) {
         await tester.tap(find.byKey(ValueKey<String>('rail_$id')));
         await tester.pump(const Duration(milliseconds: 400));
@@ -142,13 +144,17 @@ void main() {
     });
 
     test('normalizeRailOrder : ids inconnus et doublons retirés, vide = défaut', () {
-      expect(normalizeRailOrder(['spots', 'hack', 'spots', 'tag']), ['spots', 'tag']);
+      expect(normalizeRailOrder(['spots', 'hack', 'spots', 'tag', 'no_pawpoints']), ['spots', 'tag']);
+      // 607 — réglage d'avant le bouton PawPoints : il s'affiche en tête.
+      expect(normalizeRailOrder(['spots', 'hack', 'spots', 'tag']), ['pawpoints', 'spots', 'tag']);
       expect(normalizeRailOrder([]), kPawRailDefaultOrder);
       expect(normalizeRailOrder(null), kPawRailDefaultOrder);
       // Chaque bouton a une explication traduite dans les 9 langues.
       for (final spec in kPawRailSpecs) {
         for (final l in _langs) {
-          expect(lotC584I18n[l]![spec.helpKey], isNotEmpty, reason: '$l/${spec.id}');
+          // 607 — le bouton PawPoints a ses textes dans plush607_i18n.
+          expect(lotC584I18n[l]![spec.helpKey] ?? plush607I18n[l]![spec.helpKey],
+              isNotEmpty, reason: '$l/${spec.id}');
         }
       }
     });

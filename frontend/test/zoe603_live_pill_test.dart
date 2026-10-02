@@ -192,6 +192,10 @@ void main() {
       expect(find.byType(PawFollowLiveDot), findsOneWidget);
     });
     testWidgets('arrêté : « Relancer le direct », jamais le point vert', (t) async {
+      // 607 (ZOE) — traductions posées AVANT le `.tr` : sinon le libellé
+      // n'était traduit que si un test précédent avait monté l'app (ordre).
+      Get.addTranslations(AppTranslations().keys);
+      Get.locale = const Locale('fr');
       await pill(t, stopped: 'chat603_live_restart'.tr);
       expect(find.text('Relancer le direct'), findsOneWidget);
       expect(find.text('En direct · voir la carte'), findsNothing);

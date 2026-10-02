@@ -169,10 +169,16 @@ class PushNotificationService extends GetxService {
 
   bool _initialized = false;
 
+  /// 607 (PAM) — tests d'intégration seulement : la fenêtre SYSTÈME de
+  /// notifications ne peut pas être touchée par un test et masquait l'écran
+  /// (simulateur réinstallé par `flutter test`). Jamais vrai dans l'app.
+  static bool skipInitForIntegrationTests = false;
+
   /// Must be called once at app startup (after Firebase.initializeApp).
   Future<PushNotificationService> init() async {
     if (_initialized) return this;
     _initialized = true;
+    if (skipInitForIntegrationTests) return this;
 
     try {
       // v583 NEO — plus de demande d'autorisation au tout premier lancement,
@@ -375,6 +381,7 @@ class PushNotificationService extends GetxService {
   }
 
   Future<void> _askAfterEntry(String? role) async {
+    if (skipInitForIntegrationTests) return; // 607 — tests d'intégration
     try {
       // Laisse l'accueil s'afficher (Get.offAll) avant la fenêtre.
       await Future.delayed(const Duration(milliseconds: 1800));

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
@@ -190,22 +191,20 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
       // (claires + traduites par Android) avant d'ouvrir Persona.
       final camStatus = await Permission.camera.request();
       final micStatus = await Permission.microphone.request();
-      if (camStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
-        // L'user a coche "Ne plus demander" → on doit l'envoyer dans
-        // les Settings systeme pour debloquer.
-        CustomSnackbar.showWarning(
-          title: 'kyc_perm_blocked_title'.tr,
-          message: 'kyc_perm_blocked_msg'.tr,
-        );
-        await openAppSettings();
-        return;
-      }
+      // 607 (ZOE, 02/10) — cas client réel : sur iPhone, permission_handler
+      // était compilé sans l'option caméra → toujours « refusé », et l'écran
+      // s'ARRÊTAIT ici (3 € payés, jamais vérifié). Un refus ne bloque plus :
+      // réglages OU continuer (la page de vérification demande elle-même la
+      // caméra dans sa vue web).
       if (!camStatus.isGranted) {
-        CustomSnackbar.showWarning(
-          title: 'kyc_perm_camera_title'.tr,
-          message: 'kyc_perm_camera_msg'.tr,
-        );
-        return;
+        if (!mounted) return;
+        final choice = await showKyc607CameraDialog(context);
+        if (choice == true) {
+          await openAppSettings();
+          return;
+        }
+        if (choice == null) return; // fermé : rien
+        // false = « Continuer quand même » → on ouvre la session.
       }
       // Microphone facultatif (Persona l'utilise pour le liveness audio
       // mais marche aussi sans) — on log juste mais on continue.
@@ -499,8 +498,8 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
         ],
       );
     }
-    if (status == 'pending_verification') {
-      // v23.1 part 131 — Persona only.
+    if (kyc607CanLaunch(_status)) {
+      // v23.1 part 131 — Persona only. 607 : aussi si déjà payé.
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -604,6 +603,27 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
 }
 
 // ─── Persona WebView ─────────────────────────────────────────────────────────
+
+/// 607 (ZOE) — pop-up « caméra refusée » : true = ouvrir les réglages,
+/// false = continuer quand même, null = fermé.
+Future<bool?> showKyc607CameraDialog(BuildContext context) => showAppConfirmDialog(
+      context,
+      title: 'kyc607_cam_title'.tr,
+      message: 'kyc607_cam_msg'.tr,
+      confirmLabel: 'kyc607_open_settings'.tr,
+      cancelLabel: 'kyc607_continue'.tr,
+      icon: Icons.photo_camera_rounded,
+    );
+
+/// 607 (ZOE) — le bouton « Lancer la vérification » reste visible pour
+/// quiconque a déjà payé (jamais de second paiement), tant qu'il n'est pas
+/// vérifié ni refusé.
+bool kyc607CanLaunch(Map<String, dynamic> status) {
+  final s = (status['kycStatus'] ?? 'none').toString();
+  if (s == 'pending_verification') return true;
+  final paid = status['kycPaidAt'] != null && status['kycPaidAt'].toString().isNotEmpty;
+  return paid && s != 'verified' && s != 'rejected';
+}
 
 class _PersonaWebViewScreen extends StatefulWidget {
   final String url;

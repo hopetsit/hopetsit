@@ -19,6 +19,7 @@ import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:hopetsit/views/map/pawmap_friend_focus.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 
 /// Detail screen for a booking (owner view).
 /// Shows: Service Provider (sitter card), Pets, Note, Pay/Chat/Cancel actions.
@@ -220,7 +221,11 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
     'owner_month_dec'.tr,
   ];
 
-  String _formatBookingDate(String? dateIso, String? timeSlot) {
+  String _formatBookingDate(String? dateIso, String? rawTimeSlot) {
+    // 607 (ZOE) — créneau traduit (« morning » → « Matin »…, heure locale).
+    final timeSlot = rawTimeSlot == null
+        ? null
+        : BookingDateFormat.localizedTime(rawTimeSlot.trim());
     if (dateIso == null || dateIso.isEmpty) {
       return timeSlot?.trim().isNotEmpty == true ? timeSlot! : '';
     }

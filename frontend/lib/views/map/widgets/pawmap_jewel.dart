@@ -39,6 +39,11 @@ const PawJewelPalette kJewelPhoto =
     PawJewelPalette(Color(0xFFFFC06A), Color(0xFFF39A2B), Color(0xFFD97A0E));
 const PawJewelPalette kJewelSpots =
     PawJewelPalette(Color(0xFFFFD76A), Color(0xFFF0B323), Color(0xFFCF9208));
+/// 607 (idée de Daniel, 02/10) — bouton PawPoints de la barre de gauche :
+/// or-ambre plus chaud et plus profond que PawSpot (même palette que le site,
+/// JEWEL_PAWPOINTS de LEO).
+const PawJewelPalette kJewelPawPoints =
+    PawJewelPalette(Color(0xFFFFD86B), Color(0xFFE8A00A), Color(0xFFB07800));
 const PawJewelPalette kJewelTag =
     PawJewelPalette(Color(0xFF52D6C6), Color(0xFF1FA89A), Color(0xFF0F7F70));
 const PawJewelPalette kJewelFeed =
@@ -69,6 +74,21 @@ final PawJewelPalette kJewelHeader = PawJewelPalette(
   Color.lerp(_menuPalette.top, _menuPalette.bottom, 0.5)!,
   _menuPalette.bottom,
 );
+
+/// 607 (Daniel, 02/10) — les 4 boutons du haut à droite prennent la couleur
+/// du MENU DU RÔLE actif (orange-rouge propriétaire, bleu gardien, vert
+/// promeneur), même relief « bijou », icônes blanches. Source unique :
+/// `kPawTabBarPalettes`.
+PawJewelPalette pawJewelHeaderFor(String role) {
+  final r = role.toLowerCase();
+  final p = kPawTabBarPalettes[r == 'sitter'
+          ? PawNavRole.sitter
+          : r == 'walker'
+              ? PawNavRole.walker
+              : PawNavRole.owner] ??
+      _menuPalette;
+  return PawJewelPalette(p.top, Color.lerp(p.top, p.bottom, 0.5)!, p.bottom);
+}
 /// §3.4 — Balade arrêtée (gris) / en direct (vert).
 // 27/09 — Daniel : « pas de gris dans toute l'app ni le web » → balade à
 // l'arrêt en NOIR chaud (encre de la marque #231715), jamais un gris neutre.
@@ -151,7 +171,11 @@ class PawJewel extends StatefulWidget {
     this.onLongPress,
     this.badge,
     this.active = false,
+    this.child,
   });
+
+  /// 607 — dessin à la place de l'icône (ex. l'ourson du bouton PawPoints).
+  final Widget? child;
 
   final PawJewelPalette palette;
   final IconData icon;
@@ -295,6 +319,9 @@ class _PawJewelState extends State<PawJewel> {
                       ),
                     ),
                     // Icône : ombre portée légère + dégradé 100 % → 72 %.
+                    if (widget.child != null)
+                      Center(child: widget.child)
+                    else
                     Center(
                       child: Stack(
                         alignment: Alignment.center,

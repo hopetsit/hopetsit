@@ -175,6 +175,10 @@ void main() {
 
   testWidgets('golden : ami « Vu il y a » dessous / dessus (3×)', (tester) async {
     ui.Image? board;
+    // 607 (ZOE) — polices chargées AVANT de mesurer l'étiquette : sinon la
+    // largeur dépend du test qui a tourné avant (ordre aléatoire → taille
+    // d'image différente du golden, échec instable).
+    await tester.runAsync(ensurePawPinFonts);
     final labelW = PawMapPinPainter.photoLabelWidth(caption);
     final baseW = PawMapPinPainter.photoBitmapSize(fs, margin: m);
     final w = labelW > baseW ? labelW : baseW;

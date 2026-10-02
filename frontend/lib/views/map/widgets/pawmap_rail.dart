@@ -72,8 +72,21 @@ class PawRailSpec {
   String get help => helpKey.tr;
 }
 
-/// Les 9 boutons du rail, dans l'ordre d'origine (celui de la v565/v573).
+/// Les boutons du rail, dans l'ordre d'origine (celui de la v565/v573,
+/// + PawPoints en tête depuis le 607).
 const List<PawRailSpec> kPawRailSpecs = <PawRailSpec>[
+  // 607 (idée de Daniel, 02/10) — PawPoints : ouvre la page PawPoints (solde,
+  // collection de peluches, échanges). En TÊTE, comme sur le site (LEO).
+  PawRailSpec(
+    id: 'pawpoints',
+    icon: Icons.toys_rounded,
+    svg: '',
+    color: Color(0xFFE8A00A),
+    g1: Color(0xFFFFD86B),
+    g2: Color(0xFFB07800),
+    labelKey: 'ppr607_btn',
+    helpKey: 'ppr607_help',
+  ),
   PawRailSpec(
     id: 'around',
     icon: Icons.navigation_rounded,
@@ -188,6 +201,7 @@ const Map<String, (PawJewelPalette, IconData)> kPawRailJewels =
   'tag': (kJewelTag, PawSymbols.tag),
   'report': (kJewelReport, PawSymbols.report),
   'feed': (kJewelFeed, PawSymbols.feed),
+  'pawpoints': (kJewelPawPoints, PawSymbols.spots),
 };
 
 /// Ordre par défaut (tous les boutons, dans l'ordre d'origine).
@@ -201,15 +215,33 @@ PawRailSpec? pawRailSpecOf(String id) {
   return null;
 }
 
+/// 607 — marqueur enregistré avec la barre de gauche quand la personne a
+/// MASQUÉ « PawPoints » (même logique que `no_feed`, mêmes ids que le site).
+const String kRailPawPointsHiddenMarker = 'no_pawpoints';
+
 /// Nettoie un ordre venu du compte : ids connus, sans doublon ; vide → défaut.
+/// 607 — un réglage enregistré AVANT le bouton PawPoints (ni `pawpoints` ni
+/// `no_pawpoints`) le montre en tête — affichage seulement, rien n'est
+/// réécrit sur le compte (comme le site).
 List<String> normalizeRailOrder(List<String>? order) {
   if (order == null) return kPawRailDefaultOrder;
   final out = <String>[];
   for (final id in order) {
     if (pawRailSpecOf(id) != null && !out.contains(id)) out.add(id);
   }
-  return out.isEmpty ? kPawRailDefaultOrder : out;
+  if (out.isEmpty) return kPawRailDefaultOrder;
+  if (!order.contains('pawpoints') && !order.contains(kRailPawPointsHiddenMarker)) {
+    out.insert(0, 'pawpoints');
+  }
+  return out;
 }
+
+/// 607 — ce qu'on ENREGISTRE pour la barre de gauche : l'ordre choisi, plus
+/// le marqueur si PawPoints a été masqué.
+List<String> railOrderToSave(List<String> order) => <String>[
+      ...order.where((id) => id != kRailPawPointsHiddenMarker),
+      if (!order.contains('pawpoints')) kRailPawPointsHiddenMarker,
+    ];
 
 // ─── v601 — BARRE DE DROITE personnalisable comme la gauche ─────────────
 //
@@ -237,8 +269,9 @@ const List<PawRailSpec> kPawCapsuleSlotSpecs = <PawRailSpec>[
     color: PawMapTheme.rose,
     g1: Color(0xFFFF6EB4),
     g2: PawMapTheme.roseDark,
-    labelKey: 'v565_live_friends_fit',
-    helpKey: 'pawmap601_everyone_help',
+    // v607 (décision 4.4) — afficher / masquer tous les membres (site).
+    labelKey: 'map_members_show',
+    helpKey: 'h587_b_members',
   ),
   kPawFeedSpec,
   PawRailSpec(
@@ -417,7 +450,11 @@ class PawMapRail extends StatelessWidget {
     required this.onCustomize,
     this.active = const <String>{},
     this.gap,
+    this.badges = const <String, Widget>{},
   });
+
+  /// 607 — pastilles par bouton (ex. peluches attrapées aujourd'hui).
+  final Map<String, Widget> badges;
 
   /// v589 — écart entre les boutons (resserré quand la barre est complète,
   /// pour qu'elle tienne entière sous la pilule Direct). Null = standard.
@@ -455,7 +492,11 @@ class PawMapRail extends StatelessWidget {
                 label: spec.label,
                 size: 38,
                 active: active.contains(id),
-                badge: id == 'feed' ? const PawJewelDot() : null,
+                badge: id == 'feed' ? const PawJewelDot() : badges[id],
+                child: id == 'pawpoints'
+                    ? Image.asset('assets/images/plush607_teddy.png',
+                        width: 27.w, height: 27.w)
+                    : null,
                 onTap: () => onTap(id),
                 onLongPress: () => onLongPress(id),
               ),
@@ -863,7 +904,12 @@ class _PawRailCustomizeSheetState extends State<PawRailCustomizeSheet> {
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 1.2),
                       ),
-                      child: Icon(spec.icon, color: Colors.white, size: 18.sp),
+                      child: spec.id == 'pawpoints'
+                          ? Padding(
+                              padding: EdgeInsets.all(5.w),
+                              child: Image.asset('assets/images/plush607_teddy.png'),
+                            )
+                          : Icon(spec.icon, color: Colors.white, size: 18.sp),
                     ),
                     SizedBox(width: 10.w),
                     Expanded(

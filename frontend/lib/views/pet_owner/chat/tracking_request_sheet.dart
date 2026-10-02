@@ -42,6 +42,7 @@ import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 
 class TrackingRequestSheet extends StatelessWidget {
   const TrackingRequestSheet({
@@ -114,7 +115,9 @@ class TrackingRequestSheet extends StatelessWidget {
     final petAvatar =
         b != null && b.pets.isNotEmpty ? b.pets.first.avatar.url : '';
     final dateText = b != null
-        ? [b.date, b.timeSlot].where((s) => s.isNotEmpty).join(' • ')
+        ? [b.date, BookingDateFormat.localizedTime(b.timeSlot)]
+            .where((s) => s.isNotEmpty)
+            .join(' • ')
         : '';
 
     return Scaffold(

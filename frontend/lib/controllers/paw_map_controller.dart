@@ -85,7 +85,8 @@ class PawMapController extends GetxController {
       lastQueryCenter.value = center;
     } catch (e) {
       debugPrint('[PawMap] loadNearby error: $e');
-      pois.clear();
+      // 607 (PAM) — erreur réseau : les lieux affichés RESTENT (avant : la
+      // carte se vidait d'un coup jusqu'au chargement suivant).
     } finally {
       isLoading.value = false;
     }

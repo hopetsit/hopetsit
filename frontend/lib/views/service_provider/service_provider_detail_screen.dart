@@ -24,6 +24,7 @@
 //     au milieu de la page ; partage et signalement restent en haut à droite,
 //     en boutons ronds translucides sur le bandeau.
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/bring_clients607.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/sitter_detail_controller.dart';
@@ -203,6 +204,8 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         _buildHero(context, sitter),
+                        // 607 NEO — badge « Pionnier » (seul à 25 km).
+                        PioneerFicheBadge607(role: 'sitter', providerId: sitter.id),
                         SizedBox(height: 18.h),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 16.w),

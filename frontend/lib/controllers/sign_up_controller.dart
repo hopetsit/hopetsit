@@ -30,6 +30,7 @@ import 'package:hopetsit/controllers/my_pets_controller.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
+import 'package:hopetsit/utils/ios_store_rules606.dart';
 
 class SignUpController extends GetxController {
   SignUpController({
@@ -623,7 +624,9 @@ class SignUpController extends GetxController {
       // Sprint 6.5 step 2 — ISO-2 country code for Stripe Connect + pricing.
       'country': selectedCountry.value,
       // Sprint 7 step 3 — optional referral code (parrain).
-      if (referralCodeController.text.trim().isNotEmpty)
+      // 607 — jamais envoyé depuis iOS (le serveur l'ignore aussi pour iOS ≥ 607).
+      if (referralCodesAllowed() &&
+          referralCodeController.text.trim().isNotEmpty)
         'referralCode': referralCodeController.text.trim().toUpperCase(),
       'language': selectedLanguage.value,
       // v565 audit-inscription — langue de l'UI envoyée dès l'inscription :

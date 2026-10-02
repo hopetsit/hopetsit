@@ -90,8 +90,11 @@ const List<(String, int?, String)> kPawHelpSections = <(String, int?, String)>[
   ('see', 2, 'help587_sec_see'),
   ('live', 3, 'help587_sec_live'),
   ('balade', 4, 'help599_sec_balade'),
-  ('act', 5, 'help587_sec_act'),
-  ('set', 6, 'help587_sec_set'),
+  // 607 (ZOE, 02/10) — mêmes sections et mêmes textes que l'aide du site (LEO).
+  ('plush', 5, 'help607_plush_title'),
+  ('pioneer', 6, 'help607_pioneer_title'),
+  ('act', 7, 'help587_sec_act'),
+  ('set', 8, 'help587_sec_set'),
   ('faq', null, 'help587_faq_title'),
 ];
 
@@ -339,6 +342,7 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                       filled: true, titleKey: 'help589_t_refresh', helpKey: 'help589_b_refresh'),
                   _plainRow('options', Icons.settings_rounded, PawMapTheme.accent,
                       filled: true, titleKey: 'pawmap589_options', helpKey: 'help589_b_options'),
+                  _railRow(context, 'pawpoints'),
                   _railRow(context, 'around'),
                   _railRow(context, 'directions'),
                   _capsuleRow(context, 'fade'),
@@ -356,8 +360,10 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                 children: [
                   _capsuleRow(context, 'see'),
                   _railRow(context, 'live_friends'),
+                  // v607 (décision 4.4) — le bouton rose affiche / masque
+                  // tous les membres : même titre et même phrase que le site.
                   _plainRow('fit', Icons.groups_rounded, PawMapTheme.rose,
-                      titleKey: 'v565_live_friends_fit'),
+                      titleKey: 'map_members_show', helpKey: 'h587_b_members'),
                   _plainRow('friends', Icons.favorite_rounded, PawMapLegend.friend,
                       titleKey: 'pawmap585_btn_friends'),
                   _railRow(context, 'spots'),
@@ -426,11 +432,76 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                 ],
               ),
 
-              // ── 5. Agir ────────────────────────────────────────────────
+              // ── 5. Les peluches de la Balade + PawPoints (607) ───────────
+              _SectionCard(
+                anchorKey: _anchors['plush'],
+                id: 'plush',
+                number: 5,
+                icon: Icons.toys_rounded,
+                title: 'help607_plush_title'.tr,
+                children: [
+                  _ButtonRow(
+                    key: const ValueKey<String>('help607_plush'),
+                    icon: Image.asset('assets/images/plush607_teddy.png',
+                        width: 40.w, height: 40.w, fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const _RoundIcon(
+                            icon: Icons.toys_rounded,
+                            color: PawMapTheme.accent,
+                            filled: true)),
+                    title: 'pp607_help_plush_row'.tr,
+                    help: 'help607_plush_body'.tr,
+                  ),
+                  // 607 (ZOE, demande de Daniel) — les 5 peluches + la dorée,
+                  // nom dessous, puis le barème complet (textes de LEO).
+                  const _PlushGallery(key: ValueKey<String>('help607_plush_gallery')),
+                  _ButtonRow(
+                    key: const ValueKey<String>('help607_plush_bonus'),
+                    icon: Image.asset('assets/images/plush607_teddy_gold.png',
+                        width: 40.w, height: 40.w, fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const _RoundIcon(
+                            icon: Icons.emoji_events_rounded,
+                            color: Color(0xFFE8A00A),
+                            filled: true)),
+                    title: 'help607_plush_gold'.tr,
+                    help: 'help607_plush_bonus'.tr,
+                  ),
+                  _ButtonRow(
+                    key: const ValueKey<String>('help607_pawpoints'),
+                    icon: const _RoundIcon(
+                        icon: Icons.stars_rounded,
+                        color: Color(0xFFE8A00A),
+                        filled: true),
+                    title: 'pp607_help_points_title'.tr,
+                    help: 'pp607_help_points_body'.tr,
+                  ),
+                ],
+              ),
+
+              // ── 6. Ramène tes clients · badge Pionnier (607) ─────────────
+              _SectionCard(
+                anchorKey: _anchors['pioneer'],
+                id: 'pioneer',
+                number: 6,
+                icon: Icons.flag_rounded,
+                title: 'help607_pioneer_title'.tr,
+                children: [
+                  _ButtonRow(
+                    key: const ValueKey<String>('help607_pioneer'),
+                    icon: const _RoundIcon(
+                        icon: Icons.flag_rounded,
+                        color: PawMapTheme.accent,
+                        filled: true),
+                    title: 'help607_pioneer_badge'.tr,
+                    help: 'help607_pioneer_body'.tr,
+                  ),
+                ],
+              ),
+
+              // ── 7. Agir ────────────────────────────────────────────────
               _SectionCard(
                 anchorKey: _anchors['act'],
                 id: 'act',
-                number: 5,
+                number: 7,
                 icon: Icons.touch_app_rounded,
                 title: 'help587_sec_act'.tr,
                 example: 'help587_ex_act'.tr,
@@ -447,11 +518,11 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                 ],
               ),
 
-              // ── 5. Réglages ────────────────────────────────────────────
+              // ── 8. Réglages ────────────────────────────────────────────
               _SectionCard(
                 anchorKey: _anchors['set'],
                 id: 'set',
-                number: 6,
+                number: 8,
                 icon: Icons.tune_rounded,
                 title: 'help587_sec_set'.tr,
                 example: 'help587_ex_set'.tr,
@@ -1669,6 +1740,54 @@ class _ButtonRow extends StatelessWidget {
   }
 }
 
+
+/// 607 (ZOE) — les 5 mini-peluches (dessins de PAM) + la dorée, nom dessous.
+/// Retour à la ligne (Wrap) : jamais de débordement, même à 320 px.
+class _PlushGallery extends StatelessWidget {
+  const _PlushGallery({super.key});
+
+  static const List<String> _types = <String>['teddy', 'bunny', 'kitty', 'puppy', 'fox'];
+
+  @override
+  Widget build(BuildContext context) {
+    Widget item(String asset, String label, Key key) => SizedBox(
+          key: key,
+          width: 58.w,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(asset, width: 44.w, height: 44.w, fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => SizedBox(width: 44.w, height: 44.w)),
+              SizedBox(height: 4.h),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: PawMapTheme.fontOn(context,
+                    size: 10.5.sp, weight: FontWeight.w700, color: _warmBody(context)),
+              ),
+            ],
+          ),
+        );
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 10.h),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 6.w,
+        runSpacing: 10.h,
+        children: [
+          for (var i = 0; i < _types.length; i++)
+            item('assets/images/plush607_${_types[i]}.png',
+                'help607_plush_names_${i + 1}'.tr,
+                ValueKey<String>('help607_plush_${_types[i]}')),
+          item('assets/images/plush607_teddy_gold.png', 'help607_plush_gold'.tr,
+              const ValueKey<String>('help607_plush_golden')),
+        ],
+      ),
+    );
+  }
+}
 
 /// v605 — sommaire de « Comprendre la PawMap » : une puce par section
 /// (numéro doré sur encre + titre), au dégradé orange de la PawMap. Un appui

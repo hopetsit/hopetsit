@@ -164,10 +164,10 @@ void main() {
           (
             // v594 — gardien + promeneur : bulle DUO, rond élargi et centré.
             'Duo gardien/promeneur',
-            math.max(pp, PawMapPinPainter.priceBubbleWidth('20 €|12 €') + 8),
+            math.max(pp, PawMapPinPainter.priceBubbleBitmapWidth('20 €|12 €')),
             PawMapPinPainter.photoBitmapSize(ms, withLabel: true) + PawMapPinPainter.priceBubbleZone,
             (c) {
-              final dx = (math.max(pp, PawMapPinPainter.priceBubbleWidth('20 €|12 €') + 8) - pp) / 2;
+              final dx = (math.max(pp, PawMapPinPainter.priceBubbleBitmapWidth('20 €|12 €')) - pp) / 2;
               c.save();
               c.translate(dx, 0);
               PawMapPinPainter.paintPhotoDot(c,

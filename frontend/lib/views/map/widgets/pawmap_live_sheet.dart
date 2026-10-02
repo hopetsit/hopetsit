@@ -291,7 +291,9 @@ class _PawLiveSheetState extends State<PawLiveSheet> {
                   height: 1.35),
             ),
             SizedBox(height: 12.h),
-            if (nothing)
+            // 607 (PAM, vu au simulateur) — « Rien en direct pour le moment »
+            // s'affichait AU-DESSUS de « Test Walker est en direct ».
+            if (nothing && othersLive.isEmpty)
               Padding(
                 padding: EdgeInsets.only(bottom: 10.h),
                 child: Text(
@@ -305,7 +307,11 @@ class _PawLiveSheetState extends State<PawLiveSheet> {
               if (i > 0) SizedBox(height: 8.h),
               rows[i],
             ],
-            if (nothing && widget.onStartWalk != null) ...[
+            // 607 (PAM, vu au simulateur) — en SUIVANT quelqu'un sans être
+            // en balade, la feuille n'offrait aucun moyen de démarrer MA
+            // balade (le bouton Balade ouvre cette feuille dès qu'on suit) :
+            // impossible de faire « A suit B, puis B se met en direct ».
+            if (!meLive && widget.onStartWalk != null) ...[
               SizedBox(height: 12.h),
               PawSignatureButton(
                 key: const ValueKey<String>('live_sheet_start_walk'),

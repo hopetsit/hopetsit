@@ -2899,7 +2899,9 @@ class _PawSpotTabState extends State<_PawSpotTab>
               SizedBox(width: 8.w),
               Expanded(
                 child: InterText(
-                  text: 'pawspot_rewards_title'.tr,
+                  // 607 (ZOE) — catalogue PawPoints unique : plus « Récompenses
+                  // Premium » (les points se gagnent par l'activité, pour tous).
+                  text: 'pp607_teaser_title'.tr,
                   fontSize: 15.sp,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary(context),
@@ -2923,10 +2925,10 @@ class _PawSpotTabState extends State<_PawSpotTab>
           ),
           SizedBox(height: 6.h),
           InterText(
-            text: 'pawspot_rewards_catalog_hint'.tr,
+            text: 'pp607_hero'.tr,
             fontSize: 12.sp,
             color: AppColors.textSecondary(context),
-            maxLines: 3,
+            maxLines: 4,
           ),
           SizedBox(height: 12.h),
           // v440 — la page de récompenses complète, écrite OUVERTE inline

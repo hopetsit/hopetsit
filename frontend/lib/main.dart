@@ -21,9 +21,10 @@ import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/firebase_options.dart';
 import 'package:hopetsit/helper/dependency_injection.dart';
 import 'package:hopetsit/services/deep_link_service.dart';
+import 'package:hopetsit/dev/dev_remote607.dart';
 import 'package:hopetsit/services/live_tracking_bg.dart';
 import 'package:hopetsit/services/push_notification_service.dart'
-    show firebaseMessagingBackgroundHandler;
+    show firebaseMessagingBackgroundHandler, PushNotificationService;
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/routes/app_routes.dart';
 import 'package:hopetsit/routes/app_pages.dart';
@@ -131,6 +132,12 @@ void main() async {
 
   await GetStorage.init();
   bootMark('GetStorage.init');
+  // 607 (BOB) — DEBUG SEULEMENT : pilote de vérification interne (Mac verrouillé, aucun clic possible
+  // dans le simulateur). Actif seulement si la clé locale `hps_dev_remote` est posée ; jamais en release.
+  if (!kReleaseMode && GetStorage().read('hps_dev_remote') == true) {
+    PushNotificationService.skipInitForIntegrationTests = true;
+    MetaEventsService.skipTrackingPromptForTests = true;
+  }
   await dotenv.load(fileName: ".env");
   bootMark('dotenv');
 
@@ -225,6 +232,7 @@ void main() async {
   // « Ouvrir dans HoPetSit ? » sur le simulateur. Jamais actif en release (kReleaseMode).
   if (!kReleaseMode) {
     final box = GetStorage();
+    if (box.read('hps_dev_remote') == true) startDevRemote607();
     final shotRoute = (box.read('hps_shot_route') ?? '').toString();
     if (shotRoute.startsWith('/')) {
       box.remove('hps_shot_route');

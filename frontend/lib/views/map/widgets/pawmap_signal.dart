@@ -16,7 +16,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
 /// État annoncé par la pastille (fixe la couleur du disque et l'icône).
-enum PawSignalKind { live, liveOff, friends, all, hidden, noGps, error }
+enum PawSignalKind { live, liveOff, friends, all, hidden, noGps, error, plush }
 
 class PawSignalStyle {
   PawSignalStyle._();
@@ -27,6 +27,7 @@ class PawSignalStyle {
   static const Color ink = Color(0xFF17141F); // encre « masqué »
   static const Color warn = Color(0xFFC2410C); // orange « pas de GPS »
   static const Color error = Color(0xFFC92A12);
+  static const Color plush = Color(0xFFDB2777); // 607 — framboise des peluches
   static const Color textInk = Color(0xFF3B2A26); // encre chaude
   static const Color textInkDark = Color(0xFFFBEFE6);
 
@@ -38,6 +39,7 @@ class PawSignalStyle {
         PawSignalKind.hidden => ink,
         PawSignalKind.noGps => warn,
         PawSignalKind.error => error,
+        PawSignalKind.plush => plush,
       };
 
   /// Petit glyphe posé sur la maison (l'état se lit même sans couleur).
@@ -49,6 +51,7 @@ class PawSignalStyle {
         PawSignalKind.hidden => Icons.visibility_off_rounded,
         PawSignalKind.noGps => Icons.gps_off_rounded,
         PawSignalKind.error => Icons.priority_high_rounded,
+        PawSignalKind.plush => Icons.toys_rounded,
       };
 
   /// Verre blanc chaud (clair) / verre brun chaud (sombre).
@@ -253,11 +256,37 @@ class PawSignal {
 
   static OverlayEntry? _entry;
 
-  static void show(BuildContext context, PawSignalKind kind, String text, {VoidCallback? onTap}) {
+  /// 607 (BOB : « aucune bannière +20 vue ») — une capture de peluche reste
+  /// affichée 5 s et n'est jamais remplacée par une autre pastille pendant
+  /// ce temps (l'autre attend son tour).
+  static DateTime? _lockUntil;
+  static const Duration plushVisibleFor = Duration(seconds: 5);
+
+  static void show(BuildContext context, PawSignalKind kind, String text,
+      {VoidCallback? onTap, Duration? visibleFor, bool afterLock = false}) {
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) return;
+    final now = DateTime.now();
+    final lock = _lockUntil;
+    if (!afterLock && kind != PawSignalKind.plush && lock != null && now.isBefore(lock)) {
+      Timer(lock.difference(now) + const Duration(milliseconds: 250), () {
+        if (context.mounted) {
+          show(context, kind, text, onTap: onTap, visibleFor: visibleFor, afterLock: true);
+        }
+      });
+      return;
+    }
+    if (afterLock) _lockUntil = null;
     hide();
-    HapticFeedback.selectionClick();
+    final Duration shownFor =
+        visibleFor ?? (kind == PawSignalKind.plush ? plushVisibleFor : const Duration(seconds: 2));
+    if (kind == PawSignalKind.plush) {
+      _lockUntil = now.add(shownFor);
+      HapticFeedback.heavyImpact();
+      Timer(const Duration(milliseconds: 180), HapticFeedback.mediumImpact);
+    } else {
+      HapticFeedback.selectionClick();
+    }
     late final OverlayEntry entry;
     entry = OverlayEntry(
       builder: (ctx) => Positioned(
@@ -274,6 +303,7 @@ class PawSignal {
                 kind: kind,
                 text: text,
                 onTap: onTap,
+                visibleFor: shownFor,
                 onDone: () {
                   if (_entry == entry) hide();
                 },

@@ -54,7 +54,9 @@ void main() {
       final d = kPawCapsuleDefaultOrder;
       expect(d.indexOf('feed') + 1, d.indexOf('balade'));
       // Ancien réglage de gauche avec « feed » : plus de bouton fantôme.
-      expect(normalizeRailOrder(['feed', 'chat', 'report']), ['chat', 'report']);
+      // 607 — + PawPoints affiché en tête pour un réglage d'avant le bouton.
+      expect(normalizeRailOrder(['feed', 'chat', 'report']), ['pawpoints', 'chat', 'report']);
+      expect(normalizeRailOrder(['feed', 'chat', 'report', 'no_pawpoints']), ['chat', 'report']);
     });
 
     test('jamais réglé → feed au-dessus de Balade', () {
@@ -509,6 +511,13 @@ void _exportBadgeProofs() {
         ),
       ));
       await tester.pump(const Duration(milliseconds: 900));
+      // 607 (ZOE) — l'image de la patte-pin se décode en temps RÉEL : sans
+      // cette attente, elle n'était prête que si un test précédent l'avait
+      // déjà mise en cache (ordre aléatoire → golden à 1,1 % d'écart).
+      for (var i = 0; i < 5; i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 60)));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
       final name = 'pastilles_${dark ? 'nuit' : 'clair'}';
       if (!dark) {
         await expectLater(find.byKey(key), matchesGoldenFile('goldens/pawmap602/$name.png'));

@@ -153,7 +153,12 @@ class MetaEventsService {
   /// si elle est posée, et avant tout suivi publicitaire ([_applyTracking]).
   /// À appeler au démarrage ET à l'arrivée sur l'accueil (connexion,
   /// inscription) : les appels concurrents partagent la même attente.
+  /// 607 — pilote de vérification interne (debug seulement, voir lib/dev/dev_remote607.dart) :
+  /// jamais vrai dans une app de store.
+  static bool skipTrackingPromptForTests = false;
+
   Future<void> requestTrackingAfterEntry() {
+    if (skipTrackingPromptForTests) return Future<void>.value();
     if (!Platform.isIOS || _answered) return Future<void>.value();
     return _pending ??= _requestWhenReady().whenComplete(() => _pending = null);
   }

@@ -152,24 +152,7 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
           ? '€'
           : (m['currency'] ?? '€').toString();
 
-  /// Plus petit tarif renseigné (> 0), pour « À partir de X € ».
-  static num? _priceOf(Map<String, dynamic> m) {
-    final candidates = <num?>[];
-    final sp = m['servicePricing'];
-    if (sp is Map) {
-      for (final v in sp.values) {
-        if (v is Map) candidates.add(_num(v['basePrice']));
-      }
-    }
-    candidates
-      ..add(_num(m['hourlyRate']))
-      ..add(_num(m['dailyRate']))
-      ..add(_num(m['rate']));
-    final valid = candidates.whereType<num>().where((p) => p > 0).toList();
-    if (valid.isEmpty) return null;
-    valid.sort();
-    return valid.first;
-  }
+  // v607 — « Dès X » : voir `guestFromPriceText` (bas du fichier).
 
   /// Services activés avec tarif (clé, prix) pour la fiche profil.
   static List<MapEntry<String, num>> _servicesOf(Map<String, dynamic> m) {
@@ -591,7 +574,9 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
     final verified = _isVerified(m);
     final bio = _bioOf(m);
     final services = _servicesOf(m);
-    final price = _priceOf(m);
+    // v607 (décision 4.3, cas GIRMA) — « Dès 100 €/sem » quand seul un tarif
+    // semaine / mois existe (toujours AVEC son unité).
+    final String priceText = guestFromPriceText(m);
     final currency = _currencyOf(m);
     final roleColor = AppColors.accentOn(
         context, isWalker ? _walkerGreen : _sitterBlue);
@@ -748,11 +733,9 @@ class _GuestDiscoveryScreenState extends State<GuestDiscoveryScreen> {
                     ),
                     SizedBox(width: 12.w),
                   ],
-                  if (price != null)
+                  if (priceText.isNotEmpty)
                     InterText(
-                      text: 'guest_from_price'.trParams({
-                        'price': '${price.toStringAsFixed(0)} $currency'
-                      }),
+                      text: 'guest_from_price'.trParams({'price': priceText}),
                       fontSize: 12.5.sp,
                       fontWeight: FontWeight.w800,
                       color: brand,
@@ -1006,4 +989,36 @@ class _GuestGridSkeletonState extends State<_GuestGridSkeleton>
       ),
     );
   }
+}
+
+/// v607 (décision 4.3 de Daniel, cas GIRMA) — prix affiché après « Dès » sur
+/// les cartes de l'écran invité. Le plus petit tarif heure / jour / balade
+/// (inchangé) ; à défaut, pour un GARDIEN, le tarif à la SEMAINE puis au MOIS
+/// avec son unité (« 100 €/sem », « 350 €/mois ») — jamais présenté comme un
+/// prix à l'heure ou au jour. Même règle que le serveur (`rolePriceAlt605`).
+/// '' = aucun tarif.
+String guestFromPriceText(Map<String, dynamic> m) {
+  num? n(dynamic v) => v is num ? v : num.tryParse('${v ?? ''}');
+  final cur = (m['currency'] ?? 'EUR').toString() == 'EUR'
+      ? '€'
+      : (m['currency'] ?? '€').toString();
+  final candidates = <num?>[];
+  final sp = m['servicePricing'];
+  if (sp is Map) {
+    for (final v in sp.values) {
+      if (v is Map) candidates.add(n(v['basePrice']));
+    }
+  }
+  candidates
+    ..add(n(m['hourlyRate']))
+    ..add(n(m['dailyRate']))
+    ..add(n(m['rate']));
+  final valid = candidates.whereType<num>().where((p) => p > 0).toList()..sort();
+  if (valid.isNotEmpty) return '${valid.first.toStringAsFixed(0)} $cur';
+  if (m['_role'] == 'walker') return '';
+  final week = n(m['weeklyRate']) ?? 0;
+  if (week > 0) return '${week.toStringAsFixed(0)} $cur${'pm605_per_week'.tr}';
+  final month = n(m['monthlyRate']) ?? 0;
+  if (month > 0) return '${month.toStringAsFixed(0)} $cur${'pm605_per_month'.tr}';
+  return '';
 }

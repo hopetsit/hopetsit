@@ -293,6 +293,9 @@ void main() {
       await tester.pump();
       await tester.tap(find.byKey(const ValueKey<String>('cible')));
       expect(taps, 1);
+      // 607 (ZOE) — laisser expirer les minuteries du geste / des animations
+      // (« A Timer is still pending » quand ce test tournait en premier).
+      await tester.pump(const Duration(seconds: 1));
     });
 
     test('shouldRepaint : seulement sur changement de couleur / opacité', () {

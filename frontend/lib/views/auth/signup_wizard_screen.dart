@@ -17,6 +17,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/ios_store_rules606.dart';
 
 /// v409 refonte — inscription en wizard 5 étapes (maquette « S'INSCRIRE COMME …
 /// »). Réutilise SignUpController (tag: userType) → l'auth/OTP existante n'est
@@ -959,7 +960,9 @@ class SignupWizardScreen extends StatelessWidget {
         // avec mon code … » (my_referrals_screen), mais l'assistant n'avait
         // aucun champ pour le saisir → 0 parrain sur 85 comptes (23/09).
         // Facultatif ; déjà envoyé au serveur par _buildUserPayload.
-        _field(c.referralCodeController, 'signup_referral_code_label'.tr),
+        // 607 — masqué sur iOS (codes de parrainage, même règle que les promos).
+        if (referralCodesAllowed())
+          _field(c.referralCodeController, 'signup_referral_code_label'.tr),
         Obx(() => Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

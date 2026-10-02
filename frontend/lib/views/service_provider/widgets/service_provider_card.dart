@@ -12,6 +12,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/pet_owner/booking-application/owner_booking_detail_screen.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 
 enum ServiceProviderCardType { home, application, booking }
 
@@ -610,7 +611,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
             _compactRow(
               Icons.access_time,
               'sitter_bookings_time_label'.tr,
-              booking.timeSlot,
+              BookingDateFormat.localizedTime(booking.timeSlot),
             ),
             if (duration != null && duration > 0) ...[
               SizedBox(height: 12.h),

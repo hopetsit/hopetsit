@@ -24,6 +24,11 @@ String pawWalkBadgeMinutes(DateTime? startedAt, DateTime now) {
   return 'pawmap601_walk_min'.tr.replaceAll('{n}', '$min');
 }
 
+/// 607 (PAM, vu au simulateur : « 1 te suivent ») — accord au singulier.
+String pawFollowersLabel(int n) => n == 1
+    ? 'pawmap607_followers_one'.tr
+    : 'pawmap590_followers'.tr.replaceAll('{n}', '$n');
+
 /// Phrase complète (lecteur d'écran, appui long) :
 /// « En balade · 12 min · 2 te suivent ».
 String pawWalkBadgeSentence(DateTime? startedAt, DateTime now, int followers,
@@ -33,7 +38,7 @@ String pawWalkBadgeSentence(DateTime? startedAt, DateTime now, int followers,
     'pawmap590_on_walk'.tr,
     pawWalkBadgeMinutes(startedAt, now),
     if (followers > 0)
-      'pawmap590_followers'.tr.replaceAll('{n}', '$followers'),
+      pawFollowersLabel(followers),
   ];
   return parts.join(' · ');
 }

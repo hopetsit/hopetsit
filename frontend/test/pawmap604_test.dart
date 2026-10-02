@@ -7,6 +7,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -19,7 +20,18 @@ import 'package:hopetsit/widgets/paw_tab_bar.dart';
 import 'package:hopetsit/widgets/stacked_navigation_wrapper.dart';
 
 void main() {
-  setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
+  setUpAll(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+    // 607 (ZOE) — `stopBroadcasting()` écrit dans GetStorage, qui a besoin
+    // d'un dossier (path_provider). Sans ce faux dossier, l'écriture échouait
+    // APRÈS la fin du test quand il tournait avant un test qui le fournit
+    // (ordre aléatoire) : échec « failed after it had already completed ».
+    final dir = Directory.systemTemp.createTempSync('pawmap604');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (_) async => dir.path);
+  });
 
   // ── 2. Le menu ne disparaît jamais ─────────────────────────────────────
   group('PawMap jamais poussée hors du menu', () {
