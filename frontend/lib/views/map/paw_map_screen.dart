@@ -439,6 +439,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   bool get _friendsOnly => _visibility != 'all';
   /// v584 — idée 4 : filtre « Disponible aujourd'hui ».
   final RxBool _availableTodayOnly = false.obs;
+  /// 609 — filtre « Vérifiés seulement » (identité vérifiée).
+  final RxBool _verifiedOnly = false.obs;
   // v591 — Daniel : « le pop-up Filtres actifs, qu'il disparaisse ». Visible
   // 5 s à l'ouverture et après chaque changement de filtre, puis replié en
   // pastille sur le bouton Réglages (« Tout afficher » reste dans le panneau).
@@ -449,7 +451,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       _memberRoles.length < 3 ||
       !_showFriends.value ||
       !_showProviders.value ||
-      _availableTodayOnly.value;
+      _availableTodayOnly.value ||
+      _verifiedOnly.value;
   // v591 — rayon de chargement des PawSpots = zone visible (≈ 40 000 km / 2^zoom
   // de large → on prend les ¾ comme rayon), borné 25-300 km.
   double get _spotRadiusM =>
@@ -774,7 +777,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       if (mounted) _filtersBannerShown.value = false;
     });
     _filtersBannerWorker = everAll(
-      [_availableTodayOnly, _showFriends, _showProviders, _memberRoles],
+      [_availableTodayOnly, _verifiedOnly, _showFriends, _showProviders, _memberRoles],
       (_) => _flashFiltersBanner(),
     );
     // v465 — on entre toujours en mode NORMAL (jamais bloqué en agrandi).
@@ -1392,7 +1395,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               priceFrom: (p['priceFrom'] as num?)?.toDouble() ?? 0,
               priceAlt: p['priceAlt'] is Map ? p['priceAlt'] as Map : null,
               currency: (p['currency'] ?? 'EUR').toString(),
-              verified: p['kycVerified'] == true,
+              verified: pawIdentityVerified(p),
               boosted: p['isBoosted'] == true,
               availableToday: p['availableToday'] == true,
               isFriend: friend,
@@ -1535,6 +1538,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           live: walking,
           friend: isFriend,
           roles: personRoleList,
+          verified: verified,
           onOpen: () => _onNearbyTap(
             id: id,
             role: role,
@@ -2073,6 +2077,13 @@ class _PawMapScreenState extends State<PawMapScreen>
         .map((p) => (p: p, d: _distanceKm(ref, posOf(p)!)))
         .toList()
       ..sort((a, b) => a.d.compareTo(b.d));
+    // 609 (Daniel) — à prix égal, un membre à l'identité vérifiée passe avant.
+    pawVerifiedFirstAtSamePrice(
+      items,
+      price: (it) => (it.p['priceFrom'] as num?)?.toDouble() ?? 0,
+      km: (it) => it.d,
+      verified: (it) => pawIdentityVerified(it.p),
+    );
     showPawMapSheet<void>(
       context,
       PawMapAroundList(
@@ -2092,7 +2103,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   ? _priceLabelFor(it.p)
                   : '',
               premium: it.p['isPremium'] == true,
-              verified: it.p['kycVerified'] == true,
+              verified: pawIdentityVerified(it.p),
               availableToday: it.p['availableToday'] == true,
             ),
         ],
@@ -4037,6 +4048,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _worldMembers.length,
       _memberRoles.join(','),
       _availableTodayOnly.value ? 1 : 0,
+      _verifiedOnly.value ? 1 : 0, // 609
       _pinZoom.round(),
       _pinZoom >= _priceZoom ? 1 : 0,
       '${_currentCenter.latitude.toStringAsFixed(1)},'
@@ -4242,6 +4254,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     String priceRole = 'sitter',
     // v598 — étiquette au-dessus du rond (ami collé à « Moi »).
     bool labelAbove = false,
+    // 609 — coche « identité vérifiée » en bas à droite.
+    bool verified = false,
   }) {
     final avatar = _pins.avatarFor(avatarUrl);
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
@@ -4251,7 +4265,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
     final withLabel = label != null && label.isNotEmpty;
     final key =
-        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey:${withBubble ? '$priceBubble/$priceRole' : ''}:${labelAbove && withLabel ? 'up' : ''}';
+        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey:${withBubble ? '$priceBubble/$priceRole' : ''}:${labelAbove && withLabel ? 'up' : ''}:${verified ? 'v' : ''}';
     // v594 — la bulle duo gardien/promeneur est plus large que le rond : le
     // bitmap s'élargit des deux côtés (le rond reste centré, ancre x = 0,5).
     // v594 — grande marge seulement pour les ronds à halo (voir photoMarginGlow).
@@ -4294,6 +4308,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             online: online,
             dashedRing: dashedRing,
             eyeOff: eyeOff,
+            verified: verified,
             boostPhase: boosted ? phase / kBoostPhases : null,
             followPhase: followPhase >= 0 ? followPhase / kBoostPhases : null,
             dimmed: dimmed,
@@ -4492,7 +4507,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       priceFrom: (e['priceFrom'] as num?)?.toDouble() ?? 0,
       priceAlt: e['priceAlt'] is Map ? e['priceAlt'] as Map : null,
       currency: (e['currency'] ?? 'EUR').toString(),
-      verified: e['kycVerified'] == true,
+      verified: pawIdentityVerified(e),
       boosted: e['isBoosted'] == true,
       availableToday: e['availableToday'] == true,
       isFriend: isFriend,
@@ -4907,8 +4922,18 @@ class _PawMapScreenState extends State<PawMapScreen>
         return r != 'sitter' && r != 'walker';
       }
 
+      // 609 — « Vérifiés seulement » : même portée que « Disponible
+      // aujourd'hui » (gardiens et promeneurs non amis ; amis et
+      // propriétaires restent visibles).
+      bool verifiedOk(Map<String, dynamic> p) => pawVerifiedFilterKeeps(
+            p,
+            on: _verifiedOnly.value,
+            friend: isFriendMember(p),
+          );
+
       final placeable = combined
-          .where((p) => posOfMember(p) != null && familyOk(p) && availableOk(p))
+          .where((p) =>
+              posOfMember(p) != null && familyOk(p) && availableOk(p) && verifiedOk(p))
           .toList();
       // Compteur « N membres autour de toi » (< 50 km de l'utilisateur).
       const double aroundKm = 50.0;
@@ -5171,7 +5196,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         final bool selected = _selectedNearbyId == id;
         final bool approx = p['approx'] == true;
         final double approxKm = (p['approxKm'] as num?)?.toDouble() ?? 1.0;
-        final bool verified = p['kycVerified'] == true;
+        final bool verified = pawIdentityVerified(p);
         final avatar = (p['avatar'] ?? '').toString();
         // Un AMI (liste d'amis) : sa photo + anneau rose, à tous les zooms.
         // v584 (25/09) — le serveur le dit (`isFriend`, tous rôles d'une même
@@ -5279,6 +5304,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             labelColor: PawMapLegend.darken(PawMapLegend.friend, 0.25),
             crown: premium && _showPremiumLayer.value,
             online: online && !approx,
+            verified: verified, // 609
             boosted: boosted,
             fallbackIcon: PawMapLegend.roleIcon(role),
             fallbackTint: PawMapLegend.roleColor(role),
@@ -5304,6 +5330,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             crown: premium && _showPremiumLayer.value,
             crownSize: PawMapLegend.crownMember,
             online: online && !approx,
+            verified: verified, // 609
             boosted: boosted,
             fallbackIcon: PawMapLegend.roleIcon(role),
             fallbackTint: roleRings.isNotEmpty ? roleRings.first : PawMapLegend.roleColor(role),
@@ -5325,6 +5352,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             crown: premium && _showPremiumLayer.value,
             crownSize: PawMapLegend.crownMember,
             online: online && !approx,
+            verified: verified, // 609
             boosted: boosted,
             fallbackIcon: PawMapLegend.roleIcon(role),
             fallbackTint: PawMapLegend.roleColor(role),
@@ -6433,6 +6461,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                                   label: 'pawmap590_filters_active'.tr,
                                   onTap: () {
                                     _availableTodayOnly.value = false;
+                                    _verifiedOnly.value = false; // 609
                                     _setAllSee(true);
                                   },
                                   child: Container(
@@ -6814,6 +6843,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _pins.rev.value;
       _myRequests.length;
       _availableTodayOnly.value;
+      _verifiedOnly.value; // 609
       // v590 — tracé de balade animé (focus + ma balade).
       _walkPhase.value;
       _focusCard.value;
@@ -9618,6 +9648,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _showReports.value;
       _showRequests.value;
       final avail = _availableTodayOnly.value;
+      final verOnly = _verifiedOnly.value; // 609
       final catsOpen = _showCatFilter.value;
       Widget miniChip(String key, String label, IconData icon, bool active,
               Color tone, VoidCallback onTap) =>
@@ -9681,6 +9712,15 @@ class _PawMapScreenState extends State<PawMapScreen>
                   avail,
                   PawMapTheme.walker,
                   () => _availableTodayOnly.value = !avail,
+                ),
+                // 609 — « Vérifiés seulement » (identité vérifiée).
+                miniChip(
+                  'see_verified_only',
+                  'v609_filter_verified'.tr,
+                  Icons.verified_rounded,
+                  verOnly,
+                  const Color(0xFF2F6FE0),
+                  () => _verifiedOnly.value = !verOnly,
                 ),
                 // Types de lieux (vétos, parcs…) : le réglage fin d'avant.
                 miniChip(
@@ -9806,6 +9846,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       ever<bool>(_nightMode, (v) => _prefs.update({'nightMode': v})),
       ever<bool>(_availableTodayOnly,
           (v) => _prefs.update({'availableTodayOnly': v})),
+      ever<bool>(_verifiedOnly, (v) => _prefs.update({'verifiedOnly': v})), // 609
       // v586 — l'état de visibilité peut changer ailleurs (Préférences,
       // autre appareil relu) : la carte (rond « Moi », œil) suit.
       ever<String>(_prefs.mapVisibility, (_) {
@@ -12329,4 +12370,47 @@ Offset pawPlushOffsetFromMe(Offset rel, {double minPx = 50}) {
   final double side = rel.dx < 0 ? -1 : 1;
   final target = Offset(side * (minPx + 4), rel.dy.clamp(-18.0, 18.0));
   return target - rel;
+}
+
+/// 609 — « identité vérifiée » d'un membre de la carte : `identityVerified`
+/// (serveur ≥ 609) ou l'ancien `kycVerified` (même règle KYC). Jamais un
+/// simple e-mail vérifié.
+bool pawIdentityVerified(Map p) =>
+    p['identityVerified'] == true || p['kycVerified'] == true;
+
+/// 609 — dans une liste DÉJÀ triée par distance : quand deux voisins ont le
+/// MÊME prix (> 0) et sont à moins de [nearKm] l'un de l'autre, le membre
+/// vérifié passe devant. Déterministe (passes d'échanges voisins), ne
+/// bouleverse jamais l'ordre par distance au-delà de [nearKm].
+void pawVerifiedFirstAtSamePrice<T>(
+  List<T> items, {
+  required double Function(T) price,
+  required double Function(T) km,
+  required bool Function(T) verified,
+  double nearKm = 0.5,
+}) {
+  var swapped = true;
+  var guard = 0;
+  while (swapped && guard++ < items.length) {
+    swapped = false;
+    for (var i = 0; i + 1 < items.length; i++) {
+      final a = items[i], b = items[i + 1];
+      final pa = price(a), pb = price(b);
+      if (pa > 0 && pa == pb && !verified(a) && verified(b) &&
+          (km(b) - km(a)).abs() < nearKm) {
+        items[i] = b;
+        items[i + 1] = a;
+        swapped = true;
+      }
+    }
+  }
+}
+
+/// 609 — le filtre « Vérifiés seulement » garde-t-il ce membre ? Il ne
+/// retire que les gardiens et promeneurs NON vérifiés qui ne sont pas des
+/// amis (amis et propriétaires restent : jamais une carte vide sans raison).
+bool pawVerifiedFilterKeeps(Map p, {required bool on, required bool friend}) {
+  if (!on || pawIdentityVerified(p) || friend) return true;
+  final r = (p['_role'] ?? p['role'] ?? '').toString().toLowerCase();
+  return r != 'sitter' && r != 'walker';
 }

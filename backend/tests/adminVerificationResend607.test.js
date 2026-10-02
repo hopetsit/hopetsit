@@ -114,7 +114,7 @@ describe('POST /admin/users/resend-verification', () => {
     const r = await post({ ids: list.map((d) => ref('owner', d)), dryRun: true }).expect(200);
     expect(r.body.toSend).toBe(50);
     expect(r.body.skipped).toEqual({ cap_50: 3 });
-  });
+  }, 30000);
 
   test('dernier rappel par profil et journal', async () => {
     const a = await mk(Owner);

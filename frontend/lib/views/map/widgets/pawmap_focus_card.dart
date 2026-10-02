@@ -26,7 +26,11 @@ class PawFocusInfo {
     this.friend = false,
     this.icon,
     this.roles = const <String>[],
+    this.verified = false,
   });
+
+  /// 609 — identité vérifiée (KYC) : pastille « ✓ Vérifié » à côté du nom.
+  final bool verified;
 
   /// v594 — tous les rôles de la personne (bouton « Profil » multicolore).
   final List<String> roles;
@@ -129,6 +133,10 @@ class PawFocusCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (info.verified) ...[
+                            const SizedBox(width: 6),
+                            const PawVerifiedPill(key: ValueKey<String>('pawmap_focus_verified')),
+                          ],
                           if (info.live) ...[
                             const SizedBox(width: 6),
                             Container(
@@ -266,6 +274,41 @@ class PawFocusCard extends StatelessWidget {
         decoration: BoxDecoration(gradient: pal.gradient),
         child: Center(
           child: PawSymbol(info.icon ?? Icons.pets_rounded, size: 18),
+        ),
+      );
+}
+
+/// 609 — pastille « ✓ Vérifié » (identité vérifiée), même bleu que la coche
+/// de l'épingle et de l'avatar de la fiche publique.
+class PawVerifiedPill extends StatelessWidget {
+  const PawVerifiedPill({super.key});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: 'pawmap_member_verified'.tr,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(4, 2, 7, 2),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE8F0FD),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF2F6FE0).withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.verified_rounded, size: 13, color: Color(0xFF2F6FE0)),
+              const SizedBox(width: 3),
+              Text(
+                'v609_verified_short'.tr,
+                style: GoogleFonts.poppins(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1E4FB0),
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
         ),
       );
 }

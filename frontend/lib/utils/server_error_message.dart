@@ -17,6 +17,8 @@ import 'package:hopetsit/data/network/api_exception.dart';
 /// Codes serveur connus → clé i18n.
 const Map<String, String> _kByCode = <String, String>{
   'CITY_REQUIRED': 'fixes576_err_city_required',
+  // 607 (NEO) — ville = e-mail, lien ou numéro refusée par le serveur.
+  'CITY_INVALID': 'neo607_err_city_invalid',
   'EMAIL_REQUIRED': 'fixes576_err_email_required',
   'EMAIL_TAKEN': 'fixes576_err_email_taken',
   'EMAIL_ALREADY_USED': 'fixes576_err_email_taken',

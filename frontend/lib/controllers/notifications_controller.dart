@@ -78,9 +78,14 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
     // que le onInit re-tourne avec un socket déjà connecté par ailleurs.
     try {
       final svc = Get.find<SocketService>();
-      svc.addOnConnectedHook(_attachSocketListener);
+      svc.addOnConnectedHook(_onSocketConnected);
     } catch (_) { /* SocketService pas encore enregistré */ }
     refreshUnreadCount();
+    // 609 (ZOE) — mesuré sur simulateur : app tuée, 1 message reçu, relance →
+    // pastille Chat à 0 pendant 30 s et plus (aucun recalage au démarrage, seulement
+    // au retour au premier plan ou à l'ouverture de l'onglet). Recalage tout de
+    // suite, puis à la connexion de la prise (_onSocketConnected).
+    unawaited(syncChatBadgeFromServer());
     // v566 — badge chiffré de l'icône iOS = compteur de la cloche, à chaque changement
     // (nouvelle notification, lecture ici ou sur un autre appareil, « tout lire » = 0).
     _badgeWorker = ever<int>(unreadCount, (n) => AppBadgeService.set(n));
@@ -250,6 +255,17 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
     _storage.write(_kUnreadChat, unreadChat.value);
     // Réconcilie sur la vérité serveur peu après (corrige tout écart).
     scheduleChatBadgeResync();
+  }
+
+  /// 609 (ZOE, 02/10) — à CHAQUE (re)connexion de la prise : listeners
+  /// rattachés ET pastilles recalées sur le serveur. Avant, la reconnexion
+  /// rattachait seulement les listeners : un message reçu pendant la coupure
+  /// (réseau, changement de rôle, redémarrage du serveur) n'apparaissait
+  /// qu'au retour au premier plan ou à l'ouverture de l'onglet Chat.
+  void _onSocketConnected() {
+    _attachSocketListener();
+    unawaited(syncChatBadgeFromServer());
+    unawaited(refreshUnreadCount());
   }
 
   void _attachSocketListener() {

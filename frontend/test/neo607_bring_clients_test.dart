@@ -11,6 +11,7 @@ import 'package:http/testing.dart';
 
 import 'package:hopetsit/localization/v565/pioneer607_i18n.dart';
 import 'package:hopetsit/services/my_link607.dart';
+import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/bring_clients607.dart';
 
 import 'lotd_harness.dart';
@@ -168,6 +169,15 @@ void main() {
       expect(seen.single.url.path, '/api/v1/public/providers/nora-t-zone-test/poster.pdf');
       expect(seen.single.url.queryParameters['lang'], isNotEmpty);
       expect(seen.single.headers['Authorization'], 'Bearer test-token-lotd');
+    });
+  });
+
+  group('ville refusée par le serveur (CITY_INVALID, 02/10)', () {
+    test('le code serveur donne le message traduit, présent dans les 9 langues', () {
+      expect(serverErrorKey(code: 'CITY_INVALID', statusCode: 400, rawMessage: 'x'), 'neo607_err_city_invalid');
+      for (final l in pioneer607I18n.keys) {
+        expect(pioneer607I18n[l]!['neo607_err_city_invalid'], isNotEmpty, reason: l);
+      }
     });
   });
 

@@ -494,6 +494,16 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                     title: 'help607_pioneer_badge'.tr,
                     help: 'help607_pioneer_body'.tr,
                   ),
+                  // 609 — badge « Identité vérifiée » sur la carte (PAM), textes de verified609_i18n.
+                  _ButtonRow(
+                    key: const ValueKey<String>('help609_verified'),
+                    icon: const _RoundIcon(
+                        icon: Icons.verified_rounded,
+                        color: Color(0xFF2563EB),
+                        filled: true),
+                    title: 'help609_verified_title'.tr,
+                    help: 'help609_verified_body'.tr,
+                  ),
                 ],
               ),
 

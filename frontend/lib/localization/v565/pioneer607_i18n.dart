@@ -6,6 +6,7 @@
 const Map<String, Map<String, String>> pioneer607I18n =
     <String, Map<String, String>>{
   'fr': <String, String>{
+    'neo607_err_city_invalid': "Cette ville n'est pas valide : indique le nom de ta ville (pas d'adresse e-mail, de lien ni de numéro).",
     'neo607_home_more_btn': "Affiche QR",
     'neo607_card_title': "Ramène tes clients",
     'neo607_card_body': "Voisins, amis, anciens clients : envoie-leur ton lien. Ils te réservent et paient en sécurité dans HoPetSit.",
@@ -31,6 +32,7 @@ const Map<String, Map<String, String>> pioneer607I18n =
     'help607_pioneer_body': 'Gardien ou promeneur, tu as ta propre page : hopetsit.com/s/ton-prénom. Envoie-la à tes voisins et à tes clients (WhatsApp, SMS, e-mail) ou imprime ton affiche avec son QR code : ils voient tes tarifs, tes avis et te réservent sur HoPetSit.\nSi tu es le seul à proposer tes services à moins de 25 km, tu as le badge « Pionnier » : tu es le premier dans ton coin. Le badge ne garantit pas de réservations, il montre que tu es là le premier.',
   },
   'en': <String, String>{
+    'neo607_err_city_invalid': "This city isn't valid: enter the name of your city (no email address, link or phone number).",
     'neo607_home_more_btn': "QR poster",
     'neo607_card_title': "Bring your own clients",
     'neo607_card_body': "Neighbours, friends, past clients: send them your link. They book you and pay securely on HoPetSit.",
@@ -56,6 +58,7 @@ const Map<String, Map<String, String>> pioneer607I18n =
     'help607_pioneer_body': 'Sitter or walker, you have your own page: hopetsit.com/s/your-name. Send it to your neighbours and clients (WhatsApp, text, email) or print your poster with its QR code: they see your rates and reviews and book you on HoPetSit.\nIf nobody else offers your services within 25 km, you get the “Pioneer” badge: you are the first in your area. The badge does not guarantee bookings; it shows you were there first.',
   },
   'es': <String, String>{
+    'neo607_err_city_invalid': "Esta ciudad no es válida: escribe el nombre de tu ciudad (sin correo electrónico, enlace ni número).",
     'neo607_home_more_btn': "Cartel QR",
     'neo607_card_title': "Trae a tus propios clientes",
     'neo607_card_body': "Vecinos, amigos, antiguos clientes: envíales tu enlace. Te reservan y pagan de forma segura en HoPetSit.",
@@ -81,6 +84,7 @@ const Map<String, Map<String, String>> pioneer607I18n =
     'help607_pioneer_body': 'Cuidador o paseador, tienes tu propia página: hopetsit.com/s/tu-nombre. Envíasela a tus vecinos y clientes (WhatsApp, SMS, e-mail) o imprime tu cartel con su código QR: ven tus tarifas y tus opiniones y te reservan en HoPetSit.\nSi nadie más ofrece tus servicios a menos de 25 km, tienes la insignia «Pionero»: eres el primero en tu zona. La insignia no garantiza reservas; muestra que llegaste el primero.',
   },
   'de': <String, String>{
+    'neo607_err_city_invalid': "Diese Stadt ist ungültig: Gib den Namen deiner Stadt ein (keine E-Mail-Adresse, kein Link, keine Nummer).",
     'neo607_home_more_btn': "QR-Plakat",
     'neo607_card_title': "Bring deine eigenen Kunden mit",
     'neo607_card_body': "Nachbarn, Freunde, frühere Kunden: Schick ihnen deinen Link. Sie buchen dich und zahlen sicher über HoPetSit.",
@@ -106,6 +110,7 @@ const Map<String, Map<String, String>> pioneer607I18n =
     'help607_pioneer_body': 'Als Tiersitter oder Gassigeher hast du deine eigene Seite: hopetsit.com/s/dein-name. Schick sie deinen Nachbarn und Kunden (WhatsApp, SMS, E-Mail) oder druck dein Plakat mit QR-Code aus: Sie sehen deine Preise und Bewertungen und buchen dich auf HoPetSit.\nWenn sonst niemand im Umkreis von 25 km deine Dienste anbietet, bekommst du das Abzeichen „Pionier“: Du bist der Erste in deiner Gegend. Das Abzeichen garantiert keine Buchungen; es zeigt, dass du zuerst da warst.',
   },
   'it': <String, String>{
+    'neo607_err_city_invalid': "Questa città non è valida: inserisci il nome della tua città (niente e-mail, link o numeri).",
     'neo607_home_more_btn': "Volantino QR",
     'neo607_card_title': "Porta i tuoi clienti",
     'neo607_card_body': "Vicini, amici, ex clienti: invia loro il tuo link. Ti prenotano e pagano in sicurezza su HoPetSit.",
@@ -131,6 +136,7 @@ const Map<String, Map<String, String>> pioneer607I18n =
     'help607_pioneer_body': 'Pet sitter o dog walker, hai la tua pagina: hopetsit.com/s/il-tuo-nome. Inviala ai vicini e ai clienti (WhatsApp, SMS, e-mail) o stampa il tuo poster con il codice QR: vedono le tue tariffe e le recensioni e ti prenotano su HoPetSit.\nSe nessun altro offre i tuoi servizi entro 25 km, hai il badge «Pioniere»: sei il primo nella tua zona. Il badge non garantisce prenotazioni; mostra che sei arrivato per primo.',
   },
   'pt': <String, String>{
+    'neo607_err_city_invalid': "Esta cidade não é válida: indica o nome da tua cidade (sem e-mail, link nem número).",
     'neo607_home_more_btn': "Cartaz QR",
     'neo607_card_title': "Traz os teus próprios clientes",
     'neo607_card_body': "Vizinhos, amigos, antigos clientes: envia-lhes o teu link. Reservam-te e pagam em segurança na HoPetSit.",
@@ -156,6 +162,7 @@ const Map<String, Map<String, String>> pioneer607I18n =
     'help607_pioneer_body': 'Cuidador ou passeador, tens a tua própria página: hopetsit.com/s/o-teu-nome. Envia-a aos teus vizinhos e clientes (WhatsApp, SMS, e-mail) ou imprime o teu cartaz com o código QR: veem os teus preços e avaliações e reservam-te no HoPetSit.\nSe mais ninguém oferece os teus serviços num raio de 25 km, tens o selo «Pioneiro»: és o primeiro na tua zona. O selo não garante reservas; mostra que chegaste primeiro.',
   },
   'pl': <String, String>{
+    'neo607_err_city_invalid': "To miasto jest nieprawidłowe: wpisz nazwę swojego miasta (bez adresu e-mail, linku ani numeru).",
     'neo607_home_more_btn': "Plakat QR",
     'neo607_card_title': "Przyprowadź własnych klientów",
     'neo607_card_body': "Sąsiedzi, znajomi, dawni klienci: wyślij im swój link. Rezerwują i płacą bezpiecznie w HoPetSit.",
@@ -181,6 +188,7 @@ const Map<String, Map<String, String>> pioneer607I18n =
     'help607_pioneer_body': 'Jako opiekun lub wyprowadzacz masz własną stronę: hopetsit.com/s/twoje-imie. Wyślij ją sąsiadom i klientom (WhatsApp, SMS, e-mail) albo wydrukuj plakat z kodem QR: zobaczą twoje stawki i opinie i zarezerwują cię w HoPetSit.\nJeśli nikt inny nie oferuje twoich usług w promieniu 25 km, dostajesz odznakę „Pionier”: jesteś pierwszy w okolicy. Odznaka nie gwarantuje rezerwacji; pokazuje, że byłeś tu pierwszy.',
   },
   'ko': <String, String>{
+    'neo607_err_city_invalid': "올바른 도시가 아니에요. 도시 이름을 입력해 주세요 (이메일 주소, 링크, 전화번호 제외).",
     'neo607_home_more_btn': "QR 포스터",
     'neo607_card_title': "직접 고객을 데려오세요",
     'neo607_card_body': "이웃, 친구, 이전 고객에게 내 링크를 보내세요. HoPetSit에서 안전하게 예약하고 결제해요.",
@@ -206,6 +214,7 @@ const Map<String, Map<String, String>> pioneer607I18n =
     'help607_pioneer_body': '펫시터나 산책 도우미라면 나만의 페이지가 있어요: hopetsit.com/s/내-이름. 이웃과 고객에게 보내거나(WhatsApp, 문자, 이메일) QR 코드가 있는 포스터를 인쇄하세요. 내 요금과 후기를 보고 HoPetSit에서 바로 예약해요.\n반경 25km 안에 같은 서비스를 제공하는 사람이 없으면 ‘개척자’ 배지를 받아요. 우리 동네의 첫 번째라는 뜻이에요. 배지가 예약을 보장하지는 않아요. 내가 먼저 왔다는 표시예요.',
   },
   'ja': <String, String>{
+    'neo607_err_city_invalid': "この都市名は無効です。都市名を入力してください（メールアドレス、リンク、電話番号は不可）。",
     'neo607_home_more_btn': "QRポスター",
     'neo607_card_title': "自分のお客さんを連れてこよう",
     'neo607_card_body': "ご近所さん、友達、以前のお客さんにリンクを送りましょう。HoPetSitで安全に予約・支払いができます。",

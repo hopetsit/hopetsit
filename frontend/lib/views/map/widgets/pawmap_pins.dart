@@ -1035,14 +1035,19 @@ class PawMapPinPainter {
     // Glyphe : boîte = diamètre − 2 × (20 % + liseré), comme le site.
     final inset = (size * 0.2).roundToDouble() + 2.5;
     drawGlyph(canvas, PawGlyphs.role(role), rect.deflate(inset), Colors.white);
+    // 609 (Daniel : « que ça leur donne un plus ») — coche « identité
+    // vérifiée » EN BAS À DROITE (comme sur l'avatar de la fiche publique),
+    // jamais cachée par la fusée PawBoost (en bas à gauche) ni la couronne
+    // (en haut à droite). Le point « en ligne » passe alors en haut à gauche.
     if (online) {
       final s = (size * 12 / 46).roundToDouble();
-      drawOnlineDot(canvas, Offset(c.dx + r - s / 2, c.dy + r - s / 2), s);
+      drawOnlineDot(canvas, pawOnlineDotCenter(c, r, s, verified: verified), s);
     }
     if (boostPhase != null) {
       drawRocketBadge(canvas, Offset(c.dx - (r + 5 - 9), c.dy + r + 5 - 9), 18);
-    } else if (verified) {
-      drawVerifiedBadge(canvas, Offset(c.dx - (r + 2 - 7.5), c.dy + r + 1 - 7.5));
+    }
+    if (verified) {
+      drawVerifiedBadge(canvas, pawVerifiedBadgeCenter(c, r));
     }
     if (crown) {
       _crownAt(canvas, c, r, PawMapLegend.crownMember);
@@ -1505,7 +1510,7 @@ class PawMapPinPainter {
     // 5. Pastilles (positions du site, en px CSS).
     if (online || dimmed) {
       final s = (size * 13 / 50).roundToDouble();
-      drawOnlineDot(canvas, Offset(c.dx + r - s / 2, c.dy + r - s / 2), s,
+      drawOnlineDot(canvas, pawOnlineDotCenter(c, r, s, verified: verified), s,
           online: online && !dimmed);
     }
     if (boostPhase != null) {
@@ -1513,8 +1518,10 @@ class PawMapPinPainter {
       final b = (s * 0.25).roundToDouble(), l = (s * 0.3).roundToDouble();
       drawRocketBadge(
           canvas, Offset(c.dx - (r + l - s / 2), c.dy + r + b - s / 2), s);
-    } else if (verified) {
-      drawVerifiedBadge(canvas, Offset(c.dx - (r + 2 - 7.5), c.dy + r + 1 - 7.5));
+    }
+    // 609 — coche en bas à droite, jamais sous la fusée ni la couronne.
+    if (verified) {
+      drawVerifiedBadge(canvas, pawVerifiedBadgeCenter(c, r));
     }
     if (eyeOff) {
       drawEyeOffBadge(canvas, eyeOffBadgeCenter(c, r, online: online || dimmed), 20);
@@ -2220,3 +2227,15 @@ class PawMapPinCache extends GetxService {
     rev.value++;
   }
 }
+
+/// 609 — centre de la coche « identité vérifiée » : en bas à DROITE du rond
+/// (symétrique de la fusée PawBoost, en bas à gauche).
+Offset pawVerifiedBadgeCenter(Offset c, double r, [double size = 15]) =>
+    Offset(c.dx + (r + 2 - size / 2), c.dy + r + 1 - size / 2);
+
+/// 609 — point « en ligne » : en bas à droite, ou en HAUT À GAUCHE quand la
+/// coche « vérifiée » occupe le bas à droite (jamais l'un sur l'autre).
+Offset pawOnlineDotCenter(Offset c, double r, double s, {bool verified = false}) =>
+    verified
+        ? Offset(c.dx - r + s / 2, c.dy - r + s / 2)
+        : Offset(c.dx + r - s / 2, c.dy + r - s / 2);

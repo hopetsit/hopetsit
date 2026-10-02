@@ -1048,13 +1048,16 @@ class SignUpController extends GetxController {
       // v565 — ville obligatoire côté serveur (400 CITY_REQUIRED) : on
       // ramène à l'étape ville (owner = étape 3, prestataire = étape 2).
       final code = error.details is Map ? (error.details as Map)['code'] : null;
-      if (error.statusCode == 400 && code == 'CITY_REQUIRED') {
+      // 607 (NEO) — CITY_INVALID : ville = e-mail, lien ou numéro → même étape.
+      if (error.statusCode == 400 && (code == 'CITY_REQUIRED' || code == 'CITY_INVALID')) {
         currentStep.value = 1; // v583 — étape ville, pour les 3 rôles
         onStepEntered(currentStep.value);
         editingLocation.value = true;
         CustomSnackbar.showError(
           title: 'signup_failed_title'.tr,
-          message: 'signup_error_city_required'.tr,
+          message: code == 'CITY_INVALID'
+              ? 'neo607_err_city_invalid'.tr
+              : 'signup_error_city_required'.tr,
         );
         return;
       }
