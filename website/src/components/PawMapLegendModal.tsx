@@ -225,6 +225,8 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     { html: memberPinHtml({ role: "owner" }), title: t("legend_member_owner"), body: t("legend_member_owner_body"), color: ROLE_COLOR.owner },
     { html: memberPinHtml({ role: "sitter" }), title: t("legend_member_sitter"), body: t("legend_member_sitter_body"), color: ROLE_COLOR.sitter },
     { html: memberPinHtml({ role: "walker" }), title: t("legend_member_walker"), body: t("legend_member_walker_body"), color: ROLE_COLOR.walker },
+    // 02/10 (609) — identité vérifiée : coche bleue en haut à gauche du rond.
+    { html: memberPinHtml({ role: "sitter", verified: true }), title: t("ver609_help_title"), body: t("ver609_help_body"), color: "#2563EB" },
     roleColorsRow,
     duoRow,
     { html: memberPinHtml({ role: "sitter", premium: true }), title: t("legend_premium"), body: t("legend_premium_body"), color: PREMIUM_GOLD },

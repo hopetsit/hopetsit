@@ -34,6 +34,7 @@ import L from "leaflet";
 import type { RouteStep } from "@/lib/api";
 import { getProviderBadge607 } from "@/lib/api";
 import { CollisionPass607 } from "@/components/CollisionPass607";
+import { VerifiedPill } from "@/components/VerifiedPill";
 import {
   MapReport,
   MapReportType,
@@ -450,6 +451,8 @@ export type FocusLabels = {
   roles: Record<string, string>;
   sitting: string;
   walk: string;
+  /** 02/10 (609) — « Vérifié ». */
+  verified?: string;
 };
 
 /** 590 (§4) — la carte focus : 1er clic sur une personne ou une demande. */
@@ -470,6 +473,8 @@ type Focus = {
   icon?: "home" | "walk" | "paw";
   /** Ami en direct : son tracé de balade s'affiche. */
   liveId?: string;
+  /** 02/10 (609) — identité vérifiée : pastille « ✓ Vérifié ». */
+  verified?: boolean;
   open: () => void;
 };
 
@@ -1045,6 +1050,7 @@ export default function PoiMap({
       info: [pr, km].filter(Boolean).join(" · ") || focusLabels?.roles[k] || "",
       friend,
       icon: k === "walker" ? "walk" : k === "sitter" ? "home" : "paw",
+      verified: m.identityVerified === true,
       open,
     };
   };
@@ -1434,6 +1440,7 @@ function FocusCard({ f, labels, dark, top, faded, onClose, onOpen }: { f: Focus;
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="truncate text-[14px] font-bold leading-tight" style={{ color: ink, fontFamily: POPPINS }}>{f.name}</span>
               {f.live && <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: "#2E9E48" }} />}
+              {f.verified && labels.verified && <VerifiedPill label={labels.verified} small />}
             </span>
             {f.info && <span className="block truncate text-[11.5px] font-medium leading-snug" style={{ color: sub, fontFamily: POPPINS }}>{f.info}</span>}
           </span>
@@ -1701,7 +1708,7 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
         <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] font-bold text-[#231715]">
           {rating && <span className="text-[#8A5A00]">{rating}</span>}
           {price && <span>{labels.priceFrom} {price}</span>}
-          {m.identityVerified && <span className="text-[#15803D]">✓ {labels.verified}</span>}
+          {m.identityVerified && <VerifiedPill label={labels.verified} />}
         </div>
       )}
       {friend && liveLabels && (

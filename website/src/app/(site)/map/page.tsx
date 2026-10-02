@@ -49,6 +49,7 @@ import StoreBadges from "@/components/StoreBadges";
 import { EyeIcon, VisibilityPills } from "@/components/MapVisibility";
 import { ensureOwnerProfile } from "@/lib/bookAsOwner";
 import type { MapRequest, LiveLabels, CardLabels, FocusLabels } from "@/components/PoiMap";
+import { VerifiedPill } from "@/components/VerifiedPill";
 import { PawJewel, PawMapFonts, PawSymbol, JewelDot, JEWEL, JEWEL_ROLE, JEWEL_CSS, ROLE_SOLID_UI, JEWEL_MENU, MENU_PALETTE, JEWEL_PAWPOINTS, barGlass, type JewelPalette } from "@/components/PawJewel";
 import {
   ApiError,
@@ -998,11 +999,16 @@ export default function MapPage() {
   const mergedMembers = useMemo(() => placeFriendsFromList(placeFriendsAtProfile(mergePersons(members, worldMembers), worldMembers, friendIdSetFrom(friendsForMap)), friendsForMap), [members, worldMembers, friendsForMap]);
   // 25/09 (586, point 7) — familles INDÉPENDANTES : un ami ne dépend que de
   // la pastille « Amis », un autre membre que des pastilles de rôle.
+  // 02/10 (609, Daniel) — filtre « Vérifiés seulement » (identité vérifiée ;
+  // les amis restent toujours visibles). Mémorisé sur ce navigateur.
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  useEffect(() => { try { setVerifiedOnly(localStorage.getItem("hopetsit:mapVerifiedOnly") === "1"); } catch { /* */ } }, []);
+  const toggleVerifiedOnly = () => setVerifiedOnly((v) => { try { localStorage.setItem("hopetsit:mapVerifiedOnly", v ? "0" : "1"); } catch { /* */ } return !v; });
   const allMembers = useMemo(() => {
     if (!showMembers) return [];
     const fset = friendIdSetFrom(friendsForMap);
-    return mergedMembers.filter((m) => (isFriendMember(m, fset) ? showFriends : rolesMatching(m, memberRoles).length > 0));
-  }, [mergedMembers, memberRoles, showMembers, friendsForMap, showFriends]);
+    return mergedMembers.filter((m) => (isFriendMember(m, fset) ? showFriends : rolesMatching(m, memberRoles).length > 0 && (!verifiedOnly || m.identityVerified === true)));
+  }, [mergedMembers, memberRoles, showMembers, friendsForMap, showFriends, verifiedOnly]);
 
   // Membres à moins de 50 km (même règle que l'app) — liste + compteur.
   // 25/09 (point 5) — la référence est ce qu'on REGARDE (centre de la
@@ -1539,7 +1545,7 @@ export default function MapPage() {
     () => ({
       book: t("map_member_book"), priceFrom: t("map_member_price_from"), addFriend: t("map_member_add_friend"),
       sent: t("map_member_request_sent"), already: t("map_member_already"), failed: t("map_member_request_failed"),
-      approx: t("map_member_approx"), verified: t("trust_id_title"), viewProfile: t("friend_view_profile"),
+      approx: t("map_member_approx"), verified: t("ver609_short"), viewProfile: t("friend_view_profile"),
       directions: t("map_directions_btn"), message: t("live_message"), friend: t("map_friend_badge"),
       bookAsOwner: t("m586_book_as_owner"), switchingOwner: t("m586_switching_owner"), switchOwnerError: t("m586_switch_owner_error"),
       chooseProfile: t("map_choose_profile"), profilesHere: t("map_profiles_here"), see: t("map_see"),
@@ -1553,6 +1559,7 @@ export default function MapPage() {
       profile: t("m590_focus_profile"), close: t("m590_focus_close"), request: t("m590_request"), walking: t("m590_on_walk"),
       roles: { owner: t("role_owner"), sitter: t("role_sitter"), walker: t("role_walker") },
       sitting: t("home_service_sitting"), walk: t("home_service_walk"),
+      verified: t("ver609_short"),
     }),
     [t],
   );
@@ -2433,7 +2440,7 @@ export default function MapPage() {
             {/* PANNEAU : signalements / spots / membres. */}
             {sidePanel && (() => {
               const from = userLocation ?? { lat: center[0], lng: center[1] };
-              type Row = { id: string; lat: number; lng: number; km: number; pin: string; title: string; sub: string; photo: string; meta: string; color?: string; book?: string; friend?: boolean };
+              type Row = { id: string; lat: number; lng: number; km: number; pin: string; title: string; sub: string; photo: string; meta: string; color?: string; book?: string; friend?: boolean; verified?: boolean; price?: number | null };
               let rows: Row[] = [];
               let title = "";
               if (sidePanel === "reports") {
@@ -2453,10 +2460,15 @@ export default function MapPage() {
                   const key = roleKey(r.role);
                   // 590 (§1) — tarifs visibles seulement de l'autre côté du marché.
                   const price = key !== "owner" && showsPriceBubble(myRole, key) ? formatPriceUnit(r.priceFrom, r.currency, r.priceAlt, priceUnitLabels(t)) : null;
-                  return { id: `${m.id}-${r.id}`, lat: x.lat, lng: x.lng, km: x.shownKm, pin: "", title: m.name || t("common_member"), sub: `${t(`role_${key}`)}${price ? ` · ${t("map_member_price_from")} ${price}` : ""}${(r.rating ?? 0) > 0 ? ` · ★ ${(r.rating ?? 0).toFixed(1)}` : ""}`, photo: m.avatar || "", meta: m.approx ? t("map_member_approx").replace("{km}", String(m.approxKm ?? 1)) : "", color: ROLE_COLOR[key], book: key !== "owner" ? `/book/${key}/${r.id}` : undefined, friend };
+                  return { id: `${m.id}-${r.id}`, lat: x.lat, lng: x.lng, km: x.shownKm, pin: "", title: m.name || t("common_member"), sub: `${t(`role_${key}`)}${price ? ` · ${t("map_member_price_from")} ${price}` : ""}${(r.rating ?? 0) > 0 ? ` · ★ ${(r.rating ?? 0).toFixed(1)}` : ""}`, photo: m.avatar || "", meta: m.approx ? t("map_member_approx").replace("{km}", String(m.approxKm ?? 1)) : "", color: ROLE_COLOR[key], book: key !== "owner" ? `/book/${key}/${r.id}` : undefined, friend, verified: m.identityVerified === true, price: typeof r.priceFrom === "number" && r.priceFrom > 0 ? r.priceFrom : null };
                 });
               }
-              rows.sort((a, b) => a.km - b.km);
+              // 02/10 (609) — à prix égal (et à distance comparable : positions floutées ~1 km),
+              // le membre à l'identité vérifiée passe d'abord.
+              rows.sort((a, b) => {
+                if (sidePanel === "members" && a.price != null && a.price === b.price && Math.abs(a.km - b.km) < 1 && !!a.verified !== !!b.verified) return a.verified ? -1 : 1;
+                return a.km - b.km;
+              });
               return (
                 <div id="side-panel" className="mt-3 scroll-mt-24 rounded-2xl bg-white p-3">
                   <div className="flex items-center gap-2">
@@ -2464,6 +2476,12 @@ export default function MapPage() {
                     <span className="rounded-full bg-[#FAF1EC] px-2 py-0.5 text-xs font-semibold text-[#231715]">{rows.length}</span>
                     <button type="button" onClick={() => setSidePanel(null)} className="ml-auto grid h-8 w-8 place-items-center rounded-full bg-[#FAF1EC] text-[#231715]" aria-label={t("map_close")}>×</button>
                   </div>
+                  {sidePanel === "members" && (
+                    <button type="button" onClick={toggleVerifiedOnly} aria-pressed={verifiedOnly} data-verified-filter="" className={`mt-2 inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-3 text-[13px] font-bold transition ${verifiedOnly ? "bg-[#2563EB] text-white" : "bg-[#EAF1FE] text-[#1E4FB0]"}`}>
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                      {t("ver609_filter")}
+                    </button>
+                  )}
                   {sidePanel !== "members" && <ModePicker mode={routeMode} onChange={setRouteMode} label={t("map_route_mode_label")} labels={{ walk: t("map_route_mode_walk"), bike: t("map_route_mode_bike"), car: t("map_route_mode_car") }} />}
                   {rows.length === 0 ? (
                     <p className="mt-3 text-sm text-[#6E4F48]">{t("map_panel_empty")}</p>
@@ -2481,7 +2499,7 @@ export default function MapPage() {
                               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white" style={{ background: r.color || "#6E4F48" }}><AppIcon name="profile" size={16} color="#fff" /></span>
                             )}
                             <span className="min-w-0">
-                              <span className="flex min-w-0 items-center gap-1.5"><span className="truncate text-sm font-semibold text-[#231715]">{r.title}</span>{r.friend && <span className="shrink-0 rounded-full bg-[#FDE7F0] px-1.5 py-px text-[10px] font-bold text-[#9D174D]">{t("map_friend_badge")}</span>}</span>
+                              <span className="flex min-w-0 items-center gap-1.5"><span className="truncate text-sm font-semibold text-[#231715]">{r.title}</span>{r.friend && <span className="shrink-0 rounded-full bg-[#FDE7F0] px-1.5 py-px text-[10px] font-bold text-[#9D174D]">{t("map_friend_badge")}</span>}{r.verified && <VerifiedPill label={t("ver609_short")} small />}</span>
                               {r.sub && <span className="block truncate text-xs font-semibold" style={{ color: r.color ? ROLE_TEXT_DARK[r.color] || r.color : "#6E4F48" }}>{r.sub}</span>}
                               <span className="block truncate text-[11px] text-[#8A6B64]">{formatKm(r.km, lang)}{r.meta ? ` · ${r.meta}` : ""}</span>
                             </span>

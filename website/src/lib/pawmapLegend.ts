@@ -107,8 +107,11 @@ function nameTagHtml(text: string, top: number, dark?: boolean): string {
 }
 
 /** Coche bleue « identité vérifiée » (15 px, en bas à gauche). */
-function verifiedBadge(): string {
-  return `<span style="position:absolute;bottom:-1px;left:-2px;width:15px;height:15px;border-radius:50%;background:#2F6FE0;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;box-sizing:border-box;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>`;
+/** 02/10 (609, Daniel) — « Identité vérifiée » : coche bleue cerclée de blanc,
+ *  en HAUT À GAUCHE (couronne en haut à droite, fusée en bas à gauche, point
+ *  en ligne en bas à droite : jamais l'un sur l'autre). */
+export function verifiedBadge(): string {
+  return `<span data-verified-badge="" style="position:absolute;top:-3px;left:-3px;width:17px;height:17px;border-radius:50%;background:#2563EB;border:2px solid #fff;display:flex;align-items:center;justify-content:center;box-sizing:border-box;box-shadow:0 1px 3px rgba(23,20,31,.35);"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>`;
 }
 
 // ── Icônes blanches des rôles (mêmes sens que l'accueil de l'app) ──────────
@@ -329,7 +332,7 @@ export function memberPinHtml(o: MemberPinOptions): string {
     : `padding:${Math.round(size * 0.2)}px;border:2.5px solid #fff;`;
   // 27/09 — les liserés concentriques des autres rôles sont RETIRÉS : ils
   // recouvraient la lueur PawBoost. Les rôles sont dans le contour (`outer`).
-  return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${o.avatar ? outer : grad};${disc}${glow}display:flex;align-items:center;justify-content:center;box-sizing:border-box;position:relative;overflow:hidden;">${body}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : o.verified ? verifiedBadge() : ""}${o.online === true || o.online === false ? onlineDot(12, o.online) : ""}${caption}${bubble}</div>`;
+  return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${o.avatar ? outer : grad};${disc}${glow}display:flex;align-items:center;justify-content:center;box-sizing:border-box;position:relative;overflow:hidden;">${body}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : ""}${o.verified ? verifiedBadge() : ""}${o.online === true || o.online === false ? onlineDot(12, o.online) : ""}${caption}${bubble}</div>`;
 }
 
 /** Échappe une chaîne insérée dans le HTML d'une épingle (nom, URL). */

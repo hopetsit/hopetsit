@@ -1,6 +1,7 @@
 "use client";
 
 import { PawPointsTeaser } from "@/components/PawPointsTeaser";
+import { VerifiedPill } from "@/components/VerifiedPill";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -140,7 +141,20 @@ export default function PawMapPage() {
     { icon: "clock" as const, label: t("map_cat_restaurant") },
   ];
 
-  const nearest = useMemo(() => providers.slice(0, 6), [providers]);
+  // 02/10 (609) — les plus proches ; à prix égal (et à ~1 km près, positions
+  // floutées), l'identité vérifiée passe d'abord.
+  const nearest = useMemo(() => {
+    const d = (p: PublicProvider) => {
+      const R = 6371, toR = Math.PI / 180;
+      const dLat = (p.lat - center[0]) * toR, dLng = (p.lng - center[1]) * toR;
+      const x = Math.sin(dLat / 2) ** 2 + Math.cos(center[0] * toR) * Math.cos(p.lat * toR) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(x));
+    };
+    return [...providers].map((p) => ({ p, km: d(p) })).sort((a, b) => {
+      if (a.p.priceFrom != null && a.p.priceFrom === b.p.priceFrom && Math.abs(a.km - b.km) < 1 && a.p.identityVerified !== b.p.identityVerified) return a.p.identityVerified ? -1 : 1;
+      return a.km - b.km;
+    }).slice(0, 6).map((x) => x.p);
+  }, [providers, center]);
   const roleLabel: Record<string, string> = { sitter: t("role_sitter"), walker: t("role_walker") };
 
   // Tous les hooks sont au-dessus (piège du 20/09) : on peut sortir ici.
@@ -251,8 +265,8 @@ export default function PawMapPage() {
                       <span className="block truncate text-xs font-semibold" style={{ color }}>
                         {roleLabel[p.role]}
                         {p.rating > 0 ? ` · ${p.rating.toFixed(1)} ★` : ""}
-                        {p.identityVerified ? ` · ${t("trust_id_title")}` : ""}
                       </span>
+                      {p.identityVerified && <span className="mt-1 block"><VerifiedPill label={t("ver609_short")} small /></span>}
                     </span>
                     {price && (
                       <span className="shrink-0 text-right leading-tight">

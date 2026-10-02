@@ -42,6 +42,7 @@ import {
 import { safeFly } from "@/lib/safeFly";
 import { AppIcon } from "@/components/AppIcon";
 import { CollisionPass607 } from "@/components/CollisionPass607";
+import { VerifiedPill } from "@/components/VerifiedPill";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { askHref, askLabel, askNote, dm } from "@/lib/i18n/demander2809";
@@ -52,6 +53,7 @@ function memberIcon(p: PublicProvider, caption: string | null, bubble: string | 
     html: memberPinHtml({
       role: p.role,
       boosted: p.boosted,
+      verified: p.identityVerified === true,
       avatar: p.avatar || null,
       caption,
       // 590 (§1) — visiteur = côté propriétaire : tarif dans une bulle au-dessus.
@@ -155,6 +157,8 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   const [legendOpen, setLegendOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dark, setDark] = useState(false);
+  // 02/10 (609) — « Vérifiés seulement » (identité vérifiée).
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const lastFetch = useRef<{ lat: number; lng: number } | null>(null);
   const reqSeq = useRef(0);
 
@@ -185,7 +189,8 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   // 44 px PUIS fusion de tout groupe à moins de 50 px d'un autre. Avant :
   // cases de 36 px seules → pastilles « 5 », « 3 », « 2 » collées au zoom pays.
   const clusters = useMemo(() => {
-    const cells = clusterize(providers, view.zoom, (p) => [p.lat, p.lng], MEMBER_CELL_PX_607).map((g) => g.items);
+    const list = verifiedOnly ? providers.filter((p) => p.identityVerified === true) : providers;
+    const cells = clusterize(list, view.zoom, (p) => [p.lat, p.lng], MEMBER_CELL_PX_607).map((g) => g.items);
     const merged = mergeCloseGroups(cells, (p) => mercatorPx(p.lat, p.lng, view.zoom));
     return merged.map((items) => {
       let la = 0;
@@ -193,7 +198,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
       for (const p of items) { la += p.lat; ln += p.lng; }
       return { items, center: [la / items.length, ln / items.length] as [number, number] };
     });
-  }, [providers, view.zoom]);
+  }, [providers, view.zoom, verifiedOnly]);
   // 607 — mêmes seuils que l'app : prénom + prix au zoom rue (13) ; dès le
   // zoom ville (9) une épingle SEULE porte sa bulle si la place est libre.
   const showCaption = view.zoom >= PRICE_ZOOM_607;
@@ -286,9 +291,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                     {priceOf(p) && (
                       <span className="font-bold" style={{ color }}>{t("map_member_price_from")} {priceOf(p)}</span>
                     )}
-                    {p.identityVerified && (
-                      <span className="inline-flex items-center gap-1 font-semibold text-[#16A34A]"><AppIcon name="shield-check" size={13} color="#16A34A" />{t("trust_id_title")}</span>
-                    )}
+                    {p.identityVerified && <VerifiedPill label={t("ver609_short")} />}
                     {p.availableToday && (
                       <span className="rounded-full bg-[#DEF7E5] px-2 py-0.5 font-semibold text-[#0F7C37]">{t("map_available_today")}</span>
                     )}
@@ -346,6 +349,12 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
             className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#231715] shadow-lg transition hover:scale-105"
           >
             <AppIcon name={dark ? "sun" : "moon"} size={20} />
+          </button>
+        )}
+        {!compact && (
+          <button type="button" onClick={() => setVerifiedOnly((v) => !v)} aria-pressed={verifiedOnly} data-verified-filter="" className={`inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-xs font-bold shadow-lg transition ${verifiedOnly ? "bg-[#2563EB] text-white" : "bg-white text-[#1E4FB0]"}`}>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            {t("ver609_filter")}
           </button>
         )}
         {visibleCount > 0 && (
