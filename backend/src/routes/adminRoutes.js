@@ -6130,10 +6130,11 @@ router.get('/pawpoints/overview', requireAdmin, async (req, res) => {
     let gains30 = [];
     try {
       const PawPointsEvent = require('../models/PawPointsEvent');
-      events = await PawPointsEvent.find({}).sort({ at: -1 }).limit(100)
+      // Ajustements des comptes de test (vérifications) : jamais mêlés aux gains.
+      events = await PawPointsEvent.find({ key: { $ne: 'admin_test_adjust' } }).sort({ at: -1 }).limit(100)
         .select('userId role key points credited at').lean();
       gains30 = await PawPointsEvent.aggregate([
-        { $match: { at: { $gte: since30 } } },
+        { $match: { at: { $gte: since30 }, key: { $ne: 'admin_test_adjust' } } },
         { $group: { _id: '$key', count: { $sum: 1 }, points: { $sum: '$credited' } } },
         { $sort: { count: -1 } },
       ]);
