@@ -10,6 +10,10 @@ type D = Record<string, string>;
 
 export const SITE607: Record<Lang, D> = {
   fr: {
+    promo607_current: "Code du moment : {code} — saisis-le ci-dessous pour voir ce qu'il t'offre.",
+    ppl607_here: "Tu es ici",
+    ppl607_reached: "Atteint",
+    ppl607_next: "Prochain palier",
     help607_plush_body: "Pendant une Balade, de petites peluches apparaissent sur la carte, dans les parcs publics près de toi. Approche-toi à moins de 30 mètres : tu l'attrapes et elle rejoint ta collection, sur la page PawPoints.\nElles ne valent pas d'argent : seulement des PawPoints et une raison de plus de sortir. Regarde où tu marches.",
     help607_plush_names_1: "Ourson",
     help607_plush_names_2: "Lapin",
@@ -109,6 +113,10 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "Les peluches de la Balade",
   },
   en: {
+    promo607_current: "Current code: {code} — enter it below to see what it gives you.",
+    ppl607_here: "You are here",
+    ppl607_reached: "Reached",
+    ppl607_next: "Next level",
     help607_plush_body: "During a Walk, small plushies appear on the map, in public parks near you. Get within 30 metres: you catch it and it joins your collection, on the PawPoints page.\nThey are not worth money: only PawPoints and one more reason to go out. Watch where you walk.",
     help607_plush_names_1: "Teddy bear",
     help607_plush_names_2: "Bunny",
@@ -208,6 +216,10 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "Walk plushies",
   },
   es: {
+    promo607_current: "Código del momento: {code} — escríbelo abajo para ver lo que te ofrece.",
+    ppl607_here: "Estás aquí",
+    ppl607_reached: "Alcanzado",
+    ppl607_next: "Siguiente nivel",
     help607_plush_body: "Durante un Paseo, aparecen pequeños peluches en el mapa, en los parques públicos cerca de ti. Acércate a menos de 30 metros: lo atrapas y se une a tu colección, en la página PawPoints.\nNo valen dinero: solo PawPoints y una razón más para salir. Mira por dónde caminas.",
     help607_plush_names_1: "Osito",
     help607_plush_names_2: "Conejito",
@@ -307,6 +319,10 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "Los peluches del Paseo",
   },
   de: {
+    promo607_current: "Aktueller Code: {code} — gib ihn unten ein, um zu sehen, was er dir bringt.",
+    ppl607_here: "Du bist hier",
+    ppl607_reached: "Erreicht",
+    ppl607_next: "Nächste Stufe",
     help607_plush_body: "Während eines Spaziergangs erscheinen kleine Plüschtiere auf der Karte, in öffentlichen Parks in deiner Nähe. Komm auf weniger als 30 Meter heran: Du fängst es und es kommt in deine Sammlung auf der PawPoints-Seite.\nSie sind kein Geld wert: nur PawPoints und ein Grund mehr, rauszugehen. Achte auf deinen Weg.",
     help607_plush_names_1: "Teddybär",
     help607_plush_names_2: "Häschen",
@@ -406,6 +422,10 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "Die Plüschtiere des Spaziergangs",
   },
   it: {
+    promo607_current: "Codice del momento: {code} — inseriscilo qui sotto per vedere cosa ti offre.",
+    ppl607_here: "Sei qui",
+    ppl607_reached: "Raggiunto",
+    ppl607_next: "Prossimo livello",
     help607_plush_body: "Durante una Passeggiata, piccoli peluche compaiono sulla mappa, nei parchi pubblici vicino a te. Avvicinati a meno di 30 metri: lo prendi e finisce nella tua collezione, nella pagina PawPoints.\nNon valgono denaro: solo PawPoints e un motivo in più per uscire. Guarda dove cammini.",
     help607_plush_names_1: "Orsetto",
     help607_plush_names_2: "Coniglietto",
@@ -505,6 +525,10 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "I peluche della Passeggiata",
   },
   pt: {
+    promo607_current: "Código do momento: {code} — escreve-o abaixo para ver o que te oferece.",
+    ppl607_here: "Estás aqui",
+    ppl607_reached: "Atingido",
+    ppl607_next: "Próximo nível",
     help607_plush_body: "Durante um Passeio, pequenos peluches aparecem no mapa, nos parques públicos perto de ti. Aproxima-te a menos de 30 metros: apanha-lo e ele entra na tua coleção, na página PawPoints.\nNão valem dinheiro: apenas PawPoints e mais uma razão para sair. Olha por onde andas.",
     help607_plush_names_1: "Ursinho",
     help607_plush_names_2: "Coelhinho",
@@ -604,6 +628,10 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "Os peluches do Passeio",
   },
   ko: {
+    promo607_current: "지금의 코드: {code} — 아래에 입력해 혜택을 확인하세요.",
+    ppl607_here: "현재 레벨",
+    ppl607_reached: "달성",
+    ppl607_next: "다음 레벨",
     help607_plush_body: "산책 중에 근처 공원의 지도 위에 작은 인형이 나타나요. 30미터 안으로 다가가면 인형을 잡고, PawPoints 페이지의 내 컬렉션에 들어가요.\n인형은 돈이 아니에요. PawPoints와 밖으로 나갈 이유 하나가 더 생길 뿐이에요. 걸을 때 주변을 잘 살펴보세요.",
     help607_plush_names_1: "곰돌이",
     help607_plush_names_2: "토끼",
@@ -703,6 +731,10 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "산책 인형",
   },
   ja: {
+    promo607_current: "今のコード：{code} — 下に入力して特典を確認しよう。",
+    ppl607_here: "いまここ",
+    ppl607_reached: "達成",
+    ppl607_next: "次のレベル",
     help607_plush_body: "お散歩中、近くの公園の地図上に小さなぬいぐるみが現れます。30メートル以内に近づくとつかまえられ、PawPointsページのコレクションに入ります。\nお金の価値はありません。PawPointsと、外に出る理由がひとつ増えるだけです。足元に気をつけて歩きましょう。",
     help607_plush_names_1: "くま",
     help607_plush_names_2: "うさぎ",
@@ -802,6 +834,10 @@ export const SITE607: Record<Lang, D> = {
     help607_plush_title: "お散歩ぬいぐるみ",
   },
   pl: {
+    promo607_current: "Aktualny kod: {code} — wpisz go poniżej, aby zobaczyć, co daje.",
+    ppl607_here: "Jesteś tutaj",
+    ppl607_reached: "Osiągnięty",
+    ppl607_next: "Następny poziom",
     help607_plush_body: "Podczas Spaceru na mapie, w publicznych parkach w pobliżu, pojawiają się małe pluszaki. Podejdź na mniej niż 30 metrów: łapiesz go i trafia do twojej kolekcji na stronie PawPoints.\nNie są warte pieniędzy: tylko PawPoints i jeszcze jeden powód, żeby wyjść. Patrz pod nogi.",
     help607_plush_names_1: "Miś",
     help607_plush_names_2: "Króliczek",

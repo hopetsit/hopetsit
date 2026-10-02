@@ -282,18 +282,38 @@ export default function BoutiquePage() {
   const spotPct = yearlySavingsPct(spotMonthly.amount, spotYearly.amount);
   const spotActive = !!subStatus?.pawspotExpiry && new Date(subStatus.pawspotExpiry).getTime() > Date.now();
 
+  // 02/10 (607) — état de chaque produit sur sa carte (mêmes règles que les pastilles).
+  const cardStates = (() => {
+    const now = Date.now();
+    const days = (d?: string | null) => (d ? Math.max(0, Math.ceil((new Date(d).getTime() - now) / 86400000)) : 0);
+    const staff = subStatus?.currentPeriodEnd ? new Date(subStatus.currentPeriodEnd).getFullYear() >= 2090 : false;
+    const on = (n: number) => (n > 0 ? `${t("shop566_active")} · ${t("shop566_days_short").replace("{n}", String(n))}` : null);
+    const bExp = (boostStatus as (BoostStatus & { expiresAt?: string; expiry?: string }) | null)?.expiresAt || (boostStatus as (BoostStatus & { expiry?: string }) | null)?.expiry;
+    return {
+      boost: boostStatus?.isActive && bExp ? on(days(bExp)) : null,
+      follow: staff ? `${t("shop566_active")} · ${t("shop566_unlimited")}` : subStatus?.currentPeriodEnd && subStatus.plan !== "famille" && subStatus.plan !== "family" ? on(days(subStatus.currentPeriodEnd)) : null,
+      spot: on(days(subStatus?.pawspotExpiry)),
+      premium: on(days(subStatus?.premiumExpiry)),
+    };
+  })();
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 md:py-16">
       <div className="mb-6">
         <BackLink href="/dashboard" label={t("nav_dashboard")} />
       </div>
 
-      <h1 className="font-display text-3xl font-extrabold md:text-4xl">
-        {t("shop_title")}
-      </h1>
-      <p className="mt-2 text-ink-muted">
-        {t("shop_subtitle")}
-      </p>
+      {/* 02/10 (607, « plus joli ») — en-tête aéré et hiérarchisé. */}
+      <header className="rounded-[28px] bg-gradient-to-br from-[#FFF4EC] via-white to-[#F5EFFF] p-6 shadow-[0_20px_44px_-30px_rgba(201,42,18,0.55)] ring-1 ring-[#F3E6E1] md:p-8">
+        <h1 className="text-balance font-display text-[32px] font-extrabold leading-[1.1] tracking-[-0.03em] text-[#231715] md:text-5xl">
+          {t("shop_title")}
+        </h1>
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-[#6E4F48] md:text-lg">
+          {t("shop_subtitle")}
+        </p>
+        {/* v23.1.390 — chips « jours restants » comme dans l'app (Daniel). */}
+        <BenefitsChips status={subStatus} boost={boostStatus} />
+      </header>
 
       {error && (
         <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -301,16 +321,13 @@ export default function BoutiquePage() {
         </div>
       )}
 
-      {/* v23.1.390 — chips « jours restants » comme dans l'app (Daniel). */}
-      <BenefitsChips status={subStatus} boost={boostStatus} />
-
       {/* v416 → 607 (02/10) — encart PawPoints alimenté par le catalogue unique
           (plus de réductions en %, remplacées par des jours offerts). */}
-      <PawPointsTeaser className="mt-5" />
+      <PawPointsTeaser className="mt-6" />
 
       {/* v450 → v565 — Code promo : réduction ou abonnement offert (géré côté
           admin). Champ commun PromoCodeBox (check → redeem, messages lisibles). */}
-      <PromoCodeBox className="mt-5" onApplied={handlePromoApplied} />
+      <PromoCodeBox className="mt-6" onApplied={handlePromoApplied} />
 
       {/* Tabs sections — ordre Daniel : PawBoost · PawFollow · PawSpot · Premium.
           v561 — handoff « Paw Buttons » : 4 cartes verre dépoli (design
@@ -319,11 +336,14 @@ export default function BoutiquePage() {
         <div className="pointer-events-none absolute -left-16 -top-20 h-56 w-56 rounded-full bg-[#F7B9A6] opacity-80 blur-[50px]" />
         <div className="pointer-events-none absolute -right-16 -top-10 h-56 w-56 rounded-full bg-[#F2D68A] opacity-80 blur-[50px]" />
         <div className="pointer-events-none absolute -bottom-28 left-[35%] h-52 w-56 rounded-full bg-[#C9B5F5] opacity-90 blur-[50px]" />
-        <div className="relative grid max-w-[440px] grid-cols-2 gap-2 min-[400px]:grid-cols-4">
+        {/* 02/10 (607) — 4 colonnes égales sur toute la largeur (bureau), 2 × 2 sinon,
+            avec l'état de mon abonnement sur chaque carte. */}
+        <div className="relative grid grid-cols-2 gap-3 md:grid-cols-4">
           <SectionTab
             label={t("shop_tab_boost").replace(/^[^A-Za-z]+/, "")}
             desc={t("shop_card_boost_sub")}
             active={section === "boost"}
+            state={cardStates.boost}
             onClick={() => setSection("boost")}
             g1="#FF6B4A"
             g2="#E0361F"
@@ -334,6 +354,7 @@ export default function BoutiquePage() {
             label={t("shop_tab_premium").replace(/^[^A-Za-z]+/, "")}
             desc={t("shop_card_follow_sub")}
             active={section === "premium"}
+            state={cardStates.follow}
             onClick={() => setSection("premium")}
             g1="#9B6BFF"
             g2="#6A34E0"
@@ -346,6 +367,7 @@ export default function BoutiquePage() {
             label={t("shop_tab_mapboost").replace(/^[^A-Za-z]+/, "")}
             desc={t("shop_card_spot_sub")}
             active={section === "mapboost"}
+            state={cardStates.spot}
             onClick={() => setSection("mapboost")}
             g1="#FFC23D"
             g2="#F0900A"
@@ -357,6 +379,7 @@ export default function BoutiquePage() {
             label={t("shop_tab_pawpremium").replace(/^[^A-Za-z]+/, "")}
             desc={t("shop_card_premium_sub")}
             active={section === "pawpremium"}
+            state={cardStates.premium}
             onClick={() => setSection("pawpremium")}
             g1="#3A3028"
             g2="#0F0B08"
@@ -518,10 +541,12 @@ function SectionTab({
   g2,
   shadow,
   titleColor = "#FFFFFF",
+  state = null,
 }: {
   label: string;
   desc: string;
   active: boolean;
+  state?: string | null;
   onClick: () => void;
   icon: React.ReactNode;
   g1: string;
@@ -535,7 +560,7 @@ function SectionTab({
       onClick={onClick}
       aria-pressed={active}
       // 25/09 — sous 400 px : 2 colonnes, cartes moins hautes (titres jamais coupés).
-      className="relative flex aspect-[1/1.08] min-w-0 flex-col items-center gap-3 overflow-hidden rounded-[22px] px-1.5 pb-3.5 pt-4 text-center transition-[transform,box-shadow] duration-200 hover:-translate-y-[3px] active:scale-[.97] min-[400px]:aspect-[1/1.75]"
+      className="relative flex min-h-[200px] min-w-0 flex-col items-center gap-3 overflow-hidden rounded-[24px] px-3 pb-4 pt-5 text-center transition-[transform,box-shadow] duration-200 hover:-translate-y-[3px] active:scale-[.97] md:min-h-[236px]"
       style={{
         background: `linear-gradient(165deg, ${g1} 0%, ${g2} 100%)`,
         border: "1px solid rgba(255,255,255,.45)",
@@ -547,17 +572,24 @@ function SectionTab({
     >
       <span className="pointer-events-none absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/20 to-transparent" />
       <span
-        className="relative grid h-14 w-14 flex-none place-items-center rounded-full bg-white"
+        className="relative grid h-16 w-16 flex-none place-items-center rounded-full bg-white md:h-[72px] md:w-[72px]"
         style={{ boxShadow: "0 6px 14px -6px rgba(201,42,18,.35)" }}
       >
         {icon}
       </span>
       <span className="relative flex w-full flex-col gap-1">
-        <span className="whitespace-nowrap text-[13px] font-extrabold tracking-[-0.02em]" style={{ color: titleColor }}>
+        <span className="whitespace-nowrap text-[16px] font-extrabold tracking-[-0.02em] md:text-[18px]" style={{ color: titleColor }}>
           {label}
         </span>
-        <span className="px-0.5 text-[9.5px] font-bold leading-[1.3] text-white/[.88]">{desc}</span>
+        <span className="px-0.5 text-[12px] font-bold leading-[1.3] text-white md:text-[13px]">{desc}</span>
       </span>
+      {/* 02/10 (607) — état de mon abonnement sur la carte. */}
+      {state && (
+        <span className="relative mt-auto inline-flex max-w-full items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11.5px] font-extrabold leading-tight text-[#231715] shadow-[0_6px_14px_-8px_rgba(0,0,0,.45)]" data-card-state="">
+          <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-[#16A34A]" />
+          <span className="min-w-0 truncate">{state}</span>
+        </span>
+      )}
     </button>
   );
 }
@@ -669,7 +701,7 @@ function PremiumSection({
           le serveur PROLONGE la période (et PawFamily est indépendant de
           PawFollow) ; avant, un abonné ne pouvait ni prolonger ni prendre
           PawFamily depuis le site. */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid items-stretch gap-x-4 gap-y-7 pt-2 sm:grid-cols-2 lg:grid-cols-4">
         {plans
           .filter((plan) => !plan.id.startsWith("premium_"))
           .map((plan) => (
@@ -730,40 +762,44 @@ function PlanCard({
     family_yearly: t("shop566_plan_family_yearly"),
   };
 
+  // 02/10 (607, « plus joli ») — cartes à hauteur égale : badge d'économie
+  // TOUJOURS au même endroit (au-dessus de la carte), titre sur 2 lignes
+  // réservées, bloc prix de hauteur fixe (« soit X/mois » aligné), bouton en bas.
+  const badge = (savingsPct ?? 0) > 0
+    ? t("shop566_save_pct").replace("{pct}", String(savingsPct))
+    : highlighted ? t("shop566_best_price") : null;
   return (
     <div
-      className={`relative rounded-2xl border bg-white p-6 shadow-card transition ${
+      className={`relative flex h-full flex-col rounded-[24px] bg-white p-5 pt-7 transition md:p-6 md:pt-8 ${
         highlighted
-          ? "border-walker ring-2 ring-walker scale-[1.02]"
-          : "border-ink/5"
+          ? "shadow-[0_22px_44px_-24px_rgba(22,163,74,0.75)] ring-2 ring-walker"
+          : "shadow-[0_16px_36px_-26px_rgba(22,163,74,0.6)] ring-1 ring-[#D7F0DF]"
       }`}
+      data-plan-card={plan.id}
     >
       {/* v566 — économie CALCULÉE sur les prix serveur (avant : « 40% » figé). */}
-      {highlighted && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-walker px-3 py-1 text-xs font-semibold text-white">
-          {(savingsPct ?? 0) > 0
-            ? t("shop566_save_pct").replace("{pct}", String(savingsPct))
-            : t("shop566_best_price")}
+      {badge && (
+        <span className={`absolute -top-3.5 left-1/2 max-w-[calc(100%-24px)] -translate-x-1/2 truncate whitespace-nowrap rounded-full px-3 py-1 text-xs font-extrabold ${highlighted ? "bg-walker text-white" : "bg-[#DCFCE7] text-[#15803D] ring-1 ring-[#86EFAC]"}`} data-plan-badge="">
+          {badge}
         </span>
       )}
-      <h3 className="text-lg font-bold text-ink">
+      <h3 className="flex min-h-[2.6em] items-start text-balance break-words text-[17px] font-extrabold leading-[1.3] tracking-[-0.01em] text-ink md:text-lg">
         {planLabels[plan.id] || plan.name || plan.id}
-        {!highlighted && (savingsPct ?? 0) > 0 && (
-          <span className="ml-2 whitespace-nowrap rounded-full bg-walker/10 px-2 py-0.5 text-xs font-bold text-walker-dark">-{savingsPct}%</span>
-        )}
       </h3>
-      <p className="mt-3 text-3xl font-extrabold text-walker-dark">
-        {fmtMoney(plan.amount, plan.currency, lang)}
-        <span className="ml-1 text-sm font-medium text-ink-muted">
-          {intervalLabel}
-        </span>
-      </p>
-      {plan.intervalDays >= 365 && (
-        <p className="text-xs font-semibold text-ink-muted">
-          {t("shop566_equiv_month").replace("{price}", fmtMoney(plan.amount / 12, plan.currency, lang))}
+      <div className="mt-2 min-h-[72px]" data-plan-price="">
+        <p className="flex flex-wrap items-baseline gap-x-1 text-3xl font-extrabold tabular-nums text-walker-dark">
+          {fmtMoney(plan.amount, plan.currency, lang)}
+          <span className="text-sm font-semibold text-[#6E4F48]">
+            {intervalLabel}
+          </span>
         </p>
-      )}
-      <ul className="mt-5 space-y-2 text-sm">
+        {plan.intervalDays >= 365 && (
+          <p className="mt-0.5 text-xs font-bold text-[#6E4F48]">
+            {t("shop566_equiv_month").replace("{price}", fmtMoney(plan.amount / 12, plan.currency, lang))}
+          </p>
+        )}
+      </div>
+      <ul className="mt-4 flex-1 space-y-2 text-sm">
         <FeatureLi>{t("shop566_feat_reports")}</FeatureLi>
         <FeatureLi>{t("shop566_feat_friends")}</FeatureLi>
         <FeatureLi>{t("shop566_feat_chat")}</FeatureLi>
@@ -778,7 +814,7 @@ function PlanCard({
         type="button"
         onClick={onPurchase}
         disabled={purchasing}
-        className="mt-6 w-full rounded-full bg-walker px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        className="mt-6 min-h-[48px] w-full rounded-full bg-gradient-to-b from-[#22C55E] to-[#15803D] px-5 text-sm font-extrabold text-white shadow-[0_12px_24px_-14px_rgba(21,128,61,0.9)] transition active:scale-[0.98] disabled:opacity-60"
       >
         {purchasing ? "…" : extend ? t("shop566_extend") : t("shop566_subscribe")}
       </button>

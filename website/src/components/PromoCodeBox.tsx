@@ -43,7 +43,7 @@ export function PromoCodeBox({
   /** Appelé après un échange réussi (ex. : rafraîchir les abonnements). */
   onApplied?: (reward: { rewardType?: string; discountPercent?: number }) => void;
 }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [open, setOpen] = useState(!collapsible);
   const [code, setCode] = useState("");
   const [state, setState] = useState<PromoState>({ kind: "idle" });
@@ -126,10 +126,15 @@ export function PromoCodeBox({
         <p className="text-sm font-semibold text-[#231715]">{t("promo_title")}</p>
       </div>
       <p className="mt-1 text-xs text-[#6E4F48]">{t("promo_check_hint")}</p>
-      {publicPromo?.message && loggedIn && (
-        <p className="mt-2 rounded-2xl bg-owner-light px-3 py-2 text-xs font-medium text-owner-dark">
-          🎉 {publicPromo.message}{" "}
-          <span className="font-mono font-semibold">{publicPromo.code}</span>
+      {/* 02/10 (607) — le message du serveur est saisi en anglais par l'admin :
+          sur le site, une phrase TRADUITE (9 langues) + le code ; le message
+          d'origine n'est montré qu'en anglais. */}
+      {publicPromo && loggedIn && (
+        <p className="mt-2 rounded-2xl bg-owner-light px-3 py-2 text-xs font-medium text-owner-dark" data-promo-line="">
+          🎉 {lang === "en" && publicPromo.message ? <>{publicPromo.message}{" "}<span className="font-mono font-semibold">{publicPromo.code}</span></> : (() => {
+            const [a, b] = t("promo607_current").split("{code}");
+            return <>{a}<span className="font-mono font-semibold">{publicPromo.code}</span>{b}</>;
+          })()}
         </p>
       )}
 

@@ -12,6 +12,7 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 import { getPawCatalog607, ppText, type PawCatalog607 } from "@/lib/api";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
+import { EarnGrid, RewardsGrid, LevelsLadder, PlushShowcase, PpTitle } from "@/components/PawPointsSections";
 
 const GOLD = "#B7791F";
 const GOLD_BG = "#FFF6DB";
@@ -50,59 +51,28 @@ export function PawPointsGuide({ initial }: { initial: PawCatalog607 | null }) {
 
       {catalog && (
         <section className="mt-12" data-ppg-earn="">
-          <h2 className="font-display text-2xl font-extrabold" style={{ color: INK }}>{t("pp607_earn")}</h2>
-          <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-            {catalog.earn.map((e) => (
-              <li key={e.key} className="flex items-center gap-3 rounded-[20px] bg-white p-4 ring-1 ring-[#F3E6E1]">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] text-xl" style={{ background: GOLD_BG }} aria-hidden="true">{e.icon}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block break-words text-sm font-semibold leading-snug" style={{ color: INK }}>{ppText(e.texts, lang)}</span>
-                  {limit(e.limit) && <span className="block text-[12px]" style={{ color: SOFT }}>{limit(e.limit)}</span>}
-                </span>
-                <span className="shrink-0 text-lg font-extrabold tabular-nums" style={{ color: GOLD }}>+{fmt(e.points)}</span>
-              </li>
-            ))}
-          </ul>
+          <PpTitle>{t("pp607_earn")}</PpTitle>
+          <EarnGrid earn={catalog.earn} lang={lang} t={t} fmt={fmt} />
         </section>
       )}
 
       {rewards.length > 0 && (
         <section className="mt-12" data-ppg-rewards="">
-          <h2 className="font-display text-2xl font-extrabold" style={{ color: INK }}>{t("pp607_exchange")}</h2>
-          <ul className="mt-5 grid gap-3 md:grid-cols-2">
-            {rewards.map((r) => (
-              <li key={r.id} className="flex items-center gap-3 rounded-[20px] bg-white p-4 ring-1 ring-[#F3E6E1]">
-                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-2xl" style={{ background: GOLD_BG }} aria-hidden="true">{r.icon}</span>
-                <span className="min-w-0 flex-1 break-words text-sm font-bold leading-snug" style={{ color: INK }}>{ppText(r.texts, lang)}</span>
-                <span className="shrink-0 text-sm font-extrabold tabular-nums" style={{ color: GOLD }}>{fmt(r.cost)} pts</span>
-              </li>
-            ))}
-          </ul>
+          <PpTitle>{t("pp607_exchange")}</PpTitle>
+          <RewardsGrid rewards={rewards} lang={lang} t={t} fmt={fmt} spendable={null} />
         </section>
       )}
 
-      <section className="mt-12 rounded-[26px] p-5 ring-1 ring-[#BFE8CC] md:p-7" style={{ background: "#EFFAF2" }} data-ppg-plush="">
-        <h2 className="font-display text-2xl font-extrabold" style={{ color: "#0F5C2B" }}>{t("ppg_plush_title")} 🧸</h2>
-        <p className="mt-1 whitespace-pre-line text-sm leading-relaxed" style={{ color: "#23352A" }}>{t("help607_plush_body")}</p>
-        <ul className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6 sm:gap-3">
-          {PLUSH.map((ty, i) => (
-            <li key={ty} className="flex flex-col items-center rounded-[18px] bg-white p-2 text-center sm:p-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/plush/${ty}.png`} alt={t(`help607_plush_names_${i + 1}`)} width={64} height={64} className="h-14 w-14 object-contain sm:h-16 sm:w-16" />
-              <span className="mt-1 break-words text-xs font-bold leading-tight" style={{ color: INK }}>{t(`help607_plush_names_${i + 1}`)}</span>
-            </li>
-          ))}
-          <li className="flex flex-col items-center rounded-[18px] p-2 text-center ring-2 ring-[#F1D9A6] sm:p-3" style={{ background: GOLD_BG }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/plush/teddy_gold.png" alt={t("help607_plush_gold")} width={64} height={64} className="h-14 w-14 object-contain sm:h-16 sm:w-16" />
-            <span className="mt-1 break-words text-xs font-extrabold leading-tight" style={{ color: "#8A5A00" }}>{t("help607_plush_gold")}</span>
-          </li>
-        </ul>
-        <p className="mt-4 whitespace-pre-line rounded-2xl bg-white p-4 text-sm font-semibold leading-relaxed" style={{ color: INK }}>{t("help607_plush_bonus")}</p>
+      <section className="mt-12 rounded-[28px] p-5 md:p-8" style={{ background: "linear-gradient(160deg,#EFFAF2,#FFFFFF 70%)", boxShadow: "inset 0 0 0 1px #BFE8CC, 0 20px 40px -30px #16A34A" }} data-ppg-plush="">
+        <h2 className="font-display text-2xl font-extrabold tracking-[-0.02em] md:text-[28px]" style={{ color: "#0F5C2B" }}>{t("ppg_plush_title")} 🧸</h2>
+        <p className="mb-4 mt-1 whitespace-pre-line text-sm leading-relaxed" style={{ color: "#23352A" }}>{t("help607_plush_body")}</p>
+        <PlushShowcase t={t}>
+          <p className="mt-4 whitespace-pre-line rounded-[18px] bg-white p-4 text-sm font-semibold leading-relaxed" style={{ color: INK }}>{t("help607_plush_bonus")}</p>
+        </PlushShowcase>
       </section>
 
       {catalog?.notes && (
-        <section className="mt-12 space-y-2 rounded-[22px] bg-[#FFF8F3] p-5 ring-1 ring-[#F3E6E1]">
+        <section className="mt-12 space-y-2 rounded-[24px] bg-[#FFF8F3] p-5 ring-1 ring-[#F3E6E1]">
           {Object.values(catalog.notes).map((n, i) => (
             <p key={i} className="flex items-start gap-2 text-[13px] leading-snug" style={{ color: INK }}><span aria-hidden="true">🐾</span><span className="min-w-0">{ppText(n, lang)}</span></p>
           ))}
@@ -111,27 +81,8 @@ export function PawPointsGuide({ initial }: { initial: PawCatalog607 | null }) {
 
       {levels.length > 0 && (
         <section className="mt-12" data-ppg-levels="">
-          <h2 className="font-display text-2xl font-extrabold" style={{ color: INK }}>{t("pp607_levels")}</h2>
-          <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {levels.map((l) => (
-              <li key={l.key} className="rounded-[20px] bg-white p-4" style={{ boxShadow: `inset 0 0 0 1.5px ${l.color}` }}>
-                <div className="flex items-center gap-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] text-2xl" style={{ background: GOLD_BG }} aria-hidden="true">{l.emoji}</span>
-                  <div className="min-w-0">
-                    <div className="break-words text-sm font-extrabold" style={{ color: l.color }}>{l.index}. {ppText(l.texts, lang)}</div>
-                    <div className="text-[12px] font-semibold tabular-nums" style={{ color: SOFT }}>{fmt(l.min)} pts</div>
-                  </div>
-                </div>
-                <ul className="mt-3 space-y-1">
-                  {l.perks.map((p) => (
-                    <li key={p} className="flex items-start gap-2 text-[13px]" style={{ color: INK }}>
-                      <span aria-hidden="true" style={{ color: l.color }}>✓</span><span className="min-w-0 break-words">{ppText(catalog?.perkTexts?.[p], lang) || p}</span>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
+          <PpTitle>{t("pp607_levels")}</PpTitle>
+          <LevelsLadder levels={levels} lifetime={null} lang={lang} perkTexts={catalog?.perkTexts} t={t} fmt={fmt} />
         </section>
       )}
 
