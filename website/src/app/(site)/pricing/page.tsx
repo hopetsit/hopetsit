@@ -5,6 +5,7 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { PageHero, SectionTitle } from "@/components/PageHero";
 import { SubscriptionsExplainer } from "@/components/SubscriptionsExplainer";
 import { PromoCodeBox } from "@/components/PromoCodeBox";
+import { PawPointsTeaser } from "@/components/PawPointsTeaser";
 import { useShopPriceLines } from "@/lib/useShopPrices";
 
 /**
@@ -95,6 +96,10 @@ export default function PricingPage() {
           <SectionTitle>{t("hiw_subs_title")}</SectionTitle>
         </div>
         <SubscriptionsExplainer compact />
+        {/* 02/10 (607) — PawPoints : récompenses réelles du catalogue unique. */}
+        <div className="mx-auto max-w-4xl px-4 pb-16">
+          <PawPointsTeaser />
+        </div>
       </div>
 
       {/* ── PawPremium ── v562 : bande noire sobre. */}

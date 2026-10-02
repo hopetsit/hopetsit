@@ -51,7 +51,7 @@ import {
   MEMBER_CELL_PX_607,
   mercatorPx,
   mergeCloseGroups,
-  repelShift,
+  repelAll,
   pickLabelSide,
   bubbleHasRoom,
   labelRect,
@@ -339,7 +339,7 @@ function MemberCluster({ center, items, onList, friendSet, shift }: { center: [n
   const dom = dominantRole(items.map((m) => m.role));
   const hasFriend = items.some((m) => isFriendMember(m, friendSet));
   const sz = count >= 10 ? 44 : 40;
-  // 607 — décalée (au plus 28 px) quand elle toucherait « Moi » ou un ami :
+  // 607 — décalée (au plus 48 px, pawRepelAll) quand elle toucherait « Moi » ou un ami :
   // le DESSIN bouge, la position du groupe reste la même (comme l'app).
   const sx = Math.round(shift?.x ?? 0);
   const sy = Math.round(shift?.y ?? 0);
@@ -526,6 +526,26 @@ type Sheet =
   | { kind: "list"; items: NearbyMember[] }
   | { kind: "live"; p: FriendLivePosition };
 
+const PLUSH_TYPES_607 = ["teddy", "bunny", "kitty", "puppy", "fox"];
+const plushIconCache = new Map<string, L.DivIcon>();
+/** Icône d'une mini-peluche (PNG 192 px de PAM affiché à 40 px, dorée à 46 px), qui flotte doucement. */
+function plushIcon(type: string, golden: boolean): L.DivIcon {
+  const t = PLUSH_TYPES_607.includes(type) ? type : "teddy";
+  const key = `${t}${golden ? "_gold" : ""}`;
+  const hit = plushIconCache.get(key);
+  if (hit) return hit;
+  const sz = golden ? 46 : 40;
+  const icon = L.divIcon({
+    className: "",
+    html: `<img src="/plush/${key}.png" alt="" width="${sz}" height="${sz}" data-plush="${key}" style="display:block;width:${sz}px;height:${sz}px;object-fit:contain;filter:drop-shadow(0 4px 6px rgba(23,20,31,.35));animation:hps-plush-float 2.6s ease-in-out infinite"/>`,
+    iconSize: [sz, sz],
+    iconAnchor: [sz / 2, sz / 2],
+    popupAnchor: [0, -sz / 2],
+  });
+  plushIconCache.set(key, icon);
+  return icon;
+}
+
 export default function PoiMap({
   center,
   initialZoom = 13,
@@ -577,6 +597,8 @@ export default function PoiMap({
   formatOpenStatus,
   callLabel = "",
   requests = [],
+  plushies = [],
+  plushLabels,
   requestLabels,
   onOfferService,
   dark = false,
@@ -653,6 +675,9 @@ export default function PoiMap({
   callLabel?: string;
   /** Demandes des propriétaires (bulle orange), positions floutées par la page. */
   requests?: MapRequest[];
+  /** 02/10 (607) — mini-peluches de MA Balade (le serveur ne les renvoie que pendant une Balade). */
+  plushies?: { id: string; type: string; golden?: boolean; lat: number; lng: number }[];
+  plushLabels?: { title: string; hint: string };
   requestLabels?: { title: string; mine: string; offer: string; sitting: string; walk: string };
   onOfferService?: (id: string) => void;
   /** Mode sombre : fond de carte sombre, épingles gardent leur liseré blanc. */
@@ -802,12 +827,9 @@ export default function PoiMap({
     for (const g of memberClusters) entries.push({ items: g.items, c: pxOf(g.center), r: g.items.length > 1 ? 24.5 : 46 / 2 + 1, friend: false });
     for (const m of friendMembers) { const p = pointOf(m); if (p) entries.push({ items: [m], c: pxOf(p), r: 50 / 2 + 2, friend: true }); }
     for (const e of entries) if (e.friend) fixedPx.push(e.c);
-    const shifts: Px[] = entries.map((e) => {
-      if (e.items.length < 2) return { x: 0, y: 0 };
-      const s = repelShift(e.c, fixedPx);
-      e.c = { x: e.c.x + s.x, y: e.c.y + s.y };
-      return s;
-    });
+    // 02/10 (607, PAM) — pawRepelAll : jusqu'à 48 px, jamais deux ronds à moins de 50 px.
+    const shifts: Px[] = repelAll(entries.map((e) => e.c), entries.map((e) => e.items.length > 1), fixedPx);
+    entries.forEach((e, i) => { e.c = { x: e.c.x + shifts[i].x, y: e.c.y + shifts[i].y }; });
     const indexOf = new Map<NearbyMember, number>();
     entries.forEach((e, i) => { if (e.items.length === 1) indexOf.set(e.items[0], i); });
     const placed: Rect[] = [];
@@ -1031,6 +1053,20 @@ export default function PoiMap({
             </Popup>
           </Marker>
         )}
+
+        {/* 02/10 (607, PAM) — MINI-PELUCHES : même PNG que l'app (40 px, dorée 46 px),
+            au-dessus des lieux et des demandes, sous les personnes. */}
+        {plushies.map((pl) => (
+          <Marker key={`plush-${pl.id}`} position={[pl.lat, pl.lng]} icon={plushIcon(pl.type, !!pl.golden)} zIndexOffset={PIN_Z.request + 500}>
+            {plushLabels && (
+              <Popup>
+                <strong>{plushLabels.title}</strong>
+                <br />
+                <span className="text-xs">{plushLabels.hint}</span>
+              </Popup>
+            )}
+          </Marker>
+        ))}
 
         {/* LIEUX : goutte par type, carré blanc pour un groupe. */}
         {poiClusters.map((g, i) =>

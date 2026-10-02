@@ -95,6 +95,9 @@ import {
   getPawSpotDirections,
   getStoredUser,
   visitSpot,
+  getActivePlush,
+  catchPlush,
+  type PlushActive,
 } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { usePresence } from "@/lib/usePresence";
@@ -883,6 +886,92 @@ export default function MapPage() {
   // « monde » ont retenu deux profils différents (lib/memberPersons.ts). Une
   // personne reste visible si L'UN de ses rôles est coché dans « Je cherche ».
   const [showMembers, setShowMembers] = useState(true);
+  // ── 02/10 (607, PAM) — MINI-PELUCHES de la Balade (CONTRAT_607_peluches.md).
+  // Le serveur est la seule vérité : liste vide hors Balade ; capture jugée
+  // par lui (< 30 m, vitesse, 1 par jour). Réglage `pawMap.layers.plush`
+  // (absent = affichées), bouton dans la barre de droite pendant la Balade.
+  // Hooks ici, AVANT tout retour anticipé (piège du 22/09).
+  const [plushShown, setPlushShown] = useState(true);
+  const [plush, setPlush] = useState<PlushActive | null>(null);
+  const [plushBanner, setPlushBanner] = useState<{ text: string; golden: boolean; key: number } | null>(null);
+  const plushPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const plushTriedRef = useRef<Map<string, number>>(new Map());
+  const plushBusyRef = useRef(false);
+  const plushLoggedIn = !!getStoredUser();
+  // Lecture : à l'ouverture puis toutes les 60 s (une requête, jamais en rafale).
+  useEffect(() => {
+    if (!plushLoggedIn) return;
+    let alive = true;
+    const tick = async () => {
+      const pos = plushPosRef.current ?? userLocation;
+      if (!pos) return;
+      const r = await getActivePlush(pos.lat, pos.lng);
+      if (alive && r) setPlush(r);
+    };
+    void tick();
+    const id = setInterval(() => { void tick(); }, 60000);
+    return () => { alive = false; clearInterval(id); };
+  }, [plushLoggedIn, userLocation]);
+  // Pendant la Balade (et peluches visibles) : position suivie en continu, et
+  // capture proposée au serveur dès qu'une peluche est à moins de 30 m.
+  const plushWatch = !!plush?.walkActive && plushShown && (plush?.plushies.length ?? 0) > 0 && !plush?.caughtToday;
+  useEffect(() => {
+    if (!plushWatch || typeof navigator === "undefined" || !("geolocation" in navigator)) return;
+    const meters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+      const R = 6371000;
+      const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+      const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+      const x = Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(x));
+    };
+    const tryCatch = async (pos: { lat: number; lng: number }) => {
+      if (plushBusyRef.current) return;
+      const list = plush?.plushies ?? [];
+      const radius = plush?.catchRadiusM ?? 30;
+      const now = Date.now();
+      const near = list.find((pl) => meters(pos, pl) < radius && now - (plushTriedRef.current.get(pl.id) ?? 0) > 20000);
+      if (!near) return;
+      plushBusyRef.current = true;
+      plushTriedRef.current.set(near.id, now);
+      try {
+        const r = await catchPlush(near.id, pos.lat, pos.lng);
+        if (r.ok) {
+          const golden = !!r.plush.golden;
+          const pts = String(r.points);
+          let text = golden ? t("plush607_golden_won").replace("{points}", pts) : t("plush607_caught").replace("{points}", pts);
+          const coll = r.bonuses.find((b) => b.kind === "collector");
+          if (coll) text += ` · ${t("plush607_collector_won").replace("{points}", String(coll.points ?? 500))}`;
+          setPlushBanner({ text, golden, key: now });
+          setPlush((cur) => (cur ? { ...cur, caughtToday: true, plushies: cur.plushies.filter((x) => x.id !== near.id) } : cur));
+        } else if (r.code === "DAILY_LIMIT") {
+          setPlushBanner({ text: t("plush607_daily_done"), golden: false, key: now });
+          setPlush((cur) => (cur ? { ...cur, caughtToday: true } : cur));
+        } else if (r.code === "ALREADY_CAUGHT" || r.code === "EXPIRED" || r.code === "NOT_FOUND") {
+          setPlush((cur) => (cur ? { ...cur, plushies: cur.plushies.filter((x) => x.id !== near.id) } : cur));
+        } else if (r.code === "WALK_REQUIRED") {
+          setPlush((cur) => (cur ? { ...cur, walkActive: false, plushies: [] } : cur));
+        }
+      } finally {
+        plushBusyRef.current = false;
+      }
+    };
+    const id = navigator.geolocation.watchPosition(
+      (p) => {
+        const pos = { lat: p.coords.latitude, lng: p.coords.longitude };
+        plushPosRef.current = pos;
+        void tryCatch(pos);
+      },
+      () => { /* position refusée : pas de capture */ },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+    );
+    return () => navigator.geolocation.clearWatch(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plushWatch, plush?.plushies]);
+  useEffect(() => {
+    if (!plushBanner) return;
+    const id = setTimeout(() => setPlushBanner(null), 4200);
+    return () => clearTimeout(id);
+  }, [plushBanner]);
   // 587 (point 11) — puis la position de profil floutée renvoyée par /friends
   // prime pour chaque ami (et ajoute ceux que les couches n'ont pas).
   const mergedMembers = useMemo(() => placeFriendsFromList(placeFriendsAtProfile(mergePersons(members, worldMembers), worldMembers, friendIdSetFrom(friendsForMap)), friendsForMap), [members, worldMembers, friendsForMap]);
@@ -1116,6 +1205,8 @@ export default function MapPage() {
       // 01/10 (607, décision 4.4) — bouton rose « tout le monde » retenu sur le
       // compte, comme dans l'app (absent = membres visibles).
       if (typeof layers.everyone === "boolean") setShowMembers(layers.everyone);
+      // 02/10 (607) — mini-peluches retenues sur le compte (absent = affichées).
+      if (typeof layers.plush === "boolean") setPlushShown(layers.plush);
     })();
   }, [benefits, loadFriends]);
 
@@ -1710,6 +1801,12 @@ export default function MapPage() {
               </button>
             </div>
           )}
+          {/* 02/10 (607) — bannière de capture « +20 PawPoints ! 🧸 » (dorée : or). */}
+          {plushBanner && (
+            <div key={plushBanner.key} role="status" data-plush-banner="" className="pointer-events-none absolute left-1/2 top-16 z-[1200] w-max max-w-[calc(100%-32px)] -translate-x-1/2 rounded-full px-5 py-3 text-center text-[15px] font-extrabold text-white shadow-[0_14px_30px_-12px_rgba(23,20,31,0.6)]" style={{ background: plushBanner.golden ? "linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800)" : "linear-gradient(165deg,#43B862,#16A34A 55%,#15803D)", border: "2px solid #fff" }}>
+              {plushBanner.text}
+            </div>
+          )}
           {(liveToast || friendsOnlyMsg) && (
             <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[100px] max-[420px]:px-[96px] ${followed ? "bottom-[76px]" : "bottom-5"}`}>
               {liveToast
@@ -1809,6 +1906,18 @@ export default function MapPage() {
               {(capsuleOrder.length > 0 || myLive.on) && <CapsuleSep dark={dark} />}
               {/* Balade masquée de la barre mais en cours : le drapeau reste (comme l'app). */}
               {myLive.on && !capsuleOrder.includes("balade") && getStoredUser() && <WalkBadge startedAt={myLive.startedAt} followers={myLive.followers} nowTs={nowTs} t={t} />}
+              {/* 02/10 (607) — mini-peluches : afficher / masquer, seulement pendant MA Balade
+                  (hors de la liste personnalisable : la barre de l'app n'a pas ce bouton). */}
+              {plush?.walkActive && (
+                <CapsuleBtn key="cap-plush" dark={dark} color="#16A34A" label={t("plush607_layer")} pressed={plushShown} onClick={() => { const v = !plushShown; setPlushShown(v); saveLayers({ plush: v }); }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <span className="relative grid place-items-center">
+                    <img src="/plush/teddy.png" alt="" width={26} height={26} data-plush-toggle={plushShown ? "on" : "off"} style={{ width: 26, height: 26, objectFit: "contain" }} />
+                    {/* Éteint = barré (vert plein, jamais une image grisée), comme « tout le monde ». */}
+                    {!plushShown && <svg aria-hidden="true" viewBox="0 0 26 26" width="26" height="26" className="absolute inset-0"><path d="M4 22L22 4" stroke="#fff" strokeWidth="5" strokeLinecap="round" /><path d="M4 22L22 4" stroke="#15803D" strokeWidth="2.6" strokeLinecap="round" /></svg>}
+                  </span>
+                </CapsuleBtn>
+              )}
               {capsuleOrder.map((id) => {
                 if (id === "satellite") return (
                   <CapsuleBtn key="cap-satellite" dark={dark} color={ROLE_SOLID_UI[roleKey(myRole)]} label={satellite ? t("map_layer_plan") : t("map_layer_satellite")} pressed={satellite} onClick={() => setSatellite((v) => { try { localStorage.setItem("hopetsit:mapSat", v ? "0" : "1"); } catch { /* */ } return !v; })}>
@@ -1990,6 +2099,8 @@ export default function MapPage() {
             requests={showRequests ? requests : []}
             requestLabels={{ title: t("map_request_title"), mine: t("map_request_mine"), offer: t("map_request_offer"), sitting: t("home_service_sitting"), walk: t("home_service_walk") }}
             onOfferService={(id) => router.push(`/post/${id}`)}
+            plushies={plush?.walkActive && plushShown ? plush.plushies : []}
+            plushLabels={{ title: t("plush607_marker_title"), hint: t("plush607_marker_hint") }}
             dark={dark}
             focusLabels={focusLabels}
             focusTop={focusTop}
@@ -2865,7 +2976,7 @@ function BarTab({ side, collapsed, label, onClick, menu, className = "" }: { sid
     >
       <span
         className={`grid place-items-center transition-transform duration-200 hover:scale-[1.06] active:scale-95 ${collapsed ? "h-11 w-6" : "h-[46px] w-6"}`}
-        style={{ background: glass, borderRadius: radius, border: `1.5px solid ${ink}`, boxShadow: `0 3px 10px ${menu.shadow}` }}
+        style={{ background: glass, borderRadius: radius, border: `1.6px solid ${ink}`, boxShadow: `0 3px 10px ${menu.shadow}` }}
       >
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={ink} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d={pointLeft ? "M14 7l-5 5 5 5" : "M10 7l5 5-5 5"} />

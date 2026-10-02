@@ -544,6 +544,8 @@ export const PIN_Z = {
 
 /** Feuille de style partagée par les cartes (lueur PawBoost qui respire). */
 export const PAWMAP_KEYFRAMES = `
+@keyframes hps-plush-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { [data-plush] { animation:none !important; } }
 @keyframes hps-breathe { 0%,100% { box-shadow:0 0 0 3px rgba(6,182,212,.35),0 0 12px 4px rgba(6,182,212,.55),0 2px 6px rgba(23,20,31,.35); } 50% { box-shadow:0 0 0 6px rgba(6,182,212,.5),0 0 26px 10px rgba(6,182,212,.8),0 2px 6px rgba(23,20,31,.35); } }
 @keyframes hps-follow { 0%,100% { box-shadow:0 0 0 3px rgba(124,58,237,.45),0 0 10px 3px rgba(124,58,237,.5); } 50% { box-shadow:0 0 0 7px rgba(124,58,237,.28),0 0 26px 10px rgba(124,58,237,.7); } }
 @keyframes hps-pulse { 0% { transform:scale(1); opacity:.65; } 70% { transform:scale(2.1); opacity:0; } 100% { transform:scale(2.1); opacity:0; } }

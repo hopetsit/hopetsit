@@ -9789,3 +9789,6 @@ for (const code of Object.keys(SITE605) as Lang[]) Object.assign(t[code], SITE60
 // 02/10 (607, LEO) — aide « Ramène tes clients / Pionnier » et « Les peluches de la Balade » (clés help607_*, mêmes que l'app).
 import { SITE607 } from "./site607";
 for (const code of Object.keys(SITE607) as Lang[]) Object.assign(t[code], SITE607[code]);
+// 02/10 (607, LEO) — mini-peluches : textes de l'app (PAM), mot pour mot.
+import { PLUSH607 } from "./plush607";
+for (const code of Object.keys(PLUSH607) as Lang[]) Object.assign(t[code], PLUSH607[code]);

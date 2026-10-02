@@ -1,424 +1,299 @@
 "use client";
 
-import { useEffect, useState } from "react";
+// 02/10/2026 (607, LEO) — page PawPoints du tableau de bord, refaite sur le
+// catalogue UNIQUE de ZOE (`catalog607` de GET /pawpoints/catalog, 9 langues) :
+// aucun barème, palier ni texte de récompense écrit en dur ici. Plus de
+// réductions en % (remplacées par des jours offerts et du PawBoost).
+// Sections : solde + palier · échanger · ma collection de peluches (PAM,
+// GET /plush/collection) · comment gagner · paliers · derniers gains · notes
+// d'honnêteté (jamais d'argent). Tous les hooks EN HAUT (piège du 22/09).
+
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import BackLink from "@/components/BackLink";
 import {
-  getPawPointsCatalog,
+  getPawCatalog607,
   getMyPawPoints,
+  getPlushCollection,
   redeemPawReward,
   getStoredUser,
-  PawCatalog,
-  MyPawPoints,
-  PawSubReward,
-  PawReward,
+  ppText,
   ApiError,
+  type PawCatalog607,
+  type MyPawPoints607,
+  type PlushCollection,
+  type Pp607Reward,
 } from "@/lib/api";
 
-/**
- * v416 — Daniel : refonte PawPoints (design fourni). Stats, barre de niveau,
- * réductions/mois gratuits sur abonnements (échange auto, 1×/user), 7 niveaux
- * exclusifs avec avantages, objectif Paw Legend, + explications complètes.
- * Accent doré E8A00A. Lecture /pawpoints/catalog + /pawpoints/me.
- */
-
-const GOLD = "#E8A00A";
-const fmt = (n: number) => n.toLocaleString("fr-FR");
-
-// Médailles/pièces par tier (cf design).
-const TIER_ICON: Record<number, string> = { 1: "🥉", 2: "🥈", 3: "🥇", 4: "🟣", 5: "🟡", 6: "🌸" };
-
-function perkLabel(p: string, t: (k: string) => string): string {
-  const map: Record<string, string> = {
-    badge: "pp_perk_badge",
-    chests_basic: "pp_perk_chests_basic",
-    map_visibility: "pp_perk_map_visibility",
-    bonus_5: "pp_perk_bonus_5",
-    bonus_10: "pp_perk_bonus_10",
-    free_pawboost: "pp_perk_free_pawboost",
-    legendary_frame: "pp_perk_legendary_frame",
-    legendary_status: "pp_perk_legendary_status",
-    pink_crown: "pp_perk_pink_crown",
-    ultimate: "pp_perk_ultimate",
-  };
-  return map[p] ? t(map[p]) : p;
-}
+const GOLD = "#B7791F";
+const GOLD_BG = "#FFF6DB";
+const INK = "#231715";
+const SOFT = "#6E4F48";
+const PLUSH_TYPES = ["teddy", "bunny", "kitty", "puppy", "fox"];
 
 export default function PawPointsPage() {
-  const { t } = useT();
-  const [catalog, setCatalog] = useState<PawCatalog | null>(null);
-  const [mine, setMine] = useState<MyPawPoints | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { t, lang } = useT();
+  const [catalog, setCatalog] = useState<PawCatalog607 | null>(null);
+  const [mine, setMine] = useState<MyPawPoints607 | null>(null);
+  const [plush, setPlush] = useState<PlushCollection | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
-  const loggedIn = typeof window !== "undefined" && !!getStoredUser();
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const fmt = useCallback((n: number) => { try { return n.toLocaleString(lang); } catch { return String(n); } }, [lang]);
 
-  async function refresh() {
-    try {
-      setCatalog(await getPawPointsCatalog());
-    } catch {
-      /* catalogue indispo */
-    }
-    if (getStoredUser()) {
-      try {
-        setMine(await getMyPawPoints());
-      } catch {
-        /* vue publique */
-      }
-    }
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    refresh();
+  const refresh = useCallback(async () => {
+    const logged = !!getStoredUser();
+    setLoggedIn(logged);
+    const [c, m, p] = await Promise.all([
+      getPawCatalog607(),
+      logged ? getMyPawPoints().catch(() => null) : Promise.resolve(null),
+      logged ? getPlushCollection() : Promise.resolve(null),
+    ]);
+    setCatalog(c);
+    setMine(m as MyPawPoints607 | null);
+    setPlush(p);
+    setLoaded(true);
   }, []);
+  useEffect(() => { void refresh(); }, [refresh]);
 
-  async function onRedeem(r: PawSubReward) {
-    if (!loggedIn) {
-      window.location.href = "/login";
-      return;
-    }
-    if (mine?.claimedRewardKeys?.includes(r.id)) {
-      setMsg(t("pp_already_used"));
-      return;
-    }
-    if ((mine?.spendable ?? 0) < r.cost) {
-      setMsg(t("pp_not_enough").replace("{pts}", fmt(r.cost - (mine?.spendable ?? 0))));
-      return;
-    }
-    const label =
-      r.kind === "discount"
-        ? t("pp_discount_label").replace("{pct}", String(r.percent)).replace("{target}", r.target)
-        : t("pp_free_label")
-            .replace("{months}", (r.days ?? 0) >= 90 ? t("pp_3_months") : t("pp_1_month"))
-            .replace("{target}", r.target);
-    if (!confirm(t("pp_redeem_confirm").replace("{cost}", fmt(r.cost)).replace("{label}", label))) return;
+  const lifetime = mine?.lifetime ?? mine?.points ?? 0;
+  const spendable = mine?.spendable ?? 0;
+  const levels = [...(catalog?.levels ?? [])].sort((a, b) => a.min - b.min);
+  const current = [...levels].reverse().find((l) => lifetime >= l.min) ?? null;
+  const next = levels.find((l) => l.min > lifetime) ?? null;
+  const prevMin = current?.min ?? 0;
+  const progress = next ? Math.min(100, Math.max(0, ((lifetime - prevMin) / (next.min - prevMin)) * 100)) : 100;
+  const claimed = new Set(mine?.claimedRewardKeys ?? []);
+  const earnByKey = new Map((catalog?.earn ?? []).map((e) => [e.key, e]));
+  const limitLabel = (l: string) => (["each", "once", "daily", "streak"].includes(l) ? t(`pp607_limit_${l}`) : "");
+
+  async function onRedeem(r: Pp607Reward) {
+    if (!loggedIn) { window.location.href = `/login?redirect=${encodeURIComponent("/pawpoints")}`; return; }
+    const label = ppText(r.texts, lang);
+    if (spendable < r.cost) return;
+    if (!window.confirm(t("pp607_confirm").replace("{cost}", fmt(r.cost)).replace("{label}", label))) return;
     setBusyId(r.id);
     setMsg(null);
     try {
-      const res = await redeemPawReward(r.id);
-      setMsg(
-        res.applied === "fulfilled"
-          ? t("pp_redeem_fulfilled")
-          : t("pp_redeem_queued"),
-      );
+      await redeemPawReward(r.id);
+      setMsg({ ok: true, text: t("pp607_done").replace("{label}", label) });
       await refresh();
     } catch (e) {
-      setMsg(e instanceof ApiError ? e.message : t("pp_redeem_error"));
+      const code = e instanceof ApiError ? String((e.details as { code?: string; error?: string } | undefined)?.code || (e.details as { error?: string } | undefined)?.error || "") : "";
+      setMsg({
+        ok: false,
+        text: code === "REWARD_RETIRED" ? t("pp607_retired") : code === "ALREADY_CLAIMED" ? t("pp607_btn_used") : t("pp607_error"),
+      });
     } finally {
       setBusyId(null);
     }
   }
-
-  // v450 — récompenses personnalisées (admin). Même flux d'échange que les
-  // récompenses d'abonnement : redeemPawReward(id) avec l'ObjectId de la PawReward.
-  async function onRedeemCustom(r: PawReward) {
-    if (!loggedIn) {
-      window.location.href = "/login";
-      return;
-    }
-    if (r.soldOut) {
-      setMsg(t("pp_sold_out"));
-      return;
-    }
-    if ((mine?.spendable ?? 0) < r.cost) {
-      setMsg(t("pp_not_enough").replace("{pts}", fmt(r.cost - (mine?.spendable ?? 0))));
-      return;
-    }
-    if (!confirm(t("pp_redeem_confirm").replace("{cost}", fmt(r.cost)).replace("{label}", r.title))) return;
-    setBusyId(r.id);
-    setMsg(null);
-    try {
-      const res = await redeemPawReward(r.id);
-      setMsg(res.applied === "fulfilled" ? t("pp_redeem_fulfilled") : t("pp_redeem_queued"));
-      await refresh();
-    } catch (e) {
-      setMsg(e instanceof ApiError ? e.message : t("pp_redeem_error"));
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  const lifetime = mine?.lifetime ?? 0;
-  const levels = catalog?.levels ?? mine?.levels ?? [];
-  const level = mine?.level ?? null;
-  const nextLevel = mine?.nextLevel ?? null;
-  const prevMin = level?.min ?? 0;
-  const nextMin = nextLevel?.min ?? prevMin;
-  const progress = nextLevel
-    ? Math.min(100, Math.max(0, ((lifetime - prevMin) / (nextMin - prevMin)) * 100))
-    : 100;
-  const pawLegendMin = levels.length ? levels[levels.length - 1].min : 1000000;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-12 md:py-16">
+    <div className="mx-auto max-w-5xl px-4 py-10 md:py-14">
       <div className="mb-6">
         <BackLink href="/dashboard" label={t("nav_dashboard")} />
       </div>
-      <div className="text-center">
-        <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-2xl bg-amber-100 text-4xl">🐾</div>
-        <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-5xl">PawPoints</h1>
-        <p className="mx-auto mt-3 max-w-2xl text-lg text-ink-muted">
-          {t("pp_hero_sub")}
-        </p>
-      </div>
 
-      {/* Stats du haut (connecté) */}
-      {loggedIn && mine && (
-        <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard emoji="🚩" value={fmt(mine.contributions)} label={t("pp_stat_contributions")} hint={t("pp_stat_contributions_hint")} />
-          <StatCard emoji="❤️" value={fmt(mine.spotsLiked)} label={t("pp_stat_spots_liked")} hint={t("pp_stat_spots_liked_hint")} />
-          <StatCard
-            emoji="🏅"
-            value={level ? `${level.index}` : "0"}
-            label={level ? level.label : t("pp_stat_level_none")}
-            hint={t("pp_stat_level")}
-            accent
-          />
-          <StatCard emoji="🪙" value={fmt(mine.spendable)} label={t("pp_stat_spendable")} hint={t("pp_stat_spendable_hint")} accent />
-        </div>
-      )}
+      {/* ── EN-TÊTE ── */}
+      <header className="text-center">
+        <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-[20px] text-4xl" style={{ background: GOLD_BG }}>🐾</div>
+        <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-5xl" style={{ color: INK }}>PawPoints</h1>
+        <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed md:text-lg" style={{ color: SOFT }}>{t("pp607_hero")}</p>
+      </header>
 
-      {/* Barre de progression de niveau */}
+      {/* ── SOLDE + PALIER (connecté) ── */}
       {loggedIn && mine && (
-        <div className="mt-4 rounded-2xl border border-ink/10 bg-white p-5 shadow-card">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-semibold text-ink">
-              {nextLevel
-                ? t("pp_progress_to").replace("{pts}", fmt(Math.max(0, nextMin - lifetime))).replace("{level}", nextLevel.label)
-                : t("pp_progress_max")}
-            </span>
-            <span className="text-ink-muted">
-              {fmt(lifetime)} {nextLevel ? `/ ${fmt(nextMin)}` : t("pp_progress_pts")}
-            </span>
+        <section className="mt-8 grid gap-3 md:grid-cols-3" data-pp-balance="">
+          <div className="rounded-[22px] p-5 text-center ring-1 ring-[#F1D9A6]" style={{ background: GOLD_BG }}>
+            <div className="text-[13px] font-bold uppercase tracking-[0.05em]" style={{ color: GOLD }}>{t("pp607_spendable")}</div>
+            <div className="mt-1 font-display text-4xl font-extrabold tabular-nums" style={{ color: INK }}>{fmt(spendable)}</div>
           </div>
-          <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-ink/10">
-            <div className="h-full rounded-full" style={{ width: `${progress}%`, background: `linear-gradient(90deg, #F472B6, ${GOLD})` }} />
+          <div className="rounded-[22px] bg-white p-5 text-center ring-1 ring-[#F3E6E1]">
+            <div className="text-[13px] font-bold uppercase tracking-[0.05em]" style={{ color: SOFT }}>{t("pp607_lifetime")}</div>
+            <div className="mt-1 font-display text-4xl font-extrabold tabular-nums" style={{ color: INK }}>{fmt(lifetime)}</div>
           </div>
-          {mine.bonusPct > 0 && (
-            <p className="mt-2 text-xs font-semibold text-amber-700">
-              {t("pp_bonus_active").replace("{pct}", String(mine.bonusPct))}
+          <div className="rounded-[22px] bg-white p-5 ring-1 ring-[#F3E6E1]">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[13px] font-bold uppercase tracking-[0.05em]" style={{ color: SOFT }}>{t("pp607_level")}</span>
+              {current && <span className="text-sm font-extrabold" style={{ color: current.color }}>{current.emoji} {ppText(current.texts, lang)}</span>}
+            </div>
+            <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-[#FBEFE6]">
+              <div className="h-full rounded-full" style={{ width: `${progress}%`, background: `linear-gradient(90deg, #F4C04A, ${GOLD})` }} />
+            </div>
+            <p className="mt-2 text-[13px] font-semibold" style={{ color: INK }}>
+              {next ? t("pp607_next").replace("{pts}", fmt(Math.max(0, next.min - lifetime))).replace("{level}", ppText(next.texts, lang)) : t("pp607_max")}
             </p>
-          )}
-        </div>
-      )}
-
-      {!loggedIn && (
-        <div className="mx-auto mt-8 max-w-md rounded-2xl border border-ink/10 bg-white p-5 text-center text-sm text-ink-muted shadow-card">
-          <Link href="/login" className="font-semibold text-amber-700 underline">{t("pp_login_prompt_link")}</Link>{" "}
-          {t("pp_login_prompt_rest")}
-        </div>
-      )}
-
-      {msg && (
-        <div className="mx-auto mt-5 max-w-2xl rounded-xl bg-amber-50 px-4 py-3 text-center text-sm text-amber-800">{msg}</div>
-      )}
-
-      {/* Réductions sur abonnements */}
-      <section className="mt-12">
-        <h2 className="font-display text-2xl font-extrabold">{t("pp_rewards_title")}</h2>
-        <p className="mt-1 text-sm text-ink-muted">
-          {t("pp_rewards_sub_a")} <strong>{t("pp_rewards_sub_once")}</strong> {t("pp_rewards_sub_b")}{" "}
-          <strong>{t("pp_rewards_sub_auto")}</strong>.
-        </p>
-        <div className="mt-5 space-y-3">
-          {(catalog?.subscriptionRewards ?? []).map((r) => {
-            const claimed = mine?.claimedRewardKeys?.includes(r.id);
-            const affordable = (mine?.spendable ?? 0) >= r.cost;
-            const valueLabel = r.kind === "discount" ? `-${r.percent}%` : (r.days ?? 0) >= 90 ? t("pp_value_3_months") : t("pp_value_1_month");
-            const free = r.kind === "free_month";
-            return (
-              <div key={r.id} className="flex items-center gap-3 rounded-2xl border border-ink/5 bg-white p-4 shadow-card">
-                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-amber-50 text-2xl">{TIER_ICON[r.tier] ?? "🪙"}</span>
-                <div className="w-24 shrink-0">
-                  <div className="text-base font-extrabold text-ink">{fmt(r.cost)}</div>
-                  <div className="text-xs text-ink-muted">pts</div>
-                </div>
-                <div
-                  className={
-                    "shrink-0 rounded-xl px-3 py-2 text-center text-sm font-extrabold " +
-                    (free ? "bg-violet-600 text-white" : "bg-amber-100 text-amber-800")
-                  }
-                >
-                  {valueLabel}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-ink">{t("pp_reward_on").replace("{target}", r.target)}</div>
-                  <div className="text-xs text-ink-muted">{t("pp_reward_valid_once")}</div>
-                </div>
-                <button
-                  disabled={busyId === r.id || claimed}
-                  onClick={() => onRedeem(r)}
-                  className={
-                    "shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition disabled:cursor-not-allowed " +
-                    (claimed
-                      ? "bg-ink/10 text-ink-muted"
-                      : loggedIn && !affordable
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-amber-500 text-white hover:brightness-110")
-                  }
-                >
-                  {claimed ? t("pp_btn_used") : busyId === r.id ? "…" : loggedIn ? (affordable ? t("pp_btn_redeem") : t("pp_btn_not_enough")) : t("pp_btn_login")}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* v450 — Récompenses personnalisées (admin). Affichées seulement s'il y en a. */}
-      {!!catalog?.rewards?.length && (
-        <section className="mt-12">
-          <h2 className="font-display text-2xl font-extrabold">{t("pp_rewards_custom_title")}</h2>
-          <p className="mt-1 text-sm text-ink-muted">{t("pp_rewards_custom_sub")}</p>
-          <div className="mt-5 space-y-3">
-            {catalog.rewards.map((r) => {
-              const affordable = (mine?.spendable ?? 0) >= r.cost;
-              const disabled = busyId === r.id || r.soldOut || (loggedIn && !affordable);
-              return (
-                <div key={r.id} className="flex items-center gap-3 rounded-2xl border border-ink/5 bg-white p-4 shadow-card">
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-amber-50 text-2xl">{r.icon || "🎁"}</span>
-                  <div className="w-24 shrink-0">
-                    <div className="text-base font-extrabold text-ink">{fmt(r.cost)}</div>
-                    <div className="text-xs text-ink-muted">pts</div>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-ink">{r.title}</div>
-                    <div className="truncate text-xs text-ink-muted">{r.valueLabel || r.description}</div>
-                  </div>
-                  <button
-                    disabled={disabled}
-                    onClick={() => onRedeemCustom(r)}
-                    className={
-                      "shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition disabled:cursor-not-allowed " +
-                      (r.soldOut
-                        ? "bg-ink/10 text-ink-muted"
-                        : loggedIn && !affordable
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-amber-500 text-white hover:brightness-110")
-                    }
-                  >
-                    {r.soldOut
-                      ? t("pp_sold_out")
-                      : busyId === r.id
-                        ? "…"
-                        : loggedIn
-                          ? affordable
-                            ? t("pp_btn_redeem")
-                            : t("pp_btn_not_enough")
-                          : t("pp_btn_login")}
-                  </button>
-                </div>
-              );
-            })}
+            {current && current.bonusPct > 0 && <p className="mt-1 text-[12px] font-bold" style={{ color: GOLD }}>{t("pp607_bonus").replace("{pct}", String(current.bonusPct))}</p>}
           </div>
         </section>
       )}
 
-      {/* Niveaux & paliers exclusifs */}
-      <section className="mt-12">
-        <h2 className="font-display text-2xl font-extrabold">{t("pp_levels_title")}</h2>
-        <p className="mt-1 text-sm text-ink-muted">
-          {t("pp_levels_sub")}
+      {loaded && !loggedIn && (
+        <p className="mx-auto mt-8 max-w-md rounded-[20px] bg-white p-5 text-center text-sm ring-1 ring-[#F3E6E1]" style={{ color: SOFT }}>
+          <Link href={`/login?redirect=${encodeURIComponent("/pawpoints")}`} className="font-bold underline" style={{ color: GOLD }}>{t("pp607_btn_login")}</Link>{" · "}{t("pp607_login")}
         </p>
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {levels.map((l) => {
-            const reached = lifetime >= l.min;
-            return (
-              <div
-                key={l.key}
-                className={"rounded-2xl border bg-white p-4 shadow-card " + (reached ? "border-amber-300" : "border-ink/5 opacity-90")}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="grid h-11 w-11 place-items-center rounded-xl text-2xl" style={{ background: l.color + "22" }}>{l.emoji}</span>
-                  <div>
-                    <div className="text-sm font-bold" style={{ color: l.color }}>
-                      {l.index}. {l.label}
-                    </div>
-                    <div className="text-xs text-ink-muted">{fmt(l.min)} pts {reached ? t("pp_level_reached") : ""}</div>
-                  </div>
-                </div>
-                <ul className="mt-3 space-y-1">
-                  {l.perks.map((p) => (
-                    <li key={p} className="flex items-start gap-2 text-xs text-ink">
-                      <span style={{ color: l.color }}>✓</span>
-                      {perkLabel(p, t)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
+      )}
 
-        {/* Objectif Paw Legend */}
-        <div className="mt-5 flex flex-col items-center gap-3 rounded-3xl border-2 border-pink-300 bg-gradient-to-r from-pink-50 to-amber-50 p-6 text-center md:flex-row md:text-left">
-          <span className="text-4xl">👑</span>
-          <div className="flex-1">
-            <h3 className="font-display text-lg font-extrabold text-pink-600">
-              {t("pp_legend_title").replace("{pts}", fmt(pawLegendMin))}
-            </h3>
-            <p className="mt-1 text-sm text-ink-muted">
-              {t("pp_legend_sub")}
-            </p>
+      {msg && (
+        <div role="status" className="mx-auto mt-5 max-w-2xl rounded-2xl px-4 py-3 text-center text-sm font-semibold" style={msg.ok ? { background: "#E8F8EE", color: "#0F5C2B" } : { background: "#FDECE8", color: "#9E1F0B" }}>{msg.text}</div>
+      )}
+
+      {/* ── ÉCHANGER ── */}
+      {catalog && (
+        <section className="mt-12" data-pp-rewards="">
+          <h2 className="font-display text-2xl font-extrabold" style={{ color: INK }}>{t("pp607_exchange")}</h2>
+          <ul className="mt-5 grid gap-3 md:grid-cols-2">
+            {[...catalog.rewards].sort((a, b) => a.cost - b.cost).map((r) => {
+              const used = r.once && claimed.has(r.id);
+              const missing = Math.max(0, r.cost - spendable);
+              const can = loggedIn && !used && missing === 0;
+              return (
+                <li key={r.id} className="flex items-center gap-3 rounded-[20px] bg-white p-4 ring-1 ring-[#F3E6E1]">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-2xl" style={{ background: GOLD_BG }} aria-hidden="true">{r.icon}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="break-words text-sm font-bold leading-snug" style={{ color: INK }}>{ppText(r.texts, lang)}</div>
+                    <div className="mt-0.5 text-[13px] font-extrabold tabular-nums" style={{ color: GOLD }}>{fmt(r.cost)} pts</div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busyId === r.id || used || (loggedIn && missing > 0)}
+                    onClick={() => void onRedeem(r)}
+                    className="min-h-[44px] shrink-0 rounded-full px-4 text-xs font-bold transition disabled:cursor-not-allowed"
+                    style={can || !loggedIn ? { background: "linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800)", color: "#fff" } : { background: "#FBEFE6", color: SOFT }}
+                  >
+                    {used ? t("pp607_btn_used") : busyId === r.id ? "…" : !loggedIn ? t("pp607_btn_login") : missing > 0 ? t("pp607_btn_missing").replace("{pts}", fmt(missing)) : t("pp607_btn_redeem")}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* ── MA COLLECTION DE PELUCHES (PAM) ── */}
+      {loggedIn && (
+        <section className="mt-12 rounded-[26px] p-5 ring-1 ring-[#BFE8CC] md:p-7" style={{ background: "#EFFAF2" }} data-pp-plush="">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-2xl font-extrabold" style={{ color: "#0F5C2B" }}>{ppText(catalog?.collection?.texts.title, lang) || t("plush607_collection_title")} 🧸</h2>
+            {plush && <span className="rounded-full bg-white px-3 py-1 text-[13px] font-bold" style={{ color: "#0F5C2B" }}>{t("plush607_total").replace("{count}", String(plush.total))}</span>}
           </div>
-          {loggedIn && mine && (
-            <div className="rounded-2xl bg-white px-5 py-3 text-center shadow-card">
-              <div className="text-2xl font-extrabold" style={{ color: GOLD }}>{fmt(lifetime)} pts</div>
-              <div className="text-xs text-ink-muted">
-                {t("pp_legend_remaining").replace("{pts}", fmt(Math.max(0, pawLegendMin - lifetime)))}
-              </div>
+          <p className="mt-1 text-sm" style={{ color: "#23352A" }}>{t("plush607_collection_sub")}</p>
+          <ul className="mt-4 grid grid-cols-5 gap-2 sm:gap-3">
+            {PLUSH_TYPES.map((ty) => {
+              const n = plush?.counts?.[ty] ?? 0;
+              return (
+                <li key={ty} className="flex flex-col items-center rounded-[18px] bg-white p-2 text-center sm:p-3" style={{ boxShadow: n > 0 ? "inset 0 0 0 2px #16A34A" : "inset 0 0 0 1.5px #BFE8CC" }} data-plush-type={ty} data-count={n}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/plush/${ty}.png`} alt="" width={56} height={56} className="h-12 w-12 object-contain sm:h-14 sm:w-14" />
+                  <span className="mt-1 break-words text-[11px] font-bold leading-tight sm:text-xs" style={{ color: INK }}>{t(`plush607_type_${ty}`)}</span>
+                  <span className="text-[12px] font-extrabold tabular-nums" style={{ color: n > 0 ? "#15803D" : SOFT }}>×{n}</span>
+                </li>
+              );
+            })}
+          </ul>
+          {plush && (plush.golden > 0 || plush.streak > 0 || plush.badges.includes("collector")) && (
+            <div className="mt-3 flex flex-wrap gap-2 text-[13px] font-bold">
+              {plush.badges.includes("collector") && <span className="rounded-full px-3 py-1 text-white" style={{ background: "linear-gradient(165deg,#F4C04A,#B07800)" }}>🏅 {t("plush607_collector_badge")}</span>}
+              {plush.golden > 0 && <span className="rounded-full px-3 py-1" style={{ background: GOLD_BG, color: GOLD }}>🌟 {t("plush607_golden_count").replace("{count}", String(plush.golden))}</span>}
+              {plush.streak > 0 && <span className="rounded-full bg-white px-3 py-1" style={{ color: "#0F5C2B" }}>📅 {t("plush607_streak").replace("{days}", String(plush.streak))}</span>}
             </div>
           )}
-        </div>
-      </section>
+          {plush && plush.total === 0 && <p className="mt-3 text-sm font-semibold" style={{ color: "#0F5C2B" }}>{t("plush607_collection_empty")}</p>}
+          <p className="mt-3 text-[12px] leading-snug" style={{ color: "#23352A" }}>{t("plush607_rules")}</p>
+        </section>
+      )}
 
-      {/* Comment gagner */}
-      <section className="mt-12">
-        <h2 className="font-display text-2xl font-extrabold">{t("pp_earn_title")}</h2>
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {(catalog?.earnRules ?? mine?.earnRules ?? []).map((r) => (
-            <div key={r.key} className="flex items-center gap-3 rounded-2xl border border-ink/5 bg-white p-4 shadow-card">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-amber-50 text-xl">{r.icon}</span>
-              <span className="flex-1 text-sm font-medium text-ink">{r.label}</span>
-              <span className="text-lg font-extrabold" style={{ color: GOLD }}>+{r.points}</span>
-            </div>
+      {/* ── COMMENT GAGNER ── */}
+      {catalog && (
+        <section className="mt-12" data-pp-earn="">
+          <h2 className="font-display text-2xl font-extrabold" style={{ color: INK }}>{t("pp607_earn")}</h2>
+          <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+            {catalog.earn.map((e) => (
+              <li key={e.key} className="flex items-center gap-3 rounded-[20px] bg-white p-4 ring-1 ring-[#F3E6E1]">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] text-xl" style={{ background: GOLD_BG }} aria-hidden="true">{e.icon}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block break-words text-sm font-semibold leading-snug" style={{ color: INK }}>{ppText(e.texts, lang)}</span>
+                  {limitLabel(e.limit) && <span className="block text-[12px]" style={{ color: SOFT }}>{limitLabel(e.limit)}</span>}
+                </span>
+                <span className="shrink-0 text-lg font-extrabold tabular-nums" style={{ color: GOLD }}>+{fmt(e.points)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* ── PALIERS ── */}
+      {levels.length > 0 && (
+        <section className="mt-12" data-pp-levels="">
+          <h2 className="font-display text-2xl font-extrabold" style={{ color: INK }}>{t("pp607_levels")}</h2>
+          <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {levels.map((l) => {
+              const reached = loggedIn && lifetime >= l.min;
+              return (
+                <li key={l.key} className="rounded-[20px] bg-white p-4" style={{ boxShadow: `inset 0 0 0 ${reached ? 2 : 1}px ${reached ? l.color : "#F3E6E1"}` }}>
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] text-2xl" style={{ background: GOLD_BG }} aria-hidden="true">{l.emoji}</span>
+                    <div className="min-w-0">
+                      <div className="break-words text-sm font-extrabold" style={{ color: l.color }}>{l.index}. {ppText(l.texts, lang)}</div>
+                      <div className="text-[12px] font-semibold tabular-nums" style={{ color: SOFT }}>{fmt(l.min)} pts</div>
+                    </div>
+                  </div>
+                  <ul className="mt-3 space-y-1">
+                    {l.perks.map((p) => (
+                      <li key={p} className="flex items-start gap-2 text-[13px]" style={{ color: INK }}>
+                        <span aria-hidden="true" style={{ color: l.color }}>✓</span>
+                        <span className="min-w-0 break-words">{ppText(catalog?.perkTexts?.[p], lang) || p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* ── DERNIERS GAINS ── */}
+      {loggedIn && mine?.history && mine.history.length > 0 && (
+        <section className="mt-12" data-pp-history="">
+          <h2 className="font-display text-2xl font-extrabold" style={{ color: INK }}>{t("pp607_history")}</h2>
+          <ul className="mt-4 divide-y divide-[#F3E6E1] rounded-[20px] bg-white ring-1 ring-[#F3E6E1]">
+            {mine.history.slice(0, 20).map((h, i) => {
+              const e = earnByKey.get(h.key);
+              let when = "";
+              try { when = new Date(h.at).toLocaleDateString(lang, { day: "numeric", month: "short" }); } catch { /* */ }
+              return (
+                <li key={`${h.key}-${i}`} className="flex items-center gap-3 px-4 py-3">
+                  <span aria-hidden="true" className="text-lg">{e?.icon ?? "🐾"}</span>
+                  <span className="min-w-0 flex-1 break-words text-sm" style={{ color: INK }}>{e ? ppText(e.texts, lang) : h.key}</span>
+                  <span className="shrink-0 text-[12px]" style={{ color: SOFT }}>{when}</span>
+                  <span className="shrink-0 text-sm font-extrabold tabular-nums" style={{ color: GOLD }}>+{fmt(h.credited ?? h.points)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* ── HONNÊTETÉ ── (textes du catalogue) */}
+      {catalog?.notes && (
+        <section className="mt-12 space-y-2 rounded-[22px] bg-[#FFF8F3] p-5 ring-1 ring-[#F3E6E1]" data-pp-notes="">
+          {Object.values(catalog.notes).map((n, i) => (
+            <p key={i} className="flex items-start gap-2 text-[13px] leading-snug" style={{ color: INK }}>
+              <span aria-hidden="true">🐾</span><span className="min-w-0">{ppText(n, lang)}</span>
+            </p>
           ))}
-        </div>
-        <p className="mx-auto mt-4 max-w-2xl text-center text-xs text-ink-muted">
-          {t("pp_earn_footer").replace("{pts}", fmt(catalog?.goldCreatorMin ?? 1000))}
-        </p>
-      </section>
+        </section>
+      )}
 
-      <div className="mt-12 text-center">
-        <Link href="/pawmap" className="inline-block rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white hover:brightness-110">
-          {t("pp_cta_discover")} →
+      <div className="mt-10 text-center">
+        <Link href="/map" className="inline-flex min-h-[48px] items-center gap-2 rounded-full px-7 text-sm font-bold text-white" style={{ background: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)" }}>
+          {t("cta_open_pawmap")} →
         </Link>
       </div>
-    </div>
-  );
-}
-
-function StatCard({
-  emoji,
-  value,
-  label,
-  hint,
-  accent,
-}: {
-  emoji: string;
-  value: string;
-  label: string;
-  hint: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className={"rounded-2xl border bg-white p-4 text-center shadow-card " + (accent ? "border-amber-300" : "border-ink/5")}>
-      <div className="text-2xl">{emoji}</div>
-      <div className="mt-1 text-2xl font-extrabold" style={accent ? { color: GOLD } : undefined}>{value}</div>
-      <div className="text-xs font-semibold text-ink">{label}</div>
-      <div className="mt-0.5 text-[11px] text-ink-muted">{hint}</div>
     </div>
   );
 }

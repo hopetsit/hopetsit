@@ -17,6 +17,8 @@ export const CITY_PRICE_ZOOM_607 = 9; // `_cityPriceZoom` : bulle d'une épingle
 export const MEMBER_CELL_PX_607 = 44; // `_memberClusterCellPx`
 /** Rond 46 px + anneau ami 2,5 + 4 px d'air (`kPawGroupMinPx`). */
 export const GROUP_MIN_PX_607 = 50;
+/** 02/10 (607, PAM) — écart maximal d'une pastille loin de Moi / des amis (`kPawRepelMaxPx`, avant 28). */
+export const REPEL_MAX_PX_607 = 48;
 
 export type Px = { x: number; y: number };
 export type Rect = { l: number; t: number; r: number; b: number };
@@ -90,7 +92,7 @@ export function mergeCloseGroups<T>(groups: T[][], px: (t: T) => Px, minPx = GRO
 
 /** Décalage du DESSIN d'une pastille posée en `at` pour ne recouvrir aucun
  *  rond fixe (Moi, amis) ; borné à `maxShift`. {0,0} si rien ne la touche. */
-export function repelShift(at: Px, obstacles: Px[], minPx = GROUP_MIN_PX_607, maxShift = 28): Px {
+export function repelShift(at: Px, obstacles: Px[], minPx = GROUP_MIN_PX_607, maxShift = REPEL_MAX_PX_607): Px {
   let sx = 0;
   let sy = 0;
   for (const o of obstacles) {
@@ -111,6 +113,40 @@ export function repelShift(at: Px, obstacles: Px[], minPx = GROUP_MIN_PX_607, ma
   if (len === 0) return { x: 0, y: 0 };
   if (len <= maxShift) return { x: sx, y: sy };
   return { x: (sx / len) * maxShift, y: (sy / len) * maxShift };
+}
+
+/**
+ * 02/10 (607, PAM) — copie de `pawRepelAll` : écarte chaque PASTILLE (isGroup)
+ * des ronds fixes jusqu'à 48 px, SANS jamais rapprocher deux ronds à moins de
+ * `minPx` (ni plus près qu'avant), ni la rapprocher d'un rond fixe : sinon
+ * l'écart est divisé par 2 (6 fois au plus), puis annulé.
+ */
+export function repelAll(at: Px[], isGroup: boolean[], fixed: Px[], minPx = GROUP_MIN_PX_607, maxShift = REPEL_MAX_PX_607): Px[] {
+  const n = at.length;
+  const shift: Px[] = at.map(() => ({ x: 0, y: 0 }));
+  const pos: Px[] = at.map((p) => ({ ...p }));
+  const d = (a: Px, b: Px) => Math.hypot(a.x - b.x, a.y - b.y);
+  const ok = (i: number, p: Px) => {
+    for (let j = 0; j < n; j++) {
+      if (j === i) continue;
+      const before = d(at[i], pos[j]);
+      const after = d(p, pos[j]);
+      if (after < minPx && after < before) return false;
+    }
+    for (const f of fixed) if (d(p, f) < d(at[i], f) - 0.01) return false;
+    return true;
+  };
+  for (let i = 0; i < n; i++) {
+    if (!isGroup[i]) continue;
+    let s = repelShift(at[i], fixed, minPx, maxShift);
+    if (s.x === 0 && s.y === 0) continue;
+    let tries = 0;
+    while (Math.hypot(s.x, s.y) > 0.5 && !ok(i, { x: at[i].x + s.x, y: at[i].y + s.y }) && tries++ < 6) s = { x: s.x / 2, y: s.y / 2 };
+    if (Math.hypot(s.x, s.y) <= 0.5 || !ok(i, { x: at[i].x + s.x, y: at[i].y + s.y })) s = { x: 0, y: 0 };
+    shift[i] = s;
+    pos[i] = { x: at[i].x + s.x, y: at[i].y + s.y };
+  }
+  return shift;
 }
 
 export type LabelSide = "below" | "above" | "none";

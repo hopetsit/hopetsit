@@ -13,6 +13,7 @@
 // natif. Sur desktop sans app installée, on affiche un message "Téléchargez
 // l'app pour finaliser l'achat".
 
+import { PawPointsTeaser } from "@/components/PawPointsTeaser";
 import { memberPinHtml, PAWMAP_KEYFRAMES } from "@/lib/pawmapLegend";
 import Link from "next/link";
 import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
@@ -303,21 +304,9 @@ export default function BoutiquePage() {
       {/* v23.1.390 — chips « jours restants » comme dans l'app (Daniel). */}
       <BenefitsChips status={subStatus} boost={boostStatus} />
 
-      {/* v416 — Daniel : "rajoute ça dans la boutique dans mes PawPoints".
-          Bandeau vers la page PawPoints (niveaux + récompenses échangeables). */}
-      <Link
-        href="/pawpoints"
-        className="mt-5 flex items-center gap-3 rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-white p-4 shadow-card transition hover:brightness-[1.02]"
-      >
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-amber-100 text-2xl">🐾</span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-extrabold text-amber-700">{t("shop_pawpoints_banner_title")}</span>
-          <span className="block text-xs text-ink-muted">
-            {t("shop_pawpoints_banner_sub")}
-          </span>
-        </span>
-        <span className="shrink-0 text-amber-600">→</span>
-      </Link>
+      {/* v416 → 607 (02/10) — encart PawPoints alimenté par le catalogue unique
+          (plus de réductions en %, remplacées par des jours offerts). */}
+      <PawPointsTeaser className="mt-5" />
 
       {/* v450 → v565 — Code promo : réduction ou abonnement offert (géré côté
           admin). Champ commun PromoCodeBox (check → redeem, messages lisibles). */}

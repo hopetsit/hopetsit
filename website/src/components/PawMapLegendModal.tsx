@@ -120,7 +120,7 @@ export function pioneerBadgeHtml(label: string): string {
 }
 // Petit ourson dessiné (rond vert de la Balade) ; remplacé par le PNG de PAM
 // (même fichier que l'app) dès qu'il est livré : PLUSH_PIN_SRC.
-export const PLUSH_PIN_SRC: string | null = null;
+export const PLUSH_PIN_SRC: string | null = "/plush/teddy.png";
 function plushHtml(): string {
   if (PLUSH_PIN_SRC) return `<img src="${PLUSH_PIN_SRC}" alt="" width="48" height="48" style="width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(22,163,74,.45))"/>`;
   return `<span style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#43B862,#1F7A37);border:2px solid #fff;box-shadow:0 6px 14px -6px #16A34A"><svg viewBox="0 0 40 40" width="32" height="32"><circle cx="11" cy="11" r="6" fill="#B7793F"/><circle cx="29" cy="11" r="6" fill="#B7793F"/><circle cx="11" cy="11" r="3" fill="#F2C9A0"/><circle cx="29" cy="11" r="3" fill="#F2C9A0"/><circle cx="20" cy="21" r="13" fill="#C98A4B"/><ellipse cx="20" cy="26" rx="6.5" ry="5" fill="#F2C9A0"/><circle cx="15" cy="19" r="1.8" fill="#231715"/><circle cx="25" cy="19" r="1.8" fill="#231715"/><ellipse cx="20" cy="24.5" rx="2.4" ry="1.7" fill="#231715"/><path d="M17.5 28.2q2.5 1.8 5 0" stroke="#231715" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg></span>`;

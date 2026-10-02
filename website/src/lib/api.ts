@@ -3026,7 +3026,7 @@ export async function sendFeedback(opts: {
 // COMPTE (GET/PATCH /users/me/map-prefs, backend mapPrefsController, suivies
 // sur les 3 profils et l'app). Calques connus : friends, pawspots, premium…
 // 01/10 (607) — `everyone` : bouton rose « tout le monde » (afficher / masquer tous les membres).
-export type MapLayerPrefs = Partial<Record<"places" | "reports" | "members" | "pawspots" | "live" | "requests" | "friends" | "premium" | "everyone", boolean>>;
+export type MapLayerPrefs = Partial<Record<"places" | "reports" | "members" | "pawspots" | "live" | "requests" | "friends" | "premium" | "everyone" | "plush", boolean>>;
 export async function getMapLayerPrefs(): Promise<MapLayerPrefs | null> {
   try {
     const raw = await request<{ pawMap?: { layers?: MapLayerPrefs } }>(`/users/me/map-prefs`);
@@ -3249,3 +3249,90 @@ export async function getMyLiveState(): Promise<MyLiveState | null> {
     return null;
   }
 }
+
+
+// ─── 607 (02/10, LEO) — mini-peluches de la Balade (CONTRAT_607_peluches.md, PAM) ───
+export type ActivePlush = { id: string; type: string; golden?: boolean; lat: number; lng: number; day: string };
+export type PlushActive = { walkActive: boolean; catchRadiusM: number; reward: number; caughtToday: boolean; plushies: ActivePlush[] };
+/** Peluches autour de moi (liste vide hors Balade : le serveur décide). */
+export async function getActivePlush(lat: number, lng: number): Promise<PlushActive | null> {
+  try {
+    const r = await request<Partial<PlushActive>>(`/plush/active?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}`);
+    return {
+      walkActive: r?.walkActive === true,
+      catchRadiusM: Number(r?.catchRadiusM) || 30,
+      reward: Number(r?.reward) || 20,
+      caughtToday: r?.caughtToday === true,
+      plushies: Array.isArray(r?.plushies) ? r!.plushies!.filter((x) => x && x.id && Number.isFinite(x.lat) && Number.isFinite(x.lng)) : [],
+    };
+  } catch {
+    return null;
+  }
+}
+export type PlushCatchResult =
+  | { ok: true; plush: { id: string; type: string; golden?: boolean }; points: number; bonuses: { kind: string; points?: number; hours?: number }[] }
+  | { ok: false; code: string; status: number };
+/** Capture (le serveur juge : 30 m, Balade, vitesse, 1 par jour). */
+export async function catchPlush(id: string, lat: number, lng: number): Promise<PlushCatchResult> {
+  try {
+    const r = await request<{ ok?: boolean; plush?: { id: string; type: string; golden?: boolean }; points?: number; bonuses?: { kind: string; points?: number; hours?: number }[] }>(
+      `/plush/${encodeURIComponent(id)}/catch`,
+      { method: "POST", body: JSON.stringify({ lat, lng }) },
+    );
+    if (r?.ok && r.plush) return { ok: true, plush: r.plush, points: Number(r.points) || 0, bonuses: Array.isArray(r.bonuses) ? r.bonuses : [] };
+    return { ok: false, code: "UNKNOWN", status: 200 };
+  } catch (e) {
+    const err = e as ApiError;
+    const data = (err && (err as unknown as { data?: { code?: string } }).data) || null;
+    return { ok: false, code: String(data?.code || err?.message || "UNKNOWN"), status: Number((err as unknown as { status?: number })?.status) || 0 };
+  }
+}
+export type PlushCollection = { total: number; types: string[]; counts: Record<string, number>; golden: number; badges: string[]; streak: number; items: { id: string; type: string; golden?: boolean; day: string; city: string; at: string | null }[] };
+export async function getPlushCollection(): Promise<PlushCollection | null> {
+  try {
+    const r = await request<Partial<PlushCollection>>(`/plush/collection`);
+    return {
+      total: Number(r?.total) || 0,
+      types: Array.isArray(r?.types) && r!.types!.length ? r!.types! : ["teddy", "bunny", "kitty", "puppy", "fox"],
+      counts: (r?.counts as Record<string, number>) || {},
+      golden: Number(r?.golden) || 0,
+      badges: Array.isArray(r?.badges) ? r!.badges! : [],
+      streak: Number(r?.streak) || 0,
+      items: Array.isArray(r?.items) ? r!.items! : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── 607 (02/10, LEO) — catalogue PawPoints UNIQUE (CONTRAT_607_pawpoints.md, ZOE) ───
+// Le site lit `catalog607` : aucun barème ni texte de gain écrit en dur.
+export type Pp607Texts = Record<string, string>;
+export type Pp607Earn = { key: string; points: number; icon: string; limit: "each" | "once" | "daily" | "streak" | string; texts: Pp607Texts };
+export type Pp607Level = { index: number; key: string; min: number; emoji: string; color: string; bonusPct: number; perks: string[]; texts: Pp607Texts };
+export type Pp607Reward = { id: string; tier: number; cost: number; kind: string; icon: string; once: boolean; days?: number; plan?: string; texts: Pp607Texts };
+export type PawCatalog607 = {
+  version: number;
+  earn: Pp607Earn[];
+  levels: Pp607Level[];
+  perkTexts: Record<string, Pp607Texts>;
+  rewards: Pp607Reward[];
+  collection?: { key: string; icon: string; texts: { title: Pp607Texts; detail: Pp607Texts } };
+  notes?: Record<string, Pp607Texts>;
+};
+export async function getPawCatalog607(): Promise<PawCatalog607 | null> {
+  try {
+    const r = await request<{ catalog607?: PawCatalog607 }>("/pawpoints/catalog");
+    const c = r?.catalog607;
+    if (!c || !Array.isArray(c.earn) || !Array.isArray(c.rewards) || !Array.isArray(c.levels)) return null;
+    return c;
+  } catch {
+    return null;
+  }
+}
+/** Texte du catalogue dans la langue du site (repli : anglais, puis français). */
+export function ppText(texts: Pp607Texts | undefined, lang: string): string {
+  if (!texts) return "";
+  return texts[lang] || texts.en || texts.fr || "";
+}
+export type MyPawPoints607 = MyPawPoints & { history?: { key: string; points: number; credited?: number; at: string }[]; catalogVersion?: number };
