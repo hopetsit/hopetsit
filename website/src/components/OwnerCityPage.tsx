@@ -51,6 +51,8 @@ type Copy = {
   recruitLink: (c: RecruitCity) => string;
   inLanguage: string;
   metaTitle: (c: RecruitCity) => string;
+  /** 02/10 (GUS) — meta description propre à la langue (sinon l'intro coupée à 155). */
+  metaDescription?: (c: RecruitCity) => string;
 };
 
 // 01/10 (SAM) — fin du bandeau Toussaint (lundi 3 novembre 2026, 0 h Paris).
@@ -135,7 +137,13 @@ const COPY: Record<RecruitLang, Copy> = {
     ctaBtn: "Post my free request",
     recruitLink: (c) => `Love animals? Become a pet sitter in ${c.name} →`,
     inLanguage: "en",
-    metaTitle: (c) => `Pet sitters in ${c.name} — dog sitting, cat visits & walks`,
+    // 02/10 (GUS) — pages US en 18e-21e place sur « dog sitter / pet sitting + ville », 0 clic sur
+    // ~5 000 affichages en 28 j : l'ancien titre faisait ~70 caractères (coupé par Google) et la
+    // description était l'intro tronquée. Titre court qui reprend la requête + le tarif déjà
+    // affiché sur la page ; description qui finit sa phrase.
+    metaTitle: (c) => `Dog Sitting & Pet Sitters in ${c.name}: ${c.dayRate}/day`,
+    metaDescription: (c) =>
+      `Verified dog sitters and cat sitters in ${c.name}. Typical rates ${c.dayRate} a day, walks ${c.walkRate}. Post your request free and pay only when you book.`,
   },
   es: {
     kicker: (c) => c.region,
@@ -422,7 +430,7 @@ const COPY: Record<RecruitLang, Copy> = {
 export function ownerMetadata(c: RecruitCity, canonical: string) {
   const copy = COPY[c.lang];
   const title = copy.metaTitle(c);
-  const description = copy.intro(c).slice(0, 155);
+  const description = copy.metaDescription ? copy.metaDescription(c) : copy.intro(c).slice(0, 155);
   return {
     title,
     description,
