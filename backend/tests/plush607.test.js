@@ -375,7 +375,8 @@ describe('API réelle', () => {
     // le compte de test, lui, ne la revoit plus
     const lt = await request(app).get(`/plush/active?lat=${at.lat}&lng=${at.lng}`).set('Authorization', `Bearer ${tokenFor(tst._id, 'owner')}`);
     expect(lt.body.plushies.map((x) => x.id)).not.toContain(String(p._id));
-    expect(lt.body.caughtToday).toBe(true);
+    // compte de test : jamais bloqué par la limite du jour (copies)
+    expect(lt.body.caughtToday).toBe(false);
     const rr = await request(app).post(`/plush/${p._id}/catch`).set('Authorization', `Bearer ${tokenFor(real._id, 'owner')}`).send(at);
     expect(rr.status).toBe(200);
     expect((await PawPlush.findById(p._id).lean()).caughtByPerson).toBe(String(real._id));
@@ -402,5 +403,19 @@ describe('API réelle', () => {
       caughtByPerson: String(real2._id), caughtBy: { userId: String(real2._id), role: 'owner', at: new Date() } });
     await request(app).get(`/plush/active?lat=${at.lat}&lng=${at.lng}`).set('Authorization', `Bearer ${tokenFor(real._id, 'owner')}`);
     expect((await PawPlush.findById(q._id).lean()).caughtByPerson).toBe(String(real2._id));
+  });
+
+  test('compte de test : plusieurs copies le même jour, un vrai compte reste à 1', async () => {
+    const tst = await makeOwner({ email: 'dadaciao84+testplush3@gmail.com' });
+    const today = plush.dayKeyFor(PARIS.lng, Date.now(), PARIS.lat);
+    const at = { lat: PARIS.lat + 0.006, lng: PARIS.lng };
+    const a = await PawPlush.create({ cityKey: 'multitest', day: today, slot: 0, type: 'fox', location: { type: 'Point', coordinates: [at.lng, at.lat] } });
+    const b = await PawPlush.create({ cityKey: 'multitest', day: today, slot: 1, type: 'kitty', location: { type: 'Point', coordinates: [at.lng + 0.0001, at.lat] } });
+    startWalk(tst, at.lat, at.lng);
+    plush._resetForTests();
+    const tok = tokenFor(tst._id, 'owner');
+    expect((await request(app).post(`/plush/${a._id}/catch`).set('Authorization', `Bearer ${tok}`).send(at)).status).toBe(200);
+    expect((await request(app).post(`/plush/${b._id}/catch`).set('Authorization', `Bearer ${tok}`).send(at)).status).toBe(200);
+    expect(await PawPlush.countDocuments({ caughtByPerson: String(tst._id), testCopy: true })).toBe(2);
   });
 });

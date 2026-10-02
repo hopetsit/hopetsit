@@ -48,9 +48,15 @@ const pawPlushSchema = new mongoose.Schema(
 
 pawPlushSchema.index({ cityKey: 1, day: 1, slot: 1 }, { unique: true });
 pawPlushSchema.index({ location: '2dsphere' });
+// Une capture par personne et par jour — sauf les COPIES des comptes de test
+// (testCopy: true), qui n'enlèvent rien à personne et servent aux essais.
 pawPlushSchema.index(
   { day: 1, caughtByPerson: 1 },
-  { unique: true, partialFilterExpression: { caughtByPerson: { $type: 'string' } } },
+  {
+    unique: true,
+    name: 'day_person_unique_607b',
+    partialFilterExpression: { caughtByPerson: { $type: 'string' }, testCopy: false },
+  },
 );
 pawPlushSchema.index({ caughtByPerson: 1, 'caughtBy.at': -1 });
 pawPlushSchema.index({ expireAt: 1 }, { expireAfterSeconds: 0 });

@@ -25,6 +25,25 @@ const MapPOI = require('../models/MapPOI');
 const logger = require('../utils/logger');
 
 // Barème (BOB / Daniel, 02/10) — exporté pour le catalogue PawPoints (ZOE).
+// 607b — l'ancien index unique (jour, personne) comptait aussi les copies des
+// comptes de test : on le retire une fois, le nouveau (sans les copies) est
+// créé par Mongoose.
+let _indexFixed = false;
+async function fixIndexesOnce() {
+  if (_indexFixed) return;
+  _indexFixed = true;
+  try {
+    const idx = await PawPlush.collection.indexes();
+    if (idx.some((i) => i.name === 'day_1_caughtByPerson_1')) {
+      await PawPlush.collection.dropIndex('day_1_caughtByPerson_1');
+      logger.info('[plush] ancien index (jour, personne) retiré');
+    }
+    await PawPlush.createIndexes();
+  } catch (e) {
+    logger.warn(`[plush] index : ${e.message}`);
+  }
+}
+
 const REWARD_POINTS = 20;              // chaque peluche (1 par jour)
 const GOLDEN_POINTS = 200;             // peluche dorée (1 par ville et par semaine)
 const GOLDEN_BOOST_HOURS = 24;         // + 24 h de PawBoost offert
@@ -380,6 +399,7 @@ function publicPlush(p) {
 // ── API ─────────────────────────────────────────────────────────────────────
 
 async function listActive({ userId, lat, lng, now = Date.now() }) {
+  await fixIndexesOnce();
   const empty = {
     walkActive: false, plushies: [], radiusM: VIEW_RADIUS_M,
     catchRadiusM: CATCH_RADIUS_M, reward: REWARD_POINTS, caughtToday: false,
@@ -412,7 +432,10 @@ async function listActive({ userId, lat, lng, now = Date.now() }) {
       .select('copyOf').lean()).map((x) => String(x.copyOf)));
     found = found.filter((p) => !mine.has(String(p._id)));
   }
-  const caughtToday = !!(await PawPlush.exists({ caughtByPerson: me.key, day: today }));
+  // Comptes de test : jamais « déjà attrapée aujourd'hui » (copies illimitées).
+  const caughtToday = me.test
+    ? false
+    : !!(await PawPlush.exists({ caughtByPerson: me.key, day: today, testCopy: { $ne: true } }));
   return { ...empty, walkActive: true, caughtToday, plushies: found.map(publicPlush) };
 }
 
@@ -426,6 +449,7 @@ class PlushError extends Error {
 }
 
 async function catchPlush({ userId, role, plushId, lat, lng, now = Date.now() }) {
+  await fixIndexesOnce();
   const mongoose = require('mongoose');
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new PlushError(400, 'POSITION_REQUIRED');
   if (!mongoose.isValidObjectId(plushId)) throw new PlushError(404, 'NOT_FOUND');
@@ -446,7 +470,7 @@ async function catchPlush({ userId, role, plushId, lat, lng, now = Date.now() })
   if (!speedOk(fromWalk, here) || !speedOk(prev, here)) throw new PlushError(422, 'TOO_FAST');
   const distanceM = Math.round(metersBetween(lat, lng, pLat, pLng));
   if (distanceM > CATCH_RADIUS_M) throw new PlushError(422, 'TOO_FAR', { distanceM });
-  if (await PawPlush.exists({ caughtByPerson: me.key, day: plush.day })) {
+  if (!me.test && await PawPlush.exists({ caughtByPerson: me.key, day: plush.day, testCopy: { $ne: true } })) {
     throw new PlushError(429, 'DAILY_LIMIT');
   }
   let won;
