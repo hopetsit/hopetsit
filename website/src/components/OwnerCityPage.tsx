@@ -99,7 +99,12 @@ const COPY: Record<RecruitLang, Copy> = {
     ctaBtn: "Publier ma demande gratuite",
     recruitLink: (c) => `Vous aimez les animaux ? Devenez pet sitter à ${c.name} →`,
     inLanguage: "fr",
-    metaTitle: (c) => `Pet sitter à ${c.name} — garde de chien, chat & promenades`,
+    // 03/10 (GUS) — pages FR en 4e-6e place sur « garde de chien <ville> » (Lille, Avignon…) avec
+    // 0 clic : la description était l'intro coupée à 155 caractères, au milieu d'une phrase.
+    // Titre qui reprend la requête + le tarif déjà affiché sur la page ; description complète.
+    metaTitle: (c) => `Garde de chien et chat à ${c.name} : ${c.dayRate}/jour`,
+    metaDescription: (c) =>
+      `Pet sitters à ${c.name} : garde de chien à domicile, visites de chat, promenades. ${c.dayRate} par jour. Demande gratuite, vous payez à la réservation.`,
   },
   en: {
     kicker: (c) => c.region,
@@ -145,7 +150,7 @@ const COPY: Record<RecruitLang, Copy> = {
     // affiché sur la page ; description qui finit sa phrase.
     metaTitle: (c) => `Dog Sitting & Pet Sitters in ${c.name}: ${c.dayRate}/day`,
     metaDescription: (c) =>
-      `Verified dog sitters and cat sitters in ${c.name}. Typical rates ${c.dayRate} a day, walks ${c.walkRate}. Post your request free and pay only when you book.`,
+      `Dog sitters and cat sitters near you in ${c.name}. Typical rates ${c.dayRate} a day, walks ${c.walkRate}. Post your request free and pay only when you book.`,
   },
   es: {
     kicker: (c) => c.region,
