@@ -72,7 +72,7 @@ export default function GardeAnimauxParisPage() {
   return (
     <OwnerCityPage city={PARIS} h1="Garde d'animaux à Paris : pet-sitter, chat et promenade de chien">
       <section className="mt-12">
-        <h2 className="font-display text-2xl font-extrabold text-ink">Ton arrondissement</h2>
+        <h2 className="font-display text-2xl font-extrabold text-ink">Votre arrondissement</h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">
           Chaque arrondissement a sa page : les vétérinaires ouverts le week-end, les animaleries,
           les espaces canins et les gardiens HoPetSit du quartier.

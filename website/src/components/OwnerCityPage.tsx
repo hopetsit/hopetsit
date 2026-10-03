@@ -1,6 +1,7 @@
 import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalPlaces";
 import { GetAppButton } from "@/components/GetAppButton";
 import { OwnerSignupCta } from "@/components/OwnerSignupCta";
+import { OwnerStickyCta } from "@/components/OwnerStickyCta";
 import { CitySupplyProof } from "@/components/CitySupplyProof";
 import { TrackedLink } from "@/components/TrackedLink";
 import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
@@ -627,6 +628,13 @@ export default function OwnerCityPage({
           la page « devenir pet sitter » de la même ville. Clics comptés
           (« maillage »). Remplace l'ancien bloc « Villes voisines ». */}
       <CityLinks city={city} mode="owner" />
+
+      {/* 03/10 (SAM) — à 375 px le bouton de la page tombe sous le premier
+          écran : barre collante en bas, téléphone seulement, marchés actifs
+          (Paris/France et USA). Clic compté « signup_web_barre ». */}
+      {(city.lang === "fr" || city.lang === "en") && (
+        <OwnerStickyCta label={copy.ctaBtn} city={city.name} />
+      )}
     </div>
   );
 }
