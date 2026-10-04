@@ -209,6 +209,14 @@ router.post('/live-position', requireAuth, async (req, res) => {
       await liveDevices.stopEverywhere(u.id);
       return res.json({ ok: true, offline: true });
     }
+    // 611 (PAM) — Balade reprise sur un autre téléphone : les positions
+    // tardives de l'ancien (app ouverte ou service de fond) sont ignorées ;
+    // `stopped` fait taire le service de fond des apps déjà installées.
+    const takeover611 = require('../utils/liveTakeover611');
+    const deviceId = takeover611.deviceIdOfReq(req);
+    if (takeover611.isDisplaced(u.id, deviceId)) {
+      return res.json({ ok: true, ignored: true, stopped: true, takenOver: true });
+    }
     // v589 — le service de fond Android (aucun en-tête X-App-Version) ne peut
     // plus rallumer un direct que la personne a arrêté sur un autre appareil.
     const foreground = liveDevices.isForegroundRequest(req);
@@ -238,6 +246,7 @@ router.post('/live-position', requireAuth, async (req, res) => {
     const listeners = await relayLivePosition({
       userId: u.id, role: u.role, lat: la, lng: ln, city, duration,
     });
+    takeover611.noteDevice(getLiveSession(u.id), deviceId); // 611
     if (started && (started.restarted || !hadSession)) {
       liveDevices.announceStarted(started.docs, { role: u.role, userId: u.id });
     }
@@ -249,6 +258,23 @@ router.post('/live-position', requireAuth, async (req, res) => {
   } catch (e) {
     logger.error('[friends/live-position]', e);
     return res.status(500).json({ error: 'Unable to relay live position.' });
+  }
+});
+
+// 611 (PAM) — « Passer en direct sur ce téléphone » (Cam, 04/10) : la Balade
+// qui tourne sur un AUTRE appareil de la personne passe sur celui-ci, d'un
+// seul geste, sans perdre ses suiveurs. Voir utils/liveTakeover611.js.
+router.post('/live-takeover', requireAuth, async (req, res) => {
+  try {
+    const u = me(req);
+    const takeover611 = require('../utils/liveTakeover611');
+    const deviceId = takeover611.deviceIdOfReq(req);
+    if (!deviceId) return res.status(400).json({ error: 'DEVICE_ID_REQUIRED' });
+    const r = await takeover611.takeOver({ userId: u.id, role: u.role, deviceId });
+    return res.json(r);
+  } catch (e) {
+    logger.error('[friends/live-takeover]', e);
+    return res.status(500).json({ error: 'Unable to take over live.' });
   }
 });
 
@@ -341,7 +367,9 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       // s'affichent avec les prix ». Cette couche (membres abonnés proches)
       // PRIME sur la couche monde et ne renvoyait AUCUN tarif : un gardien +
       // promeneur abonné n'avait ni bulle duo ni bulle simple.
-      + 'hourlyRate dailyRate weeklyRate monthlyRate walkRates currency rating reviewsCount';
+      + 'hourlyRate dailyRate weeklyRate monthlyRate walkRates currency rating reviewsCount '
+      // 611 (PAM) — rang : PawPoints gagnés depuis toujours.
+      + 'pawPoints';
     // v565 §6 — présence RÉELLE (sockets connectés, identité complète), plus
     // le champ figé `isOnline` du doc. Index construit une fois par requête.
     let presenceIdx = null;
@@ -516,6 +544,8 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
         // 609 — identité vérifiée de la PERSONNE (n'importe lequel de ses rôles).
         identityVerified: entries.some((e) => mapVisibility.isKycVerified(e.d)),
         kycVerified: entries.some((e) => mapVisibility.isKycVerified(e.d)),
+        // 611 (PAM) — rang de la PERSONNE (le plus haut total de ses profils).
+        rank: require('../services/ranks611').rankOfDocs(entries.map((e) => e.d)),
       });
     }
     return res.json({ members, count: members.length });
@@ -652,7 +682,8 @@ async function _withHiddenFriends(req, payload) {
     // couronne. Mêmes drapeaux que la couche monde.
     const sel = 'name avatar profilePicture location preferences.hideFromMap preferences.mapVisibility +homeLocation city updatedAt createdAt email '
       + 'boostExpiry mapBoostExpiry isStaff oldId kycStatus identityVerification.status '
-      + 'availableDates unavailableDates availableTimeSlots availableDays rating reviewsCount lastSeenAt';
+      + 'availableDates unavailableDates availableTimeSlots availableDays rating reviewsCount lastSeenAt '
+      + 'pawPoints'; // 611 — rang
     const docs = (await Promise.all([
       Owner.find({ _id: { $in: missing } }).select(sel).lean()
         .then((r) => r.map((d) => ({ d, role: 'owner' }))),
@@ -713,6 +744,8 @@ async function _withHiddenFriends(req, payload) {
         // 609 — identité vérifiée de la PERSONNE (n'importe lequel de ses rôles).
         identityVerified: entries.some((e) => mapVisibility.isKycVerified(e.d)),
         kycVerified: entries.some((e) => mapVisibility.isKycVerified(e.d)),
+        // 611 (PAM) — rang de la PERSONNE (le plus haut total de ses profils).
+        rank: require('../services/ranks611').rankOfDocs(entries.map((e) => e.d)),
         lastSeenAt: (() => {
           const t = entries.map((e) => (e.d.lastSeenAt ? new Date(e.d.lastSeenAt).getTime() : 0))
             .reduce((m, x) => Math.max(m, x), 0);
@@ -758,7 +791,9 @@ router.get('/members/world', requireAuth, async (req, res) => {
       + '+homeLocation city updatedAt createdAt '
       // v584 — drapeaux d'épingle.
       + 'boostExpiry kycStatus identityVerification.status availableDates '
-      + 'unavailableDates availableTimeSlots availableDays';
+      + 'unavailableDates availableTimeSlots availableDays '
+      // 611 (PAM) — rang : PawPoints gagnés depuis toujours.
+      + 'pawPoints';
     const per = Math.floor(WORLD_LIMIT / 3);
     const [owners, sitters, walkers] = await Promise.all([
       Owner.find(filter).select(sel).sort({ createdAt: -1 }).limit(per).lean(),
@@ -881,6 +916,8 @@ router.get('/members/world', requireAuth, async (req, res) => {
         // 609 — identité vérifiée de la PERSONNE (n'importe lequel de ses rôles).
         identityVerified: entries.some((e) => mapVisibility.isKycVerified(e.d)),
         kycVerified: entries.some((e) => mapVisibility.isKycVerified(e.d)),
+        // 611 (PAM) — rang de la PERSONNE (le plus haut total de ses profils).
+        rank: require('../services/ranks611').rankOfDocs(entries.map((e) => e.d)),
       });
     }
     // Centres-villes manquants : résolus en tâche de fond pour la prochaine

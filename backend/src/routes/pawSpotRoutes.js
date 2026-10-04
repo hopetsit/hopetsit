@@ -546,6 +546,8 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
           avatar: d.avatar?.url || '',
           points: d.pawPoints || 0,
           badge: pawPoints.badgeFor(d.pawPoints),
+          // 611 (PAM) — rang Chiot → Légende (total gagné).
+          rank: require('../services/ranks611').rankFor(d.pawPoints),
           badgeColor: d.pawBadgeColor || '',
           goldFrame: d.pawGoldFrame === true,
           city: d.location?.city || '',
@@ -580,6 +582,10 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
       countryFlag: myCountry?.flag || '',
       countryName: myCountry?.name || '',
       leaderboard: rows.slice(0, 50),
+      // 611 (PAM) — MA ligne, toujours (« Je suis OÙ ? », Cam 04/10).
+      me: await require('../utils/leaderboardMe611').leaderboardMe611({
+        userId: req.user.id, scope, myCity, myCountryDigits,
+      }).catch(() => null),
     });
   } catch (e) {
     logger.error('[pawspots/leaderboard]', e);
@@ -710,7 +716,14 @@ router.get('/directions', requireAuth, async (req, res) => {
     // v23.1.361 — décision Daniel : l'itinéraire n'est PAS gratuit mais il
     // est inclus dans les TROIS abonnements (PawFollow, PawFamily ET
     // PawSpot) — chaque produit carte y donne droit.
-    const allowed =
+    // 611 (décision BOB) — vers un AMI : gratuit, destination vérifiée.
+    if (req.query.friendId) {
+      const chk = await require('../utils/friendRoute611').friendRouteCheck({
+        userId: req.user.id, friendId: req.query.friendId, toLat, toLng,
+      });
+      if (!chk.ok) return res.status(chk.status).json({ error: chk.code, code: chk.code });
+    }
+    const allowed = !!req.query.friendId ||
       (await hasTrackingSubscription(req.user.id, req.user.role)) ||
       (await hasActivePawSpot(req.user.id, req.user.role));
     if (!allowed) {

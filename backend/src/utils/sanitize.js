@@ -164,6 +164,21 @@ const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false, incl
       delete sanitized.identityVerification.documentUrl;
     }
   }
+  // 611 (PAM) — RANG (Chiot → Légende) sur les PawPoints GAGNÉS depuis
+  // toujours (`pawPoints`), jamais sur le solde. Seulement quand le champ a été
+  // lu : une projection partielle ne doit pas afficher un faux « Chiot ».
+  // BOB (04/10) : un profil SANS le champ (vieux compte) se lit comme 0 →
+  // Chiot. Un document complet porte toujours `createdAt` ; une projection
+  // partielle (nom + photo d'un participant…) n'en a pas : aucun rang inventé.
+  const _has = (k) => Object.prototype.hasOwnProperty.call(sanitized, k);
+  if (_has('pawPoints') || _has('createdAt')) {
+    sanitized.rank = require('../services/ranks611').rankFor(sanitized.pawPoints);
+  }
+  if (!includeEmail) {
+    // le solde dépensable est une donnée du compte, pas de la fiche publique
+    delete sanitized.pawPointsSpendable;
+  }
+
   // v535 — le badge dérivé suffit au public ; le statut KYC brut (et l'objet
   // identityVerification complet) restent réservés au profil propre / admin.
   if (!includeEmail) {

@@ -9,7 +9,7 @@
  *                             utils/profile_completion.dart), 1 fois
  *   pioneer              +200 Pionnier (utils/pioneer607, NEO), 1 fois
  *   streak7              +50  7 jours d'activité de suite (chaque série)
- *   plushCaught          +20  peluche attrapée (appelé par le code de PAM), 1 / jour
+ *   plushCaught          +20  peluche attrapée (appelé par le code de PAM), 2 / jour (611)
  *
  * Tout passe par awardActivity : journal PawPointsEvent à clé unique AVANT de
  * créditer (deux requêtes simultanées = un seul gain), puis
@@ -58,6 +58,8 @@ function dedupeKeyFor(rule, personKey, { refId = '', now = new Date() } = {}) {
   switch (rule.limit) {
     case 'once': return `${personKey}:${rule.key}`;
     case 'daily': return `${personKey}:${rule.key}:${dayKey(now)}`;
+    // 611 — 2 par jour : rang 1 puis 2 (voir awardActivity).
+    case 'daily2': return `${personKey}:${rule.key}:${dayKey(now)}:${refId === '#2' ? 2 : 1}`;
     case 'streak': return `${personKey}:${rule.key}:${refId || dayKey(now)}`;
     default: return `${personKey}:${rule.key}:${refId || crypto.randomBytes(8).toString('hex')}`;
   }
@@ -76,18 +78,24 @@ async function awardActivity({ userId, role, key, refId = '', now = new Date() }
     const personKey = await personKeyOf(userId, r);
     const dedupeKey = dedupeKeyFor(rule, personKey, { refId, now });
     let ev;
-    try {
-      ev = await PawPointsEvent.create({
-        personKey, userId: String(userId), role: r, key, points: rule.points,
-        refId: String(refId || ''), dedupeKey, at: now,
-      });
-    } catch (e) {
-      if (e && e.code === 11000) return null; // déjà obtenu
-      throw e;
+    const keys = rule.limit === 'daily2'
+      ? [dedupeKey, dedupeKeyFor(rule, personKey, { refId: '#2', now })]
+      : [dedupeKey];
+    for (const dk of keys) {
+      try {
+        ev = await PawPointsEvent.create({
+          personKey, userId: String(userId), role: r, key, points: rule.points,
+          refId: String(refId || ''), dedupeKey: dk, at: now,
+        });
+        break;
+      } catch (e) {
+        if (!(e && e.code === 11000)) throw e;
+      }
     }
+    if (!ev) return null; // déjà obtenu (aujourd'hui / une fois / 2 par jour)
     const pawPoints = require('./pawPointsService');
     const got = await pawPoints.awardPointsDetailed({
-      userId, role: r, points: rule.points, reason: `607 ${key}`,
+      userId, role: r, points: rule.points, reason: `607 ${key}`, skipLog: true, // 611 : déjà journalisé ici
     });
     if (!got) {
       // Crédit impossible (profil introuvable…) : on libère la clé.

@@ -34,6 +34,13 @@ async function fixIndexesOnce() {
   _indexFixed = true;
   try {
     const idx = await PawPlush.collection.indexes();
+    // 611 — « 1 par jour » → « 2 par jour » : l'unicité (jour, personne)
+    // devient (jour, personne, rang de capture 1|2). Les captures d'avant
+    // n'ont pas de rang : elles comptent pour 1 (comptage), sans conflit.
+    if (idx.some((i) => i.name === 'day_person_unique_607b')) {
+      await PawPlush.collection.dropIndex('day_person_unique_607b');
+      logger.info('[plush] index « 1 par jour » retiré (611 : 2 par jour)');
+    }
     if (idx.some((i) => i.name === 'day_1_caughtByPerson_1')) {
       await PawPlush.collection.dropIndex('day_1_caughtByPerson_1');
       logger.info('[plush] ancien index (jour, personne) retiré');
@@ -57,7 +64,9 @@ async function fixIndexesOnce() {
   }
 }
 
-const REWARD_POINTS = 20;              // chaque peluche (1 par jour)
+const REWARD_POINTS = 20;              // chaque peluche (2 par jour depuis le 611)
+// 611 (Daniel, vocal de Cam 04/10) — 2 captures par personne et par jour.
+const DAILY_MAX = 2;
 const GOLDEN_POINTS = 200;             // peluche dorée (1 par ville et par semaine)
 const GOLDEN_BOOST_HOURS = 24;         // + 24 h de PawBoost offert
 const COLLECTOR_POINTS = 500;          // les 5 types réunis, une seule fois + badge
@@ -496,6 +505,7 @@ async function listActive({ userId, lat, lng, now = Date.now() }) {
   const empty = {
     walkActive: false, plushies: [], radiusM: VIEW_RADIUS_M,
     catchRadiusM: CATCH_RADIUS_M, reward: REWARD_POINTS, caughtToday: false,
+    caughtTodayCount: 0, dailyMax: DAILY_MAX,
     nearbyCount: 0,
   };
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return empty;
@@ -510,9 +520,11 @@ async function listActive({ userId, lat, lng, now = Date.now() }) {
   const days = [...new Set([today, ...cities.map((c) => dayKeyFor(c.lng, now, c.lat))])];
   const area = { $geoWithin: { $centerSphere: [[lng, lat], VIEW_RADIUS_M / 6371000] } };
   // Comptes de test : jamais « déjà attrapée aujourd'hui » (copies illimitées).
-  const caughtToday = me.test
-    ? false
-    : !!(await PawPlush.exists({ caughtByPerson: me.key, day: today, testCopy: { $ne: true } }));
+  const caughtTodayCount = me.test
+    ? 0
+    : await PawPlush.countDocuments({ caughtByPerson: me.key, day: today, testCopy: { $ne: true } });
+  // 611 — « peluche(s) du jour » faites = quota atteint (2 par jour).
+  const caughtToday = caughtTodayCount >= DAILY_MAX;
   // Peluches prises par un compte de test avant la règle des copies : rendues.
   try {
     const caught = await PawPlush.find({ day: { $in: days }, caughtByPerson: { $ne: null }, testCopy: { $ne: true }, location: area }).limit(60).lean();
@@ -525,29 +537,28 @@ async function listActive({ userId, lat, lng, now = Date.now() }) {
     }
     : { day: { $in: days }, caughtByPerson: null, testCopy: { $ne: true }, location: area };
   // Le compte de test ne revoit pas celles dont il a déjà une copie.
-  const mine = me.test
-    ? new Set((await PawPlush.find({ caughtByPerson: me.key, testCopy: true, day: { $in: days } })
-      .select('copyOf').lean()).map((x) => String(x.copyOf)))
-    : new Set();
+  // Peluches dont j'ai déjà une copie (test, ou « à deux » du 611) : plus montrées.
+  const mine = new Set((await PawPlush.find({ caughtByPerson: me.key, copyOf: { $ne: null }, day: { $in: days } })
+    .select('copyOf').lean()).map((x) => String(x.copyOf)));
   if (!walking) {
     // 607 (BOB/Daniel) — hors Balade : le NOMBRE seulement, jamais les
     // positions (rappel « N peluches près de toi »). 0 si la peluche du jour
     // est déjà prise : rien à proposer.
-    if (caughtToday) return { ...empty, caughtToday };
+    if (caughtToday) return { ...empty, caughtToday, caughtTodayCount };
     const ids = await PawPlush.find(free).select('_id').limit(200).lean();
     const nearbyCount = ids.filter((p) => !mine.has(String(p._id))).length;
-    return { ...empty, nearbyCount };
+    return { ...empty, nearbyCount, caughtTodayCount };
   }
   // 611 — peluche du jour déjà attrapée : plus aucune peluche montrée en
   // Balade (elles ne s'attrapent plus aujourd'hui ; l'app 610 n'en dit rien
   // et la personne marchait vers une peluche impossible à prendre).
   if (caughtToday) {
-    return { ...empty, walkActive: true, caughtToday, plushies: [], nearbyCount: 0 };
+    return { ...empty, walkActive: true, caughtToday, caughtTodayCount, plushies: [], nearbyCount: 0 };
   }
   let found = await PawPlush.find(free).limit(30).lean();
   if (mine.size) found = found.filter((p) => !mine.has(String(p._id)));
   return {
-    ...empty, walkActive: true, caughtToday, plushies: found.map(publicPlush),
+    ...empty, walkActive: true, caughtToday, caughtTodayCount, plushies: found.map(publicPlush),
     nearbyCount: found.length,
   };
 }
@@ -588,9 +599,27 @@ async function catchPlush({ userId, role, plushId, lat, lng, accuracy, now = Dat
   const acc = Number(accuracy);
   const bonus = Number.isFinite(acc) && acc > 0 ? Math.min(acc, ACCURACY_BONUS_MAX_M) : 0;
   if (distanceM > CATCH_RADIUS_M + bonus) throw new PlushError(422, 'TOO_FAR', { distanceM });
-  if (!me.test && await PawPlush.exists({ caughtByPerson: me.key, day: plush.day, testCopy: { $ne: true } })) {
-    throw new PlushError(429, 'DAILY_LIMIT');
+  // 611 — une même peluche une fois par personne (copies comprises).
+  if (await PawPlush.exists({ caughtByPerson: me.key, copyOf: plush._id, testCopy: { $ne: true } })) {
+    throw new PlushError(409, 'ALREADY_CAUGHT');
   }
+  // 611 — 2 par jour : rang de capture 1 ou 2, garanti par l'index unique
+  // (jour, personne, rang) même si plusieurs demandes arrivent ensemble.
+  const doneToday = me.test ? 0
+    : await PawPlush.countDocuments({ caughtByPerson: me.key, day: plush.day, testCopy: { $ne: true } });
+  if (doneToday >= DAILY_MAX) throw new PlushError(429, 'DAILY_LIMIT');
+  let catchSlot = doneToday + 1;
+  const withSlot = async (write) => {
+    for (;;) {
+      try {
+        return await write(catchSlot);
+      } catch (e) {
+        if (e && e.code === 11000 && catchSlot < DAILY_MAX) { catchSlot += 1; continue; }
+        if (e && e.code === 11000) throw new PlushError(429, 'DAILY_LIMIT');
+        throw e;
+      }
+    }
+  };
   let won;
   if (me.test) {
     // Compte de test : une COPIE, l'original reste libre pour les autres.
@@ -609,32 +638,22 @@ async function catchPlush({ userId, role, plushId, lat, lng, accuracy, now = Dat
       throw e;
     }
   }
-  const createSharedCopy = async () => {
-    try {
-      return (await PawPlush.create({
-        cityKey: `shared:${plush.cityKey}:${me.key}`, cityLabel: plush.cityLabel, day: plush.day, slot: plush.slot,
-        type: plush.type, golden: false, poiId: plush.poiId, location: plush.location,
-        caughtByPerson: me.key, caughtBy: { userId: String(userId), role: role || 'owner', at: new Date(now) },
-        copyOf: plush._id, testCopy: false,
-      })).toObject();
-    } catch (e) {
-      if (e && e.code === 11000) throw new PlushError(429, 'DAILY_LIMIT');
-      throw e;
-    }
-  };
+  const createSharedCopy = () => withSlot(async (cs) => (await PawPlush.create({
+    cityKey: `shared:${plush.cityKey}:${me.key}`, cityLabel: plush.cityLabel, day: plush.day, slot: plush.slot,
+    type: plush.type, golden: false, poiId: plush.poiId, location: plush.location,
+    caughtByPerson: me.key, caughtBy: { userId: String(userId), role: role || 'owner', at: new Date(now) },
+    copyOf: plush._id, testCopy: false, catchSlot: cs,
+  })).toObject());
   if (!won && sharedCatch) won = await createSharedCopy();
-  if (!won) try {
-    won = await PawPlush.findOneAndUpdate(
+  if (!won) {
+    won = await withSlot((cs) => PawPlush.findOneAndUpdate(
       { _id: plush._id, caughtByPerson: null },
       {
-        $set: { caughtByPerson: me.key, caughtBy: { userId: String(userId), role: role || 'owner', at: new Date(now) } },
+        $set: { caughtByPerson: me.key, catchSlot: cs, caughtBy: { userId: String(userId), role: role || 'owner', at: new Date(now) } },
         $unset: { expireAt: 1 },
       },
       { new: true },
-    ).lean();
-  } catch (e) {
-    if (e && e.code === 11000) throw new PlushError(429, 'DAILY_LIMIT');
-    throw e;
+    ).lean());
   }
   // Deux personnes au même instant sur une ordinaire : la seconde a sa copie.
   if (!won && SHARED_CATCH_611 && !plush.golden && !me.test) won = await createSharedCopy();
@@ -755,7 +774,7 @@ async function hasCollectorBadge(userId) {
 /** Barème lisible par le catalogue PawPoints (ZOE) et le site (LEO). */
 const PLUSH_RULES = Object.freeze({
   perPlush: REWARD_POINTS,
-  perDay: 1,
+  perDay: DAILY_MAX,
   golden: { points: GOLDEN_POINTS, boostHours: GOLDEN_BOOST_HOURS, perCityPerWeek: 1 },
   collector: { points: COLLECTOR_POINTS, badge: 'collector', types: PLUSH_TYPES.length },
   streak: { days: STREAK_DAYS, points: STREAK_POINTS },
@@ -773,6 +792,7 @@ module.exports = {
   streakEndingAt,
   hasCollectorBadge,
   REWARD_POINTS,
+  DAILY_MAX,
   CATCH_RADIUS_M,
   VIEW_RADIUS_M,
   MAX_SPEED_KMH,

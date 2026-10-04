@@ -580,6 +580,9 @@ const getSitterProfile = async (req, res) => {
       identityVerified:
         sitter.kycStatus === 'verified' ||
         sitter.identityVerification?.status === 'verified',
+      // 611 (PAM, demande LEO) — rang Chiot → Légende (réponse construite à
+      // la main : sans cette ligne la fiche /p n'avait pas de pastille).
+      rank: require('../services/ranks611').rankFor(sitter.pawPoints),
       // Location information
       // 22/09/2026 — la position EXACTE (donc le domicile) sortait ici pour
       // n'importe quel lecteur, alors que la couche monde de la PawMap

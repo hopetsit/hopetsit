@@ -3876,21 +3876,39 @@ router.post('/users/:role/:id/staff', requireAdmin, async (req, res) => {
 // pastille « 👑 Premium offert » des deux listes. Ne renvoie aucun e-mail.
 router.get('/premium-gifts', requireAdmin, async (req, res) => {
   try {
-    const UserSubscription = require('../models/UserSubscription');
-    const now = new Date();
-    const subs = await UserSubscription.find({
-      'history.paymentProvider': 'admin_gift',
-      premiumExpiry: { $gt: now },
-    }).select('userId userModel premiumExpiry').lean();
-    res.json({
-      gifts: subs.map((s) => ({
-        userId: String(s.userId),
-        role: String(s.userModel || '').toLowerCase(),
-        premiumExpiry: s.premiumExpiry,
-      })),
-    });
+    // 612 (ADA) — un cadeau retiré, ou dont seul le temps PAYÉ reste à courir,
+    // ne compte plus ; giftUntil = fin du cadeau (pastille « 👑 Premium offert → date »).
+    const { activeGifts } = require('../services/adminPremiumGift612');
+    res.json({ gifts: await activeGifts(new Date()) });
   } catch (e) {
     logger.error('[admin/premium-gifts]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 612 (ADA, 04/10) — Daniel : « je ne peux pas séparer ; si je la mets Premium,
+// elle apparaîtra ? ». « 👑 Offrir Premium » : Paw Premium offert à la PERSONNE
+// (3 profils) SANS isStaff — elle reste un vrai compte (classement, statistiques).
+// Corps : { months: 1 | 3 | 12 } (défaut 3). Aucun paiement créé. Abonnement payant
+// en cours : prolongé à la suite. DELETE = retire le cadeau seulement.
+router.post('/users/:role/:id/premium-gift', requireAdmin, async (req, res) => {
+  try {
+    const { grantPremiumGift } = require('../services/adminPremiumGift612');
+    const r = await grantPremiumGift(req.params.role, req.params.id, (req.body || {}).months, new Date());
+    res.json(r);
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error('[admin/users/premium-gift]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+router.delete('/users/:role/:id/premium-gift', requireAdmin, async (req, res) => {
+  try {
+    const { revokePremiumGift } = require('../services/adminPremiumGift612');
+    res.json(await revokePremiumGift(req.params.role, req.params.id, new Date()));
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error('[admin/users/premium-gift/delete]', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -5640,6 +5658,13 @@ router.get('/pawpremium/diag', requireAdmin, async (req, res) => {
         isStaff: u.isStaff === true,
         pawPoints: u.pawPoints || 0,
         badge: pawPointsSvc.badgeFor(u.pawPoints),
+        // 611 (PAM) — rang Chiot → Légende (remplace les anciens badges).
+        rank: require('../services/ranks611').rankFor(u.pawPoints),
+        rankLabel: (() => {
+          const rk = require('../services/ranks611');
+          const r = rk.rankFor(u.pawPoints);
+          return (rk.RANKS.find((x) => x.key === r.key) || {}).texts?.fr || '';
+        })(),
         countryCode: u.countryCode || '',
         city: u.location?.city || '',
         plan: sub?.plan || 'none',

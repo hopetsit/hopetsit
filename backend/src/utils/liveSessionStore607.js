@@ -36,6 +36,10 @@ function toDoc(s) {
     expiresAt: s.expiresAt || null,
     lastStillActiveNoticeAt: s.lastStillActiveNoticeAt,
     trail: Array.isArray(s.trail) ? s.trail.slice(-240) : [],
+    // 611 (PAM) — reprise d'appareil : appareil qui diffuse, appareils écartés.
+    deviceId: s.deviceId || '',
+    displaced: Array.isArray(s.displaced) ? s.displaced.map(String) : [],
+    personIds: Array.isArray(s.personIds) ? s.personIds.map(String) : [],
     purgeAt: new Date(Number(s.lastSeenAt || Date.now()) + TTL_MS),
   };
 }
@@ -54,6 +58,9 @@ function fromDoc(d) {
     expiresAt: d.expiresAt || null,
     lastStillActiveNoticeAt: d.lastStillActiveNoticeAt || d.lastSeenAt,
     trail: Array.isArray(d.trail) ? d.trail.map((p) => [Number(p[0]), Number(p[1]), Number(p[2])]) : [],
+    deviceId: d.deviceId || '', // 611
+    displaced: Array.isArray(d.displaced) ? d.displaced.map(String) : [],
+    personIds: Array.isArray(d.personIds) ? d.personIds.map(String) : [],
   };
 }
 

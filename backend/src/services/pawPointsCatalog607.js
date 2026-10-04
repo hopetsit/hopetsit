@@ -48,10 +48,10 @@ const EARN_RULES = Object.freeze([
     fr: 'Spot très populaire (50 ❤️)', en: 'Very popular spot (50 ❤️)', es: 'Spot muy popular (50 ❤️)',
     de: 'Sehr beliebter Spot (50 ❤️)', it: 'Spot molto popolare (50 ❤️)', pt: 'Spot muito popular (50 ❤️)',
     ko: '인기 스팟 (❤️ 50개)', ja: '大人気スポット（❤️ 50）', pl: 'Bardzo popularny spot (50 ❤️)' } },
-  { key: 'plushCaught', points: 20, icon: '🧸', limit: 'daily', since: 607, t: {
-    fr: 'Attraper une peluche pendant une Balade', en: 'Catch a plush toy during a Walk', es: 'Atrapar un peluche durante un Paseo',
-    de: 'Ein Plüschtier bei einem Spaziergang fangen', it: 'Prendere un peluche durante una Passeggiata', pt: 'Apanhar um peluche durante um Passeio',
-    ko: '산책 중 인형 잡기', ja: 'お散歩中にぬいぐるみをつかまえる', pl: 'Złap pluszaka podczas Spaceru' } },
+  { key: 'plushCaught', points: 20, icon: '🧸', limit: 'daily2', since: 607, t: {
+    fr: 'Attraper une peluche pendant une Balade (2 par jour)', en: 'Catch a plush toy during a Walk (2 a day)', es: 'Atrapar un peluche durante un Paseo (2 al día)',
+    de: 'Ein Plüschtier bei einem Spaziergang fangen (2 pro Tag)', it: 'Prendere un peluche durante una Passeggiata (2 al giorno)', pt: 'Apanhar um peluche durante um Passeio (2 por dia)',
+    ko: '산책 중 인형 잡기 (하루 2개)', ja: 'お散歩中にぬいぐるみをつかまえる（1日2回）', pl: 'Złap pluszaka podczas Spaceru (2 dziennie)' } },
   { key: 'plushGolden', points: 200, icon: '🌟', limit: 'each', since: 607, t: {
     fr: 'Peluche dorée (une par ville et par semaine) : +24 h de PawBoost en plus', en: 'Golden plush (one per city each week): plus 24 h of PawBoost',
     es: 'Peluche dorado (uno por ciudad y semana): +24 h de PawBoost', de: 'Goldenes Plüschtier (eins pro Stadt und Woche): dazu 24 Std. PawBoost',
@@ -144,32 +144,23 @@ const REWARDS = Object.freeze([
 const LEGACY_DISCOUNT_IDS = Object.freeze(['sub_disc_10', 'sub_disc_25', 'sub_disc_50']);
 
 // Libellés des niveaux (les seuils et couleurs restent dans pawPointsService.LEVELS).
-const LEVEL_TEXTS = Object.freeze({
-  explorer: { fr: 'Explorateur', en: 'Explorer', es: 'Explorador', de: 'Entdecker', it: 'Esploratore', pt: 'Explorador', ko: '탐험가', ja: 'エクスプローラー', pl: 'Odkrywca' },
-  contributor: { fr: 'Contributeur', en: 'Contributor', es: 'Colaborador', de: 'Mitwirkender', it: 'Contributore', pt: 'Colaborador', ko: '기여자', ja: 'コントリビューター', pl: 'Współtwórca' },
-  expert: { fr: 'Expert', en: 'Expert', es: 'Experto', de: 'Experte', it: 'Esperto', pt: 'Especialista', ko: '전문가', ja: 'エキスパート', pl: 'Ekspert' },
-  ambassador: { fr: 'Ambassadeur', en: 'Ambassador', es: 'Embajador', de: 'Botschafter', it: 'Ambasciatore', pt: 'Embaixador', ko: '앰배서더', ja: 'アンバサダー', pl: 'Ambasador' },
-  pawmaster: { fr: 'PawMaster', en: 'PawMaster', es: 'PawMaster', de: 'PawMaster', it: 'PawMaster', pt: 'PawMaster', ko: 'PawMaster', ja: 'PawMaster', pl: 'PawMaster' },
-  legend: { fr: 'Légendaire', en: 'Legendary', es: 'Legendario', de: 'Legendär', it: 'Leggendario', pt: 'Lendário', ko: '전설', ja: 'レジェンド', pl: 'Legendarny' },
-  paw_legend: { fr: 'Paw Legend', en: 'Paw Legend', es: 'Paw Legend', de: 'Paw Legend', it: 'Paw Legend', pt: 'Paw Legend', ko: 'Paw Legend', ja: 'Paw Legend', pl: 'Paw Legend' },
-});
+// 611 — les libellés sont ceux des 5 rangs (services/ranks611.js).
+const LEVEL_TEXTS = Object.freeze(Object.fromEntries(
+  require('./ranks611').RANKS.map((r) => [r.key, { ...r.texts }]),
+));
 
 // Avantages RÉELS d'un niveau (aucune promesse que le serveur ne tient pas).
 const PERK_TEXTS = Object.freeze({
-  badge: { fr: 'Badge de niveau dans le classement', en: 'Level badge in the leaderboard', es: 'Insignia de nivel en la clasificación', de: 'Level-Abzeichen in der Rangliste', it: 'Badge di livello in classifica', pt: 'Distintivo de nível na classificação', ko: '랭킹에 레벨 배지', ja: 'ランキングにレベルバッジ', pl: 'Odznaka poziomu w rankingu' },
-  bonus_5: { fr: '+5 % de points sur chaque gain', en: '+5% points on every gain', es: '+5 % de puntos en cada ganancia', de: '+5 % Punkte auf jeden Gewinn', it: '+5% di punti su ogni guadagno', pt: '+5% de pontos em cada ganho', ko: '모든 획득 포인트 +5%', ja: '獲得ポイント+5％', pl: '+5% punktów za każdą aktywność' },
-  bonus_10: { fr: '+10 % de points sur chaque gain', en: '+10% points on every gain', es: '+10 % de puntos en cada ganancia', de: '+10 % Punkte auf jeden Gewinn', it: '+10% di punti su ogni guadagno', pt: '+10% de pontos em cada ganho', ko: '모든 획득 포인트 +10%', ja: '獲得ポイント+10％', pl: '+10% punktów za każdą aktywność' },
-  bonus_15: { fr: '+15 % de points sur chaque gain', en: '+15% points on every gain', es: '+15 % de puntos en cada ganancia', de: '+15 % Punkte auf jeden Gewinn', it: '+15% di punti su ogni guadagno', pt: '+15% de pontos em cada ganho', ko: '모든 획득 포인트 +15%', ja: '獲得ポイント+15％', pl: '+15% punktów za każdą aktywność' },
+  badge: { fr: 'Pastille de rang sur ton profil et ta fiche de la carte', en: 'Rank badge on your profile and map card', es: 'Insignia de rango en tu perfil y tu ficha del mapa', de: 'Rang-Abzeichen in deinem Profil und auf deiner Karte', it: 'Badge del grado sul profilo e sulla scheda della mappa', pt: 'Insígnia de patente no perfil e na ficha do mapa', ko: '프로필과 지도 카드에 등급 배지', ja: 'プロフィールと地図のカードにランクバッジ', pl: 'Odznaka rangi w profilu i na karcie na mapie' },
 });
 // Avantages par niveau (607). Les anciennes clés (coffres, PawBoost gratuit,
 // visibilité…) n'étaient accordées par aucun code : retirées.
-const LEVEL_PERKS_607 = Object.freeze({
-  explorer: ['badge'], contributor: ['badge'], expert: ['badge', 'bonus_5'],
-  ambassador: ['badge', 'bonus_10'], pawmaster: ['badge', 'bonus_10'],
-  legend: ['badge', 'bonus_10'], paw_legend: ['badge', 'bonus_15'],
-});
-// Pour les apps ≤ 606 (elles ne connaissent pas `bonus_15`).
-const LEVEL_PERKS_LEGACY = Object.freeze({ ...LEVEL_PERKS_607, paw_legend: ['badge', 'bonus_10'] });
+// 611 — aucun avantage lié au rang : le badge (la pastille) seulement.
+const LEVEL_PERKS_607 = Object.freeze(Object.fromEntries(
+  require('./ranks611').RANKS.map((r) => [r.key, ['badge']]),
+));
+// Apps ≤ 606 : même liste (plus aucun bonus).
+const LEVEL_PERKS_LEGACY = LEVEL_PERKS_607;
 
 const COLLECTION = Object.freeze({
   key: 'plush',
@@ -215,16 +206,18 @@ const NOTES = Object.freeze({
     pl: 'Z aktywnym Paw Premium każdy zdobyty punkt liczy się podwójnie.',
   },
   lifetimeLevel: {
-    fr: 'Ton niveau dépend des points gagnés à vie : échanger une récompense ne te fait jamais descendre de niveau.',
-    en: 'Your level depends on lifetime points: redeeming a reward never lowers your level.',
-    es: 'Tu nivel depende de los puntos ganados en total: canjear una recompensa nunca te baja de nivel.',
-    de: 'Dein Level hängt von deinen insgesamt gesammelten Punkten ab: Eine Belohnung einzulösen senkt es nie.',
-    it: 'Il tuo livello dipende dai punti guadagnati in totale: riscattare un premio non ti fa mai scendere di livello.',
-    pt: 'O teu nível depende dos pontos ganhos no total: trocar uma recompensa nunca te faz descer de nível.',
-    ko: '레벨은 누적 획득 포인트로 정해져요. 보상을 교환해도 레벨은 내려가지 않아요.',
-    ja: 'レベルは累計獲得ポイントで決まります。特典と交換してもレベルは下がりません。',
-    pl: 'Poziom zależy od punktów zdobytych łącznie: wymiana nagrody nigdy go nie obniża.',
+    // 611 — un seul système : les rangs (Chiot → Légende).
+    fr: 'Ton rang dépend des points gagnés depuis toujours : échanger une récompense ne te fait jamais redescendre. Le rang ne donne aucun avantage payant.',
+    en: 'Your rank depends on the points you have ever earned: redeeming a reward never moves you down. Ranks give no paid perks.',
+    es: 'Tu rango depende de los puntos ganados desde siempre: canjear una recompensa nunca te hace bajar. El rango no da ventajas de pago.',
+    de: 'Dein Rang hängt von allen je verdienten Punkten ab: Eine Belohnung einzulösen lässt dich nie absteigen. Der Rang bringt keine bezahlten Vorteile.',
+    it: 'Il tuo grado dipende dai punti guadagnati da sempre: riscattare un premio non ti fa mai scendere. Il grado non dà vantaggi a pagamento.',
+    pt: 'A tua patente depende dos pontos ganhos desde sempre: trocar uma recompensa nunca te faz descer. A patente não dá vantagens pagas.',
+    ko: '등급은 지금까지 모은 포인트로 정해져요. 보상을 교환해도 내려가지 않고, 유료 혜택은 없어요.',
+    ja: 'ランクはこれまでに貯めたポイントで決まります。特典と交換しても下がらず、有料の特典もありません。',
+    pl: 'Ranga zależy od wszystkich zdobytych punktów: wymiana nagrody nigdy jej nie obniża. Ranga nie daje płatnych korzyści.',
   },
+
 });
 
 const rewardById = (id) => REWARDS.find((r) => r.id === id) || null;

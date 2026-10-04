@@ -220,11 +220,16 @@ describe('API réelle', () => {
     const doc = await Owner.findById(alice._id).select('pawPoints pawPointsSpendable').lean();
     expect(doc.pawPoints).toBe(20);
     expect(doc.pawPointsSpendable).toBe(20);
-    // 2e peluche le même jour
+    // 611 — 2e peluche le même jour : acceptée (2 par jour), la 3e non
     const q = first[1];
     startWalk(alice, q.lat, q.lng);
     plush._resetForTests();
-    const lim = await request(app).post(`/plush/${q.id}/catch`).set('Authorization', `Bearer ${tokA}`).send({ lat: q.lat, lng: q.lng });
+    const second = await request(app).post(`/plush/${q.id}/catch`).set('Authorization', `Bearer ${tokA}`).send({ lat: q.lat, lng: q.lng });
+    expect(second.status).toBe(200);
+    const r3 = first[2];
+    startWalk(alice, r3.lat, r3.lng);
+    plush._resetForTests();
+    const lim = await request(app).post(`/plush/${r3.id}/catch`).set('Authorization', `Bearer ${tokA}`).send({ lat: r3.lat, lng: r3.lng });
     expect(lim.status).toBe(429);
     expect(lim.body.code).toBe('DAILY_LIMIT');
     // Bob vise la peluche déjà attrapée par Alice. 611 (vidéo d'Alhama) :
@@ -237,8 +242,9 @@ describe('API réelle', () => {
     const lb = await request(app).get(`/plush/active?lat=${p.lat}&lng=${p.lng}`).set('Authorization', `Bearer ${tokB}`);
     expect(lb.body.plushies.map((x) => x.id)).not.toContain(p.id);
     const la = await request(app).get(`/plush/active?lat=${p.lat}&lng=${p.lng}`).set('Authorization', `Bearer ${tokA}`);
-    expect(la.body.caughtToday).toBe(true);
-    expect(lb.body.caughtToday).toBe(true);
+    expect(la.body.caughtToday).toBe(true);   // 2 sur 2
+    expect(lb.body.caughtToday).toBe(false);  // Bob : 1 sur 2
+    expect(lb.body.caughtTodayCount).toBe(1);
     // Hors Balade : Alice (peluche du jour prise) n'a plus de rappel ; Bob voit
     // le nombre des peluches encore libres.
     plush._resetForTests();
@@ -248,10 +254,10 @@ describe('API réelle', () => {
     expect(offA.body).toMatchObject({ walkActive: false, plushies: [], nearbyCount: 0, caughtToday: true });
     const offB = await request(app).get(`/plush/active?lat=${p.lat}&lng=${p.lng}`).set('Authorization', `Bearer ${tokB}`);
     expect(offB.body.walkActive).toBe(false);
-    expect(offB.body.nearbyCount).toBe(0); // 611 : Bob a aussi sa peluche du jour
+    expect(offB.body.nearbyCount).toBeGreaterThan(0); // 611 : Bob peut en attraper une 2e
   });
 
-  test('deux captures simultanées de la même personne : une seule passe', async () => {
+  test('l\'index unique (jour, personne, rang de capture) refuse un doublon', async () => {
     const carl = await makeOwner();
     const tok = tokenFor(carl._id, 'owner');
     const [a, b] = [first[1], first[2]];
@@ -263,16 +269,17 @@ describe('API réelle', () => {
     expect(r1.status).toBe(200);
     // l'index unique (jour, personne) refuse une 2e écriture même sans passer par l'API
     const pk = (await PawPlush.findById(a.id).lean()).caughtByPerson;
-    await expect(PawPlush.updateOne({ _id: b.id }, { $set: { caughtByPerson: pk } })).rejects.toMatchObject({ code: 11000 });
+    const slot = (await PawPlush.findById(a.id).lean()).catchSlot;
+    await expect(PawPlush.updateOne({ _id: b.id }, { $set: { caughtByPerson: pk, catchSlot: slot } })).rejects.toMatchObject({ code: 11000 });
   });
 
   test('collection : compteur par type, 3 profils confondus', async () => {
     const r = await request(app).get('/plush/collection').set('Authorization', `Bearer ${tokA}`);
     expect(r.status).toBe(200);
-    expect(r.body.total).toBe(1);
-    expect(r.body.counts[first[0].type]).toBe(1);
+    expect(r.body.total).toBe(2); // 611 : 2 par jour (first[0] et first[1])
+    expect(r.body.counts[first[0].type]).toBeGreaterThanOrEqual(1);
     expect(Object.keys(r.body.counts).sort()).toEqual(['bunny', 'fox', 'kitty', 'puppy', 'teddy']);
-    expect(r.body.items[0]).toMatchObject({ id: first[0].id, type: first[0].type });
+    expect(r.body.items.map((x) => x.id)).toContain(first[0].id);
     const rb = await request(app).get('/plush/collection').set('Authorization', `Bearer ${tokB}`);
     expect(rb.body.total).toBe(1); // 611 : sa propre copie de la même peluche
   });

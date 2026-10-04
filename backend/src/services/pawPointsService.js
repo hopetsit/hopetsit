@@ -12,17 +12,9 @@
  *                          pas perdre de niveau).
  *   • pawPointsSpendable = solde DÉPENSABLE → échangé contre des récompenses.
  *
- * 7 NIVEAUX (paliers de points À VIE) avec avantages :
- *   1 Explorateur   1 000     badge + accès coffres basiques
- *   2 Contributeur  5 000     badge + visibilité sur la carte
- *   3 Expert        10 000    badge + points bonus +5 %
- *   4 Ambassadeur   20 000    badge + points bonus +10 %
- *   5 PawMaster     50 000    badge + PawBoost gratuit
- *   6 Légendaire    200 000   cadre légendaire + statut Légendaire
- *   7 Paw Legend    1 000 000 couronne rose + avantages ultimes
- *
- * Bonus de points : à partir d'Expert, awardPoints multiplie les gains
- * (+5 %, +10 %, +15 %) selon le niveau À VIE courant.
+ * NIVEAUX = les 5 RANGS 611 (Chiot → Légende, services/ranks611.js) depuis
+ * le 04/10/2026 : les 7 niveaux v416 et leur bonus de points sont retirés
+ * (aucun profil n'avait jamais atteint le premier bonus, mesuré).
  */
 
 const Owner = require('../models/Owner');
@@ -42,16 +34,25 @@ const POINTS = Object.freeze(
 // 607 — `perks` = avantages RÉELLEMENT accordés (badge + bonus de points).
 // Les anciens (coffres, visibilité, PawBoost gratuit, couronne, « avantages
 // ultimes ») n'étaient tenus par aucun code : retirés. Clés connues des apps
-// ≤ 606 (LEVEL_PERKS_LEGACY) ; le 607 lit le catalogue (bonus_15 compris).
-const LEVELS = Object.freeze([
-  { index: 1, key: 'explorer',    label: 'Explorateur',  min: 1000,    emoji: '🧭', color: '#22C55E', bonusPct: 0,  perks: CATALOG607.LEVEL_PERKS_LEGACY.explorer },
-  { index: 2, key: 'contributor', label: 'Contributeur', min: 5000,    emoji: '🐾', color: '#3B82F6', bonusPct: 0,  perks: CATALOG607.LEVEL_PERKS_LEGACY.contributor },
-  { index: 3, key: 'expert',      label: 'Expert',       min: 10000,   emoji: '⭐', color: '#8B5CF6', bonusPct: 5,  perks: CATALOG607.LEVEL_PERKS_LEGACY.expert },
-  { index: 4, key: 'ambassador',  label: 'Ambassadeur',  min: 20000,   emoji: '🦴', color: '#F97316', bonusPct: 10, perks: CATALOG607.LEVEL_PERKS_LEGACY.ambassador },
-  { index: 5, key: 'pawmaster',   label: 'PawMaster',    min: 50000,   emoji: '👑', color: '#7C3AED', bonusPct: 10, perks: CATALOG607.LEVEL_PERKS_LEGACY.pawmaster },
-  { index: 6, key: 'legend',      label: 'Légendaire',   min: 200000,  emoji: '👑', color: '#111827', bonusPct: 10, perks: CATALOG607.LEVEL_PERKS_LEGACY.legend },
-  { index: 7, key: 'paw_legend',  label: 'Paw Legend',   min: 1000000, emoji: '👑', color: '#EC4899', bonusPct: 15, perks: CATALOG607.LEVEL_PERKS_LEGACY.paw_legend },
-]);
+// ≤ 606 (LEVEL_PERKS_LEGACY) ; le 607 lit le catalogue.
+// 611 (PAM, décision BOB du 04/10) — UN SEUL système : les 7 anciens
+// niveaux v416 (Explorateur… Paw Legend, bonus +5 à +15 %) sont REMPLACÉS
+// par les 5 rangs 611 (services/ranks611.js). Mêmes champs qu'avant, pour
+// que les apps déjà installées (607-610) affichent les rangs sans build.
+// Aucun bonus : mesuré le 04/10, le plus haut total gagné de TOUS les profils
+// (test et staff compris) est 670 ; le premier bonus démarrait à 10 000 →
+// jamais versé à personne.
+const RANKS611 = require('./ranks611');
+const LEVELS = Object.freeze(RANKS611.RANKS.map((r) => Object.freeze({
+  index: r.level,
+  key: r.key,
+  label: r.texts.fr,
+  min: r.min,
+  emoji: r.level === 5 ? '👑' : '🐾',
+  color: r.color,
+  bonusPct: 0,
+  perks: ['badge'],
+})));
 
 // Compat : ancien tableau BADGES (clés réutilisées par l'app/leaderboard).
 const BADGES = Object.freeze(
@@ -165,20 +166,22 @@ function nextLevelFor(points) {
 }
 
 /** Bonus % de points lié au niveau À VIE courant. */
-function bonusPctFor(points) {
-  const l = levelFor(points);
-  return l ? l.bonusPct : 0;
+function bonusPctFor(points) { // 611 — plus aucun bonus lié au rang
+  void points;
+  return 0;
 }
 
 /** Compat : badge (= niveau) courant, format {key,emoji,min}. */
 function badgeFor(points) {
-  const l = levelFor(points);
-  return l ? { key: l.key, emoji: l.emoji, min: l.min } : null;
+  // 611 — les 7 anciens badges ne s'affichent plus nulle part (les apps
+  // ≤ 610 cachent un badge nul) ; le rang est dans `rank`.
+  void points;
+  return null;
 }
 
 function nextBadgeFor(points) {
-  const l = nextLevelFor(points);
-  return l ? { key: l.key, emoji: l.emoji, min: l.min } : null;
+  void points;
+  return null;
 }
 
 function isGoldCreator(points) {
@@ -228,12 +231,51 @@ async function hasActivePremiumAnyRole(userId, role) {
 }
 
 /**
+ * 611 (PAM) — clé lisible d'un gain d'après sa raison (journal d'historique).
+ * Les raisons viennent des appelants existants ; une raison inconnue = 'other'.
+ */
+function logKeyFromReason(reason) {
+  const r = String(reason || '');
+  const m = r.match(/^607 (\w+)/);
+  if (m) return m[1];
+  if (/^mini-peluche dorée/.test(r)) return 'plushGolden';
+  if (/^mini-peluche/.test(r)) return 'plushCaught';
+  if (/bonus collector/.test(r)) return 'plushCollector';
+  if (/bonus streak7/.test(r)) return 'plushStreak7';
+  if (r === 'spot created') return 'spotCreated';
+  if (r === 'spot photo') return 'photoAdded';
+  if (r === 'spot comment') return 'usefulComment';
+  if (/popular/.test(r)) return 'spotPopular';
+  if (/validated/.test(r)) return 'spotValidated';
+  if (/map report confirmed/.test(r)) return 'correctReport';
+  if (r === 'spot deleted') return 'spotDeleted';
+  return 'other';
+}
+
+/** 611 — écrit une ligne du journal (jamais bloquant). */
+async function logPoints611({ userId, role, points, reason, email }) {
+  try {
+    // Base pas (encore) connectée : on n'attend jamais (mongoose mettrait
+    // l'écriture en file 10 s et ralentirait le gain lui-même).
+    if (require('mongoose').connection.readyState !== 1) return;
+    const { personKeyFromEmail } = require('./pawPointsActivity607');
+    const personKey = personKeyFromEmail(email) || `id:${userId}`;
+    await require('../models/PawPointsLog611').create({
+      personKey, userId: String(userId), role: String(role || '').toLowerCase(),
+      key: logKeyFromReason(reason), points, at: new Date(),
+    });
+  } catch (e) {
+    logger.warn(`[pawPoints] journal 611 : ${e?.message || e}`);
+  }
+}
+
+/**
  * Crédite des PawPoints (atomique) et retourne `{ credited, lifetime }`.
  * - ×2 pendant un bundle Paw Premium actif (premiumExpiry futur, tous rôles).
  * - +bonus% selon le niveau À VIE courant (Expert+).
  * Incrémente pawPoints (à vie) ET pawPointsSpendable (dépensable).
  */
-async function awardPointsDetailed({ userId, role, points, reason = '' }) {
+async function awardPointsDetailed({ userId, role, points, reason = '', skipLog = false }) {
   try {
     if (!userId || !points) return null;
     let pts = Number(points) || 0;
@@ -257,8 +299,11 @@ async function awardPointsDetailed({ userId, role, points, reason = '' }) {
       userId,
       { $inc: { pawPoints: pts, pawPointsSpendable: pts } },
       { new: true },
-    ).select('pawPoints pawPointsSpendable');
+    ).select('pawPoints pawPointsSpendable email');
     if (!updated) return null;
+    // 611 — journal. Les gains d'activité 607 ont déjà leur ligne
+    // (PawPointsEvent, lue aussi par l'historique) : pas de doublon.
+    if (!skipLog) await logPoints611({ userId, role, points: pts, reason, email: updated.email });
     // v532 — propage le nouveau solde aux autres profils du même compte.
     await syncPointsAcrossRoles(userId, role);
     logger.info(
@@ -304,6 +349,11 @@ async function revokePoints({ userId, role, points, reason = '' }) {
       { _id: userId },
       { $set: { pawPoints: lifetime, pawPointsSpendable: spendable } },
     );
+    // 611 — la reprise apparaît aussi dans « D'où viennent mes points ».
+    try {
+      const em = await Model.findById(userId).select('email').lean();
+      await logPoints611({ userId, role, points: -pts, reason, email: em?.email });
+    } catch (_) { /* best-effort */ }
     // Les profils frères doivent DESCENDRE aussi : syncPointsAcrossRoles prend
     // le MAX, il ne peut donc pas baisser un solde. On écrit explicitement.
     try {
@@ -404,4 +454,5 @@ module.exports = {
   getPoints,
   getPawState,
   syncPointsAcrossRoles,
+  logKeyFromReason,
 };

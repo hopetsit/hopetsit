@@ -92,6 +92,8 @@ function toPublicProvider(doc, role, extra = {}) {
     verified: d.kycStatus === 'verified'
       || !!(d.identityVerification && d.identityVerification.status === 'verified'),
     isPioneer: extra.isPioneer === true,
+    // 611 (PAM, demande LEO) — rang Chiot → Légende ; champ absent = Chiot.
+    rank: require('../services/ranks611').rankFor(d.pawPoints),
     indexable: extra.indexable !== false,
   };
 }
@@ -100,7 +102,7 @@ function toPublicProvider(doc, role, extra = {}) {
 const PUBLIC_PROVIDER_KEYS = [
   'slug', 'url', 'role', 'id', 'profilePath', 'name', 'firstName', 'photo', 'city',
   'bio', 'services', 'acceptedPetTypes', 'rates', 'rating', 'reviewsCount',
-  'reviews', 'verified', 'isPioneer', 'indexable',
+  'reviews', 'verified', 'isPioneer', 'indexable', 'rank', // 611 — rang (Chiot → Légende)
 ];
 
 module.exports = { toPublicProvider, ratesOf, cityOfDoc, PUBLIC_PROVIDER_KEYS, SITE };

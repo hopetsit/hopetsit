@@ -157,6 +157,15 @@ function getLiveSessionForIds(ids = []) {
   return best;
 }
 
+/** 611 (PAM) — reprise du direct : la session (même départ, même tracé)
+ *  passe sous la clé du profil qui la reprend. */
+function adoptLiveSession(sess) {
+  if (!sess || !sess.userId) return null;
+  liveSessions.set(String(sess.userId), sess);
+  _store().save(sess, { now: true });
+  return sess;
+}
+
 function clearLiveSession(userId) {
   _store().remove(String(userId));
   return liveSessions.delete(String(userId));
@@ -180,6 +189,8 @@ async function restoreLiveSessions({ now = Date.now() } = {}) {
     if (!s || !s.userId || liveSessions.has(s.userId)) continue;
     if (now - s.lastSeenAt > LIVE_RAM_TTL_MS) continue;
     liveSessions.set(s.userId, s);
+    // 611 — une reprise d'appareil en cours reste armée après redémarrage.
+    try { require('../utils/liveTakeover611').rearmFromSession(s); } catch (_) { /* jamais bloquant */ }
     n += 1;
   }
   if (n) logger.info(`[live] ${n} session(s) en direct reprise(s) après redémarrage`);
@@ -694,6 +705,9 @@ function registerMapHandlers(io, socket) {
     try {
       const identity = socket.data?.mapIdentity;
       if (!identity) return;
+      // 611 (PAM) — un appareil dont la Balade a été reprise par un autre
+      // téléphone de la personne : ses positions tardives sont ignorées.
+      if (require('../utils/liveTakeover611').isDisplaced(identity.userId, payload.deviceId)) return;
       const now = Date.now();
       const last = socket.data.lastPositionEmit || 0;
       if (now - last < MIN_EMIT_INTERVAL_MS) return; // rate-limit
@@ -792,6 +806,7 @@ function registerMapHandlers(io, socket) {
         city: payload.city,
         duration: payload.duration,
       });
+      require('../utils/liveTakeover611').noteDevice(session, payload.deviceId); // 611
 
       const listeners = await listPositionListeners(identity.userId, identity.role);
       if (listeners.length === 0) return;
@@ -858,6 +873,7 @@ module.exports.touchLiveSession = touchLiveSession;
 module.exports.getLiveSession = getLiveSession;
 module.exports.getLiveSessionForIds = getLiveSessionForIds;
 module.exports.clearLiveSession = clearLiveSession;
+module.exports.adoptLiveSession = adoptLiveSession; // 611
 module.exports.restoreLiveSessions = restoreLiveSessions;
 module.exports._liveSessionsForTests = liveSessions;
 module.exports.describeLiveSession = describeLiveSession;

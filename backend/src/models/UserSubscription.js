@@ -338,6 +338,18 @@ const userSubscriptionSchema = new mongoose.Schema(
         expiresAt: Date,
         intervalDays: Number,
         currency: { type: String, default: 'EUR' },
+        // 612 (ADA, 04/10) — « 👑 Offrir Premium » de l'admin (adminPremiumGift612) :
+        // point de départ du cadeau sur chaque compteur (pour le retirer sans jamais
+        // rogner un abonnement payé), forfait / statut d'avant, date de retrait.
+        giftBase: {
+          premium: Date,
+          pawspot: Date,
+          period: Date,
+        },
+        giftSource: String,
+        prevPlan: String,
+        prevStatus: String,
+        revokedAt: Date,
       },
     ],
 

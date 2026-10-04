@@ -99,14 +99,18 @@ test('1. balade à deux : Cam l\'attrape, Daniel attrape LA MÊME juste après (
   // chacun l'a dans SA collection
   for (const u of [cam, daniel]) {
     const c = await request(app).get('/plush/collection').set('Authorization', `Bearer ${tokenFor(u._id, 'owner')}`);
-    expect(c.body.total).toBe(1);
-    expect(c.body.counts[p.type]).toBe(1);
+    expect(c.body.counts[p.type]).toBeGreaterThanOrEqual(1);
   }
-  // toujours 1 par personne et par jour
-  const q = plushies.find((x) => x.id !== p.id && !x.golden);
+  // 611 — 2 par personne et par jour, la 3e refusée
+  const others = plushies.filter((x) => x.id !== p.id && !x.golden);
+  const q = others[0];
   walk(daniel, q.lat, q.lng);
   plush._resetForTests();
-  const lim = await grab(daniel, q, { lat: q.lat, lng: q.lng });
+  expect((await grab(daniel, q, { lat: q.lat, lng: q.lng })).status).toBe(200);
+  const r3 = others[1];
+  walk(daniel, r3.lat, r3.lng);
+  plush._resetForTests();
+  const lim = await grab(daniel, r3, { lat: r3.lat, lng: r3.lng });
   expect(lim.status).toBe(429);
   expect(lim.body.code).toBe('DAILY_LIMIT');
   // la même peluche une 2e fois : refusée
@@ -115,9 +119,9 @@ test('1. balade à deux : Cam l\'attrape, Daniel attrape LA MÊME juste après (
   expect([409, 429]).toContain(twice.status);
 });
 
-test('3. peluche du jour prise : la Balade ne montre plus de peluches impossibles à attraper', async () => {
-  walk(cam, ALHAMA.lat, ALHAMA.lng);
-  const r = await list(cam);
+test('3. peluches du jour prises (2/2) : la Balade ne montre plus de peluches impossibles à attraper', async () => {
+  walk(daniel, ALHAMA.lat, ALHAMA.lng);
+  const r = await list(daniel);
   expect(r.body.walkActive).toBe(true);
   expect(r.body.caughtToday).toBe(true);
   expect(r.body.plushies).toEqual([]);
@@ -126,8 +130,10 @@ test('3. peluche du jour prise : la Balade ne montre plus de peluches impossible
 test('2. la peluche DORÉE reste à la première personne', async () => {
   const eve = await person('Eve');
   const fred = await person('Fred');
-  const g = plushies.find((x) => x.id !== plushies.find((y) => !y.golden).id && !x.golden) || plushies[2];
-  await PawPlush.updateOne({ _id: g.id }, { $set: { golden: true } });
+  const base = await PawPlush.findById(plushies[0].id).lean();
+  const gd = await PawPlush.create({ cityKey: 'gold611', cityLabel: 'Alhama', day: base.day, slot: 0, type: 'fox', golden: true,
+    location: { type: 'Point', coordinates: [ALHAMA.lng + 0.001, ALHAMA.lat] } });
+  const g = { id: String(gd._id), lat: ALHAMA.lat, lng: ALHAMA.lng + 0.001 };
   plush._resetForTests();
   walk(eve, g.lat, g.lng);
   expect((await grab(eve, g, { lat: g.lat, lng: g.lng })).status).toBe(200);

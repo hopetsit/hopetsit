@@ -11,8 +11,14 @@
  *   · INFOS UTILES gratuites (4) — déjà gratuites, restent illimitées.
  *   · CONFORT (8) — sans abonnement 1 par 7 jours glissants (par PERSONNE,
  *     ses 3 profils confondus), illimité avec un abonnement.
- *   · ANIMAL PERDU / TROUVÉ (2) — règle INCHANGÉE (création réservée aux
- *     abonnés, SOS à part), à re-trancher par Daniel.
+ *   · ANIMAL PERDU / TROUVÉ (2) — 611 (ZOE, 04/10, décision BOB,
+ *     PROCHAIN_BUILD_611.md point 1) : GRATUIT pour tous.
+ *       - found_pet : gratuit et ILLIMITÉ (celui qui aide ne paie jamais) ;
+ *       - lost_pet  : gratuit ; sans abonnement 1 alerte ACTIVE à la fois par
+ *         PERSONNE (ses 3 profils confondus), plusieurs avec un abonnement.
+ *         « Active » = ni masquée ni expirée (un SOS en cours compte) ; elle se
+ *         libère à la clôture (suppression), à l'expiration ou si la
+ *         modération la masque.
  * DOIT rester synchronisé avec l'app (ReportTypes dans map_report_model.dart).
  */
 const DANGER_TYPES = [
@@ -25,10 +31,16 @@ const COMFORT_TYPES = [
   'poop', 'pee', 'water_broken', 'construction', 'stray_pet', 'other',
   'no_dogs_zone', 'leash_required',
 ];
-const PREMIUM_CREATE_TYPES = ['lost_pet', 'found_pet'];
+const PET_ALERT_TYPES = ['lost_pet', 'found_pet'];
+// 611 — plus aucun type réservé aux abonnés à la création (gardé, vide, pour
+// les anciennes apps et /types).
+const PREMIUM_CREATE_TYPES = [];
 
 /** Types qu'on peut créer sans abonnement et sans limite. */
-const FREE_UNLIMITED_TYPES = [...DANGER_TYPES, ...USEFUL_FREE_TYPES];
+const FREE_UNLIMITED_TYPES = [...DANGER_TYPES, ...USEFUL_FREE_TYPES, 'found_pet'];
+
+/** 611 — alertes « animal perdu » actives à la fois, sans abonnement. */
+const LOST_PET_ACTIVE_LIMIT = 1;
 
 const COMFORT_WEEKLY_LIMIT = 1;
 const COMFORT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -37,6 +49,7 @@ const isDanger = (t) => DANGER_TYPES.includes(t);
 const isComfort = (t) => COMFORT_TYPES.includes(t);
 const isFreeUnlimited = (t) => FREE_UNLIMITED_TYPES.includes(t);
 const isPremiumCreate = (t) => PREMIUM_CREATE_TYPES.includes(t);
+const isLostPet = (t) => t === 'lost_pet';
 
 /**
  * Quota confort d'une personne : signalements de confort créés par l'un de ses
@@ -78,6 +91,53 @@ async function comfortQuota(MapReport, reporterIds, now = new Date()) {
   return { limit: COMFORT_WEEKLY_LIMIT, used, remaining, nextAvailableAt };
 }
 
+/**
+ * 611 — alertes « animal perdu » ACTIVES d'une personne ([reporterIds] = ses
+ * 3 profils) : ni masquées ni expirées. La plus récente d'abord.
+ * @returns {{limit, active, remaining, activeReportId, activeExpiresAt}}
+ */
+async function lostPetQuota(MapReport, reporterIds, now = new Date()) {
+  const ids = (reporterIds || []).filter((id) => /^[a-f0-9]{24}$/i.test(String(id)));
+  const active = await MapReport.find({
+    reporterId: { $in: ids },
+    type: 'lost_pet',
+    hidden: { $ne: true },
+    expiresAt: { $gt: now },
+  })
+    .sort({ createdAt: -1 })
+    .select('_id expiresAt createdAt isSos')
+    .lean();
+  const first = active[0] || null;
+  return {
+    limit: LOST_PET_ACTIVE_LIMIT,
+    active: active.length,
+    remaining: Math.max(0, LOST_PET_ACTIVE_LIMIT - active.length),
+    activeReportId: first ? String(first._id) : null,
+    activeExpiresAt: first ? first.expiresAt : null,
+  };
+}
+
+/**
+ * 611 — verrou en mémoire par personne : deux envois simultanés ne peuvent pas
+ * passer tous les deux le contrôle « 1 alerte active » (le serveur tourne sur
+ * une seule instance Render).
+ */
+const personLocks = new Map();
+async function withPersonLock(key, fn) {
+  const prev = personLocks.get(key) || Promise.resolve();
+  let release;
+  const mine = new Promise((r) => { release = r; });
+  const chain = prev.then(() => mine);
+  personLocks.set(key, chain);
+  await prev;
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (personLocks.get(key) === chain) personLocks.delete(key);
+  }
+}
+
 /** 610 — inscrit une création de confort au registre (après save). */
 async function logComfortCreation(report) {
   if (!report || !isComfort(report.type)) return;
@@ -95,13 +155,18 @@ module.exports = {
   USEFUL_FREE_TYPES,
   COMFORT_TYPES,
   PREMIUM_CREATE_TYPES,
+  PET_ALERT_TYPES,
   FREE_UNLIMITED_TYPES,
+  LOST_PET_ACTIVE_LIMIT,
   COMFORT_WEEKLY_LIMIT,
   COMFORT_WINDOW_MS,
   isDanger,
   isComfort,
   isFreeUnlimited,
   isPremiumCreate,
+  isLostPet,
   comfortQuota,
+  lostPetQuota,
+  withPersonLock,
   logComfortCreation,
 };

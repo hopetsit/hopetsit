@@ -6,6 +6,10 @@
  * danger = gratuit et illimité ; confort = 1 par 7 jours sans abonnement ;
  * animal perdu / trouvé inchangé ; geste du bon Samaritain
  * (services/goodSamaritan610.js). Classement : utils/mapReportRules610.js.
+ * 611 (ZOE, 04/10/2026, décision BOB — PROCHAIN_BUILD_611.md point 1) : animal
+ * perdu / trouvé GRATUIT pour tous. found_pet illimité ; lost_pet : 1 alerte
+ * ACTIVE à la fois par personne sans abonnement (409 LOST_PET_ACTIVE),
+ * plusieurs avec ; clôture depuis n'importe lequel des 3 profils.
  *
  * TTL is enforced by the MongoDB TTL index on `expiresAt` (48h) plus a
  * helper scheduler (services/mapReportTtlScheduler.js) that logs stats.
@@ -66,6 +70,18 @@ async function comfortQuotaFor(req) {
     return { unlimited: true, limit: null, used: null, remaining: null, nextAvailableAt: null };
   }
   const q = await rules610.comfortQuota(MapReport, await myIdentityIds(req));
+  return { unlimited: false, ...q };
+}
+
+/** 611 — état « animal perdu » pour la réponse JSON (/quota). */
+async function lostPetQuotaFor(req) {
+  if (req.isPremium) {
+    return {
+      unlimited: true, limit: null, active: null, remaining: null,
+      activeReportId: null, activeExpiresAt: null,
+    };
+  }
+  const q = await rules610.lostPetQuota(MapReport, await myIdentityIds(req));
   return { unlimited: false, ...q };
 }
 
@@ -259,6 +275,10 @@ router.get('/types', (req, res) => {
     comfortTypes: rules610.COMFORT_TYPES,
     premiumCreateTypes: rules610.PREMIUM_CREATE_TYPES,
     comfortWeeklyLimit: rules610.COMFORT_WEEKLY_LIMIT,
+    // 611 — animal perdu / trouvé gratuit pour tous ; « perdu » : 1 alerte
+    // active à la fois sans abonnement.
+    petAlertTypes: rules610.PET_ALERT_TYPES,
+    lostPetActiveLimit: rules610.LOST_PET_ACTIVE_LIMIT,
     ttlHours: REPORT_TTL_MS / 3_600_000,
   });
 });
@@ -269,6 +289,8 @@ router.get('/quota', requireAuth, attachPremium, async (req, res) => {
     res.json({
       isPremium: Boolean(req.isPremium),
       comfort: await comfortQuotaFor(req),
+      // 611 — alerte « animal perdu » en cours (1 à la fois sans abonnement).
+      lostPet: await lostPetQuotaFor(req),
       upgradeUrl: '/subscriptions/plans',
     });
   } catch (e) {
@@ -362,8 +384,10 @@ router.get('/nearby', requireAuth, attachPremium, async (req, res) => {
 // ── POST / — create new report ─────────────────────────────────────────────
 // 610 (ZOE) — règle B : DANGER + infos utiles = gratuit et illimité pour tous ;
 // CONFORT = 1 par 7 jours sans abonnement (429 COMFORT_WEEKLY_LIMIT avec la
-// date du prochain possible), illimité avec ; animal perdu / trouvé = abonnés
-// (402, règle inchangée).
+// date du prochain possible), illimité avec.
+// 611 (ZOE) — animal TROUVÉ gratuit et illimité ; animal PERDU gratuit, 1 alerte
+// active à la fois par personne sans abonnement (409 LOST_PET_ACTIVE avec
+// l'alerte en cours et l'indice d'abonnement), plusieurs avec.
 router.post('/', requireAuth, attachPremium, async (req, res) => {
   try {
     const { type, note, photoUrl, lat, lng, city } = req.body;
@@ -374,7 +398,8 @@ router.post('/', requireAuth, attachPremium, async (req, res) => {
       });
     }
 
-    // 610 — règle B.
+    // 610 — règle B. (611 : plus aucun type n'est dans PREMIUM_CREATE_TYPES ;
+    // garde conservée si un type y revenait un jour.)
     if (!req.isPremium && rules610.isPremiumCreate(type)) {
       return res.status(402).json({
         error: 'This report type is Premium-only.',
@@ -398,59 +423,88 @@ router.post('/', requireAuth, attachPremium, async (req, res) => {
         });
       }
     }
-    const latNum = parseFloatOr(lat, null);
-    const lngNum = parseFloatOr(lng, null);
-    if (latNum === null || lngNum === null) {
-      return res.status(400).json({ error: 'lat and lng are required.' });
-    }
-    // v23.1 part 213 — Daniel : "j'ai signaler et ya ecrit aucune alerte".
-    // Refus a la source : on ne stocke PAS un report a (0,0) qui sera
-    // ensuite invisible dans le radius de l'utilisateur.
-    if (latNum === 0 && lngNum === 0) {
-      return res.status(400).json({
-        error: 'Invalid coordinates (0, 0). Please enable GPS or pick a location on the map.',
-        code: 'INVALID_LOCATION',
-      });
-    }
-
-    // Session v3.3 — moderate the attached photo before persisting. Vision
-    // check is a no-op when the feature flag is off; if flagged we reject
-    // with 422 so the client can ask the user for another photo.
-    if (photoUrl && String(photoUrl).trim()) {
-      const { moderateImage } = require('../services/contentModerationService');
-      const verdict = await moderateImage(photoUrl);
-      if (!verdict.ok) {
-        return res.status(422).json({
-          error: `This photo was rejected by automatic moderation (${verdict.reasons.join(', ')}).`,
-          code: 'CONTENT_REJECTED',
-          details: { reasons: verdict.reasons },
+    // 611 — création proprement dite (appelée sous verrou pour « perdu »).
+    const doCreate = async () => {
+      const latNum = parseFloatOr(lat, null);
+      const lngNum = parseFloatOr(lng, null);
+      if (latNum === null || lngNum === null) {
+        return res.status(400).json({ error: 'lat and lng are required.' });
+      }
+      // v23.1 part 213 — Daniel : "j'ai signaler et ya ecrit aucune alerte".
+      // Refus a la source : on ne stocke PAS un report a (0,0) qui sera
+      // ensuite invisible dans le radius de l'utilisateur.
+      if (latNum === 0 && lngNum === 0) {
+        return res.status(400).json({
+          error: 'Invalid coordinates (0, 0). Please enable GPS or pick a location on the map.',
+          code: 'INVALID_LOCATION',
         });
       }
-    }
 
-    const userModel = ROLE_TO_MODEL_NAME[req.user.role] || 'Owner';
-    const report = new MapReport({
-      type,
-      // v23.1.319 — auto-modération (gros mots/menaces) sur la note du signalement.
-      note: require('../services/textModerationService').moderateText(note || '').clean,
-      photoUrl: photoUrl || '',
-      location: {
-        type: 'Point',
-        coordinates: [lngNum, latNum],
-        city: city || '',
-      },
-      reporterId: req.user.id,
-      reporterModel: userModel,
-      // expiresAt defaults to now + 48h via schema default
-    });
+      // Session v3.3 — moderate the attached photo before persisting. Vision
+      // check is a no-op when the feature flag is off; if flagged we reject
+      // with 422 so the client can ask the user for another photo.
+      if (photoUrl && String(photoUrl).trim()) {
+        const { moderateImage } = require('../services/contentModerationService');
+        const verdict = await moderateImage(photoUrl);
+        if (!verdict.ok) {
+          return res.status(422).json({
+            error: `This photo was rejected by automatic moderation (${verdict.reasons.join(', ')}).`,
+            code: 'CONTENT_REJECTED',
+            details: { reasons: verdict.reasons },
+          });
+        }
+      }
 
-    await report.save();
-    // 610 — le quota confort compte les CRÉATIONS (supprimer ne rend rien).
-    try { await rules610.logComfortCreation(report); } catch (e) {
-      logger.warn(`[mapReport] registre confort non écrit : ${e?.message || e}`);
+      const userModel = ROLE_TO_MODEL_NAME[req.user.role] || 'Owner';
+      const report = new MapReport({
+        type,
+        // v23.1.319 — auto-modération (gros mots/menaces) sur la note du signalement.
+        note: require('../services/textModerationService').moderateText(note || '').clean,
+        photoUrl: photoUrl || '',
+        location: {
+          type: 'Point',
+          coordinates: [lngNum, latNum],
+          city: city || '',
+        },
+        reporterId: req.user.id,
+        reporterModel: userModel,
+        // expiresAt defaults to now + 48h via schema default
+      });
+
+      await report.save();
+      // 610 — le quota confort compte les CRÉATIONS (supprimer ne rend rien).
+      try { await rules610.logComfortCreation(report); } catch (e) {
+        logger.warn(`[mapReport] registre confort non écrit : ${e?.message || e}`);
+      }
+      logger.info(`[mapReport] ${req.user.role} ${req.user.id} created ${type} report`);
+      return res.status(201).json({ report });
+    };
+
+    // 611 — animal perdu sans abonnement : 1 alerte ACTIVE à la fois par
+    // personne (3 profils). Contrôle + création sous verrou (envois simultanés).
+    if (!req.isPremium && rules610.isLostPet(type)) {
+      const ids = [...new Set([String(req.user.id), ...(await myIdentityIds(req)).map(String)])];
+      const key = `lost_pet:${[...ids.map(String)].sort()[0] || req.user.id}`;
+      return await rules610.withPersonLock(key, async () => {
+        const lq = await rules610.lostPetQuota(MapReport, ids);
+        if (lq.remaining <= 0) {
+          return res.status(409).json({
+            error: 'You already have an active lost pet alert. Without a subscription, '
+              + 'you can have 1 active lost pet alert at a time: close it to post another one. '
+              + 'Reporting a found pet stays free and unlimited.',
+            code: 'LOST_PET_ACTIVE',
+            limit: lq.limit,
+            active: lq.active,
+            activeReportId: lq.activeReportId,
+            activeExpiresAt: lq.activeExpiresAt,
+            subscriptionHint: 'Any subscription lets you post several lost pet alerts at the same time.',
+            upgradeUrl: '/subscriptions/plans',
+          });
+        }
+        return doCreate();
+      });
     }
-    logger.info(`[mapReport] ${req.user.role} ${req.user.id} created ${type} report`);
-    res.status(201).json({ report });
+    return await doCreate();
   } catch (e) {
     logger.error('[mapReport/create]', e);
     res.status(500).json({ error: e.message });
@@ -609,7 +663,7 @@ router.post('/sos', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /:id/confirm — extend life by 12h (Premium) ───────────────────────
+// ── POST /:id/confirm — extend life by 12h (611 : gratuit pour tous) ───────────────────────
 // v452 — Daniel : « aider pour un animal perdu » doit être CÂBLÉ et GRATUIT
 // pour tout le monde. On passe en `attachPremium` (n'bloque pas) puis on
 // exige Premium UNIQUEMENT pour les autres types (prolonger un signalement =
@@ -625,13 +679,8 @@ router.post('/:id/confirm', requireAuth, attachPremium, async (req, res) => {
     // Aider un animal perdu = gratuit. 610 (ZOE) — confirmer un DANGER aussi
     // (règle B : sécurité d'abord, et c'est ce qui déclenche le geste du bon
     // Samaritain). Les autres types restent Premium.
-    if (report.type !== 'lost_pet' && !rules610.isDanger(report.type) && !req.isPremium) {
-      return res.status(402).json({
-        error: 'Premium subscription required.',
-        code: 'PREMIUM_REQUIRED',
-        upgradeUrl: '/subscriptions/plans',
-      });
-    }
+    // 611 (BOB, 04/10) — confirmer est GRATUIT pour tous, quel que soit le
+    // type (trouvé, confort, info utile compris) : plus aucun 402 ici.
 
     const userModel = ROLE_TO_MODEL_NAME[req.user.role] || 'Owner';
     // 610 — un vote par PERSONNE : ses 3 profils ne confirment qu'une fois.
@@ -733,11 +782,16 @@ router.post('/:id/flag', requireAuth, async (req, res) => {
 });
 
 // ── DELETE /:id — remove your own report ───────────────────────────────────
+// 611 — c'est aussi la « clôture » d'une alerte animal perdu : possible depuis
+// n'importe lequel des 3 profils de la personne (la limite « 1 alerte active »
+// est par personne).
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const report = await MapReport.findById(req.params.id);
     if (!report) return res.status(404).json({ error: 'Report not found.' });
-    if (String(report.reporterId) !== String(req.user.id)) {
+    const mine = String(report.reporterId) === String(req.user.id)
+      || (await myIdentityIds(req)).map(String).includes(String(report.reporterId));
+    if (!mine) {
       return res.status(403).json({ error: 'Not your report.' });
     }
     await report.deleteOne();

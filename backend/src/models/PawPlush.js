@@ -34,6 +34,8 @@ const pawPlushSchema = new mongoose.Schema(
     // libre pour les vrais utilisateurs (consigne BOB du 02/10).
     copyOf: { type: mongoose.Schema.Types.ObjectId, default: null },
     testCopy: { type: Boolean, default: false },
+    // 611 — rang de la capture dans la journée de la personne (1 ou 2).
+    catchSlot: { type: Number, default: null },
     caughtBy: {
       userId: { type: String, default: null },
       role: { type: String, default: null },
@@ -50,11 +52,13 @@ pawPlushSchema.index({ cityKey: 1, day: 1, slot: 1 }, { unique: true });
 pawPlushSchema.index({ location: '2dsphere' });
 // Une capture par personne et par jour — sauf les COPIES des comptes de test
 // (testCopy: true), qui n'enlèvent rien à personne et servent aux essais.
+// 611 — 2 par jour : unicité (jour, personne, rang de capture 1|2). Les
+// captures d'avant n'ont pas de rang (null) : une seule par jour existait.
 pawPlushSchema.index(
-  { day: 1, caughtByPerson: 1 },
+  { day: 1, caughtByPerson: 1, catchSlot: 1 },
   {
     unique: true,
-    name: 'day_person_unique_607b',
+    name: 'day_person_slot_611',
     partialFilterExpression: { caughtByPerson: { $type: 'string' }, testCopy: false },
   },
 );

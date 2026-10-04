@@ -165,6 +165,8 @@ const getWalkerProfile = async (req, res) => {
     // 02/10 (NEO) — ville non publiable (e-mail, lien, numéro) retirée pour les autres.
     if (!isSelfWalker) require('../utils/publicCity607').scrubCities(payload);
     payload.reviews = formattedReviews;
+    // 611 (PAM, demande LEO) — rang toujours présent (champ absent = Chiot).
+    payload.rank = require('../services/ranks611').rankFor(walker.pawPoints);
     // v23.1.296 — self-heal : recalcule le statut Top Walker à la lecture du
     // profil pour qu'il reflète toujours les prestations confirmées (même si le
     // recompute à la confirmation n'a pas tourné).

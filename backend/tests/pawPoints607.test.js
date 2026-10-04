@@ -83,7 +83,7 @@ describe('catalogue 607', () => {
     expect(r.body.subscriptionRewards.map((x) => [x.id, x.kind, x.days]))
       .toEqual([['sub_free_pf_1m', 'free_month', 30], ['sub_free_pp_1m', 'free_month', 30], ['sub_free_pp_3m', 'free_month', 90]]);
     // Avantages de niveau : uniquement ce que le serveur tient.
-    for (const l of r.body.levels) for (const p of l.perks) expect(['badge', 'bonus_5', 'bonus_10']).toContain(p);
+    for (const l of r.body.levels) for (const p of l.perks) expect(['badge']).toContain(p); // 611 : plus de bonus
   });
 
   test('gains demandés par Daniel présents avec le bon barème', () => {
@@ -316,10 +316,11 @@ describe('gains d\'activité 607', () => {
     expect(act.isProfileComplete({ ...full }, 'owner', 1)).toBe(true);
   });
 
-  test('peluche (appel de PAM) : +20, puis rien le même jour', async () => {
+  test('peluche (appel de PAM) : +20 deux fois, puis rien le même jour (611 : 2 par jour)', async () => {
     const u = await person({ role: 'walker' });
     expect(await act.awardActivity({ userId: u._id, role: 'walker', key: 'plushCaught', refId: 'p1' })).toMatchObject({ credited: 20 });
-    expect(await act.awardActivity({ userId: u._id, role: 'walker', key: 'plushCaught', refId: 'p2' })).toBeNull();
+    expect(await act.awardActivity({ userId: u._id, role: 'walker', key: 'plushCaught', refId: 'p2' })).toMatchObject({ credited: 20 });
+    expect(await act.awardActivity({ userId: u._id, role: 'walker', key: 'plushCaught', refId: 'p3' })).toBeNull();
   });
 
   test('/me renvoie l\'historique des gains', async () => {

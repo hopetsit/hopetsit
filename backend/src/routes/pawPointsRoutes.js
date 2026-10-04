@@ -20,6 +20,8 @@ const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const pawPoints = require('../services/pawPointsService');
+// 611 (PAM) — rangs Chiot → Légende sur le total GAGNÉ (jamais le solde).
+const ranks611 = require('../services/ranks611');
 const { grantFreePeriod } = require('../services/subscriptionGrantService');
 const logger = require('../utils/logger');
 
@@ -95,6 +97,8 @@ router.get('/catalog', async (req, res) => {
     res.json({
       // 607 (ZOE) — catalogue UNIQUE app / site / admin, textes 9 langues.
       catalog607: pawPoints.CATALOG607.buildCatalog607(pawPoints.LEVELS),
+      // 611 (PAM) — les 5 rangs et leurs textes 9 langues (site + app).
+      ranks611: ranks611.catalog(),
       // Apps ≤ 606 : seulement les paliers 30 / 30 / 90 jours (voir service).
       subscriptionRewards: pawPoints.SUBSCRIPTION_REWARDS,
       rewards: customRewards.map((r) => ({
@@ -180,10 +184,99 @@ router.get('/me', requireAuth, async (req, res) => {
       history,
       catalogVersion: 607,
       goldFrame,
+      // 611 (PAM) — rang sur le total gagné + dernier rang dont la personne a
+      // vu le message (l'app le montre une fois, puis POST /rank-seen).
+      rank: ranks611.rankFor(st.lifetime),
+      rankSeenLevel: await _rankSeenLevel(me.email, req.user.id),
     });
   } catch (e) {
     logger.error('[pawpoints/me]', e);
     res.status(500).json({ error: 'Erreur points.' });
+  }
+});
+
+// ─── 611 (PAM) — « D'où viennent mes points » ────────────────────────────────
+// GET /pawpoints/history : les 30 derniers gains de LA PERSONNE CONNECTÉE
+// (ses 3 profils), plus récents d'abord. Le passé sans trace n'est jamais
+// reconstitué : une ligne « avant le journal » porte le reste du total.
+router.get('/history', requireAuth, async (req, res) => {
+  try {
+    const role = req.user?.role || 'owner';
+    const me = await _identity(req.user.id, role);
+    const { personKeyFromEmail } = require('../services/pawPointsActivity607');
+    const pk = personKeyFromEmail(me.email) || `id:${req.user.id}`;
+    const PawPointsLog611 = require('../models/PawPointsLog611');
+    const PawPointsEvent = require('../models/PawPointsEvent');
+    const logs = await PawPointsLog611.find({ personKey: pk }).sort({ at: -1 }).lean();
+    // Gains d'activité (607 : Pionnier, profil complet, Balade, séries…) :
+    // déjà journalisés dans PawPointsEvent (jamais en double dans le 611).
+    const events = await PawPointsEvent.find({ personKey: pk }).sort({ at: -1 }).limit(60).lean();
+    const items = [
+      ...logs.map((l) => ({ key: l.key, points: l.points, at: l.at })),
+      ...events.map((e) => ({ key: e.key, points: Number(e.credited || e.points || 0), at: e.at })),
+    ].sort((a, b) => new Date(b.at) - new Date(a.at));
+    const st = await pawPoints.getPawState(req.user.id, role);
+    const traced = items.reduce((s, x) => s + (Number(x.points) || 0), 0);
+    const before = Math.max(0, st.lifetime - traced);
+    return res.json({
+      items: items.slice(0, 30).map((x) => ({ key: x.key, points: x.points, at: new Date(x.at).toISOString() })),
+      beforeJournal: before, // points gagnés avant le journal (sans détail)
+      journalSince: '2026-10-04',
+      lifetime: st.lifetime,
+    });
+  } catch (e) {
+    logger.error('[pawpoints/history]', e);
+    return res.status(500).json({ error: 'Erreur historique.' });
+  }
+});
+
+// ─── 611 (PAM) — message de passage de rang : une fois par personne ────────
+function _rankPersonKey(email, userId) {
+  const { personKeyFromEmail } = require('../services/pawPointsActivity607');
+  return personKeyFromEmail(email) || `id:${userId}`;
+}
+async function _rankSeenLevel(email, userId) {
+  try {
+    const PawRankSeen611 = require('../models/PawRankSeen611');
+    const row = await PawRankSeen611.findOne({ personKey: _rankPersonKey(email, userId) })
+      .select('level').lean();
+    return Math.max(1, Number(row?.level) || 1);
+  } catch (_) {
+    return 1;
+  }
+}
+
+// POST /pawpoints/rank-seen {level} — « j'ai vu le message de ce rang ».
+// Jamais au-delà du rang réel, jamais en arrière.
+router.post('/rank-seen', requireAuth, async (req, res) => {
+  try {
+    const level = Number(req.body?.level);
+    if (!Number.isInteger(level) || level < 1 || level > ranks611.RANKS.length) {
+      return res.status(400).json({ error: 'INVALID_LEVEL' });
+    }
+    const role = req.user?.role || 'owner';
+    const st = await pawPoints.getPawState(req.user.id, role);
+    const real = ranks611.rankFor(st.lifetime).level;
+    const me = await _identity(req.user.id, role);
+    const personKey = _rankPersonKey(me.email, req.user.id);
+    const PawRankSeen611 = require('../models/PawRankSeen611');
+    const target = Math.min(level, real);
+    await PawRankSeen611.updateOne(
+      { personKey, level: { $lt: target } },
+      { $set: { level: target } },
+    ).then(async (r) => {
+      if (!r.matchedCount) {
+        await PawRankSeen611.updateOne(
+          { personKey },
+          { $setOnInsert: { level: target } },
+          { upsert: true },
+        ).catch(() => {}); // doublon concurrent : déjà écrit
+      }
+    });
+    return res.json({ ok: true, rankSeenLevel: await _rankSeenLevel(me.email, req.user.id) });
+  } catch (e) {
+    logger.error('[pawpoints/rank-seen]', e);
+    return res.status(500).json({ error: 'Erreur rang.' });
   }
 });
 

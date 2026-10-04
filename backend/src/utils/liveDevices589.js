@@ -67,6 +67,8 @@ function emitSelfLive(docs, payload) {
 async function stopEverywhere(userId, { now = new Date(), notifyFriends = true } = {}) {
   const g = await groupOf(userId);
   const map = require('../sockets/mapSocket');
+  // 611 (PAM) — un arrêt voulu lève toute reprise d'appareil en cours.
+  try { require('./liveTakeover611').clearFor(g.ids); } catch (_) { /* ignore */ }
   // 607 (ZOE) — PawPoints « Balade terminée » : on lit la session AVANT de
   // l'effacer (durée + tracé). Best-effort, n'attend rien, ne bloque rien.
   try {

@@ -201,11 +201,12 @@ describe('CRÉER — confort : 1 par 7 jours sans abonnement', () => {
     expect(q.body.comfort.unlimited).toBe(true);
   });
 
-  test('animal perdu / trouvé : règle inchangée (abonnés seulement à la création)', async () => {
+  // 611 (ZOE, 04/10) — règle changée par BOB (PROCHAIN_BUILD_611.md point 1) :
+  // animal perdu / trouvé gratuit pour tous. Cas complets : lostFound611.test.js.
+  test('animal perdu / trouvé : gratuit pour tous depuis le 611 (plus de 402)', async () => {
     const free = await member();
-    const r = await post(free, 'lost_pet').expect(402);
-    expect(r.body.code).toBe('PREMIUM_REQUIRED');
-    await post(free, 'found_pet').expect(402);
+    await post(free, 'lost_pet').expect(201);
+    await post(free, 'found_pet').expect(201);
     const sub = await member({ premium: true });
     await post(sub, 'lost_pet').expect(201);
   });
@@ -288,9 +289,9 @@ describe('Geste du bon Samaritain', () => {
     for (const v of voters) await confirm(v, rep._id).expect(200);
     expect(gifts(await premiumState(author))).toHaveLength(0);
     expect(mockNotifications.filter((n) => n.type === 'good_samaritan_premium')).toHaveLength(0);
-    // Confirmer un confort reste réservé aux abonnés (inchangé).
+    // 611 (BOB, 04/10) — confirmer un confort est gratuit pour tous (plus de 402).
     const free = await member();
-    await confirm(free, rep._id).expect(402);
+    await confirm(free, rep._id).expect(200);
   });
 
   test('au plus 1 fois par 7 jours ; un signalement bloqué par la limite ne donne jamais plus tard', async () => {
