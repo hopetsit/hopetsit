@@ -583,3 +583,29 @@ describe('lecture : état du lecteur, classement, /me/points', () => {
     expect(mockStores.PawSpot).toHaveLength(0);
   });
 });
+
+// 610 (PAM, 04/10) — Daniel : « vérifier les PawSpots, l'affichage marche ».
+// Un compte GRATUIT (aucun abonnement), propriétaire ou gardien, voit le spot
+// d'un autre avec son nom et sa photo : la lecture n'est jamais payante.
+describe('610 — affichage pour les comptes gratuits', () => {
+  beforeEach(reset);
+
+  test('propriétaire et gardien non abonnés voient le spot d’un autre (nom + photo)', async () => {
+    const ana = await makeUser(Owner, 'Ana', 'ana@x.io');
+    asUser(ana);
+    const created = await newSpot({ name: 'Bois test', photoUrl: 'https://cdn/p.jpg' });
+    expect(created.status).toBe(201);
+    const bo = await makeUser(Owner, 'Bo', 'bo@x.io');
+    const cy = await makeUser(Sitter, 'Cy', 'cy@x.io');
+    for (const [doc, role] of [[bo, 'owner'], [cy, 'sitter']]) {
+      asUser(doc, role);
+      const near = await request(app).get('/pawspots/nearby?lat=48.85&lng=2.35');
+      expect(near.status).toBe(200);
+      expect(near.body.spots).toHaveLength(1);
+      expect(near.body.spots[0]).toMatchObject({
+        id: created.body.spot.id, name: 'Bois test', photoUrl: 'https://cdn/p.jpg', isMine: false,
+      });
+    }
+    expect(mockStores.UserSubscription).toHaveLength(0);
+  });
+});

@@ -771,7 +771,8 @@ router.get('/members/world', requireAuth, async (req, res) => {
     const citiesToWarm = [];
     const members = [];
     // v586 — le cache est PARTAGÉ : n'y entre que « visible par tous ».
-    const visible = tagged.filter(({ d }) => !mapVisibility.isTestOrStaff(d)
+    // 610 — staff « visible par tous » (choix explicite) inclus : excludedFromWorld.
+    const visible = tagged.filter(({ d }) => !mapVisibility.excludedFromWorld(d)
       && mapVisibility.mapVisibilityOf(d) === 'all');
     // v587 — état le plus strict de la PERSONNE : un profil « amis seulement »
     // ou « masqué » retire la personne entière du cache partagé (ses amis la

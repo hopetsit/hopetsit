@@ -114,6 +114,27 @@ function isStaffOrHidden(doc) {
 }
 
 /**
+ * 610 (PAM, 04/10) — exclu de la couche MONDE (cache partagé) ?
+ * Daniel (compte staff) s'est mis « visible par tous » à La Isla et restait
+ * invisible pour Cam, à 2 m de lui : le staff était exclu d'office. Désormais
+ * un compte staff qui CHOISIT « visible par tous » (`preferences.mapVisibility`
+ * écrit à 'all') apparaît comme tout le monde. Restent exclus : comptes +test,
+ * sonde, modération (`hiddenFromPublic`), et le staff qui n'a rien choisi
+ * (valeur absente) ou qui est en « amis » / « masqué ».
+ */
+function excludedFromWorld(doc) {
+  if (!doc) return true;
+  if (require('./testAccountMap604').isTestAccountDoc(doc)) return true;
+  const email = String(doc.email || '').toLowerCase();
+  if (email === 'probe-565@invalid.example') return true;
+  if (doc.hiddenFromPublic === true) return true;
+  if (doc.isStaff === true) {
+    return !(doc.preferences && doc.preferences.mapVisibility === 'all');
+  }
+  return false;
+}
+
+/**
  * Le lecteur peut-il voir cette personne sur la carte ?
  * @param {object} doc         document Owner/Sitter/Walker (lean)
  * @param {object} viewer      { viewerIds: Set<string>, friendIds: Set<string> }
@@ -266,6 +287,7 @@ async function friendIdsOf(userId) {
 module.exports = {
   MAP_VISIBILITY,
   mapVisibilityOf,
+  excludedFromWorld,
   mapVisibilitySet,
   strictestVisibility,
   personMapVisibility,
