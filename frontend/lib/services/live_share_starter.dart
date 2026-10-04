@@ -182,6 +182,62 @@ class LiveShareStarter {
     }
   }
 
+  /// 611 (PAM) — « Passer en direct sur ce téléphone » (Cam, 04/10) :
+  /// la position de CE téléphone est vérifiée D'ABORD (sinon on prendrait
+  /// la Balade à l'autre téléphone pour ne rien envoyer), puis UN appel de
+  /// reprise (même départ, mêmes suiveurs, l'autre appareil s'arrête), puis
+  /// le direct démarre ici. Message clair dans tous les cas.
+  static Future<bool> takeOverHereWithFeedback() async {
+    try {
+      final live = Get.isRegistered<LiveMapService>()
+          ? Get.find<LiveMapService>()
+          : Get.put(LiveMapService(), permanent: true);
+      if (live.broadcasting.value) return true;
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        CustomSnackbar.showWarning(
+          title: 'pawmap602_perm_title'.tr,
+          message: 'pawmap602_gps_off_msg'.tr,
+        );
+        return false;
+      }
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        CustomSnackbar.showWarning(
+          title: 'pawmap602_perm_title'.tr,
+          message: 'pawmap602_perm_msg'.tr,
+        );
+        return false;
+      }
+      if (!await live.requestTakeover()) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'pm611_takeover_failed'.tr,
+        );
+        return false;
+      }
+      final r = await start();
+      if (r == LiveStartResult.started || r == LiveStartResult.alreadyLive) {
+        CustomSnackbar.showSuccess(
+          title: 'pawmap602_live_on_title'.tr,
+          message: 'pm611_takeover_done'.tr,
+        );
+        return true;
+      }
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'pm611_takeover_failed'.tr,
+      );
+      return false;
+    } catch (e) {
+      debugPrint('[LiveShareStarter] reprise impossible : $e');
+      return false;
+    }
+  }
+
   /// Construit [build] avec l'état RÉEL de mon direct (ce téléphone ou mon
   /// autre téléphone), et le reconstruit quand il change — la même vérité
   /// que le bouton Balade de la PawMap.

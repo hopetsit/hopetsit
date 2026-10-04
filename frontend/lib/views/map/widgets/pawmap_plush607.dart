@@ -87,6 +87,32 @@ double pawPlushMeters(double aLat, double aLng, double bLat, double bLng) {
 }
 
 /// Peluche la plus proche à portée de capture, sinon null.
+/// 611 (PAM) — tolérance GPS ajoutée au rayon de capture (vidéo d'Alhama :
+/// « on est à 3 m, pas 30 »). Même plafond que le serveur (20 m).
+const double kPawPlushAccuracyMaxM = 20;
+double pawPlushReachM(double? accuracy) =>
+    kPawPlushCatchM + ((accuracy != null && accuracy > 0) ? math.min(accuracy, kPawPlushAccuracyMaxM) : 0);
+
+/// 611 — angle (degrés, -180..180) de la flèche vers [target] sur un écran
+/// où la carte est tournée de [mapBearing] (carte de Balade dans le sens de
+/// la marche). 0 = tout droit vers le haut de l'écran.
+double pawPlushArrowDeg(LatLng me, LatLng target, {double mapBearing = 0}) {
+  double rad(double d) => d * math.pi / 180;
+  final dLng = rad(target.longitude - me.longitude);
+  final y = math.sin(dLng) * math.cos(rad(target.latitude));
+  final x = math.cos(rad(me.latitude)) * math.sin(rad(target.latitude)) -
+      math.sin(rad(me.latitude)) * math.cos(rad(target.latitude)) * math.cos(dLng);
+  final brng = math.atan2(y, x) * 180 / math.pi;
+  var a = brng - mapBearing;
+  while (a > 180) {
+    a -= 360;
+  }
+  while (a <= -180) {
+    a += 360;
+  }
+  return a;
+}
+
 PawPlush? pawPlushInReach(LatLng me, List<PawPlush> list, {double radiusM = kPawPlushCatchM}) {
   PawPlush? best;
   double bestD = double.infinity;
@@ -132,7 +158,18 @@ class PawPlushLayer {
   final RxBool shown = true.obs;
 
   /// Déjà une capture aujourd'hui : on n'essaie plus d'en attraper.
-  bool caughtToday = false;
+  /// 611 — miroir observable (pastille « peluche du jour attrapée »).
+  final RxBool caughtTodayRx611 = false.obs;
+  /// 611 — 2 peluches par jour : attrapées aujourd'hui / maximum du jour
+  /// (serveur ≥ 611 ; un ancien serveur = 1 par jour).
+  final RxInt caughtTodayCount611 = 0.obs;
+  int dailyMax611 = 1;
+  bool _caughtToday = false;
+  bool get caughtToday => _caughtToday;
+  set caughtToday(bool v) {
+    _caughtToday = v;
+    caughtTodayRx611.value = v;
+  }
 
   /// 607 (BOB/Daniel 02/10) — peluches libres à 5 km, connues même HORS
   /// Balade (le serveur ne donne alors que le nombre, jamais les positions).
@@ -232,6 +269,9 @@ class PawPlushLayer {
       if (res is Map) {
         lastWalkActive = res['walkActive'] == true;
         caughtToday = res['caughtToday'] == true;
+        dailyMax611 = (res['dailyMax'] as num?)?.toInt() ?? 1;
+        caughtTodayCount611.value = (res['caughtTodayCount'] as num?)?.toInt() ??
+            (res['caughtToday'] == true ? dailyMax611 : 0);
         if (res['nearbyCount'] is num) {
           nearbyCount.value = (res['nearbyCount'] as num).toInt();
         }
@@ -270,9 +310,10 @@ class PawPlushLayer {
     return best;
   }
 
-  Future<(PawPlushCatch, int)> onPosition(LatLng me, {DateTime? now}) async {
+  Future<(PawPlushCatch, int)> onPosition(LatLng me, {DateTime? now, double? accuracy}) async {
     if (_catching || caughtToday || !shown.value) return (PawPlushCatch.none, 0);
-    final p = pawPlushInReach(me, items);
+    // 611 — rayon + précision du point GPS (20 m au plus, comme le serveur).
+    final p = pawPlushInReach(me, items, radiusM: pawPlushReachM(accuracy));
     if (p == null) return (PawPlushCatch.none, 0);
     final t = now ?? DateTime.now();
     final prev = _tried[p.id];
@@ -285,9 +326,12 @@ class PawPlushLayer {
       final res = await _post('/plush/${p.id}/catch', <String, dynamic>{
         'lat': me.latitude,
         'lng': me.longitude,
+        if (accuracy != null && accuracy > 0) 'accuracy': accuracy, // 611
       });
       items.removeWhere((x) => x.id == p.id);
-      caughtToday = true;
+      // 611 — 2 par jour : on continue tant que le maximum n'est pas atteint.
+      caughtTodayCount611.value += 1;
+      caughtToday = caughtTodayCount611.value >= dailyMax611;
       caughtTodayCount.value += 1; // pastille du bouton PawPoints
       final pts = res is Map ? ((res['points'] as num?)?.toInt() ?? 20) : 20;
       final bonuses = res is Map && res['bonuses'] is List ? res['bonuses'] as List : const [];
@@ -301,6 +345,7 @@ class PawPlushLayer {
     } on ApiException catch (e) {
       final code = e.details is Map ? (e.details['code'] ?? '').toString() : '';
       if (code == 'DAILY_LIMIT') {
+        caughtTodayCount611.value = dailyMax611;
         caughtToday = true;
         return (PawPlushCatch.dailyDone, 0);
       }
@@ -528,12 +573,18 @@ class PawNearestPlushPill extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.semantics,
+    this.arrowDeg,
+    this.progress,
   });
+  /// 611 — « 1/2 » : peluches du jour déjà attrapées (null = rien).
+  final String? progress;
   final String type;
   final bool golden;
   final String label;
   final String? semantics;
   final VoidCallback onTap;
+  /// 611 — flèche vers la peluche (voir [pawPlushArrowDeg]) ; null = aucune.
+  final double? arrowDeg;
 
   @override
   Widget build(BuildContext context) {
@@ -570,6 +621,28 @@ class PawNearestPlushPill extends StatelessWidget {
                   color: dark ? const Color(0xFFF6F1EE) : const Color(0xFF1C1430),
                 ),
               ),
+              if (progress != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  'plush611_progress'.trParams({
+                    'n': progress!.split('/').first,
+                    'max': progress!.split('/').last,
+                  }),
+                  key: const ValueKey<String>('pawmap_plush_progress'),
+                  style: GoogleFonts.poppins(fontSize: 10.5, fontWeight: FontWeight.w700, color: const Color(0xFF2E9E48)),
+                ),
+              ],
+              if (arrowDeg != null) ...[
+                const SizedBox(width: 4),
+                Semantics(
+                  label: 'plush611_arrow'.tr,
+                  child: Transform.rotate(
+                    key: const ValueKey<String>('pawmap_plush_arrow'),
+                    angle: arrowDeg! * math.pi / 180,
+                    child: const Icon(Icons.navigation_rounded, size: 17, color: Color(0xFFDB2777)),
+                  ),
+                ),
+              ],
               const SizedBox(width: 2),
               const Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFFDB2777)),
             ],
@@ -577,6 +650,45 @@ class PawNearestPlushPill extends StatelessWidget {
         ),
       ),
     ),
+    );
+  }
+}
+
+/// 611 — Balade après la peluche du jour : on le DIT (avant : les peluches
+/// restaient à l'écran, impossibles à prendre, et rien ne s'expliquait).
+class PawPlushDonePill extends StatelessWidget {
+  const PawPlushDonePill({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      key: const ValueKey<String>('pawmap_plush_done'),
+      padding: const EdgeInsets.fromLTRB(4, 3, 10, 3),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF2E1F3D) : const Color(0xFFFFF4FA),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF2E9E48), width: 1.2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.check_circle_rounded, size: 20, color: Color(0xFF2E9E48)),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              'plush611_done_today'.tr,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: dark ? const Color(0xFFF6F1EE) : const Color(0xFF1C1430),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

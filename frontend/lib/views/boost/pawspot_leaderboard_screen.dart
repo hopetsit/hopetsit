@@ -3,12 +3,12 @@
 // en-tête avec mes points + badge (GET /pawspots/me/points).
 // Identité PawSpot : empreinte / trophée sur accent DORÉ (0xFFE8A00A).
 
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/controllers/pawspot_controller.dart' show pawSpotTr;
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -17,6 +17,7 @@ import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/paw_button_kit.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/widgets/paw_rank611.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_plush607.dart' show PawPlushCollectionSection;
 
 class PawspotLeaderboardScreen extends StatefulWidget {
@@ -108,52 +109,9 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
     }
   }
 
-  /// Mapping key backend → libellé traduit (inclut déjà emoji + seuil).
-  static String badgeLabel(String key) {
-    switch (key) {
-      case 'explorer':
-        return 'pawspot_badge_explorer'.tr;
-      // v567 — ces trois libellés étaient écrits EN DUR EN FRANÇAIS : un
-      // utilisateur anglophone, coréen ou polonais lisait « Contributeur » et
-      // « Légendaire » dans son classement.
-      case 'contributor':
-        return pawSpotTr('pawspot567_badge_contributor', 'Contributor');
-      case 'expert':
-        return 'pawspot_badge_expert'.tr;
-      case 'ambassador':
-        return 'pawspot_badge_ambassador'.tr;
-      case 'pawmaster':
-        return 'pawspot_badge_pawmaster'.tr;
-      case 'legend':
-        return pawSpotTr('pawspot567_badge_legend', 'Legendary');
-      case 'paw_legend':
-        return pawSpotTr('pawspot567_badge_paw_legend', 'Paw Legend');
-      default:
-        return key;
-    }
-  }
 
-  /// Mapping key backend → emoji seul (pour les rangées du classement).
-  /// v416 — aligné sur les 7 niveaux (cf pawPointsService.LEVELS).
-  static String badgeEmoji(String badge) {
-    switch (badge) {
-      case 'explorer':
-        return '🧭';
-      case 'contributor':
-        return '🐾';
-      case 'expert':
-        return '⭐';
-      case 'ambassador':
-        return '🦴';
-      case 'pawmaster':
-      case 'legend':
-      case 'paw_legend':
-        return '👑';
-      default:
-        // Le backend peut renvoyer directement un emoji.
-        return badge;
-    }
-  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -233,9 +191,6 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
   /// En-tête doré : mes PawPoints + mon badge actuel.
   Widget _buildMyPointsHeader(BuildContext context) {
     final points = (_me['points'] as num?)?.toInt() ?? 0;
-    final badge = _me['badge'] is Map
-        ? Map<String, dynamic>.from(_me['badge'] as Map)
-        : null;
     return Container(
       margin: EdgeInsets.all(16.w),
       padding: EdgeInsets.all(16.w),
@@ -290,21 +245,8 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
                   ],
                 ),
               ),
-              if (badge != null)
-                Container(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(10.r),
-                  ),
-                  child: InterText(
-                    text: badgeLabel((badge['key'] ?? '').toString()),
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
+              // 611 — mon RANG (Chiot → Légende) remplace l'ancien badge.
+              const PawMyRankPill611(),
             ],
           ),
           // v414 — Daniel : "améliore la liste de points et de récompenses".
@@ -389,7 +331,7 @@ String pawPoints607Text(dynamic texts) {
 
 /// v416 — Feuille « Mes PawPoints » (refonte design Daniel) : stats, barre de
 /// niveau, réductions/mois gratuits sur abonnements (échange auto, 1×/user),
-/// 7 niveaux exclusifs + objectif Paw Legend, et barème de gains.
+/// 611 — les 5 rangs (Chiot → Légende) et le barème de gains.
 class _RewardsSheet extends StatefulWidget {
   const _RewardsSheet({
     required this.myPoints,
@@ -442,6 +384,10 @@ class _RewardsSheetState extends State<_RewardsSheet> {
   List<Map<String, dynamic>> _levels607 = const [];
   List<Map<String, dynamic>> _history = const [];
   bool _checkedIn = false;
+  // 611 (PAM) — rang Chiot → Légende (total gagné, jamais le solde).
+  PawRank611? _rank;
+  // 611 (B) — « D'où viennent mes points » (GET /pawpoints/history).
+  Map<String, dynamic>? _hist611;
 
   @override
   void initState() {
@@ -517,8 +463,18 @@ class _RewardsSheetState extends State<_RewardsSheet> {
           final ck = me['claimedRewardKeys'];
           _claimed = ck is List ? ck.map((e) => e.toString()).toSet() : <String>{};
           _history = _list(me['history']);
+          _rank = PawRank611.fromJson(me['rank']);
         }
       });
+      // 611 (B) — historique des gains : appel séparé, jamais bloquant.
+      try {
+        final h = await api.get('/pawpoints/history', requiresAuth: true);
+        if (mounted && h is Map && h['items'] is List) setState(() => _hist611 = Map<String, dynamic>.from(h));
+      } catch (_) {/* ancien serveur : l'ancienne liste reste */}
+      if (me is Map) {
+        PawRankService611.instance.ingestMe(me);
+        unawaited(PawRankService611.instance.maybeCelebrate());
+      }
       if (_cat607 != null) _checkIn();
     } catch (_) {
       // best-effort
@@ -539,32 +495,9 @@ class _RewardsSheetState extends State<_RewardsSheet> {
     1: '🥉', 2: '🥈', 3: '🥇', 4: '🟣', 5: '🟡', 6: '🌸',
   };
 
-  String _perkLabel(String p) {
-    switch (p) {
-      case 'badge':
-        return 'pawpoints_perk_badge'.tr;
-      case 'chests_basic':
-        return 'pawpoints_perk_chests'.tr;
-      case 'map_visibility':
-        return 'pawpoints_perk_map'.tr;
-      case 'bonus_5':
-        return 'pawpoints_perk_bonus5'.tr;
-      case 'bonus_10':
-        return 'pawpoints_perk_bonus10'.tr;
-      case 'free_pawboost':
-        return 'pawpoints_perk_boost'.tr;
-      case 'legendary_frame':
-        return 'pawpoints_perk_frame'.tr;
-      case 'legendary_status':
-        return 'pawpoints_perk_status'.tr;
-      case 'pink_crown':
-        return 'pawpoints_perk_crown'.tr;
-      case 'ultimate':
-        return 'pawpoints_perk_ultimate'.tr;
-      default:
-        return p;
-    }
-  }
+  // 611 — un seul avantage par rang : la pastille. Aucun bonus.
+  String _perkLabel(String p) => p == 'badge' ? 'rank611_perk_badge'.tr : '';
+
 
   Future<void> _redeem(Map<String, dynamic> r) async {
     final id = (r['id'] ?? '').toString();
@@ -668,6 +601,15 @@ class _RewardsSheetState extends State<_RewardsSheet> {
       ),
       SizedBox(height: 12.h),
       _balance607(context),
+      // 611 — mon rang + « encore N points pour Chien adulte ».
+      if (_rank != null) ...[
+        SizedBox(height: 12.h),
+        PawRankProgress611(rank: _rank!),
+      ],
+      if (_hist611 != null) ...[
+        SizedBox(height: 22.h),
+        _history611(context),
+      ],
       SizedBox(height: 22.h),
       _sectionTitle(context, 'pp607_earn'.tr, ''),
       SizedBox(height: 10.h),
@@ -696,12 +638,11 @@ class _RewardsSheetState extends State<_RewardsSheet> {
             ),
           ),
       SizedBox(height: 18.h),
-      _sectionTitle(context, 'pp607_levels'.tr, ''),
+      // 611 — un seul système : les 5 rangs (servis par le catalogue).
+      _sectionTitle(context, 'help611_ranks_t'.tr, ''),
       SizedBox(height: 10.h),
       ...levels.map((l) => _levelCard(context, l)),
-      SizedBox(height: 16.h),
-      _pawLegendCard(context),
-      if (_history.isNotEmpty) ...[
+      if (_hist611 == null && _history.isNotEmpty) ...[
         SizedBox(height: 22.h),
         _sectionTitle(context, 'pp607_history'.tr, ''),
         SizedBox(height: 8.h),
@@ -717,6 +658,83 @@ class _RewardsSheetState extends State<_RewardsSheet> {
         }),
       ],
     ];
+  }
+
+  /// 611 (B) — Cam : « j'ai 36 points et je ne sais pas à quoi je les ai
+  /// gagnés ». Les 30 derniers gains, en clair, plus récents d'abord ; le
+  /// passé sans trace tient sur une ligne (jamais inventé).
+  Widget _history611(BuildContext context) {
+    final items = _list(_hist611?['items']);
+    final before = (_hist611?['beforeJournal'] as num?)?.toInt() ?? 0;
+    String two(int v) => v.toString().padLeft(2, '0');
+    // chiffres seuls : aucune donnée de langue à charger (jamais d'exception)
+    String fmtDate(DateTime d) => '${two(d.day)}/${two(d.month)} · ${two(d.hour)}:${two(d.minute)}';
+    Widget row(String label, String date, int pts, Key key) => Container(
+          key: key,
+          padding: EdgeInsets.symmetric(vertical: 8.h),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PoppinsText(text: label, fontSize: 13.sp, fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary(context)),
+                    if (date.isNotEmpty)
+                      InterText(text: date, fontSize: 11.sp, color: AppColors.textSecondary(context)),
+                  ],
+                ),
+              ),
+              PoppinsText(
+                text: pts >= 0 ? '+$pts' : '−${-pts}',
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w800,
+                color: pts >= 0 ? _gold : const Color(0xFFC92A12),
+              ),
+            ],
+          ),
+        );
+    return Container(
+      key: const ValueKey<String>('hist611_section'),
+      padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 6.h),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: _gold.withValues(alpha: 0.45), width: 1.2),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PoppinsText(text: 'hist611_title'.tr, fontSize: 15.sp, fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary(context)),
+          SizedBox(height: 4.h),
+          if (items.isEmpty && before <= 0)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.h),
+              child: InterText(text: 'hist611_empty'.tr, fontSize: 12.sp,
+                  color: AppColors.textSecondary(context)),
+            ),
+          for (final e in items.asMap().entries)
+            row(
+              () {
+                final k = (e.value['key'] ?? 'other').toString();
+                final t = 'hist611_$k'.tr;
+                return t == 'hist611_$k' ? 'hist611_other'.tr : t;
+              }(),
+              () {
+                final d = DateTime.tryParse((e.value['at'] ?? '').toString());
+                return d == null ? '' : fmtDate(d.toLocal());
+              }(),
+              (e.value['points'] as num?)?.toInt() ?? 0,
+              ValueKey<String>('hist611_row_${e.key}'),
+            ),
+          if (before > 0)
+            row('hist611_before'.trParams({'n': '$before'}), '', before,
+                const ValueKey<String>('hist611_before')),
+        ],
+      ),
+    );
   }
 
   /// 607 — « mon solde et mon palier », comme la carte du site.
@@ -761,29 +779,32 @@ class _RewardsSheetState extends State<_RewardsSheet> {
             SizedBox(width: 10.w),
             stat('pp607_lifetime'.tr, pawPoints607Num(_lifetime)),
           ]),
-          SizedBox(height: 12.h),
-          InterText(text: 'pp607_level'.tr.toUpperCase(), fontSize: 10.sp, fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary(context)),
-          SizedBox(height: 2.h),
-          PoppinsText(
-            text: current == null
-                ? '—'
-                : '${current['emoji'] ?? ''} ${pawPoints607Text(current['texts'])}'.trim(),
-            fontSize: 15.sp,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary(context),
-          ),
-          SizedBox(height: 2.h),
-          InterText(
-            text: next != null
-                ? 'pp607_next'.trParams({
-                    'pts': pawPoints607Num(((next['min'] as num?)?.toInt() ?? 0) - _lifetime),
-                    'level': pawPoints607Text(next['texts']),
-                  })
-                : 'pp607_max'.tr,
-            fontSize: 12.sp,
-            color: AppColors.textSecondary(context),
-          ),
+          // 611 — le rang a sa propre carte juste dessous (PawRankProgress611).
+          if (_rank == null) ...[
+            SizedBox(height: 12.h),
+            InterText(text: 'pp607_level'.tr.toUpperCase(), fontSize: 10.sp, fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary(context)),
+            SizedBox(height: 2.h),
+            PoppinsText(
+              text: current == null
+                  ? '—'
+                  : '${current['emoji'] ?? ''} ${pawPoints607Text(current['texts'])}'.trim(),
+              fontSize: 15.sp,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary(context),
+            ),
+            SizedBox(height: 2.h),
+            InterText(
+              text: next != null
+                  ? 'pp607_next'.trParams({
+                      'pts': pawPoints607Num(((next['min'] as num?)?.toInt() ?? 0) - _lifetime),
+                      'level': pawPoints607Text(next['texts']),
+                    })
+                  : 'pp607_max'.tr,
+              fontSize: 12.sp,
+              color: AppColors.textSecondary(context),
+            ),
+          ],
           if (bonus > 0) ...[
             SizedBox(height: 4.h),
             InterText(text: 'pp607_bonus'.trParams({'pct': '$bonus'}), fontSize: 12.sp,
@@ -953,8 +974,6 @@ class _RewardsSheetState extends State<_RewardsSheet> {
           'pawpoints_levels_sub'.tr),
       SizedBox(height: 10.h),
       ..._levels.map((l) => _levelCard(context, l)),
-      SizedBox(height: 16.h),
-      _pawLegendCard(context),
       SizedBox(height: 22.h),
       if (_earn.isNotEmpty) ...[
         _sectionTitle(context, 'pawpoints_how_to_earn'.tr, ''),
@@ -1479,83 +1498,6 @@ class _RewardsSheetState extends State<_RewardsSheet> {
     );
   }
 
-  String _legendPerks() {
-    if (_cat607 == null || _levels607.isEmpty) return '';
-    final perkTexts = _map(_cat607?['perkTexts']);
-    final perks = (_levels607.last['perks'] as List? ?? const []);
-    return perks.map((p) => pawPoints607Text(perkTexts[p.toString()]))
-        .where((t) => t.isNotEmpty).join(' · ');
-  }
-
-  Widget _pawLegendCard(BuildContext context) {
-    final pawLegendMin =
-        _levels.isNotEmpty ? ((_levels.last['min'] as num?)?.toInt() ?? 1000000) : 1000000;
-    final remaining = (pawLegendMin - _lifetime).clamp(0, pawLegendMin);
-    // Le dégradé pastel (rose → ambre) portait `textPrimary`, qui devient BLANC
-    // en mode sombre : le sous-titre disparaissait sur le fond clair. En sombre
-    // on garde la teinte rose, mais très transparente (le texte redevient
-    // lisible), avec un rose éclairci pour le titre.
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? [
-                  const Color(0xFFF472B6).withValues(alpha: 0.18),
-                  const Color(0xFFF59E0B).withValues(alpha: 0.18),
-                ]
-              : const [Color(0xFFFCE7F3), Color(0xFFFEF3C7)],
-        ),
-        borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(
-          color: isDark
-              ? const Color(0xFFF472B6).withValues(alpha: 0.55)
-              : const Color(0xFFF472B6),
-          width: 1.4,
-        ),
-      ),
-      child: Row(
-        children: [
-          Text('👑', style: TextStyle(fontSize: 30.sp)),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                PoppinsText(
-                  text: 'pawpoints_legend_title'
-                      .trParams({'pts': '$pawLegendMin'}),
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w800,
-                  color: isDark
-                      ? const Color(0xFFF9A8D4)
-                      : const Color(0xFFDB2777),
-                ),
-                SizedBox(height: 2.h),
-                InterText(
-                  // 607 — avantages RÉELS du dernier niveau (catalogue), plus
-                  // la promesse vague « avantages les plus exclusifs ».
-                  text: _legendPerks().isNotEmpty ? _legendPerks() : 'pawpoints_legend_sub'.tr,
-                  fontSize: 11.sp,
-                  color: AppColors.textPrimary(context),
-                  maxLines: 3,
-                ),
-                SizedBox(height: 4.h),
-                InterText(
-                  text: 'pawpoints_legend_remaining'
-                      .trParams({'pts': '$remaining'}),
-                  fontSize: 11.sp,
-                  fontWeight: FontWeight.w700,
-                  color: _gold,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _earnRow(BuildContext context, Map<String, dynamic> r) {
     final icon = (r['icon'] ?? '➕').toString();
@@ -1610,6 +1552,7 @@ class _LeaderboardListState extends State<_LeaderboardList>
 
   bool _loading = true;
   List<Map<String, dynamic>> _rows = const [];
+  Map<String, dynamic>? _me611; // 611 (I) — ma ligne, toujours
 
   @override
   bool get wantKeepAlive => true;
@@ -1629,6 +1572,8 @@ class _LeaderboardListState extends State<_LeaderboardList>
       );
       if (!mounted) return;
       final list = (data is Map ? data['leaderboard'] : null) as List? ?? [];
+      final me = data is Map && data['me'] is Map ? Map<String, dynamic>.from(data['me'] as Map) : null;
+      _me611 = me;
       setState(() => _rows = list
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
@@ -1640,21 +1585,24 @@ class _LeaderboardListState extends State<_LeaderboardList>
     }
   }
 
-  /// Parse '#RRGGBB' → Color (null si invalide).
-  Color? _hexColor(String? hex) {
-    if (hex == null || hex.isEmpty) return null;
-    final cleaned = hex.replaceAll('#', '');
-    if (cleaned.length != 6) return null;
-    final value = int.tryParse(cleaned, radix: 16);
-    return value == null ? null : Color(0xFF000000 | value);
-  }
-
   @override
   Widget build(BuildContext context) {
     super.build(context);
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
+    final Widget list = _buildList611(context);
+    if (_me611 == null) return list;
+    // 611 (I) — « Je suis OÙ ? » : ma ligne épinglée au-dessus de la liste.
+    return Column(
+      children: [
+        PawLeaderboardMeRow611(me: _me611!),
+        Expanded(child: list),
+      ],
+    );
+  }
+
+  Widget _buildList611(BuildContext context) {
     if (_rows.isEmpty) {
       return RefreshIndicator(
         onRefresh: _load,
@@ -1722,16 +1670,7 @@ class _LeaderboardListState extends State<_LeaderboardList>
     final name = (row['name'] ?? '').toString();
     final avatar = (row['avatar'] ?? '').toString();
     final points = (row['points'] as num?)?.toInt() ?? 0;
-    // v567 — le serveur renvoie `badge` sous forme d'OBJET {key, emoji, min}
-    // (pawPointsService.badgeFor) ou null. Le `.toString()` d'avant produisait
-    // la chaîne « {key: explorer, emoji: 🧭, min: 1000} », qui était affichée
-    // TELLE QUELLE dans la pastille de chaque personne classée. On lit la clé.
-    final badgeRaw = row['badge'];
-    final badge = badgeRaw is Map
-        ? (badgeRaw['key'] ?? badgeRaw['emoji'] ?? '').toString()
-        : (badgeRaw ?? '').toString();
     final goldFrame = row['goldFrame'] == true;
-    final badgeColor = _hexColor((row['badgeColor'] as String?));
 
     return Container(
       margin: EdgeInsets.only(bottom: 8.h),
@@ -1830,19 +1769,10 @@ class _LeaderboardListState extends State<_LeaderboardList>
               ],
             ),
           ),
-          if (badge.isNotEmpty) ...[
+          // 611 — le RANG (Chiot → Légende) remplace les 7 anciens badges.
+          if (PawRank611.fromJson(row['rank']) != null) ...[
             SizedBox(width: 6.w),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 3.h),
-              decoration: BoxDecoration(
-                color: (badgeColor ?? _gold).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              child: Text(
-                _PawspotLeaderboardScreenState.badgeEmoji(badge),
-                style: TextStyle(fontSize: 14.sp),
-              ),
-            ),
+            PawRankPill611(rank: PawRank611.fromJson(row['rank'])!, compact: true),
           ],
           SizedBox(width: 8.w),
           PoppinsText(

@@ -31,6 +31,7 @@ import '../../../utils/pawmap_theme.dart';
 import 'pawmap_buttons.dart';
 import 'pawmap_jewel.dart';
 import 'pawmap_pins.dart';
+import '../../../widgets/paw_rank611.dart';
 
 /// Conteneur commun des feuilles de la carte : carte flottante, coins 24,
 /// ombre douce, poignée, marge système.
@@ -192,8 +193,11 @@ class PawMapMemberData {
     this.currency = 'EUR',
     this.hasOpenRequest = false,
     this.distanceLabel = '',
+    this.rank,
   });
 
+  /// 611 — rang (Chiot → Légende) sur les PawPoints gagnés ; null = inconnu.
+  final PawRank611? rank;
   final String id;
   final String role; // owner | sitter | walker
   final String name;
@@ -374,12 +378,16 @@ class PawMapMemberSheet extends StatelessWidget {
             roleLabel: _roleLabel,
             priceLabel: priceLabel,
           ),
-          if (member.verified || member.availableToday || member.boosted) ...[
+          if (member.rank != null || member.verified || member.availableToday || member.boosted) ...[
             SizedBox(height: 10.h),
             Wrap(
               spacing: 6.w,
               runSpacing: 6.h,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
+                // 611 — rang façon Waze, en premier.
+                if (member.rank != null)
+                  PawRankPill611(key: const ValueKey<String>('member_rank'), rank: member.rank!),
                 if (member.verified)
                   PawInfoChip(
                     label: 'pawmap_member_verified'.tr,

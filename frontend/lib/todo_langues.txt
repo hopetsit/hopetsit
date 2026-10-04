@@ -3,7 +3,6 @@ fr	pawspot_add_desc_label	Description
 fr	pawspot_validations	Validations
 fr	pawpoints_stat_contributions	Contributions
 fr	pawpoints_stat_points	Points
-fr	pawspot_badge_expert	🥈 Expert · 500 pts
 fr	pawspot_lb_europe	Europe
 fr	pawspot_profile_tile	PawPoints & badges
 fr	alerts_severity_urgent	Urgent
@@ -288,7 +287,6 @@ pt	edit_pet_bio_label	Bio
 pt	boost_popular	Popular
 pt	alerts_severity_info	Info
 pt	pet_microchipped	Microchip
-ko	pawspot_badge_pawmaster	👑 PawMaster · 5,000 pts
 ko	filter_distance_km	@km km
 ko	family_no_plan_title	PawFollow Family
 ko	loyalty_premium_badge	👑 PawFollow
@@ -298,7 +296,6 @@ ko	map_sitter_services_distance	@services • @distance km
 ko	payout_label_bic	BIC/SWIFT
 ko	pet_vaccine_date	YYYY-MM-DD
 ko	date_hint_dmy	DD/MM/YYYY
-ja	pawspot_badge_pawmaster	👑 PawMaster · 5,000 pts
 ja	filter_distance_km	@km km
 ja	family_no_plan_title	PawFollow Family
 ja	loyalty_premium_badge	👑 PawFollow

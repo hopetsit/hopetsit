@@ -189,17 +189,29 @@ class ReportTypes {
     leashRequired,
   ];
 
-  ///   • ANIMAL PERDU / TROUVÉ : règle inchangée (création réservée aux abonnés).
-  static const List<String> premiumCreateTypes = [lostPet, foundPet];
+  ///   • ANIMAL PERDU / TROUVÉ — 611 (ZOE, décision BOB, PROCHAIN_BUILD_611.md
+  ///     point 1) : GRATUIT pour tous. Trouvé = illimité ; perdu = 1 alerte
+  ///     active à la fois par personne sans abonnement (409 LOST_PET_ACTIVE),
+  ///     plusieurs avec. DOIT rester synchronisé avec PET_ALERT_TYPES (serveur).
+  static const List<String> petAlertTypes = [lostPet, foundPet];
 
-  /// Types créables par tous, sans abonnement et sans limite.
-  static const List<String> freeTypes = [...dangerTypes, ...usefulFreeTypes];
+  /// 611 — plus aucun type réservé aux abonnés à la création (vide, comme
+  /// PREMIUM_CREATE_TYPES côté serveur).
+  static const List<String> premiumCreateTypes = <String>[];
+
+  /// Types créables par tous, sans abonnement et sans limite (611 : + trouvé).
+  static const List<String> freeTypes = [
+    ...dangerTypes,
+    ...usefulFreeTypes,
+    foundPet,
+  ];
 
   /// True si [type] se crée gratuitement et sans limite.
   static bool isFree(String type) => freeTypes.contains(type);
   static bool isDanger(String type) => dangerTypes.contains(type);
   static bool isComfort(String type) => comfortTypes.contains(type);
   static bool isPremiumCreate(String type) => premiumCreateTypes.contains(type);
+  static bool isLostPet(String type) => type == lostPet;
 
   /// Accent color for each type — used for markers, chips, and tile icons.
   /// Mirrors the backend palette so badges look identical end-to-end.

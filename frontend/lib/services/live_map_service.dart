@@ -695,6 +695,9 @@ class LiveMapService extends GetxService {
   // v23.1.294 — position GPS live de l'utilisateur, observée par la PawMap pour
   // faire suivre la caméra "à la trace" quand « Me suivre » est actif.
   final Rxn<LatLng> myLivePosition = Rxn<LatLng>();
+  /// 611 — précision (m) du dernier point GPS de MA Balade (0 = inconnue) :
+  /// tolérance de capture des peluches (vidéo d'Alhama).
+  final RxDouble myLiveAccuracy = 0.0.obs;
   // v565 — Daniel (14/09) : « le partage s'arrête tout seul en < 2 h, j'ai
   // rien touché ». Les anciennes causes d'arrêt automatique (cap de session
   // 2 h, session gratuite 30 min, immobilité 30 min) sont SUPPRIMÉES : le
@@ -964,11 +967,7 @@ class LiveMapService extends GetxService {
     socket.off('map:self-live');
     socket.on('map:self-live', (raw) {
       try {
-        final map = (raw as Map).cast<String, dynamic>();
-        _applyRemoteLive(
-            active: map['active'] == true,
-            announce: true,
-            at: DateTime.tryParse((map['at'] ?? '').toString()));
+        handleSelfLive611((raw as Map).cast<String, dynamic>());
       } catch (_) {/* payload inattendu */}
     });
     unawaited(syncLiveState());
@@ -1071,6 +1070,65 @@ class LiveMapService extends GetxService {
         title: 'pawmap587_sig_live_off'.tr,
         message: 'live589_stopped_elsewhere'.tr,
       );
+    }
+  }
+
+  /// 611 (PAM) — identifiant de CE téléphone pour le direct (voir
+  /// `liveDeviceId611`, live_tracking_bg.dart).
+  String get liveDeviceId => liveDeviceId611(_storage);
+
+  /// 611 — événement `map:self-live` d'un autre de mes appareils.
+  /// `reason: device_takeover` (Cam, 04/10 : « direct bloqué sur l'iPhone
+  /// resté à la maison ») : le téléphone qui reprend ignore ses deux
+  /// messages ; l'ANCIEN s'arrête sans rien envoyer au serveur (un
+  /// « offline » couperait le direct repris), puis voit « direct ailleurs ».
+  /// Tout le reste suit le chemin v589/v604 (filtre de l'écho de mon arrêt).
+  void handleSelfLive611(Map<String, dynamic> map) {
+    final at = DateTime.tryParse((map['at'] ?? '').toString());
+    if ((map['reason'] ?? '').toString() != 'device_takeover') {
+      _applyRemoteLive(active: map['active'] == true, announce: true, at: at);
+      return;
+    }
+    final mine = liveDeviceId;
+    if (map['active'] == true) {
+      if ((map['deviceId'] ?? '').toString() == mine) {
+        liveElsewhere.value = false;
+        return;
+      }
+      if (!broadcasting.value) liveElsewhere.value = true;
+      return;
+    }
+    if ((map['keepDeviceId'] ?? '').toString() == mine) return;
+    final bool was = broadcasting.value || _storage.read(kBgLiveActive) == true;
+    if (!was) return;
+    stopBroadcasting(notifyServer: false);
+    liveElsewhere.value = true;
+    try {
+      CustomSnackbar.showInfo(
+        title: 'pawmap587_sig_live_off'.tr,
+        message: 'pm611_taken_over'.tr,
+      );
+    } catch (_) {/* pas d'écran (test, arrière-plan) */}
+  }
+
+  /// 611 — « Passer en direct sur ce téléphone » : la Balade qui tourne sur
+  /// mon autre téléphone passe sur celui-ci (même départ, mêmes suiveurs).
+  /// Vrai si le serveur a accepté ; le direct démarre ensuite ici
+  /// (`LiveShareStarter.takeOverHere`).
+  Future<bool> requestTakeover() async {
+    try {
+      if (!Get.isRegistered<ApiClient>()) return false;
+      final res = await Get.find<ApiClient>().post(
+        '/friends/live-takeover',
+        body: <String, dynamic>{'deviceId': liveDeviceId},
+        requiresAuth: true,
+      );
+      final ok = res is Map && res['ok'] == true;
+      if (ok) liveElsewhere.value = false;
+      return ok;
+    } catch (e) {
+      debugPrint('[LiveMap] takeover failed: $e');
+      return false;
     }
   }
 
@@ -1320,6 +1378,7 @@ class LiveMapService extends GetxService {
         _lastKnownGps = p;
         _lastGpsAt = DateTime.now();
         _gpsError = false;
+        myLiveAccuracy.value = pos.accuracy.isFinite ? pos.accuracy : 0; // 611
         myLivePosition.value = p; // la PawMap suit la caméra « à la trace »
         // 607 (PAM, mesuré au simulateur) — Balade lancée SANS position :
         // « Connexion… » restait ~10 s (attente du tick). Dès le 1er point
@@ -1442,11 +1501,20 @@ class LiveMapService extends GetxService {
           if (pos == null) 'heartbeat': true,
           if ((_city ?? '').isNotEmpty) 'city': _city,
           'duration': sessionDuration.value.apiValue,
+          'deviceId': liveDeviceId, // 611 — reprise d'appareil
         },
         requiresAuth: true,
       );
       // Confirmé seulement si le serveur renvoie une session en cours.
       final confirmed = res is Map && res['session'] is Map && res['ignored'] != true;
+      // 611 — ma Balade a été reprise par mon autre téléphone (le message
+      // socket a pu se perdre) : on s'arrête ici, sans « offline ».
+      if (res is Map && res['takenOver'] == true && broadcasting.value) {
+        handleSelfLive611(<String, dynamic>{
+          'active': false, 'reason': 'device_takeover', 'keepDeviceId': '',
+        });
+        return;
+      }
       if (broadcasting.value) serverConfirmed.value = confirmed;
       _setStatus(!confirmed || _gpsSilent || pos == null
           ? LiveShareStatus.lost
@@ -1624,6 +1692,7 @@ class LiveMapService extends GetxService {
       // v565 — contrat §8 : durée choisie (le serveur l'ignore s'il ne la
       // lit pas sur la socket ; elle fait foi via HTTP).
       'duration': sessionDuration.value.apiValue,
+      'deviceId': liveDeviceId, // 611 — reprise d'appareil
     });
   }
 

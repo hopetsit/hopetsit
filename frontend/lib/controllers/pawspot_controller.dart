@@ -427,6 +427,8 @@ class PawSpotController extends GetxController {
     required LatLng from,
     required LatLng to,
     String mode = 'walk',
+    // 611 — itinéraire vers un AMI : gratuit, destination vérifiée au serveur.
+    String? friendId,
   }) async {
     final api = Get.find<ApiClient>();
     final r = await api.get(
@@ -438,6 +440,7 @@ class PawSpotController extends GetxController {
         'toLng': to.longitude.toString(),
         'mode': mode,
         'lang': (Get.locale?.languageCode ?? 'en'),
+        if (friendId != null && friendId.isNotEmpty) 'friendId': friendId,
       },
       requiresAuth: true,
     );

@@ -16,6 +16,7 @@
 // déjà couvert par AppleSettings.allowBackgroundLocationUpdates (live_map_service).
 
 import 'dart:async';
+import 'dart:math';
 import 'dart:io' show Platform;
 import 'dart:convert';
 import 'dart:ui' show DartPluginRegistrant;
@@ -62,6 +63,28 @@ const String kBgCity = 'bg_live_city';
 // envoie au serveur (contrat §8) et s'arrête SEUL à l'échéance : plus aucune
 // autre cause d'arrêt (ni cap 2 h, ni immobilité).
 const String kBgDuration = 'bg_live_duration';
+
+/// 611 (PAM) — identifiant STABLE de ce téléphone pour le direct (jamais lié
+/// à la personne : un tirage aléatoire gardé dans le stockage local). Le
+/// serveur s'en sert pour la reprise « Passer en direct sur ce téléphone » :
+/// les positions tardives de l'ancien appareil sont alors ignorées.
+const String kBgDeviceId = 'live_device_id_611';
+
+String? _deviceIdCache611;
+
+String liveDeviceId611(GetStorage box) {
+  if (_deviceIdCache611 != null) return _deviceIdCache611!;
+  final cur = (box.read(kBgDeviceId) ?? '').toString();
+  if (cur.length >= 12) return _deviceIdCache611 = cur;
+  final rnd = Random.secure();
+  final id = List<int>.generate(16, (_) => rnd.nextInt(16))
+      .map((v) => v.toRadixString(16))
+      .join();
+  try {
+    box.write(kBgDeviceId, id);
+  } catch (_) {/* stockage plein : l'id vaut pour la session */}
+  return _deviceIdCache611 = id;
+}
 const String kBgUntil = 'bg_live_until';
 
 /// À appeler UNE fois au démarrage (main). Idempotent + non bloquant.
@@ -284,6 +307,9 @@ Future<bool> _postPosition(double lat, double lng) async {
             if (city.isNotEmpty) 'city': city,
             // v565 — contrat §8 : la durée choisie accompagne chaque position.
             'duration': _bgDuration(box),
+            // 611 — appareil qui envoie (reprise du direct).
+            if ((box.read(kBgDeviceId) ?? '').toString().isNotEmpty)
+              'deviceId': (box.read(kBgDeviceId) ?? '').toString(),
           }),
         )
         .timeout(const Duration(seconds: 12));
@@ -316,7 +342,12 @@ Future<bool> _postHeartbeat() async {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $token',
           },
-          body: jsonEncode({'heartbeat': true, 'duration': _bgDuration(box)}),
+          body: jsonEncode({
+            'heartbeat': true,
+            'duration': _bgDuration(box),
+            if ((box.read(kBgDeviceId) ?? '').toString().isNotEmpty)
+              'deviceId': (box.read(kBgDeviceId) ?? '').toString(), // 611
+          }),
         )
         .timeout(const Duration(seconds: 10));
     return bgStoppedElsewhere(r.body);

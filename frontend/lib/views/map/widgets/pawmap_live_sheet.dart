@@ -21,6 +21,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
 import '../../../services/live_map_service.dart';
+import '../../../services/live_share_starter.dart';
 import '../../../utils/app_colors.dart';
 import '../../../utils/pawmap_theme.dart';
 import 'pawmap_buttons.dart';
@@ -113,8 +114,12 @@ class PawLiveSheet extends StatefulWidget {
     this.chatFollow,
     this.onOpenFollower,
     this.focusFollowers = false,
+    this.onTakeOver,
   });
 
+  /// 611 — « Passer en direct sur ce téléphone » (par défaut :
+  /// `LiveShareStarter.takeOverHereWithFeedback`).
+  final Future<void> Function()? onTakeOver;
   final void Function(PawFollower610 follower)? onOpenFollower;
   final bool focusFollowers;
   final LiveMapService live;
@@ -161,6 +166,15 @@ class _PawLiveSheetState extends State<PawLiveSheet> {
           live.stopBroadcasting();
         } else {
           await live.stopEverywhere();
+        }
+      });
+
+  // 611 — Cam (04/10) : direct resté sur l'iPhone de la maison.
+  Future<void> _takeOver() => _run(() async {
+        if (widget.onTakeOver != null) {
+          await widget.onTakeOver!();
+        } else {
+          await LiveShareStarter.takeOverHereWithFeedback();
         }
       });
 
@@ -235,6 +249,45 @@ class _PawLiveSheetState extends State<PawLiveSheet> {
           actionKey: const ValueKey<String>('live_sheet_stop_walk'),
           onAction: _busy ? null : () => _stopMyWalk(),
         ));
+        if (elsewhere) {
+          // 611 — une ligne claire + UN bouton : le direct passe ici, ceux
+          // qui me suivent continuent (« Arrêter » juste au-dessus).
+          rows.add(Column(
+            key: const ValueKey<String>('live_sheet_elsewhere'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(children: [
+                const Icon(Icons.phone_iphone_rounded, size: 18, color: Color(0xFF2E9E48)),
+                SizedBox(width: 6.w),
+                Expanded(
+                  child: Text(
+                    'pm611_elsewhere_line'.tr,
+                    style: PawMapTheme.fontOn(context,
+                        size: 13.5.sp, weight: FontWeight.w800,
+                        color: PawMapTheme.inkOn(context)),
+                  ),
+                ),
+              ]),
+              SizedBox(height: 8.h),
+              PawSignatureButton(
+                key: const ValueKey<String>('live_sheet_takeover'),
+                label: 'pm611_takeover_btn'.tr,
+                icon: Icons.swap_horiz_rounded,
+                color: const Color(0xFF2E9E48),
+                loading: _busy,
+                onTap: _busy ? null : _takeOver,
+              ),
+              SizedBox(height: 4.h),
+              Text(
+                'pm611_takeover_sub'.tr,
+                style: PawMapTheme.fontOn(context,
+                    size: 11.5.sp, weight: FontWeight.w500,
+                    color: PawMapTheme.subOn(context)),
+              ),
+            ],
+          ));
+        }
       }
       if (followId != null) {
         rows.add(_LiveRow(

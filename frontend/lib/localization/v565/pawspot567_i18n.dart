@@ -19,9 +19,6 @@ const Map<String, Map<String, String>> pawspot567I18n = <String, Map<String, Str
     'pawspot567_daily_cap': 'Daily points limit reached: this spot earns no PawPoints',
     'pawspot567_validate_thanks': 'Thanks! Spot validated',
     'pawspot567_already_validated': 'You already validated this spot',
-    'pawspot567_badge_contributor': 'Contributor',
-    'pawspot567_badge_legend': 'Legendary',
-    'pawspot567_badge_paw_legend': 'Paw Legend',
     'pawspot567_spendable_hint': 'Points you can spend',
   },
   'fr': <String, String>{
@@ -36,9 +33,6 @@ const Map<String, Map<String, String>> pawspot567I18n = <String, Map<String, Str
     'pawspot567_daily_cap': 'Limite de points du jour atteinte : ce spot ne rapporte pas de PawPoints',
     'pawspot567_validate_thanks': 'Merci ! Spot validé',
     'pawspot567_already_validated': 'Tu as déjà validé ce spot',
-    'pawspot567_badge_contributor': 'Contributeur',
-    'pawspot567_badge_legend': 'Légendaire',
-    'pawspot567_badge_paw_legend': 'Paw Legend',
     'pawspot567_spendable_hint': 'Points dépensables',
   },
   'es': <String, String>{
@@ -53,9 +47,6 @@ const Map<String, Map<String, String>> pawspot567I18n = <String, Map<String, Str
     'pawspot567_daily_cap': 'Límite de puntos del día alcanzado: este sitio no da PawPoints',
     'pawspot567_validate_thanks': '¡Gracias! Sitio validado',
     'pawspot567_already_validated': 'Ya has validado este sitio',
-    'pawspot567_badge_contributor': 'Colaborador',
-    'pawspot567_badge_legend': 'Legendario',
-    'pawspot567_badge_paw_legend': 'Paw Legend',
     'pawspot567_spendable_hint': 'Puntos disponibles',
   },
   'de': <String, String>{
@@ -70,9 +61,6 @@ const Map<String, Map<String, String>> pawspot567I18n = <String, Map<String, Str
     'pawspot567_daily_cap': 'Tageslimit erreicht: Dieser Spot bringt keine PawPoints',
     'pawspot567_validate_thanks': 'Danke! Spot bestätigt',
     'pawspot567_already_validated': 'Du hast diesen Spot bereits bestätigt',
-    'pawspot567_badge_contributor': 'Beitragende:r',
-    'pawspot567_badge_legend': 'Legendär',
-    'pawspot567_badge_paw_legend': 'Paw Legend',
     'pawspot567_spendable_hint': 'Verfügbare Punkte',
   },
   'it': <String, String>{
@@ -87,9 +75,6 @@ const Map<String, Map<String, String>> pawspot567I18n = <String, Map<String, Str
     'pawspot567_daily_cap': 'Limite di punti giornaliero raggiunto: questo spot non dà PawPoints',
     'pawspot567_validate_thanks': 'Grazie! Spot convalidato',
     'pawspot567_already_validated': 'Hai già convalidato questo spot',
-    'pawspot567_badge_contributor': 'Collaboratore',
-    'pawspot567_badge_legend': 'Leggendario',
-    'pawspot567_badge_paw_legend': 'Paw Legend',
     'pawspot567_spendable_hint': 'Punti spendibili',
   },
   'pt': <String, String>{
@@ -104,9 +89,6 @@ const Map<String, Map<String, String>> pawspot567I18n = <String, Map<String, Str
     'pawspot567_daily_cap': 'Limite de pontos do dia atingido: este spot não dá PawPoints',
     'pawspot567_validate_thanks': 'Obrigado! Spot validado',
     'pawspot567_already_validated': 'Já validaste este spot',
-    'pawspot567_badge_contributor': 'Colaborador',
-    'pawspot567_badge_legend': 'Lendário',
-    'pawspot567_badge_paw_legend': 'Paw Legend',
     'pawspot567_spendable_hint': 'Pontos disponíveis',
   },
   'ko': <String, String>{
@@ -121,9 +103,6 @@ const Map<String, Map<String, String>> pawspot567I18n = <String, Map<String, Str
     'pawspot567_daily_cap': '오늘의 포인트 한도에 도달했어요: 이 스팟은 PawPoints를 주지 않아요',
     'pawspot567_validate_thanks': '고마워요! 스팟을 인증했어요',
     'pawspot567_already_validated': '이미 인증한 스팟이에요',
-    'pawspot567_badge_contributor': '기여자',
-    'pawspot567_badge_legend': '레전더리',
-    'pawspot567_badge_paw_legend': 'Paw Legend',
     'pawspot567_spendable_hint': '사용 가능한 포인트',
   },
   'ja': <String, String>{
@@ -138,9 +117,6 @@ const Map<String, Map<String, String>> pawspot567I18n = <String, Map<String, Str
     'pawspot567_daily_cap': '本日のポイント上限に達しました：このスポットは PawPoints を獲得しません',
     'pawspot567_validate_thanks': 'ありがとう！スポットを承認しました',
     'pawspot567_already_validated': 'このスポットはすでに承認済みです',
-    'pawspot567_badge_contributor': 'コントリビューター',
-    'pawspot567_badge_legend': 'レジェンダリー',
-    'pawspot567_badge_paw_legend': 'Paw Legend',
     'pawspot567_spendable_hint': '使えるポイント',
   },
   'pl': <String, String>{
@@ -155,9 +131,6 @@ const Map<String, Map<String, String>> pawspot567I18n = <String, Map<String, Str
     'pawspot567_daily_cap': 'Osiągnięto dzienny limit punktów: ten spot nie daje PawPoints',
     'pawspot567_validate_thanks': 'Dzięki! Spot zatwierdzony',
     'pawspot567_already_validated': 'Już zatwierdziłeś ten spot',
-    'pawspot567_badge_contributor': 'Współtwórca',
-    'pawspot567_badge_legend': 'Legendarny',
-    'pawspot567_badge_paw_legend': 'Paw Legend',
     'pawspot567_spendable_hint': 'Punkty do wydania',
   },
 };

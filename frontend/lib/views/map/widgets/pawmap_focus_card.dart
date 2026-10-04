@@ -13,6 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../utils/pawmap_theme.dart';
 import 'pawmap_jewel.dart';
+import '../../../widgets/paw_rank611.dart';
 
 class PawFocusInfo {
   const PawFocusInfo({
@@ -27,7 +28,11 @@ class PawFocusInfo {
     this.icon,
     this.roles = const <String>[],
     this.verified = false,
+    this.rank,
   });
+
+  /// 611 — rang de la personne (Chiot → Légende), null = inconnu.
+  final PawRank611? rank;
 
   /// 609 — identité vérifiée (KYC) : pastille « ✓ Vérifié » à côté du nom.
   final bool verified;
@@ -150,6 +155,15 @@ class PawFocusCard extends StatelessWidget {
                           ],
                         ],
                       ),
+                      if (info.rank != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3, bottom: 1),
+                          child: PawRankPill611(
+                            key: const ValueKey<String>('pawmap_focus_rank'),
+                            rank: info.rank!,
+                            compact: true,
+                          ),
+                        ),
                       if (info.info.isNotEmpty)
                         Text(
                           info.info,

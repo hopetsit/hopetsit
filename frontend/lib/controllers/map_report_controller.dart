@@ -35,12 +35,49 @@ class ComfortQuota {
   }
 }
 
+/// 611 (ZOE) — alerte « animal perdu » en cours (GET /map-reports/quota →
+/// `lostPet`). Sans abonnement : 1 alerte active à la fois par personne.
+class LostPetQuota {
+  const LostPetQuota({
+    required this.unlimited,
+    this.limit = 1,
+    this.active = 0,
+    this.remaining = 1,
+    this.activeReportId,
+    this.activeExpiresAt,
+  });
+
+  final bool unlimited;
+  final int limit;
+  final int active;
+  final int remaining;
+  final String? activeReportId;
+  final DateTime? activeExpiresAt;
+
+  /// Vrai si une nouvelle alerte « perdu » serait refusée.
+  bool get blocked => !unlimited && remaining <= 0;
+
+  factory LostPetQuota.fromJson(Map<String, dynamic> j) {
+    final id = j['activeReportId']?.toString();
+    return LostPetQuota(
+      unlimited: j['unlimited'] == true,
+      limit: (j['limit'] as num?)?.toInt() ?? 1,
+      active: (j['active'] as num?)?.toInt() ?? 0,
+      remaining: (j['remaining'] as num?)?.toInt() ?? 1,
+      activeReportId: (id == null || id.isEmpty) ? null : id,
+      activeExpiresAt:
+          DateTime.tryParse(j['activeExpiresAt']?.toString() ?? '')?.toLocal(),
+    );
+  }
+}
+
 /// Controller for Couche 2 — ephemeral 48h reports.
 ///
 /// 610 (ZOE, règle B) : tout le monde voit tout ; danger = gratuit et
 /// illimité ; confort = 1 par semaine sans abonnement (429
-/// COMFORT_WEEKLY_LIMIT → `comfortLimitReached`) ; animal perdu / trouvé =
-/// abonnés (402 → `premiumRequired`).
+/// COMFORT_WEEKLY_LIMIT → `comfortLimitReached`).
+/// 611 (ZOE) — animal perdu / trouvé gratuit pour tous ; une 2e alerte
+/// « perdu » sans abonnement → 409 LOST_PET_ACTIVE → `lostPetActive`.
 class MapReportController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isSubmitting = false.obs;
@@ -52,6 +89,12 @@ class MapReportController extends GetxController {
   /// 610 — vrai si le dernier envoi a été refusé par la limite hebdomadaire.
   final RxBool comfortLimitReached = false.obs;
 
+  /// 611 — alerte « animal perdu » en cours ; null = inconnu (le serveur tranche).
+  final Rxn<LostPetQuota> lostPetQuota = Rxn<LostPetQuota>();
+
+  /// 611 — vrai si le dernier envoi « perdu » a été refusé (alerte déjà active).
+  final RxBool lostPetActive = false.obs;
+
   /// 610 — lit le compteur « 1 par semaine ». Ne lève jamais.
   Future<void> loadQuota() async {
     try {
@@ -61,6 +104,11 @@ class MapReportController extends GetxController {
       if (c is Map) {
         comfortQuota.value =
             ComfortQuota.fromJson(Map<String, dynamic>.from(c));
+      }
+      final l = (data is Map ? data['lostPet'] : null);
+      if (l is Map) {
+        lostPetQuota.value =
+            LostPetQuota.fromJson(Map<String, dynamic>.from(l));
       }
     } catch (e) {
       debugPrint('[MapReports] loadQuota error: $e');
@@ -118,6 +166,7 @@ class MapReportController extends GetxController {
     isSubmitting.value = true;
     premiumRequired.value = false;
     comfortLimitReached.value = false;
+    lostPetActive.value = false;
     try {
       final api = Get.find<ApiClient>();
       final data = await api.post(
@@ -152,9 +201,40 @@ class MapReportController extends GetxController {
         }
         loadQuota();
       }
+      if (ReportTypes.isLostPet(type)) {
+        // 611 — l'alerte en cours est connue tout de suite (puis le serveur).
+        final l = lostPetQuota.value;
+        if (l != null && !l.unlimited) {
+          lostPetQuota.value = LostPetQuota(
+            unlimited: false,
+            limit: l.limit,
+            active: l.active + 1,
+            remaining: l.remaining > 0 ? l.remaining - 1 : 0,
+            activeReportId: report.id,
+            activeExpiresAt: report.expiresAt,
+          );
+        }
+        loadQuota();
+      }
       return report;
     } on ApiException catch (e) {
       if (e.statusCode == 402) premiumRequired.value = true;
+      final d = e.details;
+      if (e.statusCode == 409 && d is Map && d['code'] == 'LOST_PET_ACTIVE') {
+        // 611 — alerte « perdu » déjà active : on garde celle du serveur.
+        lostPetActive.value = true;
+        final id = d['activeReportId']?.toString();
+        lostPetQuota.value = LostPetQuota(
+          unlimited: false,
+          limit: (d['limit'] as num?)?.toInt() ?? 1,
+          active: (d['active'] as num?)?.toInt() ?? 1,
+          remaining: 0,
+          activeReportId: (id == null || id.isEmpty) ? null : id,
+          activeExpiresAt: DateTime.tryParse(
+                  d['activeExpiresAt']?.toString() ?? '')
+              ?.toLocal(),
+        );
+      }
       if (e.statusCode == 429) {
         comfortLimitReached.value = true;
         final next = _nextAvailableFrom(e);
@@ -243,6 +323,27 @@ class MapReportController extends GetxController {
       debugPrint('[MapReports] flag error: $e');
       return false;
     }
+  }
+
+  /// 611 — clôture l'alerte « animal perdu » en cours (DELETE, possible depuis
+  /// n'importe lequel des 3 profils) puis relit le compteur.
+  Future<bool> closeLostPetAlert(String reportId) async {
+    final ok = await delete(reportId);
+    if (ok) {
+      final l = lostPetQuota.value;
+      if (l != null && !l.unlimited) {
+        final active = l.active > 0 ? l.active - 1 : 0;
+        lostPetQuota.value = LostPetQuota(
+          unlimited: false,
+          limit: l.limit,
+          active: active,
+          remaining: (l.limit - active).clamp(0, l.limit),
+        );
+      }
+      lostPetActive.value = false;
+      loadQuota();
+    }
+    return ok;
   }
 
   /// Delete a report the current user owns.

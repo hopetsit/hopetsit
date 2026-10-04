@@ -104,7 +104,71 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
     if (go == true) Get.to(() => const CoinShopScreen(initialTab: 3));
   }
 
-  /// 610 — animal perdu / trouvé : règle inchangée (abonnés), SOS gratuit.
+  /// 611 (ZOE) — animal perdu sans abonnement alors qu'une alerte est déjà
+  /// active : « Tu as déjà une alerte en cours ». Trois choix : voir les
+  /// abonnements (plusieurs alertes), clôturer l'alerte en cours (animal
+  /// retrouvé), fermer. Rien n'est envoyé.
+  Future<void> _showLostActiveDialog() async {
+    final q = _ctrl.lostPetQuota.value;
+    final activeId = q?.activeReportId;
+    final until = q?.activeExpiresAt;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AppDialogCard(
+        key: const ValueKey('alerts611_active_dialog'),
+        title: 'alerts611_active_title'.tr,
+        message: 'alerts611_active_msg'.tr,
+        icon: Icons.pets_rounded,
+        content: until == null
+            ? null
+            : InterText(
+                text: 'alerts611_active_until'
+                    .trParams({'date': _fmtDate(until)}),
+                fontSize: 12.5.sp,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary(ctx),
+                textAlign: TextAlign.center,
+                maxLines: 3,
+              ),
+        actions: <Widget>[
+          AppDialogPrimaryButton(
+            label: 'alerts610_see_plans'.tr,
+            onTap: () => Navigator.of(ctx).pop('plans'),
+          ),
+          if (activeId != null)
+            AppDialogSecondaryButton(
+              label: 'alerts611_close_active'.tr,
+              onTap: () => Navigator.of(ctx).pop('close_active'),
+            ),
+          AppDialogSecondaryButton(
+            label: 'alerts610_close'.tr,
+            onTap: () => Navigator.of(ctx).pop('dismiss'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (choice == 'plans') {
+      Get.to(() => const CoinShopScreen(initialTab: 3));
+    } else if (choice == 'close_active' && activeId != null) {
+      final ok = await _ctrl.closeLostPetAlert(activeId);
+      if (!mounted) return;
+      if (ok) {
+        CustomSnackbar.showSuccess(
+          title: 'alerts611_closed_title'.tr,
+          message: 'alerts611_closed_msg'.tr,
+        );
+      } else {
+        CustomSnackbar.showError(
+          title: 'alerts611_close_failed_title'.tr,
+          message: 'alerts611_close_failed_msg'.tr,
+        );
+      }
+    }
+  }
+
+  /// 610 — refus 402 « réservé aux abonnés ». 611 : ne s'ouvre plus que si le
+  /// serveur répond 402 (aucun type n'est réservé côté app).
   Future<void> _showLostLockedDialog() async {
     final go = await showAppConfirmDialog(
       context,
@@ -144,9 +208,12 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
       );
       return;
     }
-    // 610 — garde côté app (le serveur tranche aussi : 402 / 429).
-    if (ReportTypes.isPremiumCreate(_selectedType!) && !_isPremium) {
-      await _showLostLockedDialog();
+    // 610 — garde côté app (le serveur tranche aussi : 429 / 409).
+    // 611 — animal perdu : 1 alerte active à la fois sans abonnement.
+    if (ReportTypes.isLostPet(_selectedType!) &&
+        !_isPremium &&
+        (_ctrl.lostPetQuota.value?.blocked ?? false)) {
+      await _showLostActiveDialog();
       return;
     }
     if (ReportTypes.isComfort(_selectedType!) && _comfortExhausted) {
@@ -172,6 +239,9 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
     } else if (controller.comfortLimitReached.value) {
       // 610 — la limite hebdomadaire vue par le serveur : message + abonnements.
       await _showComfortQuotaDialog();
+    } else if (controller.lostPetActive.value) {
+      // 611 — alerte « perdu » déjà active vue par le serveur (409).
+      await _showLostActiveDialog();
     } else if (controller.premiumRequired.value) {
       await _showLostLockedDialog();
     } else {
@@ -199,7 +269,8 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
     //   • description corrigée (4 types gratuits, pas 3)
     //   • paddings réduits + note sur 2 lignes
     // 610 — règle B : dangers et infos utiles gratuits sans limite, confort
-    // 1 par semaine sans abonnement, animal perdu / trouvé pour les abonnés.
+    // 1 par semaine sans abonnement. 611 : animal perdu / trouvé gratuit pour
+    // tous (perdu : 1 alerte active à la fois sans abonnement).
 
     // v447 — Daniel : "le bouton Publier oblige à scroller". Refonte de la
     // structure : l'EN-TÊTE (titre/sous-titre) et le PIED (note + position +
@@ -304,8 +375,8 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
                     // Section 3 : Confort (1 par semaine sans abonnement)
                     _buildComfortSection(context),
                     SizedBox(height: 10.h),
-                    // Section 4 : Animal perdu / trouvé (abonnés, inchangé)
-                    _buildPremiumSection(context, ReportTypes.premiumCreateTypes),
+                    // Section 4 : Animal perdu / trouvé (611 : gratuit pour tous)
+                    _buildLostFoundSection(context),
                   ],
                 ),
               ),
@@ -584,64 +655,73 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
     });
   }
 
-  /// 610 — Section « Animal perdu ou trouvé » : règle inchangée, réservée
-  /// aux abonnés (le SOS de la PawMap reste gratuit).
-  Widget _buildPremiumSection(
-      BuildContext context, List<String> types) {
-    return Column(
-      key: const ValueKey('alerts610_lost_section'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              _isPremium ? Icons.star_rounded : Icons.lock_rounded,
-              size: 14.sp,
-              color: _isPremium
-                  ? const Color(0xFFFF9500)
-                  : AppColors.textSecondary(context),
-            ),
-            SizedBox(width: 4.w),
-            InterText(
-              text: 'alerts610_section_lost'.tr,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-            ),
-            SizedBox(width: 6.w),
-            Flexible(
-              child: InterText(
-                text: _isPremium
-                    ? 'alerts610_section_lost_unlocked'.tr
-                    : 'alerts610_section_lost_locked'.tr,
-                fontSize: 10.sp,
-                color: AppColors.textSecondary(context),
-                maxLines: 2,
+  /// 611 (ZOE) — Section « Animal perdu ou trouvé » : GRATUIT pour tous, plus
+  /// de cadenas. Trouvé = illimité ; perdu = 1 alerte active à la fois sans
+  /// abonnement (sous-titre « en cours » quand c'est le cas), plusieurs avec.
+  Widget _buildLostFoundSection(BuildContext context) {
+    return Obx(() {
+      final q = _ctrl.lostPetQuota.value;
+      final unlimited = _isPremium || (q?.unlimited ?? false);
+      final String sub;
+      if (unlimited) {
+        sub = 'alerts611_section_lost_sub_plus'.tr;
+      } else if (q?.blocked ?? false) {
+        sub = 'alerts611_section_lost_sub_active'.tr;
+      } else {
+        sub = 'alerts611_section_lost_sub_free'.tr;
+      }
+      return Column(
+        key: const ValueKey('alerts610_lost_section'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.pets_rounded,
+                size: 14.sp,
+                color: Color(ReportTypes.colorArgb(ReportTypes.lostPet)),
               ),
-            ),
-          ],
-        ),
-        SizedBox(height: 6.h),
-        GridView.count(
-          crossAxisCount: 3,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 6.h,
-          crossAxisSpacing: 6.w,
-          childAspectRatio: 2.4,
-          children: types
-              .map((t) => _buildTypeChip(
-                    context,
-                    type: t,
-                    locked: !_isPremium,
-                    isFreeBadge: false,
-                    compact: true,
-                    onLockedTap: _showLostLockedDialog,
-                  ))
-              .toList(),
-        ),
-      ],
-    );
+              SizedBox(width: 4.w),
+              InterText(
+                text: 'alerts610_section_lost'.tr,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+              ),
+              SizedBox(width: 6.w),
+              Flexible(
+                child: InterText(
+                  key: const ValueKey('alerts611_lost_counter'),
+                  text: sub,
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary(context),
+                  maxLines: 2,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 6.h,
+            crossAxisSpacing: 6.w,
+            childAspectRatio: 2.4,
+            children: ReportTypes.petAlertTypes
+                .map((t) => _buildTypeChip(
+                      context,
+                      type: t,
+                      locked: false,
+                      isFreeBadge: false,
+                      compact: true,
+                    ))
+                .toList(),
+          ),
+        ],
+      );
+    });
   }
 
   /// Chip unifié utilisé par les deux sections. [compact] resserre le

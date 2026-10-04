@@ -67,7 +67,9 @@ String _counter(WidgetTester tester) => (tester
 void main() {
   setUp(() async => lotdSetUp(role: 'owner'));
 
-  testWidgets('sans abonnement : dangers sans cadenas, compteur confort, perdu/trouvé verrouillé',
+  // 611 (ZOE) — perdu / trouvé ne sont plus verrouillés (PROCHAIN_BUILD_611.md
+  // point 1) ; cas complets dans alerts611_test.dart.
+  testWidgets('sans abonnement : dangers sans cadenas, compteur confort, perdu/trouvé sans cadenas (611)',
       (tester) async {
     lotdResponder = (req) {
       if (req.url.path.endsWith('/map-reports/quota')) {
@@ -88,7 +90,7 @@ void main() {
     expect(find.text('Gratuit pour tous, sans limite'), findsOneWidget);
     expect(_counter(tester), '1 par semaine sans abonnement · disponible');
     expect(_hasIcon(tester, 'poop', Icons.hourglass_bottom_rounded), isFalse);
-    expect(_hasIcon(tester, 'lost_pet', Icons.lock_rounded), isTrue);
+    expect(_hasIcon(tester, 'lost_pet', Icons.lock_rounded), isFalse);
     expect(tester.takeException(), isNull);
   });
 
@@ -174,9 +176,11 @@ void main() {
     expect(sorted(ReportTypes.usefulFreeTypes), list('USEFUL_FREE_TYPES'));
     expect(sorted(ReportTypes.comfortTypes), list('COMFORT_TYPES'));
     expect(sorted(ReportTypes.premiumCreateTypes), list('PREMIUM_CREATE_TYPES'));
+    // 611 — perdu / trouvé : classe à part (gratuits, PET_ALERT_TYPES).
+    expect(sorted(ReportTypes.petAlertTypes), list('PET_ALERT_TYPES'));
     final all = <String>{
       ...ReportTypes.dangerTypes, ...ReportTypes.usefulFreeTypes,
-      ...ReportTypes.comfortTypes, ...ReportTypes.premiumCreateTypes,
+      ...ReportTypes.comfortTypes, ...ReportTypes.petAlertTypes,
     };
     expect(all, ReportTypes.all.toSet(), reason: 'chaque type a une classe, une seule');
     expect(all.length, ReportTypes.all.length);

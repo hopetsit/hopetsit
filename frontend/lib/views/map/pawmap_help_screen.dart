@@ -490,6 +490,16 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                     title: 'pp607_help_points_title'.tr,
                     help: 'pp607_help_points_body'.tr,
                   ),
+                  // 611 — les rangs façon Waze (Chiot → Légende).
+                  _ButtonRow(
+                    key: const ValueKey<String>('help611_ranks'),
+                    icon: const _RoundIcon(
+                        icon: Icons.military_tech_rounded,
+                        color: Color(0xFFE07A2E),
+                        filled: true),
+                    title: 'help611_ranks_t'.tr,
+                    help: 'help611_ranks_b'.tr,
+                  ),
                 ],
               ),
 

@@ -43,6 +43,7 @@ import 'package:hopetsit/views/profile/widgets/profile_notification_bell.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/my_kyc_verified_badge.dart';
+import 'package:hopetsit/widgets/paw_rank611.dart';
 
 
 class ProfileHero extends StatelessWidget {
@@ -128,6 +129,9 @@ class ProfileHero extends StatelessWidget {
                         SizedBox(width: 8.w),
                         const MyKycVerifiedBadge(large: true),
                       ],
+                      // 611 — mon rang (Chiot → Légende), verre blanc.
+                      SizedBox(width: 8.w),
+                      const Flexible(child: PawMyRankPill611()),
                       const Spacer(),
                       ProfileNotificationBell(role: role),
                     ],

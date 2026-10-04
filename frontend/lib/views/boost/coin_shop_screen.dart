@@ -35,6 +35,7 @@ import 'package:hopetsit/widgets/golden_paw_coin.dart';
 // v504 — refus 3.1.2(c) : liens CGU (EULA) + confidentialité dans la boutique.
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/widgets/paw_rank611.dart';
 
 /// v491 — VRAI logo « membre Paw Map proche » : cercle rose dégradé + patte
 /// blanche (réplique du badge de la carte). Fonction TOP-LEVEL → partagée par
@@ -1702,7 +1703,8 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
         context,
         color: const Color(0xFF7C3AED),
         freeTitle: 'shop_pf_free_title'.tr,
-        freeBody: 'shop_pf_free_body'.tr,
+        // 611 — l'itinéraire vers un ami est gratuit (décision BOB).
+        freeBody: '${'shop_pf_free_body'.tr}\n${'shop611_route_friends_free'.tr}',
         plusTitle: 'shop_pf_plus_title'.tr,
         plusBody: 'shop_pf_plus_body'.tr,
       );
@@ -1841,14 +1843,15 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
           Expanded(
             // 610 (ZOE, règle B) — plus de « signalements premium » : le
             // confort devient illimité avec l'abonnement, le danger est
-            // gratuit pour tous.
+            // gratuit pour tous. 611 — + plusieurs alertes animal perdu en
+            // même temps (perdu / trouvé gratuits pour tous).
             child: InterText(
               text:
-                  '${'shop610_comfort_unlimited'.tr} · ${'shop610_danger_free'.tr}',
+                  '${'shop611_lost_multi'.tr} · ${'shop610_comfort_unlimited'.tr} · ${'shop610_danger_free'.tr}',
               fontSize: 13.sp,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary(context),
-              maxLines: 3,
+              maxLines: 4,
             ),
           ),
         ],
@@ -1894,6 +1897,13 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
           title: 'shop569_follow_b5_title'.tr,
           body:
               '${'premium_feature_notifications'.tr} · ${'premium_feature_chat'.tr}',
+        ),
+        // 611 (ZOE) — animal perdu / trouvé gratuit pour tous ; l'abonnement
+        // donne plusieurs alertes animal perdu en même temps.
+        ShopBenefit(
+          icon: Icons.pets_rounded,
+          title: 'shop611_lost_multi'.tr,
+          body: 'shop611_lost_free'.tr,
         ),
         // 610 (ZOE, règle B) — « signalements premium » remplacés : confort
         // illimité avec l'abonnement, signaler un danger gratuit pour tous.
@@ -2141,12 +2151,6 @@ class _PawSpotTabState extends State<_PawSpotTab>
   bool get _isGoldCreator => _me['isGoldCreator'] == true;
   int get _points => (_me['points'] as num?)?.toInt() ?? 0;
 
-  Map<String, dynamic>? get _badge =>
-      _me['badge'] is Map ? Map<String, dynamic>.from(_me['badge'] as Map) : null;
-
-  Map<String, dynamic>? get _nextBadge => _me['nextBadge'] is Map
-      ? Map<String, dynamic>.from(_me['nextBadge'] as Map)
-      : null;
 
   int get _remainingDays {
     final raw = _me['pawspotExpiry'];
@@ -2161,21 +2165,7 @@ class _PawSpotTabState extends State<_PawSpotTab>
     return (hours / 24).ceil();
   }
 
-  /// Mapping key backend → libellé traduit (qui inclut déjà emoji + seuil).
-  String _badgeLabel(String key) {
-    switch (key) {
-      case 'explorer':
-        return 'pawspot_badge_explorer'.tr;
-      case 'expert':
-        return 'pawspot_badge_expert'.tr;
-      case 'ambassador':
-        return 'pawspot_badge_ambassador'.tr;
-      case 'pawmaster':
-        return 'pawspot_badge_pawmaster'.tr;
-      default:
-        return key;
-    }
-  }
+
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -2434,7 +2424,7 @@ class _PawSpotTabState extends State<_PawSpotTab>
                     freeTitle: 'shop_ps_free_title'.tr,
                     freeBody: 'shop_ps_free_body'.tr,
                     plusTitle: 'shop_ps_plus_title'.tr,
-                    plusBody: 'shop610_ps_plus_body'.tr,
+                    plusBody: 'shop611_ps_plus_body'.tr, // 611 — + plusieurs alertes perdu
                   ),
                   SizedBox(height: 24.h),
                   // ── 4. Forfaits ──────────────────────────────────────────
@@ -2743,6 +2733,13 @@ class _PawSpotTabState extends State<_PawSpotTab>
           title: 'shop569_spot_b4_title'.tr,
           body: 'pawspot_feature_rewards'.tr,
         ),
+        // 611 (ZOE) — animal perdu / trouvé gratuit pour tous ; l'abonnement
+        // donne plusieurs alertes animal perdu en même temps.
+        ShopBenefit(
+          icon: Icons.pets_rounded,
+          title: 'shop611_lost_multi'.tr,
+          body: 'shop611_lost_free'.tr,
+        ),
         // v556 — les itinéraires sont inclus dans PawSpot (règle serveur).
         ShopBenefit(
           icon: Icons.directions_walk_rounded,
@@ -2761,18 +2758,8 @@ class _PawSpotTabState extends State<_PawSpotTab>
   }
 
 
-  /// d. Compteur de points + badge actuel + progression vers le suivant.
+  /// d. Compteur de points + rang (611) et progression vers le suivant.
   Widget _buildPointsCard(BuildContext context) {
-    final badge = _badge;
-    final next = _nextBadge;
-    double progress = 1.0;
-    if (next != null) {
-      final base = (badge?['min'] as num?)?.toDouble() ?? 0;
-      final target = (next['min'] as num?)?.toDouble() ?? 0;
-      progress = target > base
-          ? ((_points - base) / (target - base)).clamp(0.0, 1.0)
-          : 0.0;
-    }
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
@@ -2809,46 +2796,11 @@ class _PawSpotTabState extends State<_PawSpotTab>
                   color: AppColors.textSecondary(context),
                 ),
               ),
-              const Spacer(),
-              if (badge != null)
-                Container(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-                  decoration: BoxDecoration(
-                    color: _gold.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10.r),
-                  ),
-                  child: InterText(
-                    // Le libellé traduit inclut déjà l'emoji + le seuil.
-                    text: _badgeLabel((badge['key'] ?? '').toString()),
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w700,
-                    color: _gold,
-                  ),
-                ),
             ],
           ),
+          // 611 — le rang (Chiot → Légende) remplace les 7 anciens badges.
           SizedBox(height: 12.h),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8.r),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8.h,
-              backgroundColor: _gold.withValues(alpha: 0.15),
-              valueColor: const AlwaysStoppedAnimation<Color>(_gold),
-            ),
-          ),
-          if (next != null) ...[
-            SizedBox(height: 8.h),
-            InterText(
-              text: 'pawspot_next_badge'.trParams({
-                'badge': (next['emoji'] ?? '').toString(),
-                'points': '${(next['min'] as num?)?.toInt() ?? 0}',
-              }),
-              fontSize: 12.sp,
-              color: AppColors.textSecondary(context),
-            ),
-          ],
+          const PawMyRankProgress611(),
           if (_isGoldCreator) ...[
             SizedBox(height: 10.h),
             Row(
@@ -3400,9 +3352,9 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
                     context,
                     color: const Color(0xFF150F0D),
                     freeTitle: 'shop_pp_free_title'.tr,
-                    freeBody: 'shop610_pp_free_body'.tr,
+                    freeBody: 'shop611_pp_free_body'.tr, // 611 — perdu/trouvé gratuits
                     plusTitle: 'shop_pp_plus_title'.tr,
-                    plusBody: 'shop610_pp_plus_body'.tr,
+                    plusBody: 'shop611_pp_plus_body'.tr, // 611 — + plusieurs alertes perdu
                   ),
                   SizedBox(height: 24.h),
                   // ── 4. Forfaits ──────────────────────────────────────────
@@ -3622,6 +3574,13 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
           icon: Icons.rocket_launch_rounded,
           title: 'shop569_prem_b5_title'.tr,
           body: 'premium_bundle_feat_priority'.tr,
+        ),
+        // 611 (ZOE) — animal perdu / trouvé gratuit pour tous ; l'abonnement
+        // donne plusieurs alertes animal perdu en même temps.
+        ShopBenefit(
+          icon: Icons.pets_rounded,
+          title: 'shop611_lost_multi'.tr,
+          body: 'shop611_lost_free'.tr,
         ),
         // 610 (ZOE, règle B) — confort illimité + danger gratuit pour tous.
         ShopBenefit(

@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/paw_rank611.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_route611.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -705,6 +707,11 @@ class _PawMapScreenState extends State<PawMapScreen>
   String _routeMode =
       (GetStorage().read('pawmap_route_mode') as String?) ?? 'walk';
   LatLng? _routeDest;
+  // 611 — itinéraire vers un ami EN DIRECT : la destination le suit.
+  final PawRouteFollow611 _routeFollow = PawRouteFollow611();
+  String _routeFollowName = '';
+  String? _routeFriendId; // 611 — itinéraire vers un ami (gratuit)
+  Worker? _routeFollowWorker;
   int? _routeDurationSeconds;
   List<PawSpotRouteStep> _routeSteps = const [];
   Set<Marker> _routeStepMarkers = {};
@@ -800,6 +807,13 @@ class _PawMapScreenState extends State<PawMapScreen>
       _osmTiles.prefetchAround(
           _currentCenter.latitude, _currentCenter.longitude, _zoomLevel);
     }
+    // 611 — rang : relu à l'ouverture de la carte (là où l'on gagne des
+    // PawPoints) ; le message « Tu passes Jeune chien ! » sort une fois.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _viewerLoggedIn) {
+        unawaited(PawRankService611.instance.refresh());
+      }
+    });
     // v591 — bandeau « Filtres actifs » : 5 s puis pastille (voir _flashFiltersBanner).
     _filtersBannerTimer = Timer(const Duration(seconds: 5), () {
       if (mounted) _filtersBannerShown.value = false;
@@ -930,6 +944,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v605 — la vérité du suivi est `LiveMapService.followingUserId` : un
     // arrêt fait ailleurs (feuille « En direct », chat) lâche aussi la
     // caméra ici, sans renvoyer d'arrêt au serveur.
+    _routeFollowWorker = ever(_liveMap.friendPositions, (_) => _onRouteFriendMoved611()); // 611
     _followSharedWorker = ever<String?>(_liveMap.followingUserId, (v) {
       if (!mounted) return;
       final cur = _followUserId;
@@ -1824,6 +1839,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     List<Map<String, dynamic>> roleEntries = const [],
   }) {
     _holdCamera(); // v605 — un profil ouvert garde la caméra
+    final PawRank611? rank611 = _personRank611(id, personIds, roleEntries);
     final List<String> personRoleList = roleEntries.length > 1
         ? pawMapOrderedRoles(roleEntries
             .map((e) => (e['_role'] ?? e['role'] ?? '').toString()))
@@ -1878,6 +1894,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           friend: isFriend,
           roles: personRoleList,
           verified: verified,
+          rank: rank611, // 611
           onOpen: () => _onNearbyTap(
             id: id,
             role: role,
@@ -1951,6 +1968,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       currency: currency,
       hasOpenRequest: hasOpenRequest,
       distanceLabel: approx ? '' : _distanceLabelTo(lat, lng),
+      rank: rank611, // 611
     );
     // v605 — « dès 100 €/sem » quand seul un tarif semaine / mois existe.
     final priceLabel = pawMapRolePriceText(
@@ -1959,6 +1977,31 @@ class _PawMapScreenState extends State<PawMapScreen>
         unitSuffix: _priceUnitSuffix);
     PawFriendState reqState =
         _relationState(id, serverFriend: friendNow, personIds: personIds);
+    // 611 — destination d'un itinéraire vers cette personne.
+    final Set<String> routeIds611 = <String>{id, ...personIds}
+        .map((x) => x.trim().toLowerCase())
+        .where((x) => x.isNotEmpty)
+        .toSet();
+    String? routeLiveKey611;
+    LatLng? routeLive611;
+    if (friendNow) {
+      for (final e in _liveMap.friendPositions.entries) {
+        final fp = e.value;
+        if (fp.liveState == FriendLiveState.seen) continue;
+        if (fp.allIds.any(routeIds611.contains)) {
+          routeLiveKey611 = e.key;
+          routeLive611 = LatLng(fp.latitude, fp.longitude);
+          break;
+        }
+      }
+    }
+    final PawRouteTarget611? routeTarget611 = pawRouteTarget611(
+      personIds: routeIds611.toList(),
+      world: friendNow ? <Map<String, dynamic>>[..._worldMembers, ..._nearbyProviders] : const [],
+      live: routeLive611,
+      tapped: lat != null && lng != null ? LatLng(lat, lng) : null,
+      tappedApprox: approx || !pawDirectionsAllowed611(approx: approx),
+    );
     showPawMapSheet<void>(
       context,
       StatefulBuilder(
@@ -2032,12 +2075,17 @@ class _PawMapScreenState extends State<PawMapScreen>
               final req = _requests.firstWhereOrNull((r) => r.ownerId == id);
               if (req != null) _showRequestBottomSheet(req);
             },
-            onDirections: lat != null && lng != null
-                ? () {
+            // 611 — ami : vraie position (ou son direct, suivi) ; non-ami
+            // flouté : pas d'itinéraire (un point faux trompe).
+            onDirections: routeTarget611 == null
+                ? null
+                : () {
                     Navigator.of(ctx).pop();
-                    _startDirections(LatLng(lat, lng));
-                  }
-                : null,
+                    _startDirections(routeTarget611.dest,
+                        followFriendId: routeTarget611.followLive ? routeLiveKey611 : null,
+                        followName: name,
+                        friendId: friendNow ? id : null);
+                  },
             onFriend: () async {
               if (reqState == PawFriendState.incoming) {
                 Navigator.of(ctx).pop();
@@ -2584,6 +2632,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     _followWorker?.dispose();
     _followEndWorker?.dispose();
     _followSharedWorker?.dispose();
+    _routeFollowWorker?.dispose(); // 611
     _myFollowWorker?.dispose();
     _plushWalkWorker?.dispose(); // 607
     _walkCamWorker?.dispose(); // 610
@@ -3491,6 +3540,10 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   void _onCameraMove(CameraPosition pos) {
     _currentCenter = pos.target;
+    // 611 — flèche vers la peluche juste quand la carte de Balade tourne.
+    if ((pos.bearing - _mapBearing611.value).abs() > 2) {
+      _mapBearing611.value = pos.bearing;
+    }
     // v584 — plus d'écriture à chaque image : centre + zoom sont enregistrés
     // à l'arrêt de la caméra (`_scheduleReload`).
     // v550 — perf : tant que la caméra bouge, le halo ne pulse pas (sinon la
@@ -4981,6 +5034,32 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
 
+  /// 611 — rang (Chiot → Légende) de la personne [id], lu sur les couches
+  /// membres déjà chargées (le serveur le calcule sur les PawPoints gagnés).
+  PawRank611? _personRank611(String id, List<String> personIds,
+      [List<Map<String, dynamic>> entries = const []]) {
+    for (final e in entries) {
+      final r = PawRank611.fromJson(e['rank']);
+      if (r != null) return r;
+    }
+    final keys = <String>{id, ...personIds}
+        .map((x) => x.trim().toLowerCase())
+        .where((x) => x.isNotEmpty)
+        .toSet();
+    if (keys.isEmpty) return null;
+    for (final list in [_worldMembers, _nearbyProviders, _aroundMembers]) {
+      for (final p in list) {
+        final ids = <String>{(p['id'] ?? p['_id'] ?? '').toString(), ...pawMapPersonIds(p)}
+            .map((x) => x.trim().toLowerCase());
+        if (ids.any(keys.contains)) {
+          final r = PawRank611.fromJson(p['rank']);
+          if (r != null) return r;
+        }
+      }
+    }
+    return null;
+  }
+
   /// v594 — la personne portant l'id [id] (n'importe lequel de ses rôles)
   /// a-t-elle un PawBoost actif ? Lu sur les couches membres déjà chargées.
   bool _personBoosted(String id) {
@@ -5060,6 +5139,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   int _plushDbg = 0;
+  final RxDouble _mapBearing611 = 0.0.obs; // 611 — orientation de la carte
   DateTime? _plushRefusalAt;
 
   /// 607 (BOB : « le renard était sous la barre de gauche ») — pastille
@@ -5071,6 +5151,14 @@ class _PawMapScreenState extends State<PawMapScreen>
       final n = _plush.items.length;
       final ready = PawPlushLayer.iconsReadyRx.value;
       final me = _liveMap.myLivePosition.value ?? _userPosition;
+      final double mapBearing = _mapBearing611.value;
+      // 611 — peluche du jour déjà attrapée : on le dit (plus d'appât muet).
+      if (live && n == 0 && _plush.shown.value && _plush.caughtTodayRx611.value) {
+        return Padding(
+          padding: EdgeInsets.only(left: 6.w),
+          child: const PawPlushDonePill(),
+        );
+      }
       if (!live || n == 0 || !ready || me == null || !_plush.shown.value) {
         return const SizedBox.shrink();
       }
@@ -5084,6 +5172,12 @@ class _PawMapScreenState extends State<PawMapScreen>
           type: near.$1.type,
           golden: near.$1.golden,
           label: dist,
+          // 611 — « on ne sait pas trop où aller » : flèche vers elle.
+          arrowDeg: pawPlushArrowDeg(me, LatLng(near.$1.lat, near.$1.lng), mapBearing: mapBearing),
+          // 611 — 2 par jour : « 1/2 attrapée » après la première.
+          progress: _plush.caughtTodayCount611.value > 0 && _plush.dailyMax611 > 1
+              ? '${_plush.caughtTodayCount611.value}/${_plush.dailyMax611}'
+              : null,
           semantics: 'plush607_nearest'.trParams({'dist': dist}),
           onTap: () => unawaited(_frameOnPlush(me, near.$1)),
         ),
@@ -5121,7 +5215,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       unawaited(PawPlushLayer.preloadIcons(context));
     }
     await _plush.refresh(pos, force: force);
-    final (res, pts) = await _plush.onPosition(pos);
+    final (res, pts) = await _plush.onPosition(pos,
+        accuracy: _liveMap.myLiveAccuracy.value); // 611 — tolérance GPS
     if (!mounted) return;
     if (res == PawPlushCatch.caught) {
       final w = _plush.lastWin;
@@ -5133,6 +5228,9 @@ class _PawMapScreenState extends State<PawMapScreen>
       PawSignal.show(context, PawSignalKind.plush, text);
     } else if (res == PawPlushCatch.dailyDone) {
       PawSignal.show(context, PawSignalKind.plush, 'plush607_daily_done'.tr);
+    } else if (res == PawPlushCatch.taken) {
+      // 611 — avant : la peluche disparaissait sans un mot.
+      PawSignal.show(context, PawSignalKind.plush, 'plush611_taken'.tr);
     } else if (res == PawPlushCatch.refused) {
       // 607 (BOB : « 422 puis rien ») — on dit pourquoi, une fois par minute.
       final code = _plush.lastRefusal;
@@ -7947,16 +8045,12 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
       return;
     }
-    // v589 — mon direct tourne sur mon AUTRE téléphone : même feuille
-    // « Arrêter le direct ? » ; l'arrêt vaut pour tous mes appareils.
+    // v589 — mon direct tourne sur mon AUTRE téléphone. 611 (Cam, 04/10 :
+    // « je ne peux pas être en direct avec cet iPhone ») : la feuille
+    // « En direct » propose « Passer en direct sur ce téléphone » ET
+    // « Arrêter » (l'arrêt vaut toujours pour tous mes appareils).
     if (_liveMap.liveElsewhere.value) {
-      final ok = await showPawStopLiveSheet(context);
-      if (ok && mounted) {
-        await _liveMap.stopEverywhere();
-        if (mounted) {
-          PawSignal.show(context, PawSignalKind.liveOff, 'pawmap587_sig_live_off'.tr);
-        }
-      }
+      await _openLiveSheet();
       return;
     }
     if (_liveMap.justStopped) return; // 2e appui d'un double-tap
@@ -8198,7 +8292,11 @@ class _PawMapScreenState extends State<PawMapScreen>
             ? null
             : () {
                 Navigator.of(context).pop();
-                _startDirections(LatLng(fp.latitude, fp.longitude));
+                // 611 — l'itinéraire suit l'ami tant qu'il est en direct.
+                _startDirections(LatLng(fp.latitude, fp.longitude),
+                    followFriendId: fp.liveState == FriendLiveState.seen ? null : uid,
+                    followName: name,
+                    friendId: uid);
               },
         onMessage: () {
           Navigator.of(context).pop();
@@ -11739,9 +11837,28 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Itinéraire "Y aller" (POIs + spots PawSpot) : GET /pawspots/directions
   /// → polyline orange + caméra englobant le trajet + bandeau distance.
   /// 402 PAWFOLLOW_REQUIRED → upsell PawFollow (CoinShop onglet 1).
-  Future<void> _startDirections(LatLng dest) async {
+  Future<void> _startDirections(LatLng dest,
+      {String? followFriendId, String followName = '', bool quiet = false, String? friendId}) async {
+    // 611 — ami : itinéraire gratuit (le serveur vérifie l'amitié).
+    if (!quiet) _routeFriendId = friendId ?? followFriendId;
+    // 611 — vers un ami EN DIRECT : la destination le suivra ; tout autre
+    // itinéraire arrête ce suivi. [quiet] = recalcul en marchant (ni caméra
+    // recadrée, ni message d'erreur).
+    if (!quiet) {
+      if (followFriendId != null) {
+        _routeFollow.start(followFriendId, dest, DateTime.now());
+        _routeFollowName = followName;
+        if (mounted) {
+          PawSignal.show(context, PawSignalKind.live,
+              'pm611_route_follow'.trParams({'name': followName}));
+        }
+      } else {
+        _routeFollow.stop();
+      }
+    }
     final from = _userPosition;
     if (from == null) {
+      if (quiet) return;
       CustomSnackbar.showError(
         title: 'pawmap_snack_no_loc_title'.tr,
         message: 'pawmap_snack_no_loc_msg'.tr,
@@ -11756,9 +11873,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         from: from,
         to: dest,
         mode: _routeMode,
+        friendId: _routeFriendId,
       );
       if (!mounted) return;
       if (route.points.length < 2) {
+        if (quiet) return;
         CustomSnackbar.showError(
           title: 'common_error'.tr,
           message: 'pawmap_snack_search_failed_msg'.tr,
@@ -11781,6 +11900,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         _routeSteps = route.steps;
         _routeStepMarkers = stepMarkers;
       });
+      if (quiet) return; // 611 — en marchant : pas de saut de caméra
       // Caméra : englobe tout le trajet.
       double minLat = route.points.first.latitude;
       double maxLat = minLat;
@@ -11811,6 +11931,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         );
       } catch (_) {/* map pas prête */}
     } catch (e) {
+      if (quiet) return;
       if (PawSpotController.errorCode(e) == 'PAWFOLLOW_REQUIRED' ||
           PawSpotController.statusCode(e) == 402) {
         CustomSnackbar.showWarning(
@@ -11957,6 +12078,35 @@ class _PawMapScreenState extends State<PawMapScreen>
       _routeStepMarkers = {};
       _routeDest = null;
     });
+    _routeFollow.stop(); // 611
+    _routeFriendId = null;
+  }
+
+  /// 611 — l'ami vers qui va l'itinéraire a bougé, ou a coupé son direct.
+  void _onRouteFriendMoved611() {
+    final id = _routeFollow.friendId;
+    if (id == null || !mounted || _routeDest == null) return;
+    final key = id.trim().toLowerCase();
+    FriendPosition? fp = _liveMap.friendPositions[id];
+    if (fp == null) {
+      for (final v in _liveMap.friendPositions.values) {
+        if (v.allIds.contains(key)) {
+          fp = v;
+          break;
+        }
+      }
+    }
+    if (fp == null || fp.liveState == FriendLiveState.seen) {
+      _routeFollow.stop();
+      PawSignal.show(context, PawSignalKind.liveOff,
+          'pm611_route_friend_stopped'.trParams({'name': _routeFollowName}));
+      return;
+    }
+    final pos = LatLng(fp.latitude, fp.longitude);
+    final now = DateTime.now();
+    if (!_routeFollow.shouldRecompute(pos, now) || _directionsLoading) return;
+    _routeFollow.mark(pos, now);
+    unawaited(_startDirections(pos, quiet: true));
   }
 
   /// v559 — changement de mode : mémorisé, puis le trajet est recalculé
@@ -11969,7 +12119,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     } catch (_) {/* sans importance */}
     _prefs.update({'routeMode': mode});
     final dest = _routeDest;
-    if (dest != null) _startDirections(dest);
+    if (dest != null) {
+      _startDirections(dest,
+          followFriendId: _routeFollow.friendId, followName: _routeFollowName,
+          friendId: _routeFriendId);
+    }
   }
 
   String _formatDuration(int? seconds) {
