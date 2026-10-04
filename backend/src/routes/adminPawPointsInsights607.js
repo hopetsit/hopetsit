@@ -17,6 +17,15 @@
  *    + peluches et bonus de peluches (barème, avant ×2 Premium / bonus de
  *    niveau). Les gains PawSpot ne sont pas journalisés : non comptés.
  *  - une peluche jamais attrapée est effacée 3 jours après son tirage.
+ *
+ * 611 (ADA, 04/10/2026) — Daniel : « sur l'admin, pas à jour ». Le tirage
+ * d'Alhama affichait « 1 / 2 » attrapées mais la liste « vrais comptes » était
+ * vide : la capture était celle d'un compte ÉQUIPE (isStaff, Premium offert),
+ * comptée dans le tirage (l'original est bien pris) mais rangée avec les
+ * comptes de test. Désormais chaque capture porte `kind` : 'real' | 'staff' |
+ * 'test' ; le tirage détaille qui a attrapé (caughtReal / caughtStaff /
+ * caughtTest + testCopies, les essais de test à part). Les chiffres « vrais
+ * comptes » (plush7, points, actifs) restent hors équipe et hors test.
  */
 
 const express = require('express');
@@ -81,6 +90,14 @@ async function loadPeople(idsByRole) {
 
 const short = (id) => String(id || '').slice(-6);
 
+/** Type d'une capture : 'test' (copie ou compte +test), 'staff' (équipe / interne), 'real'. */
+function catchKind(p, w) {
+  if (p && p.testCopy) return 'test';
+  if (w && w.kind === 'test') return 'test';
+  if (w && w.kind === 'internal') return 'staff';
+  return 'real';
+}
+
 router.get('/', requireAdmin, async (req, res) => {
   const t0 = Date.now();
   try {
@@ -133,12 +150,15 @@ router.get('/', requireAdmin, async (req, res) => {
       if (new Date(e.at) >= since7) k.points7 += pts;
       active.add(w.person);
     });
-    let plush7 = 0; let plush7Test = 0; let plush30Real = 0;
+    let plush7 = 0; let plush7Test = 0; let plush7Staff = 0; let plush30Real = 0;
     plush30.forEach((p) => {
       const w = p.caughtBy ? who(p.caughtBy.role, p.caughtBy.userId) : null;
-      const isTest = p.testCopy || (w && w.kind !== 'real');
+      const kind = catchKind(p, w);
       const recent = p.caughtBy && new Date(p.caughtBy.at) >= since7;
-      if (isTest) { if (recent) plush7Test += 1; return; }
+      if (kind !== 'real') {
+        if (recent) { if (kind === 'staff') plush7Staff += 1; else plush7Test += 1; }
+        return;
+      }
       plush30Real += 1;
       if (recent) plush7 += 1;
       const pts = p.golden ? 200 : 20;
@@ -175,6 +195,12 @@ router.get('/', requireAdmin, async (req, res) => {
             total: { $sum: 1 },
             golden: { $sum: { $cond: ['$golden', 1, 0] } },
             caught: { $sum: { $cond: [{ $eq: [{ $type: '$caughtByPerson' }, 'string'] }, 1, 0] } },
+            catchers: {
+              $push: {
+                $cond: [{ $eq: [{ $type: '$caughtByPerson' }, 'string'] },
+                  { u: '$caughtBy.userId', r: '$caughtBy.role' }, '$$REMOVE'],
+              },
+            },
           },
         },
       ]);
@@ -182,10 +208,34 @@ router.get('/', requireAdmin, async (req, res) => {
       agg.forEach((a) => {
         const cur = byCity.get(a._id.city);
         if (!cur || a._id.day > cur.day) {
-          byCity.set(a._id.city, { city: a.label || a._id.city, day: a._id.day, total: a.total, golden: a.golden, caught: a.caught });
+          byCity.set(a._id.city, { key: a._id.city, city: a.label || a._id.city, day: a._id.day, total: a.total, golden: a.golden, caught: a.caught, catchers: a.catchers || [] });
         }
       });
-      draws = [...byCity.values()].sort((a, b) => b.total - a.total || a.city.localeCompare(b.city));
+      // Qui a attrapé les peluches du tirage (vrai compte / équipe / test).
+      const cIds = { owner: [], sitter: [], walker: [] };
+      byCity.forEach((d) => d.catchers.forEach((c) => c.u && cIds[normRole(c.r)].push(c.u)));
+      const cPeople = await loadPeople(cIds);
+      // Essais des comptes de test sur ce tirage : copies à part (cityKey « test:<ville>:<personne> »).
+      const copies = await PawPlush.find({ day: { $in: days }, testCopy: true })
+        .select('cityKey day').lean();
+      const copyCount = new Map();
+      copies.forEach((c) => {
+        const ck = String(c.cityKey || '');
+        if (!ck.startsWith('test:')) return;
+        const orig = ck.slice(5, ck.lastIndexOf(':') > 4 ? ck.lastIndexOf(':') : ck.length);
+        const kk = `${orig}|${c.day}`;
+        copyCount.set(kk, (copyCount.get(kk) || 0) + 1);
+      });
+      draws = [...byCity.values()].map((d) => {
+        const out = { city: d.city, day: d.day, total: d.total, golden: d.golden, caught: d.caught, caughtReal: 0, caughtStaff: 0, caughtTest: 0 };
+        d.catchers.forEach((c) => {
+          const w = cPeople.get(`${normRole(c.r)}:${String(c.u)}`) || null;
+          const kind = catchKind(null, w);
+          if (kind === 'staff') out.caughtStaff += 1; else if (kind === 'test') out.caughtTest += 1; else out.caughtReal += 1;
+        });
+        out.testCopies = copyCount.get(`${d.key}|${d.day}`) || 0;
+        return out;
+      }).sort((a, b) => b.total - a.total || a.city.localeCompare(b.city));
 
       const gold = await PawPlush.find({ golden: true, copyOf: null, createdAt: { $gte: since7 } })
         .sort({ day: -1 }).limit(100).select('type cityLabel day caughtByPerson caughtBy').lean();
@@ -198,18 +248,22 @@ router.get('/', requireAdmin, async (req, res) => {
         return {
           city: g.cityLabel || '', day: g.day, type: g.type, caught,
           at: caught ? g.caughtBy.at : null,
-          by: caught ? { id: short(g.caughtBy.userId), name: (w && w.name) || '', role: normRole(g.caughtBy.role), test: !!(w && w.kind !== 'real') } : null,
+          by: caught ? { id: short(g.caughtBy.userId), name: (w && w.name) || '', role: normRole(g.caughtBy.role), kind: catchKind(null, w), test: catchKind(null, w) === 'test' } : null,
         };
       });
     }
 
-    const recentCatches = plush30.slice(0, 60).map((p) => {
+    // Toutes les captures des 30 jours (200 au plus), chacune avec son type :
+    // l'admin les montre toutes avec une pastille et filtre à l'affichage.
+    const recentCatches = plush30.slice(0, 200).map((p) => {
       const w = p.caughtBy ? who(p.caughtBy.role, p.caughtBy.userId) : null;
+      const kind = catchKind(p, w);
       return {
         at: p.caughtBy ? p.caughtBy.at : null, day: p.day, type: p.type, golden: !!p.golden,
         city: p.cityLabel || '', role: p.caughtBy ? normRole(p.caughtBy.role) : '',
         id: p.caughtBy ? short(p.caughtBy.userId) : '', name: (w && w.name) || '',
-        test: !!(p.testCopy || (w && w.kind !== 'real')),
+        kind,
+        test: kind === 'test',
       };
     });
 
@@ -255,7 +309,7 @@ router.get('/', requireAdmin, async (req, res) => {
         redemptions30: redReal,
         redemptions30Test: redTest,
         redemptionsByStatus30: redStatus,
-        plush7, plush7Test, plush30: plush30Real,
+        plush7, plush7Test, plush7Staff, plush30: plush30Real,
       },
       plush: { available: !!PawPlush, draws, goldenWeek, recent: recentCatches },
       pioneers: { count: pioneers.filter((p) => !p.test).length, testCount: pioneers.filter((p) => p.test).length, list: pioneers },
