@@ -318,6 +318,47 @@ async function activeCities({ now = Date.now(), force = false } = {}) {
 
 // ── tirage ──────────────────────────────────────────────────────────────────
 
+const FALLBACK_SPOT_TYPES = ['path_walk', 'chill', 'playground', 'swimming'];
+const FALLBACK_POI_CATEGORIES = ['water', 'beach'];
+
+/** Lieux publics de repli (PawSpots plein air, puis fontaines/plages OSM). */
+async function fallbackSites(city, day, taken) {
+  const within = { $geoWithin: { $centerSphere: [[city.lng, city.lat], PARK_RADIUS_KM / 6371] } };
+  const out = [];
+  const push = (id, c) => {
+    const k = String(id);
+    if (taken.has(k) || !Array.isArray(c) || c.length !== 2) return;
+    if (!Number.isFinite(c[0]) || !Number.isFinite(c[1])) return;
+    taken.add(k);
+    out.push({ _id: id, lng: c[0], lat: c[1] });
+  };
+  try {
+    const PawSpot = require('../models/PawSpot');
+    const spots = await PawSpot.find({
+      hidden: { $ne: true }, deletedAt: null, type: { $in: FALLBACK_SPOT_TYPES }, location: within,
+    }).select('location').limit(200).lean();
+    // Deux spots à moins de 60 m = le même lieu (ex. deux « paseo perros »).
+    for (const s of spots) {
+      const c = s.location && s.location.coordinates;
+      if (!Array.isArray(c)) continue;
+      if (out.some((o) => metersBetween(o.lat, o.lng, c[1], c[0]) < 60)) continue;
+      push(s._id, c);
+    }
+  } catch (e) { logger.warn(`[plush] repli PawSpots ${city.key} : ${e.message}`); }
+  try {
+    const pois = await MapPOI.find({
+      category: { $in: FALLBACK_POI_CATEGORIES }, status: 'active', source: 'seed', location: within,
+    }).select('location').limit(200).lean();
+    for (const p of pois) push(p._id, p.location && p.location.coordinates);
+  } catch (e) { logger.warn(`[plush] repli POI ${city.key} : ${e.message}`); }
+  if (out.length) {
+    const used = await PawPlush.find({ day, poiId: { $in: out.map((o) => o._id) } }).select('poiId').lean();
+    const u = new Set(used.map((x) => String(x.poiId)));
+    return out.filter((o) => !u.has(String(o._id)));
+  }
+  return out;
+}
+
 async function ensureDraw(city, { now = Date.now() } = {}) {
   const day = dayKeyFor(city.lng, now, city.lat);
   if (await PawPlush.exists({ cityKey: city.key, day })) return { day, created: 0 };
@@ -331,9 +372,19 @@ async function ensureDraw(city, { now = Date.now() } = {}) {
   // villes actives (vu en prod le 02/10 : deux peluches au même point).
   const taken = new Set((await PawPlush.find({ day, poiId: { $in: pois.map((p) => p._id) } })
     .select('poiId').lean()).map((x) => String(x.poiId)));
-  const parks = pois.filter((p) => isUsablePark(p) && !taken.has(String(p._id))).map((p) => ({
+  let parks = pois.filter((p) => isUsablePark(p) && !taken.has(String(p._id))).map((p) => ({
     _id: p._id, lng: p.location.coordinates[0], lat: p.location.coordinates[1],
   }));
+  // 610 (PAM, 04/10) — mesuré à Alhama de Murcia (Espagne) : AUCUN parc à
+  // chiens OSM à moins de 5 km → 0 peluche pour Daniel et Cam en Balade.
+  // Sans assez de parcs à chiens, on complète avec des lieux PUBLICS : les
+  // PawSpots de plein air de la communauté (promenade, détente, aire de jeux,
+  // baignade), puis les fontaines et plages OSM. Jamais une route ni une
+  // adresse privée. Avec 3 parcs à chiens ou plus, rien ne change.
+  if (parks.length < 3) {
+    const more = await fallbackSites(city, day, new Set([...taken, ...parks.map((p) => String(p._id))]));
+    parks = parks.concat(more);
+  }
   if (!parks.length) return { day, created: 0 };
   const picks = pickPlushies(parks, city.key, day);
   const golden = isGoldenDay(city.key, day);
