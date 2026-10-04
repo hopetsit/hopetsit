@@ -3824,6 +3824,7 @@ router.post('/users/:role/:id/staff', requireAdmin, async (req, res) => {
       { new: true },
     ).select('name email isStaff oldId');
     if (!updated) return res.status(404).json({ error: 'User not found.' });
+    let profiles = null;
     // v494 — Daniel : « j'ai mis mon ami premium staff mais le badge / la
     // couronne n'apparaît pas ». CAUSE RACINE : isStaff n'était posé QUE sur le
     // doc du rôle ciblé. 1 compte = 3 docs (Owner/Sitter/Walker séparés) → si
@@ -3837,11 +3838,18 @@ router.post('/users/:role/:id/staff', requireAdmin, async (req, res) => {
       const or = [{ _id: id }];
       if (updated.email) or.push({ email: updated.email });
       if (updated.oldId) or.push({ oldId: updated.oldId });
-      await Promise.all([
+      const results = await Promise.all([
         OwnerM.updateMany({ $or: or }, { $set: { isStaff: !!isStaff } }),
         SitterM.updateMany({ $or: or }, { $set: { isStaff: !!isStaff } }),
         WalkerM.updateMany({ $or: or }, { $set: { isStaff: !!isStaff } }),
       ]);
+      // 610 (ADA, 04/10) — l'admin affiche combien de profils de la personne
+      // portent maintenant le badge (propriétaire / gardien / promeneur).
+      profiles = {
+        owner: results[0].matchedCount || 0,
+        sitter: results[1].matchedCount || 0,
+        walker: results[2].matchedCount || 0,
+      };
     } catch (propErr) {
       logger.warn(
         `[admin/users/staff] cross-role propagation failed : ${propErr?.message || propErr}`,
@@ -3853,9 +3861,36 @@ router.post('/users/:role/:id/staff', requireAdmin, async (req, res) => {
       name: updated.name,
       email: updated.email,
       isStaff: updated.isStaff,
+      profiles,
     });
   } catch (e) {
     logger.error('[admin/users/staff]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 610 (ADA, 04/10) — Daniel : « dans Utilisateurs et Inscriptions je n'ai plus
+// mettre en staff / premium / tout débloquer ». Lecture seule : les Premium
+// OFFERTS par l'admin (POST /admin/pawpremium/grant, historique
+// paymentProvider = 'admin_gift', aucun paiement) encore en cours, pour la
+// pastille « 👑 Premium offert » des deux listes. Ne renvoie aucun e-mail.
+router.get('/premium-gifts', requireAdmin, async (req, res) => {
+  try {
+    const UserSubscription = require('../models/UserSubscription');
+    const now = new Date();
+    const subs = await UserSubscription.find({
+      'history.paymentProvider': 'admin_gift',
+      premiumExpiry: { $gt: now },
+    }).select('userId userModel premiumExpiry').lean();
+    res.json({
+      gifts: subs.map((s) => ({
+        userId: String(s.userId),
+        role: String(s.userModel || '').toLowerCase(),
+        premiumExpiry: s.premiumExpiry,
+      })),
+    });
+  } catch (e) {
+    logger.error('[admin/premium-gifts]', e);
     res.status(500).json({ error: e.message });
   }
 });
