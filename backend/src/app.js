@@ -228,7 +228,7 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 // ⚠️ ADA 23/09 : Render ne redéploie QUE si un fichier de backend/ change. Une publication
 // de admin_dashboard.html seul (ex. aedfaab, traduction EN/ES) reste invisible en ligne :
 // toucher ce fichier. Garder un numéro en chiffres seuls (le contrôle de la page lit /v(\d+)/).
-const ADMIN_BUILD = 'v613'; // 613 (ADA, 04/10) : parcours de chaque demande (Annonces + Tableau de bord)
+const ADMIN_BUILD = 'v614'; // 613 (ADA, 04/10) : parcours de chaque demande (Annonces + Tableau de bord)
 // avant :
 const _ADMIN_BUILD_612 = 'v612'; // 612 (PAM, 04/10) : admin — rangs Chiot → Légende à la place des anciens badges
 // 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à

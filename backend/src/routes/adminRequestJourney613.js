@@ -209,7 +209,11 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
     else if (a.length) status = 'applied';
     else status = 'waiting';
 
-    const readCount = n.filter((x) => x.readAt).length;
+    // 04/10 (BOB) — compter des PERSONNES, pas des notifications : après une
+    // relance (resend), 13 promeneurs = 23 notifications pour la même demande.
+    const notifiedPeople = new Set(n.map((x) => String(x.recipientId)));
+    const readPeople = new Set(n.filter((x) => x.readAt).map((x) => String(x.recipientId)));
+    const readCount = readPeople.size;
     let color;
     if (a.length) color = 'green';
     else if (!n.length) color = 'red';
@@ -229,7 +233,7 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
       color,
       stages: {
         published: { at: p.createdAt },
-        notified: { count: n.length },
+        notified: { count: notifiedPeople.size, notifications: n.length },
         opened: { count: readCount },
         contacts: { count: contactConvs.length, linked: false },
         applications: {
