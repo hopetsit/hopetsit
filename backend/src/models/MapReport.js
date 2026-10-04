@@ -140,6 +140,16 @@ const mapReportSchema = new mongoose.Schema(
       },
     ],
     hidden: { type: Boolean, default: false, index: true }, // set true when flags.length >= 3
+
+    // 610 (ZOE, 04/10) — « geste du bon Samaritain » (services/goodSamaritan610) :
+    // un DANGER confirmé par 3 autres membres est jugé UNE fois. `granted` =
+    // 24 h de Premium offertes à l'auteur ; `capped` = déjà offert dans les
+    // 7 derniers jours (ce signalement ne donnera jamais plus tard).
+    samaritan: {
+      status: { type: String, enum: ['granted', 'capped', null], default: null },
+      at: { type: Date, default: null },
+      voters: { type: Number, default: 0 },
+    },
   },
   { timestamps: true }
 );

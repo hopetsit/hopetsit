@@ -137,16 +137,15 @@ describe('GET /friends — position de profil floutée, depuis chacun de mes 3 p
     const got = byName(r.body.friends);
     expect(Object.keys(got).sort()).toEqual(['Ami amis', 'Ami masque', 'Ami test', 'Ami tous']);
 
-    // « Visible par tous », « Amis seulement », compte de test : position floutée ~1 km.
+    // 610 — RÈGLE A : « Visible par tous », « Amis seulement », compte de
+    // test : un AMI reçoit la VRAIE position de profil (avant : floutée).
     for (const [name, exact] of [['Ami tous', F.all.at], ['Ami amis', F.friends.at], ['Ami test', F.test.at]]) {
       const o = got[name];
       expect([name, !!o.location]).toEqual([name, true]);
-      expect(o.approx).toBe(true);
-      expect(o.approxKm).toBe(1);
+      expect(o.approx).toBe(false);
+      expect(o.approxKm).toBe(0);
       expect(o.positionSource).toBe('home');
-      expect(o.location.coordinates).not.toEqual(exact);
-      const [lng, lat] = o.location.coordinates;
-      expect(KM(exact[1], exact[0], lat, lng)).toBeLessThan(1);
+      expect(o.location.coordinates).toEqual(exact);
     }
     // « Masqué » : ami listé, mais AUCUNE position.
     expect(got['Ami masque'].location).toBeNull();
@@ -190,6 +189,9 @@ describe('GET /friends/members/world — isFriend, réinjection, test, masqué',
     const w = await call('/members/world', { id: String(STRANGER.owner), role: 'owner' });
     expect(w.status).toBe(200);
     expect(pointOf(w.body, F.all.sitter)).toBeTruthy();
+    // 610 — règle A : un NON-ami reste flouté (~1 km).
+    expect(pointOf(w.body, F.all.sitter).approx).toBe(true);
+    expect(pointOf(w.body, F.all.sitter).location.coordinates).not.toEqual(F.all.at);
     expect(pointOf(w.body, F.all.sitter).isFriend).toBeUndefined();
     expect(pointOf(w.body, F.friends.owner)).toBeFalsy();
     expect(pointOf(w.body, F.hidden.walker)).toBeFalsy();
@@ -204,7 +206,11 @@ describe('GET /friends/members/world — isFriend, réinjection, test, masqué',
     expect((all.personIds || []).map(String).sort()).toEqual([String(F.all.sitter), String(F.all.walker)].sort());
     expect(pointOf(w.body, F.friends.owner).isFriend).toBe(true);
     expect(pointOf(w.body, F.test.sitter).isFriend).toBe(true);
-    expect(pointOf(w.body, F.test.sitter).approxKm).toBe(1);
+    // 610 — règle A : un ami est à sa VRAIE position de profil.
+    expect(pointOf(w.body, F.test.sitter).approxKm).toBe(0);
+    expect(pointOf(w.body, F.test.sitter).location.coordinates).toEqual(F.test.at);
+    expect(all.approx).toBe(false);
+    expect(all.location.coordinates).toEqual(F.all.at);
     expect(pointOf(w.body, F.hidden.walker)).toBeFalsy();
     // une seule entrée par personne
     const n = (w.body.members || []).filter((m) => (m.personIds || [m.id]).map(String).includes(String(F.all.sitter))).length;
@@ -221,7 +227,8 @@ describe('GET /friends/members/world — isFriend, réinjection, test, masqué',
     expect(p).toBeTruthy();
     expect(p.isFriend).toBe(true);
     expect(p.hiddenFromMap).toBe(false);
-    expect(p.approxKm).toBe(1);
+    expect(p.approxKm).toBe(0); // 610 — règle A
+    expect(p.location.coordinates).toEqual(LATE.at);
     const asStranger = await call('/members/world', { id: String(STRANGER.owner), role: 'owner' });
     expect(pointOf(asStranger.body, LATE.owner)).toBeFalsy();
   });

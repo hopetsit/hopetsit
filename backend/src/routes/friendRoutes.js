@@ -130,12 +130,23 @@ router.post('/follow-presence', requireAuth, async (req, res) => {
     if (!/^[a-f0-9]{24}$/i.test(targetId)) return res.status(400).json({ error: 'targetId required.' });
     const f = require('../utils/followers589');
     const [targetIds, myIds] = await Promise.all([personIds(targetId), personIds(me(req).id)]);
-    const n = f.touch(f.personKey(targetIds), f.personKey(myIds), on);
+    const n = f.touch(f.personKey(targetIds), f.personKey(myIds), on, Date.now(), me(req).id);
     try {
       const { emitToUser } = require('../sockets/emitter');
       const g = await identityGroup(targetId);
+      // 610 — et QUI me suit (prénom, photo) : `list` (app ≥ 610) et `names`
+      // (app 605–609, prénoms seulement). `count` inchangé.
+      let list = [];
+      try {
+        const friendIds = await _friendIdsOf(targetId);
+        list = await require('../utils/followersList610').followersOf(targetIds, { friendIds });
+      } catch (_) { list = []; }
       for (const d of g.docs) {
-        emitToUser(String(d.model || 'Owner').toLowerCase(), d.id, 'map:followers', { count: n });
+        emitToUser(String(d.model || 'Owner').toLowerCase(), d.id, 'map:followers', {
+          count: n,
+          list,
+          names: list.map((x) => x.name),
+        });
       }
     } catch (_) {/* prévenir est un plus, pas une condition */}
     return res.json({ ok: true, count: n });
@@ -167,8 +178,18 @@ router.get('/live-state', requireAuth, async (req, res) => {
     // v589 — nombre de personnes qui suivent mon direct en ce moment.
     try {
       const f = require('../utils/followers589');
-      state.followers = f.count(f.personKey(await personIds(me(req).id)));
-    } catch (_) { state.followers = 0; }
+      const mine = await personIds(me(req).id);
+      state.followers = f.count(f.personKey(mine));
+      // 610 — QUI me suit : `followerList` (app ≥ 610), `followerNames`
+      // (app 605–609). `followers` reste le NOMBRE (apps ≤ 609).
+      const friendIds = await _friendIdsOf(me(req).id);
+      state.followerList = await require('../utils/followersList610').followersOf(mine, { friendIds });
+      state.followerNames = state.followerList.map((x) => x.name);
+    } catch (_) {
+      if (typeof state.followers !== 'number') state.followers = 0;
+      state.followerList = [];
+      state.followerNames = [];
+    }
     return res.json(state);
   } catch (e) {
     logger.error('[friends/live-state]', e);
@@ -585,6 +606,35 @@ async function _withHiddenFriends(req, payload) {
           ? { ...m, isFriend: true } : m
       )),
     };
+    // 610 — RÈGLE A (Daniel, 04/10) : un ami présent dans le cache partagé
+    // (position FLOUTÉE pour tous) reçoit, pour CE viewer seulement, sa VRAIE
+    // position de profil (même calcul que la liste d'amis).
+    try {
+      const { friendPositionsFor } = require('../utils/friendPosition587');
+      const groupOf = new Map();
+      friendGroups.forEach((ids, i) => ids.forEach((id) => groupOf.set(String(id), i)));
+      const exact = await friendPositionsFor(friendGroups);
+      payload = {
+        ...payload,
+        members: (payload.members || []).map((m) => {
+          if (!m.isFriend) return m;
+          const gi = [m.id, ...(m.personIds || [])]
+            .map((x) => groupOf.get(String(x)))
+            .find((x) => x !== undefined);
+          const fp = gi === undefined ? null : exact[gi];
+          if (!fp || !fp.location) return m;
+          return {
+            ...m,
+            location: fp.location,
+            approx: false,
+            approxKm: 0,
+            positionSource: fp.positionSource || m.positionSource,
+          };
+        }),
+      };
+    } catch (e) {
+      logger.warn(`[friends/members/world] position exacte des amis : ${e?.message || e}`);
+    }
     // v585 — un point porte TOUS les ids de la personne (`personIds`).
     const already = new Set();
     for (const m of payload.members || []) {
@@ -652,8 +702,9 @@ async function _withHiddenFriends(req, payload) {
         isPremium: entries.some((e) => e.d.isStaff === true)
           || entries.some((e) => subIds.has(String(e.d._id))),
         isPawSpot: entries.some((e) => e.d.mapBoostExpiry && new Date(e.d.mapBoostExpiry) > new Date()),
-        approx: true,
-        approxKm: WORLD_APPROX_KM,
+        // 610 — règle A : vraie position de profil pour un ami.
+        approx: fp.approx !== false,
+        approxKm: fp.approx === false ? 0 : WORLD_APPROX_KM,
         hiddenFromMap: fp.mapVisibility === 'friends',
         isFriend: true,
         ...mapVisibility.pinFlags(d, new Date()),
@@ -2681,6 +2732,9 @@ router.get('/live-positions', requireAuth, async (req, res) => {
         ageMs: lastSeenMs == null ? null : Math.max(0, now - lastSeenMs),
         // v590 — tracé de la balade (session en direct seulement).
         trail: live ? _trail590(live) : [],
+        // 610 — début réel de la balade : « en balade · 12 min » dans la
+        // liste de la patte verte du menu (session en direct seulement).
+        startedAt: live && live.startedAt ? new Date(live.startedAt).toISOString() : null,
         // v599 — nom + photo : le rond n'est plus vide avant la liste d'amis.
         name: otherCard.name,
         avatar: otherCard.avatar,

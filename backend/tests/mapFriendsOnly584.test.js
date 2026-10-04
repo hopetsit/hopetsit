@@ -153,7 +153,8 @@ describe('mode « amis seulement » — /friends/members/nearby et /world, 3 com
     expect(ids(w.body)).toContain('me1');
     const meWorld = w.body.members.find((m) => m.id === 'me1');
     expect(meWorld.hiddenFromMap).toBe(true);
-    expect(meWorld.approx).toBe(true);
+    // 610 — règle A : l'ami me voit à ma VRAIE position de profil.
+    expect(meWorld.approx).toBe(false);
     // v595 — « les halos de mon frère encore partis » : un ami « amis
     // seulement » garde son PawBoost et sa couronne sur la couche monde.
     expect(meWorld.isBoosted).toBe(true);

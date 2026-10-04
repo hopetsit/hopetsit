@@ -13,7 +13,10 @@ jest.mock('../src/utils/identityGroup', () => ({
   identityGroup: async (id) => ({
     ids: id === 'D1' ? ['D1', 'D2', 'D3'] : [String(id)],
     set: new Set(id === 'D1' ? ['D1', 'D2', 'D3'] : [String(id)]),
-    docs: [],
+    // 610 — profils de la personne (owner D1, sitter D2, walker D3).
+    docs: id === 'D1'
+      ? [{ id: 'D1', model: 'Owner' }, { id: 'D2', model: 'Sitter' }, { id: 'D3', model: 'Walker' }]
+      : [],
   }),
 }));
 jest.mock('../src/models/Notification', () => ({
@@ -26,6 +29,9 @@ jest.mock('../src/models/Notification', () => ({
         && n.readAt == null),
     }),
   })),
+  // 610 — compteur par profil (syncPerson).
+  countDocuments: jest.fn(async (q) => mockNotifs.filter((n) =>
+    n.recipientId === q.recipientId && n.recipientRole === q.recipientRole && n.readAt == null).length),
   updateMany: jest.fn(async (q, u) => {
     let n = 0;
     for (const d of mockNotifs) {
@@ -81,12 +87,18 @@ test('lire F en tant que D1 prévient D1/D2/D3 et passe en lu les 2 entrées de 
   expect(byId.n3.readAt).toBeNull();
   expect(byId.n4.readAt).toBeNull();
   expect(byId.n5.readAt).toBeNull();
-  // notification.read émis vers les 3 salles de rôle de D1 ET de D2 (chacun un groupe)
+  // 610 — notification.read émis UNE fois par profil de la personne, dans la
+  // salle de CE profil, avec SON compteur et le total des 3 profils.
   const reads = emitted.filter((e) => e.event === 'notification.read');
-  expect(reads.map((e) => e.userId).sort()).toEqual(['D1', 'D1', 'D1', 'D2', 'D2', 'D2']);
-  expect(reads[0].payload.unreadCount).toBe(2);
-  // badge iOS recalé pour les deux profils
-  expect(badgeSyncs.map((b) => b.userId).sort()).toEqual(['D1', 'D2']);
+  expect(reads.map((e) => `${e.role}:${e.userId}`).sort()).toEqual(['owner:D1', 'sitter:D2', 'walker:D3']);
+  const owner = reads.find((e) => e.userId === 'D1');
+  expect(owner.payload.ids.sort()).toEqual(['n1', 'n2']);
+  expect(owner.payload.unreadCount).toBe(2); // n3 + n5 restent non lues côté propriétaire
+  expect(reads.find((e) => e.userId === 'D2').payload.unreadCount).toBe(0);
+  expect(owner.payload.totalUnreadCount).toBe(2);
+  // badge iOS : une synchro pour la personne (total 2)
+  expect(badgeSyncs).toHaveLength(1);
+  expect(badgeSyncs[0].personUnreadCount).toBe(2);
 });
 
 test('sans entrée de cloche : seule l\'annonce « lu » part, rien ne casse', async () => {

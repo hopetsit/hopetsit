@@ -133,6 +133,9 @@ test('session RAM plus fraîche : elle prime (position exacte envoyée par le t�
   const p = r.body.positions[0];
   expect([p.lng, p.lat]).toEqual([-30.4003, -35.2041]);
   expect(p.ageMs).toBeLessThan(2000);
+  // 610 — début de la balade renvoyé (« en balade · 12 min » sur la patte verte).
+  expect(typeof p.startedAt).toBe('string');
+  expect(Date.now() - new Date(p.startedAt).getTime()).toBeLessThan(60000);
 });
 
 describe('point 3 — barres repliables retenues sur le compte', () => {

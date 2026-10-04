@@ -2,9 +2,10 @@
  * Map Report Routes — Couche 2 of the PawMap.
  *
  * Ephemeral 48h signals (poop, pee, hazards, active water points, ...).
- * Premium-only feature:
- *   - Only active Premium users can create or view reports.
- *   - Free users get a 403 with an upsell hint.
+ * 610 (ZOE, 04/10/2026) — règle B de REGLES_610.md : tout le monde voit tout ;
+ * danger = gratuit et illimité ; confort = 1 par 7 jours sans abonnement ;
+ * animal perdu / trouvé inchangé ; geste du bon Samaritain
+ * (services/goodSamaritan610.js). Classement : utils/mapReportRules610.js.
  *
  * TTL is enforced by the MongoDB TTL index on `expiresAt` (48h) plus a
  * helper scheduler (services/mapReportTtlScheduler.js) that logs stats.
@@ -16,6 +17,10 @@ const MapReport = require('../models/MapReport');
 const { REPORT_TYPES, REPORT_TTL_MS } = require('../models/MapReport');
 const UserSubscription = require('../models/UserSubscription');
 const logger = require('../utils/logger');
+// 610 (ZOE, 04/10) — règle B : voir tout, danger gratuit et illimité, confort
+// 1 par 7 jours sans abonnement, « geste du bon Samaritain ».
+const rules610 = require('../utils/mapReportRules610');
+const { identityGroup } = require('../utils/identityGroup');
 
 const router = express.Router();
 
@@ -41,7 +46,28 @@ const FREE_REPORT_TYPES = ['aggressive_dog', 'hazard', 'water_active', 'dead_ani
 // pas le pin et ne peut pas aider). On garde lost_pet/found_pet PREMIUM à la
 // CRÉATION (le propriétaire paie pour poster l'alerte), mais on les rend VISIBLES
 // à tous dans /nearby + confirmables gratuitement (cf /:id/confirm v452).
-const PUBLIC_VISIBLE_TYPES = [...FREE_REPORT_TYPES, 'lost_pet', 'found_pet'];
+// 610 (ZOE, 04/10) — règle B.1 : TOUS les signalements sont visibles par tout
+// le monde, abonné ou non (sécurité d'abord). Liste gardée pour compatibilité.
+const PUBLIC_VISIBLE_TYPES = [...REPORT_TYPES];
+
+/** 610 — ids des 3 profils de la personne connectée (quota par personne). */
+async function myIdentityIds(req) {
+  try {
+    const g = await identityGroup(req.user.id);
+    return g.ids.filter((id) => /^[a-f0-9]{24}$/i.test(String(id)));
+  } catch (_) {
+    return [req.user.id];
+  }
+}
+
+/** 610 — état du quota confort pour la réponse JSON. */
+async function comfortQuotaFor(req) {
+  if (req.isPremium) {
+    return { unlimited: true, limit: null, used: null, remaining: null, nextAvailableAt: null };
+  }
+  const q = await rules610.comfortQuota(MapReport, await myIdentityIds(req));
+  return { unlimited: false, ...q };
+}
 
 function parseFloatOr(value, fallback) {
   const n = parseFloat(value);
@@ -179,9 +205,7 @@ router.get('/diagnose-mine', requireAuth, attachPremium, async (req, res) => {
       if (r.expiresAt && new Date(r.expiresAt) < new Date()) {
         issues.push('EXPIRED');
       }
-      if (!req.isPremium && !PUBLIC_VISIBLE_TYPES.includes(r.type)) {
-        issues.push('PREMIUM_ONLY_FOR_FREE_USER');
-      }
+      // 610 — plus aucun type réservé aux abonnés à la lecture (règle B.1).
       if (meLat !== null && meLng !== null && coords && coords.length === 2 &&
           !(coords[0] === 0 && coords[1] === 0)) {
         // Distance haversine en km
@@ -216,7 +240,7 @@ router.get('/diagnose-mine', requireAuth, attachPremium, async (req, res) => {
       me: { id: meId, isPremium: req.isPremium, lat: meLat, lng: meLng },
       myReports: allMine.map(analyzeReport),
       allReportsLast7d: allWithinDay.map(analyzeReport),
-      tip: 'Si wouldShowInNearby=false, regarder excludedBy pour la raison. ZOMBIE_0_0 = report cree sans GPS, NO_COORDS = pas de coordonnees, EXPIRED = vieux de >TTL, PREMIUM_ONLY = type reserve aux Premium pour les free users, TOO_FAR_X = au-dela du radius default 50km.',
+      tip: 'Si wouldShowInNearby=false, regarder excludedBy pour la raison. ZOMBIE_0_0 = report cree sans GPS, NO_COORDS = pas de coordonnees, EXPIRED = vieux de >TTL, TOO_FAR_X = au-dela du radius default 50km.',
     });
   } catch (e) {
     logger.error('[mapReport/diagnose-mine]', e);
@@ -227,15 +251,35 @@ router.get('/diagnose-mine', requireAuth, attachPremium, async (req, res) => {
 router.get('/types', (req, res) => {
   res.json({
     types: REPORT_TYPES,
+    // Anciennes apps : liste historique des 7 types gratuits.
     freeTypes: FREE_REPORT_TYPES,
+    // 610 — classement de la règle B (voir utils/mapReportRules610.js).
+    dangerTypes: rules610.DANGER_TYPES,
+    freeUnlimitedTypes: rules610.FREE_UNLIMITED_TYPES,
+    comfortTypes: rules610.COMFORT_TYPES,
+    premiumCreateTypes: rules610.PREMIUM_CREATE_TYPES,
+    comfortWeeklyLimit: rules610.COMFORT_WEEKLY_LIMIT,
     ttlHours: REPORT_TTL_MS / 3_600_000,
   });
 });
 
+// ── GET /quota — 610 : compteur « 1 par semaine » des signalements de confort ─
+router.get('/quota', requireAuth, attachPremium, async (req, res) => {
+  try {
+    res.json({
+      isPremium: Boolean(req.isPremium),
+      comfort: await comfortQuotaFor(req),
+      upgradeUrl: '/subscriptions/plans',
+    });
+  } catch (e) {
+    logger.error('[mapReport/quota]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── GET /nearby ────────────────────────────────────────────────────────────
-// Premium users see all report types. Free users only see reports of the
-// freemium-whitelisted types (lost_pet, found_pet, water_active). The payload
-// includes `isPremium` so the client can show an upsell banner for the rest.
+// 610 (ZOE) — règle B.1 : tout le monde voit TOUS les types, abonné ou non.
+// `isPremium` reste dans la réponse (compteur confort de l'app).
 router.get('/nearby', requireAuth, attachPremium, async (req, res) => {
   try {
     const lat = parseFloatOr(req.query.lat, null);
@@ -287,22 +331,8 @@ router.get('/nearby', requireAuth, attachPremium, async (req, res) => {
 
     if (typeList.length > 0 && typeList.every((t) => REPORT_TYPES.includes(t))) {
       // v23.1 part 211 — multi-type filter (avant single-type seulement).
-      // Free users peuvent filtrer mais on intersect avec FREE_REPORT_TYPES.
-      const allowed = req.isPremium
-        ? typeList
-        : typeList.filter((t) => PUBLIC_VISIBLE_TYPES.includes(t));
-      if (allowed.length === 0) {
-        return res.status(402).json({
-          error: 'These report categories are Premium-only.',
-          code: 'PREMIUM_REQUIRED',
-          upgradeUrl: '/subscriptions/plans',
-        });
-      }
-      filter.type = { $in: allowed };
-    } else if (!req.isPremium) {
-      // v456 — free user sans filtre : on montre les types gratuits + les
-      // animaux perdus/trouvés (visibles par tous pour pouvoir AIDER).
-      filter.type = { $in: PUBLIC_VISIBLE_TYPES };
+      // 610 — plus de 402 : le filtre s'applique à tous, abonné ou non.
+      filter.type = { $in: typeList };
     }
 
     const reports = await MapReport.find(filter)
@@ -330,9 +360,10 @@ router.get('/nearby', requireAuth, attachPremium, async (req, res) => {
 });
 
 // ── POST / — create new report ─────────────────────────────────────────────
-// Free users may create any of the FREE_REPORT_TYPES; Premium is required for
-// the 6 remaining categories (poop, pee, water_broken, hazard, aggressive_dog,
-// other).
+// 610 (ZOE) — règle B : DANGER + infos utiles = gratuit et illimité pour tous ;
+// CONFORT = 1 par 7 jours sans abonnement (429 COMFORT_WEEKLY_LIMIT avec la
+// date du prochain possible), illimité avec ; animal perdu / trouvé = abonnés
+// (402, règle inchangée).
 router.post('/', requireAuth, attachPremium, async (req, res) => {
   try {
     const { type, note, photoUrl, lat, lng, city } = req.body;
@@ -343,14 +374,29 @@ router.post('/', requireAuth, attachPremium, async (req, res) => {
       });
     }
 
-    // Freemium gate.
-    if (!req.isPremium && !FREE_REPORT_TYPES.includes(type)) {
+    // 610 — règle B.
+    if (!req.isPremium && rules610.isPremiumCreate(type)) {
       return res.status(402).json({
         error: 'This report type is Premium-only.',
         code: 'PREMIUM_REQUIRED',
-        freeTypes: FREE_REPORT_TYPES,
+        freeTypes: rules610.FREE_UNLIMITED_TYPES,
         upgradeUrl: '/subscriptions/plans',
       });
+    }
+    if (!req.isPremium && rules610.isComfort(type)) {
+      const q = await rules610.comfortQuota(MapReport, await myIdentityIds(req));
+      if (q.remaining <= 0) {
+        return res.status(429).json({
+          error: 'Without a subscription you can post 1 comfort report per week. '
+            + 'Danger reports stay free and unlimited.',
+          code: 'COMFORT_WEEKLY_LIMIT',
+          limit: q.limit,
+          used: q.used,
+          nextAvailableAt: q.nextAvailableAt,
+          subscriptionHint: 'Any subscription makes comfort reports unlimited.',
+          upgradeUrl: '/subscriptions/plans',
+        });
+      }
     }
     const latNum = parseFloatOr(lat, null);
     const lngNum = parseFloatOr(lng, null);
@@ -399,6 +445,10 @@ router.post('/', requireAuth, attachPremium, async (req, res) => {
     });
 
     await report.save();
+    // 610 — le quota confort compte les CRÉATIONS (supprimer ne rend rien).
+    try { await rules610.logComfortCreation(report); } catch (e) {
+      logger.warn(`[mapReport] registre confort non écrit : ${e?.message || e}`);
+    }
     logger.info(`[mapReport] ${req.user.role} ${req.user.id} created ${type} report`);
     res.status(201).json({ report });
   } catch (e) {
@@ -422,9 +472,7 @@ router.get('/public/:id', async (req, res) => {
       .select('type note photoUrl location isSos createdAt expiresAt hidden')
       .lean();
     if (!r || r.hidden) return res.status(404).json({ error: 'Report not found.' });
-    if (!PUBLIC_VISIBLE_TYPES.includes(r.type)) {
-      return res.status(404).json({ error: 'Report not found.' });
-    }
+    // 610 — tous les types sont visibles par tous (règle B.1).
     const coords = r.location?.coordinates || [];
     return res.json({
       id: String(r._id),
@@ -574,8 +622,10 @@ router.post('/:id/confirm', requireAuth, attachPremium, async (req, res) => {
       return res.status(404).json({ error: 'Report not found.' });
     }
 
-    // Aider un animal perdu = gratuit. Les autres types restent Premium.
-    if (report.type !== 'lost_pet' && !req.isPremium) {
+    // Aider un animal perdu = gratuit. 610 (ZOE) — confirmer un DANGER aussi
+    // (règle B : sécurité d'abord, et c'est ce qui déclenche le geste du bon
+    // Samaritain). Les autres types restent Premium.
+    if (report.type !== 'lost_pet' && !rules610.isDanger(report.type) && !req.isPremium) {
       return res.status(402).json({
         error: 'Premium subscription required.',
         code: 'PREMIUM_REQUIRED',
@@ -584,23 +634,28 @@ router.post('/:id/confirm', requireAuth, attachPremium, async (req, res) => {
     }
 
     const userModel = ROLE_TO_MODEL_NAME[req.user.role] || 'Owner';
-    // prevent duplicate confirms
-    const already = (report.confirmations || []).some(
-      (c) => String(c.userId) === String(req.user.id) && c.userModel === userModel,
-    );
+    // 610 — un vote par PERSONNE : ses 3 profils ne confirment qu'une fois.
+    let myIds = new Set([String(req.user.id)]);
+    try { myIds = new Set((await identityGroup(req.user.id)).ids.map(String)); } catch (_) { /* id seul */ }
+    const already = (report.confirmations || []).some((c) => myIds.has(String(c.userId)));
+    const isAuthor = myIds.has(String(report.reporterId));
+    let samaritan = null;
     if (!already) {
       report.confirmations.push({ userId: req.user.id, userModel });
       // v23.1.353 — système PawPoints : +1 pt au REPORTER quand son
       // signalement est confirmé par un voisin ("signalement correct").
-      try {
-        const pawPoints = require('../services/pawPointsService');
-        pawPoints.awardPoints({
-          userId: report.reporterId,
-          role: String(report.reporterModel || 'Owner').toLowerCase(),
-          points: pawPoints.POINTS.correctReport,
-          reason: 'map report confirmed',
-        });
-      } catch (_) {/* non-critique */}
+      // 610 — jamais quand l'auteur confirme son propre signalement.
+      if (!isAuthor) {
+        try {
+          const pawPoints = require('../services/pawPointsService');
+          pawPoints.awardPoints({
+            userId: report.reporterId,
+            role: String(report.reporterModel || 'Owner').toLowerCase(),
+            points: pawPoints.POINTS.correctReport,
+            reason: 'map report confirmed',
+          });
+        } catch (_) {/* non-critique */}
+      }
       // extend by 12h, cap at 96h from creation
       const MAX_TTL = 96 * 60 * 60 * 1000;
       const creationTime = new Date(report.createdAt).getTime();
@@ -611,6 +666,12 @@ router.post('/:id/confirm', requireAuth, attachPremium, async (req, res) => {
       ));
       report.expiresAt = extended;
       await report.save();
+
+      // 610 — geste du bon Samaritain (3 autres membres sur un danger).
+      if (rules610.isDanger(report.type) && !isAuthor) {
+        const { evaluateGoodSamaritan } = require('../services/goodSamaritan610');
+        samaritan = await evaluateGoodSamaritan(report._id);
+      }
 
       // v452 — animal perdu : prévenir le PROPRIÉTAIRE (le reporter) qu'un
       // membre a aperçu son animal (bell + push + email). Best-effort, ne
@@ -638,6 +699,8 @@ router.post('/:id/confirm', requireAuth, attachPremium, async (req, res) => {
     res.json({
       confirmationsCount: report.confirmations.length,
       expiresAt: report.expiresAt,
+      // 610 — vrai seulement pour la confirmation qui déclenche le cadeau.
+      samaritanGranted: Boolean(samaritan && samaritan.granted),
     });
   } catch (e) {
     logger.error('[mapReport/confirm]', e);

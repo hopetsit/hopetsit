@@ -171,3 +171,25 @@ test('socket map:go-offline : même arrêt sur les 3 profils', async () => {
   expect(mockDOCS.Owner[0].location.liveShareStoppedAt).toBeInstanceOf(Date);
   expect((await post(ANDROID_BG, { lat: -35.22, lng: -30.42 })).body.ignored).toBe(true);
 });
+
+// 610 (PAM) — « QUI me suit » : le nombre reste `followers` (apps ≤ 609) ;
+// `followerList` / `followerNames` s'ajoutent, et `map:followers` les porte.
+test('610 — live-state : nombre inchangé + liste ; follow-presence prévient avec la liste', async () => {
+  const f = require('../src/utils/followers589');
+  f._resetForTests();
+  emitToUser.mockClear();
+  const fp = await call(route('post', '/follow-presence'), {
+    user: { id: 'aaaaaaaaaaaaaaaaaaaaaaaa', role: 'walker' }, body: { targetId: 'dddddddddddddddddddddddd', on: true },
+  });
+  expect(fp.body).toEqual({ ok: true, count: 1 });
+  const ev = emitToUser.mock.calls.find((c) => c[2] === 'map:followers');
+  expect(ev[3].count).toBe(1);
+  expect(Array.isArray(ev[3].list)).toBe(true);
+  expect(Array.isArray(ev[3].names)).toBe(true);
+  f.touch(f.personKey(['dO', 'dS']), 'kx', true, Date.now(), 'x1');
+  const s = await liveState(IPHONE);
+  expect(s.body.followers).toBe(1);
+  expect(Array.isArray(s.body.followerList)).toBe(true);
+  expect(Array.isArray(s.body.followerNames)).toBe(true);
+  f._resetForTests();
+});

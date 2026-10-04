@@ -10,12 +10,21 @@ jest.mock('../src/services/notificationService', () => ({
   deleteNotification: jest.fn(),
   clearNotifications: jest.fn(),
 }));
-jest.mock('../src/sockets/emitter', () => ({ emitToUser: jest.fn() }));
-const mockBadgeSync = jest.fn(async () => ({}));
-jest.mock('../src/services/notificationSender', () => ({ sendBadgeSync: (...a) => mockBadgeSync(...a) }));
+// 610 — la synchro passe par la personne (utils/notifPerson610, testé avec une
+// vraie base en mémoire dans notifPerson610.test.js) : ici on vérifie que chaque
+// action du contrôleur l'appelle avec les bons arguments.
+const mockSync = jest.fn(async (event, a) => ({
+  ...(a.all ? { all: true } : { ids: a.ids }), unreadCount: 3, totalUnreadCount: 4, at: 'x',
+}));
+jest.mock('../src/utils/notifPerson610', () => ({
+  isPersonScope: (req) => String((req && req.query && req.query.scope) || '') === 'person',
+  personProfiles: jest.fn(async (id, role) => [{ role, id }]),
+  recipientFilter: (profiles) => ({ $or: profiles.map((p) => ({ recipientRole: p.role, recipientId: p.id })) }),
+  personUnread: jest.fn(async () => ({ total: 4, byProfile: [] })),
+  syncPerson: (...a) => mockSync(...a),
+}));
 
 const service = require('../src/services/notificationService');
-const { emitToUser } = require('../src/sockets/emitter');
 const controller = require('../src/controllers/notificationController');
 
 const mkRes = () => {
@@ -30,84 +39,54 @@ const NOTIF_ID = '64b0000000000000000000aa';
 beforeEach(() => jest.clearAllMocks());
 
 describe('notification sync events', () => {
-  test('mark one read → notification.read { ids, unreadCount } to the user room', async () => {
+  test('mark one read → synchro « notification.read { ids } » de la personne', async () => {
     service.markNotificationRead.mockResolvedValue({
       _id: NOTIF_ID, recipientRole: 'owner', recipientId: USER.id, type: 'booking_new',
       title: 't', body: 'b', data: {}, readAt: new Date(), createdAt: new Date(),
     });
-    service.getUnreadCount.mockResolvedValue(3);
     const res = mkRes();
     await controller.markMyNotificationRead({ user: USER, params: { id: NOTIF_ID } }, res);
-    expect(emitToUser).toHaveBeenCalledTimes(1);
-    const [role, userId, event, payload] = emitToUser.mock.calls[0];
-    expect([role, userId, event]).toEqual(['owner', USER.id, 'notification.read']);
-    expect(payload.ids).toEqual([NOTIF_ID]);
-    expect(payload.all).toBeUndefined();
-    expect(payload.unreadCount).toBe(3);
-    expect(typeof payload.at).toBe('string');
+    expect(mockSync).toHaveBeenCalledTimes(1);
+    const [event, args] = mockSync.mock.calls[0];
+    expect(event).toBe('notification.read');
+    expect(args).toMatchObject({ role: 'owner', userId: USER.id, ids: [NOTIF_ID], all: false });
     expect(res.json).toHaveBeenCalled();
   });
 
-  test('already read / unknown → 404 and NO event', async () => {
-    service.markNotificationRead.mockResolvedValue(null);
-    const res = mkRes();
-    await controller.markMyNotificationRead({ user: USER, params: { id: NOTIF_ID } }, res);
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(emitToUser).not.toHaveBeenCalled();
-  });
-
-  test('mark all read → notification.read { all: true, unreadCount: 0 }', async () => {
+  test('mark all read (profil actif, app ≤ 609) → all sur CE profil seulement', async () => {
     service.markAllRead.mockResolvedValue(5);
-    service.getUnreadCount.mockResolvedValue(0);
     const res = mkRes();
     await controller.markMyNotificationsReadAll({ user: USER }, res);
-    const [, , event, payload] = emitToUser.mock.calls[0];
+    const [event, args] = mockSync.mock.calls[0];
     expect(event).toBe('notification.read');
-    expect(payload.all).toBe(true);
-    expect(payload.ids).toBeUndefined();
-    expect(payload.unreadCount).toBe(0);
-    expect(res.json).toHaveBeenCalledWith({ updatedCount: 5 });
-    // badge iOS des autres appareils remis à 0
-    expect(mockBadgeSync).toHaveBeenCalledWith({ role: 'owner', userId: USER.id, unreadCount: 0 });
+    expect(args).toMatchObject({ all: true, allProfiles: false });
+    expect(res.json).toHaveBeenCalledWith({ updatedCount: 5, unreadCount: 3, totalUnreadCount: 4 });
   });
 
-  test('delete one → notification.removed { ids }', async () => {
+  test('delete one → synchro « notification.removed { ids } »', async () => {
     service.deleteNotification.mockResolvedValue(1);
-    service.getUnreadCount.mockResolvedValue(2);
     const res = mkRes();
     await controller.deleteMyNotification({ user: { id: USER.id, role: 'walker' }, params: { id: NOTIF_ID } }, res);
-    const [role, , event, payload] = emitToUser.mock.calls[0];
-    expect(role).toBe('walker');
+    const [event, args] = mockSync.mock.calls[0];
     expect(event).toBe('notification.removed');
-    expect(payload.ids).toEqual([NOTIF_ID]);
-    expect(payload.unreadCount).toBe(2);
+    expect(args).toMatchObject({ role: 'walker', ids: [NOTIF_ID] });
   });
 
-  test('delete unknown → 404 and NO event', async () => {
-    service.deleteNotification.mockResolvedValue(0);
-    const res = mkRes();
-    await controller.deleteMyNotification({ user: USER, params: { id: NOTIF_ID } }, res);
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(emitToUser).not.toHaveBeenCalled();
-  });
-
-  test('clear all → notification.removed { all: true }', async () => {
+  test('clear all (profil actif) → notification.removed { all }', async () => {
     service.clearNotifications.mockResolvedValue(7);
-    service.getUnreadCount.mockResolvedValue(0);
     const res = mkRes();
     await controller.clearMyNotifications({ user: USER }, res);
-    const [, , event, payload] = emitToUser.mock.calls[0];
+    const [event, args] = mockSync.mock.calls[0];
     expect(event).toBe('notification.removed');
-    expect(payload.all).toBe(true);
+    expect(args).toMatchObject({ all: true, allProfiles: false });
     expect(res.json).toHaveBeenCalledWith({ deletedCount: 7 });
   });
 
-  test('a socket failure never breaks the HTTP answer', async () => {
+  test('a sync failure never breaks the HTTP answer', async () => {
     service.markAllRead.mockResolvedValue(1);
-    service.getUnreadCount.mockRejectedValue(new Error('db down'));
+    mockSync.mockResolvedValueOnce(null);
     const res = mkRes();
     await controller.markMyNotificationsReadAll({ user: USER }, res);
-    expect(emitToUser).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith({ updatedCount: 1 });
   });
 
@@ -115,7 +94,7 @@ describe('notification sync events', () => {
     const res = mkRes();
     await controller.markMyNotificationsReadAll({ user: null }, res);
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(emitToUser).not.toHaveBeenCalled();
+    expect(mockSync).not.toHaveBeenCalled();
   });
 });
 

@@ -73,8 +73,13 @@ describe('1. mode « visible par mes amis seulement »', () => {
 describe('2. floutage de la position', () => {
   // v587 (décision de Daniel du 25/09) : hors direct, l'ami reçoit la
   // position FLOUTÉE comme tout le monde ; en direct, le GPS exact.
-  test("l'ami hors direct reçoit la position FLOUTÉE (v587)", () => {
+  test("610 — règle A : l'ami hors direct reçoit la VRAIE position de profil", () => {
     const loc = publicLocationFor(open, FRIEND);
+    expect(loc.coordinates).toEqual([LNG + 0.01, LAT]);
+    expect(loc.approxKm).toBeUndefined();
+  });
+  test("610 — règle A : un NON-ami reste flouté (~1 km)", () => {
+    const loc = publicLocationFor(open, { friendIds: new Set() });
     expect(loc.coordinates).not.toEqual([LNG + 0.01, LAT]);
     expect(loc.approxKm).toBe(1);
   });
@@ -112,9 +117,9 @@ describe('applyPublicPrivacy (les trois règles ensemble, comme /sitters/nearby)
   test("l'ami voit le masqué ET l'ouvert, en position floutée hors direct (v587) ; jamais test / staff", () => {
     const out = applyPublicPrivacy(all, FRIEND);
     expect(out.map((d) => d._id)).toEqual(['sitterHidden', 'sitterOpen']);
-    // v587 : hors direct, même l'ami reçoit la position floutée (~1 km).
-    expect(out[0].location.approxKm).toBe(1);
-    expect(out[1].location.approxKm).toBe(1);
+    // 610 — règle A : un ami reçoit la vraie position (aucun flou).
+    expect(out[0].location.approxKm).toBeUndefined();
+    expect(out[1].location.approxKm).toBeUndefined();
   });
   test("l'inconnu ne voit que l'ouvert, flouté", () => {
     const out = applyPublicPrivacy(all, STRANGER);

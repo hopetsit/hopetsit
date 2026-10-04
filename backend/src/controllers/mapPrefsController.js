@@ -153,6 +153,80 @@ function normalizeMapPrefs(existing, patch) {
   return out;
 }
 
+// ─── 610 (PAM, 04/10) — SYNCHRO CHAMP PAR CHAMP ─────────────────────────────
+// Daniel : « réparer tout maintenant ». Mesuré au simulateur le 04/10 : le
+// mode nuit choisi sur un appareil était effacé dès qu'un AUTRE appareil
+// bougeait sa carte. Causes : l'app renvoyait parfois TOUT le bloc `pawMap`
+// (copie locale « plus récente » parce que la caméra venait de bouger), et le
+// serveur réécrivait le bloc entier sur les 3 profils.
+// Désormais : seules les clés reçues sont écrites (`$set` par chemin), chaque
+// clé porte son horodatage (`pawMap.fieldAt`, sous-clés « layers__everyone »),
+// et une valeur plus ANCIENNE que celle déjà enregistrée est ignorée.
+const SUB_KEYED = ['layers', 'homeRadiusKm'];
+
+/** Clé d'horodatage d'un champ (« nightMode », « layers__everyone »). */
+function stampKey(key, sub) {
+  return sub === undefined ? key : `${key}__${sub}`;
+}
+
+/**
+ * Opérations `$set` pour UN document : seules les clés de `patch` (validées
+ * par `normalizeMapPrefs`), sauf celles dont l'horodatage enregistré est plus
+ * récent que celui envoyé. `at` = { stampKey: ISO } envoyé par l'app ≥ 610
+ * (absent = maintenant, anciennes apps / site).
+ * @returns {{ set: object, applied: string[], skipped: string[] }}
+ */
+function fieldSetOps(existingPawMap, patch, at, now = new Date()) {
+  const clean = normalizeMapPrefs({}, patch);
+  const base = existingPawMap && typeof existingPawMap === 'object' ? existingPawMap : null;
+  const stamps = (base && base.fieldAt && typeof base.fieldAt === 'object') ? base.fieldAt : {};
+  const nowMs = now.getTime();
+  const fields = [];
+  for (const k of Object.keys(clean)) {
+    if (k === 'updatedAt') continue;
+    if (SUB_KEYED.includes(k) && clean[k] && typeof clean[k] === 'object') {
+      for (const sub of Object.keys(clean[k])) {
+        // Une sous-clé ABSENTE du corps reçu n'est jamais réécrite.
+        if (!patch[k] || patch[k][sub] === undefined) continue;
+        fields.push({ f: stampKey(k, sub), path: `${k}.${sub}`, value: clean[k][sub], k, sub });
+      }
+    } else {
+      fields.push({ f: k, path: k, value: clean[k], k });
+    }
+  }
+  const set = {};
+  const applied = [];
+  const skipped = [];
+  const nested = {};
+  for (const x of fields) {
+    let t = Date.parse(at && at[x.f]);
+    if (!Number.isFinite(t) || t > nowMs + 60000) t = nowMs;
+    const prev = Date.parse(stamps[x.f]);
+    if (Number.isFinite(prev) && t < prev) { skipped.push(x.f); continue; }
+    const iso = new Date(t).toISOString();
+    if (base) {
+      set[`preferences.pawMap.${x.path}`] = x.value;
+      set[`preferences.pawMap.fieldAt.${x.f}`] = iso;
+    } else {
+      if (x.sub !== undefined) {
+        nested[x.k] = { ...(nested[x.k] || {}), [x.sub]: x.value };
+      } else {
+        nested[x.k] = x.value;
+      }
+      nested.fieldAt = { ...(nested.fieldAt || {}), [x.f]: iso };
+    }
+    applied.push(x.f);
+  }
+  if (!applied.length) return { set: {}, applied, skipped };
+  if (base) {
+    set['preferences.pawMap.updatedAt'] = now.toISOString();
+  } else {
+    // Aucun bloc encore (ou valeur illisible) : on le crée avec ces clés.
+    set['preferences.pawMap'] = { ...nested, updatedAt: now.toISOString() };
+  }
+  return { set, applied, skipped };
+}
+
 function resolveModel(role) {
   if (role === 'owner') return require('../models/Owner');
   if (role === 'sitter') return require('../models/Sitter');
@@ -216,19 +290,33 @@ const updateMapPrefs = async (req, res) => {
       // Ancienne app / ancien site : l'interrupteur « amis seulement ».
       Object.assign(set, mapVisibilitySet(body.hideFromMap ? 'friends' : 'all'));
     }
-    if (body.pawMap !== undefined) {
-      set['preferences.pawMap'] = normalizeMapPrefs(doc.preferences && doc.preferences.pawMap, body.pawMap);
-    }
-    if (!Object.keys(set).length) return res.json(present(doc));
+    const hasPawMap = body.pawMap !== undefined;
+    if (!Object.keys(set).length && !hasPawMap) return res.json(present(doc));
+    const at = body.pawMapAt && typeof body.pawMapAt === 'object' ? body.pawMapAt : {};
 
     // Synchro sur les 3 documents de la personne (même règle que les
-    // préférences de notification).
+    // préférences de notification). 610 — champ par champ, document par
+    // document (chacun garde ses propres horodatages).
     const { identityGroup } = require('../utils/identityGroup');
     const g = await identityGroup(req.user.id);
     const models = MODEL_BY_NAME();
-    await Promise.all(g.docs.map((d) => {
+    const now = new Date();
+    await Promise.all(g.docs.map(async (d) => {
       const M = models[d.model];
-      return M ? M.updateOne({ _id: d.id }, { $set: set }).catch(() => null) : null;
+      if (!M) return null;
+      let ops = { ...set };
+      if (hasPawMap) {
+        let pm = null;
+        if (String(d.id) === String(req.user.id)) {
+          pm = doc.preferences && doc.preferences.pawMap;
+        } else {
+          const other = await M.findById(d.id).select('preferences').lean().catch(() => null);
+          pm = other && other.preferences && other.preferences.pawMap;
+        }
+        ops = { ...ops, ...fieldSetOps(pm, body.pawMap, at, now).set };
+      }
+      if (!Object.keys(ops).length) return null;
+      return M.updateOne({ _id: d.id }, { $set: ops }).catch(() => null);
     }));
     const fresh = await Model.findById(req.user.id).select('preferences').lean();
     return res.json(present(fresh || { preferences: { ...doc.preferences, ...set } }));
@@ -238,4 +326,4 @@ const updateMapPrefs = async (req, res) => {
   }
 };
 
-module.exports = { getMapPrefs, updateMapPrefs, normalizeMapPrefs, present };
+module.exports = { getMapPrefs, updateMapPrefs, normalizeMapPrefs, present, fieldSetOps, stampKey };

@@ -117,7 +117,7 @@ const buildAppRoute = (notifType, data = {}) => {
     return '/friends';
   }
   // Carte : SOS / animal aperçu
-  if (t === 'sos_pet_nearby' || t === 'lost_pet_sighting') {
+  if (t === 'sos_pet_nearby' || t === 'lost_pet_sighting' || t === 'good_samaritan_premium') {
     return reportId ? `/alert/${reportId}` : '/map';
   }
   return '/notifications';
@@ -299,7 +299,7 @@ const buildPreciseRoute = (notifType, data = {}, role = '') => {
   }
   if (t.startsWith('family_')) return '/friends/family';
   if (t.startsWith('friend_')) return '/friends';
-  if (t === 'sos_pet_nearby' || t === 'lost_pet_sighting') {
+  if (t === 'sos_pet_nearby' || t === 'lost_pet_sighting' || t === 'good_samaritan_premium') {
     return reportId ? `/alert/${reportId}` : '/map';
   }
   return '/notifications';

@@ -161,10 +161,14 @@ function publicLocationFor(doc, { viewerIds, friendIds } = {}) {
   const id = String(doc._id || doc.id || '');
   const { displayLocationOf, isLiveNow } = require('./personMapPosition');
   const self = !!(viewerIds && viewerIds.has(id));
-  const friendLive = !!(friendIds && friendIds.has(id)) && isLiveNow(doc);
+  // 610 — RÈGLE A (Daniel, 04/10, REGLES_610.md) : deux AMIS acceptés se
+  // voient à leur VRAIE position de profil, même sans direct (avant : ami
+  // flouté ~1 km hors direct, v587). Les non-amis restent floutés.
+  const friend = !!(friendIds && friendIds.has(id));
+  void isLiveNow;
   // v585 — hors partage en direct actif, la position de PROFIL (inscription /
   // Modifier le profil), jamais la dernière position de partage.
-  return coarsenLocation(displayLocationOf(doc) || null, id, self || friendLive);
+  return coarsenLocation(displayLocationOf(doc) || null, id, self || friend);
 }
 
 function isBoosted(doc, now = new Date()) {

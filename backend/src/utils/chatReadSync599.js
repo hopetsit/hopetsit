@@ -79,23 +79,17 @@ const afterConversationRead = async ({ conversationId, readerId, readerIds = nul
         g.ids.push(String(d._id));
         groups.set(key, g);
       }
-      const { emitToUser } = require('../sockets/emitter');
-      const { getUnreadCount } = require('../services/notificationService');
-      for (const [, g] of groups) {
-        let unreadCount;
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          unreadCount = await getUnreadCount({ recipientRole: g.role, recipientId: g.userId });
-        } catch (_) { unreadCount = undefined; }
-        const payload = { ids: g.ids, unreadCount, recipientRole: g.role, at: now.toISOString() };
-        // Toutes mes salles (mes appareils peuvent être connectés sous un autre rôle).
-        for (const r of ROLES) emitToUser(r, g.userId, 'notification.read', payload);
-        try {
-          const { sendBadgeSync } = require('../services/notificationSender');
-          if (Number.isInteger(unreadCount)) {
-            Promise.resolve(sendBadgeSync({ role: g.role, userId: g.userId, unreadCount })).catch(() => {});
-          }
-        } catch (_) { /* best-effort */ }
+      // 610 (ZOE) — une seule synchro PAR PERSONNE : chaque appareil reçoit,
+      // dans la salle de SON profil, le compteur de ce profil (`unreadCount`)
+      // et le total des 3 profils (`totalUnreadCount`), puis badge iOS. Avant,
+      // le compteur du profil lu partait aussi vers les autres salles.
+      const { syncPerson } = require('./notifPerson610');
+      const allIds = [];
+      for (const [, g] of groups) allIds.push(...g.ids);
+      if (allIds.length) {
+        // Ancre = le LECTEUR (ses 3 profils via identityGroup), pas un profil
+        // destinataire pris au hasard.
+        await syncPerson('notification.read', { role: '', userId: me, ids: allIds });
       }
     }
   } catch (e) {

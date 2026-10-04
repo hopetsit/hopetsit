@@ -17,6 +17,9 @@ const { emitToUser, isUserOnline } = require('../sockets/emitter');
 // (paiement, KYC, retrait, payout, avis...) ne sont PAS gatés → toujours envoyés
 // (ce sont des reçus importants). Comparaison en minuscules.
 const PRESENCE_GATED_EMAIL_TYPES = new Set(['new_message']);
+// 610 (ZOE, 04/10) — types JAMAIS envoyés par e-mail (in-app + push seulement).
+// Règle de Daniel du 28/09 : aucun e-mail en plus aux inscrits.
+const NO_EMAIL_TYPES = new Set(['good_samaritan_premium']);
 const logger = require('../utils/logger');
 
 const SUPPORTED_LOCALES = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl']; // v546 — polonais
@@ -77,6 +80,7 @@ const EXACT_CATEGORY = {
   lost_pet_sighting: 'pawmap', sos_pet_nearby: 'pawmap', map_boost_activated: 'pawmap',
   profile_boost_activated: 'pawmap',
   pawspot_validated: 'pawmap', pawspot_popular: 'pawmap', // v567 — récompenses PawSpot
+  good_samaritan_premium: 'pawmap', // 610 — geste du bon Samaritain
   live_still_active: 'live', live_session_ended: 'live',
   NEW_REVIEW: 'reviews', PREMIUM_ACHIEVED: 'reviews', TOP_SITTER_ACHIEVED: 'reviews',
   subscription_activated: 'subscriptions', kyc_verified: 'subscriptions', kyc_rejected: 'subscriptions',
@@ -325,7 +329,15 @@ const gatherActiveDevices = async (primary, userId) => {
 const gatherFcmTokens = async (primary, userId) => {
   const tokens = new Set((primary?.fcmTokens || []).filter(Boolean));
   const badgeTokens = new Set();
-  (primary?.fcmDevices || []).forEach((d) => { if (isBadgeCapableDevice(d)) badgeTokens.add(d.token); });
+  // 610 — build de l'app par jeton (le plus récent connu) : l'app ≥ 610 affiche sur
+  // l'icône le TOTAL des 3 profils, les apps 566-609 le compteur d'un profil.
+  const buildByToken = new Map();
+  const noteBuild = (dev) => {
+    if (!dev || !dev.token) return;
+    const b = Number(dev.appBuild || 0);
+    if (!buildByToken.has(dev.token) || b > buildByToken.get(dev.token)) buildByToken.set(dev.token, b);
+  };
+  (primary?.fcmDevices || []).forEach((d) => { noteBuild(d); if (isBadgeCapableDevice(d)) badgeTokens.add(d.token); });
   try {
     const or = [{ _id: userId }];
     if (primary?.email) or.push({ email: primary.email });
@@ -339,7 +351,7 @@ const gatherFcmTokens = async (primary, userId) => {
       (d.fcmTokens || []).forEach((t) => {
         if (t) tokens.add(t);
       });
-      (d.fcmDevices || []).forEach((dev) => { if (isBadgeCapableDevice(dev)) badgeTokens.add(dev.token); });
+      (d.fcmDevices || []).forEach((dev) => { noteBuild(dev); if (isBadgeCapableDevice(dev)) badgeTokens.add(dev.token); });
     });
   } catch (e) {
     logger.warn(`[notif.push] gatherFcmTokens failed : ${e?.message || e}`);
@@ -349,7 +361,17 @@ const gatherFcmTokens = async (primary, userId) => {
   Object.defineProperty(list, 'badgeTokens', {
     value: new Set([...badgeTokens].filter((t) => tokens.has(t))), enumerable: false,
   });
+  Object.defineProperty(list, 'buildByToken', { value: buildByToken, enumerable: false });
   return list;
+};
+
+// 610 — valeur du badge pour un jeton : app ≥ 610 → total de la personne, sinon
+// compteur du profil (comportement 566-609 inchangé).
+const makeBadgeForToken = (buildByToken, roleCount, personCount) => (token) => {
+  const { PERSON_BADGE_MIN_BUILD } = require('../utils/notifPerson610');
+  const b = buildByToken && buildByToken.get ? Number(buildByToken.get(token) || 0) : 0;
+  if (b >= PERSON_BADGE_MIN_BUILD && Number.isInteger(personCount)) return personCount;
+  return Number.isInteger(roleCount) ? roleCount : null;
 };
 
 const sendPush = async (tokens, title, body, data, opts = {}) => {
@@ -359,13 +381,28 @@ const sendPush = async (tokens, title, body, data, opts = {}) => {
     return { skipped: true, reason: 'no_tokens' };
   }
   // v566 — deux lots : jetons iOS ≥ 566 AVEC `aps.badge`, tous les autres SANS.
+  // 610 — un lot par VALEUR de badge : `opts.badgeForToken(token)` (app ≥ 610 =
+  // total des 3 profils, 566-609 = compteur du profil destinataire).
   const badge = Number.isInteger(opts.badge) && opts.badge >= 0 ? opts.badge : null;
   const badgeSet = badge != null && opts.badgeTokens ? new Set(opts.badgeTokens) : new Set();
-  const withBadge = all.filter((t) => badgeSet.has(t));
-  const without = all.filter((t) => !badgeSet.has(t));
-  const out = { successCount: 0, failureCount: 0, responses: [], badgeTokens: withBadge.length };
-  for (const [list, b] of [[without, null], [withBadge, badge]]) {
+  const lots = new Map(); // badge|null → [tokens]
+  for (const t of all) {
+    let b = null;
+    if (badgeSet.has(t)) {
+      b = badge;
+      if (typeof opts.badgeForToken === 'function') {
+        const v = opts.badgeForToken(t);
+        if (Number.isInteger(v) && v >= 0) b = v;
+      }
+    }
+    if (!lots.has(b)) lots.set(b, []);
+    lots.get(b).push(t);
+  }
+  const withBadgeCount = all.filter((t) => badgeSet.has(t)).length;
+  const out = { successCount: 0, failureCount: 0, responses: [], badgeTokens: withBadgeCount, badges: [] };
+  for (const [b, list] of lots) {
     if (!list.length) continue;
+    if (b != null) out.badges.push({ badge: b, tokens: list.length });
     const r = await sendPushBatch(list, title, body, data, { ...opts, badge: b });
     out.successCount += r?.successCount || 0;
     out.failureCount += r?.failureCount || 0;
@@ -726,7 +763,7 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
   // Si le destinataire a un socket connecté (app ouverte), il voit déjà la
   // notif en direct → on n'envoie PAS l'email (évite le spam + le retard
   // Gmail). Best-effort : en cas de doute, l'email part.
-  let sendEmailNow = Boolean(email) && categoryEnabled;
+  let sendEmailNow = Boolean(email) && categoryEnabled && !NO_EMAIL_TYPES.has(String(type));
   // v599 (ZOE) — message de chat : si le destinataire A LA CONVERSATION
   // OUVERTE à l'écran (socket présent dans la salle du fil), il lit le message
   // en direct → ni push ni e-mail (la cloche/in-app garde sa trace).
@@ -806,6 +843,7 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
   // v566 — badge de l'icône iOS = notifications non lues de la cloche (celle qu'on vient de
   // créer comprise). Calculé seulement s'il existe un jeton iOS ≥ 566.
   let badgeCount = null;
+  let personBadgeCount = null;
   if (categoryEnabled && allTokens.badgeTokens && allTokens.badgeTokens.size > 0) {
     try {
       const { getUnreadCount } = require('./notificationService');
@@ -813,7 +851,15 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
     } catch (e) {
       logger.warn(`[notif.badge] unread count failed : ${e?.message || e}`);
     }
+    // 610 — total des 3 profils pour les apps ≥ 610 (même nombre que leur cloche).
+    try {
+      const { personProfiles, personUnread } = require('../utils/notifPerson610');
+      personBadgeCount = (await personUnread(await personProfiles(userId, role))).total;
+    } catch (e) {
+      logger.warn(`[notif.badge] person unread failed : ${e?.message || e}`);
+    }
   }
+  const badgeForToken = makeBadgeForToken(allTokens.buildByToken, badgeCount, personBadgeCount);
 
   const results = await Promise.allSettled([
     Promise.resolve(inAppCreated),
@@ -842,6 +888,7 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
         },
         {
           userId, role, sound: prefs.sound, badge: badgeCount, badgeTokens: allTokens.badgeTokens,
+          badgeForToken, // 610
           // v599 — une notification par conversation.
           collapseId: conversationIdForPush ? `conv:${conversationIdForPush}` : null,
         },
@@ -904,23 +951,40 @@ const sendDeferredChatEmail = async ({ userId, role, type = 'NEW_MESSAGE', data 
  * sans bannière ni son, envoyé UNIQUEMENT aux jetons iOS ≥ 566 (l'app ignore le type
  * `badge_sync` au premier plan). Best-effort, ne lève jamais.
  */
-const sendBadgeSync = async ({ role, userId, unreadCount }) => {
+const sendBadgeSync = async ({ role, userId, unreadCount, personUnreadCount = null }) => {
   try {
     const n = Number(unreadCount);
     if (!Number.isInteger(n) || n < 0) return { skipped: true, reason: 'bad_count' };
+    const p = Number(personUnreadCount);
     const user = await resolveUser(role, userId);
     if (!user) return { skipped: true, reason: 'no_user' };
     const tokens = await gatherFcmTokens(user, userId);
     const list = [...(tokens.badgeTokens || [])];
     if (!list.length) return { skipped: true, reason: 'no_badge_tokens' };
-    return await firebaseAdmin.messaging().sendEachForMulticast({
-      tokens: list,
-      data: { type: 'badge_sync', unreadCount: String(n) },
-      apns: {
-        headers: { 'apns-priority': '5', 'apns-push-type': 'alert' },
-        payload: { aps: { badge: n } },
-      },
-    });
+    // 610 — un envoi par valeur : app ≥ 610 = total des 3 profils, sinon profil.
+    const forToken = makeBadgeForToken(tokens.buildByToken, n, Number.isInteger(p) && p >= 0 ? p : null);
+    const lots = new Map();
+    for (const t of list) {
+      const v = forToken(t);
+      if (!lots.has(v)) lots.set(v, []);
+      lots.get(v).push(t);
+    }
+    const out = { successCount: 0, failureCount: 0, badges: [] };
+    for (const [v, toks] of lots) {
+      // eslint-disable-next-line no-await-in-loop
+      const r = await firebaseAdmin.messaging().sendEachForMulticast({
+        tokens: toks,
+        data: { type: 'badge_sync', unreadCount: String(v) },
+        apns: {
+          headers: { 'apns-priority': '5', 'apns-push-type': 'alert' },
+          payload: { aps: { badge: v } },
+        },
+      });
+      out.successCount += (r && r.successCount) || 0;
+      out.failureCount += (r && r.failureCount) || 0;
+      out.badges.push({ badge: v, tokens: toks.length });
+    }
+    return out;
   } catch (e) {
     logger.warn(`[notif.badge] sync failed : ${e?.message || e}`);
     return { skipped: true, reason: 'error' };

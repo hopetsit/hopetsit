@@ -436,5 +436,9 @@
     "body": "「{{spotName}}」が 50 ❤️ を超えました！{{points}} PawPoints を獲得しました。",
     "emailSubject": "あなたの PawSpot がとても人気です — HoPetSit",
     "emailBody": "<p>あなたの PawSpot「{{spotName}}」が 50 ❤️ を超えました。コミュニティのお気に入りスポットの一つで、{{points}} PawPoints を獲得しました。</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">スポットを見る</a></p><p style=\"color:#666;font-size:12px;\">ボタンが動かない場合は、このリンクをコピーしてください: {{emailLink}}</p>"
+  },
+  "good_samaritan_premium": {
+    "title": "助け合いのしるし",
+    "body": "あなたの報告がほかの動物たちを守りました。プレミアムを24時間プレゼントします。"
   }
 }

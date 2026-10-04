@@ -7,7 +7,9 @@ const {
   deleteNotification,
   clearNotifications,
 } = require('../services/notificationService');
-const { emitToUser } = require('../sockets/emitter');
+const {
+  isPersonScope, personProfiles, recipientFilter, personUnread, syncPerson,
+} = require('../utils/notifPerson610');
 
 // v566 — Daniel (18/09) : « quand je mets une notification en lu sur un appareil, les
 // autres doivent se synchroniser ». L'état lu / supprimé vit en base (source de vérité
@@ -16,28 +18,11 @@ const { emitToUser } = require('../sockets/emitter');
 //   notification.read    { ids: [...] | all: true, unreadCount, at }
 //   notification.removed { ids: [...] | all: true, unreadCount, at }
 // Un appareil hors ligne se resynchronise à son retour (GET /my + /my/unread-count).
-const emitNotificationSync = async (event, { role, userId, ids = null, all = false }) => {
-  try {
-    const unreadCount = await getUnreadCount({ recipientRole: role, recipientId: userId });
-    const payload = {
-      ...(all ? { all: true } : { ids: (ids || []).map(String) }),
-      unreadCount,
-      recipientRole: role,
-      at: new Date().toISOString(),
-    };
-    emitToUser(role, userId, event, payload);
-    // v566 — badge de l'icône iOS remis au bon nombre sur les autres appareils, même app
-    // fermée (push « badge seul » aux jetons iOS ≥ 566). Sans attendre, jamais bloquant.
-    try {
-      const { sendBadgeSync } = require('../services/notificationSender');
-      Promise.resolve(sendBadgeSync({ role, userId, unreadCount })).catch(() => {});
-    } catch (_) { /* best-effort */ }
-    return payload;
-  } catch (e) {
-    logger.warn(`[notif.sync] ${event} emit failed : ${e?.message || e}`);
-    return null;
-  }
-};
+// 610 (ZOE) — la synchro passe par la PERSONNE (3 profils) : chaque appareil
+// reçoit dans la salle de SON profil `unreadCount` (son profil, comme avant) et
+// `totalUnreadCount` (les 3 profils, lu par l'app ≥ 610). Voir utils/notifPerson610.
+const emitNotificationSync = async (event, { role, userId, ids = null, all = false, allProfiles = false }) =>
+  syncPerson(event, { role, userId, ids, all, allProfiles });
 
 const mapNotification = (n) => ({
   id: n._id.toString(),
@@ -69,12 +54,24 @@ const getMyNotifications = async (req, res) => {
     // Session v16.2 - walker notifications are now first-class (Notification
     // recipientRole enum includes 'walker'). The previous empty-list short
     // circuit was hiding booking events from walker accounts.
-    const items = await listNotifications({
-      recipientRole: role,
-      recipientId: userId,
-      limit,
-      cursor,
-    });
+    // 610 — `?scope=person` (app ≥ 610) : la cloche liste les notifications des
+    // 3 profils de la personne. Sans le paramètre : profil actif seul (≤ 609).
+    let items;
+    if (isPersonScope(req)) {
+      const Notification = require('../models/Notification');
+      const profiles = await personProfiles(userId, role);
+      const query = { ...recipientFilter(profiles) };
+      if (cursor) query._id = { $lt: cursor };
+      const safeLimit = Math.max(1, Math.min(Number(limit) || 50, 100));
+      items = await Notification.find(query).sort({ _id: -1 }).limit(safeLimit);
+    } else {
+      items = await listNotifications({
+        recipientRole: role,
+        recipientId: userId,
+        limit,
+        cursor,
+      });
+    }
 
     // v497 — Daniel : « je suis en espagnol mais les notifs du site sont en FR ».
     // On RE-REND titre/corps dans la langue COURANTE du lecteur au lieu de la
@@ -137,8 +134,18 @@ const getMyUnreadCount = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
     }
 
-    const unreadCount = await getUnreadCount({ recipientRole: role, recipientId: userId });
-    res.json({ unreadCount });
+    // 610 — `totalUnreadCount` = non lues des 3 profils (cloche + icône de l'app
+    // ≥ 610). `unreadCount` reste le profil actif, sauf avec `?scope=person`.
+    const roleUnread = await getUnreadCount({ recipientRole: role, recipientId: userId });
+    let totalUnreadCount = roleUnread;
+    try {
+      totalUnreadCount = (await personUnread(await personProfiles(userId, role))).total;
+    } catch (_) { /* repli : profil actif */ }
+    res.json({
+      unreadCount: isPersonScope(req) ? totalUnreadCount : roleUnread,
+      roleUnreadCount: roleUnread,
+      totalUnreadCount,
+    });
   } catch (error) {
     logger.error('Get unread count error', error);
     res.status(500).json({ error: 'Unable to fetch unread count. Please try again later.' });
@@ -158,11 +165,21 @@ const markMyNotificationRead = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
     }
 
-    const updated = await markNotificationRead({
+    // 610 — lisible depuis n'importe lequel des 3 profils de la personne.
+    let updated = await markNotificationRead({
       recipientRole: role,
       recipientId: userId,
       notificationId: id,
     });
+    if (!updated && /^[a-f0-9]{24}$/i.test(String(id || ''))) {
+      const Notification = require('../models/Notification');
+      const profiles = await personProfiles(userId, role);
+      updated = await Notification.findOneAndUpdate(
+        { _id: id, readAt: null, ...recipientFilter(profiles) },
+        { $set: { readAt: new Date() } },
+        { new: true },
+      );
+    }
 
     if (!updated) {
       return res.status(404).json({ error: 'Notification not found (or already read).' });
@@ -188,9 +205,22 @@ const markMyNotificationsReadAll = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
     }
 
-    const updatedCount = await markAllRead({ recipientRole: role, recipientId: userId });
-    await emitNotificationSync('notification.read', { role, userId, all: true });
-    res.json({ updatedCount });
+    // 610 — `?scope=person` : tout lu sur les 3 profils (ce que montre la cloche ≥ 610).
+    let updatedCount;
+    const person = isPersonScope(req);
+    if (person) {
+      const Notification = require('../models/Notification');
+      const profiles = await personProfiles(userId, role);
+      const r = await Notification.updateMany(
+        { readAt: null, ...recipientFilter(profiles) },
+        { $set: { readAt: new Date() } },
+      );
+      updatedCount = (r && (r.modifiedCount ?? r.nModified)) || 0;
+    } else {
+      updatedCount = await markAllRead({ recipientRole: role, recipientId: userId });
+    }
+    const sync = await emitNotificationSync('notification.read', { role, userId, all: true, allProfiles: person });
+    res.json({ updatedCount, ...(sync ? { unreadCount: sync.unreadCount, totalUnreadCount: sync.totalUnreadCount } : {}) });
   } catch (error) {
     logger.error('Mark all notifications read error', error);
     res.status(500).json({ error: 'Unable to mark notifications as read. Please try again later.' });
@@ -221,12 +251,19 @@ const markMyNotificationsReadBatch = async (req, res) => {
     const ids = _batchIds(req);
     if (!ids.length) return res.status(400).json({ error: 'ids is required.' });
     const Notification = require('../models/Notification');
+    // 610 — borné aux 3 profils de la personne (la cloche ≥ 610 les mélange).
+    const profiles = await personProfiles(userId, role);
     const r = await Notification.updateMany(
-      { _id: { $in: ids }, recipientRole: role, recipientId: userId, readAt: null },
+      { _id: { $in: ids }, readAt: null, ...recipientFilter(profiles) },
       { $set: { readAt: new Date() } },
     );
     const sync = await emitNotificationSync('notification.read', { role, userId, ids });
-    res.json({ ok: true, updated: (r && (r.modifiedCount ?? r.nModified)) || 0, unreadCount: sync ? sync.unreadCount : undefined });
+    res.json({
+      ok: true,
+      updated: (r && (r.modifiedCount ?? r.nModified)) || 0,
+      unreadCount: sync ? sync.unreadCount : undefined,
+      totalUnreadCount: sync ? sync.totalUnreadCount : undefined,
+    });
   } catch (error) {
     logger.error('Mark notifications read (batch) error', error);
     res.status(500).json({ error: 'Unable to mark notifications as read. Please try again later.' });
@@ -246,9 +283,15 @@ const deleteMyNotificationsBatch = async (req, res) => {
     const ids = _batchIds(req);
     if (!ids.length) return res.status(400).json({ error: 'ids is required.' });
     const Notification = require('../models/Notification');
-    const r = await Notification.deleteMany({ _id: { $in: ids }, recipientRole: role, recipientId: userId });
+    const profiles = await personProfiles(userId, role);
+    const r = await Notification.deleteMany({ _id: { $in: ids }, ...recipientFilter(profiles) });
     const sync = await emitNotificationSync('notification.removed', { role, userId, ids });
-    res.json({ ok: true, deleted: (r && r.deletedCount) || 0, unreadCount: sync ? sync.unreadCount : undefined });
+    res.json({
+      ok: true,
+      deleted: (r && r.deletedCount) || 0,
+      unreadCount: sync ? sync.unreadCount : undefined,
+      totalUnreadCount: sync ? sync.totalUnreadCount : undefined,
+    });
   } catch (error) {
     logger.error('Delete notifications (batch) error', error);
     res.status(500).json({ error: 'Unable to delete notifications. Please try again later.' });
@@ -266,11 +309,18 @@ const deleteMyNotification = async (req, res) => {
     if (!['owner', 'sitter', 'walker'].includes(role)) {
       return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
     }
-    const deleted = await deleteNotification({
+    let deleted = await deleteNotification({
       recipientRole: role,
       recipientId: userId,
       notificationId: id,
     });
+    if (!deleted && /^[a-f0-9]{24}$/i.test(String(id || ''))) {
+      // 610 — notification d'un autre profil de la personne (cloche ≥ 610).
+      const Notification = require('../models/Notification');
+      const profiles = await personProfiles(userId, role);
+      const r = await Notification.deleteOne({ _id: id, ...recipientFilter(profiles) });
+      deleted = (r && r.deletedCount) || 0;
+    }
     if (!deleted) {
       return res.status(404).json({ error: 'Notification not found.' });
     }
@@ -292,8 +342,17 @@ const clearMyNotifications = async (req, res) => {
     if (!['owner', 'sitter', 'walker'].includes(role)) {
       return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
     }
-    const deletedCount = await clearNotifications({ recipientRole: role, recipientId: userId });
-    await emitNotificationSync('notification.removed', { role, userId, all: true });
+    let deletedCount;
+    const person = isPersonScope(req);
+    if (person) {
+      const Notification = require('../models/Notification');
+      const profiles = await personProfiles(userId, role);
+      const r = await Notification.deleteMany(recipientFilter(profiles));
+      deletedCount = (r && r.deletedCount) || 0;
+    } else {
+      deletedCount = await clearNotifications({ recipientRole: role, recipientId: userId });
+    }
+    await emitNotificationSync('notification.removed', { role, userId, all: true, allProfiles: person });
     res.json({ deletedCount });
   } catch (error) {
     logger.error('Clear notifications error', error);

@@ -436,5 +436,9 @@
     "body": "‘{{spotName}}’이(가) 50 ❤️를 넘었어요! {{points}} PawPoints를 받았습니다.",
     "emailSubject": "내 PawSpot이 아주 인기 있어요 — HoPetSit",
     "emailBody": "<p>내 PawSpot ‘{{spotName}}’이(가) 50 ❤️를 넘었어요. 커뮤니티가 가장 좋아하는 장소 중 하나이며 {{points}} PawPoints를 받았습니다.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">내 스팟 보기</a></p><p style=\"color:#666;font-size:12px;\">버튼이 작동하지 않으면 이 링크를 복사하세요: {{emailLink}}</p>"
+  },
+  "good_samaritan_premium": {
+    "title": "따뜻한 연대의 손길",
+    "body": "회원님의 제보가 다른 동물들을 지켰어요. 프리미엄 24시간을 선물로 드려요."
   }
 }

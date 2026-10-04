@@ -322,6 +322,77 @@ async function creditMilestone(spot, flagField, { points, reason, notifyType, al
 // LECTURE
 // ════════════════════════════════════════════════════════════════════════════
 
+// 610 (PAM, 04/10, demandé par LEO) — GET /pawspots/public-nearby?lat&lng&radius
+// SANS connexion : les PawSpots de la carte publique /pawmap du site. Lecture
+// seule, 100 au plus, rayon plafonné à 50 km. Seulement ce qui est déjà
+// public sur la carte : id, type, nom, photo, ville, position, doré. Jamais
+// l'auteur (id ni nom), ni likes, ni visites. Spots des comptes +test exclus.
+// Déclarée AVANT /public/:id et /:id.
+const PUBLIC_NEARBY_MAX_M = 50000;
+const PUBLIC_NEARBY_LIMIT = 100;
+const publicNearbyLimiter = require('express-rate-limit')({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => res.status(429).json({ error: 'Too many requests' }),
+});
+router.get('/public-nearby', publicNearbyLimiter, async (req, res) => {
+  try {
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)
+      || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      return res.status(400).json({ error: 'lat & lng required.' });
+    }
+    const asked = Number(req.query.radius);
+    const maxDistance = Math.min(
+      Number.isFinite(asked) && asked > 0 ? asked : 25000,
+      PUBLIC_NEARBY_MAX_M,
+    );
+    // Un peu plus que la limite : les spots des comptes de test sont retirés après.
+    const raw = await PawSpot.find({
+      ...VISIBLE,
+      location: {
+        $near: {
+          $geometry: { type: 'Point', coordinates: [lng, lat] },
+          $maxDistance: maxDistance,
+        },
+      },
+    }).limit(PUBLIC_NEARBY_LIMIT + 50).lean();
+    // Comptes de test : jamais sur la vitrine publique.
+    const { isTestAccountDoc } = require('../utils/testAccountMap604');
+    const byModel = { Owner, Sitter, Walker };
+    const testIds = new Set();
+    await Promise.all(Object.entries(byModel).map(async ([name, M]) => {
+      const ids = raw.filter((x) => (x.creatorModel || 'Owner') === name).map((x) => x.creatorId);
+      if (!ids.length) return;
+      const docs = await M.find({ _id: { $in: ids } }).select('email').lean().catch(() => []);
+      for (const d of docs || []) if (isTestAccountDoc(d)) testIds.add(String(d._id));
+    }));
+    const spots = raw.filter((x) => !testIds.has(String(x.creatorId))).slice(0, PUBLIC_NEARBY_LIMIT);
+    await enrichGoldenCreators(spots);
+    const out = spots.map((sp) => {
+      const j = spotJson(sp, new Set());
+      const c = Array.isArray(sp.location?.coordinates) ? sp.location.coordinates : [];
+      return {
+        id: String(sp._id),
+        type: j.type,
+        name: j.name || '',
+        photoUrl: j.photoUrl || '',
+        city: sp.location?.city || '',
+        lat: c.length >= 2 ? Number(c[1]) : null,
+        lng: c.length >= 2 ? Number(c[0]) : null,
+        isGolden: j.isGolden === true,
+      };
+    }).filter((x) => x.lat !== null && x.lng !== null);
+    return res.json({ spots: out });
+  } catch (e) {
+    logger.error('[pawspots/public-nearby]', e);
+    return res.status(500).json({ error: 'Erreur spots.' });
+  }
+});
+
 // v532 — GET /pawspots/public/:id — fiche PUBLIQUE d'un spot, SANS
 // authentification.
 //

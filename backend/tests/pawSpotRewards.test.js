@@ -639,3 +639,57 @@ describe('610 — GET /pawspots/:id (lien partagé)', () => {
     expect((await request(app).get('/pawspots/nearby?lat=-35&lng=-30')).status).toBe(200);
   });
 });
+
+// 610 (PAM, 04/10, demandé par LEO) — GET /pawspots/public-nearby : les
+// PawSpots de la carte publique /pawmap du site, SANS connexion.
+describe('610 — GET /pawspots/public-nearby (carte publique du site)', () => {
+  beforeEach(reset);
+  const add = (over = {}) => mockStores.PawSpot.push({
+    _id: `sp_${mockSeq.n++}`, type: 'chill', name: 'Bois', photoUrl: 'https://cdn/p.jpg',
+    location: { type: 'Point', coordinates: [-30, -35], city: 'Zone test' },
+    hidden: false, deletedAt: null, likedBy: ['x'], likesCount: 3, visitsCount: 2,
+    validatedBy: [], visitedBy: ['y'], comments: [], creatorModel: 'Owner',
+    creatorName: 'Ana Secret', ...over,
+  });
+
+  test('sans jeton : 200, champs publics SEULEMENT', async () => {
+    const ana = await makeUser(Owner, 'Ana', 'ana@x.io');
+    add({ creatorId: String(ana._id) });
+    currentUser.id = null;
+    const r = await request(app).get('/pawspots/public-nearby?lat=-35&lng=-30&radius=5000');
+    expect(r.status).toBe(200);
+    expect(r.body.spots).toHaveLength(1);
+    expect(Object.keys(r.body.spots[0]).sort())
+      .toEqual(['city', 'id', 'isGolden', 'lat', 'lng', 'name', 'photoUrl', 'type']);
+    expect(r.body.spots[0]).toMatchObject({ name: 'Bois', lat: -35, lng: -30, city: 'Zone test', isGolden: false });
+    expect(JSON.stringify(r.body)).not.toMatch(/creator|Ana Secret|likes|visits/i);
+  });
+
+  test('masqué, corbeille et comptes +test : absents', async () => {
+    const ana = await makeUser(Owner, 'Ana', 'ana@x.io');
+    const tst = await makeUser(Owner, 'T', 'dadaciao84+testowner@gmail.com');
+    add({ creatorId: String(ana._id), name: 'Visible' });
+    add({ creatorId: String(ana._id), name: 'Masqué', hidden: true });
+    add({ creatorId: String(ana._id), name: 'Corbeille', deletedAt: new Date() });
+    add({ creatorId: String(tst._id), name: 'De test' });
+    const r = await request(app).get('/pawspots/public-nearby?lat=-35&lng=-30');
+    expect(r.body.spots.map((x) => x.name)).toEqual(['Visible']);
+  });
+
+  test('plafond 100 ; rayon > 50 km ramené à 50 km ; coordonnées invalides → 400', async () => {
+    const ana = await makeUser(Owner, 'Ana', 'ana@x.io');
+    for (let i = 0; i < 120; i++) add({ creatorId: String(ana._id) });
+    PawSpot.find.mockClear();
+    const r = await request(app).get('/pawspots/public-nearby?lat=-35&lng=-30&radius=900000');
+    expect(r.body.spots).toHaveLength(100);
+    const filter = PawSpot.find.mock.calls[0][0];
+    expect(filter.location.$near.$maxDistance).toBe(50000);
+    expect((await request(app).get('/pawspots/public-nearby?lat=abc&lng=-30')).status).toBe(400);
+  });
+
+  test('la route n\'est pas interceptée par /:id', async () => {
+    const r = await request(app).get('/pawspots/public-nearby?lat=-35&lng=-30');
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ spots: [] });
+  });
+});

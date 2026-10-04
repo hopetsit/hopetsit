@@ -60,13 +60,14 @@ function friendPositionOf(entries, { now = new Date(), cityAnchor = _anchorOf } 
   if (!pos) return empty;
   const [lng, lat] = pos.coordinates.map(Number);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return empty;
-  const idStr = String(pos.entry.d._id);
-  const anchor = pos.city ? cityAnchor(pos.city) : null;
+  // 610 — RÈGLE A (Daniel, 04/10) : un AMI voit la VRAIE position de profil
+  // (avant : floutée ~1 km). « Masqué » reste sans position (plus haut).
+  void blurTowardAnchor;
   return {
     mapVisibility: vis,
-    location: { coordinates: blurTowardAnchor(lat, lng, idStr, anchor) },
-    approx: true,
-    approxKm: WORLD_APPROX_KM,
+    location: { coordinates: [lng, lat] },
+    approx: false,
+    approxKm: 0,
     positionSource: pos.source,
     city: pos.city || '',
   };
