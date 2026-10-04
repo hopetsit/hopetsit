@@ -433,5 +433,7 @@ sitterSchema.plugin(require('../utils/personMapPosition').homeLocationPlugin);
 // v23.1 part 108 — 2dsphere sur mapBoostLocation (PawSpot custom).
 sitterSchema.index({ 'mapBoostLocation': '2dsphere' }, { sparse: true });
 
+// 04/10/2026 (ZOE) — ville enregistrée sous son nom local (« Parigi » → « Paris »).
+sitterSchema.plugin(require('../utils/cityCanonicalPlugin0410').cityCanonicalPlugin);
 module.exports = mongoose.model('Sitter', sitterSchema);
 

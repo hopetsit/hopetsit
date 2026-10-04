@@ -188,10 +188,19 @@ const resolveMediaPostType = ({ rawPostType, startDate, endDate, serviceTypes, h
 //  createPostWithMedia : une demande publiée AVEC une photo passait par
 //  /posts/with-media, qui ne notifiait personne. Corps inchangé.
 // ═══════════════════════════════════════════════════════════════════════════
-const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner, ownerId }) => {
+// 04/10/2026 (ZOE) — `opts` facultatif, pour la relance depuis l'admin
+// (POST /admin/posts/:id/renotify) : { skipIds: Set des destinataires déjà
+// prévenus pour CETTE annonce, dryRun: true = calculer sans envoyer,
+// onDone: (bilan) => … }. Sans `opts`, comportement strictement inchangé.
+const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner, ownerId, opts = {} }) => {
+    const skipIds = opts.skipIds instanceof Set ? opts.skipIds : new Set();
+    const dryRun = opts.dryRun === true;
+    const done = typeof opts.onDone === 'function' ? opts.onDone : () => {};
+    const bilan = { recipientRole: '', cityKey: '', candidates: [], sent: [], skippedAlready: [], dryRun };
     // 28/09/2026 — compte de test (+test) : on ne prévient aucun gardien.
     if (owner && require('../utils/testAccount2809').isTestAccountEmail(owner.email)) {
       logger.info(`[notifyNearbyProviders] compte de test ${ownerId} : aucun prestataire prévenu`);
+      done({ ...bilan, testAccount: true });
       return;
     }
     setImmediate(async () => {
@@ -218,14 +227,19 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
         // « Paris 11e » est ramené à « Paris » pour la comparaison ET pour le
         // géocodage, sinon la demande d'un 11e n'atteint aucun gardien du 15e.
         const { baseCityName } = require('../utils/geocodeCity');
-        const cityKey = baseCityName(
-          (postPayload.location && postPayload.location.city) || '',
-        ) || (postPayload.location && postPayload.location.city);
         let postLat = Number(postPayload.location && postPayload.location.lat);
         let postLng = Number(postPayload.location && postPayload.location.lng);
         let hasPostCoords =
           Number.isFinite(postLat) && Number.isFinite(postLng) &&
           !(postLat === 0 && postLng === 0);
+        // 04/10/2026 (ZOE) — « Parigi », « París », « パリ »… → « Paris » :
+        // la ville arrive dans la langue du téléphone. Les coordonnées de
+        // l'annonce servent de garde-fou (une vraie Parigi indonésienne reste
+        // Parigi). Le ciblage par RAYON ci-dessous ne dépend pas du nom.
+        const cityKey = baseCityName(
+          (postPayload.location && postPayload.location.city) || '',
+          hasPostCoords ? { lat: postLat, lng: postLng } : null,
+        ) || (postPayload.location && postPayload.location.city);
 
         // 22/09/2026 — une demande publiée depuis le SITE n'a qu'un nom de
         // ville : le navigateur ne donne pas de GPS sans autorisation, et on ne
@@ -248,7 +262,7 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
               // l'app quand la ville est tapée à la main) n'apparaissait sur
               // AUCUNE carte et partait chez des prestataires du monde entier.
               // On les enregistre dans l'annonce.
-              if (newPost && newPost._id) {
+              if (newPost && newPost._id && !dryRun) {
                 try {
                   await require('../models/Post').updateOne(
                     { _id: newPost._id },
@@ -361,11 +375,21 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
         // (un promeneur visé par une demande de garde la reçoit quand même).
         // Il est ensuite retiré de la diffusion ville : jamais deux fois.
         const alreadyNotified = new Set();
+        bilan.recipientRole = recipientRole;
+        bilan.cityKey = cityKey || '';
         const target = postPayload.targetProvider;
         if (target && target.id && (target.role === 'sitter' || target.role === 'walker')) {
           const tid = String(target.id);
-          if (!selfIds.has(tid)) {
+          if (!selfIds.has(tid) && skipIds.has(tid)) {
             alreadyNotified.add(tid);
+            bilan.skippedAlready.push(tid);
+          } else if (!selfIds.has(tid) && dryRun) {
+            alreadyNotified.add(tid);
+            bilan.candidates.push(tid);
+          } else if (!selfIds.has(tid)) {
+            alreadyNotified.add(tid);
+            bilan.candidates.push(tid);
+            bilan.sent.push(tid);
             await sendNotification({
               userId: tid,
               role: target.role,
@@ -389,6 +413,10 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
             continue; // c'est le doc prestataire de l'owner lui-même → skip
           }
           if (alreadyNotified.has(rid)) continue; // déjà prévenu en premier
+          if (skipIds.has(rid)) { bilan.skippedAlready.push(rid); continue; } // 04/10 : jamais deux fois
+          bilan.candidates.push(rid);
+          if (dryRun) continue;
+          bilan.sent.push(rid);
           sendNotification({
             userId: r._id.toString(),
             role: recipientRole,
@@ -406,11 +434,13 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
         logger.info(
           `[createPost] notified ${recipients.length} ${recipientRole}(s) for new request in ${cityKey || 'any city'}`,
         );
+        done(bilan);
       } catch (err) {
         logger.warn(
           '[postController.createPost] notify nearby failed',
           err && err.message ? err.message : err,
         );
+        done({ ...bilan, error: err && err.message ? err.message : String(err) });
       }
     });
 };
@@ -1253,8 +1283,9 @@ const getNearbyRequestPosts = async (req, res) => {
         const me = await VM.findById(req.user?.id)
           .select('city location.city')
           .lean();
+        // 04/10 (ZOE) — noms ramenés à la ville locale (« Parigi » = « Paris »).
         viewerCity = String(
-          me?.location?.city || me?.city || '',
+          require('../utils/canonicalCity0410').canonicalCityName(String(me?.location?.city || me?.city || '')) || '',
         ).trim().toLowerCase();
       }
     } catch (_) {/* ignore */}
@@ -1269,7 +1300,12 @@ const getNearbyRequestPosts = async (req, res) => {
         const distanceKm = hasCoords
           ? haversine(lat, lng, p.location.lat, p.location.lng)
           : null;
-        const postCity = String(p.location?.city || '').trim().toLowerCase();
+        const postCity = String(
+          require('../utils/canonicalCity0410').canonicalCityName(
+            String(p.location?.city || ''),
+            hasCoords ? { lat: p.location.lat, lng: p.location.lng } : null,
+          ) || '',
+        ).trim().toLowerCase();
         // v23.1 part 227 — match city plus tolerant : substring soit
         // dans un sens soit dans l'autre (ex : "Pego" matches "Pego
         // (Alicante)" ou inversement). Daniel : "publication dans la

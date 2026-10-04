@@ -214,5 +214,7 @@ const postSchema = new mongoose.Schema(
   }
 );
 
+// 04/10/2026 (ZOE) — ville enregistrée sous son nom local (« Parigi » → « Paris »).
+postSchema.plugin(require('../utils/cityCanonicalPlugin0410').cityCanonicalPlugin);
 module.exports = mongoose.model('Post', postSchema);
 

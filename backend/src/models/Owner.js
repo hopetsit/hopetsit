@@ -366,5 +366,7 @@ ownerSchema.methods.comparePassword = function comparePassword(candidate) {
   return bcrypt.compare(candidate, this.password);
 };
 
+// 04/10/2026 (ZOE) — ville enregistrée sous son nom local (« Parigi » → « Paris »).
+ownerSchema.plugin(require('../utils/cityCanonicalPlugin0410').cityCanonicalPlugin);
 module.exports = mongoose.model('Owner', ownerSchema);
 

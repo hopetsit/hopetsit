@@ -130,6 +130,8 @@ mapPoiSchema.pre('save', function stripInvalidLocation(next) {
   return next();
 });
 
+// 04/10/2026 (ZOE) — ville enregistrée sous son nom local (« Parigi » → « Paris »).
+mapPoiSchema.plugin(require('../utils/cityCanonicalPlugin0410').cityCanonicalPlugin);
 module.exports = mongoose.model('MapPOI', mapPoiSchema);
 module.exports.POI_CATEGORIES = POI_CATEGORIES;
 module.exports.POI_STATUSES = POI_STATUSES;

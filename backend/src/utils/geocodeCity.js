@@ -66,8 +66,14 @@ function ensureAnchorsLoaded() {
   return _loading;
 }
 
+// 04/10/2026 (ZOE) — « Parigi » partait en Indonésie, « Londra » en Australie
+// (mesuré sur Photon) : on géocode toujours le nom LOCAL de la ville.
+function _canon(city, coords) {
+  try { return require('./canonicalCity0410').canonicalCityName(String(city || '').trim(), coords); } catch (_) { return String(city || '').trim(); }
+}
+
 async function geocodeCity(city) {
-  const nom = String(city || '').trim();
+  const nom = _canon(city);
   if (!nom) return null;
   const key = nom.toLowerCase();
   const hit = _cache.get(key);
@@ -115,8 +121,8 @@ async function geocodeCity(city) {
  */
 const COMMUNES_A_ARRONDISSEMENTS = /^(paris|lyon|marseille)\b/i;
 
-function baseCityName(city) {
-  const nom = String(city || '').trim();
+function baseCityName(city, coords) {
+  const nom = _canon(city, coords);
   if (!COMMUNES_A_ARRONDISSEMENTS.test(nom)) return nom;
   // « Paris 11e », « Paris 1er », « Paris 11ème », « Paris 75011 », « Lyon 3 »
   const sans = nom.replace(/\s*\d+\s*(er|ere|ère|e|eme|ème|th|st|nd|rd)?\s*$/i, '').trim();
@@ -128,7 +134,7 @@ function baseCityName(city) {
  * Photon) : `undefined` = inconnu, `null` = introuvable, sinon { lat, lng }.
  */
 function peekCity(city) {
-  const key = String(city || '').trim().toLowerCase();
+  const key = _canon(city).toLowerCase();
   if (!key) return undefined;
   const hit = _cache.get(key);
   if (!hit) return undefined;

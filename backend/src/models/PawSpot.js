@@ -107,6 +107,8 @@ pawSpotSchema.methods.isGolden = function isGolden() {
   );
 };
 
+// 04/10/2026 (ZOE) — ville enregistrée sous son nom local (« Parigi » → « Paris »).
+pawSpotSchema.plugin(require('../utils/cityCanonicalPlugin0410').cityCanonicalPlugin);
 const PawSpot = mongoose.model('PawSpot', pawSpotSchema);
 module.exports = PawSpot;
 module.exports.PAWSPOT_TYPES = PAWSPOT_TYPES;

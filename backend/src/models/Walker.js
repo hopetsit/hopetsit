@@ -542,4 +542,6 @@ walkerSchema.index({ mapBoostLocation: '2dsphere' }, { sparse: true });
 // Compound index to quickly find boosted walkers on the PawMap.
 walkerSchema.index({ mapBoostExpiry: 1, boostExpiry: 1 });
 
+// 04/10/2026 (ZOE) — ville enregistrée sous son nom local (« Parigi » → « Paris »).
+walkerSchema.plugin(require('../utils/cityCanonicalPlugin0410').cityCanonicalPlugin);
 module.exports = mongoose.model('Walker', walkerSchema);
