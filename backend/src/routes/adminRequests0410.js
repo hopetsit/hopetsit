@@ -108,7 +108,11 @@ router.post('/:postId/renotify', requireAdmin, async (req, res) => {
     if (!owner) return res.status(404).json({ error: 'Propriétaire introuvable.' });
 
     const already = await notifiedFor(postId);
-    const skipIds = new Set(already.map((r) => String(r.recipientId)));
+    // 04/10 (BOB, ordre de Daniel : « renvoie aux 13 pour être sûr ») —
+    // `resend: true` renvoie AUSSI à ceux déjà prévenus pour cette demande.
+    // Par défaut (false) : jamais de double envoi.
+    const resend = !!(req.body && req.body.resend === true);
+    const skipIds = new Set(resend ? [] : already.map((r) => String(r.recipientId)));
     // Autres annonces du même propriétaire (ex. ses 2 demandes identiques) :
     // un prestataire déjà prévenu pour l'une ne l'est pas une 2e fois.
     const others = Array.isArray(req.body && req.body.alsoSkipPostIds) ? req.body.alsoSkipPostIds.filter(isId).slice(0, 10) : [];
@@ -131,7 +135,8 @@ router.post('/:postId/renotify', requireAdmin, async (req, res) => {
     res.json({
       postId,
       dryRun,
-      alreadyNotifiedBefore: skipIds.size,
+      resend,
+      alreadyNotifiedBefore: already.length,
       recipientRole: bilan.recipientRole || '',
       cityKey: bilan.cityKey || '',
       candidates: (bilan.candidates || []).length,

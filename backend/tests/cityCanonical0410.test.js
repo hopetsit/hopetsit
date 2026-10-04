@@ -219,6 +219,15 @@ describe('admin : qui a été prévenu, relance sans doublon, villes non canoniq
     expect(sendNotification.mock.calls.every((c) => c[0].type === 'new_request_nearby')).toBe(true);
   });
 
+  test('POST renotify resend:true : renvoie AUSSI à ceux déjà prévenus (ordre explicite), jamais par défaut', async () => {
+    const r = await request(app).post(`/admin/requests0410/${pid}/renotify`).set(ADMIN).send({ dryRun: false, resend: true });
+    expect(r.status).toBe(200);
+    expect(r.body.resend).toBe(true);
+    expect(sentTo()).toContain(wParis);
+    expect(sentTo()).toContain(wBoulogne);
+    expect(sentTo()).not.toContain(wLyon);
+  });
+
   test('alsoSkipPostIds : déjà prévenu pour l autre demande du même propriétaire → pas renvoyé', async () => {
     const other = String((await Post.collection.insertOne({
       ownerId: owner._id, body: 'Richiesta di prenotazione', postType: 'request',
