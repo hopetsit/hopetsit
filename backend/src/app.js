@@ -228,7 +228,9 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 // ⚠️ ADA 23/09 : Render ne redéploie QUE si un fichier de backend/ change. Une publication
 // de admin_dashboard.html seul (ex. aedfaab, traduction EN/ES) reste invisible en ligne :
 // toucher ce fichier. Garder un numéro en chiffres seuls (le contrôle de la page lit /v(\d+)/).
-const ADMIN_BUILD = 'v612'; // 612 (PAM, 04/10) : admin — rangs Chiot → Légende à la place des anciens badges
+const ADMIN_BUILD = 'v613'; // 613 (ADA, 04/10) : parcours de chaque demande (Annonces + Tableau de bord)
+// avant :
+const _ADMIN_BUILD_612 = 'v612'; // 612 (PAM, 04/10) : admin — rangs Chiot → Légende à la place des anciens badges
 // 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à
 // redéployer quand seul admin_dashboard.html a bougé (ADMIN_BUILD reste celui de l'app).
 const ADMIN_DEPLOYED_AT = '2026-10-04T18:00';
@@ -343,6 +345,9 @@ const versionedRoutes = [
   // 04/10 (ZOE) — 1re vraie demande : qui a été prévenu, relance sans doublon
   // (simulation par défaut), villes écrites dans une langue étrangère (lecture seule).
   { path: '/admin/requests0410', mw: [], router: require('./routes/adminRequests0410') },
+  // 613 (ADA, 04/10) — parcours d'une demande (prévenus → ouverts → contacts → candidatures →
+  // validée → payée → fin), lecture seule, comptes +test / staff signalés.
+  { path: '/admin/requests613', mw: [], router: require('./routes/adminRequestJourney613') },
   // 607 (ADA, 02/10) — renvoi groupé de l'e-mail de vérification (garde-fous, simulation, journal).
   { path: '/admin/users/resend-verification', mw: [], router: require('./routes/adminVerificationResend607') },
   // v23.1 part 36 — KYC verification (Persona) payante 3 EUR pour sitter/walker.
