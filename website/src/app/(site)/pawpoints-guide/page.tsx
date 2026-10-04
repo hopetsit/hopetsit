@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { pageMeta } from "@/lib/seoMeta";
 import { PawPointsGuide } from "@/components/PawPointsGuide";
 import type { PawCatalog607 } from "@/lib/api";
+import { parseRanksCatalog611 } from "@/lib/ranks611";
 
 export const revalidate = 3600;
 export const metadata: Metadata = pageMeta("page_title_ppg", "page_desc_ppg", "/pawpoints-guide");
@@ -16,8 +17,9 @@ async function catalog(): Promise<PawCatalog607 | null> {
   try {
     const r = await fetch(`${API}/pawpoints/catalog`, { next: { revalidate: 3600 } });
     if (!r.ok) return null;
-    const d = (await r.json()) as { catalog607?: PawCatalog607 };
-    return d.catalog607 && Array.isArray(d.catalog607.earn) ? d.catalog607 : null;
+    const d = (await r.json()) as { catalog607?: PawCatalog607; ranks611?: unknown };
+    // 611 — les 5 rangs viennent du même GET (absents sur un ancien serveur → null).
+    return d.catalog607 && Array.isArray(d.catalog607.earn) ? { ...d.catalog607, ranks611: parseRanksCatalog611(d.ranks611) } : null;
   } catch {
     return null;
   }

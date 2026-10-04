@@ -30,6 +30,7 @@ import {
   FRIEND_PINK,
 } from "@/lib/pawmapLegend";
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
+import { RankGlyph611 } from "@/components/Rank611";
 
 // 25/09 (586) — dessins des nouveaux contrôles de la carte (poignée, Publier,
 // Direct, œil), mêmes couleurs que sur /map.
@@ -291,7 +292,9 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
       link: { href: "/pawpoints-guide", label: t("ppg_link") },
     },
     // 02/10 (607, ZOE) — « Les PawPoints » : même texte que l'app (pp607_help_points_*).
-    { id: "points", title: t("pp607_help_points_title"), link: { href: "/pawpoints-guide", label: t("ppg_link") }, rows: [{ html: `<span style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800);border:2px solid #fff;box-shadow:0 6px 14px -6px #B07800;font-size:22px">🪙</span>`, title: "", body: t("pp607_help_points_body") }] },
+    { id: "points", title: t("pp607_help_points_title"), link: { href: "/pawpoints-guide", label: t("ppg_link") }, rows: [{ html: `<span style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800);border:2px solid #fff;box-shadow:0 6px 14px -6px #B07800;font-size:22px">🪙</span>`, title: "", body: t("pp607_help_points_body") },
+      // 04/10 (611) — « Les rangs » : Chiot → Légende (textes de PAM, help611_ranks_*).
+      { node: <span data-legend-ranks="" className="grid h-[46px] w-[46px] place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#E7B84A,#C9961A 55%,#8D6A12)", border: "2px solid #fff", boxShadow: "0 6px 14px -6px #8D6A12" }}><RankGlyph611 level={5} size={22} color="#FFFFFF" /></span>, title: t("help611_ranks_t"), body: t("help611_ranks_b"), color: "#8A5A00" }] },
   ];
 
   // 04/10 (610) — règle B (REGLES_610.md) : tout le monde voit tous les

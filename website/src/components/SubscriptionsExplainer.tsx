@@ -72,6 +72,11 @@ export function SubscriptionsExplainer({ compact = false }: { compact?: boolean 
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-[#6E4F48]">{t("sub_free_label")}</p>
                   <p className="mt-1 text-[15px] leading-relaxed text-[#231715]">{p.free}</p>
+                  {/* 04/10 (611) — l'itinéraire vers un AMI est gratuit ; celui vers
+                      les spots et les lieux reste dans l'abonnement. */}
+                  {p.key === "pf" && (
+                    <p className="mt-2 text-[15px] font-semibold leading-relaxed text-[#15803D]" data-free-route="">✓ {t("shop611_route_friends_free")}</p>
+                  )}
                 </div>
                 <div className="rounded-[16px] bg-white p-4">
                   <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: p.accent }}>

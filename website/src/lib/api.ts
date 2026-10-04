@@ -5,6 +5,7 @@
 
 import { priceAltFromRates } from "@/lib/priceUnit";
 import { blurLatLng } from "@/lib/pawmapLegend";
+import { parseRanksCatalog611, type RanksCatalog611 } from "@/lib/ranks611";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE
   ?? "https://hopetsit-backend.onrender.com/api/v1";
@@ -2174,8 +2175,9 @@ export async function getNearbyReports(opts: {
 // v497 — Daniel : « rajoute les 4 boutons PawMap sur le web ». Création d'un
 // SIGNALEMENT depuis le web (POST /map-reports). Position = centre de la carte.
 // 610 (règle B) : danger = gratuit et illimité ; confort = 1 par semaine sans
-// abonnement (le serveur répond 402 ou 429 au-delà) ; animal perdu / trouvé =
-// abonnés (402). La page /map traduit ces réponses en message clair.
+// abonnement (le serveur répond 402 ou 429 au-delà). 611 : animal trouvé =
+// gratuit et illimité ; animal perdu = gratuit, 1 alerte active à la fois sans
+// abonnement (409 LOST_PET_ACTIVE). La page /map traduit ces réponses.
 export async function createMapReport(opts: {
   type: MapReportType;
   lat: number;
@@ -2198,12 +2200,55 @@ export async function createMapReport(opts: {
 // 610 — compteur « 1 par semaine » des signalements de confort (serveur de ZOE).
 export type ComfortQuota = { unlimited: boolean; limit: number | null; used: number | null; remaining: number | null; nextAvailableAt: string | null };
 export async function getComfortQuota(): Promise<ComfortQuota | null> {
+  return (await getReportQuota()).comfort;
+}
+
+// 611 (ZOE, 04/10) — animal perdu GRATUIT pour tous : 1 alerte ACTIVE à la
+// fois sans abonnement (bloc `lostPet` de GET /map-reports/quota), plusieurs
+// avec. Animal trouvé : gratuit et illimité (aucun compteur).
+export type LostPetQuota = {
+  unlimited: boolean;
+  limit: number | null;
+  active: number | null;
+  remaining: number | null;
+  activeReportId: string | null;
+  activeExpiresAt: string | null;
+};
+export async function getReportQuota(): Promise<{ comfort: ComfortQuota | null; lostPet: LostPetQuota | null }> {
   try {
-    const raw = await request<{ comfort?: ComfortQuota }>("/map-reports/quota");
-    return raw.comfort ?? null;
+    const raw = await request<{ comfort?: ComfortQuota; lostPet?: LostPetQuota }>("/map-reports/quota");
+    return { comfort: raw.comfort ?? null, lostPet: raw.lostPet ?? null };
   } catch {
-    return null;
+    return { comfort: null, lostPet: null };
   }
+}
+
+// 611 — réponse 409 de POST /map-reports quand une alerte « animal perdu »
+// est déjà en cours sans abonnement.
+export type LostPetActiveError = {
+  code: "LOST_PET_ACTIVE";
+  activeReportId?: string | null;
+  activeExpiresAt?: string | null;
+  limit?: number | null;
+};
+export function asLostPetActive(e: unknown): LostPetActiveError | null {
+  if (!(e instanceof ApiError) || e.status !== 409) return null;
+  const d = e.details as { code?: string } | undefined;
+  return d && d.code === "LOST_PET_ACTIVE" ? (d as LostPetActiveError) : null;
+}
+
+// 611 — confirmer un signalement (POST /map-reports/:id/confirm) : gratuit
+// pour tous, quel que soit le type ; prolonge de 12 h. Renvoie le nombre de
+// confirmations.
+export async function confirmMapReport(id: string): Promise<number | null> {
+  const r = await request<{ confirmationsCount?: number }>(`/map-reports/${encodeURIComponent(id)}/confirm`, { method: "POST" });
+  return typeof r?.confirmationsCount === "number" ? r.confirmationsCount : null;
+}
+
+// 611 — clôturer une alerte = DELETE /map-reports/:id (depuis n'importe lequel
+// de ses 3 profils, contrôlé par le serveur).
+export async function deleteMapReport(id: string): Promise<void> {
+  await request(`/map-reports/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 // ─── Carte unique /map : PawSpots communautaires + itinéraire + benefits ────
@@ -2308,6 +2353,8 @@ export type NearbyMember = {
   isFriend?: boolean;
   /** v585 — 'live' | 'home' | 'city' | 'last' (d'où vient la position). */
   positionSource?: string;
+  /** 611 — rang de la personne (Chiot → Légende), absent sur un ancien serveur. Lire par parseRank611. */
+  rank?: unknown;
 };
 
 // v548 — Daniel : « quand on dézoome, voir TOUS les utilisateurs sur la carte
@@ -2578,6 +2625,8 @@ export async function getPawSpotDirections(opts: {
   toLng: number;
   mode?: RouteMode;
   lang?: string;
+  /** 611 — itinéraire vers un AMI : gratuit (le serveur vérifie l'amitié et la position, sinon 403). */
+  friendId?: string;
 }): Promise<RouteResult> {
   const qs = new URLSearchParams({
     fromLat: String(opts.fromLat),
@@ -2587,6 +2636,7 @@ export async function getPawSpotDirections(opts: {
     mode: opts.mode ?? "walk",
     lang: opts.lang ?? "en",
   });
+  if (opts.friendId) qs.set("friendId", opts.friendId);
   const raw = await request<Partial<RouteResult>>(
     `/pawspots/directions?${qs.toString()}`,
   );
@@ -2750,6 +2800,9 @@ export type MyPawPoints = {
   levels: PawLevel[];
   earnRules: PawEarnRule[];
   claimedRewardKeys: string[];
+  /** 611 — mon rang (Chiot → Légende), lire par parseRank611 ; absent sur un ancien serveur. */
+  rank?: unknown;
+  rankSeenLevel?: number;
 };
 
 // Public : pas besoin d'être connecté pour voir le catalogue.
@@ -3296,9 +3349,37 @@ export async function getMyLiveState(): Promise<MyLiveState | null> {
 }
 
 
+// ─── 611 (04/10, LEO) — « D'où viennent mes points » (CONTRAT 611, PAM) ───
+// GET /pawpoints/history (connecté, mes points seulement) : 30 derniers gains,
+// plus récents d'abord ; points < 0 = reprise (spot supprimé) ; `beforeJournal`
+// = points gagnés avant le journal, sans détail (jamais inventés).
+export type PawHistoryItem611 = { key: string; points: number; at: string };
+export type PawHistory611 = { items: PawHistoryItem611[]; beforeJournal: number; journalSince: string | null; lifetime: number | null };
+/** null si la route n'existe pas (ancien serveur) ou en cas d'erreur : rien n'est affiché. */
+export async function getPawPointsHistory611(): Promise<PawHistory611 | null> {
+  try {
+    const r = await request<Partial<PawHistory611>>("/pawpoints/history");
+    if (!r || !Array.isArray(r.items)) return null;
+    const items = r.items
+      .filter((x) => x && typeof x.key === "string" && Number.isFinite(Number(x.points)) && typeof x.at === "string" && Number.isFinite(new Date(x.at).getTime()))
+      .slice(0, 30)
+      .map((x) => ({ key: x.key, points: Math.round(Number(x.points)), at: x.at }));
+    const before = Number(r.beforeJournal);
+    const life = Number(r.lifetime);
+    return {
+      items,
+      beforeJournal: Number.isFinite(before) && before > 0 ? Math.round(before) : 0,
+      journalSince: typeof r.journalSince === "string" ? r.journalSince : null,
+      lifetime: Number.isFinite(life) ? life : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ─── 607 (02/10, LEO) — mini-peluches de la Balade (CONTRAT_607_peluches.md, PAM) ───
 export type ActivePlush = { id: string; type: string; golden?: boolean; lat: number; lng: number; day: string };
-export type PlushActive = { walkActive: boolean; catchRadiusM: number; reward: number; caughtToday: boolean; plushies: ActivePlush[]; /** 02/10 — peluches à attraper autour de moi, HORS Balade (sans positions). */ nearbyCount: number };
+export type PlushActive = { walkActive: boolean; catchRadiusM: number; reward: number; caughtToday: boolean; plushies: ActivePlush[]; /** 02/10 — peluches à attraper autour de moi, HORS Balade (sans positions). */ nearbyCount: number; /** 611 — peluches attrapées aujourd'hui / maximum du jour (2). null = ancien serveur (seul caughtToday fait foi). */ caughtTodayCount: number | null; dailyMax: number | null };
 /** Peluches autour de moi (liste vide hors Balade : le serveur décide). */
 export async function getActivePlush(lat: number, lng: number): Promise<PlushActive | null> {
   try {
@@ -3308,6 +3389,8 @@ export async function getActivePlush(lat: number, lng: number): Promise<PlushAct
       catchRadiusM: Number(r?.catchRadiusM) || 30,
       reward: Number(r?.reward) || 20,
       caughtToday: r?.caughtToday === true,
+      caughtTodayCount: Number.isFinite(Number((r as { caughtTodayCount?: number })?.caughtTodayCount)) && (r as { caughtTodayCount?: number })?.caughtTodayCount != null ? Math.max(0, Math.floor(Number((r as { caughtTodayCount?: number }).caughtTodayCount))) : null,
+      dailyMax: Number((r as { dailyMax?: number })?.dailyMax) > 0 ? Math.floor(Number((r as { dailyMax?: number }).dailyMax)) : null,
       nearbyCount: Math.max(0, Math.floor(Number((r as { nearbyCount?: number })?.nearbyCount) || 0)),
       plushies: Array.isArray(r?.plushies) ? r!.plushies!.filter((x) => x && x.id && Number.isFinite(x.lat) && Number.isFinite(x.lng)) : [],
     };
@@ -3318,7 +3401,7 @@ export async function getActivePlush(lat: number, lng: number): Promise<PlushAct
 export type PlushCatchResult =
   | { ok: true; plush: { id: string; type: string; golden?: boolean }; points: number; bonuses: { kind: string; points?: number; hours?: number }[] }
   | { ok: false; code: string; status: number };
-/** Capture (le serveur juge : 30 m, Balade, vitesse, 1 par jour). */
+/** Capture (le serveur juge : 30 m, Balade, vitesse, 2 par jour depuis le 611). */
 export async function catchPlush(id: string, lat: number, lng: number): Promise<PlushCatchResult> {
   try {
     const r = await request<{ ok?: boolean; plush?: { id: string; type: string; golden?: boolean }; points?: number; bonuses?: { kind: string; points?: number; hours?: number }[] }>(
@@ -3365,13 +3448,15 @@ export type PawCatalog607 = {
   rewards: Pp607Reward[];
   collection?: { key: string; icon: string; texts: { title: Pp607Texts; detail: Pp607Texts } };
   notes?: Record<string, Pp607Texts>;
+  /** 611 — les 5 rangs (bloc `ranks611` du même GET), null sur un ancien serveur. */
+  ranks611?: RanksCatalog611 | null;
 };
 export async function getPawCatalog607(): Promise<PawCatalog607 | null> {
   try {
-    const r = await request<{ catalog607?: PawCatalog607 }>("/pawpoints/catalog");
+    const r = await request<{ catalog607?: PawCatalog607; ranks611?: unknown }>("/pawpoints/catalog");
     const c = r?.catalog607;
-    if (!c || !Array.isArray(c.earn) || !Array.isArray(c.rewards) || !Array.isArray(c.levels)) return null;
-    return c;
+    if (!c || !Array.isArray(c.earn) || !Array.isArray(c.rewards)) return null;
+    return { ...c, ranks611: parseRanksCatalog611(r?.ranks611) };
   } catch {
     return null;
   }

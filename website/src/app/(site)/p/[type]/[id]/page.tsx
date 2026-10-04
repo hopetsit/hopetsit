@@ -28,6 +28,8 @@ import { ensureOwnerProfile, isMyProfile, needsOwnerSwitch } from "@/lib/bookAsO
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { askHref, askLabel, askNote, dm } from "@/lib/i18n/demander2809";
 import { providerCurrency, providerFrom, providerRateLines, formatMoney, type ProviderRateSource } from "@/lib/providerRates";
+import { RankPill611 } from "@/components/Rank611";
+import { parseRank611 } from "@/lib/ranks611";
 
 // 25/09/2026 (PawMap 584, point 8) — fiche refaite : bouton principal PLEIN
 // « Réserver · dès 20 €/j » (dégradé du rôle, texte blanc, devise du
@@ -51,6 +53,8 @@ type Fiche = ProviderRateSource & {
   isTopWalker?: boolean;
   identityVerified?: boolean;
   isBoosted?: boolean;
+  /** 611 — rang (Chiot → Légende) envoyé par le serveur ; absent = rien affiché. */
+  rank?: unknown;
 };
 
 const ROLE = {
@@ -150,6 +154,7 @@ function ProviderSharePage() {
   const lignes = fiche ? providerRateLines(type, fiche) : [];
   const des = fiche ? providerFrom(type, fiche) : null;
   const ville = fiche?.city || fiche?.coverageCity || "";
+  const rang = parseRank611(fiche?.rank);
   const connecte = ready && !!user;
 
   const cible = `/book/${type}/${id}`;
@@ -230,6 +235,7 @@ function ProviderSharePage() {
         </p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs font-semibold">
+          {rang && <RankPill611 rank={rang} />}
           {(fiche.isTopSitter || fiche.isTopWalker) && (
             <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF6DB] px-3 py-1 text-[#7A5200]"><AppIcon name="star" size={13} color="#C58A00" />{t("provider_top")}</span>
           )}

@@ -804,11 +804,25 @@ function PlanCard({
             débloque les signalements de CONFORT illimités ; signaler un danger
             est gratuit pour tous (dit ici pour ne rien laisser croire de payant). */}
         <FeatureLi>{t("shop566_feat_reports")}</FeatureLi>
+        <FeatureLi>{t("shop611_lost_multi")}</FeatureLi>
         <li className="flex items-start gap-2 text-sm font-semibold text-[#B42318]" data-free-danger="">
           <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" className="mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z" /><path d="m8.8 12.2 2.3 2.3 4.3-4.6" /></svg>
           <span>{t("r610_shop_danger")}</span>
         </li>
+        {/* 04/10 (611) — animal perdu / trouvé gratuit pour tous ; l'abonnement
+            n'apporte que « plusieurs alertes animal perdu en même temps ». */}
+        <li className="flex items-start gap-2 text-sm font-semibold text-[#B42318]" data-free-lost="">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" className="mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z" /><path d="m8.8 12.2 2.3 2.3 4.3-4.6" /></svg>
+          <span>{t("shop611_lost_free")}</span>
+        </li>
         <FeatureLi>{t("shop566_feat_friends")}</FeatureLi>
+        {/* 04/10 (611) — itinéraire : vers les spots et les lieux = abonnement ;
+            vers un ami = gratuit pour tous (dit ici, comme l'app). */}
+        <FeatureLi>{t("shop569_follow_b2_title")}</FeatureLi>
+        <li className="flex items-start gap-2 text-sm font-semibold text-[#15803D]" data-free-route="">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" className="mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z" /><path d="m8.8 12.2 2.3 2.3 4.3-4.6" /></svg>
+          <span>{t("shop611_route_friends_free")}</span>
+        </li>
         <FeatureLi>{t("shop566_feat_chat")}</FeatureLi>
         {(plan.id === "yearly" || plan.id === "family_yearly") && (
           <FeatureLi>{t("shop566_feat_credits")}</FeatureLi>

@@ -107,6 +107,8 @@ import {
   distanceKmTo,
   type PersonRole,
 } from "@/lib/memberPersons";
+import { RankPill611 } from "@/components/Rank611";
+import { parseRank611, type Rank611 } from "@/lib/ranks611";
 
 export { clusterize } from "@/lib/mapCluster";
 
@@ -475,6 +477,8 @@ type Focus = {
   liveId?: string;
   /** 02/10 (609) — identité vérifiée : pastille « ✓ Vérifié ». */
   verified?: boolean;
+  /** 04/10 (611) — rang de la personne (Chiot → Légende) ; null = rien affiché. */
+  rank?: Rank611 | null;
   open: () => void;
 };
 
@@ -503,6 +507,48 @@ function rolesGrad(roles: string[] | undefined, fallback: [string, string, strin
 }
 
 /** Efface la carte focus au clic sur la carte vide ou au début d'un glisser. */
+// 611 — contenu de la bulle d'un signalement, avec la confirmation gratuite.
+function ReportPopupBody({ r, label, onConfirm, labels }: {
+  r: MapReport;
+  label: string;
+  onConfirm?: (id: string) => Promise<number | null>;
+  labels?: { lostSeen: string; confirm: string; lostThanks: string; extended: string; failed: string };
+}) {
+  const [state, setState] = useState<"idle" | "busy" | "done" | "fail">("idle");
+  const [count, setCount] = useState<number | null>(typeof r.confirmationsCount === "number" ? r.confirmationsCount : null);
+  const lost = r.type === "lost_pet";
+  return (
+    <div className="text-sm" style={{ minWidth: 170 }} data-report-popup={r._id}>
+      <div className="mb-1 font-bold" style={{ color: "#D32F2F" }}>{label}</div>
+      {r.note ? <div className="mb-1 text-xs text-ink-muted">{r.note}</div> : null}
+      {count !== null ? <div className="text-xs text-ink-muted">✓ {count}</div> : null}
+      {onConfirm && labels && state !== "done" && (
+        <button
+          type="button"
+          data-report-confirm=""
+          disabled={state === "busy"}
+          onClick={async () => {
+            setState("busy");
+            try {
+              const n = await onConfirm(r._id);
+              if (typeof n === "number") setCount(n);
+              setState("done");
+            } catch {
+              setState("fail");
+            }
+          }}
+          className="mt-2 min-h-[40px] w-full rounded-full px-3 text-[13px] font-bold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-60"
+          style={{ background: lost ? "linear-gradient(180deg,#F0569A,#D6246E)" : "linear-gradient(180deg,#E0553F,#C92A12)" }}
+        >
+          {state === "busy" ? "…" : lost ? labels.lostSeen : labels.confirm}
+        </button>
+      )}
+      {state === "done" && labels && <div data-report-confirmed="" className="mt-2 text-xs font-semibold" style={{ color: "#15803D" }}>{lost ? labels.lostThanks : labels.extended}</div>}
+      {state === "fail" && labels && <div className="mt-1 text-xs font-semibold" style={{ color: "#B42318" }}>{labels.failed}</div>}
+    </div>
+  );
+}
+
 function FocusWatcher({ onClear }: { onClear: () => void }) {
   useMapEvents({ click: onClear, dragstart: onClear });
   return null;
@@ -578,6 +624,8 @@ export default function PoiMap({
   onMapReady,
   satellite = false,
   onAddFriend,
+  onReportConfirm,
+  reportConfirmLabels,
   onSpotVisit,
   friendPositions = [],
   liveIdsAll = [],
@@ -653,6 +701,10 @@ export default function PoiMap({
   satellite?: boolean;
   onAddFriend?: (m: NearbyMember) => Promise<"sent" | "already" | "error">;
   onSpotVisit?: (id: string) => void;
+  /** 611 — confirmer un signalement (gratuit pour tous, comme l'app) :
+   *  « J'ai vu cet animal » sur un animal perdu, « Confirmer +12h » ailleurs. */
+  onReportConfirm?: (id: string) => Promise<number | null>;
+  reportConfirmLabels?: { lostSeen: string; confirm: string; lostThanks: string; extended: string; failed: string };
   friendPositions?: FriendLivePosition[];
   /** 587 — ids (tous rôles) des amis qui partagent en direct. */
   liveIdsAll?: string[];
@@ -680,7 +732,7 @@ export default function PoiMap({
   routePoints?: { lat: number; lng: number }[] | null;
   routeColor?: string;
   routeSteps?: RouteStep[] | null;
-  onDirections?: (target: { lat: number; lng: number }) => void;
+  onDirections?: (target: { lat: number; lng: number; friendId?: string }) => void;
   directionsLabel?: string;
   formatOpenStatus?: (raw: string) => { label: string; open: boolean } | null;
   callLabel?: string;
@@ -971,7 +1023,7 @@ export default function PoiMap({
   }, [focusFriend?.ts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dirClose = onDirections
-    ? (target: { lat: number; lng: number }) => { try { mapObj?.closePopup(); } catch { /* */ } onDirections(target); }
+    ? (target: { lat: number; lng: number; friendId?: string }) => { try { mapObj?.closePopup(); } catch { /* */ } onDirections(target); }
     : undefined;
 
   // ── 590 (§2, §4) — 1er clic = la carte vole sur la personne (≈ +1,5
@@ -1051,6 +1103,7 @@ export default function PoiMap({
       friend,
       icon: k === "walker" ? "walk" : k === "sitter" ? "home" : "paw",
       verified: m.identityVerified === true,
+      rank: parseRank611(m.rank),
       open,
     };
   };
@@ -1205,11 +1258,7 @@ export default function PoiMap({
           return (
             <Marker key={`report-${r._id}`} position={[c[1], c[0]]} icon={reportIcon()} zIndexOffset={PIN_Z.report}>
               <Popup>
-                <div className="text-sm" style={{ minWidth: 150 }}>
-                  <div className="mb-1 font-bold" style={{ color: "#D32F2F" }}>{reportTypeLabels?.[r.type] || r.type}</div>
-                  {r.note ? <div className="mb-1 text-xs text-ink-muted">{r.note}</div> : null}
-                  {typeof r.confirmationsCount === "number" ? <div className="text-xs text-ink-muted">✓ {r.confirmationsCount}</div> : null}
-                </div>
+                <ReportPopupBody r={r} label={reportTypeLabels?.[r.type] || r.type} onConfirm={onReportConfirm} labels={reportConfirmLabels} />
               </Popup>
             </Marker>
           );
@@ -1442,6 +1491,7 @@ function FocusCard({ f, labels, dark, top, faded, onClose, onOpen }: { f: Focus;
               {f.live && <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: "#2E9E48" }} />}
               {f.verified && labels.verified && <VerifiedPill label={labels.verified} small />}
             </span>
+            {f.rank && <span className="mt-[3px] mb-px flex"><RankPill611 rank={f.rank} mode={dark ? "dark" : "light"} compact /></span>}
             {f.info && <span className="block truncate text-[11.5px] font-medium leading-snug" style={{ color: sub, fontFamily: POPPINS }}>{f.info}</span>}
           </span>
         </button>
@@ -1510,7 +1560,7 @@ function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanc
   now: number;
   liveLabels?: LiveLabels;
   onAddFriend?: (m: NearbyMember) => Promise<"sent" | "already" | "error">;
-  onDirections?: (target: { lat: number; lng: number }) => void;
+  onDirections?: (target: { lat: number; lng: number; friendId?: string }) => void;
   onMessage?: (who: { id: string; role: string; name: string }) => void;
   onMessageMember?: (m: NearbyMember) => (() => void) | null;
   onFollow?: (p: FriendLivePosition) => void;
@@ -1618,7 +1668,7 @@ function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanc
             <button type="button" onClick={() => onFollow(p)} className="flex min-h-[48px] items-center justify-center rounded-[16px] px-4 text-[14px] font-bold text-white" style={{ background: "linear-gradient(90deg,#8B5CF6,#6D28D9)" }}>{liveLabels.follow}</button>
           )}
           <div className="grid grid-cols-2 gap-2">
-            {onDirections && <SecondaryBtn color="#15803D" onClick={() => onDirections({ lat: p.lat, lng: p.lng })}>{labels.directions}</SecondaryBtn>}
+            {onDirections && <SecondaryBtn color="#15803D" onClick={() => onDirections({ lat: p.lat, lng: p.lng, friendId: p.userId })}>{labels.directions}</SecondaryBtn>}
             {onMessage && <SecondaryBtn color="#9D174D" onClick={() => onMessage({ id: p.userId, role: p.role, name: p.name })}>{labels.message}</SecondaryBtn>}
           </div>
         </div>
@@ -1656,7 +1706,7 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
   now: number;
   liveLabels?: LiveLabels;
   onAddFriend?: (m: NearbyMember) => Promise<"sent" | "already" | "error">;
-  onDirections?: (target: { lat: number; lng: number }) => void;
+  onDirections?: (target: { lat: number; lng: number; friendId?: string }) => void;
   onMessage?: (who: { id: string; role: string; name: string }) => void;
   onMessageMember?: (m: NearbyMember) => (() => void) | null;
 }) {
@@ -1700,6 +1750,8 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
             {roleName(k)}
             {friend && <span className="rounded-full bg-[#FDE7F0] px-2 py-0.5 text-[11px] font-bold text-[#9D174D]">{labels.friend}</span>}
           </p>
+          {/* 04/10 (611) — rang (Chiot → Légende), seulement si le serveur l'envoie. */}
+          <RankPill611 rank={parseRank611(m.rank)} className="mt-1" />
           {dist && <p className="mt-0.5 text-[11px] font-semibold text-[#8A6B64]">{dist}</p>}
         </div>
         {closeBtn}
@@ -1750,7 +1802,7 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
               <SecondaryBtn color={ROLE_DARK[k]} onClick={msgMember}>{labels.message}</SecondaryBtn>
             ) : null)}
             <div className="grid grid-cols-2 gap-2">
-              {onDirections && pt && <SecondaryBtn color="#15803D" onClick={() => onDirections({ lat: pt[0], lng: pt[1] })}>{labels.directions}</SecondaryBtn>}
+              {onDirections && pt && (friend || !m.approx) && <SecondaryBtn color="#15803D" onClick={() => onDirections({ lat: pt[0], lng: pt[1], friendId: friend ? r.id : undefined })}>{labels.directions}</SecondaryBtn>}
               {!friend && !mine && onAddFriend && (
                 <button
                   type="button"
@@ -1770,7 +1822,7 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
           <>
             {k === "owner" && !mine && <OwnerRequestsCard ownerId={r.id} onLoaded={setReqCount} />}
             <div className="grid grid-cols-2 gap-2">
-              {onDirections && pt && <SecondaryBtn color="#15803D" onClick={() => onDirections({ lat: pt[0], lng: pt[1] })}>{labels.directions}</SecondaryBtn>}
+              {onDirections && pt && (friend || !m.approx) && <SecondaryBtn color="#15803D" onClick={() => onDirections({ lat: pt[0], lng: pt[1], friendId: friend ? r.id : undefined })}>{labels.directions}</SecondaryBtn>}
               {friend && onMessage ? (
                 <SecondaryBtn color="#9D174D" onClick={() => onMessage({ id: r.id, role: k, name: m.name })}>{labels.message}</SecondaryBtn>
               ) : msgMember && reqCount === 0 ? (

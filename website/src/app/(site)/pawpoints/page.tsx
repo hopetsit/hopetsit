@@ -13,10 +13,13 @@ import Link from "next/link";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import BackLink from "@/components/BackLink";
 import { PlushVideo } from "@/components/PlushVideo";
-import { EarnGrid, RewardsGrid, LevelsLadder, PlushShowcase, PpTitle } from "@/components/PawPointsSections";
+import { EarnGrid, RewardsGrid, PlushShowcase, PpTitle } from "@/components/PawPointsSections";
+import { RankProgress611, RanksLadder611 } from "@/components/Rank611";
+import { parseRank611 } from "@/lib/ranks611";
 import {
   getPawCatalog607,
   getMyPawPoints,
+  getPawPointsHistory611,
   getPlushCollection,
   redeemPawReward,
   getStoredUser,
@@ -26,6 +29,7 @@ import {
   type MyPawPoints607,
   type PlushCollection,
   type Pp607Reward,
+  type PawHistory611,
 } from "@/lib/api";
 
 const GOLD = "#B7791F";
@@ -39,6 +43,7 @@ export default function PawPointsPage() {
   const [catalog, setCatalog] = useState<PawCatalog607 | null>(null);
   const [mine, setMine] = useState<MyPawPoints607 | null>(null);
   const [plush, setPlush] = useState<PlushCollection | null>(null);
+  const [hist, setHist] = useState<PawHistory611 | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -48,28 +53,29 @@ export default function PawPointsPage() {
   const refresh = useCallback(async () => {
     const logged = !!getStoredUser();
     setLoggedIn(logged);
-    const [c, m, p] = await Promise.all([
+    const [c, m, p, h] = await Promise.all([
       getPawCatalog607(),
       logged ? getMyPawPoints().catch(() => null) : Promise.resolve(null),
       logged ? getPlushCollection() : Promise.resolve(null),
+      logged ? getPawPointsHistory611() : Promise.resolve(null),
     ]);
     setCatalog(c);
     setMine(m as MyPawPoints607 | null);
     setPlush(p);
+    setHist(h);
     setLoaded(true);
   }, []);
   useEffect(() => { void refresh(); }, [refresh]);
 
   const lifetime = mine?.lifetime ?? mine?.points ?? 0;
   const spendable = mine?.spendable ?? 0;
-  const levels = [...(catalog?.levels ?? [])].sort((a, b) => a.min - b.min);
-  const current = [...levels].reverse().find((l) => lifetime >= l.min) ?? null;
-  const next = levels.find((l) => l.min > lifetime) ?? null;
-  const prevMin = current?.min ?? 0;
-  const progress = next ? Math.min(100, Math.max(0, ((lifetime - prevMin) / (next.min - prevMin)) * 100)) : 100;
+  // 04/10 (611) — UN SEUL système : les 5 rangs envoyés par le serveur
+  // (`rank` de /pawpoints/me, `ranks611` du catalogue). L'ancien palier à
+  // 7 niveaux + bonus en % n'est plus lu. Ancien serveur → rien d'affiché.
+  const myRank = parseRank611(mine?.rank);
   const claimed = new Set(mine?.claimedRewardKeys ?? []);
   const earnByKey = new Map((catalog?.earn ?? []).map((e) => [e.key, e]));
-  const limitLabel = (l: string) => (["each", "once", "daily", "streak"].includes(l) ? t(`pp607_limit_${l}`) : "");
+  const limitLabel = (l: string) => (["each", "once", "daily", "daily2", "streak"].includes(l) ? t(`pp607_limit_${l}`) : "");
 
   async function onRedeem(r: Pp607Reward) {
     if (!loggedIn) { window.location.href = `/login?redirect=${encodeURIComponent("/pawpoints")}`; return; }
@@ -106,9 +112,9 @@ export default function PawPointsPage() {
         <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed md:text-lg" style={{ color: SOFT }}>{t("pp607_hero")}</p>
       </header>
 
-      {/* ── SOLDE + PALIER (connecté) ── */}
+      {/* ── SOLDE + MON RANG (connecté) ── */}
       {loggedIn && mine && (
-        <section className="mt-8 grid gap-3 md:grid-cols-3" data-pp-balance="">
+        <section className="mt-8 grid gap-3 md:grid-cols-2" data-pp-balance="">
           <div className="rounded-[22px] p-5 text-center ring-1 ring-[#F1D9A6]" style={{ background: GOLD_BG }}>
             <div className="text-[13px] font-bold uppercase tracking-[0.05em]" style={{ color: GOLD }}>{t("pp607_spendable")}</div>
             <div className="mt-1 font-display text-4xl font-extrabold tabular-nums" style={{ color: INK }}>{fmt(spendable)}</div>
@@ -117,19 +123,8 @@ export default function PawPointsPage() {
             <div className="text-[13px] font-bold uppercase tracking-[0.05em]" style={{ color: SOFT }}>{t("pp607_lifetime")}</div>
             <div className="mt-1 font-display text-4xl font-extrabold tabular-nums" style={{ color: INK }}>{fmt(lifetime)}</div>
           </div>
-          <div className="rounded-[22px] bg-white p-5 ring-1 ring-[#F3E6E1]">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] font-bold uppercase tracking-[0.05em]" style={{ color: SOFT }}>{t("pp607_level")}</span>
-              {current && <span className="rounded-full px-2.5 py-0.5 text-[13px] font-extrabold text-white" style={{ background: current.color }}>{ppText(current.texts, lang)}</span>}
-            </div>
-            <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-[#FBEFE6]">
-              <div className="h-full rounded-full" style={{ width: `${progress}%`, background: `linear-gradient(90deg, #F4C04A, ${GOLD})` }} />
-            </div>
-            <p className="mt-2 text-[13px] font-semibold" style={{ color: INK }}>
-              {next ? t("pp607_next").replace("{pts}", fmt(Math.max(0, next.min - lifetime))).replace("{level}", ppText(next.texts, lang)) : t("pp607_max")}
-            </p>
-            {current && current.bonusPct > 0 && <p className="mt-1 text-[12px] font-bold" style={{ color: GOLD }}>{t("pp607_bonus").replace("{pct}", String(current.bonusPct))}</p>}
-          </div>
+          {/* Mon rang : pleine largeur sous les deux soldes (lisible à 768 px). */}
+          <RankProgress611 rank={myRank} className="md:col-span-2" />
         </section>
       )}
 
@@ -195,16 +190,51 @@ export default function PawPointsPage() {
         </section>
       )}
 
-      {/* ── PALIERS ── frise de progression */}
-      {levels.length > 0 && (
-        <section className="mt-12" data-pp-levels="">
-          <PpTitle>{t("pp607_levels")}</PpTitle>
-          <LevelsLadder levels={levels} lifetime={loggedIn && mine ? lifetime : null} lang={lang} perkTexts={catalog?.perkTexts} t={t} fmt={fmt} />
+      {/* ── LES RANGS ── (611 : Chiot → Légende, honorifiques) */}
+      {catalog?.ranks611 && (
+        <section className="mt-12" data-pp-ranks="">
+          <PpTitle>{t("rank611_title")}</PpTitle>
+          <RanksLadder611 catalog={catalog.ranks611} mine={loggedIn ? myRank : null} />
         </section>
       )}
 
-      {/* ── DERNIERS GAINS ── */}
-      {loggedIn && mine?.history && mine.history.length > 0 && (
+      {/* ── D'OÙ VIENNENT MES POINTS (611) — GET /pawpoints/history : 30 derniers
+          gains (date + raison + points) et UNE ligne pour les points d'avant le
+          journal. Route absente (ancien serveur) → hist = null → section absente,
+          l'ancienne liste « derniers gains » reste. ── */}
+      {loggedIn && hist && (
+        <section className="mt-12" data-pp-history611="">
+          <PpTitle>{t("hist611_title")}</PpTitle>
+          {hist.items.length === 0 && hist.beforeJournal === 0 ? (
+            <p className="mt-4 rounded-[20px] bg-white px-4 py-4 text-sm ring-1 ring-[#F3E6E1]" style={{ color: SOFT }} data-hist-empty="">{t("hist611_empty")}</p>
+          ) : (
+            <ul className="mt-4 divide-y divide-[#F3E6E1] rounded-[20px] bg-white ring-1 ring-[#F3E6E1]">
+              {hist.items.map((h, i) => {
+                let when = "";
+                try { when = new Date(h.at).toLocaleDateString(lang, { day: "numeric", month: "short" }); } catch { /* */ }
+                const k = `hist611_${h.key}`;
+                const label = t(k) !== k ? t(k) : t("hist611_other");
+                const neg = h.points < 0;
+                return (
+                  <li key={`${h.key}-${h.at}-${i}`} className="flex items-center gap-3 px-4 py-3" data-hist-row="">
+                    <span className="min-w-0 flex-1 break-words text-sm font-semibold" style={{ color: INK }}>{label}</span>
+                    <span className="shrink-0 text-[12px]" style={{ color: SOFT }}>{when}</span>
+                    <span className="shrink-0 text-sm font-extrabold tabular-nums" style={{ color: neg ? "#B42318" : GOLD }}>{neg ? "−" : "+"}{fmt(Math.abs(h.points))}</span>
+                  </li>
+                );
+              })}
+              {hist.beforeJournal > 0 && (
+                <li className="flex items-center gap-3 px-4 py-3" data-hist-before="">
+                  <span className="min-w-0 flex-1 break-words text-sm font-semibold" style={{ color: SOFT }}>{t("hist611_before").replace("@n", fmt(hist.beforeJournal))}</span>
+                </li>
+              )}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {/* ── DERNIERS GAINS (ancien serveur seulement) ── */}
+      {loggedIn && !hist && mine?.history && mine.history.length > 0 && (
         <section className="mt-12" data-pp-history="">
           <h2 className="font-display text-2xl font-extrabold" style={{ color: INK }}>{t("pp607_history")}</h2>
           <ul className="mt-4 divide-y divide-[#F3E6E1] rounded-[20px] bg-white ring-1 ring-[#F3E6E1]">

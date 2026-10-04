@@ -13,7 +13,8 @@ import { useAuth } from "@/lib/useAuth";
 import { getPawCatalog607, ppText, type PawCatalog607 } from "@/lib/api";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { PlushVideo } from "@/components/PlushVideo";
-import { EarnGrid, RewardsGrid, LevelsLadder, PlushShowcase, PpTitle } from "@/components/PawPointsSections";
+import { EarnGrid, RewardsGrid, PlushShowcase, PpTitle } from "@/components/PawPointsSections";
+import { RanksLadder611 } from "@/components/Rank611";
 
 const GOLD = "#B7791F";
 const GOLD_BG = "#FFF6DB";
@@ -33,8 +34,7 @@ export function PawPointsGuide({ initial }: { initial: PawCatalog607 | null }) {
   }, [initial]);
   let fmt = (n: number) => String(n);
   try { const nf = new Intl.NumberFormat(lang); fmt = (n: number) => nf.format(n); } catch { /* */ }
-  const limit = (l: string) => (["each", "once", "daily", "streak"].includes(l) ? t(`pp607_limit_${l}`) : "");
-  const levels = [...(catalog?.levels ?? [])].sort((a, b) => a.min - b.min);
+  const limit = (l: string) => (["each", "once", "daily", "daily2", "streak"].includes(l) ? t(`pp607_limit_${l}`) : "");
   const rewards = [...(catalog?.rewards ?? [])].sort((a, b) => a.cost - b.cost);
 
   return (
@@ -87,10 +87,11 @@ export function PawPointsGuide({ initial }: { initial: PawCatalog607 | null }) {
         </section>
       )}
 
-      {levels.length > 0 && (
-        <section className="mt-12" data-ppg-levels="">
-          <PpTitle>{t("pp607_levels")}</PpTitle>
-          <LevelsLadder levels={levels} lifetime={null} lang={lang} perkTexts={catalog?.perkTexts} t={t} fmt={fmt} />
+      {/* 04/10 (611) — les 5 rangs (Chiot → Légende) remplacent les 7 paliers. */}
+      {catalog?.ranks611 && (
+        <section className="mt-12" data-ppg-ranks="">
+          <PpTitle>{t("rank611_title")}</PpTitle>
+          <RanksLadder611 catalog={catalog.ranks611} mine={null} />
         </section>
       )}
 

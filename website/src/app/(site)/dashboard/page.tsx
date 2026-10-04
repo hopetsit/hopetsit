@@ -14,6 +14,8 @@ import { PageTitle } from "@/components/PageTitle";
 import { ROLE_COLOR } from "@/lib/pawmapLegend";
 import { FeedbackBox } from "@/components/FeedbackBox";
 import { SignatureButton } from "@/components/SignatureButton";
+import { RankProgress611 } from "@/components/Rank611";
+import { parseRank611, type Rank611 } from "@/lib/ranks611";
 
 // v493 — barre latérale + zone principale. v562 — orange pâle au survol.
 // 24/09/2026 — LOT B, étape 4 (plan de LEO validé par Daniel) : le tableau de
@@ -71,6 +73,21 @@ export default function DashboardPage() {
         }
       } catch { /* pas connecté / pas premium → rien */ }
     })();
+  }, []);
+  // 04/10 (611) — « Mon rang » (Chiot → Légende), lu dans GET /pawpoints/me.
+  // Ancien serveur (pas de `rank`) ou non connecté → rien d'affiché.
+  const [myRank, setMyRank] = useState<Rank611 | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        if (!getStoredUser()) return;
+        const { getMyPawPoints } = await import("@/lib/api");
+        const me = await getMyPawPoints();
+        if (alive) setMyRank(parseRank611(me?.rank));
+      } catch { /* pas connecté / serveur indisponible → pas de rang */ }
+    })();
+    return () => { alive = false; };
   }, []);
   // v574 — profils déjà activés (sur n'importe quel appareil).
   const [myRoles, setMyRoles] = useState<AuthRole[]>([]);
@@ -415,6 +432,12 @@ export default function DashboardPage() {
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white transition group-hover:translate-x-1"><AppIcon name="arrow-right" size={18} color="#9D174D" /></span>
             </Link>
           </div>
+
+          {myRank && (
+            <Link href="/pawpoints" className="mt-10 block transition hover:-translate-y-px" data-dash-rank="">
+              <RankProgress611 rank={myRank} showHow={false} />
+            </Link>
+          )}
 
           <h2 className="mt-10 font-display text-2xl font-bold tracking-[-0.02em] text-[#231715]">{t("dash_account_section")}</h2>
           <p className="mt-1 text-[15px] text-[#6E4F48]">{t("dash_account_section_sub")}</p>

@@ -92,8 +92,12 @@ import {
   type MapVisibility,
   getNearbyPawSpots,
   getNearbyReports,
-  getComfortQuota,
+  getReportQuota,
   type ComfortQuota,
+  type LostPetQuota,
+  asLostPetActive,
+  deleteMapReport,
+  confirmMapReport,
   getNearbyPois,
   getPawSpotDirections,
   getStoredUser,
@@ -293,6 +297,12 @@ export default function MapPage() {
   const [createErrShop, setCreateErrShop] = useState(false);
   // 610 — compteur confort (GET /map-reports/quota), lu à l'ouverture de « Signaler ».
   const [comfortQuota, setComfortQuota] = useState<ComfortQuota | null>(null);
+  // 611 (ZOE) — animal perdu gratuit : 1 alerte active à la fois sans
+  // abonnement. `lostActive` = réponse 409 LOST_PET_ACTIVE (alerte en cours).
+  const [lostQuota, setLostQuota] = useState<LostPetQuota | null>(null);
+  const [lostActive, setLostActive] = useState<{ id: string | null; until: string | null } | null>(null);
+  const [lostClosing, setLostClosing] = useState(false);
+  const [lostCloseMsg, setLostCloseMsg] = useState<null | "ok" | "fail">(null);
   const [createPhoto, setCreatePhoto] = useState<File | null>(null);
   const [createPhotoPreview, setCreatePhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -308,7 +318,7 @@ export default function MapPage() {
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeMode, setRouteModeState] = useState<RouteMode>("walk");
-  const [routeTarget, setRouteTarget] = useState<{ lat: number; lng: number } | null>(null);
+  const [routeTarget, setRouteTarget] = useState<{ lat: number; lng: number; friendId?: string } | null>(null);
   const [showSteps, setShowSteps] = useState(false);
   useEffect(() => {
     try {
@@ -906,7 +916,7 @@ export default function MapPage() {
   // Hooks ici, AVANT tout retour anticipé (piège du 22/09).
   const [plushShown, setPlushShown] = useState(true);
   const [plush, setPlush] = useState<PlushActive | null>(null);
-  const [plushBanner, setPlushBanner] = useState<{ kind: "caught" | "golden" | "daily"; points: number; collector: number | null; key: number } | null>(null);
+  const [plushBanner, setPlushBanner] = useState<{ kind: "caught" | "golden" | "daily"; points: number; collector: number | null; key: number; progress?: { n: number; max: number } | null } | null>(null);
   const plushPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const plushTriedRef = useRef<Map<string, number>>(new Map());
   const plushBusyRef = useRef(false);
@@ -973,8 +983,12 @@ export default function MapPage() {
         if (r.ok) {
           // Texte calculé à l'AFFICHAGE (langue courante), pas ici.
           const coll = r.bonuses.find((b) => b.kind === "collector");
-          setPlushBanner({ kind: r.plush.golden ? "golden" : "caught", points: r.points, collector: coll ? (coll.points ?? 500) : null, key: now });
-          setPlush((cur) => (cur ? { ...cur, caughtToday: true, plushies: cur.plushies.filter((x) => x.id !== near.id) } : cur));
+          // 611 : 2 peluches par jour. Le compteur du serveur décide ; un ancien
+          // serveur (sans dailyMax) garde la règle « une par jour ».
+          const max = plush?.dailyMax ?? null;
+          const n = max != null ? Math.min(max, (plush?.caughtTodayCount ?? 0) + 1) : null;
+          setPlushBanner({ kind: r.plush.golden ? "golden" : "caught", points: r.points, collector: coll ? (coll.points ?? 500) : null, key: now, progress: max != null && n != null ? { n, max } : null });
+          setPlush((cur) => (cur ? { ...cur, caughtTodayCount: n, caughtToday: max == null || (n ?? 0) >= max, plushies: cur.plushies.filter((x) => x.id !== near.id) } : cur));
         } else if (r.code === "DAILY_LIMIT") {
           setPlushBanner({ kind: "daily", points: 0, collector: null, key: now });
           setPlush((cur) => (cur ? { ...cur, caughtToday: true } : cur));
@@ -1280,7 +1294,9 @@ export default function MapPage() {
     setCreateKind(kind);
     setCreateType(kind === "spot" ? "path_walk" : "poison");
     setCreateErrShop(false);
-    if (kind === "report") void getComfortQuota().then(setComfortQuota);
+    setLostActive(null);
+    setLostCloseMsg(null);
+    if (kind === "report") void getReportQuota().then((q) => { setComfortQuota(q.comfort); setLostQuota(q.lostPet); });
     setCreateName("");
     setCreateNote("");
     setCreateErr(null);
@@ -1295,6 +1311,8 @@ export default function MapPage() {
     setCreating(true);
     setCreateErr(null);
     setCreateErrShop(false);
+    setLostActive(null);
+    setLostCloseMsg(null);
     try {
       if (createKind === "spot") {
         if (!createName.trim()) { setCreateErr(t("map_spot_name_ph")); setCreating(false); return; }
@@ -1315,12 +1333,18 @@ export default function MapPage() {
       setCreateKind(null);
     } catch (e) {
       // 610 — réponses du serveur traduites en message clair (jamais un « échec » vague).
-      if (createKind === "report" && e instanceof ApiError && (e.status === 402 || e.status === 429)) {
-        const lost = createType === "lost_pet" || createType === "found_pet";
+      // 611 — animal perdu déjà en cours (409 LOST_PET_ACTIVE) : message de ZOE,
+      // « Voir les abonnements » et « Clôturer mon alerte en cours ».
+      const lostBusy = createKind === "report" ? asLostPetActive(e) : null;
+      if (lostBusy) {
+        setLostActive({ id: lostBusy.activeReportId ?? null, until: lostBusy.activeExpiresAt ?? null });
+        setLostQuota((q) => ({ unlimited: false, limit: lostBusy.limit ?? q?.limit ?? 1, active: Math.max(1, q?.active ?? 1), remaining: 0, activeReportId: lostBusy.activeReportId ?? null, activeExpiresAt: lostBusy.activeExpiresAt ?? null }));
+      }
+      else if (createKind === "report" && e instanceof ApiError && (e.status === 402 || e.status === 429) && createType !== "lost_pet" && createType !== "found_pet") {
         const next = (e.details as { nextAvailableAt?: string } | undefined)?.nextAvailableAt;
-        setCreateErr(lost ? t("r610_err_lost") : next ? t("r610_err_week").replace("@date", fmtNextDate(next)) : t("r610_err_week_nodate"));
+        setCreateErr(next ? t("r610_err_week").replace("@date", fmtNextDate(next)) : t("r610_err_week_nodate"));
         setCreateErrShop(true);
-        if (!lost && next) setComfortQuota({ unlimited: false, limit: 1, used: 1, remaining: 0, nextAvailableAt: next });
+        if (next) setComfortQuota({ unlimited: false, limit: 1, used: 1, remaining: 0, nextAvailableAt: next });
       }
       else if (e instanceof ApiError && e.status === 402) setCreateErr(t("map_create_locked"));
       else if (e instanceof ApiError && e.status === 401) router.replace("/login");
@@ -1330,8 +1354,30 @@ export default function MapPage() {
     }
   }
 
+  // 611 — « Clôturer mon alerte en cours » : DELETE /map-reports/:id, puis
+  // l'utilisateur peut publier la nouvelle alerte (même fenêtre, rien à ressaisir).
+  async function closeActiveLost() {
+    const id = lostActive?.id || lostQuota?.activeReportId;
+    if (!id || lostClosing) return;
+    setLostClosing(true);
+    try {
+      await deleteMapReport(id);
+      setLostActive(null);
+      setLostCloseMsg("ok");
+      setLostQuota((q) => (q ? { ...q, active: Math.max(0, (q.active ?? 1) - 1), remaining: Math.max(1, q.remaining ?? 0), activeReportId: null, activeExpiresAt: null } : q));
+      setReports((rs) => rs.filter((r) => r._id !== id));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        setLostActive(null);
+        setLostCloseMsg("ok");
+      } else setLostCloseMsg("fail");
+    } finally {
+      setLostClosing(false);
+    }
+  }
+
   const handleDirections = useCallback(
-    (target: { lat: number; lng: number }, modeOverride?: RouteMode) => {
+    (target: { lat: number; lng: number; friendId?: string }, modeOverride?: RouteMode) => {
       const mode = modeOverride ?? routeMode;
       setDirectionsLocked(false);
       setDirectionsError(false);
@@ -1343,7 +1389,16 @@ export default function MapPage() {
       const go = async (from: { lat: number; lng: number }, origin: "gps" | "center") => {
         setRouteFrom(origin);
         try {
-          setRoute(await getPawSpotDirections({ fromLat: from.lat, fromLng: from.lng, toLat: target.lat, toLng: target.lng, mode, lang }));
+          // 611 — vers un AMI : `friendId` → gratuit (jamais de renvoi vers la boutique).
+          // Refus 403 NOT_A_FRIEND (ex. gardien suivi pendant une garde, pas ami) :
+          // on retente SANS friendId, c'est-à-dire la règle d'abonnement.
+          const q = { fromLat: from.lat, fromLng: from.lng, toLat: target.lat, toLng: target.lng, mode, lang };
+          try {
+            setRoute(await getPawSpotDirections({ ...q, friendId: target.friendId }));
+          } catch (e1) {
+            if (target.friendId && e1 instanceof ApiError && e1.status === 403 && (e1.details as { code?: string } | undefined)?.code === "NOT_A_FRIEND") setRoute(await getPawSpotDirections(q));
+            else throw e1;
+          }
         } catch (e) {
           if (e instanceof ApiError && e.status === 402) setDirectionsLocked(true);
           else if (e instanceof ApiError && e.status === 401) { router.replace("/login"); return; }
@@ -1628,7 +1683,8 @@ export default function MapPage() {
   };
   // 610 (règle B, REGLES_610.md) — dangers d'abord (gratuits et illimités pour
   // tous), puis les autres types gratuits, puis le confort (1 par semaine sans
-  // abonnement), et enfin perdu / trouvé (abonnés). Le serveur reste juge : la
+  // abonnement), et enfin perdu / trouvé (611 : gratuits pour tous ; perdu =
+  // 1 alerte active à la fois sans abonnement). Le serveur reste juge : la
   // phrase sous le choix n'est qu'une aide.
   // Classement IDENTIQUE au serveur de ZOE (rules610, GET /map-reports/types) :
   // 13 dangers, 4 infos utiles (gratuits, illimités), 8 confort (1 par 7 jours).
@@ -1644,7 +1700,11 @@ export default function MapPage() {
   const reportHint = (tp: string) =>
     (REPORT_DANGER as string[]).includes(tp) ? t("r610_hint_danger")
       : (REPORT_FREE as string[]).includes(tp) ? t("r610_hint_free")
-      : tp === "lost_pet" || tp === "found_pet" ? t("r610_hint_lost")
+      : tp === "found_pet" ? t("alerts611_found_free")
+      : tp === "lost_pet"
+        ? (lostQuota?.unlimited ? t("alerts611_section_lost_sub_plus")
+          : lostActive || (lostQuota && (lostQuota.remaining ?? 1) <= 0) ? t("alerts611_section_lost_sub_active")
+          : t("alerts611_section_lost_sub_free"))
       : comfortQuota?.unlimited ? t("r610_hint_comfort_unlimited")
       : comfortQuota && comfortQuota.remaining !== null && comfortQuota.remaining <= 0 && comfortQuota.nextAvailableAt
         ? t("r610_hint_comfort_used").replace("@date", fmtNextDate(comfortQuota.nextAvailableAt))
@@ -1839,7 +1899,7 @@ export default function MapPage() {
                     <button type="button" onClick={() => { setFollowPaused(false); setFocusTarget({ lat: followed.lat, lng: followed.lng, ts: Date.now(), zoom: 16.5 }); setFollowSheet(false); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#EDE9FE] px-2 text-xs font-bold text-[#5B21B6]">
                       <AppIcon name="locate" size={16} color="#6D28D9" />{t("live_recenter")}
                     </button>
-                    <button type="button" onClick={() => { handleDirections({ lat: followed.lat, lng: followed.lng }); setFollowSheet(false); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#DCFCE7] px-2 text-xs font-bold text-[#15803D]">
+                    <button type="button" onClick={() => { handleDirections({ lat: followed.lat, lng: followed.lng, friendId: followed.userId }); setFollowSheet(false); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#DCFCE7] px-2 text-xs font-bold text-[#15803D]">
                       <AppIcon name="route" size={16} color="#15803D" />{t("map_directions_btn")}
                     </button>
                     <button type="button" onClick={() => { void openMessage({ id: followed.userId, role: followed.role, name: followed.name }); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#DBEAFE] px-2 text-xs font-bold text-[#1E4FB0]">
@@ -1893,6 +1953,7 @@ export default function MapPage() {
           {plushBanner && (
             <div key={plushBanner.key} role="status" data-plush-banner="" className="pointer-events-none absolute left-1/2 top-16 z-[1200] w-max max-w-[calc(100%-32px)] -translate-x-1/2 rounded-full px-5 py-3 text-center text-[15px] font-extrabold text-white shadow-[0_14px_30px_-12px_rgba(23,20,31,0.6)]" style={{ background: plushBanner.kind === "golden" ? "linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800)" : "linear-gradient(165deg,#43B862,#16A34A 55%,#15803D)", border: "2px solid #fff" }}>
               {plushBanner.kind === "daily" ? t("plush607_daily_done") : t(plushBanner.kind === "golden" ? "plush607_golden_won" : "plush607_caught").replace("{points}", String(plushBanner.points))}
+              {plushBanner.progress && ` · ${t("plush611_progress").replace("@n", String(plushBanner.progress.n)).replace("@max", String(plushBanner.progress.max))}`}
               {plushBanner.collector != null && ` · ${t("plush607_collector_won").replace("{points}", String(plushBanner.collector))}`}
             </div>
           )}
@@ -1927,7 +1988,7 @@ export default function MapPage() {
                   { k: "around", pal: JEWEL.around, icon: "explore_nearby", label: t("map_around_title"), on: () => { setSheet("full"); document.getElementById("around-list")?.scrollIntoView({ behavior: "smooth", block: "start" }); } },
                   { k: "directions", pal: JEWEL.route, icon: "route", label: t("map_directions_btn"), on: () => {
                     if (selectedPoi) { const [lng, lat] = selectedPoi.location.coordinates; handleDirections({ lat, lng }); }
-                    else if (followed) handleDirections({ lat: followed.lat, lng: followed.lng });
+                    else if (followed) handleDirections({ lat: followed.lat, lng: followed.lng, friendId: followed.userId });
                     else {
                       // Aucune destination choisie : on le DIT, puis la liste « autour de toi ».
                       setLiveToast(t("route_pick_target"));
@@ -2124,6 +2185,11 @@ export default function MapPage() {
             onSpotVisit={handleSpotVisit}
             reports={showReports ? reports : []}
             reportTypeLabels={reportTypeLabels}
+            onReportConfirm={async (id) => {
+              try { return await confirmMapReport(id); }
+              catch (e) { if (e instanceof ApiError && e.status === 401) router.push("/login"); throw e; }
+            }}
+            reportConfirmLabels={{ lostSeen: t("pawmap_lost_seen_btn"), confirm: t("pawmap_btn_confirm_extend"), lostThanks: t("pawmap_lost_seen_thanks"), extended: t("pawmap_snack_extended_msg"), failed: t("map_create_error") }}
             members={membersWithPresence}
             memberRoleLabels={{ owner: t("role_owner"), sitter: t("role_sitter"), walker: t("role_walker") }}
             cardLabels={cardLabels}
@@ -2511,7 +2577,7 @@ export default function MapPage() {
                   const key = roleKey(r.role);
                   // 590 (§1) — tarifs visibles seulement de l'autre côté du marché.
                   const price = key !== "owner" && showsPriceBubble(myRole, key) ? formatPriceUnit(r.priceFrom, r.currency, r.priceAlt, priceUnitLabels(t)) : null;
-                  return { id: `${m.id}-${r.id}`, lat: x.lat, lng: x.lng, km: x.shownKm, pin: "", title: m.name || t("common_member"), sub: `${t(`role_${key}`)}${price ? ` · ${t("map_member_price_from")} ${price}` : ""}${(r.rating ?? 0) > 0 ? ` · ★ ${(r.rating ?? 0).toFixed(1)}` : ""}`, photo: m.avatar || "", meta: m.approx ? t("map_member_approx").replace("{km}", String(m.approxKm ?? 1)) : "", color: ROLE_COLOR[key], book: key !== "owner" ? `/book/${key}/${r.id}` : undefined, friend, verified: m.identityVerified === true, price: typeof r.priceFrom === "number" && r.priceFrom > 0 ? r.priceFrom : null };
+                  return { id: `${m.id}-${r.id}`, lat: x.lat, lng: x.lng, km: x.shownKm, pin: "", title: m.name || t("common_member"), sub: `${t(`role_${key}`)}${price ? ` · ${t("map_member_price_from")} ${price}` : ""}${(r.rating ?? 0) > 0 ? ` · ★ ${(r.rating ?? 0).toFixed(1)}` : ""}`, photo: m.avatar || "", meta: m.approx ? t("map_member_approx").replace("{km}", String(m.approxKm ?? 1)) : "", color: ROLE_COLOR[key], book: key !== "owner" ? `/book/${key}/${r.id}` : undefined, friend, friendId: friend ? r.id : undefined, approx: m.approx === true, verified: m.identityVerified === true, price: typeof r.priceFrom === "number" && r.priceFrom > 0 ? r.priceFrom : null };
                 });
               }
               // 02/10 (609, CONTRAT) — à prix égal (> 0) et à moins de 500 m l'un de l'autre,
@@ -2558,7 +2624,7 @@ export default function MapPage() {
                           {r.book ? (
                             <a href={r.book} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white" style={{ background: r.color }} title={t("map_member_book")} aria-label={t("map_member_book")}><AppIcon name="calendar" size={16} color="#fff" /></a>
                           ) : (
-                            <button type="button" onClick={() => handleDirections({ lat: r.lat, lng: r.lng })} title={t("map_directions_btn")} aria-label={t("map_directions_btn")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-owner text-white transition hover:bg-owner-dark"><AppIcon name="route" size={16} color="#fff" /></button>
+                            (r as { approx?: boolean; friend?: boolean }).approx && !(r as { friend?: boolean }).friend ? null : <button type="button" onClick={() => handleDirections({ lat: r.lat, lng: r.lng, friendId: (r as { friendId?: string }).friendId })} title={t("map_directions_btn")} aria-label={t("map_directions_btn")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-owner text-white transition hover:bg-owner-dark"><AppIcon name="route" size={16} color="#fff" /></button>
                           )}
                         </li>
                       ))}
@@ -2654,7 +2720,7 @@ export default function MapPage() {
               options={createKind === "spot" ? spotOptions.map((tp) => ({ value: tp, label: spotTypeLabels[tp] })) : reportOptions.map((tp) => ({ value: tp, label: reportTypeLabels[tp] || tp }))}
             />
             {createKind === "report" && (
-              <p data-report-hint="" className="mt-1.5 text-xs font-semibold" style={{ color: (REPORT_DANGER as string[]).includes(createType) || (REPORT_FREE as string[]).includes(createType) ? "#15803D" : "#9A3412" }}>{reportHint(createType)}</p>
+              <p data-report-hint="" className="mt-1.5 text-xs font-semibold" style={{ color: (REPORT_DANGER as string[]).includes(createType) || (REPORT_FREE as string[]).includes(createType) || createType === "lost_pet" || createType === "found_pet" ? "#15803D" : "#9A3412" }}>{reportHint(createType)}</p>
             )}
             {createKind === "spot" && (
               <>
@@ -2673,6 +2739,28 @@ export default function MapPage() {
               </>
             )}
             <textarea value={createNote} onChange={(e) => setCreateNote(e.target.value)} placeholder={t("map_note_ph")} maxLength={300} rows={2} className="mt-3 w-full rounded-xl border border-[#EADFDC] px-3 py-2 text-sm" />
+            {/* 611 — alerte « animal perdu » déjà en cours : textes de ZOE, deux sorties. */}
+            {createKind === "report" && lostActive && (
+              <div data-lost-active="" role="alert" className="mt-3 rounded-xl border border-[#F2C9BF] bg-[#FFF4F0] p-3">
+                <p className="text-sm font-bold text-[#9E1F0B]">{t("alerts611_active_title")}</p>
+                <p className="mt-1 text-xs leading-relaxed text-[#6E4F48]">{t("alerts611_active_msg")}</p>
+                {lostActive.until && <p className="mt-1 text-xs font-semibold text-[#6E4F48]">{t("alerts611_active_until").replace("@date", fmtNextDate(lostActive.until))}</p>}
+                <div className="mt-3 flex flex-col gap-2">
+                  {lostActive.id && (
+                    <button type="button" data-lost-close="" onClick={closeActiveLost} disabled={lostClosing} className="min-h-[44px] rounded-full bg-gradient-to-b from-[#E0553F] to-[#C92A12] px-4 text-sm font-bold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-60">
+                      {lostClosing ? "…" : t("alerts611_close_active")}
+                    </button>
+                  )}
+                  <Link href="/boutique" data-lost-subs="" className="flex min-h-[44px] items-center justify-center rounded-full border border-[#C92A12] px-4 text-sm font-bold text-[#9E1F0B] transition hover:bg-white">{t("r610_cta_subs")}</Link>
+                </div>
+                {lostCloseMsg === "fail" && (
+                  <p className="mt-2 text-xs font-semibold text-[#B42318]" data-lost-close-msg="fail"><b>{t("alerts611_close_failed_title")}</b> · {t("alerts611_close_failed_msg")}</p>
+                )}
+              </div>
+            )}
+            {createKind === "report" && lostCloseMsg === "ok" && (
+              <p data-lost-close-msg="ok" role="status" className="mt-3 rounded-xl bg-[#ECFDF3] p-3 text-xs font-semibold text-[#15803D]"><b>{t("alerts611_closed_title")}</b> · {t("alerts611_closed_msg")}</p>
+            )}
             {createErr && (
               <p className="mt-2 text-xs font-semibold text-[#B42318]" data-create-err="">
                 {createErr}

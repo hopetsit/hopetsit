@@ -25,6 +25,8 @@ export type PublicProvider607 = {
   verified: boolean;
   isPioneer: boolean;
   indexable: boolean;
+  /** 611 — rang (Chiot → Légende), seulement si le serveur l'envoie. */
+  rank?: unknown;
 };
 
 // Même base que lib/api.ts (non importé : ce fichier sert aussi au serveur).
