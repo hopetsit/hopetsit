@@ -369,4 +369,27 @@ bookingSchema.pre('validate', function (next) {
   next();
 });
 
+// 04/10/2026 (FLO, demande de Daniel) — e-mail interne « 💰 Paiement reçu »
+// à contact@hopetsit.com. UN SEUL point pour toutes les réservations : le
+// passage de paymentStatus à 'paid', quel que soit le chemin (webhook
+// Airwallex, /confirm, capture PayPal, réconciliation admin). L'envoi est en
+// arrière-plan et idempotent (services/paymentAlert0410.js) : il ne peut ni
+// bloquer ni faire échouer la sauvegarde.
+bookingSchema.pre('save', function (next) {
+  try {
+    if (this.paymentStatus === 'paid' && (this.isNew || this.isModified('paymentStatus'))) {
+      this.$locals.paymentAlertPaid = true;
+    }
+  } catch (_) { /* jamais bloquant */ }
+  next();
+});
+bookingSchema.post('save', function (doc) {
+  try {
+    if (!doc || !doc.$locals || !doc.$locals.paymentAlertPaid) return;
+    doc.$locals.paymentAlertPaid = false;
+    const extra = doc.$locals.paymentAlertAmount || {};
+    require('../services/paymentAlert0410').alertBookingPaid(doc, extra);
+  } catch (_) { /* jamais bloquant */ }
+});
+
 module.exports = mongoose.model('Booking', bookingSchema);

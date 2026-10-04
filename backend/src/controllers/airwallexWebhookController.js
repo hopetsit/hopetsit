@@ -21,6 +21,18 @@ const Walker = require('../models/Walker');
 const logger = require('../utils/logger');
 const { failedEventStatus } = require('../utils/webhookPaidGuard599'); // v599 FLO
 
+// 04/10/2026 (FLO) — achats hors réservation qui déclenchent l'e-mail interne.
+const SHOP_ALERT_TYPES = new Set([
+  'map_boost_purchase',
+  'subscription_purchase',
+  'premium_purchase',
+  'boost_purchase',
+  'pawspot_purchase',
+  'chat_addon_purchase',
+  'kyc',
+  'donation',
+]);
+
 const handleAirwallexWebhook = async (req, res) => {
   // 1. Verify signature.
   let event;
@@ -88,6 +100,22 @@ const handleAirwallexWebhook = async (req, res) => {
           if (data?.currency) piMetadata.providerCurrency = String(data.currency).toUpperCase();
         }
         const purchaseType = (piMetadata.type || '').toLowerCase();
+
+        // 04/10/2026 (FLO) — e-mail interne « 💰 Paiement reçu » pour tout
+        // achat hors réservation (boutique, abonnements, KYC, dons). Clé
+        // `pi:<id>` partagée avec les /confirm → un seul e-mail. Les
+        // réservations passent par le crochet du modèle Booking. Arrière-plan,
+        // jamais bloquant.
+        if (SHOP_ALERT_TYPES.has(purchaseType)) {
+          try {
+            require('../services/paymentAlert0410').alertIntentPaid({
+              piId,
+              metadata: piMetadata,
+              amount: data?.amount,
+              currency: data?.currency,
+            });
+          } catch (_) { /* jamais bloquant */ }
+        }
 
         if (purchaseType === 'map_boost_purchase') {
           try {
@@ -254,6 +282,9 @@ const handleAirwallexWebhook = async (req, res) => {
         booking.status = 'paid';
         booking.paymentStatus = 'paid';
         booking.paidAt = booking.paidAt || new Date();
+        // 04/10/2026 (FLO) — montant réellement débité, lu par l'e-mail
+        // interne « Paiement reçu » (crochet du modèle Booking).
+        booking.$locals.paymentAlertAmount = { amount: data?.amount, currency: data?.currency };
         await booking.save();
         logger.info(
           `✅ [airwallex.webhook] booking ${booking._id} marked as paid (PI ${piId})` +

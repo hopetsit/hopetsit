@@ -77,6 +77,20 @@ async function assertPaidIntent({ paymentIntentId, userId, purpose, expectedAmou
     );
   }
 
+  // 04/10/2026 (FLO) — paiement confirmé SUCCEEDED par Airwallex : e-mail
+  // interne « 💰 Paiement reçu ». Même clé `pi:<id>` que le webhook → un seul
+  // e-mail, quel que soit le chemin arrivé en premier. Arrière-plan, jamais
+  // bloquant.
+  try {
+    require('../services/paymentAlert0410').alertIntentPaid({
+      piId,
+      metadata: pi?.metadata || {},
+      amount: pi?.amount,
+      currency: pi?.currency,
+      purpose,
+    });
+  } catch (_) { /* jamais bloquant */ }
+
   // Anti-rejeu : un même PaymentIntent ne peut activer qu'un seul achat.
   // On réutilise la collection ProcessedWebhook (clé unique) comme registre.
   try {

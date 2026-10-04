@@ -218,6 +218,29 @@ async function creditForTransaction({
   // Comptabilité / Activité boutique, et EXCLU du solde retirable Airwallex.
   // Idempotent : paymentIntentId = transactionId Apple.
   const newlyCredited = !(result?.alreadyActivated || result?.deduplicated);
+
+  // 04/10/2026 (FLO) — e-mail interne « 💰 Paiement reçu » pour un achat
+  // intégré Apple VALIDÉ côté serveur (transaction signée vérifiée). Clé
+  // `apple:<transactionId>` → un seul e-mail même si l'app renvoie la même
+  // transaction. Sandbox = marqué test. Arrière-plan, jamais bloquant.
+  try {
+    const alertType = mapping.kind === 'subscription'
+      ? 'subscription_purchase'
+      : mapping.kind === 'pawspot' ? 'pawspot_purchase' : 'boost_purchase';
+    require('./paymentAlert0410').alertShopPayment({
+      key: `apple:${transactionId}`,
+      type: alertType,
+      metadata: {
+        userId, role, plan: mapping.plan, tier: mapping.tier, platform: 'ios',
+      },
+      amount: lineAmount,
+      currency: lineCurrency,
+      provider: 'apple',
+      environment: info.environment,
+      reference: `Apple ${transactionId}${real ? '' : ' (prix catalogue, montant réel non transmis)'}`,
+    });
+  } catch (_) { /* jamais bloquant */ }
+
   if (newlyCredited && mapping.kind !== 'boost' && (mapping.price || real)) {
     try {
       const UserSubscription = require('../models/UserSubscription');
@@ -333,6 +356,24 @@ async function handleNotification(signedPayload) {
         (pm) => String(pm.paymentIntentId || '') === String(tx.transactionId),
       );
       if (line && !line.refundedAt) line.refundedAt = refundedAt;
+      // 04/10/2026 (FLO) — e-mail interne « ↩️ Remboursement » (Apple).
+      try {
+        const m = PRODUCT_MAP[productId] || {};
+        require('./paymentAlert0410').alertShopPayment({
+          key: `apple-refund:${tx.transactionId}`,
+          kind: 'refund',
+          type: m.kind === 'pawspot' ? 'pawspot_purchase'
+            : m.kind === 'boost' ? 'boost_purchase' : 'subscription_purchase',
+          metadata: {
+            userId: String(sub.userId), role, plan: m.plan, tier: m.tier, platform: 'ios',
+          },
+          amount: line ? line.amount : m.price,
+          currency: line ? line.currency : 'EUR',
+          provider: 'apple',
+          environment: txEnvironment,
+          reference: `Apple ${tx.transactionId}`,
+        });
+      } catch (_) { /* jamais bloquant */ }
     }
     // Coupe le timer correspondant au produit (ou tous si produit inconnu).
     const now = new Date();

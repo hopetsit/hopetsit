@@ -2078,7 +2078,15 @@ const refundBookingPayment = async (booking) => {
   if (booking.paymentProvider === 'paypal') {
     const captureId = booking.paypalCaptureId;
     if (!captureId) throw new Error('No PayPal capture ID to refund.');
-    return refundPaypalCapture(captureId);
+    const paypalRefund = await refundPaypalCapture(captureId);
+    // 04/10/2026 (FLO) — e-mail interne « Remboursement » (après succès seulement).
+    try {
+      require('../services/paymentAlert0410').alertBookingRefund(booking, {
+        refundId: paypalRefund?.id || null,
+        by: 'remboursement PayPal',
+      });
+    } catch (_) { /* jamais bloquant */ }
+    return paypalRefund;
   }
   // v23.1 part 79 — implement Airwallex refund (was stubbed). Owner
   // self-cancel < 72h auto-refund + admin manual refund both flow
@@ -2137,6 +2145,15 @@ const refundBookingPayment = async (booking) => {
     logger.info(
       `[refundBookingPayment] airwallex refund ${refund?.id} issued for booking ${booking._id} (${refundCents != null ? `€${refundCents / 100}` : 'montant capturé intégral'}).`,
     );
+    // 04/10/2026 (FLO) — e-mail interne « Remboursement » (après succès seulement).
+    try {
+      require('../services/paymentAlert0410').alertBookingRefund(booking, {
+        amount: refund?.amount != null ? refund.amount : (refundCents != null ? refundCents / 100 : undefined),
+        currency: refund?.currency,
+        refundId: refund?.id || null,
+        by: 'remboursement carte (Airwallex)',
+      });
+    } catch (_) { /* jamais bloquant */ }
     return refund;
   }
   throw new Error(`Refund not implemented for provider: ${booking.paymentProvider}`);
@@ -3797,6 +3814,8 @@ const confirmBookingPayment = async (req, res) => {
         booking.paymentStatus = 'paid';
         booking.paidAt = new Date();
         booking.paymentProvider = 'airwallex';
+        // 04/10/2026 (FLO) — montant réellement débité pour l'e-mail interne.
+        booking.$locals.paymentAlertAmount = { amount: pi?.amount, currency: pi?.currency };
         await booking.save();
         logger.info(`✅ [confirmBookingPayment] booking ${booking._id} marked paid (sync path).`);
 

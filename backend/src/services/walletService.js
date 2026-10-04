@@ -228,6 +228,18 @@ async function debitWallet({
     `💸 Wallet -${rounded} ${currency} ← ${userRole}:${userId} (new balance: ${updated.walletBalance}) type=${type} status=${initialStatus}`,
   );
 
+  // 04/10/2026 (FLO) — achat boutique direct par le portefeuille
+  // (/boost/purchase/wallet). Les retraits et reprises admin ne sont PAS des
+  // ventes : seul `debit_shop` déclenche l'e-mail interne.
+  if (type === 'debit_shop') {
+    const m = /^boost_(.+)$/.exec(String(productType || ''));
+    _alertWalletSale({
+      txId: tx._id.toString(), userId, userRole, amount: rounded, currency,
+      kind: m ? 'profile_boost' : String(productType || 'shop'),
+      tier: m ? m[1] : (meta && meta.tier),
+    });
+  }
+
   return {
     success: true,
     balance: updated.walletBalance,
@@ -616,6 +628,35 @@ async function processPendingWithdrawals(source = 'scheduler') {
  * (e.g. by checking they haven't already activated for this purchaseId).
  * This helper itself doesn't dedup.
  */
+// 04/10/2026 (FLO) — type d'achat (même vocabulaire que les intentions
+// Airwallex) → e-mail interne « Paiement reçu ». Jamais bloquant.
+const WALLET_KIND_TO_TYPE = {
+  subscription: 'subscription_purchase',
+  pawspot: 'pawspot_purchase',
+  map_boost: 'map_boost_purchase',
+  profile_boost: 'boost_purchase',
+  boost: 'boost_purchase',
+  chat_addon: 'chat_addon_purchase',
+  kyc: 'kyc',
+};
+function _alertWalletSale({ txId, userId, userRole, amount, currency, kind, plan, tier }) {
+  try {
+    require('./paymentAlert0410').alertWalletPurchase({
+      reference: txId,
+      type: WALLET_KIND_TO_TYPE[String(kind || '')] || String(kind || 'shop'),
+      metadata: {
+        userId: String(userId),
+        role: userRole,
+        paidAmount: amount,
+        currency,
+        provider: 'wallet',
+        ...(plan ? { plan } : {}),
+        ...(tier ? { tier } : {}),
+      },
+    });
+  } catch (_) { /* jamais bloquant */ }
+}
+
 async function payFromWallet({
   userId,
   userRole,
@@ -667,6 +708,14 @@ async function payFromWallet({
     `🛒 Wallet purchase : -${rounded} ${currency} from ${userRole}:${userId} ` +
     `(remaining: ${updated.walletBalance}) ref=${reference || '?'}`,
   );
+
+  // 04/10/2026 (FLO) — e-mail interne « 💰 Paiement reçu » : TOUS les achats
+  // boutique payés avec le portefeuille passent par ici (abonnements, PawSpot,
+  // boosts, option chat, KYC). Arrière-plan, jamais bloquant.
+  _alertWalletSale({
+    txId: tx._id.toString(), userId, userRole, amount: rounded, currency,
+    kind: meta && meta.kind, plan: meta && meta.plan, tier: meta && meta.tier,
+  });
 
   return {
     success: true,

@@ -80,6 +80,21 @@ router.post('/test-email', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── E-MAIL D'ESSAI « PAIEMENT REÇU » (04/10/2026, FLO) ─────────────────────
+// POST /admin/payment-alert/test — envoie UN e-mail d'exemple, marqué
+// « 🧪 ESSAI » dans l'objet et le corps, à PAYMENT_ALERT_EMAIL (défaut
+// contact@hopetsit.com). Aucun paiement, aucune écriture en base.
+router.post('/payment-alert/test', requireAdmin, async (req, res) => {
+  try {
+    const { sendTestPaymentAlert } = require('../services/paymentAlert0410');
+    const r = await sendTestPaymentAlert();
+    return res.json({ ok: true, to: r.to, subject: r.subject, smtpConfigured: Boolean(process.env.SMTP_HOST) });
+  } catch (err) {
+    logger.error('[admin/payment-alert/test] failed', err);
+    return res.status(500).json({ ok: false, error: err?.message || String(err) });
+  }
+});
+
 // ─── PROMOTIONS (v402, Chantier 2) ───────────────────────────────────────────
 // 100% additif. Génère/gère des codes promo + envoie des campagnes email.
 // Expéditeur = adresse de marque (SPF/DKIM OK), Reply-To = adresse choisie.
@@ -1098,6 +1113,19 @@ router.post('/bookings/:id/refund', requireAdmin, async (req, res) => {
     booking.cancelledBy = 'admin';
     booking.cancellationReason = reason;
     await booking.save();
+
+    // 04/10/2026 (FLO) — e-mail interne « ↩️ Remboursement », seulement si
+    // l'argent est réellement reparti chez le prestataire de paiement.
+    if (outcome.providerRefunded) {
+      try {
+        require('../services/paymentAlert0410').alertBookingRefund(booking, {
+          amount: refundResult?.amount,
+          currency: refundResult?.currency,
+          refundId: refundResult?.id || null,
+          by: `remboursement manuel depuis l'admin (${reason})`,
+        });
+      } catch (_) { /* jamais bloquant */ }
+    }
 
     // 4) Trace d'audit immutable.
     try {

@@ -831,6 +831,19 @@ const _recordOrphanKycPayment = async (paymentIntent, reason) => {
 };
 
 const onKycPaymentSucceeded = async (paymentIntent) => {
+  // 04/10/2026 (FLO) — e-mail interne « 💰 Paiement reçu » (vérification
+  // d'identité). Appelé par le webhook ET par /kyc/confirm : clé `pi:<id>`
+  // commune → un seul e-mail. Arrière-plan, jamais bloquant.
+  try {
+    if (paymentIntent?.id) {
+      require('../services/paymentAlert0410').alertIntentPaid({
+        piId: paymentIntent.id,
+        metadata: { ...(paymentIntent.metadata || {}), type: 'kyc' },
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+      });
+    }
+  } catch (_) { /* jamais bloquant */ }
   try {
     const userId = paymentIntent?.metadata?.userId;
     const role = (paymentIntent?.metadata?.role || '').toLowerCase();
