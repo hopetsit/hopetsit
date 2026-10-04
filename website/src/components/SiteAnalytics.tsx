@@ -42,7 +42,7 @@ type Extra = {
 };
 
 // ── Mémoire de visite (variable de module — PAS de stockage navigateur) ──────
-type Campaign = { us: string; um: string; uc: string; r: string };
+type Campaign = { us: string; um: string; uc: string; ux: string; r: string };
 let campaign: Campaign | null = null;
 
 function hostOfReferrer(): string {
@@ -69,17 +69,20 @@ function readCampaign(): Campaign {
   let us = "";
   let um = "";
   let uc = "";
+  // 04/10/2026 (SAM) — utm_content = quelle publicité (mesure « reste 3 s » par pub).
+  let ux = "";
   try {
     const q = new URLSearchParams(window.location.search);
     us = (q.get("utm_source") || "").slice(0, 80);
     um = (q.get("utm_medium") || "").slice(0, 80);
     uc = (q.get("utm_campaign") || "").slice(0, 80);
+    ux = (q.get("utm_content") || "").slice(0, 80);
     if (!us && q.get("fbclid")) us = "fbclid";
     if (!us && q.get("gclid")) us = "gclid";
   } catch {
     /* URL exotique → on reste sur « direct » */
   }
-  campaign = { us, um, uc, r: hostOfReferrer() };
+  campaign = { us, um, uc, ux, r: hostOfReferrer() };
   return campaign;
 }
 
@@ -196,6 +199,7 @@ export function trackSiteEvent(type: SiteEventType, extra: Extra = {}) {
   if (c.us) body.us = c.us;
   if (c.um) body.um = c.um;
   if (c.uc) body.uc = c.uc;
+  if (c.ux) body.ux = c.ux;
   if (type === "store_click" && extra.store) body.s = extra.store;
   if (type === "cta_click" && extra.label) body.lb = extra.label.slice(0, 60);
 

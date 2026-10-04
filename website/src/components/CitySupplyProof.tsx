@@ -39,6 +39,21 @@ type Face = { id: string; role: "sitter" | "walker"; firstName: string; photo: s
 // et on n'en lit QUE les tarifs. Même règle que la fiche (providerRates.ts) :
 // un tarif absent ou à 0 n'existe pas → pas de prix affiché, jamais inventé.
 // On demande 6 visages et on garde d'abord ceux qui ont un prix.
+// 04/10/2026 (SAM, mission BOB) — PHOTOS LÉGÈRES. Mesure en 4G lente à 375 px :
+// noms et prix à 3,4 s, mais les photos à 9 s, 12 s et 18,5 s — les originaux
+// Cloudinary pèsent 1 900, 607 et 278 Ko pour un rond de 56 px. La pub promet
+// « leur photo et leur prix » : à 3 s, le visiteur voyait des ronds vides.
+// On demande à Cloudinary une vignette 112×112 (écran Retina), recadrée sur le
+// visage. URL hors Cloudinary ou déjà transformée → inchangée.
+function vignette(url: string): string {
+  try {
+    const m = url.match(/^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(v\d+\/.+)$/);
+    return m ? `${m[1]}c_fill,g_face,w_112,h_112,q_auto,f_auto/${m[2]}` : url;
+  } catch {
+    return url;
+  }
+}
+
 async function tarif(f: Face, lang: string, units: Record<string, string>, signal: AbortSignal): Promise<string | undefined> {
   try {
     const r = await fetch(`${API_BASE}/${f.role}s/${f.id}`, { signal });
@@ -252,7 +267,7 @@ export function CitySupplyProof({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={f.photo}
+                src={vignette(f.photo)}
                 alt={f.firstName}
                 width={56}
                 height={56}

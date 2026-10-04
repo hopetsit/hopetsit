@@ -59,6 +59,9 @@ const siteEventSchema = new mongoose.Schema(
     utmSource: { type: String, default: '', maxLength: MAX_UTM },
     utmMedium: { type: String, default: '', maxLength: MAX_UTM },
     utmCampaign: { type: String, default: '', maxLength: MAX_UTM },
+    // 04/10/2026 (SAM) — utm_content = QUELLE PUBLICITÉ (weekend, toussaint3…).
+    // Sans lui, impossible de dire quelle pub amène des visiteurs qui restent.
+    utmContent: { type: String, default: '', maxLength: MAX_UTM },
     // Nom d'hôte du referrer UNIQUEMENT (« l.facebook.com »).
     refHost: { type: String, default: '', maxLength: MAX_HOST },
     // Renseigné pour les store_click.
@@ -289,6 +292,7 @@ function buildEvent(body, { ip, userAgent, now } = {}) {
   const utmSource = cleanUtm(b.us);
   const utmMedium = cleanUtm(b.um);
   const utmCampaign = cleanUtm(b.uc);
+  const utmContent = cleanUtm(b.ux);
   const refHost = hostOf(b.r);
   const day = dayKey(now || new Date());
 
@@ -305,6 +309,7 @@ function buildEvent(body, { ip, userAgent, now } = {}) {
     utmSource,
     utmMedium,
     utmCampaign,
+    utmContent,
     refHost,
     store: type === 'store_click' ? (store || 'other') : '',
     label: type === 'cta_click' ? clip(b.lb, MAX_LABEL).trim() : '',

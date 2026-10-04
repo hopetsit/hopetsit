@@ -263,7 +263,7 @@ describe('empreinte visiteur (anonyme et non réversible)', () => {
     expect(serialized).not.toContain('Mozilla');
     expect(Object.keys(doc).sort()).toEqual([
       'createdAt', 'day', 'device', 'label', 'lang', 'path', 'refHost',
-      'source', 'store', 'type', 'utmCampaign', 'utmMedium', 'utmSource',
+      'source', 'store', 'type', 'utmCampaign', 'utmContent', 'utmMedium', 'utmSource',
       'visitor',
     ]);
     // L'empreinte n'est pas l'IP hachée « en clair » : sans le sel du jour,
@@ -424,5 +424,34 @@ describe('agrégat admin', () => {
     expect(empty.topPages).toEqual([]);
     expect(empty.byCta).toEqual([]);
     expect(empty.change).toMatchObject({ pageviews: 0, visitors: 0, storeClicks: 0 });
+  });
+});
+
+// 04/10/2026 (SAM) — par publicité : arrivées, restés 3 s, clics.
+describe('agrégat par publicité (byAd)', () => {
+  const { buildAnalytics } = require('../src/routes/siteEventRoutes');
+  const NOW2 = new Date('2026-10-04T12:00:00Z');
+  const e = (o) => ({ type: 'pageview', path: '/garde-animaux/paris', source: 'meta_ads', utmCampaign: 'paris_owners', utmContent: 'weekend', day: '2026-10-04', visitor: 'a', label: '', ...o });
+  test('utm_content sépare les pubs, lecture_* hors clics, dénominateur = pages propriétaires', () => {
+    const r = buildAnalytics([
+      e({}), e({ visitor: 'b' }), e({ visitor: 'c' }),
+      e({ type: 'cta_click', label: 'lecture_3s' }),
+      e({ type: 'cta_click', label: 'lecture_15s' }),
+      e({ type: 'cta_click', label: 'signup_web_barre' }),
+      e({ path: '/p/sitter/x' }), // page profil : pas une arrivée
+      e({ utmContent: 'toussaint3' }),
+      e({ utmContent: '', visitor: 'z' }),
+      e({ utmCampaign: '', utmContent: '', visitor: 'direct' }),
+    ], { days: 7, now: NOW2 });
+    const w = r.byAd.find((x) => x.content === 'weekend');
+    expect(w).toMatchObject({ arrivals: 3, stay3s: 1, stay15s: 1, clicks: 1, publish: 1, stayRate: 33.3 });
+    expect(r.byAd.find((x) => x.content === 'toussaint3').arrivals).toBe(1);
+    expect(r.byAd.find((x) => x.content === '—').arrivals).toBe(1);
+    expect(r.byAd.some((x) => x.campaign === '')).toBe(false);
+  });
+  test('buildEvent garde utm_content (ux)', () => {
+    const SiteEvent = require('../src/models/SiteEvent');
+    const d = SiteEvent.buildEvent({ t: 'pageview', p: '/garde-animaux/paris', us: 'meta', um: 'paid', uc: 'paris_owners', ux: 'toussaint3' }, { ip: '1.2.3.4', userAgent: 'x', now: NOW2 });
+    expect(d.utmContent).toBe('toussaint3');
   });
 });

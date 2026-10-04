@@ -220,6 +220,38 @@ function buildAnalytics(events, { days = 7, now = new Date() } = {}) {
     .sort((x, y) => y.clicks - x.clicks)
     .slice(0, 30);
 
+  // 04/10/2026 (SAM, mission BOB « la pub amène des gens qui ne restent pas ») —
+  // PAR PUBLICITÉ (utm_campaign + utm_content) : combien arrivent sur une page
+  // propriétaire, combien y restent 3 s (repère « lecture_3s »), et combien
+  // touchent ensuite un vrai bouton. Les repères « lecture_* » ne sont pas des
+  // clics : ils sont comptés à part. Dénominateur = pages vues des pages
+  // propriétaires (là où le repère est posé), pas les « visiteurs » : l'empreinte
+  // du jour peut changer entre la page vue et le repère (réseau mobile), ce qui
+  // gonflait les visiteurs (03/10 : 114 visiteurs pour 89 pages vues).
+  const OWNER_PAGE = /^\/(?:[a-z]{2}\/)?(?:garde-animaux|pet-sitting|petsitter)\//;
+  const ads = new Map();
+  for (const ev of current) {
+    if (!ev.utmCampaign) continue;
+    const content = ev.utmContent || '—';
+    const k = `${ev.utmCampaign}\u0000${content}`;
+    if (!ads.has(k)) {
+      ads.set(k, { campaign: ev.utmCampaign, content, arrivals: 0, stay3s: 0, stay15s: 0, clicks: 0, publish: 0 });
+    }
+    const a = ads.get(k);
+    const label = ev.label || '';
+    if (ev.type === 'pageview' && OWNER_PAGE.test(ev.path || '')) a.arrivals += 1;
+    else if (ev.type === 'cta_click' && label === 'lecture_3s') a.stay3s += 1;
+    else if (ev.type === 'cta_click' && label === 'lecture_15s') a.stay15s += 1;
+    else if (ev.type === 'store_click' || (ev.type === 'cta_click' && !label.startsWith('lecture_'))) {
+      a.clicks += 1;
+      if (label.startsWith('signup') || label.startsWith('demander')) a.publish += 1;
+    }
+  }
+  const byAd = [...ads.values()]
+    .map((a) => ({ ...a, stayRate: pct(a.stay3s, a.arrivals) }))
+    .sort((x, y) => y.arrivals - x.arrivals)
+    .slice(0, 30);
+
   return {
     days: nbDays,
     from,
@@ -240,6 +272,7 @@ function buildAnalytics(events, { days = 7, now = new Date() } = {}) {
     byDevice,
     byLang,
     byCta,
+    byAd,
   };
 }
 
@@ -251,7 +284,7 @@ adminRouter.get('/', requireAdmin, async (req, res) => {
     const now = new Date();
     const since = SiteEvent.shiftDay(SiteEvent.dayKey(now), -(2 * days - 1));
     const events = await SiteEvent.find({ day: { $gte: since } })
-      .select('type path lang device source utmCampaign day visitor label -_id')
+      .select('type path lang device source utmCampaign utmContent day visitor label -_id')
       .limit(400000)
       .lean();
     res.json(buildAnalytics(events, { days, now }));
