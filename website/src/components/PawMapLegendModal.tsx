@@ -107,6 +107,7 @@ const SECTION_COLOR: Record<string, string> = {
   walk: "#16A34A",
   act: "#2563EB",
   set: "#7C3AED",
+  reports: "#D32F2F",
   faq: "#17141F",
   pioneer: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)",
   plush: "linear-gradient(165deg,#34B857,#16A34A)",
@@ -293,6 +294,27 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     { id: "points", title: t("pp607_help_points_title"), link: { href: "/pawpoints-guide", label: t("ppg_link") }, rows: [{ html: `<span style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800);border:2px solid #fff;box-shadow:0 6px 14px -6px #B07800;font-size:22px">🪙</span>`, title: "", body: t("pp607_help_points_body") }] },
   ];
 
+  // 04/10 (610) — règle B (REGLES_610.md) : tout le monde voit tous les
+  // signalements ; signaler un danger = gratuit et illimité ; confort = 1 par
+  // semaine sans abonnement ; « Geste du bon Samaritain » (24 h de Premium
+  // offert, jamais le mot « récompense »). Clés r610_* (lib/i18n/rules610.ts).
+  const SHIELD = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z"/><path d="m8.8 12.2 2.3 2.3 4.3-4.6"/></svg>';
+  const WEEK = '<span style="font:800 12px/1 Poppins,Inter,system-ui,sans-serif;color:#fff;letter-spacing:-.02em">1/7</span>';
+  const PAWLOST = '<svg viewBox="0 0 24 24" width="19" height="19" fill="#fff"><circle cx="6.5" cy="9" r="2.1"/><circle cx="10" cy="5.6" r="2.1"/><circle cx="14" cy="5.6" r="2.1"/><circle cx="17.5" cy="9" r="2.1"/><path d="M12 10.5c-3 0-6 3.6-6 6.2 0 1.7 1.4 2.6 3 2.3 1.1-.2 2-.6 3-.6s1.9.4 3 .6c1.6.3 3-.6 3-2.3 0-2.6-3-6.2-6-6.2z"/></svg>';
+  const HEART = '<svg viewBox="0 0 24 24" width="19" height="19" fill="#fff"><path d="M12 20.5s-7.5-4.4-7.5-10A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.9c0 5.6-7.5 10-7.5 10z"/></svg>';
+  const reportsSection: Section = {
+    id: "reports",
+    title: t("r610_sec"),
+    example: t("r610_ex"),
+    rows: [
+      { html: reportPinHtml(34), title: t("r610_see_t"), body: t("r610_see_b"), color: "#B42318" },
+      { html: roundHtml("linear-gradient(165deg,#F0645A,#D32F2F 55%,#A61B1B)", SHIELD, "#D32F2F"), title: t("r610_danger_t"), body: t("r610_danger_b"), color: "#B42318" },
+      { html: roundHtml("linear-gradient(165deg,#8A7A72,#5E4E46 55%,#3E312B)", WEEK, "rgba(62,49,43,.8)"), title: t("r610_comfort_t"), body: t("r610_comfort_b"), color: "#231715" },
+      { html: roundHtml("linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)", PAWLOST, "#C92A12"), title: t("r610_lost_t"), body: t("r610_lost_b"), color: ROLE_COLOR.owner },
+      { html: roundHtml("linear-gradient(165deg,#FFD86B,#E8A00A 50%,#B07800)", HEART, "#B07800"), title: t("r610_sam_t"), body: t("r610_sam_b"), color: "#8A5A00" },
+    ],
+  };
+
   const sections: Section[] = full
     ? [
         {
@@ -348,6 +370,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
             { html: railHtml("report", "#FF6E5C", "#D63A28"), title: t("map_report_cta"), body: t("h587_b_report") },
           ],
         },
+        reportsSection,
         {
           id: "set", title: t("h587_sec_set"), example: t("h587_ex_set"),
           rows: [
@@ -362,7 +385,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
         },
         ...sections607,
       ]
-    : [{ id: "find", title: t("h587_sec_find"), rows: [{ node: <RoundIcon name="pin" color="#C92A12" />, title: t("h587_t_pins"), body: t("h587_b_pins") }, ...pins] }, walkSection, ...sections607];
+    : [{ id: "find", title: t("h587_sec_find"), rows: [{ node: <RoundIcon name="pin" color="#C92A12" />, title: t("h587_t_pins"), body: t("h587_b_pins") }, ...pins] }, walkSection, reportsSection, ...sections607];
 
   // 587 — « Qui voit ma position ? » = les phrases du réglage, mot pour mot.
   const faq = [1, 2, 3, 4].map((n) => ({ q: t(`h587_q${n}`), a: n === 2 ? visExplained : t(`h587_a${n}`) }));
@@ -446,7 +469,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
 
         <p className="mt-4 rounded-2xl bg-[#17141F] px-4 py-3 text-sm font-semibold text-[#F4C04A]">{t("legend_memo")}</p>
 
-        {/* 27/09 — Daniel : positions floutées ~1 km, seul le Direct est exact. */}
+        {/* 27/09 — Daniel : qui voit ma position. 04/10 (610, règle A) : amis à leur vraie position, les autres ~1 km, « Masqué » = personne. */}
         <div className="mt-3 flex items-start gap-3 rounded-2xl border border-[#2E9E48]/40 bg-[#E9F7EE] px-4 py-3 dark:border-[#43B862]/40 dark:bg-[#15291B]">
           <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#43B862,#1F7A37)" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>

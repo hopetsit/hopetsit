@@ -42,6 +42,12 @@ const TYPE_EMOJI: Record<string, string> = {
   food: "🍖",
   trash: "🗑️",
   vet_open: "🏥",
+  // 610 (règle B) — tous les signalements sont publics : les dangers aussi.
+  poison: "☠️",
+  trap: "⚠️",
+  fire_smoke: "🔥",
+  flood: "🌊",
+  busy_traffic: "🚗",
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -54,6 +60,12 @@ const TYPE_LABEL: Record<string, string> = {
   food: "Nourriture",
   trash: "Déchets",
   vet_open: "Vétérinaire ouvert",
+  // 610 (règle B) — mêmes mots que l'app (map_report_label_*).
+  poison: "Poison / appât",
+  trap: "Piège",
+  fire_smoke: "Incendie / Fumée",
+  flood: "Inondation",
+  busy_traffic: "Circulation dense",
 };
 
 async function getReport(id: string): Promise<Report | null> {

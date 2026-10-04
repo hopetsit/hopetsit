@@ -9792,3 +9792,7 @@ for (const code of Object.keys(SITE607) as Lang[]) Object.assign(t[code], SITE60
 // 02/10 (607, LEO) — mini-peluches : textes de l'app (PAM), mot pour mot.
 import { PLUSH607 } from "./plush607";
 for (const code of Object.keys(PLUSH607) as Lang[]) Object.assign(t[code], PLUSH607[code]);
+// 04/10 (610, LEO) — règles A (amis à leur vraie position) et B (signalements) :
+// fusionné EN DERNIER, remplace les anciennes phrases. Généré par ~/hopetsit-social/site_610/build_textes.py.
+import { RULES610 } from "./rules610";
+for (const code of Object.keys(RULES610) as Lang[]) Object.assign(t[code], RULES610[code]);

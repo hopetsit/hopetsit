@@ -2118,7 +2118,22 @@ export type MapReportType =
   | "vet_open"
   | "leash_required"
   | "heat_hot_ground"
-  | "tick_zone";
+  | "tick_zone"
+  // 610 (04/10, règle B) — le reste du catalogue du serveur (MapReport.js),
+  // pour que le site puisse les créer et les nommer : dangers gratuits pour
+  // tous, confort 1 par semaine sans abonnement.
+  | "poop"
+  | "pee"
+  | "water_broken"
+  | "hazard"
+  | "other"
+  | "busy_traffic"
+  | "fire_smoke"
+  | "flood"
+  | "fallen_tree"
+  | "chemical"
+  | "wildlife"
+  | "no_dogs_zone";
 
 export type MapReport = {
   _id: string;
@@ -2157,9 +2172,10 @@ export async function getNearbyReports(opts: {
 }
 
 // v497 — Daniel : « rajoute les 4 boutons PawMap sur le web ». Création d'un
-// SIGNALEMENT depuis le web (POST /map-reports). Gated côté backend (402
-// PREMIUM_REQUIRED pour les types premium) → la page /map catche l'ApiError et
-// propose la boutique. Position = centre de la carte.
+// SIGNALEMENT depuis le web (POST /map-reports). Position = centre de la carte.
+// 610 (règle B) : danger = gratuit et illimité ; confort = 1 par semaine sans
+// abonnement (le serveur répond 402 ou 429 au-delà) ; animal perdu / trouvé =
+// abonnés (402). La page /map traduit ces réponses en message clair.
 export async function createMapReport(opts: {
   type: MapReportType;
   lat: number;
@@ -2177,6 +2193,17 @@ export async function createMapReport(opts: {
       city: opts.city || "",
     }),
   });
+}
+
+// 610 — compteur « 1 par semaine » des signalements de confort (serveur de ZOE).
+export type ComfortQuota = { unlimited: boolean; limit: number | null; used: number | null; remaining: number | null; nextAvailableAt: string | null };
+export async function getComfortQuota(): Promise<ComfortQuota | null> {
+  try {
+    const raw = await request<{ comfort?: ComfortQuota }>("/map-reports/quota");
+    return raw.comfort ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ─── Carte unique /map : PawSpots communautaires + itinéraire + benefits ────
@@ -2407,6 +2434,24 @@ function normalizeProvider(r: RawProvider, role: "sitter" | "walker"): PublicPro
     boosted: r.isBoosted === true || r.isMapBoosted === true,
     availableToday: Array.isArray(r.availableDates) && r.availableDates.some((d) => String(d).slice(0, 10) === today),
   };
+}
+
+// 04/10 (610, ajout de Daniel) — PawSpots de la carte PUBLIQUE /pawmap (sans
+// compte). Route serveur en LECTURE SEULE demandée à BOB/ZOE :
+// GET /pawspots/public-nearby?lat&lng&radius → { spots: [{ id, type, name,
+// photoUrl, city, lat, lng, isGolden }] } (ni auteur ni donnée privée, 100 au
+// plus). Tant qu'elle n'existe pas : liste vide, la carte reste inchangée.
+export type PublicPawSpot = { id: string; type: PawSpotType; name: string; photoUrl: string; city: string; lat: number; lng: number; isGolden: boolean };
+export async function getPublicPawSpots(opts: { lat: number; lng: number; radiusKm?: number }): Promise<PublicPawSpot[]> {
+  const qs = new URLSearchParams({ lat: String(opts.lat), lng: String(opts.lng), radius: String(Math.round((opts.radiusKm ?? 30) * 1000)) });
+  try {
+    const raw = await request<{ spots?: Partial<PublicPawSpot>[] }>(`/pawspots/public-nearby?${qs.toString()}`);
+    return (raw.spots || [])
+      .filter((s) => s && s.id && Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng)))
+      .map((s) => ({ id: String(s.id), type: (s.type || "other") as PawSpotType, name: s.name || "", photoUrl: s.photoUrl || "", city: s.city || "", lat: Number(s.lat), lng: Number(s.lng), isGolden: s.isGolden === true }));
+  } catch {
+    return [];
+  }
 }
 
 export async function getPublicProviders(opts: {

@@ -92,6 +92,8 @@ import {
   type MapVisibility,
   getNearbyPawSpots,
   getNearbyReports,
+  getComfortQuota,
+  type ComfortQuota,
   getNearbyPois,
   getPawSpotDirections,
   getStoredUser,
@@ -270,7 +272,11 @@ export default function MapPage() {
   const [benefits, setBenefits] = useState<MyBenefits | null>(null);
   // 25/09 (point 11) — mes amis sont affichés dès l'ouverture (comme l'app).
   const [showFriends, setShowFriends] = useState(true);
-  const [showSpots, setShowSpots] = useState(false);
+  // 610 (PAM, 04/10) — couche PawSpot ALLUMÉE pour tous, comme l'app : voir
+  // les spots est gratuit. Avant, un compte non abonné n'en voyait aucun tant
+  // qu'il ne touchait pas l'interrupteur. Un « éteint » enregistré sur le
+  // compte (map-prefs `pawspots:false`) reste respecté plus bas.
+  const [showSpots, setShowSpots] = useState(true);
   const [spots, setSpots] = useState<PawSpot[]>([]);
   const [showReports, setShowReports] = useState(false);
   const [memberRoles, setMemberRoles] = useState<string[]>(["sitter", "walker", "owner"]);
@@ -283,6 +289,10 @@ export default function MapPage() {
   const [createNote, setCreateNote] = useState("");
   const [creating, setCreating] = useState(false);
   const [createErr, setCreateErr] = useState<string | null>(null);
+  // 610 — le message d'erreur d'un signalement propose les abonnements (402 / 429).
+  const [createErrShop, setCreateErrShop] = useState(false);
+  // 610 — compteur confort (GET /map-reports/quota), lu à l'ouverture de « Signaler ».
+  const [comfortQuota, setComfortQuota] = useState<ComfortQuota | null>(null);
   const [createPhoto, setCreatePhoto] = useState<File | null>(null);
   const [createPhotoPreview, setCreatePhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -1262,10 +1272,15 @@ export default function MapPage() {
     if (next && !friendsLoadedRef.current) { friendsLoadedRef.current = true; void loadFriends(); }
   }
   function openCreate(kind: "spot" | "report", wantPhoto = false) {
+    // 610 (04/10, règle B) — signaler est ouvert à TOUS (danger gratuit et
+    // illimité ; confort 1 par semaine) : plus de détour par la boutique. Le
+    // tag de PawSpot garde sa règle d'abonnement.
     const subbed = !!(benefits?.pawspotActive || benefits?.premiumActive || benefits?.isPremium);
-    if (!subbed) { router.push("/boutique"); return; }
+    if (kind === "spot" && !subbed) { router.push("/boutique"); return; }
     setCreateKind(kind);
-    setCreateType(kind === "spot" ? "path_walk" : "lost_pet");
+    setCreateType(kind === "spot" ? "path_walk" : "poison");
+    setCreateErrShop(false);
+    if (kind === "report") void getComfortQuota().then(setComfortQuota);
     setCreateName("");
     setCreateNote("");
     setCreateErr(null);
@@ -1279,6 +1294,7 @@ export default function MapPage() {
     const lng = center[1];
     setCreating(true);
     setCreateErr(null);
+    setCreateErrShop(false);
     try {
       if (createKind === "spot") {
         if (!createName.trim()) { setCreateErr(t("map_spot_name_ph")); setCreating(false); return; }
@@ -1298,7 +1314,15 @@ export default function MapPage() {
       }
       setCreateKind(null);
     } catch (e) {
-      if (e instanceof ApiError && e.status === 402) setCreateErr(t("map_create_locked"));
+      // 610 — réponses du serveur traduites en message clair (jamais un « échec » vague).
+      if (createKind === "report" && e instanceof ApiError && (e.status === 402 || e.status === 429)) {
+        const lost = createType === "lost_pet" || createType === "found_pet";
+        const next = (e.details as { nextAvailableAt?: string } | undefined)?.nextAvailableAt;
+        setCreateErr(lost ? t("r610_err_lost") : next ? t("r610_err_week").replace("@date", fmtNextDate(next)) : t("r610_err_week_nodate"));
+        setCreateErrShop(true);
+        if (!lost && next) setComfortQuota({ unlimited: false, limit: 1, used: 1, remaining: 0, nextAvailableAt: next });
+      }
+      else if (e instanceof ApiError && e.status === 402) setCreateErr(t("map_create_locked"));
       else if (e instanceof ApiError && e.status === 401) router.replace("/login");
       else setCreateErr(t("map_create_error"));
     } finally {
@@ -1598,8 +1622,34 @@ export default function MapPage() {
     trap: t("map_rtype_trap"), poison: t("map_rtype_poison"), construction: t("map_rtype_construction"), food: t("map_rtype_food"),
     trash: t("map_rtype_trash"), vet_open: t("map_rtype_vet_open"), leash_required: t("map_rtype_leash_required"),
     heat_hot_ground: t("map_rtype_heat_hot_ground"), tick_zone: t("map_rtype_tick_zone"),
+    poop: t("map_rtype_poop"), pee: t("map_rtype_pee"), water_broken: t("map_rtype_water_broken"), hazard: t("map_rtype_hazard"),
+    other: t("map_rtype_other"), busy_traffic: t("map_rtype_busy_traffic"), fire_smoke: t("map_rtype_fire_smoke"), flood: t("map_rtype_flood"),
+    fallen_tree: t("map_rtype_fallen_tree"), chemical: t("map_rtype_chemical"), wildlife: t("map_rtype_wildlife"), no_dogs_zone: t("map_rtype_no_dogs_zone"),
   };
-  const reportOptions: MapReportType[] = ["lost_pet", "found_pet", "aggressive_dog", "dead_animal", "stray_pet", "water_active"];
+  // 610 (règle B, REGLES_610.md) — dangers d'abord (gratuits et illimités pour
+  // tous), puis les autres types gratuits, puis le confort (1 par semaine sans
+  // abonnement), et enfin perdu / trouvé (abonnés). Le serveur reste juge : la
+  // phrase sous le choix n'est qu'une aide.
+  // Classement IDENTIQUE au serveur de ZOE (rules610, GET /map-reports/types) :
+  // 13 dangers, 4 infos utiles (gratuits, illimités), 8 confort (1 par 7 jours).
+  const REPORT_DANGER: MapReportType[] = ["poison", "trap", "hazard", "aggressive_dog", "dead_animal", "fire_smoke", "flood", "busy_traffic", "chemical", "wildlife", "fallen_tree", "heat_hot_ground", "tick_zone"];
+  const REPORT_FREE: MapReportType[] = ["water_active", "food", "trash", "vet_open"];
+  const REPORT_COMFORT: MapReportType[] = ["poop", "pee", "water_broken", "construction", "stray_pet", "no_dogs_zone", "leash_required", "other"];
+  const reportOptions: MapReportType[] = [...REPORT_DANGER, ...REPORT_FREE, ...REPORT_COMFORT, "lost_pet", "found_pet"];
+  function fmtNextDate(iso: string) {
+    const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return iso;
+    try { return d.toLocaleDateString(lang, { weekday: "long", day: "numeric", month: "long" }); } catch { return d.toLocaleDateString(); }
+  }
+  const reportHint = (tp: string) =>
+    (REPORT_DANGER as string[]).includes(tp) ? t("r610_hint_danger")
+      : (REPORT_FREE as string[]).includes(tp) ? t("r610_hint_free")
+      : tp === "lost_pet" || tp === "found_pet" ? t("r610_hint_lost")
+      : comfortQuota?.unlimited ? t("r610_hint_comfort_unlimited")
+      : comfortQuota && comfortQuota.remaining !== null && comfortQuota.remaining <= 0 && comfortQuota.nextAvailableAt
+        ? t("r610_hint_comfort_used").replace("@date", fmtNextDate(comfortQuota.nextAvailableAt))
+      : comfortQuota && (comfortQuota.remaining ?? 0) > 0 ? t("r610_hint_comfort_available")
+      : t("r610_hint_comfort");
   const spotOptions: PawSpotType[] = ["path_walk", "chill", "playground", "swimming", "food_cafe", "other"];
   const visiblePois = noneSelected ? [] : selectedCats.length === 0 ? pois : pois.filter((p) => selectedCats.includes(p.category));
   const roleColor = ROLE_COLOR[roleKey(myRole)];
@@ -2603,6 +2653,9 @@ export default function MapPage() {
               tone={roleKey(myRole)}
               options={createKind === "spot" ? spotOptions.map((tp) => ({ value: tp, label: spotTypeLabels[tp] })) : reportOptions.map((tp) => ({ value: tp, label: reportTypeLabels[tp] || tp }))}
             />
+            {createKind === "report" && (
+              <p data-report-hint="" className="mt-1.5 text-xs font-semibold" style={{ color: (REPORT_DANGER as string[]).includes(createType) || (REPORT_FREE as string[]).includes(createType) ? "#15803D" : "#9A3412" }}>{reportHint(createType)}</p>
+            )}
             {createKind === "spot" && (
               <>
                 <input value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder={t("map_spot_name_ph")} maxLength={80} className="mt-3 w-full rounded-xl border border-[#EADFDC] px-3 py-2 text-sm" />
@@ -2620,7 +2673,12 @@ export default function MapPage() {
               </>
             )}
             <textarea value={createNote} onChange={(e) => setCreateNote(e.target.value)} placeholder={t("map_note_ph")} maxLength={300} rows={2} className="mt-3 w-full rounded-xl border border-[#EADFDC] px-3 py-2 text-sm" />
-            {createErr && <p className="mt-2 text-xs font-semibold text-[#B42318]">{createErr}</p>}
+            {createErr && (
+              <p className="mt-2 text-xs font-semibold text-[#B42318]" data-create-err="">
+                {createErr}
+                {createErrShop && <> <Link href="/boutique" className="font-bold underline">{t("r610_cta_subs")}</Link></>}
+              </p>
+            )}
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setCreateKind(null)} disabled={creating} className="rounded-full px-4 py-2 text-sm font-semibold text-[#6E4F48] hover:bg-[#FAF1EC]">{t("map_create_cancel")}</button>
               <button type="button" onClick={submitCreate} disabled={creating} className="rounded-full bg-owner px-5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-owner-dark disabled:opacity-60">{uploadingPhoto ? t("map_uploading") : creating ? "…" : t("map_create_submit")}</button>

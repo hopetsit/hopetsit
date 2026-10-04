@@ -17,7 +17,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
-import { getPublicProviders, type PublicProvider } from "@/lib/api";
+import { getPublicProviders, getPublicPawSpots, type PublicProvider, type PublicPawSpot } from "@/lib/api";
 import { formatPriceUnit, priceUnitLabels } from "@/lib/priceUnit";
 import { clusterize, haversineKm } from "@/lib/mapCluster";
 import {
@@ -34,6 +34,9 @@ import {
 import {
   memberPinHtml,
   memberClusterHtml,
+  spotPinHtml,
+  spotClusterHtml,
+  spotPinAnchor,
   dominantRole,
   ROLE_COLOR,
   PAWMAP_KEYFRAMES,
@@ -68,6 +71,18 @@ function memberIcon(p: PublicProvider, caption: string | null, bubble: string | 
 function clusterIcon(items: PublicProvider[]): L.DivIcon {
   const sz = items.length >= 10 ? 44 : 40;
   return L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(items.length, dominantRole(items.map((p) => p.role))), iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
+}
+
+// 04/10 (610, ajout de Daniel) — PawSpots en LECTURE SEULE sur la carte
+// publique : mêmes dessins que /map (goutte noir et or, dorée si validée),
+// nom au zoom rue, groupe = carré noir et or (appui = on zoome dessus).
+function publicSpotIcon(s: PublicPawSpot, label: string | null): L.DivIcon {
+  return L.divIcon({ className: "hps-l-spot", html: spotPinHtml(s.type, s.isGolden, { label }), iconSize: [40, 50], iconAnchor: spotPinAnchor(40), popupAnchor: [0, -44] });
+}
+function PublicSpotCluster({ center, count }: { center: [number, number]; count: number }) {
+  const map = useMap();
+  const icon = useMemo(() => L.divIcon({ className: "hps-l-sgroup", html: spotClusterHtml(count), iconSize: [36, 36], iconAnchor: [18, 18] }), [count]);
+  return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.spot} eventHandlers={{ click: () => safeFly(map, center, Math.min(map.getZoom() + 2.2, 18), 0.8) }} />;
 }
 
 /**
@@ -151,6 +166,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   const { t, lang } = useT();
   const { user, ready } = useAuth();
   const [providers, setProviders] = useState<PublicProvider[]>([]);
+  const [spots, setSpots] = useState<PublicPawSpot[]>([]);
   const [view, setView] = useState<View>({ lat: center[0], lng: center[1], zoom, s: center[0] - 0.1, w: center[1] - 0.15, n: center[0] + 0.1, e: center[1] + 0.15 });
   const [fetchedOnce, setFetchedOnce] = useState(false);
   const [clusterList, setClusterList] = useState<PublicProvider[] | null>(null);
@@ -182,6 +198,8 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
       })
       .catch(() => {})
       .finally(() => { if (seq === reqSeq.current) { setLoading(false); setFetchedOnce(true); } });
+    // 610 — PawSpots publics (jamais d'erreur : liste vide si la route manque).
+    void getPublicPawSpots({ lat: view.lat, lng: view.lng, radiusKm: 30 }).then((list) => { if (seq === reqSeq.current) setSpots(list); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view.lat, view.lng]);
 
@@ -199,6 +217,8 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
       return { items, center: [la / items.length, ln / items.length] as [number, number] };
     });
   }, [providers, view.zoom, verifiedOnly]);
+  const spotClusters = useMemo(() => clusterize(spots, view.zoom, (s) => [s.lat, s.lng]), [spots, view.zoom]);
+  const spotTypeLabel = (ty: string) => t(`map_spot_type_${ty}`) || ty;
   // 607 — mêmes seuils que l'app : prénom + prix au zoom rue (13) ; dès le
   // zoom ville (9) une épingle SEULE porte sa bulle si la place est libre.
   const showCaption = view.zoom >= PRICE_ZOOM_607;
@@ -257,6 +277,36 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         <Watcher onChange={setView} />
         {/* 02/10 (607) — même passe de mise en page que /map (CONTRAT_607_bulles §2). */}
         <CollisionPass607 />
+        {/* 04/10 (610) — PawSpots, lecture seule : petite fiche + lien /spot/<id> + inscription. */}
+        {spotClusters.map((g, i) =>
+          g.items.length > 1 ? <PublicSpotCluster key={`sc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} count={g.items.length} /> : null,
+        )}
+        {spotClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((sp) => (
+          <Marker key={`spot-${sp.id}`} position={[sp.lat, sp.lng]} icon={publicSpotIcon(sp, showCaption ? sp.name : null)} zIndexOffset={sp.isGolden ? PIN_Z.spotGolden : PIN_Z.spot}>
+            {/* Marge haute : la fiche ne passe jamais sous les boutons « ? », lune et « Vérifiés ». */}
+            <Popup autoPan autoPanPaddingTopLeft={[12, 72]} autoPanPaddingBottomRight={[12, 12]}>
+              <div style={{ minWidth: 200, maxWidth: 240 }} data-public-spot="">
+                <div className="break-words text-[15px] font-bold text-[#231715]">{sp.name}</div>
+                <div className="mb-1 text-xs font-semibold text-[#8A5A00]">{spotTypeLabel(sp.type)}{sp.city ? ` · ${sp.city}` : ""}</div>
+                {sp.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={sp.photoUrl} alt="" loading="lazy" style={{ width: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 10 }} />
+                ) : null}
+                <Link href={`/spot/${sp.id}`} className="mt-2 flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-bold" style={{ background: "linear-gradient(170deg,#3A3232,#171212)", color: "#F4C04A" }}>
+                  {t("r610_spot_open")}<AppIcon name="arrow-right" size={15} color="#F4C04A" />
+                </Link>
+                {!(ready && user) && (
+                  <>
+                    <p className="mt-1.5 text-center text-[11px] leading-snug text-[#6E4F48]">{t("r610_spot_join")}</p>
+                    <Link href={`/signup?next=${encodeURIComponent(`/spot/${sp.id}`)}`} onClick={() => trackSiteEvent("cta_click", { label: "inscription_spot_carte" })} className="mt-1 flex min-h-[40px] items-center justify-center rounded-[14px] bg-[#C92A12] px-4 text-sm font-bold" style={{ color: "#fff" }}>
+                      {t("nav_signup")}
+                    </Link>
+                  </>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
         {clusters.map((g, i) =>
           g.items.length > 1 ? (
             <ClusterMarker key={`c-${i}-${g.items.length}-${g.center[0].toFixed(3)}`} center={g.center} items={g.items} onList={setClusterList} />

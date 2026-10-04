@@ -800,7 +800,14 @@ function PlanCard({
         )}
       </div>
       <ul className="mt-4 flex-1 space-y-2 text-sm">
+        {/* 04/10 (610, règle B) — plus de « signalements premium » : l'abonnement
+            débloque les signalements de CONFORT illimités ; signaler un danger
+            est gratuit pour tous (dit ici pour ne rien laisser croire de payant). */}
         <FeatureLi>{t("shop566_feat_reports")}</FeatureLi>
+        <li className="flex items-start gap-2 text-sm font-semibold text-[#B42318]" data-free-danger="">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" className="mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z" /><path d="m8.8 12.2 2.3 2.3 4.3-4.6" /></svg>
+          <span>{t("r610_shop_danger")}</span>
+        </li>
         <FeatureLi>{t("shop566_feat_friends")}</FeatureLi>
         <FeatureLi>{t("shop566_feat_chat")}</FeatureLi>
         {(plan.id === "yearly" || plan.id === "family_yearly") && (
