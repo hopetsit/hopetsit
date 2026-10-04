@@ -609,3 +609,33 @@ describe('610 — affichage pour les comptes gratuits', () => {
     expect(mockStores.UserSubscription).toHaveLength(0);
   });
 });
+
+// 610 (PAM, 04/10) — lien partagé /spot/<id> : l'app appelle GET /pawspots/:id
+// (404 « Cannot GET » jusqu'ici, la fiche ne s'ouvrait jamais).
+describe('610 — GET /pawspots/:id (lien partagé)', () => {
+  beforeEach(reset);
+  const HEX = '6ac243f79ee105a67fa6ad30';
+  const put = (over = {}) => mockStores.PawSpot.push({
+    _id: HEX, type: 'chill', name: 'Bois partagé', photoUrl: 'https://cdn/p.jpg',
+    location: { type: 'Point', coordinates: [-30, -35] }, hidden: false, deletedAt: null,
+    likedBy: [], validatedBy: [], visitedBy: [], comments: [], creatorId: 'autre', ...over,
+  });
+
+  test('spot visible : position, nom et photo pour un autre compte', async () => {
+    const bo = await makeUser(Owner, 'Bo', 'bo@x.io');
+    asUser(bo);
+    put();
+    const r = await request(app).get(`/pawspots/${HEX}`);
+    expect(r.status).toBe(200);
+    expect(r.body.spot).toMatchObject({ id: HEX, name: 'Bois partagé', lat: -35, lng: -30, photoUrl: 'https://cdn/p.jpg', isMine: false });
+  });
+  test('spot supprimé ou id invalide : 404, et les routes précises restent servies', async () => {
+    const bo = await makeUser(Owner, 'Bo', 'bo@x.io');
+    asUser(bo);
+    put({ deletedAt: new Date() });
+    expect((await request(app).get(`/pawspots/${HEX}`)).status).toBe(404);
+    expect((await request(app).get('/pawspots/pas-un-id')).status).toBe(404);
+    expect((await request(app).get('/pawspots/plans')).status).toBe(200);
+    expect((await request(app).get('/pawspots/nearby?lat=-35&lng=-30')).status).toBe(200);
+  });
+});

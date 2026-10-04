@@ -685,6 +685,36 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 });
 
+// 610 (PAM, 04/10) — GET /map-reports/:id. Lien partagé /alert/<id> : l'app
+// appelle cette route depuis la v552 pour centrer la carte ; elle n'existait
+// pas (404). On ne renvoie que la position et le type (jamais l'auteur).
+// Déclarée EN DERNIER : aucune route GET plus précise n'est masquée.
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ error: 'Report not found.' });
+    }
+    const r = await MapReport.findById(req.params.id)
+      .select('type location isSos createdAt expiresAt hidden')
+      .lean();
+    if (!r || r.hidden) return res.status(404).json({ error: 'Report not found.' });
+    return res.json({
+      report: {
+        id: String(r._id),
+        type: r.type,
+        isSos: r.isSos === true,
+        location: { coordinates: r.location?.coordinates || [] },
+        createdAt: r.createdAt,
+        expiresAt: r.expiresAt,
+      },
+    });
+  } catch (e) {
+    logger.error('[mapReport/:id]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
 // Attach the freemium whitelist so other modules (e.g. adminRoutes admin stats)
 // can import it without re-declaring the list.

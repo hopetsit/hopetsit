@@ -1481,5 +1481,27 @@ router.post('/confirm', requireAuth, async (req, res) => {
   }
 });
 
+// 610 (PAM, 04/10) — GET /pawspots/:id. L'app (lien partagé /spot/<id>,
+// `_openSharedTarget`) appelle cette route depuis la v552 ; elle n'existait
+// pas (404 « Cannot GET ») → la carte ne se centrait jamais sur le spot
+// partagé et sa fiche ne s'ouvrait pas. Mesuré au simulateur le 04/10.
+// Déclarée EN DERNIER : aucune route GET plus précise n'est masquée.
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ error: 'Spot not found.' });
+    }
+    const s = await PawSpot.findOne({ _id: req.params.id, ...VISIBLE }).lean();
+    if (!s) return res.status(404).json({ error: 'Spot not found.' });
+    await enrichGoldenCreators([s]);
+    const vs = await accountRoleIdSet(req.user.id, req.user.role);
+    return res.json({ spot: spotJson(s, vs) });
+  } catch (e) {
+    logger.error('[pawspots/:id]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
 module.exports.hasActivePawSpot = hasActivePawSpot;
