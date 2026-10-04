@@ -227,17 +227,18 @@ describe('API réelle', () => {
     const lim = await request(app).post(`/plush/${q.id}/catch`).set('Authorization', `Bearer ${tokA}`).send({ lat: q.lat, lng: q.lng });
     expect(lim.status).toBe(429);
     expect(lim.body.code).toBe('DAILY_LIMIT');
-    // Bob vise la peluche déjà attrapée par Alice
+    // Bob vise la peluche déjà attrapée par Alice. 611 (vidéo d'Alhama) :
+    // une ORDINAIRE s'attrape une fois par personne → Bob a la sienne.
     startWalk(bob, p.lat, p.lng);
     const taken = await request(app).post(`/plush/${p.id}/catch`).set('Authorization', `Bearer ${tokB}`).send({ lat: p.lat, lng: p.lng });
-    expect(taken.status).toBe(409);
-    expect(taken.body.code).toBe('ALREADY_CAUGHT');
-    // … elle n'est plus dans la liste de Bob, et Alice sait qu'elle a déjà joué
+    expect(taken.status).toBe(200);
+    expect(taken.body.plush.type).toBe(p.type);
+    // … puis plus rien à attraper aujourd'hui pour l'un comme pour l'autre
     const lb = await request(app).get(`/plush/active?lat=${p.lat}&lng=${p.lng}`).set('Authorization', `Bearer ${tokB}`);
     expect(lb.body.plushies.map((x) => x.id)).not.toContain(p.id);
     const la = await request(app).get(`/plush/active?lat=${p.lat}&lng=${p.lng}`).set('Authorization', `Bearer ${tokA}`);
     expect(la.body.caughtToday).toBe(true);
-    expect(lb.body.caughtToday).toBe(false);
+    expect(lb.body.caughtToday).toBe(true);
     // Hors Balade : Alice (peluche du jour prise) n'a plus de rappel ; Bob voit
     // le nombre des peluches encore libres.
     plush._resetForTests();
@@ -247,7 +248,7 @@ describe('API réelle', () => {
     expect(offA.body).toMatchObject({ walkActive: false, plushies: [], nearbyCount: 0, caughtToday: true });
     const offB = await request(app).get(`/plush/active?lat=${p.lat}&lng=${p.lng}`).set('Authorization', `Bearer ${tokB}`);
     expect(offB.body.walkActive).toBe(false);
-    expect(offB.body.nearbyCount).toBe(await PawPlush.countDocuments({ caughtByPerson: null, testCopy: { $ne: true } }));
+    expect(offB.body.nearbyCount).toBe(0); // 611 : Bob a aussi sa peluche du jour
   });
 
   test('deux captures simultanées de la même personne : une seule passe', async () => {
@@ -273,7 +274,7 @@ describe('API réelle', () => {
     expect(Object.keys(r.body.counts).sort()).toEqual(['bunny', 'fox', 'kitty', 'puppy', 'teddy']);
     expect(r.body.items[0]).toMatchObject({ id: first[0].id, type: first[0].type });
     const rb = await request(app).get('/plush/collection').set('Authorization', `Bearer ${tokB}`);
-    expect(rb.body.total).toBe(0);
+    expect(rb.body.total).toBe(1); // 611 : sa propre copie de la même peluche
   });
 
   test('une peluche d\'hier ne s\'attrape plus : 410 EXPIRED', async () => {
@@ -360,7 +361,8 @@ describe('API réelle', () => {
   test('un parc ne porte qu\'une peluche par jour, même entre deux villes actives', async () => {
     const day = plush.dayKeyFor(PARIS.lng, Date.now(), PARIS.lat);
     await plush.ensureDraw({ key: 'villevoisine', label: 'Ville voisine', lat: PARIS.lat, lng: PARIS.lng });
-    const all = await PawPlush.find({ day, poiId: { $ne: null } }).select('poiId').lean();
+    // 611 — les copies à deux (copyOf) ne sont pas des tirages.
+    const all = await PawPlush.find({ day, poiId: { $ne: null }, copyOf: null }).select('poiId').lean();
     const ids = all.map((x) => String(x.poiId));
     expect(new Set(ids).size).toBe(ids.length);
   });

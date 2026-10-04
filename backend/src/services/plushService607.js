@@ -64,6 +64,13 @@ const COLLECTOR_POINTS = 500;          // les 5 types réunis, une seule fois + 
 const STREAK_DAYS = 7;                 // 7 jours de suite avec une capture…
 const STREAK_POINTS = 200;             // … = +200 (à chaque série de 7)
 const CATCH_RADIUS_M = 30;
+// 611 (PAM) — tolérance GPS : l'app 611 envoie la précision du point ; on
+// l'ajoute au rayon, plafonnée à 20 m (vidéo d'Alhama : « on est à 3 m »).
+const ACCURACY_BONUS_MAX_M = 20;
+// 611 (PAM) — balade à deux : une peluche ORDINAIRE s'attrape une fois par
+// personne (copie à son nom) ; la DORÉE reste à la première. Toujours une
+// capture par personne et par jour (index unique day+person).
+const SHARED_CATCH_611 = true;
 const VIEW_RADIUS_M = 5000;
 const MAX_SPEED_KMH = 25;
 const ACTIVE_DAYS = 30;
@@ -511,7 +518,12 @@ async function listActive({ userId, lat, lng, now = Date.now() }) {
     const caught = await PawPlush.find({ day: { $in: days }, caughtByPerson: { $ne: null }, testCopy: { $ne: true }, location: area }).limit(60).lean();
     if (caught.length) await releaseTestCatches(caught);
   } catch (e) { logger.warn(`[plush] libération : ${e.message}`); }
-  const free = { day: { $in: days }, caughtByPerson: null, testCopy: { $ne: true }, location: area };
+  const free = SHARED_CATCH_611
+    ? {
+      day: { $in: days }, testCopy: { $ne: true }, copyOf: null, location: area,
+      $or: [{ caughtByPerson: null }, { golden: { $ne: true }, caughtByPerson: { $ne: me.key } }],
+    }
+    : { day: { $in: days }, caughtByPerson: null, testCopy: { $ne: true }, location: area };
   // Le compte de test ne revoit pas celles dont il a déjà une copie.
   const mine = me.test
     ? new Set((await PawPlush.find({ caughtByPerson: me.key, testCopy: true, day: { $in: days } })
@@ -526,11 +538,17 @@ async function listActive({ userId, lat, lng, now = Date.now() }) {
     const nearbyCount = ids.filter((p) => !mine.has(String(p._id))).length;
     return { ...empty, nearbyCount };
   }
+  // 611 — peluche du jour déjà attrapée : plus aucune peluche montrée en
+  // Balade (elles ne s'attrapent plus aujourd'hui ; l'app 610 n'en dit rien
+  // et la personne marchait vers une peluche impossible à prendre).
+  if (caughtToday) {
+    return { ...empty, walkActive: true, caughtToday, plushies: [], nearbyCount: 0 };
+  }
   let found = await PawPlush.find(free).limit(30).lean();
   if (mine.size) found = found.filter((p) => !mine.has(String(p._id)));
   return {
     ...empty, walkActive: true, caughtToday, plushies: found.map(publicPlush),
-    nearbyCount: caughtToday ? 0 : found.length,
+    nearbyCount: found.length,
   };
 }
 
@@ -543,7 +561,7 @@ class PlushError extends Error {
   }
 }
 
-async function catchPlush({ userId, role, plushId, lat, lng, now = Date.now() }) {
+async function catchPlush({ userId, role, plushId, lat, lng, accuracy, now = Date.now() }) {
   await fixIndexesOnce();
   const mongoose = require('mongoose');
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new PlushError(400, 'POSITION_REQUIRED');
@@ -555,8 +573,11 @@ async function catchPlush({ userId, role, plushId, lat, lng, now = Date.now() })
   if (!plush) throw new PlushError(404, 'NOT_FOUND');
   const [pLng, pLat] = plush.location.coordinates;
   if (plush.day !== dayKeyFor(pLng, now, pLat)) throw new PlushError(410, 'EXPIRED');
-  if (plush.testCopy) throw new PlushError(404, 'NOT_FOUND');
-  if (plush.caughtByPerson && !me.test) throw new PlushError(409, 'ALREADY_CAUGHT');
+  if (plush.testCopy || plush.copyOf) throw new PlushError(404, 'NOT_FOUND');
+  if (plush.caughtByPerson === me.key) throw new PlushError(409, 'ALREADY_CAUGHT');
+  // 611 — une ordinaire déjà prise par quelqu'un d'autre : copie à mon nom.
+  const sharedCatch = !me.test && !!plush.caughtByPerson && SHARED_CATCH_611 && !plush.golden;
+  if (plush.caughtByPerson && !me.test && !sharedCatch) throw new PlushError(409, 'ALREADY_CAUGHT');
   const here = { lat, lng, t: now };
   // Vitesse : depuis la dernière position du direct ET depuis mon dernier appel.
   const fromWalk = { lat: session.lat, lng: session.lng, t: Number(session.at) };
@@ -564,7 +585,9 @@ async function catchPlush({ userId, role, plushId, lat, lng, now = Date.now() })
   _lastPos.set(me.key, here);
   if (!speedOk(fromWalk, here) || !speedOk(prev, here)) throw new PlushError(422, 'TOO_FAST');
   const distanceM = Math.round(metersBetween(lat, lng, pLat, pLng));
-  if (distanceM > CATCH_RADIUS_M) throw new PlushError(422, 'TOO_FAR', { distanceM });
+  const acc = Number(accuracy);
+  const bonus = Number.isFinite(acc) && acc > 0 ? Math.min(acc, ACCURACY_BONUS_MAX_M) : 0;
+  if (distanceM > CATCH_RADIUS_M + bonus) throw new PlushError(422, 'TOO_FAR', { distanceM });
   if (!me.test && await PawPlush.exists({ caughtByPerson: me.key, day: plush.day, testCopy: { $ne: true } })) {
     throw new PlushError(429, 'DAILY_LIMIT');
   }
@@ -586,6 +609,20 @@ async function catchPlush({ userId, role, plushId, lat, lng, now = Date.now() })
       throw e;
     }
   }
+  const createSharedCopy = async () => {
+    try {
+      return (await PawPlush.create({
+        cityKey: `shared:${plush.cityKey}:${me.key}`, cityLabel: plush.cityLabel, day: plush.day, slot: plush.slot,
+        type: plush.type, golden: false, poiId: plush.poiId, location: plush.location,
+        caughtByPerson: me.key, caughtBy: { userId: String(userId), role: role || 'owner', at: new Date(now) },
+        copyOf: plush._id, testCopy: false,
+      })).toObject();
+    } catch (e) {
+      if (e && e.code === 11000) throw new PlushError(429, 'DAILY_LIMIT');
+      throw e;
+    }
+  };
+  if (!won && sharedCatch) won = await createSharedCopy();
   if (!won) try {
     won = await PawPlush.findOneAndUpdate(
       { _id: plush._id, caughtByPerson: null },
@@ -599,6 +636,8 @@ async function catchPlush({ userId, role, plushId, lat, lng, now = Date.now() })
     if (e && e.code === 11000) throw new PlushError(429, 'DAILY_LIMIT');
     throw e;
   }
+  // Deux personnes au même instant sur une ordinaire : la seconde a sa copie.
+  if (!won && SHARED_CATCH_611 && !plush.golden && !me.test) won = await createSharedCopy();
   if (!won) throw new PlushError(409, 'ALREADY_CAUGHT');
   const pp = require('./pawPointsService');
   const golden = !!won.golden;

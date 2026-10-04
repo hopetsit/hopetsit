@@ -61,6 +61,8 @@ router.post('/:id/catch', requireAuth, async (req, res) => {
       plushId: req.params.id,
       lat: Number(req.body && req.body.lat),
       lng: Number(req.body && req.body.lng),
+      // 611 — précision GPS (m) envoyée par l'app 611 ; absente = 0.
+      accuracy: Number(req.body && req.body.accuracy),
     });
     return res.json(out);
   } catch (e) {
