@@ -62,6 +62,8 @@ import 'package:hopetsit/views/map/widgets/pawmap_rail.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_everyone607.dart';
 import 'package:hopetsit/views/map/pawmap_probe607.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_plush607.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_walkcam610.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_spots610.dart';
 import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart' show PawspotLeaderboardScreen;
 import 'package:hopetsit/views/map/widgets/pawmap_layout607.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_jewel.dart';
@@ -71,6 +73,7 @@ import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_discreet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_overlap607.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_friends610.dart';
 import 'package:hopetsit/views/service_provider/widgets/book_as_owner.dart';
 import 'package:hopetsit/services/map_prefs_service.dart';
 import 'package:hopetsit/widgets/paw_tab_bar.dart' show pawTabBarTotalHeight, pawTabBarUsefulHeight, kPawTabBarSideMargin;
@@ -494,6 +497,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// 607 (PAM) — mini-peluches : visibles pendant MA Balade seulement.
   final PawPlushLayer _plush = PawPlushLayer();
   Worker? _plushWalkWorker;
+  // 610 (PAM, 04/10) — caméra de Balade « vue rue » (penchée, sens de la
+  // marche, zoom de rue). Voir widgets/pawmap_walkcam610.dart.
+  Worker? _walkCamWorker;
+  LatLng? _walkLastPos;
+  double _walkBearing = 0;
+  bool _walkTilted = false;
   Worker? _confirmWorker; // 607
   Worker? _confirmedWorker;
   Timer? _confirmTimer;
@@ -552,6 +561,24 @@ class _PawMapScreenState extends State<PawMapScreen>
   static const double _followZoom = 16.5;
   /// Suivi mis en PAUSE par un geste (le tracé continue) ; « Reprendre ».
   bool _followPaused = false;
+
+  /// 610 (03/10) — Daniel : « même avec un doigt, il n'y a pas à mettre en
+  /// pause ». Un geste ne met plus JAMAIS le suivi en pause : la caméra
+  /// attend seulement que la carte soit lâchée (+ 3 s), puis recolle à l'ami.
+  static const Duration _followHoldAfterLift = Duration(seconds: 3);
+  DateTime? _followHoldUntil;
+  /// 610 — recolle la caméra sur l'ami suivi SANS changer le zoom.
+  void _recenterOnFollowedNow() {
+    final uid = _followUserId;
+    if (uid == null || _followPaused) return;
+    final fp = _liveMap.friendPositions[uid];
+    if (fp == null) return;
+    _animateFollowCamera(LatLng(fp.latitude, fp.longitude));
+  }
+
+  bool _followCameraHeld() =>
+      _dragWatch.active ||
+      (_followHoldUntil != null && DateTime.now().isBefore(_followHoldUntil!));
   /// Tracé violet PawFollow derrière la personne suivie.
   List<LatLng> _followTrail = const <LatLng>[];
 
@@ -622,7 +649,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// OFF par défaut ; le chip doré « PawSpot 🐾 » de la barre de filtres
   /// la toggle (gated par le flag benefits.pawspotActive).
   late final PawSpotController _pawSpotController;
-  final RxBool _showPawSpots = false.obs;
+  // 610 (PAM) — allumée par défaut pour tous (voir pawmap_spots610.dart).
+  final RxBool _showPawSpots = pawSpotLayerInitial610().obs;
 
   /// v23.1.356 — maquette Daniel : switch « PawFollow » de la rangée de
   /// boutons rapides. ON par défaut ; OFF masque la couche LIVE (markers +
@@ -885,6 +913,9 @@ class _PawMapScreenState extends State<PawMapScreen>
           if (mounted) setState(() {});
         }
         if (_followPaused) return;
+        // 610 — doigt sur la carte (ou levé depuis moins de 3 s) : la caméra
+        // attend, le suivi reste « en direct » et recolle tout seul ensuite.
+        if (_followCameraHeld()) return;
         // v584 — suivi SANS à-coups : la caméra glisse vers la nouvelle
         // position en gardant le zoom (plus de re-zoom à chaque point).
         _animateFollowCamera(p);
@@ -930,7 +961,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             meFollow: _meFollowCamera)) {
           return;
         }
-        _animateFollowCamera(pos);
+        // 610 — vue rue : même zoom (celui choisi), penchée, sens de marche.
+        unawaited(_animateWalkCamera(pos, keepZoom: true));
       },
     );
 
@@ -957,6 +989,19 @@ class _PawMapScreenState extends State<PawMapScreen>
       });
     });
     // 607 — fin de MA Balade : les peluches s'en vont ; départ : on les charge.
+    // 610 (PAM) — Daniel : « en balade, ça devrait auto-zoomer sur ton
+    // profil ». Vaut pour TOUS les départs (bouton Balade, chat, reprise
+    // après relance) et pour la carte ouverte pendant une Balade.
+    _walkCamWorker = ever<bool>(_liveMap.broadcasting, (on) {
+      if (on) {
+        unawaited(_enterWalkCamera());
+      } else {
+        unawaited(_leaveWalkCamera());
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _liveMap.broadcasting.value) unawaited(_enterWalkCamera());
+    });
     _plushWalkWorker = ever<bool>(_liveMap.broadcasting, (on) {
       _plushTimer?.cancel();
       _plushFirstTimer?.cancel();
@@ -1061,6 +1106,18 @@ class _PawMapScreenState extends State<PawMapScreen>
       WidgetsBinding.instance
           .addPostFrameCallback((_) => unawaited(_applyIntent(v)));
     });
+    // 610 — patte verte du menu : feuille « En direct maintenant ».
+    if (pawMapLiveListRequest610.value > _liveListHandled610) {
+      _liveListHandled610 = pawMapLiveListRequest610.value;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => unawaited(_openLiveNowSheet610()));
+    }
+    _liveListWorker610 = ever<int>(pawMapLiveListRequest610, (v) {
+      if (!mounted || v <= _liveListHandled610) return;
+      _liveListHandled610 = v;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => unawaited(_openLiveNowSheet610()));
+    });
     // v23.1.353 — refonte PawSpot : les anciens halos "map boost" (tier
     // bronze/silver/gold/platinum + self-halo) sont SUPPRIMÉS de la carte.
     // PawSpot = désormais les spots communautaires 🐾 (couche dédiée,
@@ -1077,7 +1134,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     unawaited(_pawSpotController.refreshBenefits().then((active) {
       if (!mounted || !active || _showPawSpots.value) return;
       // v552 — mode nuit de la carte mémorisé d'une session à l'autre.
-      _nightMode.value = GetStorage().read('pawmap_night_mode') == true;
+      // 610 — seulement si le compte n'a rien dit : sinon ce vieux drapeau
+      // de l'appareil écrasait le mode nuit choisi sur un autre appareil.
+      if (_prefs.nightMode == null) {
+        _nightMode.value = GetStorage().read('pawmap_night_mode') == true;
+      }
       final stored = GetStorage().read('pawspot_layer_on');
       if (stored != false) {
         _showPawSpots.value = true;
@@ -1431,6 +1492,284 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v585 — [serverFriend] : drapeau `isFriend` du serveur (calculé sur TOUS
   /// les profils des deux personnes), lu EN PREMIER ; [personIds] : tous les
   /// ids de rôle du membre (l'amitié a pu être nouée sous un autre rôle).
+  /// 610 — une personne qui me suit : en direct → la carte la suit ; ami à
+  /// position connue → la carte va sur lui ; sinon sa fiche.
+  void _openFollower610(PawFollower610 f) {
+    if (!mounted) return;
+    FriendPosition? fp = _liveMap.friendPositions[f.id];
+    if (fp == null) {
+      for (final p in _liveMap.friendPositions.values) {
+        if (p.allIds.contains(f.id.toLowerCase())) {
+          fp = p;
+          break;
+        }
+      }
+    }
+    if (fp != null && fp.liveState != FriendLiveState.seen) {
+      unawaited(_focusFriend(PawMapFriendFocus(
+        userId: fp.userId,
+        role: fp.role.isEmpty ? f.role : fp.role,
+        name: f.name,
+        avatar: f.avatar,
+        lat: fp.latitude,
+        lng: fp.longitude,
+        live: true,
+        approxKm: 0,
+        personIds: fp.personIds,
+      )));
+      return;
+    }
+    final friend = _friendController.friends
+        .firstWhereOrNull((x) => x.other != null && x.other!.matchesId(f.id));
+    final focus = friend == null ? null : pawMapFriendFocusFor(friend.other!);
+    if (focus != null) {
+      unawaited(_focusFriend(focus));
+      return;
+    }
+    _onNearbyTap(
+      id: f.id,
+      role: f.role,
+      name: f.name,
+      avatar: f.avatar,
+      online: true,
+      premium: false,
+      isFriend: f.isFriend,
+    );
+  }
+
+  // ─── 610 — patte verte : « En direct maintenant » ─────────────────────────
+
+  Worker? _liveListWorker610;
+  static int _liveListHandled610 = 0;
+  bool _liveNowOpen610 = false;
+
+  /// Liste des amis en direct ; un appui = la carte vole sur lui au zoom
+  /// piéton et le SUIT (même chemin que le chat : `_focusFriend`).
+  Future<void> _openLiveNowSheet610() async {
+    if (!mounted || _liveNowOpen610) return;
+    final lives = _liveMap.liveFriendList;
+    if (lives.isEmpty) return;
+    final friendsById = <String, Friendship>{
+      for (final f in _friendController.friends)
+        if (f.other != null) f.other!.id.trim().toLowerCase(): f,
+    };
+    String nameOf(FriendPosition p) {
+      if (p.name.trim().isNotEmpty) return p.name.trim();
+      for (final id in <String>[p.userId, ...p.personIds]) {
+        final f = friendsById[id.trim().toLowerCase()];
+        if (f != null) return f.other!.name;
+      }
+      return '';
+    }
+    String avatarOf(FriendPosition p) {
+      if (p.avatar.trim().isNotEmpty) return p.avatar.trim();
+      for (final id in <String>[p.userId, ...p.personIds]) {
+        final f = friendsById[id.trim().toLowerCase()];
+        if (f != null) return f.other!.avatar;
+      }
+      return '';
+    }
+    final entries = <PawLiveNowEntry610>[
+      for (final p in lives)
+        PawLiveNowEntry610(
+          id: p.userId,
+          name: nameOf(p),
+          avatar: avatarOf(p),
+          role: p.role,
+          since: _liveMap.friendLiveSince[p.userId],
+          lost: p.liveState == FriendLiveState.lost,
+        ),
+    ];
+    _liveNowOpen610 = true;
+    PawLiveNowEntry610? picked;
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (ctx) => Padding(
+          padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h + appBottomInset(ctx)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.6),
+            child: PawLiveNowSheet610(
+              entries: entries,
+              onPick: (e) {
+                picked = e;
+                Navigator.of(ctx).pop();
+              },
+            ),
+          ),
+        ),
+      );
+    } finally {
+      _liveNowOpen610 = false;
+    }
+    final e = picked;
+    if (e == null || !mounted) return;
+    final fp = _liveMap.friendPositions[e.id];
+    if (fp == null) {
+      PawSignal.show(context, PawSignalKind.hidden, 'friends588_not_on_map'.tr);
+      return;
+    }
+    await _focusFriend(PawMapFriendFocus(
+      userId: fp.userId,
+      role: fp.role.isEmpty ? 'owner' : fp.role,
+      name: e.name,
+      avatar: e.avatar,
+      lat: fp.latitude,
+      lng: fp.longitude,
+      live: true,
+      approxKm: 0,
+      personIds: fp.personIds,
+    ));
+  }
+
+  // ─── 610 — demandes d'amis sur la PawMap ─────────────────────────────────
+
+  final RxInt _friendReqRev610 = 0.obs;
+
+  /// Accepter = même appel que l'écran Amis (`POST /friends/:id/accept`) ;
+  /// la pastille du menu, de l'écran Amis et de la barre suit la même liste.
+  Future<void> _acceptFriendReq610(Friendship f) async {
+    PawFriendReqSession610.handled.add(f.id);
+    _friendReqRev610.value++;
+    final ok = await _friendController.accept(f.id);
+    if (!mounted) return;
+    if (!ok) {
+      PawFriendReqSession610.handled.remove(f.id);
+      _friendReqRev610.value++;
+      CustomSnackbar.showError(
+          title: 'common_error'.tr, message: 'common_try_again'.tr);
+      return;
+    }
+    CustomSnackbar.showSuccess(
+      title: 'pm610_req_badge'.tr,
+      message: 'pm610_now_friends'.trParams(
+          <String, String>{'name': pawFirstName610(f.other?.name ?? '')}),
+    );
+    if (mounted) setState(() {});
+  }
+
+  /// Refuser = `POST /friends/:id/decline` (écran Amis).
+  Future<void> _declineFriendReq610(Friendship f) async {
+    PawFriendReqSession610.handled.add(f.id);
+    _friendReqRev610.value++;
+    final ok = await _friendController.decline(f.id);
+    if (!mounted) return;
+    if (!ok) {
+      PawFriendReqSession610.handled.remove(f.id);
+      _friendReqRev610.value++;
+      CustomSnackbar.showError(
+          title: 'common_error'.tr, message: 'common_try_again'.tr);
+      return;
+    }
+    CustomSnackbar.showInfo(
+        title: 'pm610_req_badge'.tr, message: 'pm610_declined'.tr);
+    if (mounted) setState(() {});
+  }
+
+  /// 610 — un ami trouvé par la loupe : même chemin que le chat / la liste
+  /// d'amis (vol doux, suivi s'il est en direct) ; masqué ou sans position →
+  /// pastille « Cet ami n'est pas visible sur la carte », rien d'autre.
+  void _showFriendFromSearch610(Friendship f) {
+    final o = f.other;
+    if (o == null) return;
+    final focus = pawMapFriendFocusFor(o,
+        live: pawMapLivePositionOf(o, _liveMap.friendPositions));
+    if (focus == null) {
+      PawSignal.show(context, PawSignalKind.hidden, 'friends588_not_on_map'.tr);
+      return;
+    }
+    unawaited(_focusFriend(focus));
+  }
+
+  /// 610 — point de la couche monde (position FLOUTÉE, « visible par tous »)
+  /// d'un membre trouvé par la loupe ; null s'il n'y est pas.
+  Map<String, dynamic>? _worldPointOf610(Map<String, dynamic> m) {
+    final id = (m['id'] ?? '').toString();
+    if (id.isEmpty) return null;
+    for (final w in _worldMembers) {
+      if (pawMapPersonIds(w).contains(id)) return w;
+    }
+    return null;
+  }
+
+  LatLng? _latLngOf610(Map<String, dynamic>? w) {
+    final c = (w?['location'] as Map?)?['coordinates'];
+    if (c is List && c.length >= 2 && c[0] is num && c[1] is num) {
+      return LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble());
+    }
+    return null;
+  }
+
+  /// 610 — fiche du membre trouvé (« Ajouter en ami », Réserver…).
+  void _openMemberFromSearch610(Map<String, dynamic> m) {
+    final w = _worldPointOf610(m);
+    final at = _latLngOf610(w);
+    _onNearbyTap(
+      id: (m['id'] ?? '').toString(),
+      role: (m['role'] ?? 'owner').toString(),
+      name: (m['name'] ?? '').toString(),
+      avatar: (m['avatar'] ?? '').toString(),
+      online: false,
+      premium: w?['isPremium'] == true,
+      lat: at?.latitude,
+      lng: at?.longitude,
+      approx: true,
+      approxKm: (w?['approxKm'] as num?)?.toDouble() ?? 1,
+      personIds: w == null ? const <String>[] : pawMapPersonIds(w),
+    );
+  }
+
+  /// 610 — « Voir sur la carte » : la carte va sur la position floutée.
+  Future<void> _seeMemberOnMap610(Map<String, dynamic> m) async {
+    final at = _latLngOf610(_worldPointOf610(m));
+    if (at == null) return;
+    _holdCamera();
+    final ctl = await _activeMapCtl();
+    await ctl?.animateCamera(CameraUpdate.newLatLngZoom(at, 14));
+  }
+
+  /// Demande reçue (non traitée) de l'un de ces ids, ou null.
+  Friendship? _incomingFrom610(Iterable<String> ids) {
+    for (final x in ids) {
+      final f = _friendController.incomingRequestFrom(x);
+      if (f != null &&
+          f.other != null &&
+          !PawFriendReqSession610.handled.contains(f.id)) {
+        return f;
+      }
+    }
+    return null;
+  }
+
+  /// Fiche courte d'une demande reçue (appui sur la carte, sur le badge de
+  /// l'épingle, ou « Demande reçue » dans la fiche du membre).
+  void _openFriendReqSheet610(Friendship f) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(14.w, 0, 14.w, 14.h + appBottomInset(ctx)),
+        child: PawFriendRequestCard610(
+          request: f,
+          onAccept: () async {
+            Navigator.of(ctx).pop();
+            await _acceptFriendReq610(f);
+          },
+          onDecline: () async {
+            Navigator.of(ctx).pop();
+            await _declineFriendReq610(f);
+          },
+          onClose: () => Navigator.of(ctx).pop(),
+        ),
+      ),
+    );
+  }
+
   PawFriendState _relationState(String uid,
       {bool serverFriend = false, List<String> personIds = const []}) {
     final ids = {uid, ...personIds}.where((x) => x.isNotEmpty).toList();
@@ -1702,7 +2041,13 @@ class _PawMapScreenState extends State<PawMapScreen>
             onFriend: () async {
               if (reqState == PawFriendState.incoming) {
                 Navigator.of(ctx).pop();
-                _openScreen(() => const FriendsScreen(initialIndex: 1));
+                // 610 — Accepter / Refuser ici, sans quitter la carte.
+                final req = _incomingFrom610(<String>[id, ...personIds]);
+                if (req != null && req.other != null) {
+                  _openFriendReqSheet610(req);
+                } else {
+                  _openScreen(() => const FriendsScreen(initialIndex: 1));
+                }
                 return;
               }
               if (reqState == PawFriendState.friends ||
@@ -2226,6 +2571,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     _pendingCenterWorker?.dispose();
     _pendingFriendWorker?.dispose();
     _pendingIntentWorker?.dispose();
+    _liveListWorker610?.dispose();
     _reloadDebounce?.cancel();
     _snapshotTimer?.cancel();
     _cover.dispose();
@@ -2240,6 +2586,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     _followSharedWorker?.dispose();
     _myFollowWorker?.dispose();
     _plushWalkWorker?.dispose(); // 607
+    _walkCamWorker?.dispose(); // 610
     _confirmWorker?.dispose();
     _confirmedWorker?.dispose();
     _confirmTimer?.cancel();
@@ -2707,7 +3054,8 @@ class _PawMapScreenState extends State<PawMapScreen>
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'pawmap_search_city'.tr,
+                  // 610 — la loupe cherche aussi les personnes.
+                  'pm610_search_title'.tr,
                   style: PawMapTheme.fontOn(ctx,
                       size: 18.sp, weight: FontWeight.w800),
                 ),
@@ -2736,7 +3084,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                         style: PawMapTheme.fontOn(ctx,
                             size: 14.sp, weight: FontWeight.w600),
                         decoration: InputDecoration(
-                          hintText: 'pawmap_search_city_hint'.tr,
+                          hintText: 'pm610_search_hint'.tr,
                           hintStyle: PawMapTheme.font(
                             size: 13.sp,
                             weight: FontWeight.w500,
@@ -2799,56 +3147,102 @@ class _PawMapScreenState extends State<PawMapScreen>
                 final query = typed.value;
                 final items = suggestions.toList();
                 final rec = recents();
-                // Champ vide → villes récentes (rien du tout au 1er usage).
+                // 610 — demandes d'amis reçues (en tête, champ vide).
+                final reqs = _friendController.incomingRequests
+                    .where((f) =>
+                        f.other != null &&
+                        !PawFriendReqSession610.handled.contains(f.id))
+                    .toList();
+                _friendReqRev610.value;
+                final friends = _friendController.friends.toList();
+                // Champ vide → demandes d'amis puis villes récentes.
                 if (query.length < 2) {
-                  if (rec.isEmpty) return SizedBox(height: 8.h);
+                  if (rec.isEmpty && reqs.isEmpty) return SizedBox(height: 8.h);
                   return ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: 260.h),
+                    constraints: BoxConstraints(maxHeight: 340.h),
                     child: ListView(
                       shrinkWrap: true,
                       padding: EdgeInsets.zero,
                       children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Padding(
-                            padding: EdgeInsets.only(bottom: 4.h, left: 4.w),
-                            child: Text(
-                              'pawmap_search_recent'.tr,
-                              style: PawMapTheme.font(
-                                size: 11.sp,
-                                weight: FontWeight.w700,
-                                color: PawMapTheme.subOn(ctx),
+                        if (reqs.isNotEmpty && _viewerLoggedIn) ...[
+                          PawSearchSectionTitle610('pm610_req_section'.tr,
+                              key: const ValueKey<String>('pm610_sec_requests')),
+                          for (final f in reqs)
+                            Padding(
+                              padding: EdgeInsets.only(bottom: 8.h),
+                              child: PawFriendRequestCard610(
+                                request: f,
+                                onAccept: () => _acceptFriendReq610(f),
+                                onDecline: () => _declineFriendReq610(f),
+                              ),
+                            ),
+                        ],
+                        if (rec.isNotEmpty) ...[
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: EdgeInsets.only(bottom: 4.h, left: 4.w),
+                              child: Text(
+                                'pawmap_search_recent'.tr,
+                                style: PawMapTheme.font(
+                                  size: 11.sp,
+                                  weight: FontWeight.w700,
+                                  color: PawMapTheme.subOn(ctx),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        ...rec.map((c) => cityTile(c, recent: true)),
+                          ...rec.map((c) => cityTile(c, recent: true)),
+                        ],
                       ],
                     ),
                   );
                 }
-                if (items.isEmpty) {
-                  return Padding(
-                    padding: EdgeInsets.symmetric(vertical: 18.h),
-                    child: Text(
-                      loading.value
-                          ? 'directions_loading'.tr
-                          : 'pawmap_snack_city_not_found'.tr,
-                      style: PawMapTheme.font(
-                        size: 12.5.sp,
-                        weight: FontWeight.w600,
-                        color: PawMapTheme.subOn(ctx),
-                      ),
-                    ),
-                  );
-                }
                 return ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: 300.h),
-                  child: ListView.builder(
+                  constraints: BoxConstraints(maxHeight: 380.h),
+                  child: ListView(
                     shrinkWrap: true,
                     padding: EdgeInsets.zero,
-                    itemCount: items.length,
-                    itemBuilder: (_, i) => cityTile(items[i], recent: false),
+                    children: [
+                      // 610 — « Mes amis » (local) puis « Membres » (serveur).
+                      if (_viewerLoggedIn)
+                        PawPeopleSearch610(
+                          query: query,
+                          friends: friends,
+                          searchMembers: _friendController.searchUsers,
+                          onFriendTap: (f) {
+                            Navigator.of(ctx).pop();
+                            _showFriendFromSearch610(f);
+                          },
+                          onMemberTap: (m) {
+                            Navigator.of(ctx).pop();
+                            _openMemberFromSearch610(m);
+                          },
+                          memberOnMap: (m) => _worldPointOf610(m) != null,
+                          onMemberSeeOnMap: (m) {
+                            Navigator.of(ctx).pop();
+                            _seeMemberOnMap610(m);
+                          },
+                        ),
+                      PawSearchSectionTitle610('pm610_cities'.tr,
+                          key: const ValueKey<String>('pm610_sec_cities')),
+                      if (items.isEmpty)
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 4.w),
+                          child: Text(
+                            loading.value
+                                ? 'directions_loading'.tr
+                                : 'pawmap_snack_city_not_found'.tr,
+                            style: PawMapTheme.font(
+                              size: 12.5.sp,
+                              weight: FontWeight.w600,
+                              color: PawMapTheme.subOn(ctx),
+                            ),
+                          ),
+                        )
+                      else
+                        ...items.map((c) => cityTile(c, recent: false)),
+                    ],
                   ),
                 );
               }),
@@ -3308,12 +3702,62 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (keepOnFollowed || _followUserId != null) return;
     try {
       final ctl = await _mapCtl.future;
+      // 610 — zoom de rue + vue penchée (voir _enterWalkCamera).
+      _walkLastPos = target;
+      _walkTilted = true;
       await ctl.animateCamera(
         CameraUpdate.newCameraPosition(
-          CameraPosition(target: target, zoom: 17),
+          pawWalkCamera(me: target, currentZoom: _zoomLevel, lastBearing: _walkBearing),
         ),
       );
     } catch (_) {}
+  }
+
+  /// 610 (PAM) — entrée en Balade, quel que soit le départ : la caméra vient
+  /// sur MOI au zoom de rue, penchée, et me suit (sauf si je suis quelqu'un
+  /// ou si j'ai déjà déplacé la carte à la main depuis le départ).
+  Future<void> _enterWalkCamera() async {
+    if (!mounted || (_followUserId ?? '').isNotEmpty) return;
+    final me = _liveMap.myLivePosition.value ?? _userPosition;
+    if (me == null) return;
+    _meFollowCamera = true;
+    await _animateWalkCamera(me, keepZoom: false);
+  }
+
+  /// 610 — fin de Balade : la carte se remet à plat (même centre, même zoom).
+  Future<void> _leaveWalkCamera() async {
+    _walkLastPos = null;
+    if (!_walkTilted) return;
+    _walkTilted = false;
+    final ctl = await _activeMapCtl();
+    if (ctl == null) return;
+    try {
+      await ctl.animateCamera(CameraUpdate.newCameraPosition(
+          pawWalkFlatCamera(_currentCenter, _zoomLevel)));
+    } catch (_) {/* carte pas prête */}
+  }
+
+  /// 610 — caméra de Balade sur [me]. [keepZoom] : suivi point à point, le
+  /// zoom choisi par la personne est gardé ; sinon zoom de rue.
+  Future<void> _animateWalkCamera(LatLng me, {required bool keepZoom}) async {
+    final b = pawWalkBearing(_walkLastPos, me);
+    if (b != null || _walkLastPos == null) _walkLastPos = me;
+    if (b != null) _walkBearing = b;
+    final ctl = await _activeMapCtl();
+    if (ctl == null) return;
+    final cam = pawWalkCamera(
+      me: me,
+      currentZoom: _zoomLevel,
+      bearing: b,
+      lastBearing: _walkBearing,
+    );
+    _walkTilted = true;
+    try {
+      await ctl.animateCamera(CameraUpdate.newCameraPosition(keepZoom
+          ? CameraPosition(
+              target: me, zoom: _zoomLevel, tilt: cam.tilt, bearing: cam.bearing)
+          : cam));
+    } catch (_) {/* carte pas prête */}
   }
 
   /// v565 — feuille « Combien de temps ? » du partage en direct.
@@ -4049,6 +4493,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       _memberRoles.join(','),
       _availableTodayOnly.value ? 1 : 0,
       _verifiedOnly.value ? 1 : 0, // 609
+      // 610 — badge « demande d'ami » sur l'épingle de la personne.
+      _friendController.incomingRequests
+          .where((f) => !PawFriendReqSession610.handled.contains(f.id))
+          .map((f) => f.other?.id ?? '')
+          .join(','),
       _pinZoom.round(),
       _pinZoom >= _priceZoom ? 1 : 0,
       '${_currentCenter.latitude.toStringAsFixed(1)},'
@@ -5428,6 +5877,23 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
           ),
         );
+        // 610 — la personne m'a envoyé une demande d'ami : petit badge rose
+        // à gauche de son rond ; l'appui ouvre Accepter / Refuser.
+        final Friendship? incoming610 = _incomingFrom610(pawMapPersonIds(p));
+        if (incoming610 != null && incoming610.other != null) {
+          markers.add(Marker(
+            markerId: MarkerId('freq610_$id'),
+            position: singleShift == Offset.zero ? pos : shiftedTarget(pos, singleShift),
+            icon: _pins.getOrBuild('freq610', kPm610BadgeSize, kPm610BadgeSize,
+                    (c) => paintFriendRequestBadge610(c)) ??
+                PawMapPinCache.transparent,
+            anchor: pawFriendBadgeAnchor610(
+                (isFriend ? PawMapLegend.friendSize : PawMapLegend.memberSize) / 2),
+            zIndexInt: 10,
+            consumeTapEvents: true,
+            onTap: () => _openFriendReqSheet610(incoming610),
+          ));
+        }
       }
     }
 
@@ -5489,17 +5955,41 @@ class _PawMapScreenState extends State<PawMapScreen>
         (s) => LatLng(s.lat, s.lng),
         cellPx: _pinZoom >= 13 ? 18 : 44,
       );
+      // 610 (PAM, 04/10) — MESURÉ au simulateur : au zoom ville, un spot
+      // (ou un groupe de spots) à quelques centaines de mètres de moi était
+      // dessiné PILE sous « Moi » et donc invisible. Même règle que les
+      // peluches 607 : à moins de 50 px de « Moi », il est dessiné sur le
+      // CÔTÉ (même point réel, seule l'ancre change).
+      // Même chose sous le rond d'un MEMBRE ou d'un groupe de membres (vu au
+      // simulateur : un ami posé sur la zone cachait les 2 spots au zoom 11).
+      final LatLng? meForSpots = _userPosition;
+      final List<Offset> spotObstacles = <Offset>[
+        if (meForSpots != null)
+          pawMercatorPx(meForSpots.latitude, meForSpots.longitude, _pinZoom),
+        for (final mk in markers)
+          if (mk.markerId.value.startsWith('nearby_') ||
+              mk.markerId.value.startsWith('mcluster_'))
+            pawMercatorPx(mk.position.latitude, mk.position.longitude, _pinZoom),
+        // Amis en direct / vus récemment (dessinés plus bas, même endroit).
+        if (_showFriends.value && _showLiveLayer.value)
+          for (final fp in _liveMap.friendPositions.values)
+            pawMercatorPx(fp.latitude, fp.longitude, _pinZoom),
+      ];
+      Offset spotShift(LatLng at) => pawSpotShiftFromPeople610(
+          pawMercatorPx(at.latitude, at.longitude, _pinZoom), spotObstacles);
       for (final group in spotGroups) {
         if (group.length > 1) {
           final target =
               _centroid<PawSpotModel>(group, (s) => LatLng(s.lat, s.lng));
+          final cs = PawMapPinPainter.squareClusterBitmapSize();
+          final off = spotShift(target);
           markers.add(
             Marker(
               markerId: MarkerId('scluster_${target.latitude.toStringAsFixed(4)}'
                   '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
               position: target,
               icon: _spotClusterIcon(group.length),
-              anchor: const Offset(0.5, 0.5),
+              anchor: Offset(0.5 - off.dx / cs, 0.5 - off.dy / cs),
               zIndexInt: 5,
               consumeTapEvents: true,
               onTap: () => _zoomToCluster(target, spots: group),
@@ -5520,7 +6010,16 @@ class _PawMapScreenState extends State<PawMapScreen>
             position: LatLng(spot.lat, spot.lng),
             // v597 — le nom sous la goutte au zoom rue (même seuil que les
             // prix et le site : `showPrice ? spot.name : null`).
-            anchor: _spotAnchor(size, withLabel: spotLabel != null),
+            anchor: pawSpotShiftedAnchor610(
+              _spotAnchor(size, withLabel: spotLabel != null),
+              spotShift(LatLng(spot.lat, spot.lng)),
+              width: spotLabel == null
+                  ? PawMapPinPainter.dropBitmapWidth(size)
+                  : math.max(PawMapPinPainter.dropBitmapWidth(size),
+                      PawMapPinPainter.spotLabelWidth(spotLabel)),
+              height: PawMapPinPainter.dropHeight(size) +
+                  (spotLabel != null ? PawMapPinPainter.spotLabelZone : 0),
+            ),
             // v590 — handoff §6 : au-dessus des lieux et des signalements.
             zIndexInt: spot.isGolden ? 6 : 5,
             icon: _spotIcon(spot.type, spot.isGolden, label: spotLabel),
@@ -6433,6 +6932,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                                             LiveShareStatus.lost &&
                                         _liveMap.myLivePosition.value == null,
                                     onTap: () => unawaited(_onBaladeTap()),
+                                    // 610 — « 1 te suit » → QUI me suit.
+                                    onFollowersTap: () =>
+                                        unawaited(_openLiveSheet(focusFollowers: true)),
                                     onLongPress: () => _showCapsuleHelp('direct'),
                                   );
                                 })),
@@ -6520,6 +7022,32 @@ class _PawMapScreenState extends State<PawMapScreen>
                           )),
                         );
                       }),
+                      // 610 — « X veut être ton ami · Accepter · Refuser » :
+                      // une demande à la fois, refermable, jamais rouverte
+                      // dans la session ; hors placement et sans carte focus.
+                      Obx(() {
+                        _friendReqRev610.value;
+                        final req = pawNextFriendRequest610(
+                            _friendController.incomingRequests);
+                        if (req == null ||
+                            !_viewerLoggedIn ||
+                            _focusCard.value != null) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: EdgeInsets.fromLTRB(66.w, 8.h, 66.w, 0),
+                          child: _fading(PawFriendRequestCard610(
+                            request: req,
+                            onAccept: () => _acceptFriendReq610(req),
+                            onDecline: () => _declineFriendReq610(req),
+                            onOpen: () => _openFriendReqSheet610(req),
+                            onClose: () {
+                              PawFriendReqSession610.closed = true;
+                              _friendReqRev610.value++;
+                            },
+                          )),
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -6581,6 +7109,14 @@ class _PawMapScreenState extends State<PawMapScreen>
     _meFollowCamera = false;
   }
 
+  /// 610 (03/10) — un ZOOM (pincer, boutons + / −) n'est pas un déplacement :
+  /// il compte comme geste pour le recentrage du démarrage, sans couper le
+  /// suivi de la caméra (ami suivi ou ma Balade).
+  void _markZoomGesture() {
+    _userMovedMap = true;
+    _lastGestureAt = DateTime.now();
+  }
+
   /// v605 — bouton « Ma position » : la caméra revient à moi (et me suit
   /// pendant ma balade).
   Future<void> _onMyPositionButton() async {
@@ -6617,16 +7153,17 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (_snapshotShown.value) _snapshotShown.value = false;
     if (_dragWatch.down(e.position)) {
       _holdCamera();
-      _pauseFollow();
       if (_focusCard.value != null) _clearFocus();
     }
+    // 610 — pincer = zoomer : plus de recentrage automatique au démarrage,
+    // mais ni le suivi d'un ami ni « me suivre » ne s'arrêtent.
+    if (_dragWatch.pinching) _markZoomGesture();
     _fade.down(e.position, allowed: _fadeAllowed);
   }
 
   void _onMapPointerMove(PointerMoveEvent e) {
     if (_dragWatch.move(e.position)) {
       _holdCamera();
-      _pauseFollow();
       // v590 — début de déplacement : le focus s'annule (handoff §2).
       if (_focusCard.value != null) _clearFocus();
     }
@@ -6634,7 +7171,22 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   void _onMapPointerEnd(PointerEvent e) {
+    final wasPinch = _dragWatch.pinching;
+    final moved = _dragWatch.moved;
     _dragWatch.end();
+    if (!_dragWatch.active) {
+      if (wasPinch || !moved) {
+        // 610 — Daniel : « si je zoome, je veux suivre la personne dans le
+        // zoom que je veux ». Après un ZOOM (ou un simple appui), aucune
+        // attente : la caméra recolle tout de suite à l'ami, au nouveau zoom.
+        _followHoldUntil = null;
+        _recenterOnFollowedNow();
+      } else {
+        // Un doigt a fait GLISSER la carte : on la laisse 3 s, puis elle
+        // recolle d'elle-même (le suivi ne se met jamais en pause).
+        _followHoldUntil = DateTime.now().add(_followHoldAfterLift);
+      }
+    }
     _fade.end();
   }
   void _restoreChrome() => _fade.restore();
@@ -6844,6 +7396,9 @@ class _PawMapScreenState extends State<PawMapScreen>
       _myRequests.length;
       _availableTodayOnly.value;
       _verifiedOnly.value; // 609
+      // 610 — demandes d'amis reçues (badge sur l'épingle).
+      _friendController.incomingRequests.length;
+      _friendReqRev610.value;
       // v590 — tracé de balade animé (focus + ma balade).
       _walkPhase.value;
       _focusCard.value;
@@ -7348,8 +7903,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     await _openLiveSheet();
   }
 
-  Future<void> _openLiveSheet() => showPawLiveSheet(
+  Future<void> _openLiveSheet({bool focusFollowers = false}) => showPawLiveSheet(
         context,
+        focusFollowers: focusFollowers,
+        onOpenFollower: _openFollower610,
         onStartWalk: _toggleDirect,
         onFollowFriend: (fp) {
           if (!mounted) return;
@@ -7669,12 +8226,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
-  /// Un geste sur la carte met le suivi EN PAUSE (le tracé continue) ; le
-  /// bouton « Reprendre le suivi » recolle la caméra.
-  void _pauseFollow() {
-    if (_followUserId == null || _followPaused) return;
-    setState(() => _followPaused = true);
-  }
+  /// 610 — un geste ne met plus le suivi en pause (voir [_followCameraHeld]) ;
+  /// « Reprendre le suivi » reste pour un état en pause hérité.
 
   void _resumeFollow() {
     final uid = _followUserId;
@@ -7873,7 +8426,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   Future<void> _zoomIn() async {
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
-    _holdCamera();
+    _markZoomGesture(); // 610 — zoomer ne coupe aucun suivi
     // Zoomer ne coupe pas le suivi (seul un vrai geste le met en pause).
     _fade.pulse();
     await ctl.animateCamera(CameraUpdate.zoomBy(0.8));
@@ -7882,7 +8435,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   Future<void> _zoomOut() async {
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
-    _holdCamera();
+    _markZoomGesture(); // 610 — zoomer ne coupe aucun suivi
     _fade.pulse();
     await ctl.animateCamera(CameraUpdate.zoomBy(-0.8));
   }
@@ -8797,11 +9350,16 @@ class _PawMapScreenState extends State<PawMapScreen>
     // 607 — Obx : la pastille du bouton PawPoints suit les captures.
     return Obx(() {
     final int caught = _plush.caughtTodayCount.value;
+    // 610 — demandes d'amis reçues : pastille sur le bouton Amis (rose).
+    final int friendReqs =
+        pawPendingFriendRequests610(_friendController.incomingRequests);
     return PawMapRail(
       order: _railOrder,
       gap: _railGapFor(_railOrder.length),
       badges: <String, Widget>{
         if (caught > 0) 'pawpoints': PawPlushTodayBadge(count: caught),
+        if (friendReqs > 0)
+          'live_friends': PawFriendReqCountBadge610(count: friendReqs),
       },
       active: {
         if (_routePolylines.isNotEmpty) 'directions',
@@ -10755,18 +11313,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// bandeau Valider/Annuler — on déplace la CARTE sous le pin, puis on
   /// valide → la sheet de création s'ouvre avec cette position exacte.
   void _startSpotPicking() {
-    if (!_showPawSpots.value) {
-      _showPawSpots.value = true;
-      // v23.1.371 — choix ON mémorisé (cohérent avec le switch).
-      GetStorage().write('pawspot_layer_on', true);
-    }
-    // v23.1.363 — pin de départ au centre, puis TAP sur la carte pour le
-    // déplacer (le marqueur est aussi draggable).
-    _pickedSpotPos = _currentCenter;
-    _pickAddress.value = '';
-    _pickingSpotPos.value = true;
-    if (mounted) setState(() {});
-    unawaited(_refreshPickAddress());
+    // 610 — PawSpotActions610.tag (testée) : couche allumée + viseur.
+    _spotActions.tag();
   }
 
   /// v449 — Daniel : viseur SIGNALEMENT express. Pin (rouge) déplaçable au
@@ -11011,20 +11559,79 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// route vers la boutique PawSpot (jamais d'activation locale sans abo).
   Future<void> _togglePawSpot() async {
     // v556 — la couche PawSpot se voit gratuitement : l'interrupteur marche
-    // pour tout le monde. L'abonnement n'est demandé qu'au 4e tag (402
-    // PAWSPOT_REQUIRED géré dans pawspot_sheets).
-    // v448 — on/off MANUEL de la couche spots. ON → on (ré)affiche les
-    // spots ; OFF → on masque (mémorisé).
-    if (_showPawSpots.value) {
-      _showPawSpots.value = false;
-      GetStorage().write('pawspot_layer_on', false);
-    } else {
-      _showPawSpots.value = true;
-      GetStorage().write('pawspot_layer_on', true);
-      await _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM);
-      setState(() {});
-    }
+    // pour tout le monde. 610 — logique dans PawSpotActions610 (testée).
+    await _spotActions.toggle();
+    if (mounted) setState(() {});
   }
+
+  /// 610 — les 4 actions PawSpot, branchées sur les vrais outils de la carte.
+  late final PawSpotActions610 _spotActions = PawSpotActions610(
+    layerOn: () => _showPawSpots.value,
+    saveLayer: (on) {
+      _showPawSpots.value = on;
+      // v23.1.371 — choix mémorisé (ON comme OFF manuel).
+      GetStorage().write('pawspot_layer_on', on);
+    },
+    loadNearby: () =>
+        _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM),
+    takePhoto: () async {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1280,
+        imageQuality: 80,
+      );
+      return picked?.path;
+    },
+    uploadPhoto: (path) => _pawSpotController.uploadPhoto(File(path)),
+    openCreate: (at, photoUrl) {
+      if (!mounted) return Future<bool?>.value(false);
+      return showPawSpotCreateSheet(
+        context,
+        controller: _pawSpotController,
+        position: LatLng(at.lat, at.lng),
+        initialPhotoUrl: photoUrl,
+      );
+    },
+    openList: () async {
+      if (!mounted) return;
+      await showPawSpotListSheet(
+        context,
+        controller: _pawSpotController,
+        onOpenSpot: (spot) async {
+          if (_mapCtl.isCompleted) {
+            final ctl = await _mapCtl.future;
+            unawaited(ctl.animateCamera(
+              CameraUpdate.newLatLngZoom(LatLng(spot.lat, spot.lng), 16),
+            ));
+          }
+          _showPawSpotDetail(spot);
+        },
+      );
+    },
+    startPicking: () {
+      // v23.1.363 — pin de départ au centre, puis TAP sur la carte pour le
+      // déplacer (le marqueur est aussi draggable).
+      _pickedSpotPos = _currentCenter;
+      _pickAddress.value = '';
+      _pickingSpotPos.value = true;
+      if (mounted) setState(() {});
+      unawaited(_refreshPickAddress());
+    },
+    mapCenter: () => (lat: _currentCenter.latitude, lng: _currentCenter.longitude),
+    gps: () => _userPosition == null
+        ? null
+        : (lat: _userPosition!.latitude, lng: _userPosition!.longitude),
+    afterCreated: (at) => _afterSpotCreated610(LatLng(at.lat, at.lng)),
+    spotsLoaded: () => _pawSpotController.spots.length,
+    onUploading: () => CustomSnackbar.showInfo(
+      title: 'pawmap_btn_spot_photo'.tr,
+      message: 'pawspot_photo_uploading'.tr,
+    ),
+    onUploadFailed: () => CustomSnackbar.showError(
+      title: 'common_error'.tr,
+      message: 'pawspot_add_photo'.tr,
+    ),
+  );
 
   /// v447 — toggle PawPremium de la rangée fonctionnalité. ON = abonnement
   /// Paw Premium activé. Comme il n'y a pas de mutation côté app, le passage
@@ -11061,60 +11668,40 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// « Voir les spots » : active la couche (même gating abo que le switch)
   /// puis ouvre la liste des spots à proximité avec mes PawPoints en tête.
   Future<void> _openSpotsList() async {
-    if (!_showPawSpots.value) {
-      await _togglePawSpotLayer();
-      if (!_showPawSpots.value) return; // gating abo → boutique déjà ouverte
-    } else if (_pawSpotController.spots.isEmpty) {
-      await _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM);
-    }
-    if (!mounted) return;
-    await showPawSpotListSheet(
-      context,
-      controller: _pawSpotController,
-      onOpenSpot: (spot) async {
-        if (_mapCtl.isCompleted) {
-          final ctl = await _mapCtl.future;
-          unawaited(ctl.animateCamera(
-            CameraUpdate.newLatLngZoom(LatLng(spot.lat, spot.lng), 16),
-          ));
-        }
-        _showPawSpotDetail(spot);
-      },
-    );
-  }
-
-  /// Toggle du chip « PawSpot 🐾 » de la barre de filtres. Au passage à ON,
-  /// vérifie le flag benefits.pawspotActive : inactif → reste OFF + boutique
-  /// PawSpot (CoinShop onglet 2) ; actif → charge les spots autour du centre.
-  Future<void> _togglePawSpotLayer() async {
-    if (_showPawSpots.value) {
-      _showPawSpots.value = false;
-      // v23.1.371 — OFF MANUEL mémorisé : la couche ne se rallumera pas
-      // toute seule à la prochaine ouverture de la carte.
-      GetStorage().write('pawspot_layer_on', false);
-      return;
-    }
-    // v567 — VOIR les spots est GRATUIT pour tous (promesse de la boutique
-    // « Gratuit pour tous : voir tous les PawSpots », et le serveur l'autorise
-    // déjà). L'ancien verrou d'abonnement renvoyait à tort vers la boutique ;
-    // seule la création au-delà de 3 tags reste payante (402 côté serveur).
-    unawaited(_pawSpotController.refreshBenefits());
-    _showPawSpots.value = true;
-    GetStorage().write('pawspot_layer_on', true);
-    await _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM);
+    // 610 — PawSpotActions610.spots (testée) : couche allumée puis liste.
+    await _spotActions.spots();
   }
 
   /// Ouvre la sheet de création — position = pin du viseur (tap/drag) si
   /// fourni, sinon le centre de la carte.
   Future<void> _openPawSpotCreate({LatLng? at}) async {
-    final created = await showPawSpotCreateSheet(
-      context,
-      controller: _pawSpotController,
-      position: at ?? _currentCenter,
-    );
-    if (created == true) {
-      await _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM);
+    final pos = at ?? _currentCenter;
+    await _spotActions.confirmTag((lat: pos.latitude, lng: pos.longitude));
+  }
+
+  /// 610 (PAM, 04/10) — après une création : couche allumée, carte posée sur
+  /// le nouveau spot et couche rechargée AUTOUR DE LUI. Avant, la couche se
+  /// rechargeait autour du centre de la carte : un spot « Photo du spot »
+  /// (posé à ma position GPS) pouvait sortir du rayon et disparaître.
+  Future<void> _afterSpotCreated610(LatLng pos) async {
+    _showPawSpots.value = true;
+    GetStorage().write('pawspot_layer_on', true);
+    if (_mapCtl.isCompleted) {
+      final ctl = await _mapCtl.future;
+      final z = _zoomLevel < 16 ? 16.0 : _zoomLevel;
+      unawaited(ctl.animateCamera(CameraUpdate.newLatLngZoom(pos, z)));
     }
+    final keep = _pawSpotController.spots.toList();
+    await _pawSpotController.loadNearby(pos, radiusM: _spotRadiusM);
+    // Le spot créé reste dans la couche même si le rechargement a échoué.
+    for (final s in keep) {
+      if (!_pawSpotController.spots.any((x) => x.id == s.id) &&
+          (s.lat - pos.latitude).abs() < 1e-6 &&
+          (s.lng - pos.longitude).abs() < 1e-6) {
+        _pawSpotController.spots.insert(0, s);
+      }
+    }
+    if (mounted) setState(() {});
   }
 
   /// v555 — Daniel : « dans la grande map la photo ne marche pas, règle ou
@@ -11123,43 +11710,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// part. Désormais : appareil photo → envoi → fiche de création déjà
   /// remplie avec la photo, à la position GPS (on photographie l'endroit où
   /// l'on EST — pas le centre de la carte).
-  bool _spotPhotoBusy = false;
   Future<void> _startSpotPhoto() async {
-    if (_spotPhotoBusy) return;
-    _spotPhotoBusy = true;
+    // 610 — PawSpotActions610.photo (testée).
     try {
-      final picked = await ImagePicker().pickImage(
-        source: ImageSource.camera,
-        maxWidth: 1280,
-        imageQuality: 80,
-      );
-      if (picked == null || !mounted) return;
-      CustomSnackbar.showInfo(
-        title: 'pawmap_btn_spot_photo'.tr,
-        message: 'pawspot_photo_uploading'.tr,
-      );
-      final url = await _pawSpotController.uploadPhoto(File(picked.path));
-      if (!mounted) return;
-      if (url == null || url.isEmpty) {
-        CustomSnackbar.showError(
-          title: 'common_error'.tr,
-          message: 'pawspot_add_photo'.tr,
-        );
-        return;
-      }
-      final created = await showPawSpotCreateSheet(
-        context,
-        controller: _pawSpotController,
-        position: _userPosition ?? _currentCenter,
-        initialPhotoUrl: url,
-      );
-      if (created == true) {
-        await _pawSpotController.loadNearby(_currentCenter, radiusM: _spotRadiusM);
-      }
+      await _spotActions.photo();
     } catch (e) {
       debugPrint('[PawMap] spot photo error: $e');
-    } finally {
-      _spotPhotoBusy = false;
     }
   }
 
@@ -12364,6 +12920,31 @@ bool pawFriendHaloShown({required bool showFriends, required FriendLiveState sta
 /// qu'elle ne passe jamais sous « Moi » : [rel] = peluche − Moi en px. Au-delà
 /// de 50 px rien ; sinon l'image est repoussée à 50 px dans la même
 /// direction (à droite si le point est confondu).
+/// 610 — décalage d'un PawSpot posé à [at] (px) : à moins de 50 px d'un rond
+/// de personne ([people], « Moi » en premier), il est dessiné sur le côté du
+/// PLUS PROCHE ; sinon il ne bouge pas.
+/// 88 px de côté : le rond ET son étiquette (« Vu il y a 3 min », ~100 px de
+/// large) sont dégagés, sinon la passe 607 retire le spot (mesuré).
+Offset pawSpotShiftFromPeople610(Offset at, List<Offset> people,
+    {double minPx = 60, double sidePx = 88}) {
+  Offset? best;
+  for (final p in people) {
+    final d = (at - p).distance;
+    if (d < minPx && (best == null || d < (at - best).distance)) best = p;
+  }
+  if (best == null) return Offset.zero;
+  final rel = at - best;
+  final double side = rel.dx < 0 ? -1 : 1;
+  return Offset(side * sidePx, rel.dy.clamp(-18.0, 18.0)) - rel;
+}
+
+/// 610 — ancre d'un PawSpot décalée de [off] px (dessiné à côté de « Moi »).
+Offset pawSpotShiftedAnchor610(Offset anchor, Offset off,
+    {required double width, required double height}) {
+  if (off == Offset.zero || width <= 0 || height <= 0) return anchor;
+  return Offset(anchor.dx - off.dx / width, anchor.dy - off.dy / height);
+}
+
 Offset pawPlushOffsetFromMe(Offset rel, {double minPx = 50}) {
   if (rel.distance >= minPx) return Offset.zero;
   // Sur le CÔTÉ de Moi (jamais dessous : l'étiquette « Moi » y est).

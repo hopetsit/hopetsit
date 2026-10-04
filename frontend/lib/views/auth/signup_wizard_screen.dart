@@ -510,9 +510,11 @@ class SignupWizardScreen extends StatelessWidget {
       final detected = c.userCity.value;
       final typed = c.cityController.text.trim();
       final city = detected.isNotEmpty ? detected : typed;
+      // v610 NEO — une ville tapée sans être choisie dans la liste ne vaut
+      // pas « ville trouvée » (la carte ✓ ne s'affiche pas pour du texte libre).
       final has = (c.userLatitude.value != null &&
               c.userLongitude.value != null) ||
-          typed.isNotEmpty;
+          (typed.isNotEmpty && cityPickedFromList610(c.cityController));
       final editing = c.editingLocation.value;
 
       if (getting) {

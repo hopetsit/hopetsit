@@ -135,6 +135,7 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       WidgetsBinding.instance.removeObserver(this);
     } catch (_) {}
     _chatResyncTimer?.cancel();
+    _unreadResyncTimer?.cancel();
     _badgeWorker?.dispose();
     super.onClose();
   }
@@ -460,7 +461,11 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
     final ids = rawIds is List
         ? rawIds.map((e) => e.toString()).where((e) => e.isNotEmpty).toSet()
         : <String>{};
-    final u = map['unreadCount'];
+    // 610 (ZOE) — la cloche et l'icône comptent les 3 profils de la personne :
+    // on ne lit QUE `totalUnreadCount`. `unreadCount` est le compteur du seul
+    // profil de la salle (gardé pour les apps ≤ 609) ; l'appliquer ici
+    // ramènerait la cloche au nombre d'un seul profil.
+    final u = map['totalUnreadCount'];
     final unread = u is num ? u.toInt() : int.tryParse(u?.toString() ?? '');
     return (all: map['all'] == true, ids: ids, unread: unread);
   }
@@ -468,7 +473,9 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
   void _applyServerUnread(int? unread) {
     if (unread != null && unread >= 0) {
       unreadCount.value = unread;
+      if (unread == 0) _dismissSystem(all: true, ids: const <String>{}, unread: 0);
     } else {
+      // Ancien serveur (sans total) : on relit la vérité.
       refreshUnreadCount();
     }
   }
@@ -601,6 +608,46 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
     }
   }
 
+  /// 610 (ZOE, 04/10) — Daniel : « ouvrir la cloche et voir une notification =
+  /// lue ». Avant, seule une ligne TOUCHÉE (ou « Tout marquer comme lu ») était
+  /// lue : ouvrir la cloche laissait tout en non lu, donc le compteur de la
+  /// cloche et le badge de l'icône ne retombaient jamais.
+  /// Les notifications affichées sont lues côté serveur ; la ligne garde son
+  /// style « nouveau » le temps de la visite (l'écran s'en charge), puis le
+  /// compteur et le badge prennent la vérité serveur. Ne lève jamais.
+  final Set<String> _seenSent = <String>{};
+  Future<void> markSeen(Iterable<String> ids) async {
+    final set = ids.where((e) => e.isNotEmpty && !_seenSent.contains(e)).toSet();
+    if (set.isEmpty) return;
+    _seenSent.addAll(set);
+    if (_seenSent.length > 600) {
+      _seenSent.removeAll(_seenSent.take(300).toList());
+    }
+    try {
+      // Le serveur borne un lot à 200 ids.
+      final list = set.toList();
+      for (var i = 0; i < list.length; i += 200) {
+        await _repository.markReadBatch(
+            list.sublist(i, i + 200 > list.length ? list.length : i + 200));
+      }
+      // Lues aussi en local (même sans l'écho de la prise temps réel).
+      final now = DateTime.now().toUtc();
+      var changed = false;
+      for (var i = 0; i < notifications.length; i++) {
+        final n = notifications[i];
+        if (set.contains(n.id) && n.isUnread) {
+          notifications[i] = n.copyWith(readAt: now);
+          changed = true;
+        }
+      }
+      if (changed) notifications.refresh();
+    } catch (e) {
+      _seenSent.removeAll(set);
+      AppLogger.logError('Mark seen failed', error: e);
+    }
+    await refreshUnreadCount();
+  }
+
   /// v599 — lot choisi dans la cloche : supprimer. Optimiste, puis serveur.
   Future<void> deleteMany(Iterable<String> ids) async {
     final set = ids.where((e) => e.isNotEmpty).toSet();
@@ -678,7 +725,15 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
 
   void bumpUnreadCountImmediate() {
     unreadCount.value = unreadCount.value + 1;
+    // 610 — la cloche compte les 3 profils ; la prise temps réel ne prévient que
+    // le profil actif. Après un push, on recale sur le serveur (débounce).
+    _unreadResyncTimer?.cancel();
+    _unreadResyncTimer = Timer(const Duration(milliseconds: 1500), () {
+      unawaited(refreshUnreadCount());
+    });
   }
+
+  Timer? _unreadResyncTimer;
 
   // v23.1 part 44 — chat + bookings counterparts so the foreground FCM
   // handler can update those badges immediately too. Without these the
@@ -713,6 +768,9 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
     try {
       final n = await _repository.getUnreadCount();
       unreadCount.value = n;
+      // 610 — plus rien de non lu : la barre système (et le point de l'icône
+      // Android, qui la reflète) est vidée aussi.
+      if (n == 0) _dismissSystem(all: true, ids: const <String>{}, unread: 0);
       // v566 — vérité serveur → badge de l'icône recalé même si la valeur n'a pas changé
       // (retour au premier plan : un push reçu app fermée a pu poser un autre nombre).
       AppBadgeService.set(n, force: true);
@@ -849,6 +907,7 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       }
       notifications.refresh();
       unreadCount.value = 0;
+      _dismissSystem(all: true, ids: const <String>{}, unread: 0); // 610
     } on ApiException catch (e) {
       AppLogger.logError('Mark all read failed', error: e.message);
     } catch (e) {

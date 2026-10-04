@@ -27,6 +27,7 @@ import 'pawmap_buttons.dart';
 import 'pawmap_jewel.dart';
 import 'pawmap_pins.dart';
 import 'pawmap_sheets.dart';
+import 'pawmap_friends610.dart' show PawPersonTile610;
 
 /// Suivi connu du CHAT seulement (demande de suivi acceptée côté serveur,
 /// la carte ne suit personne) : ligne « Tu suis … » avec son propre arrêt.
@@ -54,6 +55,10 @@ Future<void> showPawLiveSheet(
   Future<void> Function()? onStartWalk,
   void Function(FriendPosition friend)? onFollowFriend,
   PawLiveChatFollow? chatFollow,
+  // 610 — « QUI me suit » : appui sur une personne, et ouverture directe
+  // sur cette section (pastille « 1 te suit » de la pilule).
+  void Function(PawFollower610 follower)? onOpenFollower,
+  bool focusFollowers = false,
 }) {
   final LiveMapService live = Get.isRegistered<LiveMapService>()
       ? Get.find<LiveMapService>()
@@ -65,8 +70,17 @@ Future<void> showPawLiveSheet(
       onStartWalk: onStartWalk,
       onFollowFriend: onFollowFriend,
       chatFollow: chatFollow,
+      onOpenFollower: onOpenFollower,
+      focusFollowers: focusFollowers,
     ),
   );
+}
+
+/// 610 — « depuis 12 min » (au moins 1 min ; vide sans heure connue).
+String pawFollowerSinceLabel610(DateTime? since, DateTime now) {
+  if (since == null) return '';
+  final m = now.difference(since).inMinutes;
+  return 'pm610_since_min'.trParams({'min': '${m < 1 ? 1 : m}'});
 }
 
 /// Durée « 12 min » / « 1 h 05 » depuis [start]. Pure.
@@ -97,8 +111,12 @@ class PawLiveSheet extends StatefulWidget {
     this.onStartWalk,
     this.onFollowFriend,
     this.chatFollow,
+    this.onOpenFollower,
+    this.focusFollowers = false,
   });
 
+  final void Function(PawFollower610 follower)? onOpenFollower;
+  final bool focusFollowers;
   final LiveMapService live;
   final Future<void> Function()? onStartWalk;
   final void Function(FriendPosition friend)? onFollowFriend;
@@ -110,6 +128,21 @@ class PawLiveSheet extends StatefulWidget {
 
 class _PawLiveSheetState extends State<PawLiveSheet> {
   bool _busy = false;
+  final GlobalKey _followersKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    // 610 — ouverte par la pastille « N te suit » : on va sur la section.
+    if (widget.focusFollowers) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final c = _followersKey.currentContext;
+        if (c != null) {
+          Scrollable.ensureVisible(c, duration: const Duration(milliseconds: 250));
+        }
+      });
+    }
+  }
   bool _chatFollowStopped = false;
 
   Future<void> _run(Future<void> Function() f) async {
@@ -166,6 +199,7 @@ class _PawLiveSheetState extends State<PawLiveSheet> {
       final String? followId = live.followingUserId.value;
       final int followers = live.myFollowers.value;
       final List<String> names = live.followerNames.toList();
+      final List<PawFollower610> who = live.followerList.toList(); // 610
       final chat = widget.chatFollow;
       final bool chatRow = chat != null &&
           !_chatFollowStopped &&
@@ -230,9 +264,43 @@ class _PawLiveSheetState extends State<PawLiveSheet> {
           onAction: _busy ? null : () => _stopChatFollow(chat),
         ));
       }
-      if (meLive && names.isNotEmpty) {
+      if (meLive && who.isNotEmpty) {
+        // 610 — Daniel : « il ne me dit pas QUI me suit ». Une ligne par
+        // personne : photo, « Cam te suit », « depuis 12 min ».
+        rows.add(Column(
+          key: _followersKey,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(left: 4.w, bottom: 2.h),
+              child: Text(
+                'pm610_they_follow_title'.tr,
+                key: const ValueKey<String>('live_sheet_followers_title'),
+                style: PawMapTheme.fontOn(context,
+                    size: 12.sp,
+                    weight: FontWeight.w800,
+                    color: PawMapTheme.subOn(context)),
+              ),
+            ),
+            for (final f in who)
+              PawPersonTile610(
+                key: ValueKey<String>('live_sheet_follower_${f.id}'),
+                name: 'pm610_follows_you'.trParams({'name': f.name}),
+                avatar: f.avatar,
+                subtitle: pawFollowerSinceLabel610(f.since, now),
+                ring: const Color(0xFF2E9E48),
+                onTap: () {
+                  if (widget.onOpenFollower == null) return;
+                  Navigator.of(context).maybePop();
+                  widget.onOpenFollower!(f);
+                },
+              ),
+          ],
+        ));
+      } else if (meLive && names.isNotEmpty) {
         rows.add(_LiveRow(
-          key: const ValueKey<String>('live_sheet_followers'),
+          key: _followersKey,
           icon: Icons.groups_rounded,
           tone: const Color(0xFF2E9E48),
           title: pawLiveFollowersLabel(followers, names),

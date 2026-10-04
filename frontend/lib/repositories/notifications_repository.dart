@@ -11,6 +11,14 @@ class NotificationsRepository {
 
   static const int _defaultLimit = 50;
 
+  /// 610 (ZOE, 04/10) — Daniel : « quand j'ai lu les notifications, elles
+  /// restent dans la cloche, et sur l'icône il y a toujours le numéro ». Une
+  /// personne = ses 3 profils : la cloche liste les notifications des 3, son
+  /// compteur et le badge de l'icône = le TOTAL (même nombre que celui que le
+  /// serveur pose dans le push). Sans ce paramètre, le serveur garde le
+  /// comportement des apps ≤ 609 (profil actif seul).
+  static const Map<String, dynamic> personScope = <String, dynamic>{'scope': 'person'};
+
   /// GET /notifications/my?limit=&cursor=
   Future<
     ({List<AppNotificationModel> notifications, String? nextCursor, int count})
@@ -24,6 +32,7 @@ class NotificationsRepository {
       // cette langue, sans dépendre d'un appLocale pas encore synchronisé
       // sur le doc du rôle courant.
       'lang': LocalizationService.getCurrentLanguageCode(),
+      ...personScope, // 610
     };
 
     final response = await _apiClient.get(
@@ -66,11 +75,13 @@ class NotificationsRepository {
   Future<int> getUnreadCount() async {
     final response = await _apiClient.get(
       '${ApiEndpoints.notificationsMy}/unread-count',
+      queryParameters: personScope, // 610
       requiresAuth: true,
     );
 
     int? parseCount(Map<String, dynamic> m) {
       dynamic c =
+          m['totalUnreadCount'] ?? // 610 — total des 3 profils
           m['count'] ??
           m['unreadCount'] ??
           m['unread'] ??
@@ -121,6 +132,7 @@ class NotificationsRepository {
   Future<void> clearAll() async {
     await _apiClient.delete(
       '${ApiEndpoints.notificationsMy}/clear',
+      queryParameters: personScope, // 610 — ce que montre la cloche
       requiresAuth: true,
     );
   }
@@ -151,6 +163,7 @@ class NotificationsRepository {
   Future<void> markAllAsRead() async {
     await _apiClient.patch(
       '${ApiEndpoints.notificationsMy}/read-all',
+      queryParameters: personScope, // 610 — les 3 profils
       requiresAuth: true,
     );
   }

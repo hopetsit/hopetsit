@@ -31,6 +31,8 @@ import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/utils/ios_store_rules606.dart';
+import 'package:hopetsit/widgets/city_location_picker.dart'
+    show cityPickedFromList610, markCityPicked610;
 
 class SignUpController extends GetxController {
   SignUpController({
@@ -100,7 +102,8 @@ class SignUpController extends GetxController {
 
   bool get hasPlace =>
       (userLatitude.value != null && userLongitude.value != null) ||
-      cityController.text.trim().isNotEmpty;
+      (cityController.text.trim().isNotEmpty &&
+          cityPickedFromList610(cityController));
 
   void onStepEntered(int step) {
     if (wizardScroll.hasClients) wizardScroll.jumpTo(0);
@@ -483,6 +486,8 @@ class SignUpController extends GetxController {
 
         // Auto-fill city and address fields
         if (userCity.value.isNotEmpty) {
+          // v610 NEO — ville trouvée par « Ma position » = ville validée.
+          markCityPicked610(cityController, userCity.value);
           cityController.text = userCity.value;
         }
 
@@ -909,13 +914,20 @@ class SignUpController extends GetxController {
   String? validateStep(int step) {
     if (step == 0) return validateStep1();
 
-    final hasPlace = (userLatitude.value != null && userLongitude.value != null) ||
-        cityController.text.trim().isNotEmpty;
+    // v610 NEO (Daniel, 04/10 : « on peut écrire n'importe quoi ») — une
+    // ville TAPÉE ne compte que si elle a été choisie dans la liste (ou
+    // trouvée par « Ma position » / la carte). Sans texte, la position GPS
+    // suffit comme avant.
+    final typedCity = cityController.text.trim().isNotEmpty;
+    final hasCoords = userLatitude.value != null && userLongitude.value != null;
+    final hasPlace = typedCity || hasCoords;
+    final cityNotPicked = typedCity && !cityPickedFromList610(cityController);
 
     if (userType == 'pet_owner') {
       // Étape 2 (index 1, v583) : ville + au moins un service recherché.
       if (step == 1) {
         if (!hasPlace) return 'signup_error_city_required'.tr;
+        if (cityNotPicked) return 'city610_pick_from_list'.tr;
         if (selectedServices.isEmpty) return 'signup_error_service_required'.tr;
       }
       return null;
@@ -924,6 +936,7 @@ class SignUpController extends GetxController {
     // Prestataires (sitter / walker).
     if (step == 1) {
       if (!hasPlace) return 'signup_error_city_required'.tr;
+      if (cityNotPicked) return 'city610_pick_from_list'.tr;
       if (acceptedAnimals.isEmpty) return 'signup_error_animals_required'.tr;
       if (selectedServices.isEmpty && userType == 'pet_sitter') {
         return 'signup_error_service_required'.tr;

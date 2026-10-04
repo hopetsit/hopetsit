@@ -17,6 +17,8 @@ import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
 import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/services/location_service.dart';
+import 'package:hopetsit/widgets/city_location_picker.dart'
+    show markCityPicked610;
 
 class EditOwnerProfileController extends GetxController {
   EditOwnerProfileController({
@@ -185,6 +187,7 @@ class EditOwnerProfileController extends GetxController {
 
       // For the separate Location field, just show the city (or empty)
       locationController.text = city;
+      markCityPicked610(locationController); // v610 — ville du profil
       bioController.text = profileData['bio']?.toString() ?? '';
 
       // v426 — synchro inscription↔profil : recharge les champs du wizard owner.
@@ -505,6 +508,8 @@ class EditOwnerProfileController extends GetxController {
 
         // Auto-fill city and address fields
         if (userCity.value.isNotEmpty) {
+          // v610 NEO — « Ma position » = ville validée.
+          markCityPicked610(locationController, userCity.value);
           locationController.text = userCity.value;
         }
 

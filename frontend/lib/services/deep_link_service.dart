@@ -682,7 +682,9 @@ class DeepLinkService {
     if (t.startsWith('friend_') || t.startsWith('live_tracking')) {
       return '/friends';
     }
-    if (t == 'sos_pet_nearby' || t == 'lost_pet_sighting') {
+    // 610 (ZOE) — geste du bon Samaritain : ouvre le danger confirmé.
+    if (t == 'sos_pet_nearby' || t == 'lost_pet_sighting' ||
+        t == 'good_samaritan_premium') {
       return reportId.isNotEmpty ? '/alert/$reportId' : '/map';
     }
     return '/notifications';

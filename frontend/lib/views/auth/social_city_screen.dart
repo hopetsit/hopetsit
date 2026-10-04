@@ -74,7 +74,11 @@ class _SocialCityScreenState extends State<SocialCityScreen> {
           _detectedCity = city;
           final iso = (data['countryCodeIso'] as String?)?.toUpperCase() ?? '';
           if (RegExp(r'^[A-Z]{2}$').hasMatch(iso)) _country = iso;
-          if (city.isNotEmpty) _cityController.text = city;
+          if (city.isNotEmpty) {
+            // v610 NEO — ville trouvée par la position = ville validée.
+            markCityPicked610(_cityController, city);
+            _cityController.text = city;
+          }
         });
       } else {
         // v573 — BUG : les deux clés étaient passées BRUTES (sans `.tr`),
@@ -119,6 +123,14 @@ class _SocialCityScreenState extends State<SocialCityScreen> {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: 'signup_error_city_required'.tr,
+      );
+      return;
+    }
+    // v610 NEO — une ville tapée sans être choisie dans la liste est refusée.
+    if (!cityPickedFromList610(_cityController)) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'city610_pick_from_list'.tr,
       );
       return;
     }

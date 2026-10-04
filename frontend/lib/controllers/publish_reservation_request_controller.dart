@@ -18,6 +18,8 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/publish_draft600.dart';
 import 'package:hopetsit/utils/service_location587.dart';
+import 'package:hopetsit/widgets/city_location_picker.dart'
+    show cityPickedFromList610, markCityPicked610;
 // v575 — audit P1-7 : bornes de durée de promenade partagées avec le serveur.
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/walk_duration.dart';
@@ -341,6 +343,8 @@ class PublishReservationRequestController extends GetxController {
       final c = profileCity600();
       if (c.isNotEmpty && cityController.text.trim().isEmpty) {
         cityController.text = c;
+        // v610 — ville du profil = ville déjà validée.
+        markCityPicked610(cityController, c);
       }
       // v600 NEO — brouillon d'une demande interrompue (retour arrière,
       // fermeture de l'app) : proposé par l'écran (« Reprendre ma demande ? »).
@@ -767,6 +771,9 @@ class PublishReservationRequestController extends GetxController {
         userLng.value = data['longitude'] as double?;
       }
       if (city.isNotEmpty) {
+        // v610 — « Ma position » = ville validée (posée AVANT le texte, pour
+        // que la barre « Il manque » se mette à jour dans la même image).
+        markCityPicked610(cityController, city);
         detectedCity.value = city;
         _coordsCity = city.toLowerCase();
         cityController.text = city;
@@ -857,7 +864,9 @@ class PublishReservationRequestController extends GetxController {
       endTime.value != null;
   /// Miroir réactif du champ ville (TextEditingController n'est pas Rx).
   final RxString cityText = ''.obs;
-  bool get stepCityDone => cityText.value.trim().isNotEmpty;
+  // v610 — la ville doit être CHOISIE (liste, position, carte), pas tapée.
+  bool get stepCityDone =>
+      cityText.value.trim().isNotEmpty && cityPickedFromList610(cityController);
   int get requiredStepsDone =>
       (stepPetsDone ? 1 : 0) +
       (stepServiceDone ? 1 : 0) +
@@ -913,6 +922,10 @@ class PublishReservationRequestController extends GetxController {
     }
     final city = cityController.text.trim();
     if (city.isEmpty) return 'city';
+    // v610 (Daniel, 04/10 : « on peut écrire n'importe quoi ») — texte tapé
+    // sans choisir une ville de la liste : refusé.
+    cityText.value; // lecture réactive (barre collante)
+    if (!cityPickedFromList610(cityController)) return 'cityPick';
     return null;
   }
 
@@ -942,6 +955,8 @@ class PublishReservationRequestController extends GetxController {
         return 'svc587_meeting_required'.tr;
       case 'city':
         return 'publish_request_city_required'.tr;
+      case 'cityPick':
+        return 'city610_missing_label'.tr;
       default:
         return 'publish_request_fill_required'.tr;
     }

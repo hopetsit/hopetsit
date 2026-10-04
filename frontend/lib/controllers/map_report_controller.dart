@@ -5,14 +5,67 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/map_report_model.dart';
 
-/// Controller for Couche 2 — ephemeral 48h reports. Premium-only.
+/// 610 (ZOE) — état du quota « confort » (GET /map-reports/quota).
+class ComfortQuota {
+  const ComfortQuota({
+    required this.unlimited,
+    this.limit = 1,
+    this.used = 0,
+    this.remaining = 1,
+    this.nextAvailableAt,
+  });
+
+  final bool unlimited;
+  final int limit;
+  final int used;
+  final int remaining;
+  final DateTime? nextAvailableAt;
+
+  bool get exhausted => !unlimited && remaining <= 0;
+
+  factory ComfortQuota.fromJson(Map<String, dynamic> j) {
+    return ComfortQuota(
+      unlimited: j['unlimited'] == true,
+      limit: (j['limit'] as num?)?.toInt() ?? 1,
+      used: (j['used'] as num?)?.toInt() ?? 0,
+      remaining: (j['remaining'] as num?)?.toInt() ?? 1,
+      nextAvailableAt:
+          DateTime.tryParse(j['nextAvailableAt']?.toString() ?? '')?.toLocal(),
+    );
+  }
+}
+
+/// Controller for Couche 2 — ephemeral 48h reports.
 ///
-/// API returns 402 ("PREMIUM_REQUIRED") when a free user tries to load or
-/// create reports — the controller surfaces that via `premiumRequired`.
+/// 610 (ZOE, règle B) : tout le monde voit tout ; danger = gratuit et
+/// illimité ; confort = 1 par semaine sans abonnement (429
+/// COMFORT_WEEKLY_LIMIT → `comfortLimitReached`) ; animal perdu / trouvé =
+/// abonnés (402 → `premiumRequired`).
 class MapReportController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isSubmitting = false.obs;
   final RxBool premiumRequired = false.obs;
+
+  /// 610 — quota confort ; null = inconnu (le serveur tranche).
+  final Rxn<ComfortQuota> comfortQuota = Rxn<ComfortQuota>();
+
+  /// 610 — vrai si le dernier envoi a été refusé par la limite hebdomadaire.
+  final RxBool comfortLimitReached = false.obs;
+
+  /// 610 — lit le compteur « 1 par semaine ». Ne lève jamais.
+  Future<void> loadQuota() async {
+    try {
+      final api = Get.find<ApiClient>();
+      final data = await api.get('/map-reports/quota', requiresAuth: true);
+      final c = (data is Map ? data['comfort'] : null);
+      if (c is Map) {
+        comfortQuota.value =
+            ComfortQuota.fromJson(Map<String, dynamic>.from(c));
+      }
+    } catch (e) {
+      debugPrint('[MapReports] loadQuota error: $e');
+    }
+  }
   final RxList<MapReport> reports = <MapReport>[].obs;
 
   /// Radius in meters for nearby queries (defaults to 3 km for reports).
@@ -63,6 +116,8 @@ class MapReportController extends GetxController {
     String? city,
   }) async {
     isSubmitting.value = true;
+    premiumRequired.value = false;
+    comfortLimitReached.value = false;
     try {
       final api = Get.find<ApiClient>();
       final data = await api.post(
@@ -82,9 +137,36 @@ class MapReportController extends GetxController {
       if (reportJson == null) return null;
       final report = MapReport.fromJson(reportJson);
       reports.add(report);
+      if (ReportTypes.isComfort(type)) {
+        // 610 — le compteur suit tout de suite (puis la vérité serveur).
+        final q = comfortQuota.value;
+        if (q != null && !q.unlimited) {
+          comfortQuota.value = ComfortQuota(
+            unlimited: false,
+            limit: q.limit,
+            used: q.used + 1,
+            remaining: q.remaining > 0 ? q.remaining - 1 : 0,
+            nextAvailableAt: q.nextAvailableAt ??
+                DateTime.now().add(const Duration(days: 7)),
+          );
+        }
+        loadQuota();
+      }
       return report;
     } on ApiException catch (e) {
       if (e.statusCode == 402) premiumRequired.value = true;
+      if (e.statusCode == 429) {
+        comfortLimitReached.value = true;
+        final next = _nextAvailableFrom(e);
+        final q = comfortQuota.value;
+        comfortQuota.value = ComfortQuota(
+          unlimited: false,
+          limit: q?.limit ?? 1,
+          used: q?.limit ?? 1,
+          remaining: 0,
+          nextAvailableAt: next ?? q?.nextAvailableAt,
+        );
+      }
       debugPrint('[MapReports] createReport API error: ${e.message}');
       return null;
     } catch (e) {
@@ -93,6 +175,14 @@ class MapReportController extends GetxController {
     } finally {
       isSubmitting.value = false;
     }
+  }
+
+  DateTime? _nextAvailableFrom(ApiException e) {
+    final d = e.details;
+    if (d is Map && d['nextAvailableAt'] != null) {
+      return DateTime.tryParse(d['nextAvailableAt'].toString())?.toLocal();
+    }
+    return null;
   }
 
   /// Confirm a report — extends its life by 12h (max 96h total).

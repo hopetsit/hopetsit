@@ -6,6 +6,7 @@ import '../../widgets/paw_button_kit.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
@@ -38,6 +39,7 @@ import 'package:hopetsit/widgets/app_dialog_kit.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/localization/v565/fixes575_i18n.dart';
 import 'package:hopetsit/widgets/notification_card.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
@@ -55,6 +57,50 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   // (cases), « Supprimer (N) » / « Marquer lu (N) », « Tout » conservé.
   bool _selecting = false;
   final Set<String> _selected = <String>{};
+
+  // 610 (ZOE, 04/10) — Daniel : « ouvrir la cloche et voir une notification =
+  // lue ». Tout ce que la cloche affiche est lu côté serveur (compteur de la
+  // cloche + badge de l'icône recalés) ; les lignes qui étaient non lues à
+  // l'arrivée gardent leur style « nouveau » jusqu'à la fermeture de l'écran.
+  final Set<String> _freshIds = <String>{};
+  Worker? _seenWorker;
+  Timer? _seenDebounce;
+
+  void _scheduleMarkSeen() {
+    _seenDebounce?.cancel();
+    _seenDebounce = Timer(const Duration(milliseconds: 400), _markDisplayedAsSeen);
+  }
+
+  void _markDisplayedAsSeen() {
+    if (!mounted || _c.isLoading.value) return;
+    final ids = <String>[];
+    for (final n in _c.notifications) {
+      if (n.isUnread && n.id.isNotEmpty) {
+        _freshIds.add(n.id);
+        ids.add(n.id);
+      }
+    }
+    if (ids.isEmpty) return;
+    if (mounted) setState(() {});
+    unawaited(_c.markSeen(ids));
+  }
+
+  /// 610 — la cloche montre les 3 profils : une notification d'un AUTRE profil
+  /// est lue, puis on dit de quel profil il s'agit au lieu d'ouvrir un écran
+  /// que la session du profil actif ne peut pas charger (403).
+  bool _isForOtherProfile(AppNotificationModel n) {
+    final target = n.recipientRole.trim().toLowerCase();
+    if (!const <String>['owner', 'sitter', 'walker'].contains(target)) {
+      return false;
+    }
+    try {
+      final current =
+          (Get.find<AuthController>().userRole.value ?? '').toLowerCase();
+      return current.isNotEmpty && current != target;
+    } catch (_) {
+      return false;
+    }
+  }
 
   void _enterSelection(AppNotificationModel item) {
     setState(() {
@@ -189,9 +235,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _c.loadInitial();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _c.loadInitial();
+      _markDisplayedAsSeen(); // 610
     });
+    // 610 — page suivante, notification arrivée pendant la visite : vue = lue.
+    _seenWorker = ever(_c.notifications, (_) => _scheduleMarkSeen());
     _scrollController.addListener(_onScroll);
   }
 
@@ -207,6 +256,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _seenWorker?.dispose();
+    _seenDebounce?.cancel();
     super.dispose();
   }
 
@@ -215,6 +266,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _onTapNotification(AppNotificationModel n) async {
     await _c.markAsRead(n);
     if (!mounted) return;
+    if (_isForOtherProfile(n)) {
+      CustomSnackbar.showInfo(
+        title: 'notifications_title'.tr,
+        message: 'fixes575_notification_other_role'.tr.replaceAll(
+            '{role}', fixes575RoleLabelKey(n.recipientRole.toLowerCase()).tr),
+      );
+      return;
+    }
     await _navigateForNotification(context, n);
   }
 
@@ -932,6 +991,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           selected: checked,
                           child: NotificationCard(
                             notification: item,
+                            showAsNew: item.isUnread || _freshIds.contains(item.id),
                             onTap: () => _toggleSelected(item),
                           ),
                         ),
@@ -966,6 +1026,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     onLongPress: () => _enterSelection(item),
                     child: NotificationCard(
                       notification: item,
+                      showAsNew: item.isUnread || _freshIds.contains(item.id),
                       onTap: () => _onTapNotification(item),
                     ),
                   ),

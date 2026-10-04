@@ -18,8 +18,12 @@ class AppBadgeService {
   static const MethodChannel _channel = MethodChannel('hopetsit/badge');
   static int? _last;
 
+  /// 610 — tests seulement : simuler iOS (le badge est un no-op ailleurs).
+  @visibleForTesting
+  static bool debugAssumeIOS = false;
+
   static Future<void> set(int count, {bool force = false}) async {
-    if (kIsWeb || !Platform.isIOS) return;
+    if (kIsWeb || !(debugAssumeIOS || Platform.isIOS)) return;
     final n = count < 0 ? 0 : count;
     if (!force && _last == n) return;
     _last = n;

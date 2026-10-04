@@ -99,6 +99,7 @@ void main() {
     ['handover_return_confirmed', 'walker', {'bookingId': b}, '/bookings/$b'],
     ['sos_pet_nearby', 'sitter', {'reportId': r}, '/alert/$r'],
     ['lost_pet_sighting', 'owner', {'reportId': r}, '/alert/$r'],
+    ['good_samaritan_premium', 'owner', {'reportId': r}, '/alert/$r'], // 610
   ];
 
   group('table type → route (données du serveur)', () {

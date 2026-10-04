@@ -199,3 +199,7 @@ void openMainTabOr(int index, Widget Function() fallback) {
   }
   if (!openMainTab(index)) Get.to(fallback);
 }
+
+/// 610 — la patte verte du menu demande à la PawMap d'ouvrir la feuille
+/// « En direct maintenant » (compteur : chaque appui = une demande).
+final RxInt pawMapLiveListRequest610 = 0.obs;

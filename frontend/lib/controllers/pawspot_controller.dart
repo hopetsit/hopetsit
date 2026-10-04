@@ -321,7 +321,21 @@ class PawSpotController extends GetxController {
       },
       requiresAuth: true,
     );
-    return r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{};
+    final out = r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{};
+    addCreatedSpot610(out);
+    return out;
+  }
+
+  /// 610 (PAM, 04/10) — le spot renvoyé par POST /pawspots entre TOUT DE
+  /// SUITE dans la couche : il se voit sur ma carte même si le rechargement
+  /// qui suit échoue (réseau) ou s'il est hors du rayon chargé.
+  void addCreatedSpot610(Map<String, dynamic> response) {
+    final raw = response['spot'];
+    if (raw is! Map) return;
+    final spot = PawSpotModel.fromJson(Map<String, dynamic>.from(raw));
+    if (spot.id.isEmpty || (spot.lat == 0 && spot.lng == 0)) return;
+    if (spots.any((s) => s.id == spot.id)) return;
+    spots.insert(0, spot);
   }
 
   /// POST /pawspots/:id/like — toggle ❤️. Retourne {liked, likesCount} ou

@@ -22,6 +22,8 @@ import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
 import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/city_location_picker.dart'
+    show markCityPicked610;
 
 /// Dedicated controller for the Walker "Edit profile" screen.
 ///
@@ -183,6 +185,7 @@ class EditWalkerProfileController extends GetxController {
       phoneController.text = walker.mobile;
       addressController.text = walker.address;
       locationController.text = walker.city ?? '';
+      markCityPicked610(locationController); // v610 — ville du profil
       bioController.text = walker.bio ?? '';
       skillsController.text = walker.skills ?? '';
       languageController.text = walker.language;
@@ -548,6 +551,8 @@ class EditWalkerProfileController extends GetxController {
         userLongitude.value = locationData['longitude'] as double?;
         userCity.value = locationData['city'] as String? ?? '';
         if (userCity.value.isNotEmpty) {
+          // v610 NEO — « Ma position » = ville validée.
+          markCityPicked610(locationController, userCity.value);
           locationController.text = userCity.value;
         }
         if (locationData['street'] != null) {

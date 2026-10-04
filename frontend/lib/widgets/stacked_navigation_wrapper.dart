@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_friends610.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
@@ -232,19 +233,26 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     final explicitNow =
         explicitAt != null &&
         DateTime.now().difference(explicitAt) < const Duration(seconds: 3);
-    if (index == kPawMapTabIndex &&
-        _currentIndex != kPawMapTabIndex &&
-        !explicitNow &&
-        Get.isRegistered<LiveMapService>()) {
+    if (index == kPawMapTabIndex && Get.isRegistered<LiveMapService>()) {
       final live = Get.find<LiveMapService>();
       final one = live.singleLiveFriend;
-      // v604 — sauf si j'ai volontairement arrêté de le suivre (Daniel :
-      // « Arrêter le suivre marche pas » : il était re-suivi à chaque retour
-      // sur l'onglet).
-      if (one != null &&
-          one.userId.isNotEmpty &&
-          // v605 — tous ses ids, jusqu'à une NOUVELLE session de direct.
-          !live.isFollowDeclined(one)) {
+      // 610 (Daniel, 04/10) — patte au contour VERT : un seul ami en direct
+      // → la carte file sur lui ; plusieurs (ou l'unique a été lâché, ou je
+      // suis déjà sur la carte) → feuille « En direct maintenant ».
+      final action = pawTabLiveAction610(
+        liveCount: live.liveFriendsCount.value,
+        myLiveLost: live.myLiveIsLost,
+        onPawMapTab: _currentIndex == kPawMapTabIndex,
+        explicitNow: explicitNow,
+        // v604/v605 — lâché volontairement : jamais suivi d'office.
+        singleDeclined: one != null && live.isFollowDeclined(one),
+      );
+      if (action == PawTabLiveAction610.showList) {
+        pawMapLiveListRequest610.value++;
+      }
+      if (action == PawTabLiveAction610.focusOne &&
+          one != null &&
+          one.userId.isNotEmpty) {
         pawMapPendingFriend.value = PawMapFriendFocus(
           userId: one.userId,
           role: one.role.isEmpty ? 'owner' : one.role,

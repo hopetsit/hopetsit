@@ -3,7 +3,7 @@
 // `map_report_label_<type>` et `map_report_hint_<type>`.
 import 'package:get/get.dart';
 
-/// Ephemeral 48h map report (Couche 2) — Premium feature.
+/// Ephemeral 48h map report (Couche 2) — visible par tous (610, règle B).
 ///
 /// Mirrors the backend MapReport schema. Reports auto-expire after 48h
 /// (TTL on the server) and can be extended by Premium users via "confirm".
@@ -150,26 +150,56 @@ class ReportTypes {
     tickZone,
   ];
 
-  /// Freemium whitelist — 3 signalements gratuits pour tous les profils
-  /// (owner / sitter / walker). Les autres requièrent Premium.
-  ///   • 😾 Chien agressif — safety communauté.
-  ///   • ⚠️ Danger — zone accidentogène.
-  ///   • 🚰 Point d'eau OK — partage utile aux promeneurs.
-  ///   • 💀 Animal mort — alerte sanitaire / risque pour les autres animaux.
-  static const List<String> freeTypes = [
-    aggressiveDog,
+  /// 610 (ZOE, 04/10/2026) — règle B de REGLES_610.md. DOIT rester synchronisé
+  /// avec backend/src/utils/mapReportRules610.js.
+  ///   • DANGER (13) : gratuit et illimité pour tous (+ geste du bon Samaritain).
+  static const List<String> dangerTypes = [
+    poison,
+    trap,
     hazard,
-    waterActive,
+    aggressiveDog,
     deadAnimal,
-    // v23.1.293 — nouveaux gratuits.
+    fireSmoke,
+    flood,
+    busyTraffic,
+    chemical,
+    wildlife,
+    fallenTree,
+    heatHotGround,
+    tickZone,
+  ];
+
+  ///   • INFOS UTILES (4) : déjà gratuites, restent illimitées.
+  static const List<String> usefulFreeTypes = [
+    waterActive,
     food,
     trash,
-    // v414 — véto ouvert : utile à toute la communauté → gratuit.
     vetOpen,
   ];
 
-  /// Returns true if [type] is usable by a free user (no Premium required).
+  ///   • CONFORT (8) : 1 par semaine sans abonnement, illimité avec.
+  static const List<String> comfortTypes = [
+    poop,
+    pee,
+    waterBroken,
+    construction,
+    strayPet,
+    other,
+    noDogsZone,
+    leashRequired,
+  ];
+
+  ///   • ANIMAL PERDU / TROUVÉ : règle inchangée (création réservée aux abonnés).
+  static const List<String> premiumCreateTypes = [lostPet, foundPet];
+
+  /// Types créables par tous, sans abonnement et sans limite.
+  static const List<String> freeTypes = [...dangerTypes, ...usefulFreeTypes];
+
+  /// True si [type] se crée gratuitement et sans limite.
   static bool isFree(String type) => freeTypes.contains(type);
+  static bool isDanger(String type) => dangerTypes.contains(type);
+  static bool isComfort(String type) => comfortTypes.contains(type);
+  static bool isPremiumCreate(String type) => premiumCreateTypes.contains(type);
 
   /// Accent color for each type — used for markers, chips, and tile icons.
   /// Mirrors the backend palette so badges look identical end-to-end.

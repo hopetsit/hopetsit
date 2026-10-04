@@ -59,6 +59,22 @@ FriendProfile? chatPeerFriend(Iterable<Friendship> friends, String peerId) {
   return null;
 }
 
+/// 610 — le correspondant [peerId] partage-t-il sa position EN DIRECT
+/// (partage actif, signal < 10 min) ? Cherche aussi dans ses autres rôles.
+bool chatPeerIsLive(String peerId, Map<String, FriendPosition> positions) {
+  if (peerId.trim().isEmpty) return false;
+  FriendPosition? fp = positions[peerId];
+  if (fp == null) {
+    for (final p in positions.values) {
+      if (p.personIds.contains(peerId)) {
+        fp = p;
+        break;
+      }
+    }
+  }
+  return fp != null && fp.liveState != FriendLiveState.seen;
+}
+
 /// Appui sur le nom / la photo de l'en-tête d'une discussion.
 Future<ChatPeerTapOutcome> onChatPeerTap(
   BuildContext context, {

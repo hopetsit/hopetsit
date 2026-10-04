@@ -62,15 +62,28 @@ void main() {
       final w = PawMapDragWatch();
       w.down(const Offset(100, 100));
       expect(w.move(const Offset(100, 120)), isTrue);
+      expect(w.moved, isTrue);
       expect(w.move(const Offset(100, 160)), isFalse);
       w.end();
       w.down(const Offset(10, 10));
       expect(w.move(const Offset(40, 10)), isTrue);
     });
-    test('pincer (2 doigts) : pause', () {
+    // 610 (03/10, Daniel) — pincer = zoomer : le suivi CONTINUE.
+    test('pincer (2 doigts) : pas de pause, même quand les doigts bougent', () {
       final w = PawMapDragWatch();
       expect(w.down(const Offset(100, 100)), isFalse);
-      expect(w.down(const Offset(200, 200)), isTrue);
+      expect(w.down(const Offset(200, 200)), isFalse);
+      expect(w.pinching, isTrue);
+      expect(w.move(const Offset(60, 60)), isFalse);
+      expect(w.move(const Offset(260, 260)), isFalse);
+      expect(w.moved, isFalse); // un zoom n'est pas un glissement
+      w.end();
+      w.end();
+      expect(w.pinching, isFalse);
+      expect(w.active, isFalse);
+      // geste suivant : un doigt qui glisse met bien en pause
+      w.down(const Offset(10, 10));
+      expect(w.move(const Offset(40, 10)), isTrue);
     });
   });
 

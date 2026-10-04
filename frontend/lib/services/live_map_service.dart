@@ -358,6 +358,47 @@ bool pawLiveEntryVanished(FriendPosition fp, DateTime now,
 
 /// v605 — prénoms des suiveurs envoyés par le serveur (liste de chaînes ou
 /// d'objets `{name}`). Pure.
+/// 610 (PAM, 04/10) — une personne qui suit MON direct (serveur ≥ 610 :
+/// `/friends/live-state` → `followerList`, `map:followers` → `list`).
+class PawFollower610 {
+  const PawFollower610({
+    required this.id,
+    required this.name,
+    this.avatar = '',
+    this.role = 'owner',
+    this.since,
+    this.isFriend = false,
+  });
+  final String id;
+  final String name;
+  final String avatar;
+  final String role;
+  final DateTime? since;
+  final bool isFriend;
+}
+
+/// Lecture tolérante de la liste des suiveurs (ancien serveur : vide).
+List<PawFollower610> parseFollowerList610(dynamic raw) {
+  if (raw is! List) return const <PawFollower610>[];
+  final out = <PawFollower610>[];
+  final seen = <String>{};
+  for (final e in raw) {
+    if (e is! Map) continue;
+    final id = (e['id'] ?? '').toString().trim();
+    final name = (e['name'] ?? '').toString().trim();
+    if (id.isEmpty || name.isEmpty || !seen.add(id)) continue;
+    out.add(PawFollower610(
+      id: id,
+      name: name,
+      avatar: (e['avatar'] ?? '').toString(),
+      role: (e['role'] ?? 'owner').toString(),
+      since: DateTime.tryParse((e['since'] ?? '').toString())?.toLocal(),
+      isFriend: e['isFriend'] == true,
+    ));
+  }
+  return out;
+}
+
 List<String> parseFollowerNames(dynamic raw) {
   if (raw is! List) return const <String>[];
   final out = <String>[];
@@ -501,6 +542,10 @@ class LiveMapService extends GetxService {
   /// `followerNames`). Vide = on n'affiche que le nombre.
   final RxList<String> followerNames = <String>[].obs;
 
+  /// 610 — QUI me suit (photo, prénom, depuis quand). Vide = ancien serveur :
+  /// on garde le nombre et les prénoms.
+  final RxList<PawFollower610> followerList = <PawFollower610>[].obs;
+
   /// v604 — MON direct est lancé mais ma position ne part plus (GPS muet,
   /// réseau coupé) : contour rouge de la patte du menu. Lit des observables
   /// (à appeler dans un Obx).
@@ -596,6 +641,19 @@ class LiveMapService extends GetxService {
       if (p.liveState != FriendLiveState.seen) n += 1;
     }
     if (liveFriendsCount.value != n) liveFriendsCount.value = n;
+  }
+
+  /// 610 — début de la balade de chaque ami (clé = clé de `friendPositions`),
+  /// lu dans `GET /friends/live-positions` (`startedAt`).
+  final Map<String, DateTime> friendLiveSince = <String, DateTime>{};
+
+  /// 610 — les personnes en direct (ou signal perdu), triées par prénom.
+  List<FriendPosition> get liveFriendList {
+    final out = friendPositions.values
+        .where((p) => p.liveState != FriendLiveState.seen)
+        .toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return out;
   }
 
   /// L'unique personne en balade, s'il n'y en a qu'une (sinon null).
@@ -899,6 +957,7 @@ class LiveMapService extends GetxService {
         final n = ((raw as Map)['count'] as num?)?.toInt() ?? 0;
         myFollowers.value = n < 0 ? 0 : n;
         followerNames.assignAll(parseFollowerNames(raw['names']));
+        followerList.assignAll(parseFollowerList610(raw['list']));
       } catch (_) {/* payload inattendu */}
     });
 
@@ -976,6 +1035,7 @@ class LiveMapService extends GetxService {
       if (raw is! Map) return;
       myFollowers.value = (raw['followers'] as num?)?.toInt() ?? 0;
       followerNames.assignAll(parseFollowerNames(raw['followerNames']));
+      followerList.assignAll(parseFollowerList610(raw['followerList']));
       final d = liveStateDecision(raw.cast<String, dynamic>(),
           broadcasting: broadcasting.value,
           localStartedAt: sessionStartedAt.value);
@@ -1087,6 +1147,13 @@ class LiveMapService extends GetxService {
           } else {
             friendTrails[key] = t;
           }
+        }
+        // 610 — « en balade · 12 min » dans la liste de la patte verte.
+        final since = DateTime.tryParse(item['startedAt']?.toString() ?? '');
+        if (since != null) {
+          friendLiveSince[key] = since.toLocal();
+        } else if (raw.liveState == FriendLiveState.seen) {
+          friendLiveSince.remove(key);
         }
         final fp = raw.copyWith(
             userId: key, personIds: mergedPersonIds(cur, raw));

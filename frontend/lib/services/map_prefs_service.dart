@@ -76,6 +76,7 @@ class MapPrefsService extends GetxService {
       final raw = GetStorage().read(storageKey);
       if (raw is Map) prefs.assignAll(Map<String, dynamic>.from(raw));
     } catch (_) {/* stockage indisponible */}
+    _loadStamps(); // 610
     // v586 — état de départ = copie locale du profil (avant le réseau).
     try {
       final profile = GetStorage().read<Map<String, dynamic>>('user_profile');
@@ -89,14 +90,168 @@ class MapPrefsService extends GetxService {
   ApiClient? get _api =>
       Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
 
-  DateTime? _updatedAt(Map<String, dynamic>? m) {
-    final s = m?['updatedAt'];
-    if (s is String) return DateTime.tryParse(s);
-    return null;
+
+  // ─── 610 (PAM, 04/10) — SYNCHRO CHAMP PAR CHAMP ──────────────────────────
+  // Mesuré au simulateur : le mode nuit choisi sur un appareil était effacé
+  // dès qu'un autre appareil bougeait sa carte. La copie locale entière était
+  // jugée « plus récente » (la caméra venait de bouger) et RENVOYÉE en bloc.
+  // Désormais chaque champ (et chaque calque) porte sa propre heure de
+  // modification ; on n'envoie que ce que l'utilisateur vient de changer, et
+  // à la lecture du compte chaque champ garde la valeur la plus récente.
+
+  static const String stampsKey = 'pawmap_prefs_at_v610';
+
+  /// Champs dont les sous-clés vivent chacune leur vie (un calque, un rôle).
+  static const Set<String> subKeyed = {'layers', 'homeRadiusKm'};
+
+  /// Heures de modification LOCALES, par champ (`nightMode`,
+  /// `layers__everyone`…), même format que le serveur (`pawMap.fieldAt`).
+  final Map<String, String> localAt = <String, String>{};
+
+  Map<String, String> _pendingAt = <String, String>{};
+
+  static String stampKey(String k, [String? sub]) => sub == null ? k : '${k}__$sub';
+
+  static bool _same(Object? a, Object? b) {
+    if (a is Map && b is Map) {
+      if (a.length != b.length) return false;
+      for (final e in a.entries) {
+        if (!b.containsKey(e.key) || !_same(e.value, b[e.key])) return false;
+      }
+      return true;
+    }
+    if (a is List && b is List) {
+      if (a.length != b.length) return false;
+      for (var i = 0; i < a.length; i++) {
+        if (!_same(a[i], b[i])) return false;
+      }
+      return true;
+    }
+    return a == b;
   }
 
-  /// Lecture du compte au démarrage de la carte. Renvoie vrai si le compte a
-  /// remplacé la copie locale (plus récent) — l'écran recentre alors la carte.
+  /// Ne garde du [patch] que ce qui CHANGE vraiment par rapport à [current]
+  /// (un instantané complet des calques ne renvoie que le calque touché).
+  static Map<String, dynamic> diffPatch(
+      Map<String, dynamic> current, Map<String, dynamic> patch) {
+    final out = <String, dynamic>{};
+    for (final e in patch.entries) {
+      if (e.key == 'updatedAt' || e.key == 'fieldAt') continue;
+      final cur = current[e.key];
+      if (subKeyed.contains(e.key) && e.value is Map) {
+        final sub = <String, dynamic>{};
+        for (final s in (e.value as Map).entries) {
+          final c = cur is Map ? cur[s.key] : null;
+          if (!_same(c, s.value)) sub[s.key.toString()] = s.value;
+        }
+        if (sub.isNotEmpty) out[e.key] = sub;
+      } else if (!_same(cur, e.value)) {
+        out[e.key] = e.value;
+      }
+    }
+    return out;
+  }
+
+  /// Clés d'horodatage d'un patch (« layers__everyone »…).
+  static List<String> stampsOf(Map<String, dynamic> patch) => [
+        for (final e in patch.entries)
+          if (subKeyed.contains(e.key) && e.value is Map)
+            for (final s in (e.value as Map).keys) stampKey(e.key, s.toString())
+          else
+            e.key,
+      ];
+
+  /// Fusion compte → appareil, champ par champ. Renvoie la nouvelle copie,
+  /// les nouvelles heures, ce qu'il faut renvoyer au compte (champs changés
+  /// ICI plus récemment) et si un champ a pris la valeur du compte.
+  static ({
+    Map<String, dynamic> prefs,
+    Map<String, String> at,
+    Map<String, dynamic> push,
+    Map<String, String> pushAt,
+    bool changed,
+  }) mergeRemote({
+    required Map<String, dynamic> local,
+    required Map<String, String> localAt,
+    required Map<String, dynamic> remote,
+  }) {
+    final remoteAt = <String, String>{
+      if (remote['fieldAt'] is Map)
+        for (final e in (remote['fieldAt'] as Map).entries)
+          if (e.value is String) e.key.toString(): e.value as String,
+    };
+    final remoteAll = remote['updatedAt'] is String ? remote['updatedAt'] as String : null;
+    DateTime? t(String? s) => s == null ? null : DateTime.tryParse(s);
+    final out = Map<String, dynamic>.from(local);
+    final at = Map<String, String>.from(localAt);
+    final push = <String, dynamic>{};
+    final pushAt = <String, String>{};
+    var changed = false;
+
+    // Décide pour UN champ ; [put] / [read] lisent ou écrivent la valeur.
+    void field(String f, bool remoteHas, Object? rv, Object? lv,
+        void Function(Object?) put, void Function() keepLocalPush) {
+      final la = t(localAt[f]);
+      final raS = remoteAt[f] ?? (remoteHas ? remoteAll : null);
+      final ra = t(raS);
+      if (remoteHas && (la == null || (ra != null && !ra.isBefore(la)))) {
+        if (!_same(lv, rv)) changed = true;
+        put(rv);
+        if (raS != null) at[f] = raS;
+        return;
+      }
+      // Changé ici plus récemment (ou inconnu du compte) : on le renvoie.
+      if (la != null && lv != null) {
+        keepLocalPush();
+        pushAt[f] = localAt[f]!;
+      }
+    }
+
+    final keys = <String>{...local.keys, ...remote.keys}
+      ..removeAll(const {'updatedAt', 'fieldAt'});
+    for (final k in keys) {
+      if (subKeyed.contains(k)) {
+        final lm = local[k] is Map ? Map<String, dynamic>.from(local[k] as Map) : <String, dynamic>{};
+        final rm = remote[k] is Map ? Map<String, dynamic>.from(remote[k] as Map) : <String, dynamic>{};
+        final merged = Map<String, dynamic>.from(lm);
+        for (final sub in <String>{...lm.keys, ...rm.keys}) {
+          field(stampKey(k, sub), rm.containsKey(sub), rm[sub], lm[sub],
+              (v) => merged[sub] = v, () {
+            push[k] = {...(push[k] as Map? ?? const {}), sub: lm[sub]};
+          });
+        }
+        if (merged.isNotEmpty) out[k] = merged;
+      } else {
+        field(k, remote.containsKey(k), remote[k], local[k], (v) => out[k] = v,
+            () => push[k] = local[k]);
+      }
+    }
+    if (remoteAll != null) out['updatedAt'] = remoteAll;
+    return (prefs: out, at: at, push: push, pushAt: pushAt, changed: changed);
+  }
+
+  void _loadStamps() {
+    try {
+      final raw = GetStorage().read(stampsKey);
+      if (raw is Map) {
+        localAt
+          ..clear()
+          ..addAll({
+            for (final e in raw.entries)
+              if (e.value is String) e.key.toString(): e.value as String,
+          });
+      }
+    } catch (_) {/* stockage indisponible */}
+  }
+
+  void _persistStamps() {
+    try {
+      GetStorage().write(stampsKey, Map<String, String>.from(localAt));
+    } catch (_) {/* best effort */}
+  }
+
+  /// Lecture du compte au démarrage de la carte. Renvoie vrai si au moins un
+  /// champ a pris la valeur du compte (l'écran réapplique alors les réglages).
   Future<bool> loadFromAccount() async {
     if (!_loggedIn || _api == null) {
       loaded.value = true;
@@ -110,20 +265,21 @@ class MapPrefsService extends GetxService {
       final remote = m['pawMap'] is Map
           ? Map<String, dynamic>.from(m['pawMap'] as Map)
           : <String, dynamic>{};
-      final remoteAt = _updatedAt(remote);
-      final localAt = _updatedAt(prefs);
-      final remoteNewer = remoteAt != null &&
-          (localAt == null || remoteAt.isAfter(localAt));
-      if (remote.isNotEmpty && remoteNewer) {
-        prefs.assignAll(remote);
-        _persistLocal();
-        return true;
-      }
-      // Copie locale plus récente : on la pousse au compte.
-      if (prefs.isNotEmpty && (remoteAt == null || !remoteNewer) && localAt != null) {
-        unawaited(_push(Map<String, dynamic>.from(prefs)));
-      }
-      return false;
+      _loadStamps();
+      final r = mergeRemote(
+        local: Map<String, dynamic>.from(prefs),
+        localAt: localAt,
+        remote: remote,
+      );
+      prefs.assignAll(r.prefs);
+      localAt
+        ..clear()
+        ..addAll(r.at);
+      _persistLocal();
+      _persistStamps();
+      // Seuls les champs changés ICI plus récemment repartent, jamais le bloc.
+      if (r.push.isNotEmpty) unawaited(_push(r.push, r.pushAt));
+      return r.changed;
     } catch (e) {
       debugPrint('[MapPrefs] lecture du compte : $e');
       return false;
@@ -132,11 +288,15 @@ class MapPrefsService extends GetxService {
     }
   }
 
-  /// Met à jour localement (tout de suite) et sur le compte (dans 2 s).
+  /// Met à jour localement (tout de suite) et sur le compte (dans 2 s) —
+  /// seulement ce qui change vraiment, avec l'heure de chaque champ.
   void update(Map<String, dynamic> patch) {
     if (patch.isEmpty) return;
+    final changed = diffPatch(Map<String, dynamic>.from(prefs), patch);
+    if (changed.isEmpty) return;
+    final now = DateTime.now().toUtc().toIso8601String();
     final merged = Map<String, dynamic>.from(prefs);
-    for (final e in patch.entries) {
+    for (final e in changed.entries) {
       final cur = merged[e.key];
       if (e.value is Map && cur is Map) {
         merged[e.key] = {...Map<String, dynamic>.from(cur), ...Map<String, dynamic>.from(e.value as Map)};
@@ -144,15 +304,29 @@ class MapPrefsService extends GetxService {
         merged[e.key] = e.value;
       }
     }
-    merged['updatedAt'] = DateTime.now().toUtc().toIso8601String();
+    merged['updatedAt'] = now;
     prefs.assignAll(merged);
     _persistLocal();
-    _pending = {..._pending, ...patch};
+    for (final f in stampsOf(changed)) {
+      localAt[f] = now;
+      _pendingAt[f] = now;
+    }
+    _persistStamps();
+    final pending = Map<String, dynamic>.from(_pending);
+    for (final e in changed.entries) {
+      final cur = pending[e.key];
+      pending[e.key] = (e.value is Map && cur is Map)
+          ? {...Map<String, dynamic>.from(cur), ...Map<String, dynamic>.from(e.value as Map)}
+          : e.value;
+    }
+    _pending = pending;
     _pushTimer?.cancel();
     _pushTimer = Timer(pushDelay, () {
       final body = _pending;
+      final at = _pendingAt;
       _pending = {};
-      unawaited(_push(body));
+      _pendingAt = {};
+      unawaited(_push(body, at));
     });
   }
 
@@ -161,15 +335,18 @@ class MapPrefsService extends GetxService {
     _pushTimer?.cancel();
     if (_pending.isEmpty) return;
     final body = _pending;
+    final at = _pendingAt;
     _pending = {};
-    await _push(body);
+    _pendingAt = {};
+    await _push(body, at);
   }
 
-  Future<void> _push(Map<String, dynamic> pawMap) async {
+  Future<void> _push(Map<String, dynamic> pawMap, [Map<String, String> at = const {}]) async {
     if (!_loggedIn || _api == null || pawMap.isEmpty) return;
     try {
       await _api!.patch('/users/me/map-prefs',
-          body: {'pawMap': pawMap}, requiresAuth: true);
+          body: {'pawMap': pawMap, if (at.isNotEmpty) 'pawMapAt': at},
+          requiresAuth: true);
     } catch (e) {
       debugPrint('[MapPrefs] envoi au compte : $e');
     }

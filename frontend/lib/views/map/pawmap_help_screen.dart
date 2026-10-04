@@ -337,7 +337,11 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                       filled: true,
                       titleKey: 'help589_t_legendbtn',
                       helpKey: 'help589_b_legendbtn'),
-                  _plainRow('search', Icons.search_rounded, PawMapTheme.accent, filled: true),
+                  // 610 — la loupe cherche aussi les amis et les membres.
+                  _plainRow('search', Icons.search_rounded, PawMapTheme.accent,
+                      filled: true,
+                      titleKey: 'help610_search_t',
+                      helpKey: 'help610_search_b'),
                   _plainRow('refresh', Icons.refresh_rounded, PawMapTheme.accent,
                       filled: true, titleKey: 'help589_t_refresh', helpKey: 'help589_b_refresh'),
                   _plainRow('options', Icons.settings_rounded, PawMapTheme.accent,
@@ -360,6 +364,12 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                 children: [
                   _capsuleRow(context, 'see'),
                   _railRow(context, 'live_friends'),
+                  // 610 — demandes d'amis visibles sur la carte.
+                  _plainRow('requests610', Icons.person_add_alt_1_rounded,
+                      PawMapLegend.friend,
+                      filled: true,
+                      titleKey: 'help610_requests_t',
+                      helpKey: 'help610_requests_b'),
                   // v607 (décision 4.4) — le bouton rose affiche / masque
                   // tous les membres : même titre et même phrase que le site.
                   _plainRow('fit', Icons.groups_rounded, PawMapTheme.rose,
@@ -384,6 +394,11 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                   _capsuleRow(context, 'eye'),
                   // v587 — Daniel : les 3 réglages expliqués, mêmes phrases que le réglage.
                   const _VisibilityCard(key: ValueKey<String>('help_visibility')),
+                  // 610 — RÈGLE A (Daniel, 04/10) : amis à la vraie position.
+                  _plainRow('friendspos610', Icons.favorite_rounded,
+                      PawMapLegend.friend,
+                      titleKey: 'help610_friends_pos_t',
+                      helpKey: 'help610_friends_pos_b'),
                   // v587 — le Direct existe pour les 3 profils (Daniel, 25/09).
                   _capsuleRow(context, 'direct',
                       helpKey: 'help589_b_direct', extraKey: 'help589_followers'),
@@ -427,7 +442,8 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                     icon: const _GreenRimPaw(
                         key: ValueKey<String>('help_balade_dot_paw')),
                     title: 'help599_t_dot'.tr,
-                    help: 'help599_b_dot'.tr,
+                    // 610 — un ami : la carte file sur lui ; plusieurs : liste.
+                    help: 'help610_greenpaw_b'.tr,
                   ),
                 ],
               ),
@@ -523,6 +539,12 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                   _railRow(context, 'photo'),
                   _railRow(context, 'tag'),
                   _railRow(context, 'report'),
+                  // 610 — RÈGLE B : voir = tous ; danger = gratuit, illimité.
+                  _plainRow('alerts610', Icons.health_and_safety_rounded,
+                      PawMapTheme.danger,
+                      filled: true,
+                      titleKey: 'help610_alerts_t',
+                      helpKey: 'help610_alerts_b'),
                   _dockRow(context, 'sos'),
                   _dockRow(context, 'share'),
                 ],
@@ -1197,12 +1219,11 @@ class _RoundIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // La nuit, une icône à l'encre (zoom, barres…) passe en crème.
-    // Le jour, elle prend l'encre chaude #231715 (jamais un voile gris froid).
+    // 610 (03/10) — Daniel : « bouton gris ». Une icône à l'encre (zoom,
+    // œil, flèches, mode nuit…) donnait un rond gris (encre à 14 %). Elle
+    // prend désormais l'orange de la marque, comme les autres ronds : ZÉRO GRIS.
     final bool inky = !filled && this.color.computeLuminance() < 0.02;
-    final Color color = !inky
-        ? this.color
-        : (PawMapTheme.isDark(context) ? const Color(0xFFFBEFE6) : _inkWarm);
+    final Color color = inky ? PawMapTheme.accent : this.color;
     return Container(
       width: 44.w,
       height: 44.w,
@@ -1559,7 +1580,7 @@ class _VisibilityCard extends StatelessWidget {
               'vis587_all_t'.tr, 'vis587_all_d'.tr),
           line(Icons.favorite_rounded, PawMapLegend.friend,
               'vis587_friends_t'.tr, 'vis587_friends_d'.tr),
-          line(Icons.visibility_off_rounded, dark ? const Color(0xFFF5F0EF) : PawMapLegend.ink,
+          line(Icons.visibility_off_rounded, PawMapTheme.accent, // 610 — plus de gris
               'vis587_hidden_t'.tr, 'vis587_hidden_d'.tr),
           Text('${'vis587_live'.tr}\n${'vis587_where'.tr}',
               style: PawMapTheme.fontOn(context,

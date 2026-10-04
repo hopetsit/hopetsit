@@ -2,12 +2,60 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_button_kit.dart';
 import 'package:hopetsit/views/auth/location_picker_map_screen.dart';
+
+// ── v610 NEO (Daniel, 04/10 : « on peut écrire n'importe quoi ») ───────────
+// La ville se CHOISIT : suggestion de la liste, « Ma position » ou carte.
+// Le texte tapé à la main n'est jamais accepté tel quel. On retient, pour
+// chaque champ (son TextEditingController), la dernière ville VALIDÉE ; le
+// champ est valable seulement si son texte est encore cette ville.
+//
+// Sources de confiance : un choix dans la liste, la carte, « Ma position »
+// (ville détectée), un texte posé par le PROGRAMME (champ sans le focus :
+// profil, brouillon, annonce modifiée) — l'utilisateur ne tape qu'avec le
+// focus — et la ville déjà présente quand le champ s'affiche la première fois
+// (profil existant : on ne bloque pas les comptes déjà inscrits).
+final Expando<String> _cityPicked610 = Expando<String>('cityPicked610');
+
+/// Monte à chaque nouvelle ville validée : les `Obx` qui appellent
+/// [cityPickedFromList610] se recalculent.
+final RxInt cityChoiceVersion610 = 0.obs;
+
+String _norm610(String s) => s.trim().toLowerCase();
+
+void _bump610() {
+  final binding = SchedulerBinding.instance;
+  if (binding.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+    binding.addPostFrameCallback((_) => cityChoiceVersion610.value++);
+  } else {
+    cityChoiceVersion610.value++;
+  }
+}
+
+/// La ville [city] (ou le texte actuel) du champ [c] est une ville validée.
+void markCityPicked610(TextEditingController c, [String? city]) {
+  final v = (city ?? c.text).trim();
+  if (v.isEmpty || _cityPicked610[c] == v) return;
+  _cityPicked610[c] = v;
+  _bump610();
+}
+
+/// Le texte du champ [c] est-il une ville choisie (liste, position, carte) ?
+/// Lecture RÉACTIVE (à appeler dans un `Obx` sans souci).
+bool cityPickedFromList610(TextEditingController c) {
+  cityChoiceVersion610.value;
+  final t = _norm610(c.text);
+  if (t.isEmpty) return false;
+  final p = _cityPicked610[c];
+  return p != null && _norm610(p) == t;
+}
 
 /// v20.0.1 — City input modernized with live autocomplete.
 ///
@@ -31,6 +79,11 @@ class CityLocationPicker extends StatefulWidget {
   final Function(String city, double latitude, double longitude)?
   onLocationSelected;
 
+  /// v610 NEO — gros bouton « Utiliser ma position » pleine largeur au-dessus
+  /// du champ (en plus de la puce), pour les écrans où la position est le
+  /// geste principal (« Publier une demande »).
+  final bool prominentAuto;
+
   const CityLocationPicker({
     super.key,
     required this.cityController,
@@ -38,7 +91,12 @@ class CityLocationPicker extends StatefulWidget {
     required this.isGettingLocation,
     this.detectedCity = '',
     this.onLocationSelected,
+    this.prominentAuto = false,
   });
+
+  /// Client HTTP des suggestions (remplacé dans les tests, jamais en prod).
+  @visibleForTesting
+  static http.Client? httpClientForTests;
 
   @override
   State<CityLocationPicker> createState() => _CityLocationPickerState();
@@ -55,20 +113,76 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
   // ville n'existe pas.)
   bool _noResult = false;
 
+  final FocusNode _focus = FocusNode(debugLabel: 'city610');
+
   @override
   void initState() {
     super.initState();
     widget.cityController.addListener(_onCityTextChanged);
+    _focus.addListener(_onFocusChanged);
+    // v610 — ville déjà là au premier affichage (profil, annonce modifiée) :
+    // validée, on ne bloque pas un compte existant. Si le champ a déjà été
+    // suivi (étape quittée puis revenue), on garde ce qui était validé.
+    final c = widget.cityController;
+    if (_cityPicked610[c] == null && c.text.trim().isNotEmpty) {
+      markCityPicked610(c);
+    }
+    _markDetectedIfShown();
+  }
+
+  @override
+  void didUpdateWidget(covariant CityLocationPicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cityController != widget.cityController) {
+      oldWidget.cityController.removeListener(_onCityTextChanged);
+      widget.cityController.addListener(_onCityTextChanged);
+    }
+    if (oldWidget.detectedCity != widget.detectedCity) _markDetectedIfShown();
+  }
+
+  /// « Ma position » a trouvé une ville et l'a posée dans le champ : validée.
+  void _markDetectedIfShown() {
+    final d = widget.detectedCity.trim();
+    if (d.isNotEmpty &&
+        _norm610(d) == _norm610(widget.cityController.text)) {
+      markCityPicked610(widget.cityController, d);
+    }
+  }
+
+  /// En quittant le champ : si le texte tapé est EXACTEMENT une suggestion
+  /// affichée (« paris » → Paris), on la prend ; sinon le champ dit
+  /// « Choisis ta ville dans la liste ».
+  void _onFocusChanged() {
+    if (_focus.hasFocus || !mounted) return;
+    final t = _norm610(widget.cityController.text);
+    if (t.isEmpty || cityPickedFromList610(widget.cityController)) {
+      setState(() {});
+      return;
+    }
+    for (final s in _suggestions) {
+      if (_norm610(s.city) == t) {
+        _pickSuggestion(s);
+        return;
+      }
+    }
+    setState(() {});
   }
 
   @override
   void dispose() {
     widget.cityController.removeListener(_onCityTextChanged);
+    _focus.removeListener(_onFocusChanged);
+    _focus.dispose();
     _debounce?.cancel();
     super.dispose();
   }
 
   void _onCityTextChanged() {
+    // v610 — texte posé par le programme (le champ n'a pas le focus) :
+    // profil, brouillon, « Ma position »… c'est une ville validée.
+    if (!_focus.hasFocus && widget.cityController.text.trim().isNotEmpty) {
+      markCityPicked610(widget.cityController);
+    }
     if (_suppressNext) {
       _suppressNext = false;
       return;
@@ -106,7 +220,9 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
         '&limit=6'
         '&accept-language=${Get.locale?.languageCode ?? 'fr'}',
       );
-      final res = await http.get(
+      final client = CityLocationPicker.httpClientForTests;
+      final getter = client == null ? http.get : client.get;
+      final res = await getter(
         uri,
         headers: {
           'User-Agent': 'HoPetSit/20.0 (contact@hopetsit.com)',
@@ -163,6 +279,7 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
   }
 
   void _pickSuggestion(_CitySuggestion s) {
+    markCityPicked610(widget.cityController, s.city);
     _suppressNext = true;
     widget.cityController.text = s.city;
     widget.cityController.selection = TextSelection.fromPosition(
@@ -180,6 +297,7 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
   /// Puce d'action (localisation automatique / carte) — coins pleins, contour
   /// fin, même langage que les boutons secondaires de l'app.
   Widget _actionChip({
+    Key? key,
     required IconData icon,
     required String label,
     required VoidCallback? onTap,
@@ -187,6 +305,7 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
   }) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Material(
+      key: key,
       color: isDark
           ? AppColors.primaryColor.withValues(alpha: 0.16)
           : AppColors.primaryColor.withValues(alpha: 0.08),
@@ -232,6 +351,29 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
     );
   }
 
+  /// v610 — champ quitté avec un texte qui n'a pas été choisi : on dit quoi
+  /// faire (la liste reste affichée au-dessus si elle existe).
+  bool get _needsPick610 =>
+      !_focus.hasFocus &&
+      widget.cityController.text.trim().isNotEmpty &&
+      !cityPickedFromList610(widget.cityController) &&
+      !_loading;
+
+  /// v610 — « Utiliser ma position », pleine largeur, un appui (bouton du
+  /// kit signature, couleur du rôle).
+  Widget _prominentAutoButton() {
+    final busy = widget.isGettingLocation;
+    return PawButton(
+      key: const Key('city610_auto_button'),
+      label: busy ? 'location_getting'.tr : 'city610_use_my_position'.tr,
+      icon: Icons.my_location_rounded,
+      kind: PawButtonKind.secondary,
+      loading: busy,
+      onTap: busy ? null : widget.onGetLocation,
+      compact: true,
+    );
+  }
+
   OutlineInputBorder _border(Color color, double width) => OutlineInputBorder(
         borderRadius: BorderRadius.circular(14.r),
         borderSide: BorderSide(color: color, width: width),
@@ -267,9 +409,10 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
                 // Auto-detect button
                 _actionChip(
                   icon: Icons.my_location_rounded,
+                  key: const Key('city610_auto_chip'),
                   label: widget.isGettingLocation
                       ? 'location_getting'.tr
-                      : 'location_auto'.tr,
+                      : 'city610_my_position'.tr,
                   busy: widget.isGettingLocation,
                   onTap:
                       widget.isGettingLocation ? null : widget.onGetLocation,
@@ -284,6 +427,8 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
                       () => const LocationPickerMapScreen(),
                     );
                     if (result != null && result is Map<String, dynamic>) {
+                      markCityPicked610(widget.cityController,
+                          (result['city'] ?? '').toString());
                       _suppressNext = true;
                       widget.cityController.text = result['city'] ?? '';
                       widget.onLocationSelected?.call(
@@ -303,9 +448,19 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
           ],
         ),
         SizedBox(height: 7.h),
+        if (widget.prominentAuto) ...[
+          _prominentAutoButton(),
+          SizedBox(height: 10.h),
+        ],
         TextFormField(
+          key: const Key('city610_field'),
           controller: widget.cityController,
+          focusNode: _focus,
           textInputAction: TextInputAction.search,
+          // v610 — « Entrée » prend la 1re suggestion (jamais le texte brut).
+          onFieldSubmitted: (_) {
+            if (_suggestions.isNotEmpty) _pickSuggestion(_suggestions.first);
+          },
           cursorColor: AppColors.primaryColor,
           cursorWidth: 1.6,
           decoration: InputDecoration(
@@ -380,6 +535,10 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
               return 'error_city_required'.tr;
+            }
+            // v610 — une ville tapée sans être choisie n'est pas acceptée.
+            if (!cityPickedFromList610(widget.cityController)) {
+              return 'city610_pick_from_list'.tr;
             }
             return null;
           },
@@ -546,7 +705,38 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
             ),
           ),
         ],
-        if (widget.detectedCity.isNotEmpty && _suggestions.isEmpty) ...[
+        if (_needsPick610) ...[
+          SizedBox(height: 8.h),
+          Container(
+            key: const Key('city610_pick_hint'),
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 9.h),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF3A2414) : const Color(0xFFFFF1E0),
+              borderRadius: BorderRadius.circular(14.r),
+              border: Border.all(
+                color: isDark ? const Color(0xFF8A4B12) : const Color(0xFFF2B36B),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.touch_app_rounded,
+                    size: 16.sp,
+                    color: isDark ? const Color(0xFFFFC27A) : const Color(0xFF9A4A00)),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: InterText(
+                    text: 'city610_pick_from_list'.tr,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFFFFE2BF) : const Color(0xFF7A3B00),
+                    maxLines: 3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (widget.detectedCity.isNotEmpty && _suggestions.isEmpty && !_needsPick610) ...[
           SizedBox(height: 8.h),
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 9.h),

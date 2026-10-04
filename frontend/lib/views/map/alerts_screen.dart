@@ -40,17 +40,14 @@ class AlertsScreen extends StatefulWidget {
     _TabDef(key: 'lost', labelKey: 'alerts_tab_lost', filter: [
       ReportTypes.lostPet,
     ]),
-    _TabDef(key: 'danger', labelKey: 'alerts_tab_danger', filter: [
-      ReportTypes.aggressiveDog,
-      ReportTypes.hazard,
-      ReportTypes.deadAnimal,
-    ]),
+    // 610 (ZOE, règle B) — tout le monde voit tout : l'onglet Danger couvre
+    // les 13 types de danger, « Autres » tout le reste (avant, 3 et 5 types :
+    // une alerte « poison » ou « confort » n'apparaissait que dans « Tous »).
+    _TabDef(key: 'danger', labelKey: 'alerts_tab_danger', filter: ReportTypes.dangerTypes),
     _TabDef(key: 'other', labelKey: 'alerts_tab_other', filter: [
       ReportTypes.foundPet,
-      ReportTypes.waterActive,
-      ReportTypes.waterBroken,
-      ReportTypes.poop,
-      ReportTypes.other,
+      ...ReportTypes.usefulFreeTypes,
+      ...ReportTypes.comfortTypes,
     ]),
   ];
 
@@ -1108,12 +1105,11 @@ class _ReportCard extends StatelessWidget {
 
   /// Severity tag : urgent (rouge) / moyen (orange) / info (vert/gris).
   ({Color color, String label}) _severity() {
+    // 610 — tout danger (règle B) est urgent, comme un animal perdu.
+    if (report.type == ReportTypes.lostPet || ReportTypes.isDanger(report.type)) {
+      return (color: const Color(0xFFDC2626), label: 'alerts_severity_urgent'.tr);
+    }
     switch (report.type) {
-      case ReportTypes.lostPet:
-      case ReportTypes.aggressiveDog:
-      case ReportTypes.deadAnimal:
-        return (color: const Color(0xFFDC2626), label: 'alerts_severity_urgent'.tr);
-      case ReportTypes.hazard:
       case ReportTypes.poop:
       case ReportTypes.waterBroken:
         return (color: const Color(0xFFF59E0B), label: 'alerts_severity_medium'.tr);

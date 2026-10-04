@@ -19,6 +19,7 @@ import 'package:hopetsit/controllers/sign_up_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/localization/v565/neo583_i18n.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
+import 'package:hopetsit/widgets/city_location_picker.dart';
 
 SignUpController _ctrl(String userType) =>
     SignUpController(userType: userType, authRepository: Get.find<AuthRepository>());
@@ -47,6 +48,10 @@ void main() {
     final c = _ctrl('pet_owner');
     expect(c.validateStep(1), 'signup_error_city_required');
     c.cityController.text = 'Paris';
+    // v610 — une ville TAPÉE ne suffit plus : elle doit être choisie dans la
+    // liste (le champ marque la ville choisie).
+    expect(c.validateStep(1), 'city610_pick_from_list');
+    markCityPicked610(c.cityController, 'Paris');
     expect(c.validateStep(1), 'signup_error_service_required');
     c.selectedServices.add('walk');
     expect(c.validateStep(1), isNull);

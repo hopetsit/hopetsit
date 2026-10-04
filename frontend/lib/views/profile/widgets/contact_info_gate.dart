@@ -47,6 +47,8 @@ import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/services/location_service.dart';
+import 'package:hopetsit/widgets/city_location_picker.dart';
 
 /// Vrai si le téléphone ET l'adresse sont renseignés.
 bool profileHasContactInfo(ProfileModel profile) => profile.hasContactInfo;
@@ -136,6 +138,45 @@ class _ContactInfoSheetState extends State<_ContactInfoSheet> {
   String _dial = '';
   String _iso = '';
   bool _saving = false;
+  // v610 NEO — ville CHOISIE (liste / position / carte) + ses coordonnées.
+  double? _pickedLat;
+  double? _pickedLng;
+  String _detectedCity = '';
+  bool _locating = false;
+  final LocationService _locationService = LocationService();
+
+  Future<void> _detectCity() async {
+    if (_locating) return;
+    setState(() => _locating = true);
+    try {
+      final data = await _locationService.getUserLocationWithCity();
+      if (!mounted) return;
+      final city = (data?['city'] as String? ?? '').trim();
+      if (city.isNotEmpty) {
+        markCityPicked610(_city, city);
+        setState(() {
+          _detectedCity = city;
+          _pickedLat = data?['latitude'] as double?;
+          _pickedLng = data?['longitude'] as double?;
+          _city.text = city;
+        });
+      } else {
+        CustomSnackbar.showWarning(
+          title: 'location573_title'.tr,
+          message: 'location573_not_found'.tr,
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        CustomSnackbar.showWarning(
+          title: 'location573_title'.tr,
+          message: 'location573_not_found'.tr,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
 
   @override
   void initState() {
@@ -183,8 +224,17 @@ class _ContactInfoSheetState extends State<_ContactInfoSheet> {
         // le serveur ne pouvait la déduire que du chemin de secours, et
         // l'élément « Ville » de la complétion restait rouge.
         payload['city'] = city;
+        // v610 — coordonnées de la ville CHOISIE ; sinon (ville inchangée)
+        // celles du profil, comme avant.
+        final sameAsProfile =
+            city.toLowerCase() == (p?.city ?? '').trim().toLowerCase();
         payload['location'] = {
-          if (p?.latitude != null && p?.longitude != null) ...{
+          if (_pickedLat != null && _pickedLng != null) ...{
+            'lat': _pickedLat,
+            'lng': _pickedLng,
+          } else if (sameAsProfile &&
+              p?.latitude != null &&
+              p?.longitude != null) ...{
             'lat': p!.latitude,
             'lng': p.longitude,
           },
@@ -351,15 +401,19 @@ class _ContactInfoSheetState extends State<_ContactInfoSheet> {
                 validator: (v) => (v ?? '').trim().length < 2 ? 'error_address_required'.tr : null,
               ),
               SizedBox(height: 14.h),
-              ProfileInput(
-                label: 'label_city'.tr,
-                hint: 'signup_field_city'.tr,
-                controller: _city,
-                accent: accent,
-                textInputAction: TextInputAction.done,
-                enabled: !_saving,
-                textCapitalization: TextCapitalization.words,
-                validator: (v) => (v ?? '').trim().isEmpty ? 'signup_error_city_required'.tr : null,
+              // v610 NEO (Daniel, 04/10) — la ville se CHOISIT dans la liste
+              // (ou « Ma position » / carte), jamais du texte libre.
+              CityLocationPicker(
+                cityController: _city,
+                onGetLocation: _detectCity,
+                isGettingLocation: _locating,
+                detectedCity: _detectedCity,
+                onLocationSelected: (city, lat, lng) {
+                  setState(() {
+                    _pickedLat = lat;
+                    _pickedLng = lng;
+                  });
+                },
               ),
               SizedBox(height: 8.h),
               InterText(

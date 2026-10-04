@@ -234,16 +234,31 @@ class PawMapDragWatch {
   int _pointers = 0;
   Offset? _downAt;
   bool _fired = false;
+  bool _pinch = false;
 
-  /// Vrai quand ce doigt fait du geste un vrai geste (2e doigt posé).
+  /// 610 (03/10) — Daniel : « En direct se met en pause quand je zoome ou
+  /// dézoome ». Pincer = ZOOMER : le suivi continue (la caméra garde le
+  /// nouveau zoom et recolle au point suivi). Seul un doigt qui fait glisser
+  /// la carte la met en pause. Vrai pendant un pincement en cours.
+  bool get pinching => _pinch;
+
+  /// 610 — au moins un doigt est posé sur la carte.
+  bool get active => _pointers > 0;
+
+  /// 610 — un doigt a fait glisser la carte (> 12 px) pendant ce geste.
+  bool get moved => _fired;
+
+  /// Jamais vrai : poser un doigt n'est pas un geste ; un 2e doigt = pincer.
   bool down(Offset at) {
     _pointers++;
     _downAt ??= at;
-    return _fire(_pointers > 1);
+    if (_pointers > 1) _pinch = true;
+    return false;
   }
 
-  /// Vrai la 1re fois que le glissement dépasse 12 px.
+  /// Vrai la 1re fois qu'UN SEUL doigt glisse de plus de 12 px.
   bool move(Offset at) {
+    if (_pinch) return false;
     final start = _downAt;
     return _fire(start != null && (at - start).distance > 12);
   }
@@ -253,6 +268,7 @@ class PawMapDragWatch {
     if (_pointers == 0) {
       _downAt = null;
       _fired = false;
+      _pinch = false;
     }
   }
 
@@ -1033,6 +1049,7 @@ class PawMapDirectPill extends StatefulWidget {
     this.noGps = false,
     this.elsewhere = false,
     this.followers = 0,
+    this.onFollowersTap,
     this.onLongPress,
     this.now,
     this.following = false,
@@ -1045,6 +1062,9 @@ class PawMapDirectPill extends StatefulWidget {
 
   /// v589 — personnes qui suivent mon direct (œil + nombre sur la pilule).
   final int followers;
+
+  /// 610 — appui sur « 👥 1 te suit » : QUI me suit (feuille « En direct »).
+  final VoidCallback? onFollowersTap;
 
   /// v605 — je suis quelqu'un en direct : même état que le bouton Balade
   /// (violet seul ; pastille violette quand je partage aussi).
@@ -1263,7 +1283,15 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
                 ),
               // v590 — « 👥 3 te suivent » dans une puce blanche.
               if (widget.live && widget.followers > 0)
-                Container(
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.onFollowersTap == null
+                      ? null
+                      : () {
+                          HapticFeedback.selectionClick();
+                          widget.onFollowersTap!();
+                        },
+                  child: Container(
                   key: const ValueKey<String>('pawmap_direct_followers'),
                   height: 24,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1280,6 +1308,7 @@ class _PawMapDirectPillState extends State<PawMapDirectPill>
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                ),
                 ),
             ],
           ),

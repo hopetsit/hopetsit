@@ -1839,12 +1839,16 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
           Icon(Icons.shield_outlined, size: 18.sp, color: accent),
           SizedBox(width: 10.w),
           Expanded(
+            // 610 (ZOE, règle B) — plus de « signalements premium » : le
+            // confort devient illimité avec l'abonnement, le danger est
+            // gratuit pour tous.
             child: InterText(
-              text: 'shop_premium_reports_included'.tr,
+              text:
+                  '${'shop610_comfort_unlimited'.tr} · ${'shop610_danger_free'.tr}',
               fontSize: 13.sp,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary(context),
-              maxLines: 2,
+              maxLines: 3,
             ),
           ),
         ],
@@ -1891,12 +1895,13 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
           body:
               '${'premium_feature_notifications'.tr} · ${'premium_feature_chat'.tr}',
         ),
-        // #106 — chaque abonnement inclut 20 signalements premium utilisables.
+        // 610 (ZOE, règle B) — « signalements premium » remplacés : confort
+        // illimité avec l'abonnement, signaler un danger gratuit pour tous.
         ShopBenefit(
           icon: Icons.shield_outlined,
-          title: 'shop569_follow_b6_title'.tr,
+          title: 'shop610_comfort_unlimited'.tr,
           body:
-              '${'shop_premium_reports_included'.tr} · ${'premium_feature_badge'.tr}',
+              '${'shop610_danger_free'.tr} · ${'premium_feature_badge'.tr}',
         ),
         // v489/v491 — Daniel : option « membres Paw Map proches » avec le VRAI
         // logo rose utilisateur (pas une icône générique).
@@ -2429,7 +2434,7 @@ class _PawSpotTabState extends State<_PawSpotTab>
                     freeTitle: 'shop_ps_free_title'.tr,
                     freeBody: 'shop_ps_free_body'.tr,
                     plusTitle: 'shop_ps_plus_title'.tr,
-                    plusBody: 'shop_ps_plus_body'.tr,
+                    plusBody: 'shop610_ps_plus_body'.tr,
                   ),
                   SizedBox(height: 24.h),
                   // ── 4. Forfaits ──────────────────────────────────────────
@@ -2742,9 +2747,9 @@ class _PawSpotTabState extends State<_PawSpotTab>
         ShopBenefit(
           icon: Icons.directions_walk_rounded,
           title: 'shop569_spot_b5_title'.tr,
-          // #106 — 20 signalements premium utilisables inclus dans l'abo.
+          // 610 — confort illimité inclus dans l'abo (règle B).
           body:
-              '${'pawfollow_feature_directions'.tr} · ${'shop_premium_reports_included'.tr}',
+              '${'pawfollow_feature_directions'.tr} · ${'shop610_comfort_unlimited'.tr}',
         ),
         // v491 — Daniel : montrer le VRAI logo rose « membre Paw Map ».
         ShopBenefit(
@@ -3395,9 +3400,9 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
                     context,
                     color: const Color(0xFF150F0D),
                     freeTitle: 'shop_pp_free_title'.tr,
-                    freeBody: 'shop_pp_free_body'.tr,
+                    freeBody: 'shop610_pp_free_body'.tr,
                     plusTitle: 'shop_pp_plus_title'.tr,
-                    plusBody: 'shop_pp_plus_body'.tr,
+                    plusBody: 'shop610_pp_plus_body'.tr,
                   ),
                   SizedBox(height: 24.h),
                   // ── 4. Forfaits ──────────────────────────────────────────
@@ -3618,10 +3623,11 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
           title: 'shop569_prem_b5_title'.tr,
           body: 'premium_bundle_feat_priority'.tr,
         ),
-        // #106 — 20 signalements premium utilisables inclus dans Paw Premium.
+        // 610 (ZOE, règle B) — confort illimité + danger gratuit pour tous.
         ShopBenefit(
           icon: Icons.shield_outlined,
-          title: 'shop_premium_reports_included'.tr,
+          title: 'shop610_comfort_unlimited'.tr,
+          body: 'shop610_danger_free'.tr,
         ),
       ],
     );

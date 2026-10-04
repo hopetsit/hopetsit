@@ -8,11 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/views/chat_shared/chat_avatar.dart';
 import 'package:hopetsit/views/chat_shared/chat_delete_sheet.dart';
 import 'package:hopetsit/views/chat_shared/chat_models.dart';
+import 'package:hopetsit/views/chat_shared/chat_peer_map605.dart';
 import 'package:hopetsit/views/chat_shared/chat_receipt_ticks.dart';
 import 'package:hopetsit/views/chat_shared/chat_session.dart';
 import 'package:hopetsit/views/chat_shared/chat_states.dart';
@@ -78,6 +80,11 @@ class _ChatListBodyState extends State<ChatListBody> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _setExpanded(true);
     });
+    // 610 — à l'ouverture de la liste, les directs des amis sont relus : la
+    // pastille verte « en direct » est juste dès le premier écran.
+    if (Get.isRegistered<LiveMapService>()) {
+      unawaited(Get.find<LiveMapService>().refreshFriendPositions());
+    }
   }
 
   @override
@@ -196,6 +203,7 @@ class _ChatListBodyState extends State<ChatListBody> {
               ),
               child: _ConversationTile(
                 conversation: c,
+                session: session,
                 theme: theme,
                 onTap: () => onOpen(c),
                 // Appui long → EXACTEMENT la même feuille que le glissement.
@@ -217,15 +225,56 @@ class _ChatListBodyState extends State<ChatListBody> {
 class _ConversationTile extends StatelessWidget {
   const _ConversationTile({
     required this.conversation,
+    required this.session,
     required this.theme,
     required this.onTap,
     required this.onLongPress,
   });
 
   final ChatConversationBase conversation;
+  final ChatSession session;
   final ChatRoleTheme theme;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
+
+  /// 610 (03/10) — Daniel : « quand la personne est en direct, le bouton
+  /// vert doit marcher ». La pastille de la photo passe au VERT quand le
+  /// correspondant partage sa position en direct (pas seulement « en ligne »),
+  /// et un appui sur la photo ouvre la PawMap qui le suit (même chemin que
+  /// l'en-tête de la discussion, réservé aux amis).
+  Widget _liveAwareAvatar(
+      BuildContext context, ChatConversationBase c, Color roleAccent) {
+    Widget avatar(bool live) => ChatAvatar(
+          key: ValueKey<String>('conv_avatar_${c.id}'),
+          imageUrl: c.contactImage,
+          size: 52,
+          online: c.isOnline || live,
+          borderColor: roleAccent,
+          borderWidth: 2.5,
+        );
+    if (!Get.isRegistered<LiveMapService>() || c.contactId.isEmpty) {
+      return avatar(false);
+    }
+    final live = Get.find<LiveMapService>();
+    return Obx(() {
+      live.staleTick.value; // « en direct » expire tout seul (2 / 10 min)
+      final isLive = chatPeerIsLive(c.contactId, live.friendPositions);
+      if (!isLive) return avatar(false);
+      return GestureDetector(
+        key: ValueKey<String>('conv_live_${c.id}'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onChatPeerTap(
+          context,
+          session: session,
+          conversationId: c.id,
+          contactName: c.contactName,
+          contactImage: c.contactImage,
+          theme: theme,
+        ),
+        child: avatar(true),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -273,14 +322,7 @@ class _ConversationTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              ChatAvatar(
-                key: ValueKey<String>('conv_avatar_${c.id}'),
-                imageUrl: c.contactImage,
-                size: 52,
-                online: c.isOnline,
-                borderColor: roleAccent,
-                borderWidth: 2.5,
-              ),
+              _liveAwareAvatar(context, c, roleAccent),
               SizedBox(width: 12.w),
               Expanded(
                 child: Column(

@@ -7,6 +7,9 @@ import 'package:hopetsit/models/map_report_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/report_premium_helper.dart';
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
+import 'package:intl/intl.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -58,10 +61,60 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
   final _noteController = TextEditingController();
   String? _selectedType;
 
+  late final MapReportController _ctrl;
+
   @override
   void initState() {
     super.initState();
     _selectedType = widget.preselectedType;
+    _ctrl = Get.isRegistered<MapReportController>()
+        ? Get.find<MapReportController>()
+        : Get.put(MapReportController());
+    // 610 — compteur « 1 par semaine » des signalements de confort.
+    if (!_isPremium) _ctrl.loadQuota();
+  }
+
+  /// 610 — confort bloqué : sans abonnement ET quota de la semaine utilisé.
+  bool get _comfortExhausted =>
+      !_isPremium && (_ctrl.comfortQuota.value?.exhausted ?? false);
+
+  String _fmtDate(DateTime d) {
+    final lang = Get.locale?.languageCode ?? 'fr';
+    try {
+      return '${DateFormat.MMMEd(lang).format(d)} ${DateFormat.Hm(lang).format(d)}';
+    } catch (_) {
+      return DateFormat('dd/MM HH:mm').format(d);
+    }
+  }
+
+  /// 610 — message clair + accès aux abonnements quand le quota est atteint.
+  Future<void> _showComfortQuotaDialog() async {
+    final next = _ctrl.comfortQuota.value?.nextAvailableAt;
+    final msg = next != null
+        ? 'alerts610_quota_msg'.trParams({'date': _fmtDate(next)})
+        : 'alerts610_quota_msg_nodate'.tr;
+    final go = await showAppConfirmDialog(
+      context,
+      title: 'alerts610_quota_title'.tr,
+      message: msg,
+      confirmLabel: 'alerts610_see_plans'.tr,
+      cancelLabel: 'alerts610_close'.tr,
+      icon: Icons.hourglass_bottom_rounded,
+    );
+    if (go == true) Get.to(() => const CoinShopScreen(initialTab: 3));
+  }
+
+  /// 610 — animal perdu / trouvé : règle inchangée (abonnés), SOS gratuit.
+  Future<void> _showLostLockedDialog() async {
+    final go = await showAppConfirmDialog(
+      context,
+      title: 'alerts610_lost_locked_title'.tr,
+      message: 'alerts610_lost_locked_msg'.tr,
+      confirmLabel: 'alerts610_see_plans'.tr,
+      cancelLabel: 'alerts610_close'.tr,
+      icon: Icons.lock_rounded,
+    );
+    if (go == true) Get.to(() => const CoinShopScreen(initialTab: 3));
   }
 
   /// Premium gate for the report flow. Source unique : [ReportPremiumHelper]
@@ -91,15 +144,16 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
       );
       return;
     }
-    // Client-side guard — the backend will also reject with 402, but catching
-    // it here gives a clearer message and avoids a round-trip.
-    if (!ReportTypes.isFree(_selectedType!) && !_isPremium) {
-      _showPremiumLockedSnack();
+    // 610 — garde côté app (le serveur tranche aussi : 402 / 429).
+    if (ReportTypes.isPremiumCreate(_selectedType!) && !_isPremium) {
+      await _showLostLockedDialog();
       return;
     }
-    final controller = Get.isRegistered<MapReportController>()
-        ? Get.find<MapReportController>()
-        : Get.put(MapReportController());
+    if (ReportTypes.isComfort(_selectedType!) && _comfortExhausted) {
+      await _showComfortQuotaDialog();
+      return;
+    }
+    final controller = _ctrl;
 
     final report = await controller.createReport(
       type: _selectedType!,
@@ -115,8 +169,11 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
         message: 'pawmap_snack_sent_msg'.tr,
       );
       Navigator.of(context).pop(true);
+    } else if (controller.comfortLimitReached.value) {
+      // 610 — la limite hebdomadaire vue par le serveur : message + abonnements.
+      await _showComfortQuotaDialog();
     } else if (controller.premiumRequired.value) {
-      Navigator.of(context).pop(false);
+      await _showLostLockedDialog();
     } else {
       CustomSnackbar.showError(
         title: 'pawmap_snack_send_failed_title'.tr,
@@ -141,9 +198,8 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
     //   • section "Premium" en grille 3 colonnes pour les 15 Premium
     //   • description corrigée (4 types gratuits, pas 3)
     //   • paddings réduits + note sur 2 lignes
-    final freeTypes = ReportTypes.freeTypes;
-    final premiumTypes =
-        ReportTypes.all.where((t) => !ReportTypes.isFree(t)).toList();
+    // 610 — règle B : dangers et infos utiles gratuits sans limite, confort
+    // 1 par semaine sans abonnement, animal perdu / trouvé pour les abonnés.
 
     // v447 — Daniel : "le bouton Publier oblige à scroller". Refonte de la
     // structure : l'EN-TÊTE (titre/sous-titre) et le PIED (note + position +
@@ -212,9 +268,7 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
             ),
             SizedBox(height: 2.h),
             InterText(
-              text: _isPremium
-                  ? 'pawmap_signal_subtitle_premium'.tr
-                  : 'pawmap_signal_subtitle_free'.trParams({'count': freeTypes.length.toString()}),
+              text: 'alerts610_subtitle'.tr,
               fontSize: 11.sp,
               color: AppColors.textSecondary(context),
             ),
@@ -229,13 +283,29 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Section 1 — Gratuits (fond vert pâle, toujours cliquables)
-                    _buildFreeSection(context, freeTypes),
+                    // 610 — Section 1 : Dangers (gratuit pour tous, sans limite)
+                    _buildFreeSection(
+                      context,
+                      ReportTypes.dangerTypes,
+                      key: const ValueKey('alerts610_danger_section'),
+                      title: 'alerts610_section_danger'.tr,
+                      subtitle: 'alerts610_section_danger_sub'.tr,
+                    ),
                     SizedBox(height: 10.h),
-
-                    // Section 2 — Premium (grille 3 colonnes, cadenassée pour
-                    // les non-Premium)
-                    _buildPremiumSection(context, premiumTypes),
+                    // Section 2 : Infos utiles (gratuit, sans limite)
+                    _buildFreeSection(
+                      context,
+                      ReportTypes.usefulFreeTypes,
+                      key: const ValueKey('alerts610_useful_section'),
+                      title: 'alerts610_section_useful'.tr,
+                      subtitle: 'alerts610_section_useful_sub'.tr,
+                    ),
+                    SizedBox(height: 10.h),
+                    // Section 3 : Confort (1 par semaine sans abonnement)
+                    _buildComfortSection(context),
+                    SizedBox(height: 10.h),
+                    // Section 4 : Animal perdu / trouvé (abonnés, inchangé)
+                    _buildPremiumSection(context, ReportTypes.premiumCreateTypes),
                   ],
                 ),
               ),
@@ -261,10 +331,13 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
                     SizedBox(width: 6.w),
                     Expanded(
                       child: InterText(
-                        text: ReportTypes.hintFr(_selectedType!),
+                        // 610 — sur un danger : rappel du geste du bon Samaritain.
+                        text: ReportTypes.isDanger(_selectedType!)
+                            ? '${ReportTypes.hintFr(_selectedType!)}\n${'alerts610_samaritan_hint'.tr}'
+                            : ReportTypes.hintFr(_selectedType!),
                         fontSize: 11.sp,
                         color: AppColors.textSecondary(context),
-                        maxLines: 2,
+                        maxLines: 4,
                       ),
                     ),
                   ],
@@ -333,10 +406,7 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
 
             // Submit button — TOUJOURS visible (pied fixe), pas de scroll.
             Obx(() {
-              final controller = Get.isRegistered<MapReportController>()
-                  ? Get.find<MapReportController>()
-                  : null;
-              final submitting = controller?.isSubmitting.value ?? false;
+              final submitting = _ctrl.isSubmitting.value;
               return SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -377,13 +447,20 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
   /// Section "Gratuits" — petit header + Wrap des types free.
   /// Fond vert pâle pour signaler visuellement que le groupe entier est
   /// accessible sans Premium (plus besoin du badge "GRATUIT" par chip).
-  Widget _buildFreeSection(BuildContext context, List<String> types) {
+  Widget _buildFreeSection(
+    BuildContext context,
+    List<String> types, {
+    Key? key,
+    required String title,
+    required String subtitle,
+  }) {
     // v571 — lisibilité sombre : le vert #008000 sur la feuille anthracite est
     // quasi illisible ; en sombre on prend un vert clair (le clair ne bouge pas).
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color green =
         isDark ? const Color(0xFF4ADE80) : AppColors.greenColor;
     return Container(
+      key: key,
       padding: EdgeInsets.all(10.w),
       decoration: BoxDecoration(
         color: green.withValues(alpha: isDark ? 0.12 : 0.06),
@@ -398,16 +475,19 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
               Icon(Icons.check_circle_rounded, size: 14.sp, color: green),
               SizedBox(width: 4.w),
               InterText(
-                text: 'pawmap_section_free'.tr,
+                text: title,
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w700,
                 color: green,
               ),
               SizedBox(width: 6.w),
-              InterText(
-                text: 'pawmap_section_free_subtitle'.tr,
-                fontSize: 10.sp,
-                color: AppColors.textSecondary(context),
+              Flexible(
+                child: InterText(
+                  text: subtitle,
+                  fontSize: 10.sp,
+                  color: AppColors.textSecondary(context),
+                  maxLines: 2,
+                ),
               ),
             ],
           ),
@@ -427,12 +507,89 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
     );
   }
 
-  /// Section "Premium" — grille 3 colonnes, cadenassée pour les non-Premium.
-  /// GridView préfère des cellules uniformes → on obtient une lecture plus
-  /// régulière que le Wrap d'avant qui faisait des largeurs variables.
+  /// 610 — Section « Confort » : 1 par semaine sans abonnement, illimité avec.
+  /// Le compteur se lit dans le contrôleur (GET /map-reports/quota).
+  Widget _buildComfortSection(BuildContext context) {
+    return Obx(() {
+      final q = _ctrl.comfortQuota.value;
+      final exhausted = !_isPremium && (q?.exhausted ?? false);
+      final String counter;
+      if (_isPremium || (q?.unlimited ?? false)) {
+        counter = 'alerts610_comfort_unlimited'.tr;
+      } else if (exhausted) {
+        counter = q?.nextAvailableAt != null
+            ? 'alerts610_comfort_used'
+                .trParams({'date': _fmtDate(q!.nextAvailableAt!)})
+            : 'alerts610_quota_title'.tr;
+      } else {
+        counter = 'alerts610_comfort_available'.tr;
+      }
+      return Column(
+        key: const ValueKey('alerts610_comfort_section'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                exhausted
+                    ? Icons.hourglass_bottom_rounded
+                    : Icons.event_repeat_rounded,
+                size: 14.sp,
+                color: AppColors.primaryColor,
+              ),
+              SizedBox(width: 4.w),
+              InterText(
+                text: 'alerts610_section_comfort'.tr,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+              ),
+              SizedBox(width: 6.w),
+              Flexible(
+                child: InterText(
+                  key: const ValueKey('alerts610_comfort_counter'),
+                  text: counter,
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.w600,
+                  color: exhausted
+                      ? AppColors.primaryColor
+                      : AppColors.textSecondary(context),
+                  maxLines: 2,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 6.h,
+            crossAxisSpacing: 6.w,
+            childAspectRatio: 2.4,
+            children: ReportTypes.comfortTypes
+                .map((t) => _buildTypeChip(
+                      context,
+                      type: t,
+                      locked: exhausted,
+                      isFreeBadge: false,
+                      compact: true,
+                      lockIcon: Icons.hourglass_bottom_rounded,
+                      onLockedTap: _showComfortQuotaDialog,
+                    ))
+                .toList(),
+          ),
+        ],
+      );
+    });
+  }
+
+  /// 610 — Section « Animal perdu ou trouvé » : règle inchangée, réservée
+  /// aux abonnés (le SOS de la PawMap reste gratuit).
   Widget _buildPremiumSection(
       BuildContext context, List<String> types) {
     return Column(
+      key: const ValueKey('alerts610_lost_section'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -446,18 +603,21 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
             ),
             SizedBox(width: 4.w),
             InterText(
-              text: 'pawmap_section_premium'.tr,
+              text: 'alerts610_section_lost'.tr,
               fontSize: 12.sp,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary(context),
             ),
             SizedBox(width: 6.w),
-            InterText(
-              text: _isPremium
-                  ? 'pawmap_section_premium_unlocked'.trParams({'count': types.length.toString()})
-                  : 'pawmap_section_premium_locked'.trParams({'count': types.length.toString()}),
-              fontSize: 10.sp,
-              color: AppColors.textSecondary(context),
+            Flexible(
+              child: InterText(
+                text: _isPremium
+                    ? 'alerts610_section_lost_unlocked'.tr
+                    : 'alerts610_section_lost_locked'.tr,
+                fontSize: 10.sp,
+                color: AppColors.textSecondary(context),
+                maxLines: 2,
+              ),
             ),
           ],
         ),
@@ -476,6 +636,7 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
                     locked: !_isPremium,
                     isFreeBadge: false,
                     compact: true,
+                    onLockedTap: _showLostLockedDialog,
                   ))
               .toList(),
         ),
@@ -491,6 +652,8 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
     required bool locked,
     required bool isFreeBadge,
     bool compact = false,
+    IconData lockIcon = Icons.lock_rounded,
+    VoidCallback? onLockedTap,
   }) {
     final selected = _selectedType == type;
     final bg = selected
@@ -510,9 +673,10 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
             : AppColors.textPrimary(context));
 
     return GestureDetector(
+      key: ValueKey('alerts610_chip_$type'),
       onTap: () {
         if (locked) {
-          _showPremiumLockedSnack();
+          (onLockedTap ?? _showPremiumLockedSnack)();
           return;
         }
         setState(() => _selectedType = type);
@@ -549,7 +713,7 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
               if (locked) ...[
                 SizedBox(width: 3.w),
                 Icon(
-                  Icons.lock_rounded,
+                  lockIcon,
                   size: 10.sp,
                   color: AppColors.textSecondary(context),
                 ),

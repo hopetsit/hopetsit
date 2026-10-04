@@ -31,10 +31,16 @@ class NotificationCard extends StatefulWidget {
     super.key,
     required this.notification,
     required this.onTap,
+    this.showAsNew,
   });
 
   final AppNotificationModel notification;
   final VoidCallback onTap;
+
+  /// 610 — la cloche lit au serveur ce qu'elle affiche dès l'ouverture ; la
+  /// ligne garde le style « nouveau » le temps de la visite. `null` = suit
+  /// `notification.isUnread` (comportement d'avant).
+  final bool? showAsNew;
 
   @override
   State<NotificationCard> createState() => _NotificationCardState();
@@ -334,7 +340,7 @@ class _NotificationCardState extends State<NotificationCard> {
   @override
   Widget build(BuildContext context) {
     final accent = _accentForType(notification.type);
-    final unread = notification.isUnread;
+    final unread = widget.showAsNew ?? notification.isUnread;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final radius = BorderRadius.circular(18.r);
 

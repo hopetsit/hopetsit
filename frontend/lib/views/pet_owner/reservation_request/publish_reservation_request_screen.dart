@@ -52,6 +52,45 @@ class _PublishReservationRequestScreenState
     extends State<PublishReservationRequestScreen> {
   late final PublishReservationRequestController controller;
 
+  /// v610 NEO — ancres des 4 étapes obligatoires : un appui sur « Il manque :
+  /// … » fait défiler jusqu'à l'étape concernée.
+  final List<GlobalKey> _stepKeys =
+      List<GlobalKey>.generate(4, (int i) => GlobalKey(debugLabel: 'step${i + 1}'));
+
+  int? _stepForMissing(String field) {
+    switch (field) {
+      case 'pet':
+      case 'species':
+        return 0;
+      case 'serviceType':
+      case 'duration':
+      case 'venue':
+      case 'serviceLocation':
+      case 'meetingPoint':
+        return 1;
+      case 'startDate':
+      case 'endDate':
+      case 'startTime':
+      case 'endTime':
+        return 2;
+      case 'city':
+      case 'cityPick':
+        return 3;
+      default:
+        return null;
+    }
+  }
+
+  void _goToMissing(String field) {
+    final i = _stepForMissing(field);
+    final ctx = i == null ? null : _stepKeys[i].currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(ctx,
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.easeOutCubic,
+        alignment: 0.08);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -137,7 +176,7 @@ class _PublishReservationRequestScreenState
                 _buildIntro(),
                 SizedBox(height: 14.h),
                 // ── 1. Animaux (+ caractère) ─────────────────────────────
-                Obx(() => _buildSectionCard(
+                KeyedSubtree(key: _stepKeys[0], child: Obx(() => _buildSectionCard(
                       step: 1,
                       done: controller.stepPetsDone,
                       icon: Icons.pets,
@@ -154,11 +193,11 @@ class _PublishReservationRequestScreenState
                           ],
                         ],
                       ),
-                    )),
+                    ))),
                 SizedBox(height: 14.h),
                 // ── 2. Service (+ durée, lieu de garde) ──────────────────
                 // v18.8 — ordre demandé : Animaux / Type de service / Dates.
-                Obx(() => _buildSectionCard(
+                KeyedSubtree(key: _stepKeys[1], child: Obx(() => _buildSectionCard(
                       step: 2,
                       done: controller.stepServiceDone,
                       icon: Icons.room_service_rounded,
@@ -177,25 +216,25 @@ class _PublishReservationRequestScreenState
                           ],
                         ],
                       ),
-                    )),
+                    ))),
                 SizedBox(height: 14.h),
                 // ── 3. Dates & horaires ──────────────────────────────────
-                Obx(() => _buildSectionCard(
+                KeyedSubtree(key: _stepKeys[2], child: Obx(() => _buildSectionCard(
                       step: 3,
                       done: controller.stepDatesDone,
                       icon: Icons.calendar_today_rounded,
                       title: 'send_request_dates_label'.tr,
                       child: _buildDatesSection(),
-                    )),
+                    ))),
                 SizedBox(height: 14.h),
                 // ── 4. Lieu (ville obligatoire) ──────────────────────────
-                Obx(() => _buildSectionCard(
+                KeyedSubtree(key: _stepKeys[3], child: Obx(() => _buildSectionCard(
                       step: 4,
                       done: controller.stepCityDone,
                       icon: Icons.location_on_rounded,
                       title: 'publish_request_city_label'.tr,
                       child: _buildLocationSection(),
-                    )),
+                    ))),
                 SizedBox(height: 14.h),
                 // ── Mon budget (facultatif) — v587, option A de Daniel ──
                 Obx(() => _buildSectionCard(
@@ -516,7 +555,11 @@ class _PublishReservationRequestScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
+            GestureDetector(
+              key: const Key('neo610_missing_tap'),
+              behavior: HitTestBehavior.opaque,
+              onTap: missing == null ? null : () => _goToMissing(missing),
+              child: Row(
               children: [
                 Icon(
                   ready ? Icons.check_circle_rounded : Icons.info_outline_rounded,
@@ -542,7 +585,11 @@ class _PublishReservationRequestScreenState
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (!ready)
+                  Icon(Icons.chevron_right_rounded,
+                      size: 18.sp, color: AppColors.primaryColor),
               ],
+            ),
             ),
             SizedBox(height: 8.h),
             CustomButton(
@@ -1168,6 +1215,7 @@ class _PublishReservationRequestScreenState
                 ? 'send_request_select_time'.tr
                 : controller.formattedStartTime,
             onDateTap: () => _pickDate(isStart: true),
+            timeKey: const Key('neo610_start_time'),
             onTimeTap: () => _pickTime(isStart: true),
             isDatePlaceholder: controller.formattedStartDate.isEmpty,
             isTimePlaceholder: controller.formattedStartTime.isEmpty,
@@ -1229,6 +1277,7 @@ class _PublishReservationRequestScreenState
                   ? 'send_request_select_time'.tr
                   : controller.formattedEndTime,
               onDateTap: () => _pickDate(isStart: false),
+              timeKey: const Key('neo610_end_time'),
               onTimeTap: () => _pickTime(isStart: false),
               isDatePlaceholder: controller.formattedEndDate.isEmpty,
               isTimePlaceholder: controller.formattedEndTime.isEmpty,
@@ -1261,6 +1310,7 @@ class _PublishReservationRequestScreenState
   }
 
   Widget _dateTimeRow({
+    Key? timeKey,
     required String dateText,
     required String timeText,
     required VoidCallback onDateTap,
@@ -1306,14 +1356,20 @@ class _PublishReservationRequestScreenState
         SizedBox(width: 10.w),
         Expanded(
           child: GestureDetector(
+            key: timeKey,
             onTap: onTimeTap,
             behavior: HitTestBehavior.opaque,
             child: Container(
               height: 48.h,
               padding: EdgeInsets.symmetric(horizontal: 14.w),
               decoration: BoxDecoration(
-                // v449 — fill teinté par rôle (owner orange pâle).
-                color: AppColors.inputFillLightForRole(),
+                // v610 NEO (Daniel, 04/10 : « l'heure reste surlignée en blanc,
+                // elle ne s'affiche pas ») — le fond était TOUJOURS l'orange
+                // pâle du mode clair (`inputFillLightForRole()`), alors que le
+                // texte suit le thème : en mode sombre, heure blanc cassé
+                // #F5EFEE sur rose pâle #FCE4DC = invisible. Même fond que la
+                // case date : orange pâle le jour, brun chaud la nuit.
+                color: AppColors.inputFill(context),
                 borderRadius: BorderRadius.circular(12.r),
                 border: Border.all(
                   color: isTimePlaceholder ? AppColors.grey300Color : AppColors.primaryColor.withValues(alpha: 0.3),
@@ -2048,6 +2104,9 @@ class _PublishReservationRequestScreenState
         onGetLocation: () => controller.detectLocation(),
         isGettingLocation: controller.isGettingLocation.value,
         detectedCity: controller.detectedCity.value,
+        // v610 NEO — « Utiliser ma position » en grand : un appui remplit la
+        // ville (Daniel, 04/10).
+        prominentAuto: true,
         onLocationSelected: (city, lat, lng) {
           controller.cityController.text = city;
           controller.detectedCity.value = city;
