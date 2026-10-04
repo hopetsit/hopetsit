@@ -13,7 +13,7 @@ but : ces pages ont besoin de liens entrants) et un article EN déjà en ligne.
 
 | # | Sujet (titre de travail) | Slug proposé | Pages à relier (obligatoire) | Publié |
 |---|---|---|---|---|
-| 1 | How much does a pet sitter cost in Dallas? Realistic 2026 rates for sitting, boarding and walks | `how-much-does-a-pet-sitter-cost-in-dallas` | `/pet-sitting/dallas`, `/become-a-pet-sitter/dallas`, `/blog/how-much-does-a-dog-walker-cost` | ☐ |
+| 1 | How much does a pet sitter cost in Dallas? Realistic 2026 rates for sitting, boarding and walks | `how-much-does-a-pet-sitter-cost-in-dallas` | `/pet-sitting/dallas`, `/become-a-pet-sitter/dallas`, `/blog/how-much-does-a-dog-walker-cost` | ☑ 2026-W40 |
 | 2 | Dog walker vs doggy daycare in New York City: which one fits an apartment dog and a long workday? | `dog-walker-vs-daycare-nyc` | `/pet-sitting/new-york`, `/become-a-pet-sitter/new-york`, `/blog/dog-boarding-vs-pet-sitting` | ☐ |
 | 3 | Leaving your dog for Thanksgiving: pet sitter or boarding in Houston and Austin? | `thanksgiving-pet-sitter-houston-austin` | `/pet-sitting/houston`, `/pet-sitting/austin`, `/blog/finding-a-pet-sitter-in-austin` | ☐ |
 | 4 | Cat sitting in Chicago and Boston: drop-in visits vs boarding, what a cat actually needs while you travel | `cat-sitting-chicago-boston-drop-in-visits` | `/pet-sitting/chicago`, `/pet-sitting/boston`, `/blog/leaving-cat-alone-vacation` | ☐ |

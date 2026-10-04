@@ -14,6 +14,20 @@ export const metadata: Metadata = {
 
 const POSTS = [
   {
+    slug: "choisir-un-pet-sitter-de-confiance-a-paris",
+    lang: "🇫🇷",
+    title: "Comment choisir un pet sitter de confiance à Paris : le guide",
+    excerpt:
+      "Profil vérifié, avis, rencontre préalable, paiement sécurisé, suivi GPS : ce qu'il faut vérifier avant de confier son animal à Paris.",
+  },
+  {
+    slug: "how-much-does-a-pet-sitter-cost-in-dallas",
+    lang: "🇺🇸",
+    title: "How Much Does a Pet Sitter Cost in Dallas? 2026 Rates",
+    excerpt:
+      "Realistic Dallas rates ($30-55/day, $15-25/walk), how sitting compares to boarding, and how to pay safely.",
+  },
+  {
     slug: "devenir-pet-sitter-paris-15e",
     lang: "🇫🇷",
     title: "Devenir pet sitter dans le 15e arrondissement de Paris : le guide",

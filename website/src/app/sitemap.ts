@@ -31,6 +31,11 @@ const PUBLIC_PATHS = [
   "/remboursement",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  // 2026-W40 — choisir un pet sitter à Paris (propriétaires) + coût d'un pet
+  // sitter à Dallas (sujets_us.md #1, liens vers les pages Dallas inconnues
+  // de Google).
+  "/blog/choisir-un-pet-sitter-de-confiance-a-paris",
+  "/blog/how-much-does-a-pet-sitter-cost-in-dallas",
   // 2026-W39 — recrutement Paris 15e + San Francisco.
   "/blog/devenir-pet-sitter-paris-15e",
   "/blog/become-a-pet-sitter-in-san-francisco",
