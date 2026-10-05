@@ -106,8 +106,20 @@ export default function ArticleChienSeulJourneeParis() {
       </p>
       <p className="mt-4 leading-relaxed text-ink-muted">
         C'est aujourd'hui l'un des services les plus demandés à Paris, en
-        particulier dans les arrondissements où les appartements sont petits
-        et les trajets domicile-travail longs — voir{" "}
+        particulier dans des arrondissements comme le{" "}
+        <Link href="/garde-animaux/paris-17" className="font-semibold text-owner underline">
+          17e
+        </Link>
+        , le{" "}
+        <Link href="/garde-animaux/paris-19" className="font-semibold text-owner underline">
+          19e
+        </Link>{" "}
+        ou le{" "}
+        <Link href="/garde-animaux/paris-20" className="font-semibold text-owner underline">
+          20e
+        </Link>
+        , où les appartements sont petits et les trajets domicile-travail
+        longs — voir{" "}
         <Link href="/blog/tarif-promeneur-de-chien-paris" className="font-semibold text-owner underline">
           les tarifs pratiqués par les promeneurs parisiens
         </Link>

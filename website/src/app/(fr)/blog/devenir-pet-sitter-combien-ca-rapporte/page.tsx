@@ -166,6 +166,29 @@ export default function ArticleDevenirPetSitter() {
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
+        Où la demande est la plus forte à Paris
+      </h2>
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        La demande n'est pas la même partout. Dans le{" "}
+        <Link href="/devenir-petsitter/paris-17" className="font-semibold text-owner underline">
+          17e arrondissement
+        </Link>{" "}
+        (Batignolles, Ternes), beaucoup de nouveaux résidents ont un chiot à
+        sociabiliser et cherchent un promeneur de confiance. Le{" "}
+        <Link href="/devenir-petsitter/paris-19" className="font-semibold text-owner underline">
+          19e
+        </Link>{" "}
+        (Buttes-Chaumont, La Villette) a des parcs immenses où les promenades
+        sont demandées toute la semaine. Le{" "}
+        <Link href="/devenir-petsitter/paris-20" className="font-semibold text-owner underline">
+          20e
+        </Link>{" "}
+        (Belleville, Ménilmontant) compte beaucoup de jeunes actifs en
+        télétravail qui font appel à des gardes à la journée. Trois
+        arrondissements où peu de pet sitters sont encore inscrits.
+      </p>
+
+      <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
         Les erreurs qui coûtent cher
       </h2>
       <p className="mt-4 leading-relaxed text-ink-muted">
