@@ -3,6 +3,7 @@ import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
 import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalPlaces";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 import UsLocalGuide, { usFaq } from "@/components/UsLocalGuide";
+import NycRecruitDetails, { NYC_FAQ, NYC_H1, NYC_META, NycDemandNotice, NycSignupButtons } from "@/components/NycRecruit";
 
 // v547 — page « devenir pet sitter à <ville> » (composant serveur statique,
 // indexable). Copie par langue, détail local injecté pour que chaque page
@@ -277,7 +278,7 @@ const COPY: Record<RecruitLang, Copy> = {
 
 export function recruitMetadata(c: RecruitCity, canonical: string) {
   const copy = COPY[c.lang];
-  const title = copy.metaTitle ? copy.metaTitle(c)
+  let title = copy.metaTitle ? copy.metaTitle(c)
     : c.lang === "fr" ? `Devenir pet sitter à ${c.name}`
     : c.lang === "en" ? `Become a pet sitter in ${c.name}`
     : c.lang === "pl" ? `Zostań opiekunem zwierząt — ${c.name}`
@@ -287,7 +288,9 @@ export function recruitMetadata(c: RecruitCity, canonical: string) {
     : c.lang === "pt" ? `Ser pet sitter em ${c.name}`
     : c.lang === "ja" ? `${c.name}でペットシッターになる`
     : `${c.name} 펫시터 되기`;
-  const description = copy.metaDescription ? copy.metaDescription(c) : copy.intro(c).slice(0, 155);
+  let description = copy.metaDescription ? copy.metaDescription(c) : copy.intro(c).slice(0, 155);
+  // 05/10 (GUS) — New York : page de recrutement prioritaire (demande ouverte à Queens).
+  if (c.lang === "en" && c.slug === "new-york") { title = NYC_META.title; description = NYC_META.description; }
   return {
     title,
     description,
@@ -301,7 +304,12 @@ export function recruitMetadata(c: RecruitCity, canonical: string) {
 export default function RecruitCityPage({ city }: { city: RecruitCity }) {
   const copy = COPY[city.lang];
   const paris = city.lang === "fr" && !!parisEntry(city.slug);
-  const faq = paris ? parisFaq(city.slug, "recruit") : [...copy.faq(city), ...usFaq(city.slug, city.lang, "recruit")];
+  // 05/10 (GUS) — New York : premier écran « gagner » + 2 boutons d'inscription
+  // (gardien / promeneur, ville pré-remplie), quartiers, tarifs, FAQ dédiée.
+  const nyc = city.lang === "en" && city.slug === "new-york";
+  const faq = paris ? parisFaq(city.slug, "recruit")
+    : nyc ? [...NYC_FAQ, ...copy.faq(city).slice(1), ...usFaq(city.slug, city.lang, "recruit")]
+    : [...copy.faq(city), ...usFaq(city.slug, city.lang, "recruit")];
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -332,7 +340,7 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
           adapté à la cible gardien : ce qu'on gagne, pas ce qu'on paie. */}
       <CityBreadcrumb city={city} mode="recruit" />
       {!paris && <p className="mt-3 text-sm font-semibold text-sitter-dark">{copy.kicker(city)}</p>}
-      <h1 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-[1.15] tracking-tight text-ink md:mt-2 md:text-4xl">{paris ? `Devenir pet sitter, ${city.name}` : copy.h1(city)}</h1>
+      <h1 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-[1.15] tracking-tight text-ink md:mt-2 md:text-4xl">{paris ? `Devenir pet sitter, ${city.name}` : nyc ? NYC_H1 : copy.h1(city)}</h1>
       <p className="mt-4 flex items-start gap-2 text-sm font-semibold text-sitter-dark">
         <span aria-hidden className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-[#16A34A]" />
         {GAINS[city.lang](city)}
@@ -342,7 +350,10 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
           <li key={b} className="rounded-2xl bg-bg-soft px-2 py-3 text-center text-[11px] font-semibold leading-tight text-ink md:text-xs">{b}</li>
         ))}
       </ul>
+      {nyc && <NycDemandNotice />}
+      {nyc ? <NycSignupButtons place="top" /> : (
       <TrackedLink href="/download" label="recruit_cta" className="mt-5 block w-full rounded-full bg-sitter px-6 py-3.5 text-center text-base font-bold text-white transition hover:bg-sitter-dark md:mx-auto md:w-auto md:min-w-[18rem]">{copy.ctaBtn}</TrackedLink>
+      )}
       <p className="mt-2.5 text-center text-xs text-ink-soft">{FREE[city.lang]}</p>
       {!paris && <p className="mt-8 text-base leading-relaxed text-ink-muted md:text-lg">{copy.intro(city)}</p>}
 
@@ -353,6 +364,8 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
 
       {/* 01/10 (SAM) — guide local réel (New York, San Francisco, Dallas). */}
       <UsLocalGuide slug={city.slug} lang={city.lang} name={city.name} mode="recruit" />
+
+      {nyc && <NycRecruitDetails />}
 
       {paris && <ParisLocalPlaces slug={city.slug} mode="recruit" />}
 
@@ -384,7 +397,10 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
       <div className="mt-14 rounded-3xl bg-sitter-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">{paris ? `${city.name} avec HoPetSit` : copy.ctaTitle(city)}</h2>
         {!paris && <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">{copy.ctaText(city)}</p>}
+        {nyc ? <NycSignupButtons place="bottom" /> : (
         <TrackedLink href="/download" label="recruit_cta" className="mt-5 inline-block rounded-full bg-sitter px-7 py-3 text-sm font-bold text-white">{paris ? "Télécharger" : copy.ctaBtn}</TrackedLink>
+        )}
+        {nyc && <p className="mt-3 text-xs text-ink-soft">Prefer the app? <TrackedLink href="/download" label="recruit_nyc_download" className="underline">Download HoPetSit</TrackedLink></p>}
       </div>
 
       {/* 29/09 (SAM) — maillage : voisins, Paris, petite couronne (ou villes

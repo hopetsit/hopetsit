@@ -13,6 +13,21 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 05/10 (GUS) — recrutement New York (ordre de Daniel : plus de prestataires à NY).
+  {
+    slug: "dog-walker-jobs-nyc",
+    lang: "🇺🇸",
+    title: "Dog walker jobs in NYC: how to become a dog walker in New York",
+    excerpt:
+      "Leash and park rules, where the work is in each borough, and how to land your first regular clients. Free to join.",
+  },
+  {
+    slug: "pet-sitting-jobs-new-york",
+    lang: "🇺🇸",
+    title: "Pet sitting jobs in New York: how much can you earn?",
+    excerpt:
+      "Usual New York rates ($20-35 a walk, $40-70 a day), what changes the price and what you keep after the commission.",
+  },
   {
     slug: "choisir-un-pet-sitter-de-confiance-a-paris",
     lang: "🇫🇷",

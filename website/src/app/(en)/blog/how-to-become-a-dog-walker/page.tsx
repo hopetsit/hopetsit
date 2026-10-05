@@ -131,6 +131,10 @@ export default function ArticleBecomeDogWalker() {
         <Link href="/download" className="mt-5 inline-block rounded-full bg-sitter px-7 py-3 text-sm font-bold text-white">
           Download HoPetSit — it's free
         </Link>
+        <p className="mt-3 text-xs text-ink-soft">
+          In New York?{" "}
+          <Link href="/blog/dog-walker-jobs-nyc" className="underline">Dog walker jobs in NYC: how to start</Link>
+        </p>
       </div>
     </div>
   );

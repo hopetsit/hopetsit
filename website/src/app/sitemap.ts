@@ -31,6 +31,9 @@ const PUBLIC_PATHS = [
   "/remboursement",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  // 05/10 (GUS) — recrutement New York.
+  "/blog/dog-walker-jobs-nyc",
+  "/blog/pet-sitting-jobs-new-york",
   // 2026-W40 — choisir un pet sitter à Paris (propriétaires) + coût d'un pet
   // sitter à Dallas (sujets_us.md #1, liens vers les pages Dallas inconnues
   // de Google).
