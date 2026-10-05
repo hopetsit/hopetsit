@@ -22,6 +22,9 @@ type Copy = {
   ctaBtn: string;
   localTitle: (c: RecruitCity) => string;
   inLanguage: string;
+  /** Titre et description Google (sinon : titre générique + intro coupée à 155 caractères). */
+  metaTitle?: (c: RecruitCity) => string;
+  metaDescription?: (c: RecruitCity) => string;
 };
 
 const COPY: Record<RecruitLang, Copy> = {
@@ -50,6 +53,11 @@ const COPY: Record<RecruitLang, Copy> = {
     ctaBtn: "Créer mon profil gratuit",
     localTitle: (c) => `Garder des animaux à ${c.name}`,
     inLanguage: "fr",
+    // 04/10 (GUS) — « devenir pet sitter rennes » : 4e place, 14 affichages, 0 clic ; la
+    // description était l'intro coupée à 155 caractères, au milieu d'une phrase.
+    metaTitle: (c) => `Devenir pet sitter à ${c.name} : inscription gratuite`,
+    metaDescription: (c) =>
+      `Gardez chiens et chats à ${c.name} : garde à domicile, visites, promenades. Vous fixez vos tarifs (souvent ${c.dayRate} la journée). Profil gratuit, paiement par l’app.`,
   },
   en: {
     kicker: (c) => c.region,
@@ -76,6 +84,11 @@ const COPY: Record<RecruitLang, Copy> = {
     ctaBtn: "Create my free profile",
     localTitle: (c) => `Pet sitting in ${c.name}`,
     inLanguage: "en",
+    // 04/10 (GUS) — /become-a-pet-sitter/new-york, seattle, philadelphia : 15e-24e place, presque
+    // 0 clic ; description = intro coupée au milieu d'une phrase.
+    metaTitle: (c) => `Become a Pet Sitter in ${c.name}: Free Sign-Up`,
+    metaDescription: (c) =>
+      `Dog sitting, cat visits and dog walking in ${c.name}. Set your own rates (often ${c.dayRate} a day) and your own hours, get paid through the app. Free profile.`,
   },
   pl: {
     kicker: (c) => c.region,
@@ -264,8 +277,8 @@ const COPY: Record<RecruitLang, Copy> = {
 
 export function recruitMetadata(c: RecruitCity, canonical: string) {
   const copy = COPY[c.lang];
-  const title =
-    c.lang === "fr" ? `Devenir pet sitter à ${c.name}`
+  const title = copy.metaTitle ? copy.metaTitle(c)
+    : c.lang === "fr" ? `Devenir pet sitter à ${c.name}`
     : c.lang === "en" ? `Become a pet sitter in ${c.name}`
     : c.lang === "pl" ? `Zostań opiekunem zwierząt — ${c.name}`
     : c.lang === "es" ? `Ser cuidador de mascotas en ${c.name}`
@@ -274,13 +287,14 @@ export function recruitMetadata(c: RecruitCity, canonical: string) {
     : c.lang === "pt" ? `Ser pet sitter em ${c.name}`
     : c.lang === "ja" ? `${c.name}でペットシッターになる`
     : `${c.name} 펫시터 되기`;
+  const description = copy.metaDescription ? copy.metaDescription(c) : copy.intro(c).slice(0, 155);
   return {
     title,
-    description: copy.intro(c).slice(0, 155),
+    description,
     alternates: { canonical },
     // v577 — voir OwnerCityPage : un `openGraph` de page remplace celui du
     // layout, l'og:image doit donc etre repete ici (1200x630 reels).
-    openGraph: { title, description: copy.intro(c).slice(0, 155), url: canonical, type: "website" as const, siteName: "HoPetSit", images: [{ url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630, alt: "HoPetSit" }] },
+    openGraph: { title, description, url: canonical, type: "website" as const, siteName: "HoPetSit", images: [{ url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630, alt: "HoPetSit" }] },
   };
 }
 
