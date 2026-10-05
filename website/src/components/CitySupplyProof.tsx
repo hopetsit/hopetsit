@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { API_BASE } from "@/lib/api";
-import { trackSiteEvent } from "@/components/SiteAnalytics";
+import { trackSiteEvent, withCampaign } from "@/components/SiteAnalytics";
 import { providerCurrency, providerFrom, formatMoney, type ProviderRateSource } from "@/lib/providerRates";
 
 // 22/09/2026 — PREUVE D'OFFRE RÉELLE sur les pages villes propriétaires.
@@ -257,7 +257,11 @@ export function CitySupplyProof({
         {faces.map((f) => {
           const walker = f.role === "walker";
           // Mesure : un label par rôle, lisible dans /admin/site-analytics (byCta).
-          const clic = () => trackSiteEvent("cta_click", { label: walker ? "carte_promeneur" : "carte_gardien" });
+          // 05/10 (SAM) : la fiche /p/… recharge la page → on y recopie les utm_* au clic.
+          const clic = (e: MouseEvent<HTMLAnchorElement>) => {
+            trackSiteEvent("cta_click", { label: walker ? "carte_promeneur" : "carte_gardien" });
+            e.currentTarget.href = withCampaign(`/p/${f.role}/${f.id}`);
+          };
           return (
           <li key={`${f.role}-${f.id}`}>
             <a

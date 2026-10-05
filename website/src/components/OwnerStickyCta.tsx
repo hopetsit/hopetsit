@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { trackSiteEvent } from "@/components/SiteAnalytics";
+import { trackSiteEvent, useCampaignHref } from "@/components/SiteAnalytics";
 
 // 03/10/2026 (SAM) — barre « Publier ma demande » collée en bas de l'écran,
 // téléphone seulement (md:hidden).
@@ -29,7 +29,8 @@ export function OwnerStickyCta({ label, city }: { label: string; city?: string }
     };
   }, []);
 
-  const href = `/posts/create${city ? `?city=${encodeURIComponent(city)}` : ""}`;
+  // 05/10 (SAM) : utm_* recopiés, sinon le formulaire perd l'origine « pub ».
+  const href = useCampaignHref(`/posts/create${city ? `?city=${encodeURIComponent(city)}` : ""}`);
   return (
     <div
       className={`fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white/95 px-4 pt-3 backdrop-blur transition-transform duration-200 md:hidden ${hidden ? "translate-y-full" : "translate-y-0"}`}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { trackSiteEvent } from "@/components/SiteAnalytics";
+import { trackSiteEvent, useCampaignHref } from "@/components/SiteAnalytics";
 
 // v577 — 21/09, correction de l'étape qui fuit le plus.
 // Mesure du 21/09 : /garde-animaux/paris a reçu 28 visiteurs (toute la pub Meta
@@ -33,7 +33,8 @@ export function OwnerSignupCta({
   // obtient. (Avant : inscription → code par e-mail → formulaire. Deux tiers
   // des inscrits ne vérifiaient jamais leur e-mail et n'arrivaient jamais
   // jusqu'ici — mesuré le 22/09 : 33 inscriptions, 12 vérifiées, 0 demande.)
-  const href = `/posts/create${city ? `?city=${encodeURIComponent(city)}` : ""}`;
+  // 05/10 (SAM) : utm_* recopiés, sinon le formulaire perd l'origine « pub ».
+  const href = useCampaignHref(`/posts/create${city ? `?city=${encodeURIComponent(city)}` : ""}`);
   return (
     <Link
       href={href}

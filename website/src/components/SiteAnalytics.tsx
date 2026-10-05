@@ -21,7 +21,7 @@
  * (hors du chemin critique) programmé sur requestIdleCallback.
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { API_BASE } from "@/lib/api";
 
@@ -84,6 +84,44 @@ function readCampaign(): Campaign {
   }
   campaign = { us, um, uc, ux, r: hostOfReferrer() };
   return campaign;
+}
+
+/**
+ * 05/10/2026 (SAM) — garder la pub à travers un changement de mise en page.
+ * /garde-animaux/<ville> (groupe (fr)) et /posts/create, /p/… (groupe (site))
+ * n'ont pas la même mise en page racine : Next recharge la page entière et la
+ * mémoire de visite ci-dessus repart de zéro. Mesure 7 j au 05/10 : 5
+ * formulaires ouverts, 0 « venu de la pub », alors que tous les clics
+ * « Publier » venaient de la pub. On recopie donc les utm_* dans le lien
+ * (rien d'autre : ni fbclid, ni referrer, ni identifiant).
+ */
+export function withCampaign(href: string): string {
+  if (typeof window === "undefined") return href;
+  const c = readCampaign();
+  if (!c.uc) return href;
+  try {
+    const u = new URL(href, window.location.origin);
+    if (u.origin !== window.location.origin) return href;
+    const put = (k: string, v: string) => {
+      if (v && !u.searchParams.has(k)) u.searchParams.set(k, v);
+    };
+    put("utm_source", c.us);
+    put("utm_medium", c.um);
+    put("utm_campaign", c.uc);
+    put("utm_content", c.ux);
+    return u.pathname + u.search + u.hash;
+  } catch {
+    return href;
+  }
+}
+
+/** Même chose pour un <Link> : le lien est complété après l'affichage (pas d'écart serveur/navigateur). */
+export function useCampaignHref(href: string): string {
+  const [h, setH] = useState(href);
+  useEffect(() => {
+    setH(withCampaign(href));
+  }, [href]);
+  return h;
 }
 
 // ── Garde-fous ───────────────────────────────────────────────────────────────
