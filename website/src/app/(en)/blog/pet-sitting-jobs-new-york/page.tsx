@@ -158,8 +158,8 @@ export default function ArticlePetSittingJobsNewYork() {
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">Is there demand right now?</h2>
       <p className="mt-4 leading-relaxed text-ink-muted">
-        Yes. In October 2026, New York owners — including one in Queens — have open sitting requests on
-        HoPetSit, and only a handful of sitters live close enough to answer them. HoPetSit is new in New York,
+        Yes. In October 2026, an owner in Queens has an open pet sitting request on
+        HoPetSit, and only a handful of sitters live close enough to answer it. HoPetSit is new in New York,
         so there is little competition between sitters: the people who join now are the first ones owners see
         in their neighborhood. If you mostly want to walk dogs, start with our guide{" "}
         <Link href="/blog/dog-walker-jobs-nyc" className="font-semibold text-sitter-dark underline">

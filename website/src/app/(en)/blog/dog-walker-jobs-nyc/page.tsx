@@ -95,7 +95,7 @@ export default function ArticleDogWalkerJobsNyc() {
       </p>
 
       <div className="mt-6 rounded-2xl border border-sitter/25 bg-sitter-light/70 p-4 text-sm leading-relaxed text-ink">
-        <strong>Right now:</strong> New York owners, including in Queens, have open sitting requests on
+        <strong>Right now:</strong> an owner in Queens has an open pet sitting request on
         HoPetSit and few sitters or walkers live nearby.{" "}
         <Link href="/become-a-pet-sitter/new-york" className="font-semibold text-sitter-dark underline">
           See the New York sitter page

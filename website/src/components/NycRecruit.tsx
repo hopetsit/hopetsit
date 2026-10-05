@@ -23,9 +23,9 @@ export const NYC_META = {
 export function NycDemandNotice() {
   return (
     <p className="mt-4 rounded-2xl border border-sitter/25 bg-sitter-light/70 px-4 py-3 text-sm leading-snug text-ink">
-      <strong className="font-bold">October 2026:</strong> New York owners are posting sitting
-      requests on HoPetSit right now — including a stay in Queens — and very few sitters live
-      nearby to answer them.
+      <strong className="font-bold">October 2026:</strong> a New York owner in Queens has an
+      open pet sitting request on HoPetSit right now, and very few sitters live nearby to answer
+      it.
     </p>
   );
 }
@@ -55,7 +55,7 @@ export function NycSignupButtons({ place }: { place: "top" | "bottom" }) {
 const BOROUGHS: { name: string; note: string }[] = [
   { name: "Manhattan", note: "Apartment buildings and long office days: midday walks on weekdays are the core of the work. Central Park, Riverside Park and Hudson River Park are the classic routes." },
   { name: "Brooklyn", note: "Park Slope, Williamsburg, Greenpoint and Bay Ridge: families with dogs, and Prospect Park's Long Meadow for early-morning off-leash hours." },
-  { name: "Queens", note: "Astoria, Long Island City, Forest Hills and Flushing: more houses with small yards, owners who travel and need home sitting or drop-in visits. Requests are open here now." },
+  { name: "Queens", note: "Astoria, Long Island City, Forest Hills and Flushing: more houses with small yards, owners who travel and need home sitting or drop-in visits. A request is open here now." },
   { name: "The Bronx", note: "Riverdale, Pelham Bay and the neighborhoods around Van Cortlandt Park: big parks, longer walks, and few sitters offering their services." },
   { name: "Staten Island", note: "Quieter streets, more cars and yards: overnight stays and visits while owners travel, best for sitters who live on the island." },
 ];
@@ -146,8 +146,8 @@ export const NYC_FAQ: { q: string; a: string }[] = [
     a: "Yes. Creating your profile is free. When an owner books and pays through the app, HoPetSit keeps a 20% platform commission and pays you the remaining 80% 24 hours after the service ends.",
   },
   {
-    q: "Are there owners looking for sitters in New York right now?",
-    a: "Yes. In October 2026 New York owners, including in Queens, have open sitting requests on HoPetSit and few sitters live close enough to answer. Sitters who join now are the first ones those owners see.",
+    q: "Is there an owner looking for a sitter in New York right now?",
+    a: "Yes. In October 2026 an owner in Queens has an open pet sitting request on HoPetSit, and few sitters live close enough to answer. Sitters who join now are the first ones New York owners see.",
   },
   {
     q: "Can I be both a pet sitter and a dog walker?",
