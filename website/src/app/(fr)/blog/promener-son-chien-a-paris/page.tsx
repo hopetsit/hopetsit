@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
 // v535 — SEO Paris : guide promenade de chien à Paris (trafic local + PawMap).
 export const metadata: Metadata = {
@@ -112,6 +113,8 @@ export default function ArticlePromenerChienParis() {
         , du côté du bois de Vincennes et de Bercy — le terrain de jeu idéal pour les grands
         chiens.
       </p>
+
+      <ParisGuidesLinks current="/blog/promener-son-chien-a-paris" />
 
       <div className="mt-14 rounded-3xl bg-owner-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">

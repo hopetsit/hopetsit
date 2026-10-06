@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
 // v531 — SEO : article statique « faire garder son chien vacances ».
 export const metadata: Metadata = {
@@ -112,6 +113,8 @@ export default function ArticleGarderChienVacances() {
         (Canal Saint-Martin, gares du Nord et de l'Est), les gardes courtes autour d'un départ
         sont une habitude pour beaucoup de voyageurs.
       </p>
+
+      <ParisGuidesLinks current="/blog/faire-garder-son-chien-pendant-les-vacances" />
 
       <div className="mt-14 rounded-3xl bg-owner-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">

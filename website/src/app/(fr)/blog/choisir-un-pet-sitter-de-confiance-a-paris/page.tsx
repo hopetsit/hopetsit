@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
 // 2026-W40 — SEO FR, angle PROPRIÉTAIRES (semaine ISO paire). Angle non
 // encore couvert par les autres articles Paris : comment VÉRIFIER un pet
@@ -180,6 +181,8 @@ export default function ArticleChoisirPetSitterParis() {
           </div>
         ))}
       </div>
+
+      <ParisGuidesLinks current="/blog/choisir-un-pet-sitter-de-confiance-a-paris" />
 
       <div className="mt-14 rounded-3xl bg-owner-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">

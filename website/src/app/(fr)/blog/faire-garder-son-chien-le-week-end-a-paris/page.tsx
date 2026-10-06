@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
 // 2026-W38 — SEO : article statique « garde de week-end à Paris » (angle
 // PROPRIÉTAIRES, semaine ISO paire). Distinct de la garde vacances (plusieurs
@@ -196,6 +197,8 @@ export default function ArticleGardeWeekEndParis() {
           </div>
         ))}
       </div>
+
+      <ParisGuidesLinks current="/blog/faire-garder-son-chien-le-week-end-a-paris" />
 
       <div className="mt-14 rounded-3xl bg-owner-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">

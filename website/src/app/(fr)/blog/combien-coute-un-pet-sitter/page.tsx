@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
 // v531 — SEO : article statique « prix pet sitter » (requête à fort volume).
 export const metadata: Metadata = {
@@ -134,6 +135,8 @@ export default function ArticlePrixPetSitter() {
           </div>
         ))}
       </div>
+
+      <ParisGuidesLinks current="/blog/combien-coute-un-pet-sitter" />
 
       <div className="mt-14 rounded-3xl bg-owner-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">

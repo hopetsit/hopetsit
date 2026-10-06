@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
 // v548 — SEO Paris, angle PROPRIÉTAIRE (semaine paire) : le chien seul toute
 // la journée pendant que son maître travaille — la promenade de midi.
@@ -191,6 +192,8 @@ export default function ArticleChienSeulJourneeParis() {
           </div>
         ))}
       </div>
+
+      <ParisGuidesLinks current="/blog/chien-seul-toute-la-journee-paris" />
 
       <div className="mt-14 rounded-3xl bg-owner-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">

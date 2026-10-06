@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
 // v535 — SEO Paris : garde de chat (audience énorme, souvent oubliée des
 // contenus « chien »).
@@ -111,6 +112,8 @@ export default function ArticleGarderChatParis() {
           </div>
         ))}
       </div>
+
+      <ParisGuidesLinks current="/blog/faire-garder-son-chat-a-paris" />
 
       <div className="mt-14 rounded-3xl bg-owner-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">
