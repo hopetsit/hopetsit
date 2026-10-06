@@ -138,6 +138,16 @@ const assertChatPaid = async (conversation, actorRole, actorId) => {
   //   - hasActivePawFollow (sans filtre userModel)
   //   - ANY UserSubscription active (peu importe userModel/plan)
   //   - legacy premiumActive / chatAddonActive
+  // 612 (ZOE) — MESURÉ : la règle « chat gratuit en phase de lancement » (v550,
+  // chatAccessService.isLaunchPhase) n'existait que côté HTTP. Ici, un membre
+  // sans abonnement recevait PAYMENT_REQUIRED en entrant dans la salle d'un fil
+  // qu'il avait pourtant le droit de lire : le serveur ne savait donc jamais
+  // que le fil était à l'écran et faisait sonner son téléphone pendant qu'il
+  // lisait. Même règle des deux côtés.
+  try {
+    const { isLaunchPhase } = require('../services/chatAccessService');
+    if (await isLaunchPhase()) return;
+  } catch (_) { /* doute → règles habituelles ci-dessous */ }
   try {
     if (actorRole && actorId) {
       const Owner = require('../models/Owner');
@@ -289,6 +299,7 @@ const registerChatHandlers = (io, socket) => {
       // v599 — conversation ouverte à l'écran (pas de push pour ses messages).
       socket.data = socket.data || {};
       socket.data.openConversationId = canonicalId;
+      socket.data.openConversationAt = Date.now(); // 612 — « ouvert » confirmé (60 s)
       // Also ensure we're in the per-user room for targeted notifications.
       if (role && userId) socket.join(userRoom(role, userId));
       socket.data = socket.data || {};
@@ -341,8 +352,13 @@ const registerChatHandlers = (io, socket) => {
         delete socket.data.conversationMetadata[conversationId];
       }
       // v599 — plus de conversation ouverte à l'écran.
-      if (socket.data && socket.data.openConversationId) {
+      // 612 — seulement si c'est CE fil qui était ouvert : l'app 612 quitte
+      // l'ancien fil APRÈS être entrée dans le nouveau (écran remplacé).
+      if (socket.data && socket.data.openConversationId
+        && (String(socket.data.openConversationId) === String(conversationId)
+          || !(socket.rooms && socket.rooms.has && socket.rooms.has(String(socket.data.openConversationId))))) {
         socket.data.openConversationId = null;
+        socket.data.openConversationAt = 0; // 612
       }
     }
     if (callback) {
@@ -435,6 +451,11 @@ const registerChatHandlers = (io, socket) => {
         role,
         userId,
       });
+      // 612 — lire le fil par la prise confirme qu'il est à l'écran (60 s).
+      if (socket.data && socket.data.openConversationId
+        && socket.rooms && socket.rooms.has && socket.rooms.has(String(conversationId))) {
+        socket.data.openConversationAt = Date.now();
+      }
 
       // v566 — même effet que POST /conversations/:id/read : readAt groupé +
       // `message:read` à l'expéditeur (idempotent, rien à marquer = rien émis).

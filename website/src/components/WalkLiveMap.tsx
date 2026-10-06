@@ -1,189 +1,202 @@
 "use client";
 
-// v23.1 part 146 — Carte temps réel d'une promenade.
-// Utilise Leaflet + OpenStreetMap (gratuit, pas de clé API).
-// Le composant écoute les events socket `map:friend-position` côté owner
-// et déplace un marker en temps réel.
+// Carte du suivi en direct d'une réservation (/walk/<id>) — Leaflet + OpenStreetMap.
+//
+// 05/10/2026 (612, LEO) — alignée sur l'app (cible de Daniel : « un seul tracé,
+// la photo, un halo discret ») :
+//   · une COURTE TRAÎNE violette (612 §7 : 200 derniers mètres, épaisseur 3,
+//     fondu 0,12 → 1) derrière la photo, nettoyée (sauts GPS) et lissée — mêmes
+//     valeurs que l'app (`liveTail612`) ; au départ on reprend le tracé déjà
+//     nettoyé par le serveur (`initialTrail`), puis chaque point reçu s'y ajoute ;
+//   · plus AUCUN cercle en mètres (l'ancien halo de 60 m grossissait avec le
+//     zoom) : la lueur violette est DANS la photo, en pixels ;
+//   · la photo de la personne suivie (plus d'emoji) ;
+//   · la carte n'est plus recréée à chaque position : elle glisse (0,9 s) et
+//     garde le zoom choisi ; un glissé au doigt met le suivi en pause, le
+//     bouton « Reprendre le suivi » recentre ;
+//   · textes dans les 9 langues du site, couleurs pleines (zéro gris).
 
-import { useEffect, useRef, useState } from "react";
-import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useSocketEvent } from "@/lib/useSocket";
-
-// Hack standard pour les icones Leaflet dans un bundler webpack/Next :
-// l'image par défaut a un path relatif cassé. On utilise des assets CDN.
-// v23.1 part 146 — fix global des icônes Leaflet en environnement bundler.
-// Le path par défaut `marker-icon.png` ne se résout pas correctement avec
-// Webpack/Next, donc on pointe sur le CDN officiel.
-// @ts-expect-error — Leaflet stocke ses defaults via _getIconUrl interne.
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
-// v23.1 part 240 — Daniel : "je vois le halo vert si c un walker ou halo
-// bleu si c un sitter". Le site web reproduit la meme distinction de role
-// que la PawMap mobile : walker = vert, sitter = bleu. Le owner garde le
-// pin orange (gradient brand) historique.
-function makeProviderIcon(role: "walker" | "sitter" | "owner"): L.DivIcon {
-  const colors: Record<string, [string, string, string]> = {
-    walker: ["#16A34A", "#22C55E", "🚶"], // vert
-    sitter: ["#2563EB", "#3B82F6", "🏠"], // bleu
-    owner: ["#C92A12", "#FF6B4A", "🐾"], // orange brand
-  };
-  const [c1, c2, emoji] = colors[role] || colors.walker;
-  return new L.DivIcon({
-    className: "",
-    html: `<div style="
-      width: 36px; height: 36px; border-radius: 50%;
-      background: linear-gradient(135deg, ${c1}, ${c2});
-      border: 3px solid white; box-shadow: 0 2px 8px rgba(124,58,237,0.35);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px;">${emoji}</div>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-  });
-}
-
-// Halo de couleur autour du marker (equivalent du halo PawMap mobile).
-function haloColor(role: "walker" | "sitter" | "owner"): string {
-  if (role === "walker") return "#16A34A";
-  if (role === "sitter") return "#2563EB";
-  return "#C92A12";
-}
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { PAWMAP_KEYFRAMES, photoPinHtml } from "@/lib/pawmapLegend";
+import { appendTrail612, liveTail612, TRAIL_COLOR_612, TRAIL_WEIGHT_612, type TrailPoint } from "@/lib/trail612";
 
 type Position = { lat: number; lng: number; at?: string };
+
+/** Zoom « rue » du suivi ; on ne recule jamais si l'on est déjà plus près (comme l'app). */
+const STREET_ZOOM = 17;
+/** Au-delà de 2 min sans point : « signal perdu » (même seuil que la PawMap). */
+const LOST_AFTER_S = 120;
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}
+
+/** Garde la personne suivie au centre : 1er point = zoom rue, ensuite la carte glisse. */
+function FollowCamera({ target, paused, nonce, onUserDrag }: { target: Position | null; paused: boolean; nonce: number; onUserDrag: () => void }) {
+  const map = useMap();
+  const started = useRef(false);
+  const lastNonce = useRef(nonce);
+  useEffect(() => {
+    if (!target) return;
+    const here: [number, number] = [target.lat, target.lng];
+    const animate = !prefersReducedMotion();
+    try {
+      if (!started.current) {
+        started.current = true;
+        map.setView(here, Math.max(map.getZoom(), STREET_ZOOM), { animate: false });
+      } else if (lastNonce.current !== nonce) {
+        map.setView(here, Math.max(map.getZoom(), STREET_ZOOM), { animate });
+      } else if (!paused) {
+        map.panTo(here, { animate, duration: 0.9, easeLinearity: 0.3 });
+      }
+    } catch { /* animation en cours */ }
+    lastNonce.current = nonce;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, target?.lat, target?.lng, paused, nonce]);
+  useMapEvents({ dragstart: onUserDrag });
+  return null;
+}
+
+function formatAgo(ms: number, t: (k: string) => string): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return t("ago_s").replace("{n}", String(s));
+  const m = Math.round(s / 60);
+  if (m < 60) return t("ago_min").replace("{n}", String(m));
+  const h = Math.round(m / 60);
+  if (h < 48) return t("ago_h").replace("{n}", String(h));
+  return t("ago_d").replace("{n}", String(Math.round(h / 24)));
+}
 
 export default function WalkLiveMap({
   walkerId,
   walkerName,
   walkerRole = "walker",
+  walkerAvatar,
   initialPosition,
+  initialTrail,
 }: {
   walkerId?: string;
   walkerName?: string;
-  /** v240 — role pour le halo couleur (vert walker / bleu sitter). */
   walkerRole?: "walker" | "sitter" | "owner";
+  walkerAvatar?: string | null;
   initialPosition?: Position;
+  /** Tracé déjà nettoyé par le serveur (GET /friends/live-positions), s'il existe. */
+  initialTrail?: TrailPoint[];
 }) {
-  // Position courante du walker (peut commencer null si pas de fix initial).
+  const { t } = useT();
   const [current, setCurrent] = useState<Position | null>(initialPosition || null);
-  // Historique des positions pour tracer le polyline du trajet.
-  const [trail, setTrail] = useState<Position[]>(initialPosition ? [initialPosition] : []);
-  const lastUpdateRef = useRef<number>(Date.now());
-  const [staleness, setStaleness] = useState(0);
+  // Tracé BRUT (points reçus) ; le tracé dessiné en est la version nettoyée et lissée.
+  const [rawTrail, setRawTrail] = useState<TrailPoint[]>(() => {
+    const base = Array.isArray(initialTrail) ? initialTrail : [];
+    return initialPosition ? appendTrail612(base, initialPosition.lat, initialPosition.lng) : base;
+  });
+  // Heure du dernier point : celle du serveur si on la connaît (jamais « à l'instant » par défaut).
+  const lastUpdateRef = useRef<number | null>(initialPosition ? (initialPosition.at ? new Date(initialPosition.at).getTime() || Date.now() : Date.now()) : null);
+  const [ageS, setAgeS] = useState<number | null>(lastUpdateRef.current == null ? null : Math.max(0, Math.floor((Date.now() - lastUpdateRef.current) / 1000)));
+  const [paused, setPaused] = useState(false);
+  const [nonce, setNonce] = useState(0);
 
-  // v23.1 part 146 — listener socket : nouveau point GPS reçu.
-  useSocketEvent<{ userId: string; role: string; lat: number; lng: number; at?: string }>(
+  // La position et le tracé du serveur arrivent après le 1er rendu (la page les charge en parallèle).
+  const seededPos = useRef(!!initialPosition);
+  useEffect(() => {
+    if (!initialPosition || seededPos.current) return;
+    seededPos.current = true;
+    setCurrent((cur) => cur ?? initialPosition);
+    setRawTrail((prev) => appendTrail612(prev, initialPosition.lat, initialPosition.lng));
+    if (lastUpdateRef.current == null) lastUpdateRef.current = initialPosition.at ? new Date(initialPosition.at).getTime() || Date.now() : Date.now();
+  }, [initialPosition]);
+  const seededTrail = useRef(Array.isArray(initialTrail) && initialTrail.length > 0);
+  useEffect(() => {
+    if (!initialTrail || initialTrail.length === 0 || seededTrail.current) return;
+    seededTrail.current = true;
+    // Le tracé du serveur vient AVANT les points déjà reçus par la socket.
+    setRawTrail((prev) => prev.reduce((acc, p) => appendTrail612(acc, p[0], p[1]), initialTrail));
+  }, [initialTrail]);
+
+  useSocketEvent<{ userId: string; personIds?: string[]; role: string; lat: number; lng: number; at?: string }>(
     "map:friend-position",
     (data) => {
-      if (walkerId && data.userId !== walkerId) return;
-      const next: Position = { lat: data.lat, lng: data.lng, at: data.at };
-      setCurrent(next);
-      setTrail((prev) => {
-        // Évite les doublons exacts (même lat/lng que le dernier point).
-        if (prev.length > 0) {
-          const last = prev[prev.length - 1];
-          if (last.lat === next.lat && last.lng === next.lng) return prev;
-        }
-        // Cap à 200 points pour ne pas exploser la RAM sur longues promenades.
-        const updated = [...prev, next];
-        return updated.length > 200 ? updated.slice(-200) : updated;
-      });
+      if (walkerId && data.userId !== walkerId && !(Array.isArray(data.personIds) && data.personIds.includes(walkerId))) return;
+      if (!Number.isFinite(data.lat) || !Number.isFinite(data.lng)) return;
+      setCurrent({ lat: data.lat, lng: data.lng, at: data.at });
+      setRawTrail((prev) => appendTrail612(prev, data.lat, data.lng));
       lastUpdateRef.current = Date.now();
-      setStaleness(0);
+      setAgeS(0);
     },
   );
 
-  // Indicateur de fraîcheur : combien de temps depuis le dernier point reçu.
   useEffect(() => {
     const id = setInterval(() => {
-      setStaleness(Math.floor((Date.now() - lastUpdateRef.current) / 1000));
+      if (lastUpdateRef.current != null) setAgeS(Math.max(0, Math.floor((Date.now() - lastUpdateRef.current) / 1000)));
     }, 1000);
     return () => clearInterval(id);
   }, []);
 
-  const center: [number, number] = current
-    ? [current.lat, current.lng]
-    : [48.8566, 2.3522]; // Paris par défaut
+  const tail = useMemo(() => liveTail612(rawTrail), [rawTrail]);
+  const lost = ageS != null && ageS >= LOST_AFTER_S;
+  const lostLabel = t("live_state_lost");
+  const icon = useMemo(
+    () => L.divIcon({
+      className: "hps-l-friend",
+      html: photoPinHtml({ role: walkerRole, name: walkerName || "", avatar: walkerAvatar || undefined, followed: !lost, lost, caption: lost ? lostLabel : null, online: !lost }),
+      iconSize: [50, 50],
+      iconAnchor: [25, 25],
+    }),
+    [walkerRole, walkerName, walkerAvatar, lost, lostLabel],
+  );
+  const onUserDrag = useCallback(() => setPaused(true), []);
+  const resume = useCallback(() => { setPaused(false); setNonce((n) => n + 1); }, []);
 
-  const trailLatLngs: [number, number][] = trail.map((p) => [p.lat, p.lng]);
+  const center: [number, number] = current ? [current.lat, current.lng] : [48.8566, 2.3522];
 
   return (
-    <div className="relative h-[60vh] min-h-[400px] w-full overflow-hidden rounded-2xl border border-ink/5 shadow-card">
-      <MapContainer
-        key={`${center[0]},${center[1]}`} // re-mount si la position change radicalement
-        center={center}
-        zoom={current ? 15 : 11}
-        style={{ height: "100%", width: "100%" }}
-        scrollWheelZoom={true}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {trailLatLngs.length > 1 && (
-          <Polyline
-            positions={trailLatLngs}
-            pathOptions={{ color: haloColor(walkerRole), weight: 4, opacity: 0.7 }}
-          />
-        )}
-        {current && (
-          <>
-            {/* v23.1 part 240 — halo couleur autour du marker (parite mobile
-                PawMap). Walker vert / Sitter bleu / Owner orange. */}
-            <Circle
-              center={[current.lat, current.lng]}
-              radius={60}
-              pathOptions={{
-                color: haloColor(walkerRole),
-                fillColor: haloColor(walkerRole),
-                fillOpacity: 0.18,
-                weight: 2,
-                opacity: 0.7,
-              }}
-            />
-            <Marker
-              position={[current.lat, current.lng]}
-              icon={makeProviderIcon(walkerRole)}
-            >
-              <Popup>
-                <div className="text-sm">
-                  <strong>{walkerName || "Walker"}</strong>
-                  <br />
-                  Dernier point : {staleness < 5 ? "à l'instant" : `il y a ${staleness}s`}
-                </div>
-              </Popup>
-            </Marker>
-          </>
-        )}
+    <div data-walk-live="" data-walk-state={!current ? "waiting" : lost ? "lost" : "live"} className="relative h-[60vh] min-h-[400px] w-full overflow-hidden rounded-[28px] border border-[#F1D9CC] shadow-[0_18px_40px_-24px_rgba(124,58,237,0.55)]">
+      <style dangerouslySetInnerHTML={{ __html: PAWMAP_KEYFRAMES }} />
+      <MapContainer center={center} zoom={current ? STREET_ZOOM : 11} minZoom={3} maxZoom={19} style={{ height: "100%", width: "100%", background: "#F7EDE4" /* fond chaud pendant le chargement des tuiles (Leaflet met du gris #ddd) */ }} scrollWheelZoom>
+        <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
+        <FollowCamera target={current} paused={paused} nonce={nonce} onUserDrag={onUserDrag} />
+        {/* 612 §7 — COURTE TRAÎNE (200 derniers mètres, épaisseur 3, violet) qui s'estompe vers
+            l'arrière en 5 morceaux et finit sous la photo. Aucun cercle, aucun pointillé. */}
+        {tail.map((part, k) => (
+          <Polyline key={`tail-${k}-${tail.length}`} positions={part.pts} smoothFactor={0.4} pathOptions={{ color: TRAIL_COLOR_612, weight: TRAIL_WEIGHT_612, opacity: part.alpha, lineCap: k === tail.length - 1 ? "round" : "butt", lineJoin: "round", className: "hps-walk-follow" }} />
+        ))}
+        {current && <Marker position={[current.lat, current.lng]} icon={icon} zIndexOffset={1000} title={walkerName || undefined} />}
       </MapContainer>
 
-      {/* Overlay status */}
-      <div className="absolute right-3 top-3 z-[400] rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold shadow-lg backdrop-blur">
+      {/* État du direct */}
+      <div data-walk-status="" role="status" className="absolute right-3 top-3 z-[400] max-w-[calc(100%-5rem)] rounded-full border-[1.5px] border-white px-3 py-1.5 text-xs font-bold shadow-[0_8px_18px_-10px_rgba(35,23,21,0.6)]" style={{ background: !current ? "#FFF7F2" : lost ? "#FFF4E5" : "#E9F7EE", color: !current ? "#6E4F48" : lost ? "#9A3412" : "#1F7A37" }}>
         {!current ? (
-          <span className="text-ink-muted">⌛ En attente de la position…</span>
-        ) : staleness < 10 ? (
-          <span className="text-green-700">
-            <span className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-green-500"></span>
-            En direct
-          </span>
-        ) : staleness < 60 ? (
-          <span className="text-amber-700">
-            <span className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-500"></span>
-            Dernier point {staleness}s
+          <span>{t("service_card_owner_not_started")}</span>
+        ) : lost ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full bg-[#EA580C]" />
+            <span className="min-w-0 break-words">{lostLabel} · {t("friend_seen_ago").replace("{ago}", formatAgo((ageS || 0) * 1000, t))}</span>
           </span>
         ) : (
-          <span className="text-red-700">
-            <span className="mr-1 inline-block h-2 w-2 rounded-full bg-red-500"></span>
-            Signal perdu ({staleness}s)
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-[#16A34A] motion-reduce:animate-none" />
+            {t("dash_live")}
           </span>
         )}
       </div>
 
+      {current && paused && (
+        <button
+          type="button"
+          data-walk-resume=""
+          onClick={resume}
+          className="absolute bottom-6 left-1/2 z-[400] inline-flex min-h-[44px] -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-[18px] border-[1.5px] border-white px-4 text-[13px] font-extrabold text-white shadow-[0_10px_22px_-10px_rgba(124,58,237,0.9)]"
+          style={{ background: "linear-gradient(90deg,#8B5CF6,#7C3AED 55%,#5B21B6)" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" /></svg>
+          {t("map_follow_resume")}
+        </button>
+      )}
     </div>
   );
 }

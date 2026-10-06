@@ -2508,7 +2508,7 @@ const respondBooking = async (req, res) => {
       // BookingsController._attachSocketListeners now listens for
       // booking:accepted and calls loadBookings().
       try {
-        const { emitToUser } = require('../sockets');
+        const { emitToUser } = require('../sockets/emitter'); // 612 (ZOE) — '../sockets' n'exporte PAS emitToUser : l'émission échouait en silence depuis avril (mesuré : 0 événement reçu)
         const ownerIdStr = booking.ownerId?._id
           ? booking.ownerId._id.toString()
           : booking.ownerId.toString();
@@ -4072,7 +4072,7 @@ const confirmBookingPayment = async (req, res) => {
               logger.warn(`[confirmBookingPayment] conversation badge update failed : ${e.message}`);
             }
             try {
-              const { emitToUser } = require('../sockets');
+              const { emitToUser } = require('../sockets/emitter'); // 612 (ZOE) — '../sockets' n'exporte PAS emitToUser : l'émission échouait en silence depuis avril (mesuré : 0 événement reçu)
               const ownerIdStr = _idStr(ownerId2);
               const providerIdStr = _idStr(providerId2);
               for (const msg of [systemMessage, rendezvousMessage]) {
@@ -6863,6 +6863,10 @@ module.exports = {
   // call sites (e.g. adminRoutes.js) working without modification.
   processProviderPayoutForBooking,
   processSitterPayoutForBooking: processProviderPayoutForBooking,
+  // 612 (ZOE) — MESURÉ : jamais exporté → le webhook Airwallex sautait en silence la
+  // mise en séquestre (pas de code de remise, pas de libération automatique à +48 h,
+  // payoutStatus resté « pending ») quand l'app ne rappelait pas /confirm-payment.
+  schedulePayoutForBooking,
   // Shared helper — used by applicationController to offer the owner an
   // immediate Stripe PaymentSheet right after accepting an application.
   _prepareOwnerPaymentForAgreedBooking,

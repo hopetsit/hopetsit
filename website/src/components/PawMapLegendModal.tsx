@@ -30,7 +30,8 @@ import {
   FRIEND_PINK,
 } from "@/lib/pawmapLegend";
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
-import { RankGlyph611 } from "@/components/Rank611";
+import { RankGlyph611, RankPill611 } from "@/components/Rank611";
+import { RANK_KEYS_611, RANK_MINS_611 } from "@/lib/ranks611";
 
 // 25/09 (586) — dessins des nouveaux contrôles de la carte (poignée, Publier,
 // Direct, œil), mêmes couleurs que sur /map.
@@ -112,7 +113,7 @@ const SECTION_COLOR: Record<string, string> = {
   faq: "#17141F",
   pioneer: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)",
   plush: "linear-gradient(165deg,#34B857,#16A34A)",
-  points: "linear-gradient(165deg,#F4C04A,#B07800)",
+  ranks: "linear-gradient(165deg,#E7B84A,#C9961A 55%,#8D6A12)",
 };
 
 // 02/10 (607) — badge « Pionnier » (même dessin que la page /s et la fiche
@@ -140,7 +141,7 @@ function NumBadge({ n, id, size = 24 }: { n: number; id: string; size?: number }
   );
 }
 
-type Row = { html?: string; node?: ReactNode; title: string; body?: string; color?: string; /** 29/09 — petite bulle sous le titre (texte exact de la carte). */ chip?: { text: string; color: string; border: string; bg?: string } };
+type Row = { html?: string; node?: ReactNode; title: string; body?: string; color?: string; /** 612 — ligne d'un rang : la pastille puis son seuil, sur une ligne. */ wide?: boolean; /** 29/09 — petite bulle sous le titre (texte exact de la carte). */ chip?: { text: string; color: string; border: string; bg?: string } };
 type Section = { id: string; title: string; rows: Row[]; example?: string; /** 02/10 (607) — petite galerie (les 5 peluches), sous le titre. */ gallery?: { src: string; label: string }[]; /** 02/10 — lien « en savoir plus ». */ link?: { href: string; label: string }; image?: { src: string; srcSet?: string; darkSrc?: string; darkSrcSet?: string; alt: string } };
 
 // 29/09 — section « La Balade » : dessins compacts (56 px) de ce que l'on voit
@@ -167,7 +168,7 @@ function menuDotHtml() {
  * gardien / promeneur, Publier = propriétaire), comme sur la carte.
  */
 export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onClose: () => void; role?: "owner" | "sitter" | "walker" }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   // 30/09 — hooks AVANT le retour anticipé (piège : un hook placé après
   // « if (!open) return null » plante la page en production).
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -278,6 +279,9 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
   // 02/10 (607) — décision de Daniel : « Ramène tes clients / Pionnier » et
   // « Les peluches de la Balade », mêmes clés et mêmes textes que l'app
   // (help607_*, lib/i18n/site607.ts). Visibles aussi sur la carte publique.
+  // 612 — seuils écrits comme dans l'app (séparateur de milliers de la langue).
+  // « always » : l'app écrit 3.000 en espagnol et 3 000 en polonais, là où le navigateur écrirait 3000.
+  const fmtInt = (v: number): string => { try { return new Intl.NumberFormat(lang, { useGrouping: "always" } as unknown as Intl.NumberFormatOptions).format(v); } catch { return String(v); } };
   const sections607: Section[] = [
     { id: "pioneer", title: t("help607_pioneer_title"), rows: [{ html: pioneerBadgeHtml(t("help607_pioneer_badge")), title: "", body: t("help607_pioneer_body") }] },
     {
@@ -291,10 +295,25 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
       ],
       link: { href: "/pawpoints-guide", label: t("ppg_link") },
     },
-    // 02/10 (607, ZOE) — « Les PawPoints » : même texte que l'app (pp607_help_points_*).
-    { id: "points", title: t("pp607_help_points_title"), link: { href: "/pawpoints-guide", label: t("ppg_link") }, rows: [{ html: `<span style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800);border:2px solid #fff;box-shadow:0 6px 14px -6px #B07800;font-size:22px">🪙</span>`, title: "", body: t("pp607_help_points_body") },
-      // 04/10 (611) — « Les rangs » : Chiot → Légende (textes de PAM, help611_ranks_*).
-      { node: <span data-legend-ranks="" className="grid h-[46px] w-[46px] place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#E7B84A,#C9961A 55%,#8D6A12)", border: "2px solid #fff", boxShadow: "0 6px 14px -6px #8D6A12" }}><RankGlyph611 level={5} size={22} color="#FFFFFF" /></span>, title: t("help611_ranks_t"), body: t("help611_ranks_b"), color: "#8A5A00" }] },
+    // 05/10 (612) — « Les rangs » : section à part, comme l'app (pawmap_help_screen.dart §6).
+    // Les 5 vraies pastilles + « dès N PawPoints » (help612_rank_from), la règle
+    // (help611_ranks_b), puis « Comment gagner des points » (help612_earn_t +
+    // pp607_help_points_body). Textes de PAM, copiés de l'app, 9 langues.
+    {
+      id: "ranks",
+      title: t("help611_ranks_t"),
+      link: { href: "/pawpoints-guide", label: t("ppg_link") },
+      rows: [
+        ...RANK_KEYS_611.map((key, i): Row => ({
+          wide: true,
+          node: <RankPill611 rank={{ key, level: i + 1, pointsEarned: RANK_MINS_611[i], nextAt: null, nextKey: null }} mode="auto" />,
+          title: "",
+          body: t("help612_rank_from").replace("{n}", fmtInt(RANK_MINS_611[i])),
+        })),
+        { node: <span data-legend-ranks="" className="grid h-[46px] w-[46px] place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#E7B84A,#C9961A 55%,#8D6A12)", border: "2px solid #fff", boxShadow: "0 6px 14px -6px #8D6A12" }}><RankGlyph611 level={5} size={22} color="#FFFFFF" /></span>, title: t("help611_ranks_t"), body: t("help611_ranks_b"), color: "#8A5A00" },
+        { html: `<span data-legend-earn="" style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800);border:2px solid #fff;box-shadow:0 6px 14px -6px #B07800;font-size:22px">🪙</span>`, title: t("help612_earn_t"), body: t("pp607_help_points_body"), color: "#8A5A00" },
+      ],
+    },
   ];
 
   // 04/10 (610) — règle B (REGLES_610.md) : tout le monde voit tous les
@@ -514,7 +533,12 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
               </ul>
             )}
             <ul className="mt-2 space-y-1.5">
-              {sec.rows.map((r, i) => (
+              {sec.rows.map((r, i) => r.wide ? (
+                <li key={`${sec.id}-${i}`} data-legend-rank-row="" className="flex min-w-0 items-center gap-2.5 rounded-2xl px-1 py-1.5 sm:px-2">
+                  <span className="shrink-0">{r.node}</span>
+                  <span className="min-w-0 break-words text-[13px] font-bold leading-snug text-[#3B2A26] dark:text-[#EBDDD6]">{r.body}</span>
+                </li>
+              ) : (
                 <li key={`${sec.id}-${i}`} className="flex items-start gap-3 rounded-2xl px-1 py-2 sm:gap-4 sm:px-2">
                   {r.node
                     ? <span className="grid h-14 w-14 shrink-0 place-items-center">{r.node}</span>

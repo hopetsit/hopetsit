@@ -1,6 +1,7 @@
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
+import 'package:hopetsit/controllers/applications_controller.dart';
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
@@ -311,6 +312,12 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
           // le fil des demandes dès que la notification arrive.
           if (lower == 'new_request_nearby' && Get.isRegistered<PostsController>()) {
             unawaited(Get.find<PostsController>().loadReservationRequests());
+          }
+          // 612 (ZOE) — une candidature arrive : la liste des candidats du
+          // propriétaire se recharge tout de suite (bandeau « N candidats »),
+          // même si l'événement `application:new` s'est perdu.
+          if (lower == 'application_new' && Get.isRegistered<ApplicationsController>()) {
+            unawaited(Get.find<ApplicationsController>().loadApplications());
           }
 
           // v23.1.182 — Daniel : "il faut jme deco et reco pour voir la

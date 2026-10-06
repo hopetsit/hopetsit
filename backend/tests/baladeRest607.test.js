@@ -27,10 +27,16 @@ function post(user, body) {
 test('11 min, ~700 m puis arrêt → +15 une fois', async () => {
   const w = await Walker.create({ name: 'Walt Test', email: 'walt607@example.test', password: 'MotDePasse607!' });
   const user = { id: String(w._id), role: 'walker' };
+  // 612 (PAM) — 67 m entre deux points : il faut le temps de les marcher
+  // (15 s), sinon le filtre anti-saut GPS du tracé les écarte.
+  let fakeNow = Date.now();
+  const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => fakeNow);
   for (let i = 0; i < 12; i += 1) {
+    fakeNow += 15000;
     const r = await post(user, { lat: -35.2 + i * 0.0006, lng: -30.4 });
     expect(r.status).toBe(200);
   }
+  nowSpy.mockRestore();
   // 11 minutes « écoulées » : on recule le début de la session en mémoire.
   const s = require('../src/sockets/mapSocket').getLiveSession(String(w._id));
   s.startedAt -= 11 * 60000;

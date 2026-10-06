@@ -210,7 +210,8 @@ void main() {
   test('la PawMap écoute la demande et la feuille « Amis en direct » vole aussi', () {
     final src = File('lib/views/map/paw_map_screen.dart').readAsStringSync();
     expect(src.contains('ever<PawMapFriendFocus?>(pawMapPendingFriend'), isTrue);
-    expect(src.contains('CameraUpdate.newLatLngZoom(at, kPawMapFriendFocusZoom)'), isTrue);
+    // 612 (PAM) — en direct : zoom rue sans jamais dézoomer ; sinon zoom 16.
+    expect(src.contains('liveNow ? pawFollowZoom(_zoomLevel) : kPawMapFriendFocusZoom'), isTrue);
     final sheet = src.substring(src.indexOf('Widget _liveFriendRow('));
     expect(sheet.substring(0, 3000).contains('_focusFriend(focus)'), isTrue);
     // Plus aucun écran PawMap empilé depuis la liste d'amis.

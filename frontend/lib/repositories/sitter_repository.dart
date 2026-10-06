@@ -508,6 +508,17 @@ class SitterRepository {
 
   /// Creates an application (sends request to owner).
   /// POST /applications?ownerId={ownerId}
+  /// 612 — durée d'une balade lue dans les dates de l'annonce : multiple de
+  /// 15 min entre 15 et 300 (règle des tarifs promeneur), sinon 60.
+  static int walkDurationFromDates612(String? startDate, String? endDate) {
+    final s = DateTime.tryParse((startDate ?? '').trim());
+    final e = DateTime.tryParse((endDate ?? '').trim());
+    if (s == null || e == null) return 60;
+    final m = e.difference(s).inMinutes;
+    if (m < 15 || m > 300 || m % 15 != 0) return 60;
+    return m;
+  }
+
   Future<Map<String, dynamic>> createApplication({
     required String ownerId,
     required List<String> petIds,
@@ -561,6 +572,23 @@ class SitterRepository {
     // promeneur peut tarifer (multiples de 15 de 15 à 300 min). Le serveur
     // valide désormais la même règle que `walkRateEntrySchema` ; on ne garde
     // ici que le contrôle « durée présente ».
+    // 612 §8 (ZOE) — MESURÉ au simulateur : « Proposer mes services » depuis la
+    // PawMap et depuis le profil du propriétaire n'envoyaient NI durée NI lieu
+    // de garde → refus ICI, avant même d'appeler le serveur : un promeneur ne
+    // pouvait jamais postuler à une balade par ces deux portes (seule la carte
+    // de l'accueil marchait). La durée se déduit de l'annonce (fin − début,
+    // c'est ainsi que le formulaire la pose), sinon 60 min ; le lieu de garde
+    // retombe sur « chez le propriétaire », comme sur la carte de l'accueil.
+    if (normalizedServiceType == 'dog_walking' &&
+        (duration == null || duration <= 0)) {
+      duration = walkDurationFromDates612(startDate, endDate);
+    }
+    if (normalizedServiceType == 'house_sitting') {
+      final v = houseSittingVenue?.trim();
+      if (v != 'owners_home' && v != 'sitters_home') {
+        houseSittingVenue = 'owners_home';
+      }
+    }
     if (normalizedServiceType == 'dog_walking' &&
         (duration == null || duration <= 0)) {
       throw ApiException(

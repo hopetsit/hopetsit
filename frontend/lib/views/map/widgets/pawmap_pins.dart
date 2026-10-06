@@ -59,6 +59,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart' show md5;
 import 'package:get_storage/get_storage.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../utils/storage_keys.dart';
@@ -2057,6 +2058,10 @@ final Uint8List kPawTransparentPng = Uint8List.fromList(const <int>[
   0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
 ]);
 
+/// 612 — journal de MESURE (build `--dart-define=HPS_PROBE603=true`
+/// seulement, jamais dans les stores) : durée de chaque image d'épingle.
+const bool _kProbe612 = bool.fromEnvironment('HPS_PROBE603', defaultValue: false);
+
 class PawMapPinCache extends GetxService {
   final Map<String, BitmapDescriptor> _cache = {};
   final Set<String> _building = {};
@@ -2157,10 +2162,78 @@ class PawMapPinCache extends GetxService {
 
   final Map<String, BitmapDescriptor> _lastBySlot = {};
 
+  // ── 612 (mesuré sur émulateur Android, carte chargée : 100 membres,
+  // 50 PawSpots) — à l'ouverture, ~80 images d'épingles étaient dessinées
+  // TOUTES EN MÊME TEMPS (jusqu'à 89 en cours, 2 s pour la plus lente), à
+  // CHAQUE lancement de l'app, et la carte était reconstruite 6 fois en
+  // 1,2 s. Désormais :
+  // chaque image prête est gardée SUR DISQUE (dossier temporaire, par
+  // version de l'app et densité d'écran) : aux ouvertures suivantes elle est
+  // relue, pas redessinée.
+  // ESSAYÉ ET RETIRÉ (mesuré) : limiter à 6 dessins à la fois + une
+  // reconstruction toutes les 160 ms — 60 épingles prêtes en 2,5 s au lieu de
+  // 0,3 s. Les dessins restent donc tous lancés en parallèle.
+  int _running = 0;
+
+  static Directory? _pinDir;
+  static bool _pinDirTried = false;
+  Future<Directory?> _pinDiskDir() async {
+    if (_inTests) return null;
+    if (_pinDirTried) return _pinDir;
+    _pinDirTried = true;
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final root = Directory('${(await getTemporaryDirectory()).path}/pawmap_pins');
+      final name = 'v${info.buildNumber}_${pawPinRenderScale().toStringAsFixed(2)}';
+      final d = Directory('${root.path}/$name');
+      if (!await d.exists()) {
+        // Autre version de l'app (dessins peut-être changés) : on repart de zéro.
+        if (await root.exists()) await root.delete(recursive: true);
+        await d.create(recursive: true);
+      }
+      _pinDir = d;
+    } catch (_) {
+      _pinDir = null;
+    }
+    return _pinDir;
+  }
+
   Future<void> _build(String key, double w, double h,
       void Function(Canvas canvas) paint, [double? scale]) async {
+    await _buildNow(key, w, h, paint, scale);
+  }
+
+  Future<void> _buildNow(String key, double w, double h,
+      void Function(Canvas canvas) paint, [double? scale]) async {
+    _running++;
+    final int t0 = _kProbe612 ? DateTime.now().millisecondsSinceEpoch : 0;
     try {
-      final png = await renderPinPng(w, h, paint, scale: scale);
+      Uint8List? png;
+      var fromDisk = false;
+      File? file;
+      final dir = await _pinDiskDir();
+      if (dir != null) {
+        file = File('${dir.path}/${md5.convert(utf8.encode('$key|$w|$h|${scale ?? 0}'))}.png');
+        try {
+          if (await file.exists()) {
+            final b = await file.readAsBytes();
+            if (b.length > 60) {
+              png = b;
+              fromDisk = true;
+            }
+          }
+        } catch (_) {/* fichier abîmé : on redessine */}
+      }
+      png ??= await renderPinPng(w, h, paint, scale: scale);
+      if (!fromDisk && file != null) {
+        unawaited(file.writeAsBytes(png, flush: false).then((_) {}, onError: (_) {}));
+      }
+      if (_kProbe612) {
+        // ignore: avoid_print
+        print('[P603] ${DateTime.now().millisecondsSinceEpoch} PIN '
+            '${DateTime.now().millisecondsSinceEpoch - t0}ms en_cours=$_running '
+            '${key.split(':').first} ${png.length}o ${fromDisk ? 'disque' : 'dessin'}');
+      }
       final d = BitmapDescriptor.bytes(png, width: w);
       _sizes[d] = Size(w, h); // 607 — taille logique (mise en page)
       _cache[key] = d;
@@ -2169,6 +2242,7 @@ class PawMapPinCache extends GetxService {
       debugPrint('[PawMapPinCache] $key : $e');
     } finally {
       _building.remove(key);
+      _running--;
     }
   }
 
@@ -2187,11 +2261,17 @@ class PawMapPinCache extends GetxService {
 
   Future<void> _downloadAvatar(String url) async {
     // v597 — copie disque (l'URL change quand la photo change : clé sûre).
+    final int t0 = _kProbe612 ? DateTime.now().millisecondsSinceEpoch : 0;
     final file = await _diskFile(url);
     try {
       if (file != null && await file.exists()) {
         final img = await decodeAvatar(await file.readAsBytes());
         if (img != null) {
+          if (_kProbe612) {
+            // ignore: avoid_print
+            print('[P603] ${DateTime.now().millisecondsSinceEpoch} PHOTO disque '
+                '${DateTime.now().millisecondsSinceEpoch - t0}ms');
+          }
           _avatars[url] = img;
           _bumpRev();
           _building.remove('avatar:$url');
@@ -2206,6 +2286,11 @@ class PawMapPinCache extends GetxService {
       ).timeout(const Duration(seconds: 8));
       if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
         _avatars[url] = await decodeAvatar(resp.bodyBytes);
+        if (_kProbe612) {
+          // ignore: avoid_print
+          print('[P603] ${DateTime.now().millisecondsSinceEpoch} PHOTO reseau '
+              '${DateTime.now().millisecondsSinceEpoch - t0}ms');
+        }
         _bumpRev();
         if (file != null && _avatars[url] != null) {
           unawaited(file.writeAsBytes(resp.bodyBytes, flush: false).then((_) {}, onError: (_) {}));

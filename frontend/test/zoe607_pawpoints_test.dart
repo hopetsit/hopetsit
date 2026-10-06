@@ -127,7 +127,8 @@ void main() {
         }
         expect(find.text(d['pp607_help_points_body']!, skipOffstage: false), findsOneWidget);
         expect(find.text(pioneer607I18n[l]!['help607_pioneer_body']!, skipOffstage: false), findsOneWidget);
-        expect(kPawHelpSections.map((s) => s.$2).whereType<int>().toList(), [1, 2, 3, 4, 5, 6, 7, 8]);
+        // 612 (PAM) — section 6 « Les rangs » ajoutée (les PawPoints y sont) : 9 sections.
+        expect(kPawHelpSections.map((s) => s.$2).whereType<int>().toList(), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
         expect(t.takeException(), isNull);
       });
     }

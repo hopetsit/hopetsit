@@ -306,7 +306,12 @@ class ChatController extends GetxController
         // client n'entre jamais dans la room `conversationId` → les
         // `message:new` émis vers cette room ne lui arrivent jamais en direct.
         // FIX : on (re)joint la conversation courante à CHAQUE connexion.
-        if (currentChatId.value.isNotEmpty) {
+        // 612 — seulement si ce fil est RÉELLEMENT à l'écran (`currentChatId`
+        // n'est jamais remis à zéro au retour à la liste) : sinon chaque
+        // reconnexion remettait l'app dans la salle d'un fil fermé, et le
+        // serveur cessait de faire sonner le téléphone pour ce fil.
+        if (currentChatId.value.isNotEmpty &&
+            SocketService.visibleConversationId == currentChatId.value) {
           _socketService.joinConversation(currentChatId.value);
         }
         // v401 — abonnement au multiplexeur avec une RÉFÉRENCE STABLE

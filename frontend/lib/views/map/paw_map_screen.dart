@@ -75,6 +75,7 @@ import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_discreet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_overlap607.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_follow612.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_friends610.dart';
 import 'package:hopetsit/views/service_provider/widgets/book_as_owner.dart';
 import 'package:hopetsit/services/map_prefs_service.dart';
@@ -302,10 +303,34 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (TickerMode.valuesOf(context).enabled) {
       pawMap603Log('onglet PawMap visible');
       _cover.visible();
+      // 612 — plafond dur du voile Android : 4 s après l'onglet visible.
+      if (_veil612.value && _veilCap612 == null) {
+        _veilCap612 = Timer(const Duration(seconds: 4), () {
+          if (mounted) _veil612.value = false;
+        });
+      }
     } else {
       _cover.hidden();
     }
   }
+
+  // ── 612 — voile Android jusqu'à la carte prête (voir le Stack) ──
+  final ValueNotifier<bool> _veil612 =
+      ValueNotifier<bool>(defaultTargetPlatform == TargetPlatform.android);
+  bool _veilGone612 = defaultTargetPlatform != TargetPlatform.android;
+  Timer? _veilCap612;
+  void _dropVeil612([Duration after = Duration.zero]) {
+    if (!_veil612.value) return;
+    _veilCap612?.cancel();
+    _veilCap612 = Timer(after, () {
+      if (mounted) _veil612.value = false;
+    });
+  }
+
+  Widget _veilPlaceholder612() => PawMapPlaceholder(
+        night: _nightMode.value,
+        roleColor: PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
+      );
 
   Widget _buildLaunchCover() {
     final PawMapSnapshotMeta? m = _snapshot;
@@ -560,7 +585,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     }());
   }
   /// v584 — zoom de suivi « joli » (Daniel, 23/09) : rue lisible, 16-17.
-  static const double _followZoom = 16.5;
+  /// 612 — 16,5 → zoom « rue » 17,5 ; et partout où l'on vise / suit /
+  /// recentre, [pawFollowZoom] GARDE un zoom déjà plus proche (avant : on
+  /// redescendait à 16,5 → « au lieu de zoomer ça dézoome »).
+  static const double _followZoom = kPawFollowStreetZoom;
   /// Suivi mis en PAUSE par un geste (le tracé continue) ; « Reprendre ».
   bool _followPaused = false;
 
@@ -575,7 +603,21 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (uid == null || _followPaused) return;
     final fp = _liveMap.friendPositions[uid];
     if (fp == null) return;
-    _animateFollowCamera(LatLng(fp.latitude, fp.longitude));
+    // 612 — la cible est la position GLISSÉE (celle de la photo à l'écran).
+    _animateFollowCamera(_glidePos612 ?? LatLng(fp.latitude, fp.longitude));
+  }
+
+  /// 612 — la personne suivie revient TOUJOURS au centre : à la fin d'une
+  /// attente (zoom + / −, carte glissée puis lâchée), la caméra recolle
+  /// d'elle-même, même si la personne ne bouge plus (avant : seulement à sa
+  /// prochaine position → restée hors centre après un zoom).
+  Timer? _recenterTimer612;
+  void _armRecenter612(Duration after) {
+    _recenterTimer612?.cancel();
+    _recenterTimer612 = Timer(after + const Duration(milliseconds: 60), () {
+      if (!mounted || _followUserId == null || _followCameraHeld()) return;
+      _recenterOnFollowedNow();
+    });
   }
 
   bool _followCameraHeld() =>
@@ -926,13 +968,12 @@ class _PawMapScreenState extends State<PawMapScreen>
           }
           if (mounted) setState(() {});
         }
-        if (_followPaused) return;
-        // 610 — doigt sur la carte (ou levé depuis moins de 3 s) : la caméra
-        // attend, le suivi reste « en direct » et recolle tout seul ensuite.
-        if (_followCameraHeld()) return;
-        // v584 — suivi SANS à-coups : la caméra glisse vers la nouvelle
-        // position en gardant le zoom (plus de re-zoom à chaque point).
-        _animateFollowCamera(p);
+        // 612 — la photo GLISSE vers le nouveau point (plus de saut) et la
+        // caméra glisse avec elle, au même zoom : la personne reste au
+        // centre. Doigt sur la carte (ou levé depuis < 3 s) / pause : seule
+        // la photo glisse, la caméra attend (610).
+        _glideFollowedTo612(p,
+            moveCamera: !_followPaused && !_followCameraHeld());
       },
     );
 
@@ -2623,6 +2664,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     _reloadDebounce?.cancel();
     _snapshotTimer?.cancel();
     _cover.dispose();
+    _recenterTimer612?.cancel();
+    _glideTimer612?.cancel();
+    _veilCap612?.cancel();
+    _veil612.dispose();
     for (final w in _backGuardWorkers) {
       w.dispose();
     }
@@ -3551,6 +3596,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     _cameraMoving = true;
     _pinZoomTimer?.cancel(); // v598 — la caméra repart : pas de renvoi d'images.
     _zoomLevel = pos.zoom;
+    _camBearing612 = pos.bearing;
+    _camTilt612 = pos.tilt;
+    _lastCam612 = pos;
     // v456 — viseur « point rouge au centre » : l'emplacement choisi SUIT le
     // centre de la carte que l'utilisateur déplace sous le repère rouge fixe
     // (placement précis, façon Uber). Plus de pin à faire glisser.
@@ -3575,6 +3623,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _firstIdleSeen = true;
       pawMap603Log('1er onCameraIdle');
       _cover.mapReady();
+      _dropVeil612(const Duration(milliseconds: 250)); // 612
       // 607 — mesure de fluidité (build de mesure seulement).
       if (PawProbe607.instance.enabled) {
         unawaited(PawProbe607.instance.run(_activeMapCtl));
@@ -3770,7 +3819,29 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// sur MOI au zoom de rue, penchée, et me suit (sauf si je suis quelqu'un
   /// ou si j'ai déjà déplacé la carte à la main depuis le départ).
   Future<void> _enterWalkCamera() async {
-    if (!mounted || (_followUserId ?? '').isNotEmpty) return;
+    if (!mounted) return;
+    // 612 (Daniel, vocal 21 h 02 : « moi j'ai la 3D et chez Cam pas ») —
+    // Cam SUIVAIT john quand elle a lancé sa Balade : la vue rue penchée
+    // était sautée. Même vue pour tous : penchée sur la personne suivie, au
+    // même zoom (rue au minimum), sans tourner la carte.
+    if ((_followUserId ?? '').isNotEmpty) {
+      final uid = _followUserId!;
+      final fp = _liveMap.friendPositions[uid];
+      final LatLng? at = _glidePos612 ??
+          (fp == null ? null : LatLng(fp.latitude, fp.longitude));
+      if (at == null) return;
+      final ctl = await _activeMapCtl();
+      if (ctl == null) return;
+      _walkTilted = true;
+      try {
+        await ctl.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
+            target: at,
+            zoom: pawFollowZoom(_zoomLevel),
+            tilt: kPawWalkTilt,
+            bearing: _camBearing612)));
+      } catch (_) {/* carte pas prête */}
+      return;
+    }
     final me = _liveMap.myLivePosition.value ?? _userPosition;
     if (me == null) return;
     _meFollowCamera = true;
@@ -3785,8 +3856,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     final ctl = await _activeMapCtl();
     if (ctl == null) return;
     try {
-      await ctl.animateCamera(CameraUpdate.newCameraPosition(
-          pawWalkFlatCamera(_currentCenter, _zoomLevel)));
+      // 612 — pendant un suivi, la remise à plat reste centrée sur la
+      // personne suivie.
+      final LatLng c = (_followUserId != null ? _glidePos612 : null) ?? _currentCenter;
+      await ctl.animateCamera(
+          CameraUpdate.newCameraPosition(pawWalkFlatCamera(c, _zoomLevel)));
     } catch (_) {/* carte pas prête */}
   }
 
@@ -4414,65 +4488,14 @@ class _PawMapScreenState extends State<PawMapScreen>
   // suffisent, et la carte respire mieux (moins de cercles à redessiner).
   // Restent : mon halo (couleur du rôle ; il ne pulse que quand je partage ma
   // position), le halo violet des amis en direct, et l'anneau de suivi.
-  Set<Circle> _buildHaloCircles() {
-    final Set<Circle> circles = {};
-    final userPos = _userPosition;
-    if (userPos != null && _showLiveLayer.value) {
-      final bool live = _liveMap.broadcasting.value;
-      final phase = live ? _haloPhase.value : 0.35;
-      final userRadius = 25.0 + 75.0 * phase;
-      final userOpacity = (0.55 * (1.0 - phase)).clamp(0.0, 1.0);
-      final userColor = PawMapLegend.roleColor(_role);
-      circles.add(
-        Circle(
-          circleId: const CircleId('user_halo_outer'),
-          center: userPos,
-          radius: userRadius,
-          fillColor: userColor.withValues(alpha: userOpacity * 0.4),
-          strokeColor: userColor.withValues(alpha: userOpacity),
-          strokeWidth: 2,
-        ),
-      );
-    }
-    if (!_showLiveLayer.value) return circles;
-    try {
-      final follow = _followUserId?.trim().toLowerCase();
-      for (final pos in _liveMap.friendPositions.values) {
-        // 607 (PAM, vu au simulateur) — un ami qui a ARRÊTÉ son direct
-        // gardait son halo violet, seul, sans épingle. Mêmes règles que son
-        // épingle (_buildMarkers) : pastille Amis allumée, et pas « vu il y a ».
-        if (!pawFriendHaloShown(showFriends: _showFriends.value, state: pos.liveState)) continue;
-        final normUserId = pos.userId.trim().toLowerCase();
-        // Halo PawFollow violet, FIXE, sous l'ami en direct.
-        circles.add(
-          Circle(
-            circleId: CircleId('live_halo_${pos.userId}'),
-            center: LatLng(pos.latitude, pos.longitude),
-            radius: 55,
-            fillColor: PawMapLegend.pawFollow.withValues(alpha: 0.12),
-            strokeColor: PawMapLegend.pawFollow.withValues(alpha: 0.55),
-            strokeWidth: 2,
-          ),
-        );
-        // v23.1.274 — anneau de SUIVI (respire) sur la personne suivie.
-        if (follow != null && normUserId == follow) {
-          final phase = _haloPhase.value;
-          circles.add(
-            Circle(
-              circleId: CircleId('follow_track_${pos.userId}'),
-              center: LatLng(pos.latitude, pos.longitude),
-              radius: 30 + (phase * 40),
-              fillColor: PawMapLegend.pawFollow.withValues(alpha: 0.10 * (1 - phase)),
-              strokeColor: PawMapLegend.pawFollow.withValues(alpha: 0.95),
-              strokeWidth: 4,
-              zIndex: 5,
-            ),
-          );
-        }
-      }
-    } catch (_) {/* defensive */}
-    return circles;
-  }
+  // 612 (Daniel, 05/10 : « les cercles violets ça sert à rien », captures
+  // 9-12) — les 3 cercles EN MÈTRES (mon halo 25-100 m, halo violet 55 m de
+  // chaque ami en direct, anneau de suivi 30-70 m) couvraient l'écran au
+  // zoom rue et changeaient de taille par à-coups pendant un zoom. RETIRÉS :
+  // le seul halo qui reste est la lueur DESSINÉE DANS la photo (violette qui
+  // respire sur la personne suivie, turquoise PawBoost), de taille fixe.
+  Set<Circle> _buildHaloCircles() => const <Circle>{};
+
 
   // ─── Marker building ─────────────────────────────────────────────────────
   // v23.1 part 243 round 3 — cache des marqueurs : `_buildMarkers` ne tourne
@@ -4658,7 +4681,16 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// 607 — amis décalés en éventail autour de « Moi » (décalage écran) et
   /// les traits qui les relient à leur vraie position.
   final Map<String, Offset> _liveFan607 = <String, Offset>{};
-  final Set<Polyline> _fanLines607 = <Polyline>{};
+  /// 612 — décalage (px d'écran) de « Moi » quand il couvrirait la personne
+  /// que je suis ; cap et inclinaison de la caméra (lus à chaque mouvement).
+  Offset _meShift612 = Offset.zero;
+  Offset _meAnchor612 = const Offset(0.5, 0.5);
+  double _meIconW612 = 0;
+  double _meIconH612 = 0;
+  double _camBearing612 = 0;
+  double _camTilt612 = 0;
+  /// 612 — dernière position de caméra (lue par les tests d'intégration).
+  CameraPosition? _lastCam612;
 
   /// Zoom « rue » à partir duquel le prix s'affiche sous l'épingle (idée 2).
   // v591 — Daniel : « que la bulle prix s'affiche un peu avant de trop zoomer » (15 → 13).
@@ -4703,6 +4735,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     final double dx = (w - PawMapPinPainter.memberBitmapSize(size, margin: mm)) / 2;
     final h = PawMapPinPainter.memberBitmapSize(size,
         withLabel: withLabel, withBubble: withBubble, margin: mm);
+    _lastIconW = w; // 612 — décalage par l'ancre
+    _lastIconH = h;
     return _pins.getOrBuild(
           key,
           w,
@@ -4790,6 +4824,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     final double dx = (w - baseW) / 2;
     final h = PawMapPinPainter.photoBitmapSize(size, withLabel: withLabel, margin: m) +
         (withBubble ? PawMapPinPainter.priceBubbleZone : 0);
+    _lastIconW = w; // 612 — décalage par l'ancre
+    _lastIconH = h;
     return _pins.getOrBuild(
           key,
           w,
@@ -4833,6 +4869,15 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Marge du DERNIER rond photo dessiné : chaque appel à [_photoAnchor]
   /// suit immédiatement le [_photoIcon] du même marqueur.
   double _lastPhotoMargin = PawMapPinPainter.photoMargin;
+  /// 612 — taille (dp) de la DERNIÈRE image de rond construite
+  /// ([_photoIcon] / [_memberIcon]) : sert à décaler l'image par l'ancre.
+  double _lastIconW = 0;
+  double _lastIconH = 0;
+
+  /// 612 — décalage anti-chevauchement en PIXELS d'écran → ancre (la
+  /// position du marqueur reste la vraie position : rien ne saute au zoom).
+  Offset _anchorShift(Offset base, Offset shiftPx) =>
+      pawShiftedAnchor612(base, shiftPx, width: _lastIconW, height: _lastIconH);
 
   Offset _photoAnchor(double size,
       {bool withLabel = false, bool withBubble = false, bool labelAbove = false}) {
@@ -5078,11 +5123,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   static String _priceUnitSuffix(String unit) =>
       unit == 'month' ? 'pm605_per_month'.tr : 'pm605_per_week'.tr;
 
-  LatLng _fanTarget(LatLng p, Offset sh) {
-    final (la, ln) = pawMercatorToLatLng(
-        pawMercatorPx(p.latitude, p.longitude, _zoomLevel) + sh, _zoomLevel);
-    return LatLng(la, ln);
-  }
 
   /// 607 — peluches posées PAR-DESSUS les marqueurs mémoïsés (la liste en
   /// cache n'est jamais recalculée pour elles).
@@ -5293,6 +5333,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (kPawMap603Probe) PawProbe607.instance.onBuildMarkers();
     final Set<Marker> markers = {};
     _anyBoosted = false;
+    _meShift612 = Offset.zero; // 612 — recalculé plus bas (membres)
+    _liveFan607.clear();
     // ── MOI : ma photo 56 px, anneau à la couleur de mon rôle, « Moi »,
     // couronne si Premium ; mode « amis seulement » = anneau pointillé +
     // œil barré (seul moi le vois : mes amis me voient normalement).
@@ -5329,7 +5371,11 @@ class _PawMapScreenState extends State<PawMapScreen>
               eyeOff: _friendsOnly,
               fallbackTint: roleColor,
             ),
-            anchor: _photoAnchor(PawMapLegend.meSize, withLabel: true),
+            anchor: (() {
+              _meIconW612 = _lastIconW;
+              _meIconH612 = _lastIconH;
+              return _meAnchor612 = _photoAnchor(PawMapLegend.meSize, withLabel: true);
+            })(),
             zIndexInt: 10,
             consumeTapEvents: true, // v590 — zoom géré par la carte focus
             onTap: _onMeTap,
@@ -5539,12 +5585,15 @@ class _PawMapScreenState extends State<PawMapScreen>
       // 607 — ce qui est posé à l'écran (px), pour que les pastilles s'écartent
       // de Moi / des amis et que les étiquettes « Vu il y a » ne se posent sur
       // rien. Rayons = ronds dessinés (+ anneau).
-      Offset pxOf(LatLng p) =>
-          pawMercatorPx(p.latitude, p.longitude, _zoomLevel);
-      LatLng shiftedTarget(LatLng p, Offset sh) {
-        final (la, ln) = pawMercatorToLatLng(pxOf(p) + sh, _zoomLevel);
-        return LatLng(la, ln);
-      }
+      // 612 — pixels d'ÉCRAN réels : carte tournée (cap de marche) et
+      // penchée (vue rue). Avant : Mercator à plat → en Balade, deux photos
+      // « séparées » se recouvraient encore à l'écran (captures 4, 6, 9).
+      final Offset camPx = pawMercatorPx(
+          _currentCenter.latitude, _currentCenter.longitude, _zoomLevel);
+      Offset pxOf(LatLng p) => pawScreenDelta(
+          pawMercatorPx(p.latitude, p.longitude, _zoomLevel) - camPx,
+          bearingDeg: _camBearing612,
+          tiltDeg: _camTilt612);
       final List<Offset> fixedPx = <Offset>[]; // Moi + amis (jamais regroupés)
       final List<double> fixedR = <double>[]; // 607 — leurs rayons dessinés
       final List<Rect> meRects = <Rect>[];
@@ -5603,6 +5652,13 @@ class _PawMapScreenState extends State<PawMapScreen>
         for (final fp in _liveMap.friendPositions.values)
           if (fp.liveState != FriendLiveState.seen) fp
       ];
+      // 612 (Daniel, captures 11-12) — la personne SUIVIE n'est JAMAIS
+      // décalée : sa photo est sur sa vraie position, au bout de son tracé.
+      // Ce sont les AUTRES photos qui s'écartent (et « Moi » s'il la couvre).
+      final followedIdx = <int>[
+        for (var k = 0; k < liveFriends.length; k++)
+          if (_followedByMe(liveFriends[k])) k
+      ];
       final friendIdx = <int>[
         for (var i = 0; i < groups.length; i++)
           if (groupIsFriend[i]) i
@@ -5611,10 +5667,15 @@ class _PawMapScreenState extends State<PawMapScreen>
         for (final fp in liveFriends) pxOf(LatLng(fp.latitude, fp.longitude)),
         for (final i in friendIdx) groupPx[i],
       ];
-      final fanShift = meAt == null
-          ? List<Offset>.filled(fanAt.length, Offset.zero)
-          : pawRepelBoxes(fanAt, [for (final _ in fanAt) friendBox],
-              [PawPlacedBox(meAt, meBox)]);
+      final fan = pawFan612(
+        meAt: meAt,
+        meBox: meBox,
+        friendsAt: fanAt,
+        friendBox: friendBox,
+        followed: followedIdx.toSet(),
+      );
+      _meShift612 = fan.me;
+      final fanShift = fan.friends;
       _liveFan607.clear();
       for (var k = 0; k < liveFriends.length; k++) {
         if (fanShift[k] != Offset.zero) _liveFan607[liveFriends[k].userId] = fanShift[k];
@@ -5624,7 +5685,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         groupShift[friendIdx[k]] = fanShift[liveFriends.length + k];
       }
       final fixedBoxes = <PawPlacedBox>[
-        if (meAt != null) PawPlacedBox(meAt, meBox),
+        if (meAt != null) PawPlacedBox(meAt + _meShift612, meBox),
         for (var k = 0; k < fanAt.length; k++) PawPlacedBox(fanAt[k] + fanShift[k], friendBox),
       ];
       // Boîte réelle de chaque pastille / membre seul.
@@ -5661,20 +5722,9 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (movable[i]) groupShift[i] = moved[i];
         if (groupShift[i] != Offset.zero) groupPx[i] = groupPx[i] + groupShift[i];
       }
-      // Traits de l'éventail (vraie position → rond décalé), rose ami.
-      _fanLines607.clear();
-      for (var k = 0; k < fanAt.length; k++) {
-        if (fanShift[k].distance < 8) continue;
-        final (la0, ln0) = pawMercatorToLatLng(fanAt[k], _zoomLevel);
-        final (la1, ln1) = pawMercatorToLatLng(fanAt[k] + fanShift[k], _zoomLevel);
-        _fanLines607.add(Polyline(
-          polylineId: PolylineId('fan607_$k'),
-          points: [LatLng(la0, ln0), LatLng(la1, ln1)],
-          color: PawMapLegend.friend,
-          width: 2,
-          zIndex: 5,
-        ));
-      }
+      // 612 — plus AUCUN trait rose « vraie position → rond décalé »
+      // (Daniel : « moche, ça sert à quoi ») : le décalage est court et
+      // un appui sur la photo recentre sur la vraie position.
       final List<Rect> placedLabels = <Rect>[];
       List<Rect> obstaclesBut(int self) => <Rect>[
             ...meRects,
@@ -5698,7 +5748,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             Marker(
               markerId: MarkerId('mcluster_${target.latitude.toStringAsFixed(4)}'
                   '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
-              position: sh == Offset.zero ? target : shiftedTarget(target, sh),
+              // 612 — décalé par l'ANCRE (px) : rien ne saute pendant un zoom.
+              position: target,
               // v592 — un groupe qui contient un ami porte l'anneau rose (web).
               icon: _memberClusterIcon(group.length, roleCounts,
                   hasFriend: group.any((m) =>
@@ -5706,7 +5757,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                       _friendController.isFriendWithAny(pawMapPersonIds(m)))),
               // 607 (02/10) — écarté (au plus 60 px) de Moi / d'un ami par sa
               // POSITION : l'ancre reste au centre de l'image.
-              anchor: const Offset(0.5, 0.5),
+              anchor: pawShiftedAnchor612(const Offset(0.5, 0.5), sh,
+                  width: PawMapPinPainter.memberClusterWidth(
+                          group.length > 99 ? 100 : group.length) +
+                      12,
+                  height: PawMapLegend.memberClusterHeight + 12),
               zIndexInt: 7,
               consumeTapEvents: true,
               onTap: () => _zoomToCluster(target, members: group),
@@ -5934,10 +5989,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         markers.add(
           Marker(
             markerId: MarkerId('nearby_$id'),
-            // 607 — écarté de « Moi » (position dessinée seulement).
-            position: singleShift == Offset.zero ? pos : shiftedTarget(pos, singleShift),
+            // 607 — écarté de « Moi » ; 612 : par l'ANCRE (px d'écran), la
+            // position reste la vraie : rien ne saute pendant un zoom.
+            position: pos,
             icon: icon,
-            anchor: anchor,
+            anchor: _anchorShift(anchor, singleShift),
             // v584 — boosté = visible en premier (point 16).
             zIndexInt: selected ? 9 : (isFriend ? 8 : (boosted ? 7 : 6)),
             // v590 — handoff §2 : on gère nous-mêmes le zoom (sinon Google
@@ -5981,12 +6037,16 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (incoming610 != null && incoming610.other != null) {
           markers.add(Marker(
             markerId: MarkerId('freq610_$id'),
-            position: singleShift == Offset.zero ? pos : shiftedTarget(pos, singleShift),
+            position: pos,
             icon: _pins.getOrBuild('freq610', kPm610BadgeSize, kPm610BadgeSize,
                     (c) => paintFriendRequestBadge610(c)) ??
                 PawMapPinCache.transparent,
-            anchor: pawFriendBadgeAnchor610(
-                (isFriend ? PawMapLegend.friendSize : PawMapLegend.memberSize) / 2),
+            anchor: pawShiftedAnchor612(
+                pawFriendBadgeAnchor610(
+                    (isFriend ? PawMapLegend.friendSize : PawMapLegend.memberSize) / 2),
+                singleShift,
+                width: kPm610BadgeSize,
+                height: kPm610BadgeSize),
             zIndexInt: 10,
             consumeTapEvents: true,
             onTap: () => _openFriendReqSheet610(incoming610),
@@ -6147,6 +6207,19 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
     }
 
+    // 612 — « Moi » ne s'écarte que s'il recouvrait la personne que je suis
+    // (calculé avec les membres, plus haut) : décalé par l'ANCRE.
+    if (_meShift612 != Offset.zero) {
+      final me = markers.where((m) => m.markerId.value == 'me').toList();
+      if (me.isNotEmpty) {
+        markers
+          ..remove(me.first)
+          ..add(me.first.copyWith(
+              anchorParam: pawShiftedAnchor612(_meAnchor612, _meShift612,
+                  width: _meIconW612, height: _meIconH612)));
+      }
+    }
+
     // ── AMIS EN DIRECT : leur photo, anneau rose, point vert ──
     if (_showFriends.value && _showLiveLayer.value) {
       final friendById = {
@@ -6206,10 +6279,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         markers.add(
           Marker(
             markerId: MarkerId('friend_${pos.userId}'),
-            // 607 — décalé en éventail s'il était caché sous « Moi ».
-            position: _liveFan607[pos.userId] == null
-                ? LatLng(pos.latitude, pos.longitude)
-                : _fanTarget(LatLng(pos.latitude, pos.longitude), _liveFan607[pos.userId]!),
+            // 607 — écarté de « Moi » ; 612 : par l'ANCRE (la position reste
+            // la vraie) et JAMAIS pour la personne que je suis (sa photo est
+            // au bout de son tracé). Sa position glisse : [_withFollowGlide612].
+            position: LatLng(pos.latitude, pos.longitude),
             icon: _photoIcon(
               keyPrefix: 'live:${pos.userId}',
               avatarUrl: avatarUrl,
@@ -6234,9 +6307,15 @@ class _PawMapScreenState extends State<PawMapScreen>
                   : null,
               fallbackTint: PawMapLegend.roleColor(role),
             ),
-            anchor: _photoAnchor(PawMapLegend.friendSize,
-                withLabel: _pinZoom >= _priceZoom || _focusTapId == pos.userId),
-            zIndexInt: 9, // v587 — le direct au-dessus de tout (sauf Moi)
+            anchor: _anchorShift(
+                _photoAnchor(PawMapLegend.friendSize,
+                    withLabel: _pinZoom >= _priceZoom || _focusTapId == pos.userId),
+                _followedByMe(pos)
+                    ? Offset.zero
+                    : (_liveFan607[pos.userId] ?? Offset.zero)),
+            // v587 — le direct au-dessus de tout (sauf Moi) ; 612 : la
+            // personne SUIVIE passe au-dessus de « Moi ».
+            zIndexInt: _followedByMe(pos) ? 11 : 9,
             consumeTapEvents: true, // v590 — zoom géré par la carte focus
             // v584 (25/09, point 14) — taper un ami ouvre SA FICHE, avec
             // « Suivre la balade · en direct » en bouton principal (plus de
@@ -6657,6 +6736,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             onPointerDown: (_) {
               // v603 — premier geste, où qu'il soit : la photo s'en va.
               _cover.dismiss('geste');
+              _dropVeil612(); // 612
               _restoreChrome();
             },
             behavior: HitTestBehavior.translucent,
@@ -6703,6 +6783,38 @@ class _PawMapScreenState extends State<PawMapScreen>
             Positioned.fill(
               key: const ValueKey<String>('pawmap_cover_layer'),
               child: _buildLaunchCover(),
+            ),
+            // 612 (mesuré sur émulateur Android, APK release) — entre la
+            // création de la carte et ses premières tuiles, la vue Google
+            // est NOIRE (~0,75 s) puis grise (~1 s), bien plus sur un
+            // téléphone lent. Android seulement : le fond « Carte en
+            // préparation… » (ou la dernière photo) reste PAR-DESSUS jusqu'à
+            // la carte prête, au 1er geste, ou 4 s au plus.
+            Positioned.fill(
+              key: const ValueKey<String>('pawmap_veil612_layer'),
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _veil612,
+                builder: (_, on, __) => IgnorePointer(
+                  child: AnimatedOpacity(
+                    opacity: on ? 1 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    onEnd: () {
+                      if (!_veil612.value && !_veilGone612 && mounted) {
+                        setState(() => _veilGone612 = true);
+                      }
+                    },
+                    child: _veilGone612
+                        ? const SizedBox.shrink()
+                        : (_snapshot != null
+                            ? Image.file(File(_snapshot!.path),
+                                fit: BoxFit.cover,
+                                gaplessPlayback: true,
+                                excludeFromSemantics: true,
+                                errorBuilder: (_, __, ___) => _veilPlaceholder612())
+                            : _veilPlaceholder612()),
+                  ),
+                ),
+              ),
             ),
             // v596 — Daniel (27/09) : « je veux que ce soit sans attente, sur
             // tous les téléphones, c'est tout ». Le voile de chargement des
@@ -7213,11 +7325,27 @@ class _PawMapScreenState extends State<PawMapScreen>
   void _markZoomGesture() {
     _userMovedMap = true;
     _lastGestureAt = DateTime.now();
+    // 612 — pendant l'animation du zoom (+ / −), la caméra du suivi ne la
+    // coupe pas : elle attend 700 ms (zoomer garde le centre = la personne).
+    if (_followUserId != null) {
+      final until = DateTime.now().add(const Duration(milliseconds: 700));
+      if (_followHoldUntil == null || _followHoldUntil!.isBefore(until)) {
+        _followHoldUntil = until;
+      }
+      _armRecenter612(const Duration(milliseconds: 700));
+    }
   }
 
   /// v605 — bouton « Ma position » : la caméra revient à moi (et me suit
   /// pendant ma balade).
   Future<void> _onMyPositionButton() async {
+    // 612 — critère 1 du §0 : pendant un SUIVI, le bouton de recentrage
+    // revient sur la personne suivie, AU MÊME ZOOM (avant : sur moi, puis
+    // le suivi tirait la caméra ailleurs).
+    if (_followUserId != null) {
+      _resumeFollow();
+      return;
+    }
     _userMovedMap = false;
     _friendFocusRequested = false;
     _explicitStart = false;
@@ -7283,6 +7411,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         // Un doigt a fait GLISSER la carte : on la laisse 3 s, puis elle
         // recolle d'elle-même (le suivi ne se met jamais en pause).
         _followHoldUntil = DateTime.now().add(_followHoldAfterLift);
+        _armRecenter612(_followHoldAfterLift); // 612
       }
     }
     _fade.end();
@@ -7498,13 +7627,13 @@ class _PawMapScreenState extends State<PawMapScreen>
       _friendController.incomingRequests.length;
       _friendReqRev610.value;
       // v590 — tracé de balade animé (focus + ma balade).
-      _walkPhase.value;
       _focusCard.value;
       _liveMap.myTrail.length;
       _liveMap.friendTrails.length;
       // 607 — mini-peluches (liste + réglage).
       _plush.items.length;
       _plush.shown.value;
+      _glideTick612.value; // 612 — la photo suivie glisse
       // v552 — mode nuit.
       final night = _nightMode.value;
       return GoogleMap(
@@ -7555,7 +7684,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         // suivi « en pause » tout seul. La pause vient du VRAI geste (glisser
         // > 12 px ou pincer), lu par `_onMapPointer*` (PawMapDragWatch).
         onCameraIdle: _scheduleReload,
-        myLocationEnabled: true,
+        // 612 — UNE position par personne : le point bleu natif de Google
+        // doublait « Moi » (et restait seul quand « Moi » s'écarte de la
+        // personne suivie). Gardé seulement tant que « Moi » n'est pas posé.
+        myLocationEnabled: _userPosition == null,
         // v23.1 part 68 — nos propres commandes (capsule droite).
         myLocationButtonEnabled: false,
         zoomControlsEnabled: false,
@@ -7599,13 +7731,14 @@ class _PawMapScreenState extends State<PawMapScreen>
               }
             : const <TileOverlay>{},
         // v23.1 part 243 round 3 — marqueurs mémoïsés (_getMarkersFromCache).
-        markers: _probeMarkers(_withPlush(_routeStepMarkers.isEmpty
+        markers: _probeMarkers(_withFollowGlide612(_withPlush(_routeStepMarkers.isEmpty
             ? _getMarkersFromCache()
-            : {..._getMarkersFromCache(), ..._routeStepMarkers})),
-        circles: {..._buildHaloCircles(), ..._walkStartCircles()},
+            : {..._getMarkersFromCache(), ..._routeStepMarkers}))),
+        circles: _buildHaloCircles(), // 612 — vide (voir la méthode)
         // v23.1.353 — polyline de l'itinéraire "Y aller" ; v584 — tracé
         // violet du suivi.
-        polylines: {..._routePolylines, ..._followPolylines(), ..._walkPolylines(), ..._fanLines607},
+        // 612 — un seul tracé (balade suivie, ou la mienne) + l'itinéraire.
+        polylines: {..._routePolylines, ..._walkPolylines()},
       );
     });
   }
@@ -8159,7 +8292,12 @@ class _PawMapScreenState extends State<PawMapScreen>
       _followPaused = false;
       _followTrail = <LatLng>[pos];
     });
-    _animateFollowCamera(pos, zoom: zoom ?? _followZoom);
+    _stopGlide612();
+    _glidePos612 = pos; // 612 — la photo part de là, sans glisser
+    _animateFollowCamera(pos, zoom: pawFollowZoom(math.max(zoom ?? 0, _zoomLevel)));
+    // 612 — en Balade, la vue rue penchée vaut aussi pendant un suivi
+    // (avant : à plat chez Cam qui suivait john, en 3D chez john).
+    if (_liveMap.broadcasting.value) unawaited(_enterWalkCamera());
     // v604 — vérité partagée « je le suis » (chat, carte, feuilles).
     _liveMap.markFollowing(userId, name: name, avatar: avatar, role: role);
     // v589 — la personne suivie voit « un œil + le nombre » sur sa pilule.
@@ -8209,13 +8347,13 @@ class _PawMapScreenState extends State<PawMapScreen>
     try {
       final ctl = await _mapCtl.future.timeout(const Duration(seconds: 8));
       if (!mounted) return;
-      await ctl.animateCamera(
-          CameraUpdate.newLatLngZoom(at, kPawMapFriendFocusZoom));
+      // 612 — en direct : zoom rue, jamais de dézoom.
+      await ctl.animateCamera(CameraUpdate.newLatLngZoom(
+          at, liveNow ? pawFollowZoom(_zoomLevel) : kPawMapFriendFocusZoom));
     } catch (_) {/* carte pas prête : initialCameraPosition fera foi */}
     if (!mounted) return;
     if (liveNow) {
-      _startFollow(liveKey, at, f.name,
-          avatar: f.avatar, role: f.role, zoom: kPawMapFriendFocusZoom);
+      _startFollow(liveKey, at, f.name, avatar: f.avatar, role: f.role);
     }
     _onNearbyTap(
       id: f.userId,
@@ -8337,7 +8475,10 @@ class _PawMapScreenState extends State<PawMapScreen>
       return;
     }
     setState(() => _followPaused = false);
-    _animateFollowCamera(LatLng(fp.latitude, fp.longitude), zoom: _followZoom);
+    // 612 — « Recentrer sur Cam » : MÊME zoom (avant : 16,5 en dur = dézoom).
+    _followHoldUntil = null;
+    _animateFollowCamera(_glidePos612 ?? LatLng(fp.latitude, fp.longitude),
+        zoom: pawFollowZoom(_zoomLevel));
   }
 
   /// Arrête le suivi (bouton Stop, retour Android).
@@ -8366,6 +8507,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _followPaused = false;
       _followTrail = const <LatLng>[];
     });
+    _stopGlide612();
   }
 
   /// Tracé violet PawFollow derrière la personne suivie.
@@ -8375,17 +8517,134 @@ class _PawMapScreenState extends State<PawMapScreen>
   // pour la personne sur laquelle on a zoomé (carte focus) si elle est en
   // balade, et pour MA balade tant que je suis en direct. Le tracé suit la
   // carte (il zoome avec elle) ; le marqueur reste de taille constante.
-  final RxInt _walkPhase = 0.obs;
-  Timer? _walkTimer;
-  static const int _walkSteps = 8; // 8 × 200 ms = 1,6 s
+  Timer? _walkTimer; // 612 — plus d'animation des pointillés (inutilisé)
+
+  // ── 612 — la photo de la personne SUIVIE glisse (critère 3 du §0) ──
+  LatLng? _glidePos612;
+  LatLng? _glideFrom612;
+  LatLng? _glideTo612;
+  DateTime? _glideStart612;
+  Timer? _glideTimer612;
+  final RxInt _glideTick612 = 0.obs;
+  static const Duration _glideDur612 = Duration(milliseconds: 900);
+
+  void _glideFollowedTo612(LatLng to, {bool moveCamera = true}) {
+    final from = _glidePos612 ?? to;
+    _glideTimer612?.cancel();
+    _glideFrom612 = from;
+    _glideTo612 = to;
+    _glideStart612 = DateTime.now();
+    if (from == to || _reduceMotion) {
+      _glidePos612 = to;
+      _glideTick612.value++;
+      if (moveCamera) unawaited(_moveFollowCam612(to));
+      return;
+    }
+    _glideTimer612 = Timer.periodic(const Duration(milliseconds: 40), (t) {
+      if (!mounted || _glideStart612 == null) {
+        t.cancel();
+        return;
+      }
+      final el = DateTime.now().difference(_glideStart612!).inMilliseconds /
+          _glideDur612.inMilliseconds;
+      final p = pawGlide612(_glideFrom612!, _glideTo612!, el);
+      _glidePos612 = p;
+      _glideTick612.value++;
+      // 612 — l'attente est relue à CHAQUE pas (avant : figée au départ du
+      // glissement → la caméra ne suivait plus du tout ce déplacement).
+      if (!_followPaused && !_followCameraHeld()) {
+        unawaited(_moveFollowCam612(p));
+      }
+      if (el >= 1) t.cancel();
+    });
+  }
+
+  Future<void> _moveFollowCam612(LatLng p) async {
+    final ctl = await _activeMapCtl();
+    if (ctl == null) return;
+    try {
+      await ctl.moveCamera(CameraUpdate.newLatLng(p)); // garde zoom, cap, pente
+    } catch (_) {/* carte pas prête */}
+  }
+
+  void _stopGlide612() {
+    _glideTimer612?.cancel();
+    _glideTimer612 = null;
+    _glidePos612 = null;
+    _glideStart612 = null;
+  }
+
+  /// 612 — le rond de la personne suivie est posé à sa position GLISSÉE
+  /// (hors cache des marqueurs, qui ne connaît que les points reçus).
+  Set<Marker> _withFollowGlide612(Set<Marker> m) {
+    final g = _glidePos612;
+    if (_followUserId == null || g == null) return m;
+    String? key;
+    for (final e in _liveMap.friendPositions.entries) {
+      if (_followedByMe(e.value)) {
+        key = e.key;
+        break;
+      }
+    }
+    if (key == null) return m;
+    final id = 'friend_$key';
+    // Critère 4 du §0 : les peluches ne passent JAMAIS devant le suivi —
+    // sous les personnes, et retirées autour de la photo suivie (60 px).
+    final gPx = pawMercatorPx(g.latitude, g.longitude, _zoomLevel);
+    final out = <Marker>{};
+    for (final mk in m) {
+      final v = mk.markerId.value;
+      if (v == id) {
+        out.add(mk.copyWith(positionParam: g));
+      } else if (v.startsWith('plush_')) {
+        final at = pawMercatorPx(mk.position.latitude, mk.position.longitude, _zoomLevel);
+        if (pawPlushHiddenNearFollowed612(at, gPx)) continue;
+        out.add(mk.copyWith(zIndexIntParam: 4));
+      } else {
+        out.add(mk);
+      }
+    }
+    return out;
+  }
 
   /// Tracés à dessiner : (id, points, couleur du rôle).
   List<(String, List<LatLng>, Color)> _walkTrails() {
+    // 612 (Daniel, captures 5, 10, 11) — UN SEUL tracé, net et lissé :
+    //   · pendant un SUIVI : celui de la personne suivie (violet PawFollow,
+    //     qui finit exactement sous sa photo), et rien d'autre ;
+    //   · sinon : ma Balade, ou la personne dont la fiche est ouverte.
+    // Les sauts GPS (étoile autour du Mercadona) sont retirés puis la ligne
+    // est lissée ([pawCleanTrail612]).
     final out = <(String, List<LatLng>, Color)>[];
+    final uid = _followUserId;
+    if (uid != null) {
+      final k = uid.trim().toLowerCase();
+      List<LatLng> raw = const <LatLng>[];
+      for (final e in _liveMap.friendTrails.entries) {
+        final fp = _liveMap.friendPositions[e.key];
+        if (e.key.trim().toLowerCase() == k ||
+            (fp != null && fp.allIds.contains(k))) {
+          raw = e.value;
+          break;
+        }
+      }
+      if (raw.length < 2) raw = _followTrail;
+      final end = _glidePos612;
+      final pts = <LatLng>[...raw, if (end != null) end];
+      if (pts.length >= 2) {
+        out.add(('follow', pawCleanTrail612(pts), PawMapLegend.pawFollow));
+      }
+      return out;
+    }
     final focus = _focusCard.value;
     if (_liveMap.broadcasting.value && _liveMap.myTrail.length >= 2) {
-      out.add(('me', _liveMap.myTrail.toList(),
-          pawRoleSolid(_role.isEmpty ? 'owner' : _role)));
+      final mine = _liveMap.myTrail.toList();
+      final meNow = _liveMap.myLivePosition.value ?? _userPosition;
+      if (meNow != null) mine.add(meNow); // finit sous « Moi »
+      // Une seule couleur pour toute traîne de direct : violet PawFollow
+      // (c'est ce que dit l'aide « Comprendre la carte »).
+      out.add(('me', pawCleanTrail612(mine), PawMapLegend.pawFollow));
+      return out;
     }
     if (focus != null && focus.key != 'me') {
       final k = focus.key.trim().toLowerCase();
@@ -8394,7 +8653,8 @@ class _PawMapScreenState extends State<PawMapScreen>
         final match = e.key.trim().toLowerCase() == k ||
             (fp != null && fp.allIds.contains(k));
         if (match && e.value.length >= 2) {
-          out.add(('f_${e.key}', e.value, pawRoleSolid(fp?.role ?? focus.role)));
+          out.add(('f_${e.key}', pawCleanTrail612(e.value),
+              pawRoleSolid(fp?.role ?? focus.role)));
           break;
         }
       }
@@ -8402,96 +8662,36 @@ class _PawMapScreenState extends State<PawMapScreen>
     return out;
   }
 
-  void _syncWalkTimer(bool needed) {
-    if (needed && !_reduceMotion) {
-      _walkTimer ??= Timer.periodic(const Duration(milliseconds: 200), (_) {
-        if (!mounted) return;
-        _walkPhase.value = (_walkPhase.value + 1) % _walkSteps;
-      });
-    } else if (!needed && _walkTimer != null) {
-      _walkTimer?.cancel();
-      _walkTimer = null;
-    }
-  }
+
 
   Set<Polyline> _walkPolylines() {
-    final trails = _walkTrails();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _syncWalkTimer(trails.isNotEmpty);
-    });
-    if (trails.isEmpty) return const {};
-    // Pointillés « 1 9 » à l'échelle du trait (3,5) → 4 px / 36 px ; le
-    // décalage avance de 1/8 de période à chaque pas.
-    const double period = 16;
-    const double dash = 4;
-    final double off = period * (_walkPhase.value / _walkSteps);
-    final pattern = <PatternItem>[
-      PatternItem.gap(off <= 0 ? 0.1 : off),
-      PatternItem.dash(dash),
-      PatternItem.gap(period - dash - off <= 0 ? 0.1 : period - dash - off),
-    ];
-    final set = <Polyline>{};
-    for (final t in trails) {
-      set.add(Polyline(
-        polylineId: PolylineId('walk_halo_${t.$1}'),
-        points: t.$2,
-        color: Colors.white,
-        width: 7,
-        zIndex: 1,
-        startCap: Cap.roundCap,
-        endCap: Cap.roundCap,
-        jointType: JointType.round,
-      ));
-      set.add(Polyline(
-        polylineId: PolylineId('walk_${t.$1}'),
-        points: t.$2,
-        color: t.$3,
-        width: 4,
-        zIndex: 2,
-        patterns: _reduceMotion ? const <PatternItem>[] : pattern,
-        startCap: Cap.roundCap,
-        endCap: Cap.roundCap,
-        jointType: JointType.round,
-      ));
+    // 612 (Daniel, §7) — pendant le direct : une COURTE TRAÎNE derrière la
+    // photo (≈ 200 m, 2-3 min), fine, lissée, qui s'estompe vers l'arrière et
+    // finit sous la photo. Plus de tracé complet ni de pointillés animés. Le
+    // serveur garde le trajet entier.
+    final out = <Polyline>{};
+    for (final t in _walkTrails()) {
+      final tail = pawFadedTrail612(pawShortTrail612(t.$2));
+      for (var k = 0; k < tail.length; k++) {
+        out.add(Polyline(
+          polylineId: PolylineId('walk_${t.$1}_$k'),
+          points: tail[k].$1,
+          color: t.$3.withValues(alpha: tail[k].$2),
+          width: 3,
+          zIndex: 2,
+          startCap: k == 0 ? Cap.roundCap : Cap.buttCap,
+          endCap: k == tail.length - 1 ? Cap.roundCap : Cap.buttCap,
+          jointType: JointType.round,
+        ));
+      }
     }
-    return set;
+    return out;
   }
 
-  /// Point de départ : cercle blanc (≈ 5 px), contour 3 px couleur du rôle.
-  Set<Circle> _walkStartCircles() {
-    final trails = _walkTrails();
-    if (trails.isEmpty) return const {};
-    final double mpp = 156543.03392 *
-        math.cos(_currentCenter.latitude * math.pi / 180) /
-        math.pow(2, _zoomLevel);
-    return {
-      for (final t in trails)
-        Circle(
-          circleId: CircleId('walk_start_${t.$1}'),
-          center: t.$2.first,
-          radius: math.max(2.0, mpp * 5),
-          fillColor: Colors.white,
-          strokeColor: t.$3,
-          strokeWidth: 3,
-          zIndex: 3,
-        ),
-    };
-  }
 
-  Set<Polyline> _followPolylines() {
-    if (_followUserId == null || _followTrail.length < 2) return const {};
-    return {
-      Polyline(
-        polylineId: const PolylineId('follow_trail'),
-        points: List<LatLng>.unmodifiable(_followTrail),
-        color: PawMapLegend.pawFollow,
-        width: 4,
-        startCap: Cap.roundCap,
-        endCap: Cap.roundCap,
-        jointType: JointType.round,
-      ),
-    };
-  }
+  // 612 — retirés : le rond de départ du tracé (« petit rond rouge ») et le
+  // trait violet plein du suivi (doublon du tracé de la balade suivie).
+
 
   // v23.1.316 — Daniel : "le zoom de la PawMap tu peux améliorer ?". Avant :
   // zoomIn()/zoomOut() sautaient d'UN niveau entier (×2 d'un coup) -> effet
@@ -8503,6 +8703,25 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// sur un ami en direct avant d'ouvrir sa fiche).
   @visibleForTesting
   Future<GoogleMapController?> activeMapCtlForTest() => _activeMapCtl();
+  /// 612 — état de la caméra et du suivi, lu par le parcours au simulateur.
+  @visibleForTesting
+  Map<String, dynamic> p612DebugForTest() => <String, dynamic>{
+        'zoom': _zoomLevel,
+        'tilt': _lastCam612?.tilt ?? _camTilt612,
+        'bearing': _lastCam612?.bearing ?? _camBearing612,
+        'target': _lastCam612 == null
+            ? null
+            : [_lastCam612!.target.latitude, _lastCam612!.target.longitude],
+        'follow': _followUserId,
+        'glide': _glidePos612 == null
+            ? null
+            : [_glidePos612!.latitude, _glidePos612!.longitude],
+        'meShift': [_meShift612.dx, _meShift612.dy],
+        'fan': {for (final e in _liveFan607.entries) e.key: [e.value.dx, e.value.dy]},
+        'focus': _focusCard.value?.key,
+      };
+  @visibleForTesting
+  void p612MyPositionButtonForTest() => unawaited(_onMyPositionButton());
   /// 607 — état des peluches pour les tests d'intégration.
   String plushDebugForTest() =>
       'items=${_plush.items.length} visuels=${PawPlushLayer.iconsReady} '
@@ -10536,7 +10755,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     unawaited(() async {
       final ctl = await _activeMapCtl();
       if (ctl == null) return;
-      final double z = math.min(math.max(_zoomLevel + 1.5, 15.0), 18.0);
+      // 612 — on se rapproche, on ne recule JAMAIS (avant : plafond 18).
+      final double z = pawTapZoom(_zoomLevel);
       // Mètres par pixel à ce zoom ; 60 px vers le sud pour que le marqueur
       // reste un peu au-dessus du centre (la carte focus est en haut).
       final double mpp = 156543.03392 *

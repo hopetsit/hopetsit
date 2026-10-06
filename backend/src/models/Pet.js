@@ -7,6 +7,9 @@ const petSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // 612 — fiche minimale créée par le serveur pour une demande publiée sans
+    // animal enregistré (utils/postPet612.js). Le propriétaire la complète.
+    autoCreated: { type: Boolean, default: false },
     breed: {
       type: String,
       default: '',

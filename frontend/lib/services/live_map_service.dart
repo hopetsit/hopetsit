@@ -11,6 +11,7 @@ import 'package:geolocator_apple/geolocator_apple.dart' as gloc_apple;
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_follow612.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_config.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
@@ -1374,6 +1375,19 @@ class LiveMapService extends GetxService {
         locationSettings: _buildLocationSettings(degraded: _gpsDegraded),
       ).listen((pos) {
         final p = LatLng(pos.latitude, pos.longitude);
+        // 612 (Daniel, capture 5 : tracé en étoile autour du Mercadona) —
+        // un point imprécis (> 40 m) ou un saut impossible à pied, juste
+        // après un bon point, n'est ni envoyé à ceux qui me suivent, ni
+        // dessiné. Après 25 s sans bon point, on reprend ce qui vient.
+        if (!pawAcceptGpsFix612(
+          accuracyM: pos.accuracy,
+          fix: p,
+          lastGood: _lastKnownGps,
+          lastGoodAt: _lastGpsAt,
+          now: DateTime.now(),
+        )) {
+          return;
+        }
         final bool firstFix = _lastKnownGps == null;
         _lastKnownGps = p;
         _lastGpsAt = DateTime.now();

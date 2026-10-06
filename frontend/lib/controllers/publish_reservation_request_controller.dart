@@ -19,7 +19,7 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/publish_draft600.dart';
 import 'package:hopetsit/utils/service_location587.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart'
-    show cityPickedFromList610, markCityPicked610;
+    show cityPickedFromList610, cityPlaceIdOf610, markCityPicked610;
 // v575 — audit P1-7 : bornes de durée de promenade partagées avec le serveur.
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/walk_duration.dart';
@@ -1101,6 +1101,7 @@ class PublishReservationRequestController extends GetxController {
           city: city,
           lat: userLat.value,
           lng: userLng.value,
+          placeId: cityPlaceIdOf610(cityController),
           notes: notes,
           houseSittingVenue: venue,
           serviceLocation: svcLocation,
@@ -1122,6 +1123,7 @@ class PublishReservationRequestController extends GetxController {
           city: city,
           lat: userLat.value,
           lng: userLng.value,
+          placeId: cityPlaceIdOf610(cityController),
           notes: notes,
           houseSittingVenue: venue,
           serviceLocation: svcLocation,

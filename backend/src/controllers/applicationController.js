@@ -270,11 +270,31 @@ const createApplication = async (req, res) => {
 
     // Parse and validate pet IDs. Supports legacy petId and new petIds array.
     const mongoose = require('mongoose');
-    const incomingPetIds = Array.isArray(petIds) && petIds.length > 0
+    let incomingPetIds = Array.isArray(petIds) && petIds.length > 0
       ? petIds
       : petId
         ? [petId]
         : [];
+
+    // 612 §8 — demande publiée SANS animal enregistré (app 600, site) : on
+    // rattache l'animal de l'annonce (créé au besoin) au lieu de refuser la
+    // candidature. Avant : 400, et personne ne pouvait postuler (mesuré).
+    if (incomingPetIds.length === 0 && postId && mongoose.Types.ObjectId.isValid(String(postId))) {
+      try {
+        const Post = require('../models/Post');
+        const src = await Post.findOne({ _id: postId, ownerId }).select('ownerId petIds petId animalTypes postType').lean();
+        if (src) {
+          if (Array.isArray(src.petIds) && src.petIds.length) incomingPetIds = src.petIds.map(String);
+          else if (src.petId) incomingPetIds = [String(src.petId)];
+          else {
+            const r = await require('../utils/postPet612').attachPetToExistingPost(src);
+            if (r && r.id) incomingPetIds = [r.id];
+          }
+        }
+      } catch (e) {
+        logger.warn(`[createApplication] animal de l'annonce introuvable : ${e?.message || e}`);
+      }
+    }
 
     if (incomingPetIds.length === 0) {
       return res.status(400).json({ error: 'petIds (or petId) is required.' });
@@ -570,7 +590,7 @@ const createApplication = async (req, res) => {
     // the multi-candidates banner refresh immediately (instead of waiting for
     // the periodic poll). Bug 17 / B12.
     try {
-      const { emitToUser } = require('../sockets');
+      const { emitToUser } = require('../sockets/emitter'); // 612 (ZOE) — '../sockets' n'exporte PAS emitToUser : l'émission échouait en silence depuis avril (mesuré : 0 événement reçu)
       emitToUser('owner', ownerId.toString(), 'application:new', {
         applicationId: application._id.toString(),
         postId: application.postId ? application.postId.toString() : null,

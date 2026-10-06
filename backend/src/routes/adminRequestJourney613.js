@@ -257,6 +257,14 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
         const pr = person(x.recipientRole, x.recipientId);
         return { name: pr.name, role: x.recipientRole, city: pr.city, kind: pr.kind, at: x.createdAt, read: !!x.readAt, readAt: x.readAt || null, targeted: x.type === 'new_request_for_you' };
       });
+      // 612 (ZOE) — prévenus PAR CANAL, lus dans le registre des alertes (null pour
+      // une annonce d'avant le 612 : seule la cloche en garde la trace).
+      try {
+        const sum = await require('../services/requestAlert612').channelSummary(p._id);
+        item.alertChannels = sum.people
+          ? { people: sum.people, bell: sum.bell, push: sum.push, email: sum.email, emailUnsubscribed: sum.emailUnsubscribed, pushNoToken: sum.pushNoToken }
+          : null;
+      } catch (_) { item.alertChannels = null; }
       item.applications = a.map((x) => {
         const role = x.walkerId ? 'walker' : 'sitter';
         const pr = person(role, x.walkerId || x.sitterId);

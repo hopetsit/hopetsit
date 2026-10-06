@@ -7,15 +7,15 @@
   },
   "new_request_nearby": {
     "title": "Nuevo anuncio cerca de ti",
-    "body": "{{ownerName}} busca un cuidador en {{city}}. Abre la app para postularte.",
-    "emailSubject": "Nuevo anuncio — HoPetSit",
-    "emailBody": "<p>Acaba de publicarse un nuevo anuncio en tu zona. Abre la app HoPetSit para postularte.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir en la app</a></p>"
+    "body": "{{ownerName}} busca {{serviceLabel}} · {{cityLabel}}{{datesSep}}. Abre la app para postularte.",
+    "emailSubject": "Nuevo anuncio: {{serviceName}} · {{cityLabel}}",
+    "emailBody": "<p>{{ownerName}} busca {{serviceLabel}} cerca de ti.</p><p><strong>Ciudad:</strong> {{cityLabel}}<br><strong>Servicio:</strong> {{serviceName}}<br><strong>Fechas:</strong> {{dates}}</p><p>Sé de los primeros en responder: abre el anuncio en la app.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver el anuncio</a></p>"
   },
   "new_request_for_you": {
     "title": "{{ownerName}} te ha elegido",
     "body": "{{ownerName}} te ha elegido para su solicitud en {{city}}. Responde el primero: abre la app.",
     "emailSubject": "{{ownerName}} te ha elegido — HoPetSit",
-    "emailBody": "<p>{{ownerName}} te ha elegido para su solicitud de cuidado en {{city}}. Recibes el aviso el primero: responde rápido en la app.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir en la app</a></p>"
+    "emailBody": "<p>{{ownerName}} te ha elegido para su solicitud de cuidado en {{city}}. Recibes el aviso el primero: responde rápido en la app.</p><p><strong>Ciudad:</strong> {{cityLabel}}<br><strong>Servicio:</strong> {{serviceName}}<br><strong>Fechas:</strong> {{dates}}</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir en la app</a></p>"
   },
   "booking_new": {
     "title": "Nueva solicitud de reserva",
@@ -429,13 +429,13 @@
     "title": "Tu PawSpot está validado 🏆",
     "body": "La comunidad ha validado «{{spotName}}». Ganas {{points}} PawPoints y tu sitio luce la huella dorada 🐾.",
     "emailSubject": "Tu PawSpot está validado — HoPetSit",
-    "emailBody": "<p>¡Enhorabuena! La comunidad ha validado tu PawSpot «{{spotName}}». Ahora luce la huella dorada en el PawMap y te ha dado {{points}} PawPoints.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver mi sitio</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia este enlace: {{emailLink}}</p>"
+    "emailBody": "<p>¡Enhorabuena! La comunidad ha validado tu PawSpot «{{spotName}}». Ahora luce la huella dorada en el PawMap y te ha dado {{points}} PawPoints.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver mi sitio</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia este enlace: {{emailLink}}</p>"
   },
   "pawspot_popular": {
     "title": "Tu PawSpot arrasa ⭐",
     "body": "«{{spotName}}» ha superado los 50 ❤️. Ganas {{points}} PawPoints.",
     "emailSubject": "Tu PawSpot es muy popular — HoPetSit",
-    "emailBody": "<p>Tu PawSpot «{{spotName}}» ha superado los 50 ❤️: es uno de los lugares favoritos de la comunidad y te ha dado {{points}} PawPoints.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver mi sitio</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia este enlace: {{emailLink}}</p>"
+    "emailBody": "<p>Tu PawSpot «{{spotName}}» ha superado los 50 ❤️: es uno de los lugares favoritos de la comunidad y te ha dado {{points}} PawPoints.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver mi sitio</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia este enlace: {{emailLink}}</p>"
   },
   "good_samaritan_premium": {
     "title": "Gesto de buen samaritano",

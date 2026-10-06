@@ -298,7 +298,12 @@ class SitterChatController extends GetxController
         // le socket n'était pas encore connecté au loadChatMessages, le client
         // n'entre jamais dans la room → messages/demandes pas reçus en direct
         // (il fallait rafraîchir). Cf chat_controller pour le détail.
-        if (currentChatId.value.isNotEmpty) {
+        // 612 — seulement si ce fil est RÉELLEMENT à l'écran (`currentChatId`
+        // n'est jamais remis à zéro au retour à la liste) : sinon chaque
+        // reconnexion remettait l'app dans la salle d'un fil fermé, et le
+        // serveur cessait de faire sonner le téléphone pour ce fil.
+        if (currentChatId.value.isNotEmpty &&
+            SocketService.visibleConversationId == currentChatId.value) {
           _socketService.joinConversation(currentChatId.value);
         }
         // v401 — réf stable via le multiplexeur (cf. chat_controller) : ne

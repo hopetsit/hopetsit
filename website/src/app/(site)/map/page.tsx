@@ -673,7 +673,7 @@ export default function MapPage() {
   });
 
   const [myRole, setMyRole] = useState<string>("sitter");
-  const [focusTarget, setFocusTarget] = useState<{ lat: number; lng: number; ts: number; zoom?: number; duration?: number } | null>(null);
+  const [focusTarget, setFocusTarget] = useState<{ lat: number; lng: number; ts: number; zoom?: number; minZoom?: number; duration?: number } | null>(null);
   // 588 — ami (position de profil floutée) choisi dans le panneau.
   const [focusFriend, setFocusFriend] = useState<{ m: NearbyMember; ts: number } | null>(null);
   // 25/09 (point 5) — zone VISIBLE de la carte : compteur et état vide.
@@ -1535,7 +1535,7 @@ export default function MapPage() {
   // Déjà suivi : on recentre quand même (avant, rien ne bougeait).
   function startFollow(p: FriendLivePosition) {
     if (!showFriends) setFriendsLayer(true);
-    if (followUserId === p.userId) setFocusTarget({ lat: p.lat, lng: p.lng, ts: Date.now(), zoom: 16, duration: 0.8 });
+    if (followUserId === p.userId) setFocusTarget({ lat: p.lat, lng: p.lng, ts: Date.now(), minZoom: 16, duration: 0.8 }); // 612 — recentrer ne dézoome jamais
     setFollowUserId(p.userId);
     setFollowPaused(false);
     setFollowSheet(true);
@@ -1896,7 +1896,7 @@ export default function MapPage() {
               {followSheet && (
                 <div className="pointer-events-auto w-full max-w-[300px] rounded-[20px] bg-white p-2 shadow-[0_12px_32px_-8px_rgba(76,29,149,0.45)]" role="dialog" aria-label={t("live_sheet_title")}>
                   <div className="grid grid-cols-2 gap-1.5">
-                    <button type="button" onClick={() => { setFollowPaused(false); setFocusTarget({ lat: followed.lat, lng: followed.lng, ts: Date.now(), zoom: 16.5 }); setFollowSheet(false); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#EDE9FE] px-2 text-xs font-bold text-[#5B21B6]">
+                    <button type="button" onClick={() => { setFollowPaused(false); setFocusTarget({ lat: followed.lat, lng: followed.lng, ts: Date.now(), minZoom: 16 }); setFollowSheet(false); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#EDE9FE] px-2 text-xs font-bold text-[#5B21B6]">
                       <AppIcon name="locate" size={16} color="#6D28D9" />{t("live_recenter")}
                     </button>
                     <button type="button" onClick={() => { handleDirections({ lat: followed.lat, lng: followed.lng, friendId: followed.userId }); setFollowSheet(false); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#DCFCE7] px-2 text-xs font-bold text-[#15803D]">
@@ -1916,7 +1916,7 @@ export default function MapPage() {
                 onClick={() => {
                   // 588 — la pilule recentre aussi sur l'ami (vol doux) et reprend le suivi.
                   setFollowPaused(false);
-                  setFocusTarget({ lat: followed.lat, lng: followed.lng, ts: Date.now(), zoom: 16, duration: 0.8 });
+                  setFocusTarget({ lat: followed.lat, lng: followed.lng, ts: Date.now(), minZoom: 16, duration: 0.8 });
                   setFollowSheet((v) => !v);
                 }}
                 aria-expanded={followSheet}

@@ -337,6 +337,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
       // pour les anciens lecteurs qui n'ont pas encore migré.
       await SecureTokenStore.instance.writeToken(token);
       await _storage.write(StorageKeys.authToken, token);
+      _resyncRealtime612(token);
       final tokenPreview = token.length > 20
           ? '${token.substring(0, 20)}...'
           : token;
@@ -642,6 +643,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         // v23.1 part 125 — Phase 2 audit C4 : SecureTokenStore mirror.
         await SecureTokenStore.instance.writeToken(backendToken);
         await _storage.write(StorageKeys.authToken, backendToken);
+        _resyncRealtime612(backendToken);
         debugPrint('[HOPETSIT] ✅ Token saved from Google sign-in');
 
         // v23.1 part 46 — fix Daniel "je reçois email mais pas push notif".
@@ -1057,6 +1059,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         // v23.1 part 125 — Phase 2 audit C4 : SecureTokenStore mirror.
         await SecureTokenStore.instance.writeToken(backendToken);
         await _storage.write(StorageKeys.authToken, backendToken);
+        _resyncRealtime612(backendToken);
 
         // v23.1 part 46 — same FCM register fix as the Google path. Without
         // this Apple sign-in users never got phone push notifs.
@@ -1972,6 +1975,20 @@ class AuthController extends GetxController with WidgetsBindingObserver {
 
     // Navigate to login screen
     Get.offAll(() => const LoginScreen());
+  }
+
+  /// 612 (ZOE, 05/10) — après une CONNEXION, la prise temps réel repart toujours
+  /// avec le jeton de CE compte. MESURÉ au simulateur : quand une ancienne prise
+  /// survit (déconnexion restée en suspens, session expirée puis reconnexion),
+  /// l'app restait dans la salle de l'ANCIEN compte → plus de cloche ni de
+  /// pastille en direct jusqu'au redémarrage. Même remède que le changement de
+  /// rôle (v575). Jamais bloquant.
+  void _resyncRealtime612(String token) {
+    try {
+      if (token.isEmpty || !Get.isRegistered<SocketService>()) return;
+      // ignore: discarded_futures
+      Get.find<SocketService>().reconnectWithToken(token);
+    } catch (_) {/* la connexion ne doit jamais échouer pour ça */}
   }
 
   /// Safely delete a GetxController tag/instance if registered.

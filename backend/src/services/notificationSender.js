@@ -552,7 +552,7 @@ const _roleModelForPurge = (role) =>
  * accents, lien vers la conversation. Retourne null si l'utilisateur ou le
  * gabarit manque (déjà journalisé).
  */
-const prepareNotification = async ({ userId, role, type, rawData = {} }) => {
+const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtras = null }) => {
   const user = await resolveUser(role, userId);
   if (!user) {
     logger.warn(
@@ -600,8 +600,12 @@ const prepareNotification = async ({ userId, role, type, rawData = {} }) => {
     devices = await gatherActiveDevices(user, userId);
   }
   const emailRoute = buildEmailRoute(type, data, { role, devices });
+  // 612 (ZOE) — alerte « nouvelle annonce » : service et dates écrits dans la
+  // langue du DESTINATAIRE (rendu seulement ; `data` enregistré reste brut).
+  const { REQUEST_ALERT_TYPES, enrichRequestAlertData } = require('../utils/requestAlertText612');
+  const dataForRender = REQUEST_ALERT_TYPES.has(String(type)) ? enrichRequestAlertData(data, locale) : data;
   const renderData = {
-    ...data,
+    ...dataForRender,
     emailLink:
       emailRoute !== '/notifications' || !data.emailLink
         ? `${SITE_BASE}${emailRoute}`
@@ -618,10 +622,13 @@ const prepareNotification = async ({ userId, role, type, rawData = {} }) => {
   const htmlData = Object.fromEntries(
     Object.entries(renderData).map(([k, v]) => [k, typeof v === 'string' ? escapeHtmlValue(v) : v]),
   );
+  // 612 — lien de désabonnement en pied d'e-mail quand l'appelant en fournit un.
+  const unsubscribeUrl = emailExtras && emailExtras.unsubscribeUrl ? String(emailExtras.unsubscribeUrl) : '';
   const emailBody = buildNotificationEmailHtml(render(tmpl.emailBody, htmlData), {
     locale,
     link: renderData.emailLink,
     preheader: body,
+    unsubscribeUrl,
   });
   const emailText = `${body}\n\n${renderData.emailLink}`;
   const email = decrypt(user.email || '');
@@ -631,7 +638,7 @@ const prepareNotification = async ({ userId, role, type, rawData = {} }) => {
   const categoryEnabled = prefs.categories[category] !== false;
   return {
     user, locale, data, appRoute, emailRoute, renderData, title, body, emailSubject, emailBody, emailText,
-    email, prefs, category, categoryEnabled,
+    email, prefs, category, categoryEnabled, unsubscribeUrl,
   };
 };
 
@@ -646,7 +653,13 @@ const prepareNotification = async ({ userId, role, type, rawData = {} }) => {
  * @param {Object} [params.data]   - template variables + notification payload
  * @param {Object} [params.actor]  - { role, id } who triggered the event
  */
-const sendNotification = async ({ userId, role, type, data: rawData = {}, actor = null }) => {
+const sendNotification = async ({
+  userId, role, type, data: rawData = {}, actor = null,
+  // 612 — `channels.email === false` : pas d'e-mail pour cet envoi (personne
+  // désabonnée) ; `emailExtras.unsubscribeUrl` : lien de désabonnement en pied.
+  // Sans ces deux champs, comportement strictement inchangé.
+  channels = null, emailExtras = null,
+}) => {
   // v23.1 part 48 — entry log fires UNCONDITIONALLY before any early return.
   // Lets us prove from Render logs that sendNotification was actually
   // invoked (vs being skipped upstream). Previous logs only fired once
@@ -659,12 +672,13 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
     );
     return;
   }
-  const prepared = await prepareNotification({ userId, role, type, rawData });
+  const prepared = await prepareNotification({ userId, role, type, rawData, emailExtras });
   if (!prepared) return;
   const {
     user, locale, data, appRoute, renderData, title, body, emailSubject, emailBody, emailText,
-    email, prefs, category, categoryEnabled,
+    email, prefs, category, categoryEnabled, unsubscribeUrl,
   } = prepared;
+  const emailRefused = !!(channels && channels.email === false);
   // v407 — union des fcmTokens sur les 3 docs de rôle (fix push multi-profils).
   const allTokens = await gatherFcmTokens(user, userId);
   const tokenCount = allTokens.length;
@@ -763,7 +777,7 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
   // Si le destinataire a un socket connecté (app ouverte), il voit déjà la
   // notif en direct → on n'envoie PAS l'email (évite le spam + le retard
   // Gmail). Best-effort : en cas de doute, l'email part.
-  let sendEmailNow = Boolean(email) && categoryEnabled && !NO_EMAIL_TYPES.has(String(type));
+  let sendEmailNow = Boolean(email) && categoryEnabled && !NO_EMAIL_TYPES.has(String(type)) && !emailRefused;
   // v599 (ZOE) — message de chat : si le destinataire A LA CONVERSATION
   // OUVERTE à l'écran (socket présent dans la salle du fil), il lit le message
   // en direct → ni push ni e-mail (la cloche/in-app garde sa trace).
@@ -895,12 +909,17 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
       )
       : Promise.resolve({ skipped: true, reason: categoryEnabled ? 'conversation_open' : `prefs_category_off:${category}` }),
     sendEmailNow
-      ? sendEmail(email, emailSubject || title, emailText, emailBody)
+      ? sendEmail(
+        email, emailSubject || title,
+        unsubscribeUrl ? `${emailText}\n\n${unsubscribeUrl}` : emailText,
+        emailBody,
+        unsubscribeUrl ? { headers: { 'List-Unsubscribe': `<${unsubscribeUrl}>` } } : {},
+      )
       : Promise.resolve({
         skipped: true,
         reason: emailDeferred && emailDeferred.created
           ? 'deferred_15min'
-          : (categoryEnabled ? 'no_email' : `prefs_category_off:${category}`),
+          : (emailRefused ? 'unsubscribed' : (categoryEnabled ? 'no_email' : `prefs_category_off:${category}`)),
       }),
   ]);
 
@@ -908,9 +927,9 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
   // explicitly tells us each channel's outcome instead of just complaining
   // when something failed. Helps diagnose "email arrived but push didn't"
   // or vice-versa.
-  const channels = ['in-app', 'push', 'email'];
+  const channelNames = ['in-app', 'push', 'email'];
   results.forEach((r, idx) => {
-    const channel = channels[idx];
+    const channel = channelNames[idx];
     if (r.status === 'rejected') {
       logger.warn(
         `[notif.channel] ${channel} FAILED for ${type} → ${r.reason?.message || r.reason}`,
@@ -921,6 +940,29 @@ const sendNotification = async ({ userId, role, type, data: rawData = {}, actor 
       logger.info(`[notif.channel] ${channel} ok for ${type}${skipped}`);
     }
   });
+  // 612 — bilan par canal (registre des alertes d'annonce, admin). Les appelants
+  // existants ignorent la valeur de retour.
+  const outcome = (r, okWhen) => {
+    if (!r || r.status === 'rejected') return 'failed';
+    const v = r.value || {};
+    if (v.skipped) {
+      const why = String(v.reason || '');
+      if (why === 'no_tokens') return 'no_token';
+      if (why.startsWith('prefs_category_off')) return 'prefs_off';
+      if (why === 'unsubscribed') return 'unsubscribed';
+      if (why === 'no-smtp-transporter') return 'no_smtp';
+      if (why === 'no_email' || why === 'no-recipient') return 'no_email';
+      return why || 'skipped';
+    }
+    return okWhen(v) ? 'sent' : 'failed';
+  };
+  return {
+    notificationId: inAppCreated && inAppCreated._id ? String(inAppCreated._id) : null,
+    locale,
+    bell: !!(inAppCreated && inAppCreated._id),
+    push: outcome(results[1], (v) => (v.successCount || 0) > 0),
+    email: outcome(results[2], () => true),
+  };
 };
 
 /**

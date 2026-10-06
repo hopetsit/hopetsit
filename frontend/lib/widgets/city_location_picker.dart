@@ -39,6 +39,21 @@ void _bump610() {
   }
 }
 
+// ── 04/10/2026 (ZOE) — identifiant STABLE du lieu choisi ─────────────────
+// La liste OpenStreetMap répond dans la langue de l'app : un Italien choisit
+// « Parigi », un Polonais « Paryż ». Le serveur ramène ces noms à « Paris »,
+// mais l'appelant peut aussi joindre l'identifiant OSM du lieu (« R7444 »),
+// identique dans toutes les langues. Lu par [cityPlaceIdOf610].
+final Expando<String> _cityPlaceId610 = Expando<String>('cityPlaceId610');
+
+/// Identifiant OSM (« R7444 », « N123 ») du lieu choisi dans la liste pour le
+/// champ [c], seulement si le texte du champ est encore ce lieu ; sinon null.
+String? cityPlaceIdOf610(TextEditingController c) {
+  final id = _cityPlaceId610[c];
+  if (id == null || id.isEmpty) return null;
+  return cityPickedFromList610(c) ? id : null;
+}
+
 /// La ville [city] (ou le texte actuel) du champ [c] est une ville validée.
 void markCityPicked610(TextEditingController c, [String? city]) {
   final v = (city ?? c.text).trim();
@@ -255,11 +270,16 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
         final key = '${city.toLowerCase()}|${country.toLowerCase()}';
         if (seen.contains(key)) continue;
         seen.add(key);
+        final osmType = '${item['osm_type'] ?? ''}';
+        final osmId = '${item['osm_id'] ?? ''}';
         out.add(_CitySuggestion(
           city: city,
           country: country,
           lat: double.tryParse('${item['lat']}') ?? 0.0,
           lon: double.tryParse('${item['lon']}') ?? 0.0,
+          placeId: (osmType.isNotEmpty && osmId.isNotEmpty)
+              ? '${osmType[0].toUpperCase()}$osmId'
+              : '',
         ));
         if (out.length >= 5) break;
       }
@@ -279,6 +299,7 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
   }
 
   void _pickSuggestion(_CitySuggestion s) {
+    _cityPlaceId610[widget.cityController] = s.placeId;
     markCityPicked610(widget.cityController, s.city);
     _suppressNext = true;
     widget.cityController.text = s.city;
@@ -784,12 +805,16 @@ class _CitySuggestion {
   final String country;
   final double lat;
   final double lon;
+  // 04/10 (ZOE) — « R7444 » : identifiant OpenStreetMap, le même dans toutes
+  // les langues ; vide si Nominatim ne l'a pas donné.
+  final String placeId;
 
   const _CitySuggestion({
     required this.city,
     required this.country,
     required this.lat,
     required this.lon,
+    this.placeId = '',
   });
 
   @override

@@ -6,7 +6,9 @@ import Link from "next/link";
 // dog walker in new york ». Relié à /become-a-pet-sitter/new-york et à
 // l'article jumeau /blog/pet-sitting-jobs-new-york. Aucun chiffre d'activité
 // inventé, aucune promesse de revenus : tarifs = fourchettes déjà affichées
-// sur la page New York ; commission = CGU (20 %, versement 24 h après).
+// sur la page New York ; règle d'argent = code backend (vérifié par FLO le
+// 06/10/2026) : 100 % du tarif au promeneur, propriétaire = tarif + 20 %
+// (15 % badge Top), libération portefeuille à la confirmation ou 48 h après.
 
 const URL = "https://www.hopetsit.com/blog/dog-walker-jobs-nyc";
 const TITLE = "Dog Walker Jobs in NYC: How to Start in New York";
@@ -153,8 +155,10 @@ export default function ArticleDogWalkerJobsNyc() {
         ))}
       </ol>
       <p className="mt-4 leading-relaxed text-ink-muted">
-        Joining is free. When an owner books and pays in the app, HoPetSit keeps a 20% platform commission and
-        pays out the remaining 80% 24 hours after the walk, as set out in our{" "}
+        Joining is free and you keep 100% of your rate. When an owner books in the app, they pay your rate plus
+        a 20% HoPetSit fee (15% once you have the Top badge): a $20 walk means the owner pays $24 and you
+        receive $20. The money is released to your wallet when the owner confirms the walk, or 48 hours after
+        its scheduled end, and you then withdraw it to your bank account, as set out in our{" "}
         <Link href="/terms" className="font-semibold text-sitter-dark underline">terms</Link>.
       </p>
 

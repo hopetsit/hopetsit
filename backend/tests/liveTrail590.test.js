@@ -11,7 +11,9 @@ describe('v590 — tracé de balade', () => {
   });
   test(`plafonné à ${TRAIL_MAX} points (les plus anciens tombent)`, () => {
     const s = {};
-    for (let i = 0; i < TRAIL_MAX + 20; i += 1) pushTrailPoint(s, -35 + i * 0.001, -30, i);
+    // 612 — horodatage réaliste (111 m toutes les 20 s) : le filtre de vitesse
+    // écarte les sauts impossibles à pied.
+    for (let i = 0; i < TRAIL_MAX + 20; i += 1) pushTrailPoint(s, -35 + i * 0.001, -30, i * 20000);
     const t = trailOf(s);
     expect(t.length).toBe(TRAIL_MAX);
     expect(t[0][0]).toBeCloseTo(-35 + 20 * 0.001, 6);

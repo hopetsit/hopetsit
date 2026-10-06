@@ -46,6 +46,7 @@ import {
   PoiCategory,
 } from "@/lib/api";
 import { makeAvatarIcon } from "@/components/FriendsLiveMap";
+import { liveTail612, TRAIL_COLOR_612, TRAIL_WEIGHT_612 } from "@/lib/trail612";
 import type { FriendLivePosition, Role } from "@/components/FriendsLiveMap";
 import { clusterize } from "@/lib/mapCluster";
 import {
@@ -80,14 +81,12 @@ import {
   requestBubbleHtml,
   ROLE_COLOR,
   PAWFOLLOW_VIOLET,
-  FRIEND_PINK,
   PAWMAP_KEYFRAMES,
   PIN_Z,
   roleKey,
   ROLE_GLYPH,
   showsPriceBubble,
   spotPinAnchor,
-  ROLE_SOLID,
   POPPINS,
 } from "@/lib/pawmapLegend";
 import { safeFly } from "@/lib/safeFly";
@@ -225,13 +224,13 @@ function requestIcon(r: MapRequest, mineLabel: string): L.DivIcon {
 }
 
 // ── Petits composants ────────────────────────────────────────────────────────
-function FlyToFocus({ target }: { target: { lat: number; lng: number; ts: number; zoom?: number; duration?: number } | null }) {
+function FlyToFocus({ target }: { target: { lat: number; lng: number; ts: number; zoom?: number; /** 612 — zoom plancher : on s'en approche, on ne recule jamais si l'on est déjà plus près (suivi). */ minZoom?: number; duration?: number } | null }) {
   const map = useMap();
   useEffect(() => {
     if (!target) return;
     // Zoom demandé (ville = 12, ma position = 14), sinon zoom de rue lisible
     // (~17) ; vol en douceur (0,9 s), jamais pendant une autre animation.
-    safeFly(map, [target.lat, target.lng], target.zoom ?? Math.max(map.getZoom(), 17), target.duration ?? 0.9);
+    safeFly(map, [target.lat, target.lng], target.minZoom != null ? Math.max(map.getZoom(), target.minZoom) : target.zoom ?? Math.max(map.getZoom(), 17), target.duration ?? 0.9);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target?.ts]);
   return null;
@@ -296,7 +295,8 @@ function FollowController({ target, onUserGesture }: { target: { lat: number; ln
     if (lastKey.current !== target.key) {
       lastKey.current = target.key;
       // 588 — vol doux sur l'ami suivi : zoom 16, 0,8 s (comme un clic ami).
-      safeFly(map, [target.lat, target.lng], FRIEND_ZOOM, 0.8);
+      // 612 — comme l'app : « Suivre » ne recule JAMAIS si l'on est déjà plus près.
+      safeFly(map, [target.lat, target.lng], Math.max(map.getZoom(), FRIEND_ZOOM), 0.8);
     } else {
       try { map.panTo([target.lat, target.lng], { animate: true, duration: 0.8, easeLinearity: 0.3 }); } catch { /* animation en cours */ }
     }
@@ -413,7 +413,7 @@ function LiveFriendMarker({ p, isFamily, isPremium, boosted, roles, followed, la
     }),
     [p.role, p.name, p.avatar, isPremium, boosted, (roles || []).join(","), isFamily, followed, lost, labels?.lost],
   );
-  return <Marker position={[p.lat, p.lng]} icon={icon} zIndexOffset={followed ? PIN_Z.friendFollowed : PIN_Z.friend} eventHandlers={{ click: onOpen }} />;
+  return <Marker position={[p.lat, p.lng]} icon={icon} zIndexOffset={followed ? PIN_Z.me + 500 /* 612 — comme l'app : la personne suivie passe AU-DESSUS de « Moi » */ : PIN_Z.friend} eventHandlers={{ click: onOpen }} />;
 }
 
 /** Libellés de la fiche membre (9 langues, fournis par la page). */
@@ -723,7 +723,7 @@ export default function PoiMap({
   meLabel?: string;
   positionLabel?: string;
   accuracyLabel?: string;
-  focusTarget?: { lat: number; lng: number; ts: number; zoom?: number; duration?: number } | null;
+  focusTarget?: { lat: number; lng: number; ts: number; zoom?: number; /** 612 — zoom plancher : on s'en approche, on ne recule jamais si l'on est déjà plus près (suivi). */ minZoom?: number; duration?: number } | null;
   onFriendFocus?: (p: FriendLivePosition) => void;
   /** Ami suivi en direct (zoom de suivi « joli »). */
   followUserId?: string | null;
@@ -919,19 +919,14 @@ export default function PoiMap({
     const moved = repelBoxes(entries.map((e) => e.c), entries.map((e) => (e.friend ? friendBox : boxOf(e))), fixedBoxes, movable);
     const shifts: Px[] = entries.map((e, i) => (e.friend ? fanShift[friendPositions.length + friendIdx.indexOf(i)] : moved[i]));
     entries.forEach((e, i) => { e.c = { x: e.c.x + shifts[i].x, y: e.c.y + shifts[i].y }; });
-    /** Amis en direct décalés en éventail : nouvelle position + trait vers la vraie. */
+    /** Amis en direct décalés en éventail : nouvelle position (la personne suivie n'est jamais décalée, voir `trackedId`). */
     const liveFan = new Map<string, { pos: [number, number]; from: [number, number] }>();
     friendPositions.forEach((fp, k) => {
       const sh = fanShift[k];
       if (Math.hypot(sh.x, sh.y) < 0.5) return;
       liveFan.set(fp.userId, { pos: mercatorToLatLng({ x: fanAt[k].x + sh.x, y: fanAt[k].y + sh.y }, zoomLevel), from: [fp.lat, fp.lng] });
     });
-    const fanLines: [number, number][][] = [];
-    fanAt.forEach((p, k) => {
-      const sh = fanShift[k];
-      if (Math.hypot(sh.x, sh.y) < 8) return;
-      fanLines.push([mercatorToLatLng(p, zoomLevel), mercatorToLatLng({ x: p.x + sh.x, y: p.y + sh.y }, zoomLevel)]);
-    });
+    // 612 — plus de trait rose vers la vraie position (retiré de l'app le 05/10).
     const indexOf = new Map<NearbyMember, number>();
     entries.forEach((e, i) => { if (e.items.length === 1) indexOf.set(e.items[0], i); });
     const placed: Rect[] = [];
@@ -973,7 +968,7 @@ export default function PoiMap({
       if (Math.abs(sh.x) < 0.5 && Math.abs(sh.y) < 0.5) return null;
       return mercatorToLatLng(entries[i].c, zoomLevel);
     };
-    return { shifts, priceFit, friendSide, movedPos, liveFan, fanLines };
+    return { shifts, priceFit, friendSide, movedPos, liveFan };
   })();
 
   // 25/09 — « Itinéraire » ferme la fiche ouverte : le trajet et sa carte
@@ -1119,7 +1114,16 @@ export default function PoiMap({
     if (!last || Math.abs(last[0] - walkPos.lat) > 1e-6 || Math.abs(last[1] - walkPos.lng) > 1e-6) pts.push([walkPos.lat, walkPos.lng]);
     return pts;
   }, [walkPos]);
-  const walkColor = walkPos ? ROLE_SOLID[roleKey(walkPos.role)] : ROLE_SOLID.owner;
+  // 612 — le tracé dessiné : celui du serveur (déjà sans sauts) + les points reçus depuis,
+  // repassés par le même nettoyage que l'app puis lissés. À défaut, les positions gardées
+  // en mémoire pendant le suivi. Un seul des deux, jamais les deux.
+  const followLine = useMemo(
+    () => liveTail612(walkTrail.length > 1 ? walkTrail : trail),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [walkTrail, trail.length, followed?.lat, followed?.lng],
+  );
+  /** La personne suivie (ou dont la balade est affichée) : jamais décalée, aucun cercle autour. */
+  const trackedId = walkId ?? followUserId ?? null;
 
   return (
     <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-[28px] max-lg:rounded-none">
@@ -1151,7 +1155,8 @@ export default function PoiMap({
         <CollisionPass607 />
 
         {/* Ma position : cercle de précision honnête + « Moi » (56 px). */}
-        {userLocation && userAccuracy != null && userAccuracy > 25 && (
+        {/* 612 — pendant un suivi : aucun cercle en mètres sur la carte (comme l'app). */}
+        {userLocation && userAccuracy != null && userAccuracy > 25 && !trackedId && (
           <Circle center={[userLocation.lat, userLocation.lng]} radius={userAccuracy} pathOptions={{ color: ROLE_COLOR[roleKey(userRole)], fillColor: ROLE_COLOR[roleKey(userRole)], fillOpacity: 0.08, weight: 1, dashArray: "6 6" }} />
         )}
         {userLocation && (
@@ -1353,19 +1358,14 @@ export default function PoiMap({
         })}
 
         {/* AMIS en direct : photo + anneau rose ; tracé violet du suivi. */}
-        {trail.length > 1 && walkTrail.length < 2 && <Polyline positions={trail} pathOptions={{ color: PAWFOLLOW_VIOLET, weight: 5, opacity: 0.85, lineCap: "round" }} />}
-        {/* 590 (§5) — balade en direct : halo blanc 7 px + trait du rôle
-            3,5 px en pas qui avancent (pointillés animés), départ = rond blanc. */}
-        {walkTrail.length > 1 && (
-          <>
-            <Polyline key={`wh-${walkId}`} positions={walkTrail} pathOptions={{ color: "#FFFFFF", weight: 7, opacity: 1, lineCap: "round", lineJoin: "round" }} />
-            <Polyline key={`wt-${walkId}`} positions={walkTrail} pathOptions={{ color: walkColor, weight: 3.5, opacity: 1, lineCap: "round", lineJoin: "round", dashArray: "1 9", className: "hps-walk-trail" }} />
-            <CircleMarker key={`ws-${walkId}`} center={walkTrail[0]} radius={5} pathOptions={{ color: walkColor, weight: 3, fillColor: "#FFFFFF", fillOpacity: 1 }} />
-          </>
-        )}
-        {/* 02/10 (607, PAM v2) — ami décalé en éventail autour de « Moi » : trait rose 2 px vers sa vraie position. */}
-        {lay.fanLines.map((ln, i) => <Polyline key={`fan-${i}`} positions={ln} pathOptions={{ color: FRIEND_PINK, weight: 2, opacity: 1 }} />)}
-        {friendPositions.map((p0) => { const fan = lay.liveFan.get(p0.userId); const p = fan ? { ...p0, lat: fan.pos[0], lng: fan.pos[1] } : p0; return (
+        {/* 612 (Daniel, 05/10) — comme l'app : une seule traîne violette, nettoyée (sauts GPS)
+            et lissée. Retirés : le double trait blanc + pointillés animés, le rond de départ,
+            les traits roses de l'éventail. La lueur violette reste DANS la photo suivie. */}
+        {/* 612 §7 — courte traîne : 200 derniers mètres, épaisseur 3, fondu 0,12 → 1, finit sous la photo. */}
+        {followLine.map((part, k) => (
+          <Polyline key={`wf-${walkId ?? followUserId}-${k}-${followLine.length}`} positions={part.pts} smoothFactor={0.4} pathOptions={{ color: TRAIL_COLOR_612, weight: TRAIL_WEIGHT_612, opacity: part.alpha, lineCap: k === followLine.length - 1 ? "round" : "butt", lineJoin: "round", className: "hps-walk-follow" }} />
+        ))}
+        {friendPositions.map((p0) => { const fan = p0.userId === trackedId ? undefined : lay.liveFan.get(p0.userId); const p = fan ? { ...p0, lat: fan.pos[0], lng: fan.pos[1] } : p0; return (
           <LiveFriendMarker
             key={`live-${p.userId}`}
             p={p}

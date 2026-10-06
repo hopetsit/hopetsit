@@ -130,17 +130,57 @@ function _metersBetween(aLat, aLng, bLat, bLng) {
     + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(x)));
 }
+// 612 (PAM, 05/10/2026) — Daniel, capture 5 : tracé en ÉTOILE autour du
+// Mercadona (GPS qui saute dans le magasin). Un point qui suppose une vitesse
+// impossible à pied (> 9 m/s) moins de 25 s après le dernier point gardé est
+// écarté ; passé 25 s on le garde (jamais de tracé figé).
+const TRAIL_MAX_SPEED = 9;
+const TRAIL_GRACE_MS = 25000;
 function pushTrailPoint(s, lat, lng, now = Date.now()) {
   if (!Array.isArray(s.trail)) s.trail = [];
   const last = s.trail[s.trail.length - 1];
   if (last && _metersBetween(last[0], last[1], lat, lng) < TRAIL_MIN_M) return;
+  if (last && Number.isFinite(last[2])) {
+    const dt = now - last[2];
+    const d = _metersBetween(last[0], last[1], lat, lng);
+    if (dt < TRAIL_GRACE_MS && d > 25 && d / Math.max(dt / 1000, 1) > TRAIL_MAX_SPEED) return;
+  }
   s.trail.push([Number(lat), Number(lng), now]);
   if (s.trail.length > TRAIL_MAX) s.trail.splice(0, s.trail.length - TRAIL_MAX);
 }
 /** Tracé public : [[lat, lng], …] arrondis à ~10 cm. */
+/**
+ * 612 — retire les « pics » (B loin de A et de C alors que A et C sont
+ * proches : aller-retour d'un GPS qui saute) et les sauts isolés. Même règle
+ * que l'app (`pawCleanTrail612`, sans le lissage, fait à l'affichage).
+ */
+function cleanTrail612(pts, spikeM = 20, maxJumpM = 60) {
+  let cur = pts.slice();
+  for (let guard = 0; guard < 8 && cur.length >= 3; guard++) {
+    const out = [cur[0]];
+    let changed = false;
+    for (let i = 1; i < cur.length - 1; i++) {
+      const a = out[out.length - 1];
+      const b = cur[i];
+      const c = cur[i + 1];
+      const ab = _metersBetween(a[0], a[1], b[0], b[1]);
+      const bc = _metersBetween(b[0], b[1], c[0], c[1]);
+      const ac = _metersBetween(a[0], a[1], c[0], c[1]);
+      const spike = ab > spikeM && bc > spikeM && ac < 0.5 * Math.min(ab, bc);
+      const jump = ab > maxJumpM && bc > maxJumpM && ac < Math.max(ab, bc);
+      if (spike || jump) { changed = true; continue; }
+      out.push(b);
+    }
+    out.push(cur[cur.length - 1]);
+    cur = out;
+    if (!changed) break;
+  }
+  return cur;
+}
 function trailOf(s) {
   if (!s || !Array.isArray(s.trail)) return [];
-  return s.trail.map((p) => [Math.round(p[0] * 1e6) / 1e6, Math.round(p[1] * 1e6) / 1e6]);
+  return cleanTrail612(s.trail)
+    .map((p) => [Math.round(p[0] * 1e6) / 1e6, Math.round(p[1] * 1e6) / 1e6]);
 }
 
 function getLiveSession(userId) {
@@ -879,6 +919,7 @@ module.exports._liveSessionsForTests = liveSessions;
 module.exports.describeLiveSession = describeLiveSession;
 module.exports.tickLiveShare = tickLiveShare;
 module.exports.trailOf = trailOf;
+module.exports.cleanTrail612 = cleanTrail612;
 module.exports.pushTrailPoint = pushTrailPoint;
 module.exports.TRAIL_MAX = TRAIL_MAX;
 module.exports.isLiveStale = isLiveStale;

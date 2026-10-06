@@ -105,8 +105,11 @@ export default function NycRecruitDetails() {
         </table>
       </div>
       <p className="mt-3 text-sm leading-relaxed text-ink-muted">
-        How you get paid: the owner pays in the app when booking. HoPetSit keeps a 20% platform
-        commission and pays out the other 80% 24 hours after the service ends, as written in our{" "}
+        How you get paid: you keep 100% of your rate. The owner pays in the app when booking, at your rate
+        plus a 20% HoPetSit fee (15% once you have the Top badge). Example: an $18 rate means the owner pays
+        $21.60 and you receive $18. The money is released to your in-app wallet when the owner confirms the
+        service, or 48 hours after its scheduled end, and you then withdraw it to your bank account, as
+        written in our{" "}
         <Link href="/terms" className="font-semibold text-sitter-dark underline">terms</Link>. No cash
         to chase, and joining costs nothing.
       </p>
@@ -143,7 +146,7 @@ export const NYC_FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Is it free to join HoPetSit as a sitter or walker in New York?",
-    a: "Yes. Creating your profile is free. When an owner books and pays through the app, HoPetSit keeps a 20% platform commission and pays you the remaining 80% 24 hours after the service ends.",
+    a: "Yes. Creating your profile is free and you keep 100% of your rate. When an owner books through the app, they pay your rate plus a 20% HoPetSit fee (15% with the Top badge): an $18 rate means the owner pays $21.60 and you receive $18. The money is released to your wallet when the owner confirms the service, or 48 hours after its scheduled end, and you then withdraw it to your bank account.",
   },
   {
     q: "Is there an owner looking for a sitter in New York right now?",

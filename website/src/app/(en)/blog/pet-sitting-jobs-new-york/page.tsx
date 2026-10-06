@@ -5,13 +5,16 @@ import Link from "next/link";
 // gratuitement). Requête visée : « pet sitting jobs new york » / « how much
 // do pet sitters make in nyc ». Relié à /become-a-pet-sitter/new-york et à
 // /blog/dog-walker-jobs-nyc. Tarifs = fourchettes déjà publiées sur la page
-// New York ; commission et délai de versement = CGU. L'exemple de semaine est
-// un calcul présenté comme tel, pas une promesse de revenus.
+// New York ; règle d'argent = code backend (pricing.js, vérifié par FLO le
+// 06/10/2026) : le gardien reçoit 100 % de son tarif, le propriétaire paie
+// tarif + 20 % (15 % badge Top), argent libéré dans le portefeuille à la
+// confirmation du propriétaire ou 48 h après la fin prévue, puis retrait IBAN.
+// L'exemple de semaine est un calcul présenté comme tel, pas une promesse de revenus.
 
 const URL = "https://www.hopetsit.com/blog/pet-sitting-jobs-new-york";
 const TITLE = "Pet Sitting Jobs in New York: How Much Can You Earn?";
 const DESCRIPTION =
-  "Pet sitting and dog walking pay in New York: usual rates, what changes the price, what you keep after the commission, taxes, and how sitters build regular clients.";
+  "Pet sitting and dog walking pay in New York: usual rates, what changes the price, what you really keep (100% of your rate), taxes, and how sitters build regular clients.";
 const HEADLINE = "Pet sitting jobs in New York: how much can you earn?";
 
 export const metadata: Metadata = {
@@ -36,7 +39,7 @@ const FAQ = [
   },
   {
     q: "What does HoPetSit take from my earnings?",
-    a: "Joining is free. On bookings paid through the app, HoPetSit keeps a 20% platform commission and pays out the remaining 80% 24 hours after the service ends.",
+    a: "Nothing from your rate: you keep 100% of it, and joining is free. On bookings paid through the app, the owner pays your rate plus a 20% HoPetSit fee (15% with the Top badge). Example: an $18 rate means the owner pays $21.60 and you receive $18. The money is released to your wallet when the owner confirms the service, or 48 hours after its scheduled end, and you then withdraw it to your bank account.",
   },
   {
     q: "Do I have to pay taxes on pet sitting income?",
@@ -132,12 +135,13 @@ export default function ArticlePetSittingJobsNewYork() {
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">What you actually keep: an example week</h2>
       <p className="mt-4 leading-relaxed text-ink-muted">
         This is simple arithmetic, not a promise — what you earn depends entirely on the bookings you accept.
-        Say you charge $25 per walk and walk one dog twice each weekday: that is 10 walks, or $250 paid by the
-        owner. HoPetSit keeps its 20% commission, so $200 is paid out to you, 24 hours after each service. Add
-        one weekend of day sitting at $50 a day and the owner pays $100, of which you receive $80.
+        Say you charge $25 per walk and walk one dog twice each weekday: that is 10 walks, or $250 for you. The
+        owner pays $300 — your $250 plus the 20% HoPetSit fee — and you receive the full $250, released to
+        your wallet when the owner confirms each service or 48 hours after its scheduled end. Add one weekend
+        of day sitting at $50 a day: the owner pays $120 and you receive $100.
       </p>
       <p className="mt-4 leading-relaxed text-ink-muted">
-        Signing up costs nothing, and the commission rule is the same for everyone, as set out in our{" "}
+        Signing up costs nothing, and the fee rule is the same for everyone (20%, or 15% with the Top badge), as set out in our{" "}
         <Link href="/terms" className="font-semibold text-sitter-dark underline">terms</Link>. Remember to put
         some money aside: pet sitting income is generally taxable, so keep records and check the IRS and New
         York State rules for your situation. If you do it regularly, liability insurance for pet care is worth

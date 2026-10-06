@@ -18,6 +18,14 @@
  *
  * Traductions ES/DE/IT/PT générées par `translate_legal.py` à partir d'EN.
  * À re-générer si le contenu EN/FR change.
+ *
+ * 06/10/2026 (LEO, sur vérification de FLO dans le code et les transactions) :
+ *   CGU § 4 et Remboursement § 1 corrigés dans les 9 langues — le prestataire
+ *   reçoit 100 % de son tarif, le propriétaire paie ce tarif + 20 % de
+ *   commission (15 % badge Top) ; fonds libérés dans le portefeuille à la
+ *   confirmation du propriétaire ou 48 h après la fin prévue, puis retrait
+ *   IBAN. Plus aucun « 80 % » ni « 24 h ». Référence : backend/src/utils/pricing.js
+ *   et bookingController.js (CONFIRMATION_AUTO_RELEASE_MS).
  */
 
 import type { Lang } from "./i18n/translations";
@@ -51,7 +59,7 @@ const TERMS_EN_SECTIONS: LegalSection[] = [
   { type: "h2", html: `3. Account &amp; security` },
   { type: "p", html: `You are responsible for the activity on your account and for keeping your credentials confidential. Notify us at <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a> as soon as you suspect unauthorised access.` },
   { type: "h2", html: `4. Bookings &amp; payments` },
-  { type: "p", html: `Owners pay the gross booking amount via our regulated payment processor (Airwallex). HoPetSit retains a <strong>20% platform commission</strong>; the remaining <strong>80%</strong> is paid out to the provider's registered IBAN <strong>24 hours after the service ends</strong>, allowing a dispute window for the owner. Funds are held in escrow during this entire period and HoPetSit does not access them.` },
+  { type: "p", html: `Owners pay via our regulated payment processor (Airwallex). <strong>The provider receives 100% of their rate.</strong> The owner pays that rate plus a <strong>20% HoPetSit commission</strong> (15% with the Top badge). Example: an €18 rate → €21.60 paid by the owner, €18 received by the provider. Funds are held in escrow during the service and HoPetSit does not access them; they are <strong>released to the provider's wallet when the owner confirms the service, or 48 hours after its scheduled end</strong>, and can then be withdrawn to the provider's IBAN. This period gives the owner time to open a dispute.` },
   { type: "h2", html: `5. Cancellations &amp; refunds` },
   { type: "p", html: `Owners can self-cancel for free up to <strong>72 hours before the service starts</strong> — the booking is cancelled immediately and a 100% automatic refund is issued. Within the 72-hour window, cancellations require a mutual agreement with the provider or a formal dispute. Provider-initiated cancellations always result in a full owner refund. See the full <a href="/refund">Refund Policy</a> for the complete process, deadlines and dispute procedure.` },
   { type: "h2", html: `6. Conduct` },
@@ -129,7 +137,7 @@ const PRIVACY_EN_SECTIONS: LegalSection[] = [
 const REFUND_EN_SECTIONS: LegalSection[] = [
   { type: "p", html: `This Refund Policy applies to all bookings made through the HoPetSit marketplace. It complements the <a href="/terms">Terms of Service</a> and reflects how cancellations and refunds are actually executed by our payment processor (Airwallex).` },
   { type: "h2", html: `1. How payments are held` },
-  { type: "p", html: `When an owner pays for a confirmed booking, the funds are captured by our regulated payment processor (Airwallex) and held in escrow. They are released to the provider's registered bank account <strong>24 hours after the service ends</strong> — this dispute window protects the owner if anything goes wrong during the service.` },
+  { type: "p", html: `When an owner pays for a confirmed booking, the funds are captured by our regulated payment processor (Airwallex) and held in escrow. They are released to the provider's wallet <strong>when the owner confirms the service, or 48 hours after its scheduled end</strong>, and can then be withdrawn to the provider's IBAN — this window protects the owner if anything goes wrong during the service.` },
   { type: "h2", html: `2. Cancellation by the owner — 72-hour free window` },
   { type: "ul", html: [
     `<strong>More than 72 hours before the service starts:</strong> You can self-cancel from the app. The booking is cancelled immediately and you receive a <strong>100% automatic refund</strong> (no questions asked). Funds typically reach your bank within 5–10 business days.`,
@@ -184,7 +192,7 @@ const placeholder = (sections: LegalSection[]): LegalDoc => ({
 
 export const TERMS: LegalDocByLang = {
   en: {
-    lastUpdated: "April 25, 2026",
+    lastUpdated: "October 6, 2026",
     sections: [
     { type: "p", html: `These Terms of Service (the "Terms") govern your use of the HoPetSit marketplace (the "Service"), operated by CARDELLI HERMANOS LIMITED (trading as HoPetSit), a company incorporated in Hong Kong (the "Company", "we", "us").` },
     { type: "h2", html: `1. The Service` },
@@ -198,7 +206,7 @@ export const TERMS: LegalDocByLang = {
     { type: "h2", html: `3. Account &amp; security` },
     { type: "p", html: `You are responsible for the activity on your account and for keeping your credentials confidential. Notify us at <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a> as soon as you suspect unauthorised access.` },
     { type: "h2", html: `4. Bookings &amp; payments` },
-    { type: "p", html: `Owners pay the gross booking amount via our regulated payment processor (Airwallex). HoPetSit retains a <strong>20% platform commission</strong>; the remaining <strong>80%</strong> is paid out to the provider's registered IBAN <strong>24 hours after the service ends</strong>, allowing a dispute window for the owner. Funds are held in escrow during this entire period and HoPetSit does not access them.` },
+    { type: "p", html: `Owners pay via our regulated payment processor (Airwallex). <strong>The provider receives 100% of their rate.</strong> The owner pays that rate plus a <strong>20% HoPetSit commission</strong> (15% with the Top badge). Example: an €18 rate → €21.60 paid by the owner, €18 received by the provider. Funds are held in escrow during the service and HoPetSit does not access them; they are <strong>released to the provider's wallet when the owner confirms the service, or 48 hours after its scheduled end</strong>, and can then be withdrawn to the provider's IBAN. This period gives the owner time to open a dispute.` },
     { type: "h2", html: `5. Cancellations &amp; refunds` },
     { type: "p", html: `Owners can self-cancel for free up to <strong>72 hours before the service starts</strong> — the booking is cancelled immediately and a 100% automatic refund is issued. Within the 72-hour window, cancellations require a mutual agreement with the provider or a formal dispute. Provider-initiated cancellations always result in a full owner refund. See the full <a href="/refund">Refund Policy</a> for the complete process, deadlines and dispute procedure.` },
     { type: "h2", html: `6. Conduct` },
@@ -223,7 +231,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   fr: {
-    lastUpdated: "25 avril 2026",
+    lastUpdated: "6 octobre 2026",
     sections: [
     { type: "p", html: `Les présentes conditions d'utilisation (les « Conditions ») régissent votre utilisation du marché HoPetSit (le « Service »), exploité par CARDELLI HERMANOS LIMITED (exerçant ses activités sous le nom de HoPetSit), une société constituée à Hong Kong (la « Société », « nous », « notre »).` },
     { type: "h2", html: `1. Le service` },
@@ -236,9 +244,9 @@ export const TERMS: LegalDocByLang = {
     ]},
     { type: "h2", html: `3. Compte et compte sécurité` },
     { type: "p", html: `Vous êtes responsable de l’activité sur votre compte et de la confidentialité de vos informations d’identification. Informez-nous à <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a> dès que vous soupçonnez un accès non autorisé.` },
-    { type: "h2", html: `4. Réservations et réservations paiements` },
-    { type: "p", html: `Les propriétaires paient le montant brut de la réservation via notre processeur de paiement réglementé (Airwallex). HoPetSit conserve une commission de plateforme <strong>20%</strong> ; le <strong>80%</strong> restant est versé sur l'IBAN <strong>24 enregistré par le fournisseur 24 heures après la fin du service</strong>, permettant ainsi une fenêtre de litige pour le propriétaire. Les fonds sont bloqués pendant toute cette période et HoPetSit n'y a pas accès.` },
-    { type: "h2", html: `5. Annulations et réservations remboursements` },
+    { type: "h2", html: `4. Réservations et paiements` },
+    { type: "p", html: `Les propriétaires paient via notre processeur de paiement réglementé (Airwallex). <strong>Le prestataire reçoit 100 % de son tarif.</strong> Le propriétaire paie ce tarif majoré de <strong>20 % de commission HoPetSit</strong> (15 % avec le badge Top). Exemple : tarif 18 € → 21,60 € payés par le propriétaire, 18 € reçus par le prestataire. Les fonds sont conservés sous séquestre pendant le service et HoPetSit n'y a pas accès ; ils sont <strong>libérés dans le portefeuille du prestataire à la confirmation du propriétaire, ou 48 heures après la fin prévue du service</strong>, puis retirés sur son IBAN. Ce délai laisse au propriétaire le temps d'ouvrir un litige.` },
+    { type: "h2", html: `5. Annulations et remboursements` },
     { type: "p", html: `Les propriétaires peuvent s'annuler eux-mêmes gratuitement jusqu'à <strong>72 heures avant le début du service</strong> — la réservation est annulée immédiatement et un remboursement automatique à 100 % est émis. Dans le délai de 72 heures, les annulations nécessitent un accord mutuel avec le prestataire ou une contestation formelle. Les annulations initiées par le fournisseur entraînent toujours un remboursement intégral du propriétaire. Consultez la politique de remboursement complète <a href="/refund"></a> pour connaître le processus complet, les délais et la procédure de litige.` },
     { type: "h2", html: `6. Conduite` },
     { type: "ul", html: [
@@ -262,7 +270,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   es: {
-    lastUpdated: "25 de abril de 2026",
+    lastUpdated: "6 de octubre de 2026",
     sections: [
     { type: "p", html: `Estos Términos de servicio (los "Términos") rigen su uso del mercado HoPetSit (el "Servicio"), operado por CARDELLI HERMANOS LIMITED (que opera como HoPetSit), una empresa constituida en Hong Kong (la "Compañía", "nosotros", "nos").` },
     { type: "h2", html: `1. El Servicio` },
@@ -276,7 +284,7 @@ export const TERMS: LegalDocByLang = {
     { type: "h2", html: `3. Cuenta y cuenta seguridad` },
     { type: "p", html: `Usted es responsable de la actividad de su cuenta y de mantener la confidencialidad de sus credenciales. Notifíquenos a <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a> tan pronto como sospeche de un acceso no autorizado.` },
     { type: "h2", html: `4. Reservas y pagos` },
-    { type: "p", html: `Los propietarios pagan el importe bruto de la reserva a través de nuestro procesador de pagos regulado (Airwallex). HoPetSit retiene una comisión de plataforma <strong>20%</strong>; el <strong>80%</strong> restante se paga al IBAN registrado del proveedor <strong>24 horas después de que finalice el servicio</strong>, lo que permite una ventana de disputa para el propietario. Los fondos se mantienen en custodia durante todo este período y HoPetSit no accede a ellos.` },
+    { type: "p", html: `Los propietarios pagan a través de nuestro procesador de pagos regulado (Airwallex). <strong>El proveedor recibe el 100 % de su tarifa.</strong> El propietario paga esa tarifa más una <strong>comisión HoPetSit del 20 %</strong> (15 % con la insignia Top). Ejemplo: tarifa de 18 € → 21,60 € pagados por el propietario, 18 € recibidos por el proveedor. Los fondos se mantienen en custodia durante el servicio y HoPetSit no accede a ellos; se <strong>liberan en el monedero del proveedor cuando el propietario confirma el servicio, o 48 horas después de su fin previsto</strong>, y luego pueden retirarse a su IBAN. Este plazo da al propietario tiempo para abrir una disputa.` },
     { type: "h2", html: `5. Cancelaciones y reembolsos` },
     { type: "p", html: `Los propietarios pueden cancelar su reserva de forma gratuita hasta <strong>72 horas antes de que comience el servicio</strong>: la reserva se cancela inmediatamente y se emite un reembolso 100% automático. Dentro del plazo de 72 horas, las cancelaciones requieren un acuerdo mutuo con el proveedor o una disputa formal. Las cancelaciones iniciadas por el proveedor siempre resultan en un reembolso completo al propietario. Consulte la Política de reembolso <a href="/refund"></a> completa para conocer el proceso completo, los plazos y el procedimiento de disputa.` },
     { type: "h2", html: `6. Conducta` },
@@ -301,7 +309,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   de: {
-    lastUpdated: "25. April 2026",
+    lastUpdated: "6. Oktober 2026",
     sections: [
     { type: "p", html: `Diese Nutzungsbedingungen (die „Bedingungen“) regeln Ihre Nutzung des HoPetSit-Marktplatzes (der „Dienst“), der von CARDELLI HERMANOS LIMITED (firmierend als HoPetSit), einem in Hongkong eingetragenen Unternehmen (das „Unternehmen“, „wir“, „uns“), betrieben wird.` },
     { type: "h2", html: `1. Der Dienst` },
@@ -315,7 +323,7 @@ export const TERMS: LegalDocByLang = {
     { type: "h2", html: `3. Konto &amp; Sicherheit` },
     { type: "p", html: `Sie sind für die Aktivitäten auf Ihrem Konto und für die Geheimhaltung Ihrer Zugangsdaten verantwortlich. Benachrichtigen Sie uns unter <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>, sobald Sie den Verdacht eines unbefugten Zugriffs haben.` },
     { type: "h2", html: `4. Buchungen &amp; Zahlungen` },
-    { type: "p", html: `Eigentümer zahlen den Bruttobuchungsbetrag über unseren regulierten Zahlungsabwickler (Airwallex). HoPetSit behält eine Plattformprovision von <strong>20 %</strong>; Die verbleibenden <strong>80%</strong> werden 24 Stunden nach Ende des Dienstes an die beim Anbieter registrierte IBAN <strong> ausgezahlt</strong>, sodass dem Eigentümer ein Streitzeitfenster zur Verfügung steht. Die Gelder werden während dieses gesamten Zeitraums treuhänderisch verwaltet und HoPetSit hat keinen Zugriff darauf.` },
+    { type: "p", html: `Eigentümer zahlen über unseren regulierten Zahlungsabwickler (Airwallex). <strong>Der Anbieter erhält 100 % seines Tarifs.</strong> Der Eigentümer zahlt diesen Tarif zuzüglich einer <strong>HoPetSit-Provision von 20 %</strong> (15 % mit dem Top-Abzeichen). Beispiel: Tarif 18 € → 21,60 € vom Eigentümer gezahlt, 18 € vom Anbieter erhalten. Die Gelder werden während des Dienstes treuhänderisch verwahrt und HoPetSit hat keinen Zugriff darauf; sie werden <strong>in das Wallet des Anbieters freigegeben, sobald der Eigentümer den Dienst bestätigt, oder 48 Stunden nach dem geplanten Ende</strong>, und können dann auf seine IBAN abgehoben werden. Dieser Zeitraum gibt dem Eigentümer Zeit, einen Streitfall zu eröffnen.` },
     { type: "h2", html: `5. Stornierungen &amp; Rückerstattungen` },
     { type: "p", html: `Eigentümer können bis zu <strong>72 Stunden vor Beginn des Dienstes kostenlos selbst stornieren. Die Buchung wird sofort storniert und eine 100-prozentige automatische Rückerstattung erfolgt. Innerhalb des 72-Stunden-Fensters erfordern Stornierungen eine gegenseitige Vereinbarung mit dem Anbieter oder eine formelle Streitigkeit. Vom Anbieter veranlasste Stornierungen führen immer zu einer vollständigen Rückerstattung des Mietpreises durch den Eigentümer. Den vollständigen Prozess, die Fristen und das Streitbeilegungsverfahren finden Sie in der vollständigen <a href="/refund">Rückerstattungsrichtlinie</a>.` },
     { type: "h2", html: `6. Verhalten` },
@@ -340,7 +348,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   it: {
-    lastUpdated: "25 aprile 2026",
+    lastUpdated: "6 ottobre 2026",
     sections: [
     { type: "p", html: `I presenti Termini di servizio (i "Termini") regolano l'utilizzo del mercato HoPetSit (il "Servizio"), gestito da CARDELLI HERMANOS LIMITED (operante come HoPetSit), una società costituita a Hong Kong (la "Società", "noi", "ci").` },
     { type: "h2", html: `1. Il Servizio` },
@@ -353,9 +361,9 @@ export const TERMS: LegalDocByLang = {
     ]},
     { type: "h2", html: `3. Conto e sicurezza` },
     { type: "p", html: `Sei responsabile dell'attività del tuo account e della riservatezza delle tue credenziali. Avvisateci a <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a> non appena sospetti un accesso non autorizzato.` },
-    { type: "h2", html: `4. Prenotazioni e servizi pagamenti` },
-    { type: "p", html: `I proprietari pagano l'importo lordo della prenotazione tramite il nostro sistema di pagamento regolamentato (Airwallex). HoPetSit trattiene una commissione sulla piattaforma <strong>20%</strong>; il restante <strong>80%</strong> viene pagato all'IBAN registrato <strong> del fornitore 24 ore dopo la fine del servizio</strong>, consentendo una finestra di controversia per il proprietario. I fondi vengono tenuti in garanzia durante l'intero periodo e HoPetSit non vi accede.` },
-    { type: "h2", html: `5. Cancellazioni e rinunce rimborsi` },
+    { type: "h2", html: `4. Prenotazioni e pagamenti` },
+    { type: "p", html: `I proprietari pagano tramite il nostro sistema di pagamento regolamentato (Airwallex). <strong>Il fornitore riceve il 100 % della sua tariffa.</strong> Il proprietario paga tale tariffa più una <strong>commissione HoPetSit del 20 %</strong> (15 % con il badge Top). Esempio: tariffa 18 € → 21,60 € pagati dal proprietario, 18 € ricevuti dal fornitore. I fondi sono tenuti in garanzia durante il servizio e HoPetSit non vi accede; vengono <strong>rilasciati nel portafoglio del fornitore quando il proprietario conferma il servizio, o 48 ore dopo la fine prevista</strong>, e possono poi essere prelevati sul suo IBAN. Questo periodo lascia al proprietario il tempo di aprire una controversia.` },
+    { type: "h2", html: `5. Cancellazioni e rimborsi` },
     { type: "p", html: `I proprietari possono annullare autonomamente la prenotazione gratuitamente fino a <strong>72 ore prima dell'inizio del servizio</strong>: la prenotazione viene annullata immediatamente e viene emesso un rimborso automatico al 100%. Entro la finestra di 72 ore, le cancellazioni richiedono un accordo reciproco con il fornitore o una controversia formale. Le cancellazioni avviate dal fornitore comportano sempre un rimborso completo al proprietario. Consulta la <a href="/refund">Politica di rimborso</a> per il processo completo, le scadenze e la procedura di controversia.` },
     { type: "h2", html: `6. Condotta` },
     { type: "ul", html: [
@@ -379,7 +387,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   pt: {
-    lastUpdated: "25 de abril de 2026",
+    lastUpdated: "6 de outubro de 2026",
     sections: [
     { type: "p", html: `Estes Termos de Serviço (os "Termos") regem o uso do mercado HoPetSit (o "Serviço"), operado pela CARDELLI HERMANOS LIMITED (negociando como HoPetSit), uma empresa constituída em Hong Kong (a "Empresa", "nós", "nos").` },
     { type: "h2", html: `1. O serviço` },
@@ -392,9 +400,9 @@ export const TERMS: LegalDocByLang = {
     ]},
     { type: "h2", html: `3. Conta e conta segurança` },
     { type: "p", html: `Você é responsável pela atividade em sua conta e por manter a confidencialidade de suas credenciais. Notifique-nos em <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a> assim que suspeitar de acesso não autorizado.` },
-    { type: "h2", html: `4. Reservas e visitas pagamentos` },
-    { type: "p", html: `Os proprietários pagam o valor bruto da reserva através do nosso processador de pagamentos regulamentado (Airwallex). HoPetSit retém uma comissão de plataforma <strong>20%</strong>; o restante <strong>80%</strong> é pago ao IBAN registrado do provedor <strong>24 horas após o término do serviço</strong>, permitindo uma janela de disputa para o proprietário. Os fundos são mantidos em custódia durante todo esse período e o HoPetSit não tem acesso a eles.` },
-    { type: "h2", html: `5. Cancelamentos e cancelamentos reembolsos` },
+    { type: "h2", html: `4. Reservas e pagamentos` },
+    { type: "p", html: `Os proprietários pagam através do nosso processador de pagamentos regulamentado (Airwallex). <strong>O prestador recebe 100 % da sua tarifa.</strong> O proprietário paga essa tarifa acrescida de uma <strong>comissão HoPetSit de 20 %</strong> (15 % com o selo Top). Exemplo: tarifa de 18 € → 21,60 € pagos pelo proprietário, 18 € recebidos pelo prestador. Os fundos são mantidos em custódia durante o serviço e a HoPetSit não tem acesso a eles; são <strong>libertados na carteira do prestador quando o proprietário confirma o serviço, ou 48 horas após o fim previsto</strong>, e podem depois ser levantados para o seu IBAN. Este prazo dá ao proprietário tempo para abrir uma disputa.` },
+    { type: "h2", html: `5. Cancelamentos e reembolsos` },
     { type: "p", html: `Os proprietários podem cancelar gratuitamente até <strong>72 horas antes do início do serviço</strong> — a reserva é cancelada imediatamente e um reembolso 100% automático é emitido. Dentro do período de 72 horas, os cancelamentos exigem um acordo mútuo com o fornecedor ou uma disputa formal. Os cancelamentos iniciados pelo provedor sempre resultam em um reembolso total ao proprietário. Consulte a Política de Reembolso <a href="/refund"> completa</a> para o processo completo, prazos e procedimento de disputa.` },
     { type: "h2", html: `6. Conduta` },
     { type: "ul", html: [
@@ -418,7 +426,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   ko: {
-    lastUpdated: "2026년 4월 25일",
+    lastUpdated: "2026년 10월 6일",
     sections: [
     { type: "p", html: `본 서비스 이용약관(이하 "약관")은 홍콩에서 설립된 회사인 CARDELLI HERMANOS LIMITED(HoPetSit이라는 상호로 영업, 이하 "회사", "당사")가 운영하는 HoPetSit 마켓플레이스(이하 "서비스")의 이용에 적용됩니다.` },
     { type: "h2", html: `1. 서비스` },
@@ -432,7 +440,7 @@ export const TERMS: LegalDocByLang = {
     { type: "h2", html: `3. 계정 및 보안` },
     { type: "p", html: `귀하는 귀하의 계정에서 이루어지는 활동과 계정 정보의 기밀 유지에 대한 책임이 있습니다. 무단 접근이 의심되는 즉시 <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>으로 알려 주십시오.` },
     { type: "h2", html: `4. 예약 및 결제` },
-    { type: "p", html: `소유자는 규제 대상 결제 처리업체(Airwallex)를 통해 예약 총액을 결제합니다. HoPetSit은 <strong>20% 플랫폼 수수료</strong>를 보유하며, 나머지 <strong>80%</strong>는 <strong>서비스 종료 24시간 후</strong> 제공자가 등록한 IBAN으로 지급되어 소유자에게 분쟁 제기 기간이 보장됩니다. 이 기간 전체에 걸쳐 자금은 에스크로에 보관되며 HoPetSit은 이에 접근하지 않습니다.` },
+    { type: "p", html: `소유자는 규제 대상 결제 처리업체(Airwallex)를 통해 결제합니다. <strong>제공자는 자신의 요금 100%를 받습니다.</strong> 소유자는 이 요금에 <strong>HoPetSit 수수료 20%</strong>(Top 배지 보유 시 15%)를 더한 금액을 지불합니다. 예: 요금 18€ → 소유자 지불 21.60€, 제공자 수령 18€. 자금은 서비스 기간 동안 에스크로에 보관되며 HoPetSit은 이에 접근하지 않습니다. 자금은 <strong>소유자가 서비스를 확인한 시점 또는 예정된 종료 후 48시간이 지난 시점에 제공자의 지갑으로 해제</strong>되며, 이후 제공자의 IBAN으로 출금할 수 있습니다. 이 기간 동안 소유자는 분쟁을 제기할 수 있습니다.` },
     { type: "h2", html: `5. 취소 및 환불` },
     { type: "p", html: `소유자는 <strong>서비스 시작 72시간 전</strong>까지 무료로 직접 취소할 수 있으며, 이 경우 예약은 즉시 취소되고 100% 자동 환불이 이루어집니다. 72시간 이내에는 취소를 위해 제공자와의 상호 합의 또는 공식 분쟁 절차가 필요합니다. 제공자가 취소한 경우에는 언제나 소유자에게 전액 환불됩니다. 전체 절차, 기한 및 분쟁 절차는 <a href="/refund">환불 정책</a> 전문을 참조하십시오.` },
     { type: "h2", html: `6. 행동 규범` },
@@ -457,7 +465,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   ja: {
-    lastUpdated: "2026年4月25日",
+    lastUpdated: "2026年10月6日",
     sections: [
     { type: "p", html: `本利用規約（以下「本規約」）は、香港で設立された会社であるCARDELLI HERMANOS LIMITED（HoPetSitとして事業を行う。以下「当社」）が運営するHoPetSitマーケットプレイス（以下「本サービス」）のご利用に適用されます。` },
     { type: "h2", html: `1. 本サービス` },
@@ -471,7 +479,7 @@ export const TERMS: LegalDocByLang = {
     { type: "h2", html: `3. アカウントとセキュリティ` },
     { type: "p", html: `お客様は、ご自身のアカウント上での活動および認証情報の機密保持について責任を負います。不正アクセスの疑いが生じた場合は、直ちに<a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>までご連絡ください。` },
     { type: "h2", html: `4. 予約と支払い` },
-    { type: "p", html: `飼い主は、規制を受けた決済処理業者（Airwallex）を通じて予約総額をお支払いいただきます。HoPetSitは<strong>20%のプラットフォーム手数料</strong>を留保し、残りの<strong>80%</strong>は<strong>サービス終了の24時間後</strong>に提供者が登録したIBANへ支払われ、飼い主には異議申立ての期間が確保されます。この期間中、資金はエスクローに保管され、HoPetSitがこれにアクセスすることはありません。` },
+    { type: "p", html: `飼い主は、規制を受けた決済処理業者（Airwallex）を通じてお支払いいただきます。<strong>提供者は自身の料金の100%を受け取ります。</strong>飼い主はその料金に<strong>HoPetSit手数料20%</strong>（Topバッジ保有者は15%）を加えた金額をお支払いいただきます。例：料金18€ → 飼い主の支払い21.60€、提供者の受取18€。資金はサービス期間中エスクローに保管され、HoPetSitがこれにアクセスすることはありません。資金は<strong>飼い主がサービスを確認した時点、または予定終了の48時間後に提供者のウォレットへ解放</strong>され、その後、提供者のIBANへ出金できます。この期間中、飼い主は異議を申し立てることができます。` },
     { type: "h2", html: `5. キャンセルと返金` },
     { type: "p", html: `飼い主は<strong>サービス開始の72時間前</strong>まで無料でご自身によるキャンセルが可能で、この場合、予約は直ちにキャンセルされ、100%の自動返金が行われます。72時間を切ってからのキャンセルには、提供者との相互合意または正式な異議申立てが必要です。提供者によるキャンセルの場合は、常に飼い主へ全額返金されます。手続きの全体、期限および紛争処理手順については、<a href="/refund">返金ポリシー</a>の全文をご覧ください。` },
     { type: "h2", html: `6. 行動規範` },
@@ -499,7 +507,7 @@ export const TERMS: LegalDocByLang = {
   // juridique ne se traduit pas automatiquement ; à faire relire par un
   // traducteur juridique avant une version polonaise).
   pl: {
-    lastUpdated: "April 25, 2026",
+    lastUpdated: "October 6, 2026",
     sections: [
     { type: "p", html: `These Terms of Service (the "Terms") govern your use of the HoPetSit marketplace (the "Service"), operated by CARDELLI HERMANOS LIMITED (trading as HoPetSit), a company incorporated in Hong Kong (the "Company", "we", "us").` },
     { type: "h2", html: `1. The Service` },
@@ -513,7 +521,7 @@ export const TERMS: LegalDocByLang = {
     { type: "h2", html: `3. Account &amp; security` },
     { type: "p", html: `You are responsible for the activity on your account and for keeping your credentials confidential. Notify us at <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a> as soon as you suspect unauthorised access.` },
     { type: "h2", html: `4. Bookings &amp; payments` },
-    { type: "p", html: `Owners pay the gross booking amount via our regulated payment processor (Airwallex). HoPetSit retains a <strong>20% platform commission</strong>; the remaining <strong>80%</strong> is paid out to the provider's registered IBAN <strong>24 hours after the service ends</strong>, allowing a dispute window for the owner. Funds are held in escrow during this entire period and HoPetSit does not access them.` },
+    { type: "p", html: `Owners pay via our regulated payment processor (Airwallex). <strong>The provider receives 100% of their rate.</strong> The owner pays that rate plus a <strong>20% HoPetSit commission</strong> (15% with the Top badge). Example: an €18 rate → €21.60 paid by the owner, €18 received by the provider. Funds are held in escrow during the service and HoPetSit does not access them; they are <strong>released to the provider's wallet when the owner confirms the service, or 48 hours after its scheduled end</strong>, and can then be withdrawn to the provider's IBAN. This period gives the owner time to open a dispute.` },
     { type: "h2", html: `5. Cancellations &amp; refunds` },
     { type: "p", html: `Owners can self-cancel for free up to <strong>72 hours before the service starts</strong> — the booking is cancelled immediately and a 100% automatic refund is issued. Within the 72-hour window, cancellations require a mutual agreement with the provider or a formal dispute. Provider-initiated cancellations always result in a full owner refund. See the full <a href="/refund">Refund Policy</a> for the complete process, deadlines and dispute procedure.` },
     { type: "h2", html: `6. Conduct` },
@@ -1006,11 +1014,11 @@ export const PRIVACY: LegalDocByLang = {
 
 export const REFUND: LegalDocByLang = {
   en: {
-    lastUpdated: "April 25, 2026",
+    lastUpdated: "October 6, 2026",
     sections: [
     { type: "p", html: `This Refund Policy applies to all bookings made through the HoPetSit marketplace. It complements the <a href="/terms">Terms of Service</a> and reflects how cancellations and refunds are actually executed by our payment processor (Airwallex).` },
     { type: "h2", html: `1. How payments are held` },
-    { type: "p", html: `When an owner pays for a confirmed booking, the funds are captured by our regulated payment processor (Airwallex) and held in escrow. They are released to the provider's registered bank account <strong>24 hours after the service ends</strong> — this dispute window protects the owner if anything goes wrong during the service.` },
+    { type: "p", html: `When an owner pays for a confirmed booking, the funds are captured by our regulated payment processor (Airwallex) and held in escrow. They are released to the provider's wallet <strong>when the owner confirms the service, or 48 hours after its scheduled end</strong>, and can then be withdrawn to the provider's IBAN — this window protects the owner if anything goes wrong during the service.` },
     { type: "h2", html: `2. Cancellation by the owner — 72-hour free window` },
     { type: "ul", html: [
       `<strong>More than 72 hours before the service starts:</strong> You can self-cancel from the app. The booking is cancelled immediately and you receive a <strong>100% automatic refund</strong> (no questions asked). Funds typically reach your bank within 5–10 business days.`,
@@ -1033,11 +1041,11 @@ export const REFUND: LegalDocByLang = {
   ],
   },
   fr: {
-    lastUpdated: "25 avril 2026",
+    lastUpdated: "6 octobre 2026",
     sections: [
     { type: "p", html: `Cette politique de remboursement s'applique à toutes les réservations effectuées via le marché HoPetSit. Il complète les <a href="/terms">Terms of Service</a> et reflète la manière dont les annulations et les remboursements sont réellement exécutés par notre processeur de paiement (Airwallex).` },
     { type: "h2", html: `1. Comment les paiements sont retenus` },
-    { type: "p", html: `Lorsqu'un propriétaire paie pour une réservation confirmée, les fonds sont capturés par notre processeur de paiement réglementé (Airwallex) et conservés sous séquestre. Ils sont déposés sur le compte bancaire enregistré du fournisseur <strong>24 heures après la fin du service</strong> — cette fenêtre de litige protège le propriétaire en cas de problème pendant le service.` },
+    { type: "p", html: `Lorsqu'un propriétaire paie pour une réservation confirmée, les fonds sont capturés par notre processeur de paiement réglementé (Airwallex) et conservés sous séquestre. Ils sont libérés dans le portefeuille du prestataire <strong>à la confirmation du propriétaire, ou 48 heures après la fin prévue du service</strong>, puis retirés sur son IBAN — ce délai protège le propriétaire en cas de problème pendant le service.` },
     { type: "h2", html: `2. Annulation par le propriétaire — Fenêtre gratuite de 72 heures` },
     { type: "ul", html: [
       `<strong>Plus de 72 heures avant le début du service :</strong> Vous pouvez vous annuler vous-même depuis l'application. La réservation est annulée immédiatement et vous recevez un remboursement automatique <strong>100%</strong> (sans poser de questions). Les fonds parviennent généralement à votre banque dans un délai de 5 à 10 jours ouvrables.`,
@@ -1060,11 +1068,11 @@ export const REFUND: LegalDocByLang = {
   ],
   },
   es: {
-    lastUpdated: "25 de abril de 2026",
+    lastUpdated: "6 de octubre de 2026",
     sections: [
     { type: "p", html: `Esta Política de reembolso se aplica a todas las reservas realizadas a través del mercado HoPetSit. Complementa los <a href="/terms">Términos de servicio</a> y refleja cómo nuestro procesador de pagos (Airwallex) ejecuta realmente las cancelaciones y los reembolsos.` },
     { type: "h2", html: `1. Cómo se realizan los pagos` },
-    { type: "p", html: `Cuando un propietario paga una reserva confirmada, los fondos son capturados por nuestro procesador de pagos regulado (Airwallex) y mantenidos en depósito de garantía. Se liberan a la cuenta bancaria registrada del proveedor <strong>24 horas después de que finaliza el servicio</strong>; esta ventana de disputa protege al propietario si algo sale mal durante el servicio.` },
+    { type: "p", html: `Cuando un propietario paga una reserva confirmada, los fondos son capturados por nuestro procesador de pagos regulado (Airwallex) y mantenidos en depósito de garantía. Se liberan en el monedero del proveedor <strong>cuando el propietario confirma el servicio, o 48 horas después de su fin previsto</strong>, y luego pueden retirarse a su IBAN; este plazo protege al propietario si algo sale mal durante el servicio.` },
     { type: "h2", html: `2. Cancelación por parte del propietario: ventana gratuita de 72 horas` },
     { type: "ul", html: [
       `<strong>Más de 72 horas antes de que comience el servicio:</strong> Puedes autocancelar desde la aplicación. La reserva se cancela inmediatamente y recibes un reembolso <strong>100% automático</strong> (sin preguntas). Los fondos suelen llegar a su banco en un plazo de 5 a 10 días hábiles.`,
@@ -1087,11 +1095,11 @@ export const REFUND: LegalDocByLang = {
   ],
   },
   de: {
-    lastUpdated: "25. April 2026",
+    lastUpdated: "6. Oktober 2026",
     sections: [
     { type: "p", html: `Diese Rückerstattungsrichtlinie gilt für alle Buchungen, die über den HoPetSit-Marktplatz vorgenommen werden. Es ergänzt die <a href="/terms">Terms of Service</a> und spiegelt wider, wie Stornierungen und Rückerstattungen tatsächlich von unserem Zahlungsabwickler (Airwallex) durchgeführt werden.` },
     { type: "h2", html: `1. Wie Zahlungen abgewickelt werden` },
-    { type: "p", html: `Wenn ein Eigentümer für eine bestätigte Buchung bezahlt, werden die Gelder von unserem regulierten Zahlungsabwickler (Airwallex) erfasst und treuhänderisch verwahrt. Sie werden <strong>24 Stunden nach Ende des Dienstes auf das registrierte Bankkonto des Anbieters überwiesen.` },
+    { type: "p", html: `Wenn ein Eigentümer für eine bestätigte Buchung bezahlt, werden die Gelder von unserem regulierten Zahlungsabwickler (Airwallex) erfasst und treuhänderisch verwahrt. Sie werden <strong>in das Wallet des Anbieters freigegeben, sobald der Eigentümer den Dienst bestätigt, oder 48 Stunden nach dem geplanten Ende</strong>, und können dann auf seine IBAN abgehoben werden – dieser Zeitraum schützt den Eigentümer, falls während des Dienstes etwas schiefgeht.` },
     { type: "h2", html: `2. Stornierung durch den Eigentümer – 72 Stunden freies Fenster` },
     { type: "ul", html: [
       `<strong>Mehr als 72 Stunden vor Beginn des Dienstes:</strong> Sie können über die App selbst kündigen. Die Buchung wird sofort storniert und Sie erhalten eine <strong>100 % automatische Rückerstattung</strong> (keine Fragen gestellt). Das Geld erreicht Ihre Bank in der Regel innerhalb von 5–10 Werktagen.`,
@@ -1114,11 +1122,11 @@ export const REFUND: LegalDocByLang = {
   ],
   },
   it: {
-    lastUpdated: "25 aprile 2026",
+    lastUpdated: "6 ottobre 2026",
     sections: [
     { type: "p", html: `La presente Politica di rimborso si applica a tutte le prenotazioni effettuate tramite il mercato HoPetSit. Integra i <a href="/terms">Termini di servizio</a> e riflette il modo in cui le cancellazioni e i rimborsi vengono effettivamente eseguiti dal nostro processore di pagamento (Airwallex).` },
     { type: "h2", html: `1. Come vengono tenuti i pagamenti` },
-    { type: "p", html: `Quando un proprietario paga per una prenotazione confermata, i fondi vengono acquisiti dal nostro processore di pagamento regolamentato (Airwallex) e conservati in garanzia. Vengono rilasciati sul conto bancario registrato del fornitore <strong>24 ore dopo la fine del servizio</strong>: questa finestra di controversia protegge il proprietario se qualcosa va storto durante il servizio.` },
+    { type: "p", html: `Quando un proprietario paga per una prenotazione confermata, i fondi vengono acquisiti dal nostro processore di pagamento regolamentato (Airwallex) e conservati in garanzia. Vengono rilasciati nel portafoglio del fornitore <strong>quando il proprietario conferma il servizio, o 48 ore dopo la fine prevista</strong>, e possono poi essere prelevati sul suo IBAN: questo periodo protegge il proprietario se qualcosa va storto durante il servizio.` },
     { type: "h2", html: `2. Cancellazione da parte del proprietario: periodo gratuito di 72 ore` },
     { type: "ul", html: [
       `<strong>Più di 72 ore prima dell'inizio del servizio:</strong> Puoi annullare autonomamente dall'app. La prenotazione viene annullata immediatamente e riceverai un <strong>rimborso automatico al 100%</strong> (senza fare domande). In genere i fondi raggiungono la tua banca entro 5-10 giorni lavorativi.`,
@@ -1141,11 +1149,11 @@ export const REFUND: LegalDocByLang = {
   ],
   },
   pt: {
-    lastUpdated: "25 de abril de 2026",
+    lastUpdated: "6 de outubro de 2026",
     sections: [
     { type: "p", html: `Esta Política de Reembolso se aplica a todas as reservas feitas através do mercado HoPetSit. Ele complementa os <a href="/terms">Termos de serviço</a> e reflete como os cancelamentos e reembolsos são realmente executados pelo nosso processador de pagamentos (Airwallex).` },
     { type: "h2", html: `1. Como os pagamentos são retidos` },
-    { type: "p", html: `Quando um proprietário paga por uma reserva confirmada, os fundos são capturados pelo nosso processador de pagamentos regulamentado (Airwallex) e mantidos em depósito. Eles são liberados para a conta bancária cadastrada do provedor <strong>24 horas após o término do serviço</strong> — essa janela de disputa protege o proprietário caso algo dê errado durante o serviço.` },
+    { type: "p", html: `Quando um proprietário paga por uma reserva confirmada, os fundos são capturados pelo nosso processador de pagamentos regulamentado (Airwallex) e mantidos em depósito. São libertados na carteira do prestador <strong>quando o proprietário confirma o serviço, ou 48 horas após o fim previsto</strong>, e podem depois ser levantados para o seu IBAN — este prazo protege o proprietário caso algo corra mal durante o serviço.` },
     { type: "h2", html: `2. Cancelamento por parte do proprietário — janela gratuita de 72 horas` },
     { type: "ul", html: [
       `<strong>Mais de 72 horas antes do início do serviço:</strong> Você pode cancelar automaticamente no aplicativo. A reserva é cancelada imediatamente e você recebe um reembolso automático <strong>100%</strong> (sem perguntas). Os fundos normalmente chegam ao seu banco dentro de 5 a 10 dias úteis.`,
@@ -1168,11 +1176,11 @@ export const REFUND: LegalDocByLang = {
   ],
   },
   ko: {
-    lastUpdated: "2026년 4월 25일",
+    lastUpdated: "2026년 10월 6일",
     sections: [
     { type: "p", html: `본 환불 정책은 HoPetSit 마켓플레이스를 통해 이루어진 모든 예약에 적용됩니다. 본 정책은 <a href="/terms">서비스 이용약관</a>을 보완하며, 당사의 결제 처리업체(Airwallex)가 취소와 환불을 실제로 어떻게 실행하는지를 반영합니다.` },
     { type: "h2", html: `1. 결제 대금의 보관 방식` },
-    { type: "p", html: `소유자가 확정된 예약 대금을 결제하면, 해당 자금은 당사의 규제 대상 결제 처리업체(Airwallex)가 수취하여 에스크로에 보관합니다. 자금은 <strong>서비스 종료 24시간 후</strong>에 제공자가 등록한 은행 계좌로 지급되며, 이 분쟁 제기 기간은 서비스 중 문제가 발생한 경우 소유자를 보호합니다.` },
+    { type: "p", html: `소유자가 확정된 예약 대금을 결제하면, 해당 자금은 당사의 규제 대상 결제 처리업체(Airwallex)가 수취하여 에스크로에 보관합니다. 자금은 <strong>소유자가 서비스를 확인한 시점 또는 예정된 종료 후 48시간이 지난 시점에 제공자의 지갑으로 해제</strong>되며, 이후 제공자의 IBAN으로 출금할 수 있습니다. 이 기간은 서비스 중 문제가 발생한 경우 소유자를 보호합니다.` },
     { type: "h2", html: `2. 소유자에 의한 취소 — 72시간 무료 취소 기간` },
     { type: "ul", html: [
       `<strong>서비스 시작 72시간 이전:</strong> 앱에서 직접 취소할 수 있습니다. 예약은 즉시 취소되며 <strong>100% 자동 환불</strong>을 받습니다(사유를 묻지 않습니다). 자금은 일반적으로 영업일 기준 5~10일 이내에 은행 계좌로 입금됩니다.`,
@@ -1195,11 +1203,11 @@ export const REFUND: LegalDocByLang = {
   ],
   },
   ja: {
-    lastUpdated: "2026年4月25日",
+    lastUpdated: "2026年10月6日",
     sections: [
     { type: "p", html: `本返金ポリシーは、HoPetSitマーケットプレイスを通じて行われたすべての予約に適用されます。本ポリシーは<a href="/terms">利用規約</a>を補完し、当社の決済処理業者（Airwallex）によってキャンセルおよび返金が実際にどのように実行されるかを示すものです。` },
     { type: "h2", html: `1. 支払いの保管方法` },
-    { type: "p", html: `飼い主が確定した予約の代金を支払うと、その資金は当社の規制を受けた決済処理業者（Airwallex）によって回収され、エスクローに保管されます。資金は<strong>サービス終了の24時間後</strong>に提供者が登録した銀行口座へ払い出されます。この異議申立て期間は、サービス中に問題が生じた場合に飼い主を保護します。` },
+    { type: "p", html: `飼い主が確定した予約の代金を支払うと、その資金は当社の規制を受けた決済処理業者（Airwallex）によって回収され、エスクローに保管されます。資金は<strong>飼い主がサービスを確認した時点、または予定終了の48時間後に提供者のウォレットへ解放</strong>され、その後、提供者のIBANへ出金できます。この期間は、サービス中に問題が生じた場合に飼い主を保護します。` },
     { type: "h2", html: `2. 飼い主によるキャンセル — 72時間の無料キャンセル期間` },
     { type: "ul", html: [
       `<strong>サービス開始の72時間より前:</strong> アプリからご自身でキャンセルできます。予約は直ちにキャンセルされ、<strong>100%の自動返金</strong>を受けられます（理由は問いません）。資金は通常、5〜10営業日以内にお客様の銀行口座に入金されます。`,
@@ -1225,11 +1233,11 @@ export const REFUND: LegalDocByLang = {
   // juridique ne se traduit pas automatiquement ; à faire relire par un
   // traducteur juridique avant une version polonaise).
   pl: {
-    lastUpdated: "April 25, 2026",
+    lastUpdated: "October 6, 2026",
     sections: [
     { type: "p", html: `This Refund Policy applies to all bookings made through the HoPetSit marketplace. It complements the <a href="/terms">Terms of Service</a> and reflects how cancellations and refunds are actually executed by our payment processor (Airwallex).` },
     { type: "h2", html: `1. How payments are held` },
-    { type: "p", html: `When an owner pays for a confirmed booking, the funds are captured by our regulated payment processor (Airwallex) and held in escrow. They are released to the provider's registered bank account <strong>24 hours after the service ends</strong> — this dispute window protects the owner if anything goes wrong during the service.` },
+    { type: "p", html: `When an owner pays for a confirmed booking, the funds are captured by our regulated payment processor (Airwallex) and held in escrow. They are released to the provider's wallet <strong>when the owner confirms the service, or 48 hours after its scheduled end</strong>, and can then be withdrawn to the provider's IBAN — this window protects the owner if anything goes wrong during the service.` },
     { type: "h2", html: `2. Cancellation by the owner — 72-hour free window` },
     { type: "ul", html: [
       `<strong>More than 72 hours before the service starts:</strong> You can self-cancel from the app. The booking is cancelled immediately and you receive a <strong>100% automatic refund</strong> (no questions asked). Funds typically reach your bank within 5–10 business days.`,

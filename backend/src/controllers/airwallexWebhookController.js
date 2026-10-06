@@ -396,7 +396,7 @@ const handleAirwallexWebhook = async (req, res) => {
         // to see the green "Paiement reçu" banner. Now we emit to both
         // sides so the banner appears within ~1s for the provider too.
         try {
-          const { emitToUser } = require('../sockets');
+          const { emitToUser } = require('../sockets/emitter'); // 612 (ZOE) — '../sockets' n'exporte PAS emitToUser : l'émission échouait en silence depuis avril (mesuré : 0 événement reçu)
           if (booking.ownerId) {
             emitToUser('owner', booking.ownerId.toString(), 'booking:paid', {
               bookingId: booking._id.toString(),
@@ -426,7 +426,7 @@ const handleAirwallexWebhook = async (req, res) => {
         try {
           const Conversation = require('../models/Conversation');
           const Message = require('../models/Message');
-          const { emitToUser } = require('../sockets');
+          const { emitToUser } = require('../sockets/emitter'); // 612 (ZOE) — '../sockets' n'exporte PAS emitToUser : l'émission échouait en silence depuis avril (mesuré : 0 événement reçu)
           const Owner = require('../models/Owner');
 
           const ownerId = booking.ownerId;

@@ -13,8 +13,10 @@
  *        → recalcule les prestataires proches (même code que la publication),
  *          RETIRE ceux qui ont déjà reçu une notification pour CETTE annonce,
  *          et n'envoie rien tant que dryRun n'est pas explicitement false.
- *          Même mécanisme que la publication (in-app + push, aucun e-mail en
- *          plus). Journalisé (auditAdmin).
+ *          Même mécanisme que la publication. 612 (ordre de Daniel du 05/10) :
+ *          tous les prestataires du bon rôle à 100 km, par cloche + notification
+ *          du téléphone + e-mail, UNE fois par annonce et par personne (registre
+ *          RequestAlert612). Journalisé (auditAdmin).
  *   GET  /admin/requests0410/cities/non-canonical
  *        → valeurs de ville déjà en base qui ne sont pas au nom local
  *          (« Parigi », « París »…), par collection et par champ. LECTURE
@@ -67,6 +69,20 @@ router.get('/:postId/notified', requireAdmin, async (req, res) => {
     const rows = await notifiedFor(postId);
     const names = await namesOf(rows);
     const applications = await Application.countDocuments({ postId: post._id });
+    // 612 — prévenus PAR CANAL (registre des alertes ; vide pour les annonces
+    // d'avant le 612, dont seule la cloche garde la trace).
+    let channels = null;
+    const byRecipient = new Map();
+    try {
+      const sum = await require('../services/requestAlert612').channelSummary(post._id);
+      channels = {
+        people: sum.people, bell: sum.bell, push: sum.push, email: sum.email,
+        emailUnsubscribed: sum.emailUnsubscribed, pushNoToken: sum.pushNoToken,
+      };
+      for (const r of sum.rows) byRecipient.set(String(r.recipientId), r);
+    } catch (e) {
+      logger.warn(`[admin/requests0410/notified] registre 612 : ${e && e.message ? e.message : e}`);
+    }
     res.json({
       postId,
       city: (post.location && post.location.city) || '',
@@ -76,6 +92,7 @@ router.get('/:postId/notified', requireAdmin, async (req, res) => {
       createdAt: post.createdAt,
       notifiedCount: rows.length,
       readCount: rows.filter((r) => r.readAt).length,
+      channels,
       notified: rows.map((r) => ({
         type: r.type,
         role: r.recipientRole,
@@ -84,6 +101,11 @@ router.get('/:postId/notified', requireAdmin, async (req, res) => {
         city: (names.get(String(r.recipientId)) || {}).city || '',
         at: r.createdAt,
         read: !!r.readAt,
+        // 612 — distance et canaux, quand le registre connaît cet envoi.
+        km: byRecipient.has(String(r.recipientId)) ? byRecipient.get(String(r.recipientId)).km : null,
+        via: byRecipient.has(String(r.recipientId)) ? byRecipient.get(String(r.recipientId)).via : null,
+        push: byRecipient.has(String(r.recipientId)) ? (byRecipient.get(String(r.recipientId)).channels || {}).push : null,
+        email: byRecipient.has(String(r.recipientId)) ? (byRecipient.get(String(r.recipientId)).channels || {}).email : null,
       })),
       applications,
     });
@@ -121,14 +143,14 @@ router.post('/:postId/renotify', requireAdmin, async (req, res) => {
     }
     const { notifyNearbyProviders } = require('../controllers/postController');
     const bilan = await new Promise((resolve) => {
-      const timer = setTimeout(() => resolve({ error: 'délai dépassé (60 s)' }), 60000);
+      const timer = setTimeout(() => resolve({ error: 'délai dépassé (120 s) : les envois continuent en tâche de fond' }), 120000);
       notifyNearbyProviders({
         newPost: post,
         postPayload: { location: post.location || null, targetProvider: post.targetProvider || null },
         normalizedServices: Array.isArray(post.serviceTypes) ? post.serviceTypes : [],
         owner,
         ownerId: String(post.ownerId),
-        opts: { skipIds, dryRun, onDone: (b) => { clearTimeout(timer); resolve(b); } },
+        opts: { skipIds, dryRun, resend, onDone: (b) => { clearTimeout(timer); resolve(b); } },
       });
     });
     logger.info(`[admin/requests0410/renotify] post=${postId} dryRun=${dryRun} candidats=${(bilan.candidates || []).length} envoyés=${(bilan.sent || []).length} déjà=${(bilan.skippedAlready || []).length}`);
@@ -138,6 +160,10 @@ router.post('/:postId/renotify', requireAdmin, async (req, res) => {
       resend,
       alreadyNotifiedBefore: already.length,
       recipientRole: bilan.recipientRole || '',
+      roles: bilan.roles || [], // 612
+      radiusKm: bilan.radiusKm || 0, // 612
+      excluded: bilan.excluded || {}, // 612 — écartés : auteur, test, staff, suspendus, bloqués, trop loin…
+      channels: bilan.channels || null, // 612 — cloche / téléphone / e-mail réellement partis
       cityKey: bilan.cityKey || '',
       candidates: (bilan.candidates || []).length,
       sent: (bilan.sent || []).length,
@@ -148,6 +174,37 @@ router.post('/:postId/renotify', requireAdmin, async (req, res) => {
     });
   } catch (e) {
     logger.error('[admin/requests0410/renotify]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 612 §8 (ZOE) — demandes OUVERTES publiées sans animal enregistré : personne ne
+// pouvait y postuler (bouton gris dans toutes les apps). Rattache un animal
+// (fiche minimale si le propriétaire n'en a aucun). SIMULATION par défaut :
+// rien n'est écrit tant que `dryRun` n'est pas explicitement false.
+router.post('/pets612/backfill', requireAdmin, async (req, res) => {
+  try {
+    const dryRun = !(req.body && req.body.dryRun === false);
+    const Post = require('../models/Post');
+    const { attachPetToExistingPost } = require('../utils/postPet612');
+    const posts = await Post.find({
+      postType: 'request',
+      hidden: { $ne: true },
+      status: { $ne: 'closed' },
+      $and: [
+        { $or: [{ petIds: { $exists: false } }, { petIds: { $size: 0 } }] },
+        { $or: [{ petId: null }, { petId: { $exists: false } }] },
+      ],
+    }).select('ownerId petIds petId animalTypes postType createdAt location.city').limit(500).lean();
+    const out = [];
+    for (const p of posts) {
+      const r = await attachPetToExistingPost(p, { dryRun });
+      out.push({ postId: String(p._id), city: (p.location && p.location.city) || '', createdAt: p.createdAt, petCreated: !!(r && r.created), attached: !!(r && (r.id || dryRun)) });
+    }
+    logger.info(`[admin/requests0410/pets612] dryRun=${dryRun} demandes sans animal=${out.length}`);
+    res.json({ dryRun, count: out.length, petsCreated: out.filter((x) => x.petCreated).length, posts: out });
+  } catch (e) {
+    logger.error('[admin/requests0410/pets612]', e);
     res.status(500).json({ error: e.message });
   }
 });

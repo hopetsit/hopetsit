@@ -426,16 +426,46 @@ mixin ChatSessionMixin<M extends ChatMessageBase,
       if (visible) {
         _visibleChatId = conversationId;
         SocketService.visibleConversationId = conversationId;
+        // 612 — de retour à l'écran (ou au premier plan) : on rentre dans la
+        // salle du fil, quittée en le masquant.
+        _room612(conversationId, join: true);
         if (markRead) _scheduleRead(conversationId);
-      } else if (_visibleChatId == conversationId) {
-        _visibleChatId = '';
-        if (SocketService.visibleConversationId == conversationId) {
-          SocketService.visibleConversationId = '';
+      } else {
+        if (_visibleChatId == conversationId) {
+          _visibleChatId = '';
+          if (SocketService.visibleConversationId == conversationId) {
+            SocketService.visibleConversationId = '';
+          }
+          _readDebounce?.cancel();
         }
-        _readDebounce?.cancel();
+        // 612 (ZOE, 05/10) — MESURÉ : l'app ne quittait JAMAIS la salle du fil
+        // en revenant à la liste ou à un autre onglet. Le serveur croyait donc
+        // le fil « ouvert à l'écran » et ne faisait plus sonner le téléphone
+        // pour ses messages. Écran masqué (retour, autre onglet, app en
+        // arrière-plan) = on quitte la salle ; les messages continuent
+        // d'arriver par la salle de la personne (pastille, liste).
+        if (_visibleChatId != conversationId) {
+          _room612(conversationId, join: false);
+        }
       }
     } catch (e) {
       AppLogger.logError('setChatVisible failed', error: e);
+    }
+  }
+
+  /// 612 — entre dans / quitte la salle temps réel d'un fil. Jamais bloquant.
+  void _room612(String conversationId, {required bool join}) {
+    if (conversationId.isEmpty) return;
+    try {
+      if (!Get.isRegistered<SocketService>()) return;
+      final s = Get.find<SocketService>();
+      if (join) {
+        s.joinConversation(conversationId);
+      } else {
+        s.leaveConversation(conversationId);
+      }
+    } catch (e) {
+      AppLogger.logError('chat room 612 failed', error: e);
     }
   }
 

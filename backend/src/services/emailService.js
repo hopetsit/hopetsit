@@ -237,8 +237,24 @@ const escapeHtml = (v) => String(v == null ? '' : v)
  * @param {string} [o.link]      lien universel du bouton (ajoute le lien de secours s'il manque)
  * @param {string} [o.preheader] texte d'aperçu (corps du push)
  */
-const buildNotificationEmailHtml = (innerHtml, { locale = 'fr', link = '', preheader = '' } = {}) => {
+// 612 (ZOE) — lien « ne plus recevoir ces e-mails » (alerte des nouvelles annonces).
+const NOTIF_EMAIL_UNSUB_I18N = {
+  fr: 'Ne plus recevoir ces e-mails',
+  en: 'Stop receiving these emails',
+  es: 'Dejar de recibir estos correos',
+  de: 'Diese E-Mails nicht mehr erhalten',
+  it: 'Non ricevere più queste e-mail',
+  pt: 'Deixar de receber estes e-mails',
+  pl: 'Nie chcę otrzymywać tych wiadomości',
+  ko: '이 메일 수신 중단',
+  ja: 'このメールの配信を停止する',
+};
+
+const buildNotificationEmailHtml = (innerHtml, { locale = 'fr', link = '', preheader = '', unsubscribeUrl = '' } = {}) => {
   const t = NOTIF_EMAIL_I18N[locale] || NOTIF_EMAIL_I18N.en;
+  const unsub = unsubscribeUrl
+    ? `<br><a href="${escapeHtml(unsubscribeUrl)}" style="color:#8E8E93">${NOTIF_EMAIL_UNSUB_I18N[locale] || NOTIF_EMAIL_UNSUB_I18N.en}</a>`
+    : '';
   let inner = String(innerHtml || '');
   // Bouton centré : le paragraphe qui contient le bouton (lien « display:inline-block »).
   inner = inner.replace(/<p>(\s*<a\s[^>]*display:inline-block)/g, '<p style="text-align:center;margin:24px 0">$1');
@@ -256,7 +272,7 @@ const buildNotificationEmailHtml = (innerHtml, { locale = 'fr', link = '', prehe
 ${inner}
 ${fallback}
 <hr style="border:none;border-top:1px solid #EEEEF0;margin:22px 0 14px">
-<p style="color:#8E8E93;font-size:12px;line-height:1.5;margin:0">${t.footer}<br>${t.noreply}</p>
+<p style="color:#8E8E93;font-size:12px;line-height:1.5;margin:0">${t.footer}<br>${t.noreply}${unsub}</p>
 </div></div></body></html>`;
 };
 
@@ -287,5 +303,6 @@ module.exports = {
   sendTestEmail,
   sendCampaignEmail,
   buildNotificationEmailHtml, // v566
+  NOTIF_EMAIL_UNSUB_I18N, // 612
 };
 

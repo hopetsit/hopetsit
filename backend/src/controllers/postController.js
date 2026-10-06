@@ -195,73 +195,52 @@ const resolveMediaPostType = ({ rawPostType, startDate, endDate, serviceTypes, h
 const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner, ownerId, opts = {} }) => {
     const skipIds = opts.skipIds instanceof Set ? opts.skipIds : new Set();
     const dryRun = opts.dryRun === true;
+    const resend = opts.resend === true;
     const done = typeof opts.onDone === 'function' ? opts.onDone : () => {};
-    const bilan = { recipientRole: '', cityKey: '', candidates: [], sent: [], skippedAlready: [], dryRun };
-    // 28/09/2026 — compte de test (+test) : on ne prévient aucun gardien.
-    if (owner && require('../utils/testAccount2809').isTestAccountEmail(owner.email)) {
-      logger.info(`[notifyNearbyProviders] compte de test ${ownerId} : aucun prestataire prévenu`);
-      done({ ...bilan, testAccount: true });
-      return;
+    const bilan = {
+      recipientRole: '', roles: [], cityKey: '', radiusKm: 0, candidates: [], sent: [], skippedAlready: [],
+      excluded: {}, channels: { bell: 0, push: 0, email: 0 }, dryRun,
+    };
+    // 28/09/2026 — compte de test (+test) : aucun VRAI prestataire prévenu.
+    // 612 — seuls d'autres comptes de test le sont (essais de bout en bout).
+    const ownerIsTest = !!(owner && require('../utils/testAccount2809').isTestAccountEmail(owner.email));
+    if (ownerIsTest) {
+      bilan.testAccount = true;
+      logger.info(`[notifyNearbyProviders] compte de test ${ownerId} : seuls des comptes de test peuvent être prévenus`);
     }
+    // 612 (ZOE, 05/10) — ordre de Daniel : tous les prestataires du bon rôle à
+    // 100 km, par notification du téléphone + e-mail + cloche, UNE fois par
+    // annonce et par personne. Règles et repli : services/requestAlert612.js.
+    // Toujours hors du chemin de la réponse (la publication n'attend jamais).
     setImmediate(async () => {
       try {
-        const Sitter = require('../models/Sitter');
-        const Walker = require('../models/Walker');
+        const alert612 = require('../services/requestAlert612');
         const { sendNotification } = require('../services/notificationSender');
+        const services = Array.isArray(normalizedServices) ? normalizedServices : [];
+        const payload = postPayload || {};
 
-        const isWalkingPost = normalizedServices.includes('dog_walking');
-        const RecipientModel = isWalkingPost ? Walker : Sitter;
-        const recipientRole = isWalkingPost ? 'walker' : 'sitter';
-
-        // v565 — point 30 : « les prestataires PROCHES reçoivent la notif ».
-        // AVANT : égalité stricte sur la ville (« Málaga » ≠ « malaga » ≠
-        // « Malaga (Andalucía) » → 0 destinataire) et, sans ville, les 50
-        // premiers prestataires DU MONDE étaient notifiés ; le rayon
-        // géographique n'était jamais utilisé.
-        // MAINTENANT : (a) même ville, insensible à la casse, aux accents et
-        // aux compléments entre parenthèses / après virgule ; (b) ET/OU dans
-        // le rayon de couverture du prestataire (coverageRadiusKm, plancher
-        // 10 km, plafond 100 km) autour des coordonnées de l'annonce ;
-        // sans ville ni coordonnées → personne (plus d'envoi mondial).
-        // Daniel, 22/09 : « Paris avec tous les arrondissements autour ».
-        // « Paris 11e » est ramené à « Paris » pour la comparaison ET pour le
-        // géocodage, sinon la demande d'un 11e n'atteint aucun gardien du 15e.
-        const { baseCityName } = require('../utils/geocodeCity');
-        let postLat = Number(postPayload.location && postPayload.location.lat);
-        let postLng = Number(postPayload.location && postPayload.location.lng);
+        // « Paris 11e » → « Paris », « Parigi » → « Paris » (22/09 et 04/10) : sert
+        // au texte, au géocodage et au repli par nom de ville.
+        const { baseCityName, geocodeCity } = require('../utils/geocodeCity');
+        let postLat = Number(payload.location && payload.location.lat);
+        let postLng = Number(payload.location && payload.location.lng);
         let hasPostCoords =
           Number.isFinite(postLat) && Number.isFinite(postLng) &&
           !(postLat === 0 && postLng === 0);
-        // 04/10/2026 (ZOE) — « Parigi », « París », « パリ »… → « Paris » :
-        // la ville arrive dans la langue du téléphone. Les coordonnées de
-        // l'annonce servent de garde-fou (une vraie Parigi indonésienne reste
-        // Parigi). Le ciblage par RAYON ci-dessous ne dépend pas du nom.
         const cityKey = baseCityName(
-          (postPayload.location && postPayload.location.city) || '',
+          (payload.location && payload.location.city) || '',
           hasPostCoords ? { lat: postLat, lng: postLng } : null,
-        ) || (postPayload.location && postPayload.location.city);
+        ) || (payload.location && payload.location.city) || '';
 
-        // 22/09/2026 — une demande publiée depuis le SITE n'a qu'un nom de
-        // ville : le navigateur ne donne pas de GPS sans autorisation, et on ne
-        // la demande pas pour publier. Sans coordonnées, seul le nom comptait :
-        // une demande « Paris » atteignait les 3 gardiens écrivant « Paris » et
-        // ratait les 9 autres qui desservent Paris depuis Boulogne, Courbevoie,
-        // Asnières ou Bois-d'Arcy. On géocode donc la ville ici — on est déjà
-        // hors du chemin de la réponse HTTP (setImmediate), le délai ne coûte
-        // rien à l'utilisateur, et un échec laisse simplement le nom seul.
+        // 22/09/2026 — annonce publiée avec un nom de ville seul (le site) : on
+        // la géocode ici, et (v591) on enregistre la position dans l'annonce.
         if (!hasPostCoords && cityKey) {
           try {
-            const { geocodeCity } = require('../utils/geocodeCity');
             const g = await geocodeCity(cityKey);
             if (g) {
               postLat = g.lat;
               postLng = g.lng;
               hasPostCoords = true;
-              // v591 — audit du 26/09 : ces coordonnées n'étaient gardées que
-              // pour la notification ; l'annonce « ville seule » (tout le site,
-              // l'app quand la ville est tapée à la main) n'apparaissait sur
-              // AUCUNE carte et partait chez des prestataires du monde entier.
-              // On les enregistre dans l'annonce.
               if (newPost && newPost._id && !dryRun) {
                 try {
                   await require('../models/Post').updateOne(
@@ -274,165 +253,143 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
           } catch (_) { /* non bloquant : on garde le nom de ville */ }
         }
 
-        const byId = new Map();
-        const addRecipients = (docs) => {
-          for (const d of docs || []) {
-            if (d && d._id) byId.set(d._id.toString(), d);
-          }
-        };
-
-        if (cityKey) {
-          const cityCore = String(cityKey).split(/[(,/]/)[0].trim();
-          if (cityCore) {
-            // Regex insensible aux accents : chaque lettre de base accepte
-            // ses variantes accentuées (« malaga » ↔ « Málaga »).
-            const ACCENTS = {
-              a: 'aàáâãäåą', c: 'cçćč', e: 'eèéêëęě', i: 'iìíîïı', l: 'lł',
-              n: 'nñńň', o: 'oòóôõöøő', s: 'sśšş', u: 'uùúûüůű', y: 'yýÿ', z: 'zźżž',
-            };
-            const base = cityCore
-              .normalize('NFD').replace(/[̀-ͯ]/g, '')
-              .toLowerCase();
-            const pattern = base
-              .split('')
-              .map((ch) => {
-                if (ACCENTS[ch]) return `[${ACCENTS[ch]}${ACCENTS[ch].toUpperCase()}]`;
-                if (/\s/.test(ch)) return '\\s*';
-                return ch.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
-              })
-              .join('');
-            const rx = new RegExp(pattern, 'i');
-            const cityDocs = await RecipientModel.find({
-              $or: [
-                { 'location.city': rx },
-                { city: rx },
-                { coverageCity: rx },
-              ],
-            })
-              .select('_id oldId')
-              .limit(100)
-              .lean();
-            addRecipients(cityDocs);
-          }
-        }
-
-        if (hasPostCoords) {
-          try {
-            const MAX_RADIUS_KM = 100;
-            const geoDocs = await RecipientModel.find({
-              location: {
-                $geoWithin: {
-                  $centerSphere: [[postLng, postLat], MAX_RADIUS_KM / 6371],
-                },
-              },
-            })
-              .select('_id oldId coverageRadiusKm location.coordinates')
-              .limit(300)
-              .lean();
-            const toRad = (x) => (x * Math.PI) / 180;
-            for (const d of geoDocs) {
-              const c = d.location && d.location.coordinates;
-              if (!Array.isArray(c) || c.length < 2) continue;
-              const dLat = toRad(Number(c[1]) - postLat);
-              const dLng = toRad(Number(c[0]) - postLng);
-              const a =
-                Math.sin(dLat / 2) ** 2 +
-                Math.cos(toRad(postLat)) * Math.cos(toRad(Number(c[1]))) *
-                Math.sin(dLng / 2) ** 2;
-              const km = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-              const radius = Math.min(
-                MAX_RADIUS_KM,
-                Math.max(10, Number(d.coverageRadiusKm) || 0),
-              );
-              if (km <= radius) addRecipients([d]);
-            }
-          } catch (geoErr) {
-            logger.warn(`[createPost] geo recipients failed (non-blocking): ${geoErr?.message || geoErr}`);
-          }
-        }
-
-        const recipients = Array.from(byId.values()).slice(0, 150);
-
-        // v448 — AUDIT : ne PAS s'auto-notifier. 1 compte = 3 profils (owner +
-        // sitter + walker) ; si l'owner qui publie est aussi prestataire dans la
-        // même ville, son propre doc prestataire figurait dans la liste → il
-        // recevait une notif « nouvelle demande près de chez vous » pour sa
-        // PROPRE annonce. On exclut via les identifiants partagés entre docs.
+        // Jamais l'auteur : ses 3 profils (v448, v573).
         const selfIds = new Set(
           [ownerId, owner && owner.oldId, owner && owner._id]
             .filter(Boolean)
             .map((x) => x.toString()),
         );
-        // v573 — les comptes récents n'ont pas d'oldId : les 3 documents d'une
-        // même personne ne sont reliés que par l'e-mail → groupe d'identité.
         try {
           const grp = await identityGroup(ownerId);
           for (const gid of grp.ids) selfIds.add(String(gid));
         } catch (_) { /* non bloquant */ }
 
-        // 28/09 (NEO) — « Demander à <prénom> » : le prestataire ciblé est
-        // prévenu EN PREMIER, avec une notification distincte, dans SON rôle
-        // (un promeneur visé par une demande de garde la reçoit quand même).
-        // Il est ensuite retiré de la diffusion ville : jamais deux fois.
-        const alreadyNotified = new Set();
-        bilan.recipientRole = recipientRole;
+        const picked = await alert612.selectRecipients({
+          center: hasPostCoords ? { lat: postLat, lng: postLng } : null,
+          city: cityKey,
+          services,
+          selfIds,
+          ownerIsTest,
+          geocode: geocodeCity,
+        });
+        bilan.roles = picked.roles;
+        bilan.recipientRole = picked.roles[0] || '';
         bilan.cityKey = cityKey || '';
-        const target = postPayload.targetProvider;
+        bilan.radiusKm = picked.radiusKm;
+        bilan.excluded = picked.excluded;
+
+        const postId = newPost._id.toString();
+        const startDate = (newPost && newPost.startDate) || payload.startDate || null;
+        const endDate = (newPost && newPost.endDate) || payload.endDate || null;
+        const iso = (v) => {
+          if (!v) return '';
+          const d = v instanceof Date ? v : new Date(v);
+          return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+        };
+        const alertKey = alert612.alertKeyOf({
+          ownerKey: alert612.personKeyOf({ _id: ownerId, email: owner && owner.email }),
+          services, city: cityKey, startDate, endDate,
+        });
+        const baseData = {
+          postId,
+          ownerName: (owner && owner.name) || '',
+          serviceType: services[0] || '',
+          city: cityKey || '',
+          startDate: iso(startDate),
+          endDate: iso(endDate),
+        };
+        const alreadyNotified = new Set();
+
+        // Envoi d'UNE alerte : réservation dans le registre, puis les 3 canaux.
+        const sendOne = async (r, type) => {
+          let ticket;
+          try {
+            ticket = await alert612.claim({ postId: newPost._id, alertKey, recipient: r, type, resend });
+          } catch (e) {
+            logger.warn(`[alert612] registre indisponible pour ${r.role}:${r.id} : ${e && e.message ? e.message : e}`);
+            return false; // dans le doute, pas de double envoi
+          }
+          if (!ticket.ok) { bilan.skippedAlready.push(r.id); return false; }
+          bilan.sent.push(r.id);
+          let result = null;
+          try {
+            result = await sendNotification({
+              userId: r.id,
+              role: r.role,
+              type,
+              data: baseData,
+              actor: { role: 'owner', id: ownerId },
+              channels: { email: !r.emailOptOut },
+              emailExtras: { unsubscribeUrl: alert612.unsubscribeUrlFor(r.role, r.id) },
+            });
+          } catch (e) {
+            logger.warn(`[alert612] envoi ${type} à ${r.role}:${r.id} : ${e && e.message ? e.message : e}`);
+          }
+          await alert612.recordChannels(ticket.id, result);
+          if (result) {
+            if (result.bell) bilan.channels.bell += 1;
+            if (result.push === 'sent') bilan.channels.push += 1;
+            if (result.email === 'sent') bilan.channels.email += 1;
+          }
+          return true;
+        };
+
+        // 28/09 (NEO) — « Demander à <prénom> » : le prestataire ciblé est
+        // prévenu EN PREMIER, avec une notification distincte, dans SON rôle,
+        // puis retiré de la diffusion : jamais deux fois.
+        const target = payload.targetProvider;
         if (target && target.id && (target.role === 'sitter' || target.role === 'walker')) {
           const tid = String(target.id);
-          if (!selfIds.has(tid) && skipIds.has(tid)) {
+          if (!selfIds.has(tid)) {
             alreadyNotified.add(tid);
-            bilan.skippedAlready.push(tid);
-          } else if (!selfIds.has(tid) && dryRun) {
-            alreadyNotified.add(tid);
-            bilan.candidates.push(tid);
-          } else if (!selfIds.has(tid)) {
-            alreadyNotified.add(tid);
-            bilan.candidates.push(tid);
-            bilan.sent.push(tid);
-            await sendNotification({
-              userId: tid,
-              role: target.role,
-              type: 'new_request_for_you',
-              data: {
-                postId: newPost._id.toString(),
-                ownerName: owner.name || '',
-                serviceType: normalizedServices[0] || '',
-                city: cityKey || '',
-              },
-              actor: { role: 'owner', id: ownerId },
-            });
-            logger.info(`[createPost] targeted ${target.role} ${tid} notified first (new_request_for_you)`);
+            if (skipIds.has(tid)) {
+              bilan.skippedAlready.push(tid);
+            } else {
+              bilan.candidates.push(tid);
+              if (!dryRun) {
+                let tDoc = null;
+                try {
+                  tDoc = await (target.role === 'walker' ? require('../models/Walker') : require('../models/Sitter'))
+                    .findById(tid).select('_id email marketingOptOut').lean();
+                } catch (_) { tDoc = null; }
+                // Annonce d'un compte de test : le ciblé n'est prévenu que
+                // s'il est lui-même un compte de test.
+                const tIsTest = !!(tDoc && require('../utils/testAccount2809').isTestAccountEmail(tDoc.email));
+                if (ownerIsTest && !tIsTest) {
+                  bilan.excluded.notTest = (bilan.excluded.notTest || 0) + 1;
+                }
+                const tr = (ownerIsTest && !tIsTest) ? null : {
+                  id: tid, role: target.role, km: null, via: 'target',
+                  personKey: alert612.personKeyOf(tDoc || { _id: tid }),
+                  emailOptOut: !!(tDoc && tDoc.marketingOptOut === true),
+                };
+                if (tr) alreadyNotified.add(tr.personKey);
+                if (tr && await sendOne(tr, 'new_request_for_you')) {
+                  logger.info(`[createPost] targeted ${target.role} ${tid} notified first (new_request_for_you)`);
+                }
+              }
+            }
           }
         }
 
-        for (const r of recipients) {
-          const rid = r._id ? r._id.toString() : '';
-          const roldId = r.oldId ? r.oldId.toString() : '';
-          if (selfIds.has(rid) || (roldId && selfIds.has(roldId))) {
-            continue; // c'est le doc prestataire de l'owner lui-même → skip
-          }
-          if (alreadyNotified.has(rid)) continue; // déjà prévenu en premier
-          if (skipIds.has(rid)) { bilan.skippedAlready.push(rid); continue; } // 04/10 : jamais deux fois
-          bilan.candidates.push(rid);
-          if (dryRun) continue;
-          bilan.sent.push(rid);
-          sendNotification({
-            userId: r._id.toString(),
-            role: recipientRole,
-            type: 'new_request_nearby',
-            data: {
-              postId: newPost._id.toString(),
-              ownerName: owner.name || '',
-              serviceType: normalizedServices[0] || '',
-              city: cityKey || '',
-            },
-            actor: { role: 'owner', id: ownerId },
-          });
+        const queue = [];
+        for (const r of picked.recipients) {
+          if (alreadyNotified.has(r.id) || alreadyNotified.has(r.personKey)) continue; // déjà prévenu en premier
+          if (skipIds.has(r.id)) { bilan.skippedAlready.push(r.id); continue; } // 04/10 : jamais deux fois
+          bilan.candidates.push(r.id);
+          if (!dryRun) queue.push(r);
+        }
+        // Par petits paquets : la base et le serveur d'e-mail ne sont pas noyés.
+        const PARALLEL = 6;
+        for (let i = 0; i < queue.length; i += PARALLEL) {
+          await Promise.all(queue.slice(i, i + PARALLEL).map((r) => sendOne(r, 'new_request_nearby')));
         }
 
         logger.info(
-          `[createPost] notified ${recipients.length} ${recipientRole}(s) for new request in ${cityKey || 'any city'}`,
+          `[createPost] alerte 612 : ${bilan.sent.length} personne(s) prévenue(s) sur ${bilan.candidates.length} `
+          + `(${picked.roles.join('+') || '—'}, ${picked.radiusKm} km, ${cityKey || 'sans ville'}) ; `
+          + `cloche ${bilan.channels.bell}, téléphone ${bilan.channels.push}, e-mail ${bilan.channels.email} ; `
+          + `écartés ${JSON.stringify(picked.excluded)}${dryRun ? ' [simulation]' : ''}`,
         );
         done(bilan);
       } catch (err) {
@@ -611,6 +568,9 @@ const createPost = async (req, res) => {
       logger.warn('Post translation failed (non-blocking):', e?.message || e);
     }
 
+    // 612 §8 — une demande a toujours un animal : sans cela AUCUN prestataire ne
+    // pouvait postuler (mesuré). Fiche minimale créée si le propriétaire n'en a pas.
+    await require('../utils/postPet612').attachPetToPayload(postPayload, { owner, animalTypes });
     const newPost = await Post.create(postPayload);
 
     await newPost.populate('ownerId');
@@ -1924,6 +1884,9 @@ const createPostWithMedia = async (req, res) => {
     }
 
     // Create the post
+    // 612 §8 — une demande a toujours un animal : sans cela AUCUN prestataire ne
+    // pouvait postuler (mesuré). Fiche minimale créée si le propriétaire n'en a pas.
+    await require('../utils/postPet612').attachPetToPayload(postPayload, { owner, animalTypes });
     const newPost = await Post.create(postPayload);
 
     await newPost.populate('ownerId');

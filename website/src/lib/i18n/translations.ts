@@ -9664,3 +9664,7 @@ for (const code of Object.keys(RANKS611) as Lang[]) Object.assign(t[code], RANKS
 // ~/hopetsit-social/site_611/build_site611.py. Fusionné EN DERNIER.
 import { SITE611 } from "./site611";
 for (const code of Object.keys(SITE611) as Lang[]) Object.assign(t[code], SITE611[code]);
+// 05/10/2026 — LEO (612) : « Les rangs » dans l'aide de la carte (textes de PAM, copiés de l'app).
+// Généré par ~/hopetsit-social/site_612/build_site612.py. Fusionné EN DERNIER.
+import { SITE612 } from "./site612";
+for (const code of Object.keys(SITE612) as Lang[]) Object.assign(t[code], SITE612[code]);

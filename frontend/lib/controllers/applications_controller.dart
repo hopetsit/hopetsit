@@ -23,6 +23,14 @@ class ApplicationsController extends GetxController {
     // multi-candidates banner appears immediately when a new sitter/walker
     // applies (instead of waiting for the next periodic refresh). Bug B12.
     _attachSocketListeners();
+    // 612 (ZOE) — la prise n'existe pas toujours à ce moment (connexion après
+    // le démarrage, reconnexion) : l'écoute posée sur une prise absente était
+    // perdue pour toujours. On la repose à CHAQUE connexion de la prise.
+    try {
+      if (Get.isRegistered<SocketService>()) {
+        Get.find<SocketService>().addOnConnectedHook(_attachSocketListeners);
+      }
+    } catch (_) {/* best-effort */}
   }
 
   void _attachSocketListeners() {

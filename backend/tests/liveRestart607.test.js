@@ -38,10 +38,16 @@ function post(user, body) {
 test('Balade en cours : un redémarrage du serveur ne la perd plus, +15 à la fin', async () => {
   const w = await Walker.create({ name: 'Walt Restart', email: 'walt607r@example.test', password: 'MotDePasse607!' });
   const user = { id: String(w._id), role: 'walker' };
+  // 612 (PAM) — 67 m entre deux points : il faut le temps de les marcher
+  // (15 s), sinon le filtre anti-saut GPS du tracé les écarte.
+  let fakeNow = Date.now();
+  const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => fakeNow);
   for (let i = 0; i < 12; i += 1) {
+    fakeNow += 15000;
     const r = await post(user, { lat: -35.2 + i * 0.0006, lng: -30.4, duration: '4h' });
     expect(r.status).toBe(200);
   }
+  nowSpy.mockRestore();
   const s = map.getLiveSession(String(w._id));
   s.startedAt -= 11 * 60000; // 11 minutes « écoulées »
   s.expiresAt = s.startedAt + 4 * 3600000;

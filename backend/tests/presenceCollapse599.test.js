@@ -33,7 +33,7 @@ describe('emitter — présence réelle (v599)', () => {
   describe('getOnlineUserIds / isConversationOpenFor avec un faux io', () => {
     const sockets = [
       { id: 'a', data: { user: { id: 'D1', role: 'owner' }, foreground: false, lastActiveAt: now } }, // Daniel en arrière-plan
-      { id: 'b', data: { user: { id: 'J1', role: 'owner' }, foreground: true, lastActiveAt: now, openConversationId: 'F' } }, // John dans le fil F
+      { id: 'b', data: { user: { id: 'J1', role: 'owner' }, foreground: true, lastActiveAt: now, openConversationId: 'F', openConversationAt: now } }, // John dans le fil F (612 : ouverture confirmée à l'instant)
       { id: 'c', data: { user: { id: 'L1', role: 'sitter' }, lastActiveAt: now - 10 * 60 * 1000 } }, // Léa muette depuis 10 min
     ];
     const fakeIo = {

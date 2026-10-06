@@ -663,10 +663,22 @@ const sendFriendMessage = async ({
   };
   await Conversation.findByIdAndUpdate(conversation._id, update);
   // Increment unreadCount du destinataire (chaque participant != sender).
+  // 612 (ZOE, 05/10) — CAUSE MESURÉE de « la pastille Chat n'apparaît pas, le
+  // message n'est que dans la cloche » (Daniel) : le filtre de DOCUMENT
+  // `'participants.userId': { $nin: [expéditeur] }` (et avant lui `$ne`) veut
+  // dire, sur un tableau, « AUCUN participant n'est l'expéditeur » — or
+  // l'expéditeur est toujours participant, donc le fil n'était JAMAIS
+  // retenu et le compteur des fils entre amis restait à 0 pour toujours.
+  // L'app recale sa pastille sur ce compteur 1,5 s après le message → elle
+  // s'effaçait. Le tri se fait dans `arrayFilters` seulement, avec de vrais
+  // ObjectId (les filtres de tableau ne sont pas toujours convertis).
+  const senderOids = senderIdList
+    .filter((v) => mongoose.Types.ObjectId.isValid(String(v)))
+    .map((v) => new mongoose.Types.ObjectId(String(v)));
   await Conversation.updateOne(
-    { _id: conversation._id, 'participants.userId': { $nin: senderIdList } },
+    { _id: conversation._id },
     { $inc: { 'participants.$[other].unreadCount': 1 } },
-    { arrayFilters: [{ 'other.userId': { $nin: senderIdList } }] },
+    { arrayFilters: [{ 'other.userId': { $nin: senderOids } }] },
   );
   // v599 — non lus par participant APRÈS l'incrément (pour l'e-mail « premier
   // message non lu seulement »).
@@ -739,6 +751,16 @@ const createConversationMessage = async (req, res) => {
       select: 'friendChat participants ownerId sitterId walkerId mergedInto', lean: true,
     });
     const canonicalId = convPre ? String(convPre._id) : id;
+    // 612 — écrire dans le fil confirme qu'il est à l'écran chez l'expéditeur
+    // (60 s) : la réponse qui suit ne fait pas sonner son téléphone.
+    try {
+      const emitter612 = require('../sockets/emitter');
+      if (typeof emitter612.touchConversationOpen === 'function') {
+        identity599.identityIds(String(senderId))
+          .then((ids) => emitter612.touchConversationOpen(canonicalId, [...ids]))
+          .catch(() => {});
+      }
+    } catch (_) { /* best-effort */ }
     if (convPre?.friendChat === true) {
       const result = await sendFriendMessage({
         conversation: convPre,
@@ -991,6 +1013,14 @@ const markConversationRead = async (req, res) => {
       require('../utils/chatReadSync599')
         .afterConversationRead({ conversationId: canonicalId, readerId: userId })
         .catch(() => {});
+      // 612 — lire par HTTP (ce que fait l'app à chaque message reçu fil
+      // ouvert) confirme que le fil est à l'écran pour 60 s.
+      const emitter612 = require('../sockets/emitter');
+      if (typeof emitter612.touchConversationOpen === 'function') {
+        identity599.identityIds(String(userId))
+          .then((ids) => emitter612.touchConversationOpen(canonicalId, [...ids]))
+          .catch(() => {});
+      }
     } catch (_) { /* best-effort */ }
 
     if (updated) {

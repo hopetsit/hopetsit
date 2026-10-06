@@ -372,6 +372,9 @@ class PushNotificationService extends GetxService {
   /// 606 — marque la question « notifications » comme en cours dès l'appel
   /// (délai d'affichage compris) : la fenêtre ATT passe toujours APRÈS.
   Future<void> _askAfterEntryTracked(String? role) async {
+    // 612 (ZOE) — tests d'intégration seulement (jamais vrai dans l'app) : la
+    // fenêtre SYSTÈME ne peut pas être touchée par un test et couvre l'écran.
+    if (skipInitForIntegrationTests) return;
     _notificationFlowsInFlight++;
     try {
       await _askAfterEntry(role);

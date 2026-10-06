@@ -16,6 +16,8 @@ const Map<String, Map<String, String>> ranks611I18n =
     "rank611_up_title": "You're now a @rank!",
     "rank611_perk_badge": "Rank badge on your profile and map card",
     "help611_ranks_t": "Ranks",
+    "help612_rank_from": "from {n} PawPoints",
+    "help612_earn_t": "How to earn points",
     "help611_ranks_b": "You start as a Puppy and move up with the PawPoints you have ever earned: Young dog (150), Grown dog (800), Pack leader (3,000), Legend (10,000). Your rank shows on your profile and on your map card. Spending points never moves you down. No paid perks.",
   },
   'fr': <String, String>{
@@ -32,6 +34,8 @@ const Map<String, Map<String, String>> ranks611I18n =
     "rank611_up_title": "Tu passes @rank !",
     "rank611_perk_badge": "Pastille de rang sur ton profil et ta fiche de la carte",
     "help611_ranks_t": "Les rangs",
+    "help612_rank_from": "dès {n} PawPoints",
+    "help612_earn_t": "Comment gagner des points",
     "help611_ranks_b": "Tu commences Chiot et tu montes avec les PawPoints gagnés depuis toujours : Jeune chien (150), Chien adulte (800), Chef de meute (3 000), Légende (10 000). Ton rang s'affiche sur ton profil et sur ta fiche de la carte. Dépenser tes points ne te fait jamais redescendre. Aucun avantage payant.",
   },
   'es': <String, String>{
@@ -48,6 +52,8 @@ const Map<String, Map<String, String>> ranks611I18n =
     "rank611_up_title": "¡Ahora eres @rank!",
     "rank611_perk_badge": "Insignia de rango en tu perfil y tu ficha del mapa",
     "help611_ranks_t": "Los rangos",
+    "help612_rank_from": "desde {n} PawPoints",
+    "help612_earn_t": "Cómo ganar puntos",
     "help611_ranks_b": "Empiezas como Cachorro y subes con los PawPoints ganados desde siempre: Perro joven (150), Perro adulto (800), Líder de la manada (3.000), Leyenda (10.000). Tu rango aparece en tu perfil y en tu ficha del mapa. Gastar puntos nunca te hace bajar. Sin ventajas de pago.",
   },
   'de': <String, String>{
@@ -64,6 +70,8 @@ const Map<String, Map<String, String>> ranks611I18n =
     "rank611_up_title": "Du bist jetzt @rank!",
     "rank611_perk_badge": "Rang-Abzeichen in deinem Profil und auf deiner Karte",
     "help611_ranks_t": "Die Ränge",
+    "help612_rank_from": "ab {n} PawPoints",
+    "help612_earn_t": "So sammelst du Punkte",
     "help611_ranks_b": "Du startest als Welpe und steigst mit allen je verdienten PawPoints auf: Junghund (150), Erwachsener Hund (800), Rudelführer (3.000), Legende (10.000). Dein Rang steht in deinem Profil und auf deiner Karte. Punkte ausgeben lässt dich nie absteigen. Keine bezahlten Vorteile.",
   },
   'it': <String, String>{
@@ -80,6 +88,8 @@ const Map<String, Map<String, String>> ranks611I18n =
     "rank611_up_title": "Ora sei @rank!",
     "rank611_perk_badge": "Badge del grado sul profilo e sulla scheda della mappa",
     "help611_ranks_t": "I gradi",
+    "help612_rank_from": "da {n} PawPoints",
+    "help612_earn_t": "Come guadagnare punti",
     "help611_ranks_b": "Inizi come Cucciolo e sali con tutti i PawPoints guadagnati: Cane giovane (150), Cane adulto (800), Capobranco (3.000), Leggenda (10.000). Il tuo grado appare sul profilo e sulla tua scheda della mappa. Spendere punti non ti fa mai scendere. Nessun vantaggio a pagamento.",
   },
   'pt': <String, String>{
@@ -96,6 +106,8 @@ const Map<String, Map<String, String>> ranks611I18n =
     "rank611_up_title": "Agora és @rank!",
     "rank611_perk_badge": "Insígnia de patente no perfil e na ficha do mapa",
     "help611_ranks_t": "As patentes",
+    "help612_rank_from": "a partir de {n} PawPoints",
+    "help612_earn_t": "Como ganhar pontos",
     "help611_ranks_b": "Começas como Cachorrinho e sobes com todos os PawPoints ganhos: Cão jovem (150), Cão adulto (800), Líder da matilha (3.000), Lenda (10.000). A tua patente aparece no perfil e na tua ficha do mapa. Gastar pontos nunca te faz descer. Sem vantagens pagas.",
   },
   'ko': <String, String>{
@@ -112,6 +124,8 @@ const Map<String, Map<String, String>> ranks611I18n =
     "rank611_up_title": "@rank 등급이 되었어요!",
     "rank611_perk_badge": "프로필과 지도 카드에 등급 배지",
     "help611_ranks_t": "등급",
+    "help612_rank_from": "{n} PawPoints부터",
+    "help612_earn_t": "포인트 모으는 방법",
     "help611_ranks_b": "강아지로 시작해서 지금까지 모은 PawPoints로 올라가요: 청소년견(150), 성견(800), 무리의 리더(3,000), 전설(10,000). 등급은 프로필과 지도 카드에 표시돼요. 포인트를 사용해도 내려가지 않고, 유료 혜택은 없어요.",
   },
   'ja': <String, String>{
@@ -128,6 +142,8 @@ const Map<String, Map<String, String>> ranks611I18n =
     "rank611_up_title": "@rankになりました！",
     "rank611_perk_badge": "プロフィールと地図のカードにランクバッジ",
     "help611_ranks_t": "ランク",
+    "help612_rank_from": "{n} PawPointsから",
+    "help612_earn_t": "ポイントの貯め方",
     "help611_ranks_b": "最初は子犬。これまでに貯めたPawPointsで上がります：若犬（150）、成犬（800）、群れのリーダー（3,000）、レジェンド（10,000）。ランクはプロフィールと地図のカードに表示されます。ポイントを使っても下がりません。有料の特典はありません。",
   },
   'pl': <String, String>{
@@ -144,6 +160,8 @@ const Map<String, Map<String, String>> ranks611I18n =
     "rank611_up_title": "Awans: @rank!",
     "rank611_perk_badge": "Odznaka rangi w profilu i na karcie na mapie",
     "help611_ranks_t": "Rangi",
+    "help612_rank_from": "od {n} PawPoints",
+    "help612_earn_t": "Jak zdobywać punkty",
     "help611_ranks_b": "Zaczynasz jako Szczeniak i awansujesz dzięki wszystkim zdobytym PawPoints: Młody pies (150), Dorosły pies (800), Przywódca stada (3000), Legenda (10 000). Twoją rangę widać w profilu i na Twojej karcie na mapie. Wydawanie punktów nigdy jej nie obniża. Bez płatnych korzyści.",
   },
 };

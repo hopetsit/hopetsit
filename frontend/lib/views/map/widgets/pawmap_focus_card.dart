@@ -114,7 +114,14 @@ class PawFocusCard extends StatelessWidget {
                 ),
               ],
             ),
-            child: Row(
+            // 612 (capture 3 : « Cam Chet… », « Jeune chi… ») — le bouton
+            // « Profil › » passe SOUS la ligne, sur toute la largeur : le nom,
+            // le rang et l'état gagnent ~85 px et ne sont plus coupés.
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+            Row(
               children: [
                 _avatar(pal),
                 const SizedBox(width: 10),
@@ -167,7 +174,8 @@ class PawFocusCard extends StatelessWidget {
                       if (info.info.isNotEmpty)
                         Text(
                           info.info,
-                          maxLines: 1,
+                          // 612 — « En balade · 167 m… » était coupé (capture 11).
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.poppins(
                             fontSize: 11.5,
@@ -177,44 +185,6 @@ class PawFocusCard extends StatelessWidget {
                           ),
                         ),
                     ],
-                  ),
-                ),
-                const SizedBox(width: 6),
-                // « Profil › » : dégradé du rôle, 34 de haut.
-                GestureDetector(
-                  key: const ValueKey<String>('pawmap_focus_open'),
-                  onTap: info.onOpen,
-                  child: Container(
-                    height: 34,
-                    padding: const EdgeInsets.fromLTRB(12, 0, 6, 0),
-                    decoration: BoxDecoration(
-                      gradient: info.roles.length > 1
-                          ? pawRolesGradient(info.roles)
-                          : pawJewelForRole(info.role).gradient,
-                      borderRadius: BorderRadius.circular(17),
-                      boxShadow: [
-                        BoxShadow(
-                          color: pal.mid.withValues(alpha: 0.5),
-                          blurRadius: 10,
-                          spreadRadius: -4,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'pawmap590_focus_profile'.tr,
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const PawSymbol(PawSymbols.chevronRight, size: 18),
-                      ],
-                    ),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -248,6 +218,47 @@ class PawFocusCard extends StatelessWidget {
                     ),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 6),
+                GestureDetector(
+              key: const ValueKey<String>('pawmap_focus_open'),
+              onTap: info.onOpen,
+              child: Container(
+                height: 34,
+                alignment: Alignment.center,
+                padding: const EdgeInsets.fromLTRB(12, 0, 6, 0),
+                decoration: BoxDecoration(
+                  gradient: info.roles.length > 1
+                      ? pawRolesGradient(info.roles)
+                      : pawJewelForRole(info.role).gradient,
+                  borderRadius: BorderRadius.circular(17),
+                  boxShadow: [
+                    BoxShadow(
+                      color: pal.mid.withValues(alpha: 0.5),
+                      blurRadius: 10,
+                      spreadRadius: -4,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'pawmap590_focus_profile'.tr,
+                      maxLines: 1,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const PawSymbol(PawSymbols.chevronRight, size: 18),
+                  ],
+                ),
+              ),
+            ),
               ],
             ),
           ),

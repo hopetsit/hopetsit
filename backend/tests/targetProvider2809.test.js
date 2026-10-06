@@ -44,7 +44,17 @@ const mockRes = () => {
 
 // notifyNearbyProviders tourne dans setImmediate + requêtes Mongo : on laisse
 // la boucle d'événements se vider avant de compter les envois.
-const flush = () => new Promise((r) => setTimeout(r, 250));
+// 612 — l'alerte fait plus de lectures (blocages, désabonnements, registre) : on attend
+// que le nombre d'envois ne bouge plus pendant 300 ms (3 s au plus).
+const flush = async () => {
+  let last = -1; let stable = 0;
+  for (let i = 0; i < 60 && stable < 6; i += 1) {
+    await new Promise((r) => setTimeout(r, 50));
+    const n = sendNotification.mock.calls.length;
+    stable = n === last ? stable + 1 : 0;
+    last = n;
+  }
+};
 
 beforeAll(async () => {
   mongo = await MongoMemoryServer.create();
@@ -54,6 +64,7 @@ beforeAll(async () => {
   const Sitter = require('../src/models/Sitter');
   const Walker = require('../src/models/Walker');
   postController = require('../src/controllers/postController');
+  await require('../src/models/RequestAlert612').init(); // 612 — index du registre prêts avant le 1er envoi
   const o = await Owner.collection.insertOne({
     name: 'Marie', email: 'marie2809@example.test', language: 'fr', currency: 'EUR',
     location: { type: 'Point', coordinates: [-30, -35], city: 'Zone test' },
@@ -81,7 +92,9 @@ afterAll(async () => {
   if (mongo) await mongo.stop();
 });
 
-beforeEach(() => { sendNotification.mockClear(); });
+// 612 — registre des alertes vidé entre les cas : ces tests republient la MÊME demande
+// (même propriétaire, service, ville, dates), que la production ne renvoie plus (voir requestAlert612.test.js).
+beforeEach(async () => { sendNotification.mockClear(); await require('mongoose').connection.collection('requestalerts612').deleteMany({}); });
 
 const publish = async (extra) => {
   const res = mockRes();
@@ -166,6 +179,7 @@ describe('POST /posts avec targetProvider — 28/09', () => {
       'n importe quoi',
     ]) {
       sendNotification.mockClear();
+      await mongoose.connection.collection('requestalerts612').deleteMany({}); // 612 — même demande republiée 4 fois
       const res = await publish({ targetProvider: bad });
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.body.post.targetProvider).toBeNull();

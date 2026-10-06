@@ -7,15 +7,15 @@
   },
   "new_request_nearby": {
     "title": "근처에 새 공고",
-    "body": "{{ownerName}}님이 {{city}}에서 펫 시터를 찾고 있어요. 앱에서 지원해 보세요.",
-    "emailSubject": "새로운 공고 — HoPetSit",
-    "emailBody": "<p>회원님 지역에 새 공고가 등록되었습니다. HoPetSit 앱에서 지원해 보세요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">앱에서 열기</a></p>"
+    "body": "{{ownerName}}님이 {{serviceLabel}}를 찾고 있어요 · {{cityLabel}}{{datesSep}}. 앱에서 지원해 보세요.",
+    "emailSubject": "새 공고: {{serviceName}} · {{cityLabel}}",
+    "emailBody": "<p>{{ownerName}}님이 근처에서 {{serviceLabel}}를 찾고 있어요.</p><p><strong>지역:</strong> {{cityLabel}}<br><strong>서비스:</strong> {{serviceName}}<br><strong>날짜:</strong> {{dates}}</p><p>가장 먼저 답장해 보세요. 앱에서 공고를 열어 주세요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">공고 보기</a></p>"
   },
   "new_request_for_you": {
     "title": "{{ownerName}}님이 당신을 선택했어요",
     "body": "{{ownerName}}님이 {{city}}의 요청에 당신을 선택했어요. 먼저 답장하세요: 앱을 여세요.",
     "emailSubject": "{{ownerName}}님이 당신을 선택했어요 — HoPetSit",
-    "emailBody": "<p>{{ownerName}}님이 {{city}}의 돌봄 요청에 당신을 선택했어요. 가장 먼저 알림을 받으셨어요. 앱에서 빨리 답장하세요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">앱에서 열기</a></p>"
+    "emailBody": "<p>{{ownerName}}님이 {{city}}의 돌봄 요청에 당신을 선택했어요. 가장 먼저 알림을 받으셨어요. 앱에서 빨리 답장하세요.</p><p><strong>지역:</strong> {{cityLabel}}<br><strong>서비스:</strong> {{serviceName}}<br><strong>날짜:</strong> {{dates}}</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">앱에서 열기</a></p>"
   },
   "booking_new": {
     "title": "새 예약 요청",
@@ -429,13 +429,13 @@
     "title": "내 PawSpot이 인증됐어요 🏆",
     "body": "커뮤니티가 ‘{{spotName}}’을(를) 인증했어요. {{points}} PawPoints를 받았고 골든 발자국 🐾이 표시됩니다.",
     "emailSubject": "내 PawSpot이 인증됐어요 — HoPetSit",
-    "emailBody": "<p>축하해요! 커뮤니티가 내 PawSpot ‘{{spotName}}’을(를) 인증했어요. 이제 PawMap에 골든 발자국이 표시되고 {{points}} PawPoints를 받았습니다.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">내 스팟 보기</a></p><p style=\"color:#666;font-size:12px;\">버튼이 작동하지 않으면 이 링크를 복사하세요: {{emailLink}}</p>"
+    "emailBody": "<p>축하해요! 커뮤니티가 내 PawSpot ‘{{spotName}}’을(를) 인증했어요. 이제 PawMap에 골든 발자국이 표시되고 {{points}} PawPoints를 받았습니다.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">내 스팟 보기</a></p><p style=\"color:#666;font-size:12px;\">버튼이 작동하지 않으면 이 링크를 복사하세요: {{emailLink}}</p>"
   },
   "pawspot_popular": {
     "title": "내 PawSpot이 인기 폭발 ⭐",
     "body": "‘{{spotName}}’이(가) 50 ❤️를 넘었어요! {{points}} PawPoints를 받았습니다.",
     "emailSubject": "내 PawSpot이 아주 인기 있어요 — HoPetSit",
-    "emailBody": "<p>내 PawSpot ‘{{spotName}}’이(가) 50 ❤️를 넘었어요. 커뮤니티가 가장 좋아하는 장소 중 하나이며 {{points}} PawPoints를 받았습니다.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">내 스팟 보기</a></p><p style=\"color:#666;font-size:12px;\">버튼이 작동하지 않으면 이 링크를 복사하세요: {{emailLink}}</p>"
+    "emailBody": "<p>내 PawSpot ‘{{spotName}}’이(가) 50 ❤️를 넘었어요. 커뮤니티가 가장 좋아하는 장소 중 하나이며 {{points}} PawPoints를 받았습니다.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">내 스팟 보기</a></p><p style=\"color:#666;font-size:12px;\">버튼이 작동하지 않으면 이 링크를 복사하세요: {{emailLink}}</p>"
   },
   "good_samaritan_premium": {
     "title": "따뜻한 연대의 손길",

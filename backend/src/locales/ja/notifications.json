@@ -7,15 +7,15 @@
   },
   "new_request_nearby": {
     "title": "近くに新しい募集",
-    "body": "{{ownerName}}さんが{{city}}でペットシッターを探しています。アプリから応募しましょう。",
-    "emailSubject": "新しい募集 — HoPetSit",
-    "emailBody": "<p>お近くのエリアに新しい募集が投稿されました。HoPetSitアプリから応募してみましょう。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">アプリで開く</a></p>"
+    "body": "{{ownerName}}さんが{{serviceLabel}}を探しています · {{cityLabel}}{{datesSep}}。アプリから応募しましょう。",
+    "emailSubject": "新しい募集：{{serviceName}} · {{cityLabel}}",
+    "emailBody": "<p>{{ownerName}}さんがお近くで{{serviceLabel}}を探しています。</p><p><strong>エリア:</strong> {{cityLabel}}<br><strong>サービス:</strong> {{serviceName}}<br><strong>日程:</strong> {{dates}}</p><p>早めの返信がおすすめです。アプリで募集を開いてください。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">募集を見る</a></p>"
   },
   "new_request_for_you": {
     "title": "{{ownerName}}さんがあなたを選びました",
     "body": "{{ownerName}}さんが{{city}}での依頼にあなたを選びました。最初に返信しましょう：アプリを開いてください。",
     "emailSubject": "{{ownerName}}さんがあなたを選びました — HoPetSit",
-    "emailBody": "<p>{{ownerName}}さんが{{city}}でのペットケアの依頼にあなたを選びました。あなたに最初に通知されています。アプリからすぐに返信しましょう。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">アプリで開く</a></p>"
+    "emailBody": "<p>{{ownerName}}さんが{{city}}でのペットケアの依頼にあなたを選びました。あなたに最初に通知されています。アプリからすぐに返信しましょう。</p><p><strong>エリア:</strong> {{cityLabel}}<br><strong>サービス:</strong> {{serviceName}}<br><strong>日程:</strong> {{dates}}</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">アプリで開く</a></p>"
   },
   "booking_new": {
     "title": "新しい予約リクエスト",
@@ -429,13 +429,13 @@
     "title": "あなたの PawSpot が承認されました 🏆",
     "body": "コミュニティが「{{spotName}}」を承認しました。{{points}} PawPoints を獲得し、金の肉球 🐾 が付きます。",
     "emailSubject": "あなたの PawSpot が承認されました — HoPetSit",
-    "emailBody": "<p>おめでとうございます！コミュニティがあなたの PawSpot「{{spotName}}」を承認しました。PawMap で金の肉球が付き、{{points}} PawPoints を獲得しました。</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">スポットを見る</a></p><p style=\"color:#666;font-size:12px;\">ボタンが動かない場合は、このリンクをコピーしてください: {{emailLink}}</p>"
+    "emailBody": "<p>おめでとうございます！コミュニティがあなたの PawSpot「{{spotName}}」を承認しました。PawMap で金の肉球が付き、{{points}} PawPoints を獲得しました。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">スポットを見る</a></p><p style=\"color:#666;font-size:12px;\">ボタンが動かない場合は、このリンクをコピーしてください: {{emailLink}}</p>"
   },
   "pawspot_popular": {
     "title": "あなたの PawSpot が大人気 ⭐",
     "body": "「{{spotName}}」が 50 ❤️ を超えました！{{points}} PawPoints を獲得しました。",
     "emailSubject": "あなたの PawSpot がとても人気です — HoPetSit",
-    "emailBody": "<p>あなたの PawSpot「{{spotName}}」が 50 ❤️ を超えました。コミュニティのお気に入りスポットの一つで、{{points}} PawPoints を獲得しました。</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">スポットを見る</a></p><p style=\"color:#666;font-size:12px;\">ボタンが動かない場合は、このリンクをコピーしてください: {{emailLink}}</p>"
+    "emailBody": "<p>あなたの PawSpot「{{spotName}}」が 50 ❤️ を超えました。コミュニティのお気に入りスポットの一つで、{{points}} PawPoints を獲得しました。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">スポットを見る</a></p><p style=\"color:#666;font-size:12px;\">ボタンが動かない場合は、このリンクをコピーしてください: {{emailLink}}</p>"
   },
   "good_samaritan_premium": {
     "title": "助け合いのしるし",

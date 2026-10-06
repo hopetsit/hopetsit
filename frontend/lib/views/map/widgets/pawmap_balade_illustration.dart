@@ -10,11 +10,11 @@
 //
 //   ┌──────────────┐  ┌──────────────┐
 //   │          ⏱👁 │  │      ●👁     │   gauche : ce que je vois (rond « Moi »
-//   │      ╱‾‾╲ 🚶 │  │  ╱‾‾╲        │   à ma couleur, tracé violet ; v601 :
+//   │      ╱‾‾╲ 🚶 │  │  ╱‾‾╲        │   à ma couleur, courte traîne ; v601 :
 //   │              │  │              │   drapeau vert au-dessus du bouton
 //   │              │  │              │   Balade, barre de droite)
 //   │ ────╯  (Moi) │  │ ─╯   (photo) │   droite : ce que voient les autres
-//   └──────────────┘  └──────────────┘   (rond photo, anneau violet, bulle)
+//   └──────────────┘  └──────────────┘   (rond photo, halo violet, bulle)
 //                     🐾• (point vert du menu)
 import 'dart:math' as math;
 
@@ -224,30 +224,29 @@ class _BaladePanelPainter extends CustomPainter {
       cell: 48,
     ).paint(canvas, size);
 
-    // Tracé violet de la balade, qui finit sur le rond.
+    // 612 — COURTE TRAÎNE violette derrière le rond (plus de tracé complet) :
+    // fine (3), 5 morceaux qui s'estompent vers l'arrière (0,12 → 1), elle
+    // finit sous le rond — comme sur la carte.
     final Offset end = Offset(size.width * 0.64, size.height * 0.64);
     final Path trail = Path()
-      ..moveTo(size.width * 0.06, size.height * 0.9)
-      ..quadraticBezierTo(size.width * 0.22, size.height * 0.94,
-          size.width * 0.32, size.height * 0.74)
-      ..quadraticBezierTo(size.width * 0.44, size.height * 0.52,
+      ..moveTo(size.width * 0.3, size.height * 0.86)
+      ..quadraticBezierTo(size.width * 0.42, size.height * 0.6,
           end.dx, end.dy);
-    canvas.drawPath(
-        trail,
-        Paint()
-          ..color = PawMapLegend.pawFollow.withValues(alpha: 0.28)
-          ..strokeWidth = 8
-          ..strokeCap = StrokeCap.round
-          ..style = PaintingStyle.stroke);
-    canvas.drawPath(
-        trail,
-        Paint()
-          ..color = PawMapLegend.pawFollow
-          ..strokeWidth = 3.2
-          ..strokeCap = StrokeCap.round
-          ..style = PaintingStyle.stroke);
+    for (final m in trail.computeMetrics()) {
+      const int parts = 5;
+      for (var k = 0; k < parts; k++) {
+        final double a = 0.12 + 0.88 * (k / (parts - 1));
+        canvas.drawPath(
+            m.extractPath(m.length * k / parts, m.length * (k + 1) / parts),
+            Paint()
+              ..color = PawMapLegend.pawFollow.withValues(alpha: a)
+              ..strokeWidth = 3
+              ..strokeCap = k == 0 ? StrokeCap.round : StrokeCap.butt
+              ..style = PaintingStyle.stroke);
+      }
+    }
 
-    // Le rond : « Moi » (ma couleur) ou l'ami (anneau violet qui respire).
+    // Le rond : « Moi » (ma couleur) ou l'ami (halo violet discret, 612).
     // Aucune étiquette : l'image est sans mot.
     final double dot = mine ? 40 : 38;
     const double margin = PawMapPinPainter.photoMarginGlow;

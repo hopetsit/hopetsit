@@ -41,6 +41,7 @@ class OwnerRepository {
     required String city,
     double? lat,
     double? lng,
+    String? placeId,
     String? notes,
     String? houseSittingVenue,
     String? serviceLocation,
@@ -75,6 +76,8 @@ class OwnerRepository {
         'city': city,
         if (lat != null) 'lat': lat,
         if (lng != null) 'lng': lng,
+        // 04/10 (ZOE) — identifiant stable du lieu choisi dans la liste.
+        if (placeId != null && placeId.isNotEmpty) 'placeId': placeId,
       },
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       if (houseSittingVenue != null && houseSittingVenue.isNotEmpty)
@@ -123,6 +126,7 @@ class OwnerRepository {
     required String city,
     double? lat,
     double? lng,
+    String? placeId,
     String? notes,
     String? houseSittingVenue,
     String? serviceLocation,
@@ -147,6 +151,7 @@ class OwnerRepository {
       'city': city,
       if (lat != null) 'lat': lat,
       if (lng != null) 'lng': lng,
+      if (placeId != null && placeId.isNotEmpty) 'placeId': placeId,
     };
 
     final fields = <String, String>{

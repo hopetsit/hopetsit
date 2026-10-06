@@ -6,6 +6,8 @@ const router = express.Router();
 
 // v560 — désabonnement des e-mails de cycle de vie (lien en pied de chaque
 // e-mail, jeton HMAC — aucun secret ni connexion requis).
+// 612 — le même lien est en pied de l'alerte « nouvelle annonce » : il coupe aussi
+// cet e-mail-là (cloche et notification du téléphone inchangées).
 router.get('/unsubscribe', async (req, res) => {
   const role = String(req.query.r || '');
   const id = String(req.query.u || '');
@@ -25,7 +27,7 @@ router.get('/unsubscribe', async (req, res) => {
 <body style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:60px auto;padding:24px;color:#222;text-align:center">
 <h2 style="color:#C92A12">HoPetSit</h2>
 <p style="font-size:16px">${done
-    ? 'C’est noté : tu ne recevras plus nos e-mails de conseils. Les e-mails liés à tes réservations et paiements restent actifs.<br><br>Done: you will no longer receive our tips emails. Booking and payment emails stay active.'
+    ? 'C’est noté : tu ne recevras plus nos e-mails de conseils ni les alertes de nouvelles annonces par e-mail (les notifications de l’app continuent). Les e-mails liés à tes réservations et paiements restent actifs.<br><br>Done: you will no longer receive our tips emails or new-listing alerts by email (app notifications continue). Booking and payment emails stay active.'
     : 'Lien invalide ou expiré. / Invalid or expired link.'}</p>
 <p><a href="https://www.hopetsit.com" style="color:#C92A12">hopetsit.com</a></p></body></html>`);
 });

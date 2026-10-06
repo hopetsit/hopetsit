@@ -81,7 +81,9 @@ afterAll(async () => {
   if (mongo) await mongo.stop();
 });
 
-beforeEach(() => sendNotification.mockClear());
+// 612 — registre des alertes vidé entre les cas : ces tests republient la MÊME demande
+// (même propriétaire, service, ville, dates), que la production ne renvoie plus (voir requestAlert612.test.js).
+beforeEach(async () => { sendNotification.mockClear(); await require('mongoose').connection.collection('requestalerts612').deleteMany({}); });
 
 const post = (city, coords) => ({
   newPost: { _id: new mongoose.Types.ObjectId() },

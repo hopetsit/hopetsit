@@ -339,6 +339,16 @@ const getOnlineUserIds = async () => {
  * personnes (ids de rôle) ? Sert à ne pas pousser de notification pour un
  * message que le destinataire est en train de lire.
  */
+// 612 (ZOE, 05/10) — MESURÉ : les apps ≤ 611 n'émettent JAMAIS
+// `conversation:leave` en quittant l'écran de discussion (seulement en ouvrant
+// un autre fil). Un fil ouvert UNE fois restait donc « ouvert à l'écran » pour
+// le serveur tant que la prise vivait → plus aucune notification du téléphone
+// pour ce fil, app devant sur un autre onglet ou gelée par iOS (jusqu'à
+// 2 min). « Ouvert » doit désormais être CONFIRMÉ récemment : entrée dans le
+// fil, lecture ou envoi par cette personne depuis moins de OPEN_CONFIRM_MS.
+// Dans le doute, la notification part (un bandeau de trop vaut mieux qu'un
+// message manqué).
+const OPEN_CONFIRM_MS = 60 * 1000;
 const isConversationOpenFor = async (conversationId, userIds) => {
   if (!ioInstance || !conversationId) return false;
   const ids = new Set((userIds || []).map((v) => (v ? String(v._id || v) : '')).filter(Boolean));
@@ -351,10 +361,36 @@ const isConversationOpenFor = async (conversationId, userIds) => {
       if (!uid || !ids.has(uid)) continue;
       if (!isSocketPresent(s, now)) continue;
       const open = s.data && s.data.openConversationId;
-      if (!open || String(open) === String(conversationId)) return true;
+      if (!open || String(open) !== String(conversationId)) continue;
+      const at = Number((s.data && s.data.openConversationAt) || 0);
+      if (at && now - at < OPEN_CONFIRM_MS) return true;
     }
   } catch (_) { /* best-effort */ }
   return false;
+};
+
+/**
+ * 612 — la personne vient de lire / d'écrire dans ce fil par HTTP : ses prises
+ * qui ont CE fil ouvert sont confirmées « à l'écran » pour OPEN_CONFIRM_MS.
+ * Ne déclare jamais un fil ouvert (seule l'entrée dans le fil le fait).
+ */
+const touchConversationOpen = async (conversationId, userIds) => {
+  if (!ioInstance || !conversationId) return 0;
+  const ids = new Set((userIds || []).map((v) => (v ? String(v._id || v) : '')).filter(Boolean));
+  if (!ids.size) return 0;
+  let n = 0;
+  try {
+    const sockets = await ioInstance.in(String(conversationId)).fetchSockets();
+    const now = Date.now();
+    for (const s of sockets) {
+      const uid = socketUserId(s);
+      if (!uid || !ids.has(uid)) continue;
+      if (!s.data || String(s.data.openConversationId || '') !== String(conversationId)) continue;
+      s.data.openConversationAt = now;
+      n += 1;
+    }
+  } catch (_) { /* best-effort */ }
+  return n;
 };
 
 /** Nombre de sockets des ids donnés (3 rooms de rôle chacun), hors `excludeSocketId`. */
@@ -486,6 +522,8 @@ module.exports = {
   isSocketPresent,
   markSocketActivity,
   isConversationOpenFor,
+  touchConversationOpen, // 612
+  OPEN_CONFIRM_MS, // 612
   PRESENCE_STALE_MS,
   setSocketServer,
   getSocketServer,

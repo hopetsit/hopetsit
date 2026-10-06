@@ -35,6 +35,8 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:hopetsit/widgets/paw_rank611.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
@@ -92,9 +94,12 @@ const List<(String, int?, String)> kPawHelpSections = <(String, int?, String)>[
   ('balade', 4, 'help599_sec_balade'),
   // 607 (ZOE, 02/10) — mêmes sections et mêmes textes que l'aide du site (LEO).
   ('plush', 5, 'help607_plush_title'),
-  ('pioneer', 6, 'help607_pioneer_title'),
-  ('act', 7, 'help587_sec_act'),
-  ('set', 8, 'help587_sec_set'),
+  // 612 (Daniel, 05/10) — les rangs ont LEUR section (avant : une ligne
+  // perdue au bas des peluches, introuvable).
+  ('ranks', 6, 'help611_ranks_t'),
+  ('pioneer', 7, 'help607_pioneer_title'),
+  ('act', 8, 'help587_sec_act'),
+  ('set', 9, 'help587_sec_set'),
   ('faq', null, 'help587_faq_title'),
 ];
 
@@ -481,16 +486,24 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                     title: 'help607_plush_gold'.tr,
                     help: 'help607_plush_bonus'.tr,
                   ),
-                  _ButtonRow(
-                    key: const ValueKey<String>('help607_pawpoints'),
-                    icon: const _RoundIcon(
-                        icon: Icons.stars_rounded,
-                        color: Color(0xFFE8A00A),
-                        filled: true),
-                    title: 'pp607_help_points_title'.tr,
-                    help: 'pp607_help_points_body'.tr,
-                  ),
-                  // 611 — les rangs façon Waze (Chiot → Légende).
+                ],
+              ),
+
+              // ── 6. Les rangs (612 : section à part, pastilles réelles) ──
+              _SectionCard(
+                anchorKey: _anchors['ranks'],
+                id: 'ranks',
+                number: 6,
+                icon: Icons.military_tech_rounded,
+                title: 'help611_ranks_t'.tr,
+                children: [
+                  // Les 5 rangs : la VRAIE pastille de l'app + le seuil
+                  // (kPawRankMins611, miroir testé du serveur ranks611.js).
+                  for (var i = 0; i < kPawRankKeys611.length; i++)
+                    _RankRow612(
+                      key: ValueKey<String>('help612_rank_${kPawRankKeys611[i]}'),
+                      level: i + 1,
+                    ),
                   _ButtonRow(
                     key: const ValueKey<String>('help611_ranks'),
                     icon: const _RoundIcon(
@@ -500,14 +513,25 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                     title: 'help611_ranks_t'.tr,
                     help: 'help611_ranks_b'.tr,
                   ),
+                  _ButtonRow(
+                    // 612 — la ligne PawPoints de la section 5 vient ici :
+                    // « comment gagner des points », juste sous les rangs.
+                    key: const ValueKey<String>('help607_pawpoints'),
+                    icon: const _RoundIcon(
+                        icon: Icons.stars_rounded,
+                        color: Color(0xFFE8A00A),
+                        filled: true),
+                    title: 'help612_earn_t'.tr,
+                    help: 'pp607_help_points_body'.tr,
+                  ),
                 ],
               ),
 
-              // ── 6. Ramène tes clients · badge Pionnier (607) ─────────────
+              // ── 7. Ramène tes clients · badge Pionnier (607) ─────────────
               _SectionCard(
                 anchorKey: _anchors['pioneer'],
                 id: 'pioneer',
-                number: 6,
+                number: 7,
                 icon: Icons.flag_rounded,
                 title: 'help607_pioneer_title'.tr,
                 children: [
@@ -537,7 +561,7 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
               _SectionCard(
                 anchorKey: _anchors['act'],
                 id: 'act',
-                number: 7,
+                number: 8,
                 icon: Icons.touch_app_rounded,
                 title: 'help587_sec_act'.tr,
                 example: 'help587_ex_act'.tr,
@@ -564,7 +588,7 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
               _SectionCard(
                 anchorKey: _anchors['set'],
                 id: 'set',
-                number: 8,
+                number: 9,
                 icon: Icons.tune_rounded,
                 title: 'help587_sec_set'.tr,
                 example: 'help587_ex_set'.tr,
@@ -1987,6 +2011,45 @@ class _GreenRimPaw extends StatelessWidget {
             toeOpacity: const <double>[1, 1, 1, 1],
           ),
         ),
+      ),
+    );
+  }
+}
+
+
+/// 612 — une ligne par rang : la pastille telle qu'affichée dans l'app
+/// (profil, fiche de la carte) et « dès N PawPoints ».
+class _RankRow612 extends StatelessWidget {
+  const _RankRow612({super.key, required this.level});
+  final int level;
+
+  @override
+  Widget build(BuildContext context) {
+    final int min = kPawRankMins611[level - 1];
+    final String n = NumberFormat.decimalPattern(Get.locale?.toLanguageTag())
+        .format(min);
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 6.h),
+      child: Row(
+        children: [
+          Flexible(
+            child: PawRankPill611(
+              rank: PawRank611(
+                key: kPawRankKeys611[level - 1],
+                level: level,
+                pointsEarned: min,
+              ),
+            ),
+          ),
+          SizedBox(width: 10.w),
+          Flexible(
+            child: Text(
+              'help612_rank_from'.tr.replaceAll('{n}', n),
+              style: PawMapTheme.fontOn(context,
+                  size: 12.5.sp, weight: FontWeight.w700, color: _warmBody(context)),
+            ),
+          ),
+        ],
       ),
     );
   }
