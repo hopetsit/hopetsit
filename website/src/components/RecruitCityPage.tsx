@@ -4,6 +4,7 @@ import ParisLocalPlaces, { parisEntry, parisFaq } from "@/components/ParisLocalP
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 import UsLocalGuide, { usFaq } from "@/components/UsLocalGuide";
 import NycRecruitDetails, { NYC_FAQ, NYC_H1, NYC_META, NycDemandNotice, NycSignupButtons } from "@/components/NycRecruit";
+import RheinRecruitDetails, { isRheinCity, rheinFaq, rheinH1, rheinMeta, RheinDemandNotice, RheinSignupButtons } from "@/components/DeRheinRecruit";
 
 // v547 — page « devenir pet sitter à <ville> » (composant serveur statique,
 // indexable). Copie par langue, détail local injecté pour que chaque page
@@ -181,11 +182,11 @@ const COPY: Record<RecruitLang, Copy> = {
       { t: "Kostenloses Profil anlegen", p: "Foto, Vorstellung, Leistungen (Betreuung zu Hause, Besuche, Spaziergänge) und DEINE Preise — du entscheidest." },
       { t: "Identität verifizieren lassen", p: "5 Minuten in der App. Das ✓-Abzeichen beruhigt Halter: verifizierte Profile bekommen deutlich mehr Anfragen." },
       { t: "Anfragen erhalten und chatten", p: "Halter aus deinem Viertel schreiben dir per Chat. Du nimmst nur an, was dir passt." },
-      { t: "Sicher bezahlt werden", p: "Die Zahlung wird bei der Buchung in der App gesperrt und nach dem Service auf dein Konto überwiesen." },
+      { t: "Sicher bezahlt werden", p: "Der Halter bezahlt bei der Buchung in der App. Das Geld wird in deinem Wallet freigegeben, sobald er den Service bestätigt (oder 48 Stunden nach dem Ende), und du überweist es auf dein Bankkonto." },
     ],
     faqTitle: "Häufige Fragen",
     faq: (c) => [
-      { q: `Wie viel kann man als Tiersitter in ${c.name} verdienen?`, a: `In ${c.name} kostet eine Betreuung meist ${c.dayRate} pro Tag, ein Spaziergang ${c.walkRate}. Mit ein paar Stammkunden sind 300 bis 600 € Nebenverdienst im Monat realistisch.` },
+      { q: `Wie viel kann man als Tiersitter in ${c.name} verdienen?`, a: `In ${c.name} kostet eine Betreuung meist ${c.dayRate} pro Tag, ein Spaziergang ${c.walkRate}. Deine Preise legst du selbst fest, und du behältst 100 % davon.` },
       { q: "Brauche ich eine Ausbildung oder einen besonderen Status?", a: "Für den Start auf HoPetSit ist keine Ausbildung nötig — du musst Tiere mögen, zuverlässig und mindestens 18 sein. Für eine regelmäßige Tätigkeit informiere dich über die Anmeldung als Kleingewerbe." },
       { q: "Kostet die Anmeldung etwas?", a: "Nein, Anmeldung und Profil sind kostenlos. Nur die Identitätsprüfung (✓-Abzeichen, sehr empfohlen) kostet 3 €." },
       { q: "Wie schützt das GPS-Tracking auch den Sitter?", a: "Beim Spaziergang belegt das PawFollow-Tracking, dass der Service erbracht wurde — vom Start bis zur Rückkehr. Transparenz für den Halter, Schutz für dich." },
@@ -291,6 +292,8 @@ export function recruitMetadata(c: RecruitCity, canonical: string) {
   let description = copy.metaDescription ? copy.metaDescription(c) : copy.intro(c).slice(0, 155);
   // 05/10 (GUS) — New York : page de recrutement prioritaire (demande ouverte à Queens).
   if (c.lang === "en" && c.slug === "new-york") { title = NYC_META.title; description = NYC_META.description; }
+  // 06/10 (GUS) — Düsseldorf, Köln, Essen : recrutement (demande ouverte à Düsseldorf pour les fêtes).
+  if (isRheinCity(c)) { const m = rheinMeta(c); title = m.title; description = m.description; }
   return {
     title,
     description,
@@ -307,7 +310,10 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
   // 05/10 (GUS) — New York : premier écran « gagner » + 2 boutons d'inscription
   // (gardien / promeneur, ville pré-remplie), quartiers, tarifs, FAQ dédiée.
   const nyc = city.lang === "en" && city.slug === "new-york";
+  // 06/10 (GUS) — Düsseldorf, Köln, Essen : même méthode que New York, en allemand.
+  const rhein = isRheinCity(city);
   const faq = paris ? parisFaq(city.slug, "recruit")
+    : rhein ? [...rheinFaq(city), ...copy.faq(city).slice(1)]
     : nyc ? [...NYC_FAQ, ...copy.faq(city).slice(1), ...usFaq(city.slug, city.lang, "recruit")]
     : [...copy.faq(city), ...usFaq(city.slug, city.lang, "recruit")];
   const jsonLd = {
@@ -340,7 +346,7 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
           adapté à la cible gardien : ce qu'on gagne, pas ce qu'on paie. */}
       <CityBreadcrumb city={city} mode="recruit" />
       {!paris && <p className="mt-3 text-sm font-semibold text-sitter-dark">{copy.kicker(city)}</p>}
-      <h1 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-[1.15] tracking-tight text-ink md:mt-2 md:text-4xl">{paris ? `Devenir pet sitter, ${city.name}` : nyc ? NYC_H1 : copy.h1(city)}</h1>
+      <h1 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-[1.15] tracking-tight text-ink md:mt-2 md:text-4xl">{paris ? `Devenir pet sitter, ${city.name}` : nyc ? NYC_H1 : rhein ? rheinH1(city) : copy.h1(city)}</h1>
       <p className="mt-4 flex items-start gap-2 text-sm font-semibold text-sitter-dark">
         <span aria-hidden className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-[#16A34A]" />
         {GAINS[city.lang](city)}
@@ -351,7 +357,8 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
         ))}
       </ul>
       {nyc && <NycDemandNotice />}
-      {nyc ? <NycSignupButtons place="top" /> : (
+      {rhein && <RheinDemandNotice />}
+      {nyc ? <NycSignupButtons place="top" /> : rhein ? <RheinSignupButtons city={city} place="top" /> : (
       <TrackedLink href="/download" label="recruit_cta" className="mt-5 block w-full rounded-full bg-sitter px-6 py-3.5 text-center text-base font-bold text-white transition hover:bg-sitter-dark md:mx-auto md:w-auto md:min-w-[18rem]">{copy.ctaBtn}</TrackedLink>
       )}
       <p className="mt-2.5 text-center text-xs text-ink-soft">{FREE[city.lang]}</p>
@@ -366,6 +373,7 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
       <UsLocalGuide slug={city.slug} lang={city.lang} name={city.name} mode="recruit" />
 
       {nyc && <NycRecruitDetails />}
+      {rhein && <RheinRecruitDetails city={city} />}
 
       {paris && <ParisLocalPlaces slug={city.slug} mode="recruit" />}
 
@@ -397,9 +405,10 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
       <div className="mt-14 rounded-3xl bg-sitter-light p-8 text-center">
         <h2 className="font-display text-2xl font-extrabold text-ink">{paris ? `${city.name} avec HoPetSit` : copy.ctaTitle(city)}</h2>
         {!paris && <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">{copy.ctaText(city)}</p>}
-        {nyc ? <NycSignupButtons place="bottom" /> : (
+        {nyc ? <NycSignupButtons place="bottom" /> : rhein ? <RheinSignupButtons city={city} place="bottom" /> : (
         <TrackedLink href="/download" label="recruit_cta" className="mt-5 inline-block rounded-full bg-sitter px-7 py-3 text-sm font-bold text-white">{paris ? "Télécharger" : copy.ctaBtn}</TrackedLink>
         )}
+        {rhein && <p className="mt-3 text-xs text-ink-soft">Lieber direkt in der App? <TrackedLink href="/download" label={`recruit_${city.slug}_download`} className="underline">HoPetSit herunterladen</TrackedLink></p>}
         {nyc && <p className="mt-3 text-xs text-ink-soft">Prefer the app? <TrackedLink href="/download" label="recruit_nyc_download" className="underline">Download HoPetSit</TrackedLink></p>}
       </div>
 

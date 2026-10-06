@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { LANGUAGES, type Lang } from "@/lib/i18n/langs";
 import { ApiError, AuthRole, signup } from "@/lib/api";
 import { SocialButtons } from "@/components/SocialButtons";
 
 export default function SignupPage() {
-  const { t, lang } = useT();
+  const { t, lang, setLang } = useT();
   const router = useRouter();
 
   const [role, setRole]         = useState<AuthRole>("owner");
@@ -48,6 +49,14 @@ export default function SignupPage() {
     if (n.startsWith("/") && !n.startsWith("//")) setNextPath(n);
     const ref = (q.get("ref") || "").trim();
     if (/^[A-HJ-NP-Z2-9]{8}$/.test(ref)) setReferralCode(ref);
+    // 06/10 (GUS) — les pages écrites dans une langue (ex. /tiersitter-werden/
+    // duesseldorf) envoient ?lang=de : le formulaire s'affiche dans la langue de
+    // la page d'où vient le visiteur, sauf s'il a déjà choisi une langue lui-même.
+    const l = (q.get("lang") || "").toLowerCase();
+    let chosen: string | null = null;
+    try { chosen = window.localStorage.getItem("hopetsit_lang"); } catch { /* stockage bloqué */ }
+    if (!chosen && LANGUAGES.some((x) => x.code === l)) setLang(l as Lang);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function onSubmit(e: React.FormEvent) {

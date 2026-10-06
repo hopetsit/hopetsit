@@ -13,6 +13,14 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 06/10 (GUS) — recrutement Düsseldorf / Köln / Essen (mission de BOB, accord de Daniel).
+  {
+    slug: "haustiersitter-jobs-duesseldorf",
+    lang: "🇩🇪",
+    title: "Haustiersitter Jobs in Düsseldorf: so verdienst du Geld mit Tierbetreuung",
+    excerpt:
+      "Übliche Preise in Düsseldorf, Köln und Essen, was du wirklich behältst (100 % deines Preises) und die Regeln in NRW.",
+  },
   // 05/10 (GUS) — recrutement New York (ordre de Daniel : plus de prestataires à NY).
   {
     slug: "dog-walker-jobs-nyc",
