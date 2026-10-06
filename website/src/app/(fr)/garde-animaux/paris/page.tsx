@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import OwnerCityPage from "@/components/OwnerCityPage";
 import { TrackedLink } from "@/components/TrackedLink";
+import { ParisQuartierCta } from "@/components/ParisQuartierCta";
 import { RECRUIT_CITIES, OWNER_PATH_PREFIX, PARIS_CITY, type RecruitCity } from "@/lib/recruit-cities";
 
 // v575 — PAGE D'ATTERRISSAGE DE LA PUB META « Paris · Propriétaires (FR) ».
@@ -70,7 +71,19 @@ function Chips({ cities }: { cities: RecruitCity[] }) {
 
 export default function GardeAnimauxParisPage() {
   return (
-    <OwnerCityPage city={PARIS} h1="Garde d'animaux à Paris : pet-sitter, chat et promenade de chien">
+    <OwnerCityPage
+      city={PARIS}
+      h1="Garde d'animaux à Paris : pet-sitter, chat et promenade de chien"
+      // 06/10 (SAM) — « Vous habitez où ? » au premier écran : 26 visiteurs de
+      // la pub cliquent un arrondissement en bas de page, 1 seul « Publier ».
+      heroCta={
+        <ParisQuartierCta
+          places={[...ARRONDISSEMENTS, ...COMMUNES].map((c) => c.name)}
+          city={PARIS.name}
+          note="Gratuit · sans compte pour commencer · 2 minutes"
+        />
+      }
+    >
       <section className="mt-12">
         <h2 className="font-display text-2xl font-extrabold text-ink">Votre arrondissement</h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">

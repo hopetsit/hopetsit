@@ -457,9 +457,12 @@ export function ownerMetadata(c: RecruitCity, canonical: string) {
 export default function OwnerCityPage({
   city,
   h1,
+  heroCta,
   children,
 }: {
   city: RecruitCity;
+  /** 06/10 (SAM) — remplace le bouton « Publier ma demande » du premier écran (page Paris). */
+  heroCta?: React.ReactNode;
   /** Titre H1 propre à la page (sinon le H1 générique de la langue). */
   h1?: string;
   /** Bloc supplémentaire inséré sous l'encadré local (maillage interne…). */
@@ -546,12 +549,14 @@ export default function OwnerCityPage({
           v577 — le bouton mène au parcours WEB (/signup puis
           /posts/create) : publier une demande ne demande plus d'installer
           l'app. Le store reste accessible juste en dessous. */}
+      {heroCta ?? (<>
       <OwnerSignupCta
         label={copy.heroCta}
         city={city.name}
         className="mt-5 block w-full rounded-full border-2 border-owner bg-white px-6 py-3.5 text-center text-base font-bold text-owner-dark transition hover:bg-owner-light md:mx-auto md:w-auto md:min-w-[18rem]"
       />
       <p className="mt-2.5 text-center text-xs text-ink-soft">{copy.heroCtaNote}</p>
+      </>)}
       <p className="mt-3 text-center text-sm">
         <GetAppButton label={copy.heroAppLink} className="font-semibold text-owner-dark underline-offset-4 hover:underline" />
       </p>
