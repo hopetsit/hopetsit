@@ -440,5 +440,11 @@
   "good_samaritan_premium": {
     "title": "助け合いのしるし",
     "body": "あなたの報告がほかの動物たちを守りました。プレミアムを24時間プレゼントします。"
+  },
+  "application_reminder_615": {
+    "title": "{{reminderTitle}}",
+    "body": "{{reminderBody}}",
+    "emailSubject": "{{reminderTitle}}",
+    "emailBody": "<p>{{reminderBody}}</p>"
   }
 }

@@ -47,6 +47,8 @@ const COUNTRY_BBOX = {
   DE: [47.3, 5.9, 55.1, 15.0],      // Germany
   ES: [36.0, -9.3, 43.8, 4.3],      // Spain
   PT: [37.0, -9.5, 42.2, -6.2],     // Portugal
+  KR: [33.0, 124.5, 38.7, 129.6],   // South Korea (07/10 — inscrits à Suwon)
+  JP: [30.9, 129.5, 45.6, 146.0],   // Japan main islands (07/10)
 };
 
 function parseArgs() {
@@ -74,7 +76,7 @@ function buildOverpassQuery(bbox, tagFilters) {
   const unions = tagFilters
     .map((tf) => `node${tf}(${bboxStr});way${tf}(${bboxStr});`)
     .join('');
-  return `[out:json][timeout:60];(${unions});out center tags;`;
+  return `[out:json][timeout:180];(${unions});out center tags;`;
 }
 
 async function fetchOverpass(query) {
@@ -82,8 +84,12 @@ async function fetchOverpass(query) {
     'https://overpass-api.de/api/interpreter',
     `data=${encodeURIComponent(query)}`,
     {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      timeout: 120000,
+      // Overpass refuse désormais (406) les requêtes sans User-Agent identifiable.
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'HoPetSit-POI-Seed/1.0 (contact: hopetsit@gmail.com)',
+      },
+      timeout: 200000,
     },
   );
   return res.data.elements || [];

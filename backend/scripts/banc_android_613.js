@@ -239,5 +239,11 @@ const tok = (id, role) => jwt.sign({ id: String(id), role }, process.env.JWT_SEC
     res.json(r);
   });
   ctl.get('/__banc/plush', async (req, res) => res.json(await PawPlush.find({}).lean()));
+  // 615 (ZOE, 07/10) — passage du rappel « tu as N candidats » à une heure donnée (?now=ISO, sinon maintenant).
+  ctl.post('/__banc/rappel615', async (req, res) => {
+    const now = req.query.now ? new Date(String(req.query.now)) : new Date();
+    const r = await require('../src/services/applicationReminder615').runApplicationReminders({ now });
+    res.json({ now: now.toISOString(), ...r });
+  });
   ctl.listen(5616, '127.0.0.1');
 })().catch((e) => { console.error('ÉCHEC', e); process.exit(1); });

@@ -552,7 +552,11 @@ const _roleModelForPurge = (role) =>
  * accents, lien vers la conversation. Retourne null si l'utilisateur ou le
  * gabarit manque (déjà journalisé).
  */
-const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtras = null }) => {
+// 615 (ZOE, 07/10) — `templateType` : gabarit d'un autre nom que le type
+// enregistré (rappel « tu as N candidats » envoyé sous le type `application_new`
+// pour que les apps déjà installées ouvrent les candidats de la demande).
+// Absent → gabarit = type (comportement inchangé).
+const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtras = null, templateType = null }) => {
   const user = await resolveUser(role, userId);
   if (!user) {
     logger.warn(
@@ -568,9 +572,10 @@ const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtr
   // v530 — appLocale cherchée sur les 3 docs de rôle de la personne.
   const appLocale = await resolveAppLocaleAcrossRoles(user, userId);
   const locale = resolveLocale(appLocale || user.language);
-  const tmpl = pickTemplate(locale, type);
+  const tmplKey = templateType || type;
+  const tmpl = pickTemplate(locale, tmplKey);
   if (!tmpl) {
-    logger.warn(`[notif.skip] template missing type=${type} locale=${locale}`);
+    logger.warn(`[notif.skip] template missing type=${tmplKey} locale=${locale}`);
     return null;
   }
   // v23.1.155 — Daniel : "connecte les boutons quon recois par mail a
@@ -603,7 +608,12 @@ const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtr
   // 612 (ZOE) — alerte « nouvelle annonce » : service et dates écrits dans la
   // langue du DESTINATAIRE (rendu seulement ; `data` enregistré reste brut).
   const { REQUEST_ALERT_TYPES, enrichRequestAlertData } = require('../utils/requestAlertText612');
-  const dataForRender = REQUEST_ALERT_TYPES.has(String(type)) ? enrichRequestAlertData(data, locale) : data;
+  let dataForRender = REQUEST_ALERT_TYPES.has(String(type)) ? enrichRequestAlertData(data, locale) : data;
+  // 615 (ZOE) — rappel « tu as N candidats » : phrase écrite dans la langue du
+  // propriétaire (nombre, service, heure). `data` enregistré reste brut.
+  if (tmplKey === 'application_reminder_615') {
+    dataForRender = require('../utils/applicationReminderText615').enrichReminderData(data, locale);
+  }
   const renderData = {
     ...dataForRender,
     emailLink:
@@ -659,6 +669,7 @@ const sendNotification = async ({
   // désabonnée) ; `emailExtras.unsubscribeUrl` : lien de désabonnement en pied.
   // Sans ces deux champs, comportement strictement inchangé.
   channels = null, emailExtras = null,
+  templateType = null, // 615 — voir prepareNotification
 }) => {
   // v23.1 part 48 — entry log fires UNCONDITIONALLY before any early return.
   // Lets us prove from Render logs that sendNotification was actually
@@ -672,7 +683,7 @@ const sendNotification = async ({
     );
     return;
   }
-  const prepared = await prepareNotification({ userId, role, type, rawData, emailExtras });
+  const prepared = await prepareNotification({ userId, role, type, rawData, emailExtras, templateType });
   if (!prepared) return;
   const {
     user, locale, data, appRoute, renderData, title, body, emailSubject, emailBody, emailText,
@@ -1042,9 +1053,21 @@ const sendBadgeSync = async ({ role, userId, unreadCount, personUnreadCount = nu
 const renderNotificationContent = (type, data = {}, userLanguage) => {
   try {
     const locale = resolveLocale(userLanguage);
-    const tmpl = pickTemplate(locale, type);
+    let safeData = data && typeof data === 'object' ? data : {};
+    // 615 (ZOE) — la cloche RE-REND le texte à la lecture : il faut les mêmes
+    // compléments qu'à l'envoi, sinon le texte est troué (mesuré sur le banc :
+    // « Camille Durand cherche  · . » pour une alerte 612, et le texte
+    // générique d'une candidature au lieu du rappel « tu as N candidats »).
+    let tmplKey = type;
+    if (safeData.reminder615) {
+      tmplKey = 'application_reminder_615';
+      safeData = require('../utils/applicationReminderText615').enrichReminderData(safeData, locale);
+    } else {
+      const { REQUEST_ALERT_TYPES, enrichRequestAlertData } = require('../utils/requestAlertText612');
+      if (REQUEST_ALERT_TYPES.has(String(type))) safeData = enrichRequestAlertData(safeData, locale);
+    }
+    const tmpl = pickTemplate(locale, tmplKey);
     if (!tmpl) return null;
-    const safeData = data && typeof data === 'object' ? data : {};
     return {
       title: render(tmpl.title, safeData),
       body: render(tmpl.body, safeData),

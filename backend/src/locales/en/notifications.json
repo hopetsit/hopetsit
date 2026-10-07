@@ -440,5 +440,11 @@
   "good_samaritan_premium": {
     "title": "Good Samaritan gesture",
     "body": "Your report protected other animals. Premium is yours for 24 h."
+  },
+  "application_reminder_615": {
+    "title": "{{reminderTitle}}",
+    "body": "{{reminderBody}}",
+    "emailSubject": "{{reminderTitle}}",
+    "emailBody": "<p>{{reminderBody}}</p>"
   }
 }

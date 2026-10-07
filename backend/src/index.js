@@ -137,6 +137,8 @@ async function startServer() {
     require('./services/lifecycleEmailScheduler').startLifecycleEmailScheduler();
     // v599 (ZOE, 29/09 08 h) — e-mail « message non lu » différé 15 min, balayage 1/min.
     require('./services/chatUnreadEmailScheduler599').startChatUnreadEmailScheduler();
+    // 615 (ZOE, 07/10) — rappel au propriétaire qui a des candidats sans choisir (push + cloche, jamais d'e-mail).
+    require('./services/applicationReminder615').startApplicationReminderScheduler();
   } catch (error) {
     logger.error('Failed to start server', error);
     process.exit(1);

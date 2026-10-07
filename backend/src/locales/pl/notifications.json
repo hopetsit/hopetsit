@@ -440,5 +440,11 @@
   "good_samaritan_premium": {
     "title": "Gest dobrego Samarytanina",
     "body": "Twoje zgłoszenie ochroniło inne zwierzęta. Premium w prezencie na 24 godz."
+  },
+  "application_reminder_615": {
+    "title": "{{reminderTitle}}",
+    "body": "{{reminderBody}}",
+    "emailSubject": "{{reminderTitle}}",
+    "emailBody": "<p>{{reminderBody}}</p>"
   }
 }

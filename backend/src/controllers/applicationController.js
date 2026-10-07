@@ -464,6 +464,15 @@ const createApplication = async (req, res) => {
       dedupeOr.push({ petIds: { $all: uniquePetIds } });
     }
 
+    // 615 (ZOE, 07/10 — décision BOB) : une candidature SUR UNE DEMANDE n'est un
+    // doublon que sur la MÊME demande (postId). Avant, la règle « même animal »
+    // renvoyait l'ancienne candidature d'une AUTRE demande du même propriétaire :
+    // le promeneur ne pouvait pas candidater à la balade du lendemain (mesuré au
+    // banc). Le double appui sur la même demande reste bloqué ; une demande
+    // directe (sans postId) garde l'ancienne règle.
+    const dedupePostId = typeof postId === 'string' && /^[a-fA-F0-9]{24}$/.test(postId.trim())
+      ? postId.trim()
+      : null;
     const duplicatePending = await Application.findOne({
       ownerId,
       // Session v16.3b - dedupe against the correct provider field.
@@ -471,7 +480,9 @@ const createApplication = async (req, res) => {
         ? { walkerId: sitterId }
         : { sitterId }),
       status: 'pending',
-      $or: dedupeOr,
+      ...(dedupePostId
+        ? { $or: [{ postId: dedupePostId }, { postId: null, requestFingerprint }] }
+        : { $or: dedupeOr }),
     })
       .sort({ createdAt: -1 })
       .populate('ownerId')

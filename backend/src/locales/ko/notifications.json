@@ -440,5 +440,11 @@
   "good_samaritan_premium": {
     "title": "따뜻한 연대의 손길",
     "body": "회원님의 제보가 다른 동물들을 지켰어요. 프리미엄 24시간을 선물로 드려요."
+  },
+  "application_reminder_615": {
+    "title": "{{reminderTitle}}",
+    "body": "{{reminderBody}}",
+    "emailSubject": "{{reminderTitle}}",
+    "emailBody": "<p>{{reminderBody}}</p>"
   }
 }
