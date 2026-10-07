@@ -41,6 +41,6 @@
   "errorServer": "Une erreur est survenue. Réessaie dans un instant.",
   "legalMentions": "Mentions légales",
   "footer": "Paiement traité par Airwallex (certifié PCI-DSS Niveau 1). HoPetSit n'accède pas, ne transmet pas et ne stocke pas les données de carte bancaire.",
-  "escrowText": "Les fonds sont conservés en séquestre jusqu'à 24h après la fin du service, puis libérés vers l'IBAN enregistré du prestataire.",
+  "escrowText": "Le prestataire reçoit 100 % de son tarif. Les fonds sont conservés sous séquestre pendant le service et libérés dans le wallet du prestataire à la confirmation du propriétaire, ou 48 heures après la fin prévue du service, puis retirés sur son IBAN.",
   "cancelTerms": "Annulation gratuite avec remboursement intégral disponible jusqu'à 72h avant le début du service. Voir"
 }

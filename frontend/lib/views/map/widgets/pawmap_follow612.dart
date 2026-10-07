@@ -19,11 +19,15 @@
 //   · [pawAcceptGpsFix612] : un point GPS imprécis ou impossible (saut à
 //     pied de 100 m en 2 s) n'est ni envoyé, ni dessiné.
 import 'dart:math' as math;
-import 'dart:ui' show Offset, Rect;
+import 'dart:ui' show Color, Offset, Rect, Size;
 
 import 'package:hopetsit/views/map/widgets/pawmap_overlap607.dart';
 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+
+/// 613 — phase FIXE de l'auréole violette de la personne suivie (sur
+/// [kBoostPhases] = 4) : 1 → sin(π/2) = 1, halo à son plein, sans respiration.
+const int kPawFollowHaloPhase613 = 1;
 
 /// Zoom « rue » minimal quand on vise / suit une personne en direct.
 const double kPawFollowStreetZoom = 17.5;
@@ -253,4 +257,99 @@ List<(List<LatLng>, double)> pawFadedTrail612(List<LatLng> pts, {int parts = 5})
     out.add((pts.sublist(from, to + 1), alpha));
   }
   return out;
+}
+
+/// 613 (captures 4-5 de Daniel : « Cam » collée sous « john ») — boîte
+/// d'encombrement d'un rond d'AMI : le rond, + son étiquette dessous quand
+/// elle est dessinée ([labelW] > 0, zoom rue), + 8 px au-dessus pour la
+/// couronne. Avant : le rond seul → « Moi » se posait sur l'étiquette.
+Rect pawFriendBox613(double r, {double labelW = 0}) {
+  var box = pawPinBox(r, labelW: labelW, labelH: 16.3, labelGap: 3);
+  box = box.expandToInclude(Rect.fromLTWH(-r, -r - 8, 2 * r, 8));
+  return box;
+}
+
+/// 613 (Daniel, vocal 23 h 06 + capture 7 : « Itinéraire te sort SON trajet à
+/// lui ») — le tracé de l'itinéraire n'avait AUCUN zIndex (0) : le fond
+/// OpenStreetMap (TileOverlay, zIndex 0, opaque) passait PAR-DESSUS. On ne
+/// voyait que le drapeau d'arrivée (un marqueur) et la traîne violette de
+/// john (zIndex 2) → « son itinéraire ». L'itinéraire passe au-dessus du fond
+/// ET de la traîne.
+const int kPawRouteZ613 = 3;
+
+Polyline pawRoutePolyline613(List<LatLng> points, Color color) => Polyline(
+      polylineId: const PolylineId('pawspot_route'),
+      points: points,
+      color: color,
+      width: 5,
+      zIndex: kPawRouteZ613,
+      jointType: JointType.round,
+      startCap: Cap.roundCap,
+      endCap: Cap.roundCap,
+    );
+
+/// 613 (§6 de Daniel : « Itinéraire te sort SON trajet ») — le calcul piéton
+/// (Valhalla) ACCROCHE le départ et l'arrivée au sentier le plus proche :
+/// quand john marche dans un champ à côté du chemin, l'itinéraire part du
+/// sentier et s'arrête sur le sentier — pile sous SA traîne violette (zIndex
+/// 2, au-dessus de l'ancien itinéraire en zIndex 0). On ne voyait plus que le
+/// drapeau d'arrivée sur sa traîne. Désormais : l'itinéraire passe au-dessus
+/// ([kPawRouteZ613]) et deux courts traits PLEINS relient MA photo au départ
+/// et l'arrivée à la photo de la personne rejointe : un trait continu.
+const double kPawRouteLeadMinM613 = 4;
+
+Set<Polyline> pawRoutePolylines613(List<LatLng> points, Color color,
+    {LatLng? from, LatLng? to}) {
+  final out = <Polyline>{pawRoutePolyline613(points, color)};
+  if (points.length < 2) return out;
+  Polyline lead(String id, LatLng a, LatLng b) => Polyline(
+        polylineId: PolylineId(id),
+        points: [a, b],
+        color: color,
+        width: 5,
+        zIndex: kPawRouteZ613,
+        jointType: JointType.round,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+      );
+  if (from != null && pawMeters612(from, points.first) >= kPawRouteLeadMinM613) {
+    out.add(lead('pawspot_route_in', from, points.first));
+  }
+  if (to != null && pawMeters612(points.last, to) >= kPawRouteLeadMinM613) {
+    out.add(lead('pawspot_route_out', points.last, to));
+  }
+  return out;
+}
+
+/// 613 (BOB, capture « rejoindre ») — CADRAGE d'un itinéraire dans la zone
+/// LIBRE de l'écran : [free] = rectangle (px logiques) entre les rails, le
+/// bandeau du haut et la fiche du bas, sur un écran [screen]. Renvoie le
+/// centre de caméra et le zoom pour que tous [pts] (Moi, john, le trajet)
+/// tiennent dans [free] avec [inset] px de marge (rayon d'une photo +
+/// étiquette). Mercator pur, pas de pente ni de rotation.
+(LatLng, double) pawFrameInRect613(List<LatLng> pts, Size screen, Rect free,
+    {double inset = 44, double maxZoom = 18.5, double minZoom = 3}) {
+  double mx(double lng) => (lng + 180) / 360;
+  double my(double lat) {
+    final s = math.sin(lat * math.pi / 180).clamp(-0.9999, 0.9999);
+    return 0.5 - math.log((1 + s) / (1 - s)) / (4 * math.pi);
+  }
+  double x0 = double.infinity, x1 = -double.infinity, y0 = double.infinity, y1 = -double.infinity;
+  for (final p in pts) {
+    final x = mx(p.longitude), y = my(p.latitude);
+    x0 = math.min(x0, x); x1 = math.max(x1, x);
+    y0 = math.min(y0, y); y1 = math.max(y1, y);
+  }
+  final w = math.max(free.width - 2 * inset, 40.0);
+  final h = math.max(free.height - 2 * inset, 40.0);
+  final dx = math.max(x1 - x0, 1e-9), dy = math.max(y1 - y0, 1e-9);
+  final z = (math.log(math.min(w / (dx * 256), h / (dy * 256))) / math.ln2).clamp(minZoom, maxZoom).toDouble();
+  final world = 256 * math.pow(2, z);
+  // centre des points → centre de la zone libre (décalé du centre de l'écran)
+  final ox = free.center.dx - screen.width / 2, oy = free.center.dy - screen.height / 2;
+  final cx = (x0 + x1) / 2 - ox / world, cy = (y0 + y1) / 2 - oy / world;
+  final lng = cx * 360 - 180;
+  final n = math.pi - 2 * math.pi * cy;
+  final lat = 180 / math.pi * math.atan(0.5 * (math.exp(n) - math.exp(-n)));
+  return (LatLng(lat, lng), z);
 }

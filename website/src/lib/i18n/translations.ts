@@ -9668,3 +9668,7 @@ for (const code of Object.keys(SITE611) as Lang[]) Object.assign(t[code], SITE61
 // Généré par ~/hopetsit-social/site_612/build_site612.py. Fusionné EN DERNIER.
 import { SITE612 } from "./site612";
 for (const code of Object.keys(SITE612) as Lang[]) Object.assign(t[code], SITE612[code]);
+// 07/10/2026 — LEO (613) : « Rejoindre john · 355 m · 4 min à pied » (textes de l'app, copiés) et la
+// légende de la nouvelle épingle d'alerte. Généré par ~/hopetsit-social/site_613/build_site613.py. Fusionné EN DERNIER.
+import { SITE613 } from "./site613";
+for (const code of Object.keys(SITE613) as Lang[]) Object.assign(t[code], SITE613[code]);

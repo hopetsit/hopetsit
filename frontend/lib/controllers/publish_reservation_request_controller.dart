@@ -13,7 +13,6 @@ import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
-import 'package:hopetsit/services/supply_city600.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/publish_draft600.dart';
@@ -901,7 +900,19 @@ class PublishReservationRequestController extends GetxController {
       if (!usesSpeciesPills) return 'pet';
       if (animalTypes.isEmpty) return 'species';
     }
-    if (startDate.value == null) return 'startDate';
+    if (startDate.value == null) {
+      // 613 §9 (ZOE) — « la date de début de la garde » pour une promenade.
+      return selectedServiceType.value == 'dog_walking' ? 'walkDate' : 'startDate';
+    }
+    // 613 §9 (ZOE, émulateur Android) — promenade : la fin se CALCULE
+    // (début + durée), il n'y a aucun champ « date de fin » à l'écran. La
+    // barre collante disait pourtant « Choisis la date de fin de la garde »
+    // tant que l'heure ou la durée manquait : on nomme le vrai champ.
+    if (selectedServiceType.value == 'dog_walking') {
+      if (startTime.value == null) return 'startTime';
+      final d = selectedDuration.value;
+      if (d == null || d.trim().isEmpty) return 'duration';
+    }
     if (endDate.value == null) return 'endDate';
     if (startTime.value == null) return 'startTime';
     if (endTime.value == null) return 'endTime';
@@ -937,6 +948,8 @@ class PublishReservationRequestController extends GetxController {
         return 'neo600_species_required'.tr;
       case 'startDate':
         return 'publish_request_start_date_required'.tr;
+      case 'walkDate':
+        return 'zoe613_walk_date_required'.tr;
       case 'endDate':
         return 'publish_request_end_date_required'.tr;
       case 'startTime':
@@ -1083,10 +1096,13 @@ class PublishReservationRequestController extends GetxController {
         return;
       }
 
-      // v600 NEO — « Envoyée à N gardiens et promeneurs » : N vient de la
-      // réponse du serveur si elle le dit un jour, sinon de /supply/city
-      // (demandé en parallèle de l'envoi, jamais bloquant).
-      final Future<int?> supplyFuture = fetchSupplyTotal600(city);
+      // 613 §9 (ZOE) — « Envoyée à N promeneurs / gardiens » : N = nombre
+      // RÉEL de prestataires prévenus, renvoyé par le serveur (`notified`).
+      // Plus jamais l'offre de la ville (/supply/city) : une demande déjà
+      // envoyée le même jour ne prévient personne (anti-doublon), le texte le
+      // dit honnêtement. Promenade → promeneurs, garde → gardiens.
+      final String sentRole613 =
+          selectedServiceType.value == 'dog_walking' ? 'walker' : 'sitter';
       Map<String, dynamic> created;
       if (imageFiles.isEmpty) {
         // v565 — lat/lng (détection GPS ou carte) envoyés avec la ville :
@@ -1149,14 +1165,9 @@ class PublishReservationRequestController extends GetxController {
       // already visible. Used to require a full logout/login to show up.
       await _refreshFeedsAfterPublish();
 
-      final int? notified = notifiedCountFromResponse(created) ??
-          await supplyFuture.timeout(const Duration(seconds: 3),
-              onTimeout: () => null);
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
-        message: notified != null && notified > 0
-            ? 'neo600_sent_to'.tr.replaceAll('{n}', '$notified')
-            : 'publish_request_success'.tr,
+        message: publishedMessage613(created, sentRole613),
       );
       // v600 NEO — l'accueil lit ce résultat pour rester sur « Mes demandes ».
       Get.back(result: kPublishedResult600);
@@ -1183,6 +1194,21 @@ class PublishReservationRequestController extends GetxController {
 
   /// v600 NEO — nombre de prestataires prévenus si le serveur le renvoie
   /// (`notified`, `notifiedCount`, ou dans `post`) ; null sinon.
+  /// 613 §9 (ZOE) — texte de confirmation après « Publier » :
+  ///   · N > 0 prévenus → « Envoyée à N promeneurs » / « … gardiens » ;
+  ///   · 0 (déjà prévenus pour la même demande) ou serveur muet → « Ta
+  ///     demande est publiée : les prestataires proches la verront. »
+  /// Jamais un chiffre que le serveur n'a pas donné.
+  static String publishedMessage613(Map<String, dynamic> res, String role) {
+    final n = notifiedCountFromResponse(res);
+    if (n != null && n > 0) {
+      return (role == 'walker' ? 'zoe613_sent_to_walkers' : 'zoe613_sent_to_sitters')
+          .tr
+          .replaceAll('{n}', '$n');
+    }
+    return 'zoe613_published_no_count'.tr;
+  }
+
   static int? notifiedCountFromResponse(Map<String, dynamic> res) {
     int? pick(Object? v) => v is num && v > 0 ? v.toInt() : null;
     final direct = pick(res['notified']) ?? pick(res['notifiedCount']);

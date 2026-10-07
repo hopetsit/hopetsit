@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:flutter/scheduler.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import 'pawmap_osm_tiles.dart' show PawOsmTileProvider;
 import 'pawmap_snapshot.dart' show kPawMap603Probe, pawMap603Log, pawMap603Int;
 
 class PawProbe607 {
@@ -38,6 +39,9 @@ class PawProbe607 {
   int _slow = 0;
   int _jankMs = 0;
   int _worst = 0;
+  final List<double> uiMs613 = <double>[];
+  final List<double> rasterMs613 = <double>[];
+  int _tiles0 = 0, _net0 = 0;
   Set<Marker>? _lastSet;
   Set<Marker>? _lastSetSeen;
   String _phase = '';
@@ -106,6 +110,8 @@ class PawProbe607 {
     for (final t in ts) {
       final ms = t.totalSpan.inMicroseconds / 1000.0;
       _frames++;
+      uiMs613.add(t.buildDuration.inMicroseconds / 1000.0);
+      rasterMs613.add(t.rasterDuration.inMicroseconds / 1000.0);
       if (ms > 16.7) {
         _slow++;
         _jankMs += (ms - 16.7).round();
@@ -124,6 +130,7 @@ class PawProbe607 {
     await c.moveCamera(CameraUpdate.newLatLngZoom(paris, 12.5));
     await Future<void>.delayed(const Duration(seconds: 6));
     pawMap603Log('G607 DEBUT');
+    _tiles0 = PawOsmTileProvider.getTileCalls613; _net0 = PawOsmTileProvider.netFetches613;
     _running = true;
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
     Future<void> step(CameraUpdate u, int ms, int pause) async {
@@ -140,6 +147,8 @@ class PawProbe607 {
     await step(CameraUpdate.scrollBy(200, 120), 700, 2000);
     _running = false;
     SchedulerBinding.instance.removeTimingsCallback(_onTimings);
+    String pc(List<double> l) { if (l.isEmpty) return '-'; final v = [...l]..sort(); double q(double f) => v[((v.length - 1) * f).round()]; return 'p50=${q(.5).toStringAsFixed(1)} p90=${q(.9).toStringAsFixed(1)} max=${v.last.toStringAsFixed(1)} n=${v.length}'; }
+    pawMap603Log('G613 UI ${pc(uiMs613)} | RASTER ${pc(rasterMs613)} | tuiles=${PawOsmTileProvider.getTileCalls613 - _tiles0} reseau=${PawOsmTileProvider.netFetches613 - _net0}');
     pawMap603Log('G607 FIN disparus=$_vanished clignotements=$_blinks '
         'cartesVides=$_emptyFrames listesEnvoyees=$_setChanges '
         'reconstructions=$_builds images=$_frames lentes=$_slow '

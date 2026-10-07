@@ -131,11 +131,23 @@ enum PawPlushCatch { caught, dailyDone, taken, refused, none }
 
 /// Détail d'une capture réussie (pour la pastille de confirmation).
 class PawPlushWin {
-  const PawPlushWin({this.points = 20, this.golden = false, this.collector = false, this.streak = 0});
+  const PawPlushWin({
+    this.points = 20,
+    this.golden = false,
+    this.collector = false,
+    this.streak = 0,
+    this.type = 'teddy',
+    this.already = false,
+  });
   final int points;
   final bool golden;
   final bool collector;
   final int streak;
+  /// 613 — type de la peluche (nom affiché : « Chiot attrapé ! »).
+  final String type;
+  /// 613 — capture déjà enregistrée pour moi (réponse précédente perdue) :
+  /// on la fête quand même, aucun point recrédité.
+  final bool already;
 }
 
 typedef PawPlushGet = Future<dynamic> Function(String path, Map<String, String> query);
@@ -333,10 +345,16 @@ class PawPlushLayer {
       caughtTodayCount611.value += 1;
       caughtToday = caughtTodayCount611.value >= dailyMax611;
       caughtTodayCount.value += 1; // pastille du bouton PawPoints
-      final pts = res is Map ? ((res['points'] as num?)?.toInt() ?? 20) : 20;
+      // 613 — « déjà à moi » sans points connus : 0 = la carte n'affiche
+      // que le nom de la peluche (jamais un chiffre inventé).
+      final bool already = res is Map && res['already'] == true;
+      final pts = res is Map ? ((res['points'] as num?)?.toInt() ?? (already ? 0 : 20)) : 20;
       final bonuses = res is Map && res['bonuses'] is List ? res['bonuses'] as List : const [];
+      final rp = res is Map && res['plush'] is Map ? res['plush'] as Map : const {};
       lastWin = PawPlushWin(
         points: pts,
+        type: (rp['type'] ?? p.type).toString(),
+        already: already,
         golden: p.golden,
         collector: bonuses.any((b) => b is Map && b['kind'] == 'collector'),
         streak: res is Map ? ((res['streak'] as num?)?.toInt() ?? 0) : 0,

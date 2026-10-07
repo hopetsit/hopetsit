@@ -6,6 +6,10 @@ class ApplicationModel {
   final String petName;
   final String description;
   final String? serviceDate;
+  /// 613 §9 (ZOE) — début RÉEL du service (instant ISO, UTC) recopié de
+  /// l'annonce. `serviceDate` n'est que le jour UTC à minuit : une promenade
+  /// le 17/10 à 1 h 18 (Paris) y devient « 2026-10-16 » (mesuré, émulateur).
+  final String? startDate;
   final String timeSlot;
   final String status;
   final String createdAt;
@@ -37,6 +41,7 @@ class ApplicationModel {
     required this.petName,
     required this.description,
     this.serviceDate,
+    this.startDate,
     required this.timeSlot,
     required this.status,
     required this.createdAt,
@@ -75,6 +80,7 @@ class ApplicationModel {
       petName: json['petName'] as String? ?? '',
       description: json['description'] as String? ?? '',
       serviceDate: json['serviceDate'] as String?,
+      startDate: json['startDate']?.toString(),
       timeSlot: json['timeSlot'] as String? ?? '',
       status: json['status'] as String? ?? '',
       createdAt: json['createdAt'] as String? ?? '',

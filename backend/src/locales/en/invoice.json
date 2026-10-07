@@ -41,6 +41,6 @@
   "errorServer": "Something went wrong. Please try again in a moment.",
   "legalMentions": "Legal information",
   "footer": "Payment processed by Airwallex (PCI-DSS Level 1 certified). HoPetSit does not access, transmit or store cardholder data.",
-  "escrowText": "Funds are held in escrow until 24h after the service ends, then released to the provider's registered IBAN.",
+  "escrowText": "The provider receives 100% of their rate. Funds are held in escrow during the service and released to the provider's wallet when the owner confirms the service, or 48 hours after its scheduled end, and can then be withdrawn to the provider's IBAN.",
   "cancelTerms": "Self-cancellation with full refund available up to 72h before the service starts. See"
 }

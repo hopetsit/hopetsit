@@ -80,6 +80,52 @@ class BookingDateFormat {
     return raw;
   }
 
+  /// 613 §9 (ZOE, émulateur Android) — JOUR d'un service, localisé et court
+  /// (« 17 oct. 2026 », « Oct 17, 2026 »), jamais le texte ISO brut.
+  ///   · [startInstant] : début réel (instant ISO) → jour de l'heure LOCALE ;
+  ///   · sinon [dayOnly] : jour stocké à minuit UTC (`serviceDate`, `date`)
+  ///     → ce jour-là tel quel, SANS conversion (à Dallas, minuit UTC
+  ///     reculerait d'un jour).
+  /// Chaîne vide si rien n'est lisible.
+  static String serviceDay(String? startInstant, [String? dayOnly]) {
+    final lang = _lang();
+    DateTime? day;
+    final s = (startInstant ?? '').trim();
+    if (s.isNotEmpty) {
+      final dt = DateTime.tryParse(s);
+      if (dt != null) {
+        final l = dt.toLocal();
+        day = DateTime(l.year, l.month, l.day);
+      }
+    }
+    if (day == null) {
+      final d = (dayOnly ?? '').trim();
+      // Une « date » qui porte une vraie heure (réservation : `date` =
+      // début, ex. « 2026-10-16T23:18:00Z ») est un instant → jour local.
+      // Seul minuit pile UTC est un jour « nu ».
+      final inst = DateTime.tryParse(d);
+      if (inst != null &&
+          RegExp(r'T\d{2}:').hasMatch(d) &&
+          (inst.hour != 0 || inst.minute != 0 || inst.second != 0 || !inst.isUtc)) {
+        final l = inst.toLocal();
+        day = DateTime(l.year, l.month, l.day);
+      }
+    }
+    if (day == null) {
+      final d = (dayOnly ?? '').trim();
+      final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(d);
+      if (m != null) {
+        day = DateTime(int.parse(m.group(1)!), int.parse(m.group(2)!), int.parse(m.group(3)!));
+      }
+    }
+    if (day == null) return '';
+    try {
+      return DateFormat.yMMMd(lang).format(day);
+    } catch (_) {
+      return DateFormat.yMMMd('en').format(day);
+    }
+  }
+
   /// Formate une heure qui peut arriver en ISO, en "h:mm a" (AM/PM) ou
   /// déjà en "HH:mm".
   static String localizedTime(String raw) {

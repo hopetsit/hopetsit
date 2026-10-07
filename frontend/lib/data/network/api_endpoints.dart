@@ -33,6 +33,8 @@ class ApiEndpoints {
   static const String posts = '/posts';
   static const String postsWithMedia = '/posts/with-media';
   static const String sitters = '/sitters';
+  // v613 — taux de commission réel d'un prestataire (15 % Top, 20 % sinon).
+  static const String pricingCommissionRate = '/pricing/commission-rate';
 
   /// Find nearby sitters by owner's location (GET with query lat, lng, optional radiusInMeters).
   static const String sittersNearby = '/sitters/nearby';

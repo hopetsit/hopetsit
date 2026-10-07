@@ -5,6 +5,7 @@ const {
   getServiceRecommendedPrice,
   calculatePricing,
   validatePrice,
+  getProviderCommissionRate,
 } = require('../controllers/pricingController');
 
 const router = express.Router();
@@ -26,6 +27,8 @@ const router = express.Router();
  *                 recommendedPrices:
  *                   type: object
  */
+// v613 — taux de commission réel d'un prestataire (15 % Top, 20 % sinon).
+router.get('/commission-rate', getProviderCommissionRate);
 router.get('/recommended', getRecommendedPriceRanges);
 
 /**

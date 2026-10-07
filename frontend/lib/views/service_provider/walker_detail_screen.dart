@@ -67,7 +67,13 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
   }
 
   Future<void> _loadWalker() async {
-    setState(() => _loading = true);
+    // 613 §9 (ZOE, émulateur Android) — « Réessayer » restait sur l'écran
+    // d'erreur même quand le 2e chargement réussissait : l'ancienne erreur
+    // n'était jamais effacée et passait avant la fiche chargée.
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final repo = Get.find<WalkerRepository>();
       final walker = await repo.getWalkerProfile(widget.walkerId);

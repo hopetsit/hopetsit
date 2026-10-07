@@ -36,6 +36,9 @@ const pawPlushSchema = new mongoose.Schema(
     testCopy: { type: Boolean, default: false },
     // 611 — rang de la capture dans la journée de la personne (1 ou 2).
     catchSlot: { type: Number, default: null },
+    // 613 — points RÉELLEMENT crédités à cette capture (×2 Premium compris) :
+    // rendus tels quels si la même personne redemande (réponse perdue).
+    creditedPoints: { type: Number, default: null },
     caughtBy: {
       userId: { type: String, default: null },
       role: { type: String, default: null },

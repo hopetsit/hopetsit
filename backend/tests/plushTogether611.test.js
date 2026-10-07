@@ -113,10 +113,18 @@ test('1. balade à deux : Cam l\'attrape, Daniel attrape LA MÊME juste après (
   const lim = await grab(daniel, r3, { lat: r3.lat, lng: r3.lng });
   expect(lim.status).toBe(429);
   expect(lim.body.code).toBe('DAILY_LIMIT');
-  // la même peluche une 2e fois : refusée
+  // la même peluche une 2e fois : 613 — rappel de SA capture, aucun point de plus
   walk(cam, p.lat, p.lng);
+  const before = (await Owner.findById(cam._id).select('pawPoints').lean()).pawPoints;
   const twice = await grab(cam, p, { lat: p.lat, lng: p.lng });
-  expect([409, 429]).toContain(twice.status);
+  expect(twice.status).toBe(200);
+  expect(twice.body).toMatchObject({ ok: true, already: true, plush: { type: p.type } });
+  expect((await Owner.findById(cam._id).select('pawPoints').lean()).pawPoints).toBe(before);
+  // et pour Daniel (sa COPIE de la même peluche) : pareil
+  walk(daniel, p.lat, p.lng);
+  const dTwice = await grab(daniel, p, { lat: p.lat, lng: p.lng });
+  expect(dTwice.status).toBe(200);
+  expect(dTwice.body).toMatchObject({ already: true, points: 20 });
 });
 
 test('3. peluches du jour prises (2/2) : la Balade ne montre plus de peluches impossibles à attraper', async () => {

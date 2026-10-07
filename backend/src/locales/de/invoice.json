@@ -41,6 +41,6 @@
   "errorServer": "Es ist ein Fehler aufgetreten. Bitte versuche es gleich noch einmal.",
   "legalMentions": "Rechtliche Hinweise",
   "footer": "Zahlung verarbeitet durch Airwallex (PCI-DSS Stufe 1 zertifiziert). HoPetSit greift nicht auf Kartendaten zu, überträgt oder speichert sie nicht.",
-  "escrowText": "Die Gelder werden bis 24 Std. nach Serviceende treuhänderisch verwahrt und dann auf das hinterlegte IBAN des Anbieters freigegeben.",
+  "escrowText": "Der Anbieter erhält 100 % seines Tarifs. Die Gelder werden während des Dienstes treuhänderisch verwahrt und in das Wallet des Anbieters freigegeben, sobald der Eigentümer den Dienst bestätigt, oder 48 Stunden nach dem geplanten Ende, und können dann auf seine IBAN abgehoben werden.",
   "cancelTerms": "Kostenlose Stornierung mit voller Rückerstattung bis 72 Std. vor Servicebeginn möglich. Siehe"
 }

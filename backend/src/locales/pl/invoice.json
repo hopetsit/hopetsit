@@ -41,6 +41,6 @@
   "errorServer": "Wystąpił błąd. Spróbuj ponownie za chwilę.",
   "legalMentions": "Informacje prawne",
   "footer": "Płatność obsługuje Airwallex (certyfikat PCI-DSS poziom 1). HoPetSit nie ma dostępu do danych karty, nie przesyła ich ani nie przechowuje.",
-  "escrowText": "Środki są przechowywane w depozycie do 24 godzin po zakończeniu usługi, a następnie wypłacane na zarejestrowany IBAN usługodawcy.",
+  "escrowText": "Usługodawca otrzymuje 100% swojej stawki. Środki są przechowywane w depozycie przez czas trwania usługi i zwalniane do portfela usługodawcy, gdy właściciel potwierdzi usługę, lub 48 godzin po jej planowanym zakończeniu, a następnie mogą zostać wypłacone na IBAN usługodawcy.",
   "cancelTerms": "Samodzielne anulowanie z pełnym zwrotem jest możliwe do 72 godzin przed rozpoczęciem usługi. Zobacz"
 }

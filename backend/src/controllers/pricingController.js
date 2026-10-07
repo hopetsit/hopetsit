@@ -2,6 +2,7 @@ const {
   LOCATION_TYPES,
   SERVICE_TYPES,
   PLATFORM_COMMISSION_RATE,
+  commissionRateForProvider,
   getRecommendedPriceRange,
   calculatePricingBreakdown,
   calculateTotalWithAddOns,
@@ -192,7 +193,43 @@ const validatePrice = async (req, res) => {
   }
 };
 
+/**
+ * v613 — taux de commission d'UN prestataire, calculé par la MÊME fonction que
+ * la création de réservation / candidature (`commissionRateForProvider`, lue
+ * sur isTopSitter / isTopWalker) : 15 % pour un Top, 20 % sinon. L'écran
+ * « Envoyer une demande » de l'app l'affiche au lieu d'un 20 % figé.
+ * GET /pricing/commission-rate?providerId=<id>&role=sitter|walker
+ * Public : le badge Top est déjà visible sur le profil public.
+ */
+const getProviderCommissionRate = async (req, res) => {
+  try {
+    const providerId = String(req.query.providerId || '');
+    const role = req.query.role === 'walker' ? 'walker' : 'sitter';
+    if (!/^[0-9a-fA-F]{24}$/.test(providerId)) {
+      return res.status(400).json({ error: 'providerId is required.' });
+    }
+    // Chargés ici (et non en tête) : ce contrôleur est aussi importé par des
+    // tests unitaires sans base.
+    const Model = role === 'walker' ? require('../models/Walker') : require('../models/Sitter');
+    const provider = await Model.findById(providerId).select('isTopSitter isTopWalker').lean();
+    if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+    const isTopProvider = role === 'walker'
+      ? provider.isTopWalker === true
+      : provider.isTopSitter === true;
+    return res.json({
+      providerId,
+      role,
+      isTopProvider,
+      commissionRate: commissionRateForProvider(isTopProvider),
+    });
+  } catch (error) {
+    logger.error('[pricingController.getProviderCommissionRate]', error);
+    return res.status(500).json({ error: 'Unable to read commission rate.' });
+  }
+};
+
 module.exports = {
+  getProviderCommissionRate,
   getRecommendedPriceRanges,
   getServiceRecommendedPrice,
   calculatePricing,

@@ -112,8 +112,10 @@ import { usePresence } from "@/lib/usePresence";
 import { getSocket } from "@/lib/socket";
 import type { FriendLivePosition } from "@/components/FriendsLiveMap";
 import { haversineKm } from "@/lib/mapCluster";
+import { alertFresh613, alertPinHtml613, emojiDraws613, reportEmoji613 } from "@/lib/alerts613";
+import { joinLabel613, joinLine613, meters613, shouldRecomputeJoin613 } from "@/lib/join613";
 import { formatPriceUnit, priceUnitLabels } from "@/lib/priceUnit";
-import { ROLE_COLOR, blurLatLng, formatPrice, placePinHtml, reportPinHtml, spotPinHtml, roleKey, showsPriceBubble } from "@/lib/pawmapLegend";
+import { ROLE_COLOR, blurLatLng, formatPrice, placePinHtml, spotPinHtml, roleKey, showsPriceBubble } from "@/lib/pawmapLegend";
 import { expandRows, formatKm, friendIdSetFrom, isFriendMember, locateFriend, mergePersons, personIdsOf, placeFriendsFromList, rolesMatching, rolesOf } from "@/lib/memberPersons";
 import type { Map as LeafletMap } from "leaflet";
 
@@ -320,6 +322,11 @@ export default function MapPage() {
   const [routeMode, setRouteModeState] = useState<RouteMode>("walk");
   const [routeTarget, setRouteTarget] = useState<{ lat: number; lng: number; friendId?: string } | null>(null);
   const [showSteps, setShowSteps] = useState(false);
+  // 613 — d'où part le trajet (ma position au calcul) et quand recadrer la carte
+  // (pas au recalcul silencieux quand la personne rejointe bouge, comme l'app).
+  const [routeFromPt, setRouteFromPt] = useState<{ lat: number; lng: number } | null>(null);
+  const [routeFitTs, setRouteFitTs] = useState(0);
+  const joinAtRef = useRef(0);
   useEffect(() => {
     try {
       const saved = localStorage.getItem("pawmap_route_mode");
@@ -1388,6 +1395,8 @@ export default function MapPage() {
       setRouteFrom(null);
       const go = async (from: { lat: number; lng: number }, origin: "gps" | "center") => {
         setRouteFrom(origin);
+        setRouteFromPt(from);
+        joinAtRef.current = Date.now();
         try {
           // 611 — vers un AMI : `friendId` → gratuit (jamais de renvoi vers la boutique).
           // Refus 403 NOT_A_FRIEND (ex. gardien suivi pendant une garde, pas ami) :
@@ -1399,6 +1408,7 @@ export default function MapPage() {
             if (target.friendId && e1 instanceof ApiError && e1.status === 403 && (e1.details as { code?: string } | undefined)?.code === "NOT_A_FRIEND") setRoute(await getPawSpotDirections(q));
             else throw e1;
           }
+          setRouteFitTs(Date.now());
         } catch (e) {
           if (e instanceof ApiError && e.status === 402) setDirectionsLocked(true);
           else if (e instanceof ApiError && e.status === 401) { router.replace("/login"); return; }
@@ -1433,6 +1443,7 @@ export default function MapPage() {
   function clearRoute() {
     setRoute(null);
     setRouteFrom(null);
+    setRouteFromPt(null);
     setRouteLoading(false);
     setRouteTarget(null);
     setShowSteps(false);
@@ -1603,6 +1614,28 @@ export default function MapPage() {
       return () => clearTimeout(id);
     }
   }, [followUserId, followed, t]);
+  // 613 (Daniel, vocal 06/10 23 h 06) — pendant un suivi, « Itinéraire » devient « Rejoindre john » :
+  // le chemin à pied DE MOI VERS lui, recalculé quand il bouge (≥ 50 m, ou ≥ 10 m après 30 s,
+  // comme PawRouteFollow611), sans recadrer la carte à chaque recalcul.
+  const joining = !!(followed && routeTarget?.friendId && routeTarget.friendId === followed.userId);
+  const joinQuietRef = useRef(false);
+  useEffect(() => {
+    if (!joining || !followed || !route || routeLoading || !routeTarget || joinQuietRef.current) return;
+    const moved = meters613(routeTarget, followed);
+    if (!shouldRecomputeJoin613(moved, Date.now() - joinAtRef.current)) return;
+    const from = userLocation ?? routeFromPt;
+    if (!from) return;
+    joinQuietRef.current = true;
+    joinAtRef.current = Date.now();
+    const target = { lat: followed.lat, lng: followed.lng, friendId: followed.userId };
+    void getPawSpotDirections({ fromLat: from.lat, fromLng: from.lng, toLat: target.lat, toLng: target.lng, mode: routeMode, lang, friendId: target.friendId })
+      .then((r) => { if (r.points.length > 1) { setRoute(r); setRouteTarget(target); setRouteFromPt(from); } })
+      .catch(() => { /* recalcul silencieux : on garde le trajet affiché */ })
+      .finally(() => { joinQuietRef.current = false; });
+  }, [joining, followed?.lat, followed?.lng, route, routeLoading, routeTarget, userLocation, routeFromPt, routeMode, lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  const joinText = joining && route && !routeLoading && followed
+    ? joinLine613(t, { name: followed.name, meters: route.distanceMeters, seconds: route.durationSeconds, walk: routeMode === "walk" })
+    : "";
   const liveLabels: LiveLabels = useMemo(
     () => ({
       live: t("live_state_live"),
@@ -1844,7 +1877,7 @@ export default function MapPage() {
           {/* 25/09 — ITINÉRAIRE visible SUR la carte (téléphone compris) :
               calcul en cours, résultat (mode, distance, durée), refus
               « abonnement requis » ou erreur — jamais un clic sans effet. */}
-          {(routeLoading || route || directionsLocked || directionsError) && (
+          {(routeLoading || route || directionsLocked || directionsError) && !joinText && (
             <div className="absolute left-3 right-3 top-[64px] z-[1060] rounded-[18px] bg-white p-2.5 shadow-[0_10px_28px_-10px_rgba(35,23,21,0.45)] sm:right-auto sm:top-3 sm:w-[340px]" role="status">
               <div className="flex items-center gap-2">
                 <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: `${routeColor}1f` }}>
@@ -1891,22 +1924,35 @@ export default function MapPage() {
               Une petite PILULE discrète en bas de la carte (photo, « Jose · en
               direct · 12 s », chevron) ; un clic ouvre une petite feuille
               Recentrer / Itinéraire / Message / Arrêter de suivre. */}
+          {/* 613 (comme l'app) — bandeau « Rejoindre john · 355 m · 4 min à pied » posé juste
+              au-dessus de la pilule du suivi, entre les deux barres ; la carte cadre Moi et john
+              au-dessus de lui (il ne couvre personne). ✕ efface le trajet et rend la caméra au suivi. */}
+          {joinText && !followSheet && (
+            <div className="pointer-events-none absolute bottom-[76px] left-[68px] right-[68px] z-[1055] flex justify-center">
+              <div data-join613="" role="status" className="pointer-events-auto flex max-w-full items-center gap-2 rounded-[18px] bg-white py-1.5 pl-2 pr-1.5 shadow-[0_10px_26px_-10px_rgba(35,23,21,0.5)]" style={{ boxShadow: `inset 0 0 0 1.5px ${routeColor}66, 0 10px 26px -10px rgba(35,23,21,0.5)` }}>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: `${routeColor}1f` }}><AppIcon name="route" size={17} color={routeColor} /></span>
+                <span data-join613-text="" className="min-w-0 text-[13px] font-bold leading-snug text-[#231715]">{joinText}</span>
+                <button type="button" onClick={clearRoute} aria-label={t("common_close")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#FAF1EC]"><AppIcon name="close" size={15} color="#231715" /></button>
+              </div>
+            </div>
+          )}
           {followed && (
             <div className="pointer-events-none absolute inset-x-0 bottom-5 z-[1050] flex flex-col items-center gap-2 px-[100px] max-[420px]:px-[96px]">
               {followSheet && (
-                <div className="pointer-events-auto w-full max-w-[300px] rounded-[20px] bg-white p-2 shadow-[0_12px_32px_-8px_rgba(76,29,149,0.45)]" role="dialog" aria-label={t("live_sheet_title")}>
+                <div className="pointer-events-auto w-full max-w-[300px] rounded-[20px] bg-white p-2 shadow-[0_12px_32px_-8px_rgba(76,29,149,0.45)] max-[420px]:-mx-[30px] max-[420px]:w-[calc(100%+60px)]" role="dialog" aria-label={t("live_sheet_title")}>
                   <div className="grid grid-cols-2 gap-1.5">
                     <button type="button" onClick={() => { setFollowPaused(false); setFocusTarget({ lat: followed.lat, lng: followed.lng, ts: Date.now(), minZoom: 16 }); setFollowSheet(false); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#EDE9FE] px-2 text-xs font-bold text-[#5B21B6]">
-                      <AppIcon name="locate" size={16} color="#6D28D9" />{t("live_recenter")}
+                      <AppIcon name="locate" size={16} color="#6D28D9" className="shrink-0" />{t("live_recenter")}
                     </button>
                     <button type="button" onClick={() => { handleDirections({ lat: followed.lat, lng: followed.lng, friendId: followed.userId }); setFollowSheet(false); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#DCFCE7] px-2 text-xs font-bold text-[#15803D]">
-                      <AppIcon name="route" size={16} color="#15803D" />{t("map_directions_btn")}
+                      {/* 613 — comme l'app : pendant un suivi, « Rejoindre john » (même action : le chemin vers lui). */}
+                      <AppIcon name="route" size={16} color="#15803D" className="shrink-0" /><span data-join613-btn="" className="min-w-0 text-center leading-tight break-words">{joinLabel613(t, followed.name)}</span>
                     </button>
                     <button type="button" onClick={() => { void openMessage({ id: followed.userId, role: followed.role, name: followed.name }); }} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] bg-[#DBEAFE] px-2 text-xs font-bold text-[#1E4FB0]">
-                      <AppIcon name="chat" size={16} color="#1E4FB0" />{t("live_message")}
+                      <AppIcon name="chat" size={16} color="#1E4FB0" className="shrink-0" />{t("live_message")}
                     </button>
                     <button type="button" onClick={stopFollow} className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-[14px] px-2 text-xs font-bold text-[#9E1F0B] ring-1 ring-inset ring-[#F3C4BA]">
-                      <AppIcon name="close" size={16} color="#9E1F0B" />{t("live_stop_follow")}
+                      <AppIcon name="close" size={16} color="#9E1F0B" className="shrink-0" />{t("live_stop_follow")}
                     </button>
                   </div>
                 </div>
@@ -1931,10 +1977,15 @@ export default function MapPage() {
                     <span className="grid h-full w-full place-items-center text-[13px] font-bold text-white">{(followed.name || "?").charAt(0).toUpperCase()}</span>
                   )}
                 </span>
-                <span className="min-w-0 truncate">{followed.name}</span>
-                <span className="inline-flex shrink-0 items-center gap-1" style={{ color: followed.state === "lost" ? "#C2410C" : "#6D28D9" }}>
-                  <span className={`inline-block h-2 w-2 rounded-full ${followed.state === "lost" ? "" : "animate-pulse"}`} style={{ background: followed.state === "lost" ? "#EA580C" : "#7C3AED" }} />
-                  {followed.state === "lost" ? t("live_state_lost") : t("live_state_live")} · {formatAgo(followed.lastSeenAt ? nowTs - new Date(followed.lastSeenAt).getTime() : 0, t)}
+                {/* 613 (BOB) — à 375 px la pilule n'affichait que l'initiale (« j ● en direct ») : sur
+                    téléphone le nom passe sur sa propre ligne, l'état en dessous ; le nom garde au moins
+                    ~10 caractères et n'est tronqué que s'il est vraiment long. */}
+                <span data-follow-pill-text="" className="flex min-w-0 items-center gap-2 max-[420px]:flex-col max-[420px]:items-start max-[420px]:gap-0 max-[420px]:leading-tight">
+                  <span data-follow-pill-name="" className="min-w-[min(10ch,100%)] max-w-full truncate">{followed.name}</span>
+                  <span className="inline-flex shrink-0 items-center gap-1 max-[420px]:text-[11px]" style={{ color: followed.state === "lost" ? "#C2410C" : "#6D28D9" }}>
+                    <span className={`inline-block h-2 w-2 rounded-full ${followed.state === "lost" ? "" : "animate-pulse"}`} style={{ background: followed.state === "lost" ? "#EA580C" : "#7C3AED" }} />
+                    {followed.state === "lost" ? t("live_state_lost") : t("live_state_live")} · {formatAgo(followed.lastSeenAt ? nowTs - new Date(followed.lastSeenAt).getTime() : 0, t)}
+                  </span>
                 </span>
                 <span className={`shrink-0 text-[#6D28D9] transition-transform ${followSheet ? "rotate-90" : "-rotate-90"}`}><AppIcon name="arrow-right" size={14} color="#6D28D9" /></span>
               </button>
@@ -1958,7 +2009,7 @@ export default function MapPage() {
             </div>
           )}
           {(liveToast || friendsOnlyMsg) && (
-            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[100px] max-[420px]:px-[96px] ${followed ? "bottom-[76px]" : "bottom-5"}`}>
+            <div className={`pointer-events-none absolute inset-x-0 z-[1060] flex justify-center px-[100px] max-[420px]:px-[96px] ${joinText ? "bottom-[150px]" : followed ? "bottom-[76px]" : "bottom-5"}`}>
               {liveToast
                 ? <StatusToast key={`lt-${liveToast}`} kind={liveToast === t("route_pick_target") ? "follow" : "liveOff"} text={liveToast} dark={dark} />
                 : friendsOnlyMsg && <StatusToast key={`vt-${friendsOnlyMsg.kind}-${friendsOnlyMsg.text}`} kind={friendsOnlyMsg.kind} text={friendsOnlyMsg.text} dark={dark} />}
@@ -2252,6 +2303,10 @@ export default function MapPage() {
             routePoints={route?.points ?? null}
             routeColor={routeColor}
             routeSteps={route?.steps ?? null}
+            routeFrom={routeFromPt}
+            joinTo={joining && followed ? { lat: followed.lat, lng: followed.lng } : null}
+            followCamHold={joining}
+            routeFitToken={routeFitTs}
             onDirections={handleDirections}
             directionsLabel={t("map_directions_btn")}
             formatOpenStatus={formatOpenStatus}
@@ -2562,7 +2617,7 @@ export default function MapPage() {
               let title = "";
               if (sidePanel === "reports") {
                 title = t("map_panel_reports_title");
-                rows = reports.map((r) => { const [lng, lat] = r.location.coordinates; return { id: r._id, lat, lng, km: haversineKm(from.lat, from.lng, lat, lng), pin: reportPinHtml(22), title: reportTypeLabels[r.type] || r.type, sub: r.note || "", photo: r.photoUrl || "", meta: `${new Date(r.createdAt).toLocaleDateString(lang)}${r.confirmationsCount ? ` · ✓ ${r.confirmationsCount}` : ""}` }; });
+                rows = reports.map((r) => { const [lng, lat] = r.location.coordinates; return { id: r._id, lat, lng, km: haversineKm(from.lat, from.lng, lat, lng), pin: alertPinHtml613(r.type, { size: 26, fresh: alertFresh613(r.createdAt, nowTs), emojiOk: emojiDraws613(reportEmoji613(r.type)) }), title: reportTypeLabels[r.type] || r.type, sub: r.note || "", photo: r.photoUrl || "", meta: `${new Date(r.createdAt).toLocaleDateString(lang)}${r.confirmationsCount ? ` · ✓ ${r.confirmationsCount}` : ""}` }; });
               } else if (sidePanel === "spots") {
                 title = t("map_panel_spots_title");
                 rows = spots.map((sp) => ({ id: sp.id, lat: sp.lat, lng: sp.lng, km: haversineKm(from.lat, from.lng, sp.lat, sp.lng), pin: spotPinHtml(sp.type, sp.isGolden).replace(/width:\d+px;height:\d+px/, "width:22px;height:29px"), title: sp.name, sub: `${spotTypeLabels[sp.type] || sp.type}${sp.description ? ` · ${sp.description}` : ""}`, photo: sp.photoUrl || "", meta: `♥ ${sp.likesCount} · ${t("map_spot_visits").replace("{count}", String(sp.visitsCount))}` }));

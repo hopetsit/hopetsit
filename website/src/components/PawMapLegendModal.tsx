@@ -20,7 +20,6 @@ import {
   placeClusterHtml,
   spotPinHtml,
   spotClusterHtml,
-  reportPinHtml,
   requestBubbleHtml,
   PAWMAP_KEYFRAMES,
   ROLE_COLOR,
@@ -35,6 +34,15 @@ import { RANK_KEYS_611, RANK_MINS_611 } from "@/lib/ranks611";
 
 // 25/09 (586) — dessins des nouveaux contrôles de la carte (poignée, Publier,
 // Direct, œil), mêmes couleurs que sur /map.
+import { alertPinHtml613, emojiDraws613, reportEmoji613 } from "@/lib/alerts613";
+/** 613 — trois épingles d'alerte (danger, attention, info) pour la légende ; jamais de rond vide. */
+function alertTrio613(): string {
+  const pin = (type: string, fresh: boolean) => alertPinHtml613(type, { size: 28, fresh, emojiOk: emojiDraws613(reportEmoji613(type)) });
+  return `<div data-alert-trio="" style="position:relative;width:56px;height:56px;">`
+    + `<div style="position:absolute;left:0;top:2px;">${pin("hazard", true)}</div>`
+    + `<div style="position:absolute;right:0;top:2px;">${pin("construction", false)}</div>`
+    + `<div style="position:absolute;left:14px;bottom:0;">${pin("water_active", false)}</div></div>`;
+}
 function roundHtml(bg: string, inner: string, shadow: string, size = 40) {
   return `<span style="display:grid;place-items:center;width:${size}px;height:${size}px;border-radius:999px;background:${bg};border:1.5px solid #fff;box-shadow:0 6px 14px -6px ${shadow}">${inner}</span>`;
 }
@@ -251,7 +259,8 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     { html: spotPinHtml("path_walk", false), title: t("legend_spot"), body: t("legend_spot_body") },
     { html: spotPinHtml("path_walk", true), title: t("legend_spot_gold"), body: t("legend_spot_gold_body"), color: PREMIUM_GOLD },
     { html: spotClusterHtml(3), title: t("legend_spot_group") },
-    { html: reportPinHtml(), title: t("legend_report"), body: t("legend_report_body") },
+    // 613 — la nouvelle épingle d'alerte de l'app : anneau rouge / orange / bleu selon la gravité.
+    { html: alertTrio613(), title: t("legend_report"), body: t("legend_report_body") },
   ];
   const roleColor = ROLE_COLOR[roleK];
 
@@ -329,7 +338,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     title: t("r610_sec"),
     example: t("r610_ex"),
     rows: [
-      { html: reportPinHtml(34), title: t("r610_see_t"), body: t("r610_see_b"), color: "#B42318" },
+      { html: alertTrio613(), title: t("r610_see_t"), body: t("r610_see_b"), color: "#B42318" },
       { html: roundHtml("linear-gradient(165deg,#F0645A,#D32F2F 55%,#A61B1B)", SHIELD, "#D32F2F"), title: t("r610_danger_t"), body: t("r610_danger_b"), color: "#B42318" },
       { html: roundHtml("linear-gradient(165deg,#8A7A72,#5E4E46 55%,#3E312B)", WEEK, "rgba(62,49,43,.8)"), title: t("r610_comfort_t"), body: t("r610_comfort_b"), color: "#231715" },
       { html: roundHtml("linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)", PAWLOST, "#C92A12"), title: t("r610_lost_t"), body: t("r610_lost_b"), color: ROLE_COLOR.owner },

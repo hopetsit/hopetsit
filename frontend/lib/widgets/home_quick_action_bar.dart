@@ -817,7 +817,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   String _dateLabel(BookingModel b) {
     final d = b.date;
     if (d.isEmpty) return '';
-    return d.split('T').first;
+    // 613 §9 (ZOE) — jour localisé (« 17 oct. 2026 »), plus le texte ISO brut.
+    final day = BookingDateFormat.serviceDay(null, d);
+    return day.isNotEmpty ? day : d.split('T').first;
   }
 
   // ─── Build ──────────────────────────────────────────────────────────────
@@ -949,7 +951,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     // candidat reste toujours visible.
     final title = '${'notif_title_new_application'.tr} — $providerName';
     final petLbl = first.petName.isNotEmpty ? first.petName : '';
-    final dateLbl = (first.serviceDate ?? '').split('T').first;
+    // 613 §9 (ZOE) — jour LOCAL du début, localisé (avant : « 2026-10-16 »,
+    // jour UTC brut, pour une promenade le 17/10 à 1 h 18 à Paris).
+    final dateLbl = BookingDateFormat.serviceDay(first.startDate, first.serviceDate);
     final subtitle = [petLbl, dateLbl, providerName]
         .where((s) => s.isNotEmpty)
         .join(' • ');
@@ -1754,7 +1758,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
               // v569 — boutons pleine largeur : principale pleine, destructive
               // en rouge texte. Mêmes appels qu'avant.
               ActionPillButton(
-                label: 'snackbar_text_request_accepted'.tr,
+                label: 'service_card_accept'.tr, // 613 — action « Accepter »
                 icon: Icons.check_rounded,
                 tone: tone,
                 expand: true,
@@ -1766,7 +1770,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
               ),
               SizedBox(height: 8.h),
               ActionPillButton(
-                label: 'snackbar_text_request_refused'.tr,
+                label: 'service_card_reject'.tr, // 613 — action « Refuser »
                 icon: Icons.close_rounded,
                 tone: ActionTone.danger,
                 kind: ActionPillKind.danger,
@@ -1831,7 +1835,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         : (isWalker ? 'role_walker'.tr : 'role_sitter'.tr);
     final providerAvatar = app.sitter.avatar.url;
     final petLabel = app.petName;
-    final dateLbl = (app.serviceDate ?? '').split('T').first;
+    final dateLbl = BookingDateFormat.serviceDay(app.startDate, app.serviceDate); // 613
     final timeLbl = BookingDateFormat.localizedTime(app.timeSlot);
     final addrLbl = app.sitter.city ?? app.sitter.address;
     final rating = app.sitter.rating;
@@ -1892,7 +1896,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
               SizedBox(height: 20.h),
               // 3 actions, inchangées : Accepter / Voir profil / Refuser.
               ActionPillButton(
-                label: 'snackbar_text_request_accepted'.tr,
+                // 613 §9 (ZOE) — bouton d'ACTION : « Accepter », pas le message
+                // de confirmation « Demande acceptée » (vu sur l'émulateur).
+                label: 'service_card_accept'.tr,
                 icon: Icons.check_rounded,
                 tone: tone,
                 expand: true,
@@ -1929,7 +1935,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
               ),
               SizedBox(height: 8.h),
               ActionPillButton(
-                label: 'snackbar_text_request_refused'.tr,
+                label: 'service_card_reject'.tr, // 613 — « Refuser »
                 icon: Icons.close_rounded,
                 tone: ActionTone.danger,
                 kind: ActionPillKind.danger,
@@ -2172,7 +2178,14 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   Future<void> _ownerAcceptCandidate(ApplicationModel app) async {
     if (!Get.isRegistered<ApplicationsController>()) return;
     final ctrl = Get.find<ApplicationsController>();
-    await ctrl.respondToApplication(applicationId: app.id, action: 'accept');
+    final ok = await ctrl.respondToApplication(applicationId: app.id, action: 'accept');
+    // 613 §9 (ZOE, émulateur Android) — juste après « Accepter », le bandeau
+    // disait « Tout est à jour · Aucune action en attente » jusqu'au prochain
+    // rafraîchissement (≈ 10-30 s) alors qu'il reste à PAYER : la réservation
+    // créée par l'acceptation est rechargée tout de suite → « Payer 120 € ».
+    if (ok && Get.isRegistered<BookingsController>()) {
+      await Get.find<BookingsController>().loadBookings();
+    }
   }
 
   Future<void> _ownerRejectCandidate(ApplicationModel app) async {

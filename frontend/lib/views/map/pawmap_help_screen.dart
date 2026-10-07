@@ -2030,24 +2030,27 @@ class _RankRow612 extends StatelessWidget {
         .format(min);
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 6.h),
-      child: Row(
+      // 613 (§8, Daniel : « texte coupé ») — la pastille et le seuil se
+      // partageaient la ligne à MOITIÉ (deux Flexible) : « Chef de meute »,
+      // « Erwachsener Hund », « Líder de la manada »… finissaient en « … » à
+      // 375 px. La pastille prend sa largeur entière ; le seuil passe à la
+      // ligne en dessous s'il ne tient pas (test pam613_help_ranks_test).
+      child: Wrap(
+        spacing: 10.w,
+        runSpacing: 4.h,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Flexible(
-            child: PawRankPill611(
-              rank: PawRank611(
-                key: kPawRankKeys611[level - 1],
-                level: level,
-                pointsEarned: min,
-              ),
+          PawRankPill611(
+            rank: PawRank611(
+              key: kPawRankKeys611[level - 1],
+              level: level,
+              pointsEarned: min,
             ),
           ),
-          SizedBox(width: 10.w),
-          Flexible(
-            child: Text(
-              'help612_rank_from'.tr.replaceAll('{n}', n),
-              style: PawMapTheme.fontOn(context,
-                  size: 12.5.sp, weight: FontWeight.w700, color: _warmBody(context)),
-            ),
+          Text(
+            'help612_rank_from'.tr.replaceAll('{n}', n),
+            style: PawMapTheme.fontOn(context,
+                size: 12.5.sp, weight: FontWeight.w700, color: _warmBody(context)),
           ),
         ],
       ),

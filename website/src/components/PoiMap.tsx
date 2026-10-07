@@ -22,6 +22,7 @@ import {
   CircleMarker,
   MapContainer,
   Marker,
+  Pane,
   Polyline,
   Popup,
   TileLayer,
@@ -47,6 +48,8 @@ import {
 } from "@/lib/api";
 import { makeAvatarIcon } from "@/components/FriendsLiveMap";
 import { liveTail612, TRAIL_COLOR_612, TRAIL_WEIGHT_612 } from "@/lib/trail612";
+import { alertAlpha613, alertFresh613, alertPinHtml613, emojiDraws613, reportEmoji613 } from "@/lib/alerts613";
+import { JOIN_LEAD_MIN_M_613, meters613 } from "@/lib/join613";
 import type { FriendLivePosition, Role } from "@/components/FriendsLiveMap";
 import { clusterize } from "@/lib/mapCluster";
 import {
@@ -77,7 +80,6 @@ import {
   spotPinHtml,
   spotClusterHtml,
   dominantRole,
-  reportPinHtml,
   requestBubbleHtml,
   ROLE_COLOR,
   PAWFOLLOW_VIOLET,
@@ -168,7 +170,17 @@ function placeIcon(category: PoiCategory): L.DivIcon {
 function spotIcon(type: PawSpotType, golden: boolean, label?: string | null): L.DivIcon {
   return L.divIcon({ className: "hps-l-spot", html: spotPinHtml(type, golden, { label }), iconSize: [40, 50], iconAnchor: spotPinAnchor(40), popupAnchor: [0, -44] });
 }
-const reportIcon = () => L.divIcon({ className: "hps-l-report", html: reportPinHtml(30), iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] });
+// 613 — épingle d'alerte de l'app : anneau de gravité, auréole fixe < 2 h, jamais de rond vide.
+const reportIconCache = new Map<string, L.DivIcon>();
+const reportIcon = (type: string, fresh: boolean) => {
+  const key = `${type}|${fresh ? 1 : 0}`;
+  let ic = reportIconCache.get(key);
+  if (!ic) {
+    ic = L.divIcon({ className: "hps-l-report", html: alertPinHtml613(type, { size: 36, fresh, emojiOk: emojiDraws613(reportEmoji613(type)) }), iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -16] });
+    reportIconCache.set(key, ic);
+  }
+  return ic;
+};
 function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], bubble: string | null, dark: boolean, duo?: [string, string] | null): L.DivIcon {
   return L.divIcon({
     className: "hps-l-member",
@@ -317,14 +329,22 @@ function FollowController({ target, onUserGesture }: { target: { lat: number; ln
 }
 
 /** 25/09 — un itinéraire reçu est cadré entièrement (on le VOIT). */
-function RouteFit({ points }: { points: { lat: number; lng: number }[] | null }) {
+function RouteFit({ points, extra, join, token }: { points: { lat: number; lng: number }[] | null; extra?: ({ lat: number; lng: number } | null | undefined)[]; join?: boolean; token?: number }) {
   const map = useMap();
-  const key = points && points.length > 1 ? `${points.length}-${points[0].lat}-${points[points.length - 1].lng}` : "";
+  // 613 — `token` (posé par la page à chaque NOUVEL itinéraire) : un recalcul silencieux
+  // (la personne rejointe a bougé) ne recadre pas la carte.
+  const key = points && points.length > 1 ? (token ? `t${token}` : `${points.length}-${points[0].lat}-${points[points.length - 1].lng}`) : "";
   useEffect(() => {
     if (!points || points.length < 2) return;
     try {
       map.stop();
-      map.fitBounds(L.latLngBounds(points.map((p) => [p.lat, p.lng] as [number, number])), { paddingTopLeft: [70, 120], paddingBottomRight: [70, 40], maxZoom: 17 });
+      const all = [...points, ...((extra || []).filter(Boolean) as { lat: number; lng: number }[])];
+      const b = L.latLngBounds(all.map((p) => [p.lat, p.lng] as [number, number]));
+      // 613 (comme l'app) — « Rejoindre john » : Moi, john et le trajet cadrés dans la ZONE
+      // LIBRE (entre les rails, sous les boutons du haut, au-dessus de la pilule + du bandeau),
+      // marge d'une photo + étiquette (44 px). Zoom rue au plus.
+      if (join) map.fitBounds(b, { paddingTopLeft: [62 + 44, 64 + 44], paddingBottomRight: [62 + 44, 150 + 44], maxZoom: 18 });
+      else map.fitBounds(b, { paddingTopLeft: [70, 120], paddingBottomRight: [70, 40], maxZoom: 17 });
     } catch { /* carte pas prête */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
@@ -651,6 +671,10 @@ export default function PoiMap({
   routePoints = null,
   routeColor = "#C92A12",
   routeSteps = null,
+  routeFrom = null,
+  joinTo = null,
+  followCamHold = false,
+  routeFitToken = 0,
   onDirections,
   directionsLabel = "→",
   formatOpenStatus,
@@ -732,6 +756,14 @@ export default function PoiMap({
   routePoints?: { lat: number; lng: number }[] | null;
   routeColor?: string;
   routeSteps?: RouteStep[] | null;
+  /** 613 — départ de l'itinéraire (ma position au calcul) : trait plein de Moi au début du trajet. */
+  routeFrom?: { lat: number; lng: number } | null;
+  /** 613 — « Rejoindre john » : position ACTUELLE de john (trait plein de la fin du trajet à sa photo, cadrage). */
+  joinTo?: { lat: number; lng: number } | null;
+  /** 613 — pendant « Rejoindre », la caméra du suivi ne recolle plus sur john (Moi reste à l'écran). */
+  followCamHold?: boolean;
+  /** 613 — change à chaque nouvel itinéraire (cadrage) ; inchangé au recalcul silencieux. */
+  routeFitToken?: number;
   onDirections?: (target: { lat: number; lng: number; friendId?: string }) => void;
   directionsLabel?: string;
   formatOpenStatus?: (raw: string) => { label: string; open: boolean } | null;
@@ -863,8 +895,8 @@ export default function PoiMap({
     }
   }, [followed]);
   const followTarget = useMemo(
-    () => (followed ? { lat: followed.lat, lng: followed.lng, key: followed.userId } : null),
-    [followed?.lat, followed?.lng, followed?.userId], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (followed && !followCamHold ? { lat: followed.lat, lng: followed.lng, key: followed.userId } : null),
+    [followed?.lat, followed?.lng, followed?.userId, followCamHold], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const trail = followUserId ? trails.current.get(followUserId) || [] : [];
 
@@ -1148,7 +1180,7 @@ export default function PoiMap({
         <ViewWatcher onZoom={handleZoom} onMove={onMapMove} onBounds={onBoundsChange} />
         <RecenterMap center={center} />
         <FlyToFocus target={focusTarget} />
-        <RouteFit points={routePoints} />
+        <RouteFit points={routePoints} extra={joinTo ? [routeFrom ?? userLocation, joinTo] : undefined} join={!!joinTo} token={routeFitToken || undefined} />
         <FollowController target={followTarget} onUserGesture={() => onFollowPause?.()} />
         <FocusWatcher onClear={clearFocus} />
         {/* 02/10 (607, PAM) — passe de mise en page unique (CONTRAT_607_bulles §2). */}
@@ -1261,7 +1293,7 @@ export default function PoiMap({
           const c = r.location?.coordinates;
           if (!Array.isArray(c) || c.length < 2) return null;
           return (
-            <Marker key={`report-${r._id}`} position={[c[1], c[0]]} icon={reportIcon()} zIndexOffset={PIN_Z.report}>
+            <Marker key={`report-${r._id}`} position={[c[1], c[0]]} icon={reportIcon(r.type, alertFresh613(r.createdAt, now || Date.now()))} opacity={alertAlpha613(r.createdAt, now || Date.now())} zIndexOffset={PIN_Z.report}>
               <Popup>
                 <ReportPopupBody r={r} label={reportTypeLabels?.[r.type] || r.type} onConfirm={onReportConfirm} labels={reportConfirmLabels} />
               </Popup>
@@ -1396,20 +1428,42 @@ export default function PoiMap({
           />
         );})}
 
-        {/* ITINÉRAIRE : polyline couleur du mode + repères de virage. */}
-        {routePoints && routePoints.length > 1 && (
-          <Polyline positions={routePoints.map((p) => [p.lat, p.lng] as [number, number])} pathOptions={{ color: routeColor, weight: 5, opacity: 0.9 }} />
-        )}
-        {routeSteps &&
-          routeSteps
-            .filter((s) => s.type !== 1 && s.type !== 2 && s.type !== 3)
-            .map((s, i) => (
-              <CircleMarker key={`step-${i}`} center={[s.lat, s.lng]} radius={s.type >= 4 && s.type <= 6 ? 7 : 5} pathOptions={{ color: routeColor, weight: 2, fillColor: "#ffffff", fillOpacity: 1 }}>
-                <Tooltip direction="top" offset={[0, -6]}>
-                  <span className="text-xs">{stepGlyph(s.type)} {s.instruction}</span>
-                </Tooltip>
-              </CircleMarker>
-            ))}
+        {/* ITINÉRAIRE : polyline couleur du mode + repères de virage.
+            613 (comme l'app, kPawRouteZ613) — dans un calque AU-DESSUS de la traîne violette
+            (avant : même calque, la traîne recréée à chaque position repassait par-dessus et on
+            ne voyait plus que « son trajet à lui »). Deux traits PLEINS relient ma position au
+            début du trajet et la fin du trajet à la photo de la personne rejointe : un seul trait
+            continu de moi à lui. Pas de repère d'arrivée posé sur sa photo. */}
+        <Pane name="hps-route613" style={{ zIndex: 450 }}>
+          {routePoints && routePoints.length > 1 && (
+            <Polyline positions={routePoints.map((p) => [p.lat, p.lng] as [number, number])} pathOptions={{ color: routeColor, weight: 5, opacity: 0.9, lineCap: "round", lineJoin: "round", className: "hps-route613" }} />
+          )}
+          {routePoints && routePoints.length > 1 && (() => {
+            const from = routeFrom ?? userLocation ?? null;
+            const a = routePoints[0], z = routePoints[routePoints.length - 1];
+            return (
+              <>
+                {from && meters613(from, a) >= JOIN_LEAD_MIN_M_613 && (
+                  <Polyline key="lead-in" positions={[[from.lat, from.lng], [a.lat, a.lng]]} pathOptions={{ color: routeColor, weight: 5, opacity: 0.9, lineCap: "round", className: "hps-route613-in" }} />
+                )}
+                {joinTo && meters613(z, joinTo) >= JOIN_LEAD_MIN_M_613 && (
+                  <Polyline key="lead-out" positions={[[z.lat, z.lng], [joinTo.lat, joinTo.lng]]} pathOptions={{ color: routeColor, weight: 5, opacity: 0.9, lineCap: "round", className: "hps-route613-out" }} />
+                )}
+              </>
+            );
+          })()}
+          {routeSteps &&
+            routeSteps
+              .filter((s) => s.type !== 1 && s.type !== 2 && s.type !== 3)
+              .filter((s) => !(joinTo && s.type >= 4 && s.type <= 6))
+              .map((s, i) => (
+                <CircleMarker key={`step-${i}`} center={[s.lat, s.lng]} radius={s.type >= 4 && s.type <= 6 ? 7 : 5} pathOptions={{ color: routeColor, weight: 2, fillColor: "#ffffff", fillOpacity: 1 }}>
+                  <Tooltip direction="top" offset={[0, -6]}>
+                    <span className="text-xs">{stepGlyph(s.type)} {s.instruction}</span>
+                  </Tooltip>
+                </CircleMarker>
+              ))}
+        </Pane>
       </MapContainer>
 
       {focus && focusLabels && (

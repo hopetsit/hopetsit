@@ -75,6 +75,16 @@ class SendRequestController extends GetxController {
   final RxBool attemptedSubmit = false.obs;
   final RxBool _petNameHasText = false.obs;
   final RxBool _descriptionHasText = false.obs;
+  /// v613 — taux de commission RÉEL de ce prestataire, lu sur le serveur
+  /// (`GET /pricing/commission-rate`, même calcul que la réservation : 15 %
+  /// Top, 20 % sinon). Null tant qu'il n'est pas connu : l'estimation affiche
+  /// alors « À confirmer » plutôt qu'un pourcentage figé.
+  final RxnDouble commissionRate = RxnDouble();
+
+  /// Le contrôleur est recréé à chaque build de l'écran : on garde le taux
+  /// déjà lu pour ne pas refaire l'appel ni faire clignoter l'estimation.
+  static final Map<String, double> _commissionRateCache = <String, double>{};
+
   final Rxn<SitterModel> _sitter = Rxn<SitterModel>();
   /// Session v16-owner-walker — loaded when serviceProviderRole == 'walker'
   /// so `_referenceRateForBookingPayload` can derive basePrice from walkRates
@@ -146,8 +156,30 @@ class SendRequestController extends GetxController {
     }
     // Fetch sitter details to get hourly rate for basePrice
     _loadSitterDetails();
+    loadCommissionRate();
     // Load owner's pets for dropdown
     loadMyPets();
+  }
+
+  Future<void> loadCommissionRate() async {
+    final key = '$serviceProviderRole:$serviceProviderId';
+    final cached = _commissionRateCache[key];
+    if (cached != null) {
+      commissionRate.value = cached;
+      return;
+    }
+    try {
+      final rate = await _ownerRepository.getProviderCommissionRate(
+        providerId: serviceProviderId,
+        role: serviceProviderRole,
+      );
+      if (rate != null) {
+        _commissionRateCache[key] = rate;
+        if (!isClosed) commissionRate.value = rate;
+      }
+    } catch (e) {
+      AppLogger.logError('Failed to load commission rate', error: e);
+    }
   }
 
   Future<void> _loadSitterDetails() async {

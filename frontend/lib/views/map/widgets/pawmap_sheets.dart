@@ -2252,7 +2252,10 @@ class PawMapFollowSheet extends StatelessWidget {
                   child: PawSignatureButton(
                     key: const ValueKey<String>('follow_sheet_directions'),
                     kind: PawButtonKind.secondary,
-                    label: 'pawmap_btn_directions'.tr,
+                    // 613 (Daniel, 06/10) — pendant un suivi, « Itinéraire »
+                    // devient « Rejoindre john » : même action (itinéraire
+                    // vers sa position actuelle, qui suit son direct).
+                    label: pawJoinLabel613(name),
                     icon: Icons.directions_rounded,
                     color: PawMapLegend.walker,
                     onTap: onDirections,
@@ -2515,3 +2518,24 @@ class PawMapRatesBlock extends StatelessWidget {
     );
   }
 }
+
+/// 613 — « Rejoindre john » (prénom seul ; « Rejoindre » sans nom connu).
+String pawJoinLabel613(String fullName) {
+  final first = fullName.trim().split(RegExp(r'\s+')).first;
+  return first.isEmpty ? 'pm613_join_plain'.tr : 'pm613_join'.trParams({'name': first});
+}
+
+/// 613 — « Rejoindre john · 350 m · 4 min à pied » (morceaux vides omis).
+String pawJoinLine613({required String name, String dist = '', String dur = ''}) {
+  final d = pawKeepNumberWithUnit613(dist), t = pawKeepNumberWithUnit613(dur);
+  final parts = <String>[pawJoinLabel613(name), if (d.isNotEmpty) d, if (t.isNotEmpty) t];
+  return parts.join(' · ');
+}
+
+/// 613 (BOB : « 4 » en fin de ligne, « min à pied » à la suivante) — toute
+/// espace qui TOUCHE un chiffre devient insécable (U+00A0) : « 355 m »,
+/// « 4 min », « 1 h 05 min », « 1 Std. 5 Min. », « 도보 4분 » ne se coupent
+/// jamais ; « min à pied » peut, lui, passer à la ligne.
+String pawKeepNumberWithUnit613(String s) => s
+    .replaceAllMapped(RegExp(r'(\d)[ \t]+'), (m) => '${m[1]}\u00A0')
+    .replaceAllMapped(RegExp(r'[ \t]+(\d)'), (m) => '\u00A0${m[1]}');

@@ -192,6 +192,17 @@ const resolveMediaPostType = ({ rawPostType, startDate, endDate, serviceTypes, h
 // (POST /admin/posts/:id/renotify) : { skipIds: Set des destinataires déjà
 // prévenus pour CETTE annonce, dryRun: true = calculer sans envoyer,
 // onDone: (bilan) => … }. Sans `opts`, comportement strictement inchangé.
+// 613 §9 (ZOE) — lance la diffusion et attend seulement le nombre réel de
+// personnes prévenues (réservations faites), [ms] au plus ; null sinon.
+const awaitNotifiedCount613 = (start, ms = 4000) => new Promise((resolve) => {
+  let settled = false;
+  const finish = (v) => { if (!settled) { settled = true; resolve(v); } };
+  const timer = setTimeout(() => finish(null), ms);
+  try {
+    start((n) => { clearTimeout(timer); finish(Number.isFinite(n) ? n : null); });
+  } catch (_) { clearTimeout(timer); finish(null); }
+});
+
 const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner, ownerId, opts = {} }) => {
     const skipIds = opts.skipIds instanceof Set ? opts.skipIds : new Set();
     const dryRun = opts.dryRun === true;
@@ -300,17 +311,24 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
         };
         const alreadyNotified = new Set();
 
-        // Envoi d'UNE alerte : réservation dans le registre, puis les 3 canaux.
-        const sendOne = async (r, type) => {
+        // Réservation d'UNE alerte dans le registre (anti-doublon) : null si
+        // déjà prévenu (même annonce, ou même demande republiée).
+        const claimOne = async (r, type) => {
           let ticket;
           try {
             ticket = await alert612.claim({ postId: newPost._id, alertKey, recipient: r, type, resend });
           } catch (e) {
             logger.warn(`[alert612] registre indisponible pour ${r.role}:${r.id} : ${e && e.message ? e.message : e}`);
-            return false; // dans le doute, pas de double envoi
+            return null; // dans le doute, pas de double envoi
           }
-          if (!ticket.ok) { bilan.skippedAlready.push(r.id); return false; }
+          if (!ticket.ok) { bilan.skippedAlready.push(r.id); return null; }
           bilan.sent.push(r.id);
+          return ticket;
+        };
+        // Envoi d'UNE alerte : réservation dans le registre, puis les 3 canaux.
+        const sendOne = async (r, type, claimed = null) => {
+          const ticket = claimed || await claimOne(r, type);
+          if (!ticket) return false;
           let result = null;
           try {
             result = await sendNotification({
@@ -379,10 +397,24 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
           bilan.candidates.push(r.id);
           if (!dryRun) queue.push(r);
         }
-        // Par petits paquets : la base et le serveur d'e-mail ne sont pas noyés.
+        // 613 §9 (ZOE) — on RÉSERVE d'abord toutes les alertes (rapide, base
+        // seule), on annonce le nombre RÉEL de personnes prévenues
+        // (`opts.onClaimed`, lu par createPost pour sa réponse), puis on envoie.
+        const claimed = [];
         const PARALLEL = 6;
         for (let i = 0; i < queue.length; i += PARALLEL) {
-          await Promise.all(queue.slice(i, i + PARALLEL).map((r) => sendOne(r, 'new_request_nearby')));
+          const part = queue.slice(i, i + PARALLEL);
+          // eslint-disable-next-line no-await-in-loop
+          const tickets = await Promise.all(part.map((r) => claimOne(r, 'new_request_nearby')));
+          part.forEach((r, k) => { if (tickets[k]) claimed.push([r, tickets[k]]); });
+        }
+        if (typeof opts.onClaimed === 'function') {
+          try { opts.onClaimed(dryRun ? bilan.candidates.length : bilan.sent.length); } catch (_) { /* jamais bloquant */ }
+        }
+        // Par petits paquets : la base et le serveur d'e-mail ne sont pas noyés.
+        for (let i = 0; i < claimed.length; i += PARALLEL) {
+          // eslint-disable-next-line no-await-in-loop
+          await Promise.all(claimed.slice(i, i + PARALLEL).map(([r, t]) => sendOne(r, 'new_request_nearby', t)));
         }
 
         logger.info(
@@ -397,6 +429,8 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
           '[postController.createPost] notify nearby failed',
           err && err.message ? err.message : err,
         );
+        // 613 — erreur avant le décompte : la publication n'attend pas 4 s.
+        if (typeof opts.onClaimed === 'function') { try { opts.onClaimed(null); } catch (_) { /* rien */ } }
         done({ ...bilan, error: err && err.message ? err.message : String(err) });
       }
     });
@@ -578,9 +612,15 @@ const createPost = async (req, res) => {
     // v22.1 — Bug 13a : notifier les sitters/walkers locaux qu'une nouvelle
     // demande est disponible (push + in-app + badge). Async fire-and-forget,
     // ne bloque pas la réponse HTTP.
-    notifyNearbyProviders({ newPost, postPayload, normalizedServices, owner, ownerId });
+    // 613 §9 (ZOE) — la réponse dit combien de prestataires sont RÉELLEMENT
+    // prévenus (`notified`, 0 si la même demande l'a déjà été). L'envoi reste
+    // hors du chemin de la réponse ; on n'attend que la réservation des
+    // alertes, 4 s au plus (sinon `notified` est absent).
+    const notified = await awaitNotifiedCount613((onClaimed) => notifyNearbyProviders({
+      newPost, postPayload, normalizedServices, owner, ownerId, opts: { onClaimed },
+    }));
 
-    res.status(201).json({ post: sanitizePost(newPost) });
+    res.status(201).json({ post: sanitizePost(newPost), ...(notified === null ? {} : { notified }) });
   } catch (error) {
     logger.error('Create post error', error);
     if (error.name === 'CastError') {
@@ -1894,19 +1934,22 @@ const createPostWithMedia = async (req, res) => {
     // 22/09/2026 — une demande publiée avec photo ne prévenait AUCUN gardien
     // (ce bloc n'existait que dans createPost). Même fonction, mêmes règles :
     // ville insensible aux accents + rayon de couverture, jamais soi-même.
+    let notified = null; // 613 §9 — nombre réel de prestataires prévenus
     if (resolvedPostType === 'request') {
-      notifyNearbyProviders({
+      notified = await awaitNotifiedCount613((onClaimed) => notifyNearbyProviders({
         newPost,
         postPayload,
         normalizedServices,
         owner,
         ownerId,
-      });
+        opts: { onClaimed },
+      }));
     }
 
     res.status(201).json({ 
       message: 'Post created successfully.',
       post: sanitizePost(newPost),
+      ...(notified === null ? {} : { notified }),
     });
   } catch (error) {
     logger.error('Create post with media error', error);

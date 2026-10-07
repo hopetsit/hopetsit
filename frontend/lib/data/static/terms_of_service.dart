@@ -6,7 +6,7 @@
 /// cancellation rules, escrow, etc.).
 library;
 
-const String termsVersion = '2.0'; // v23.1 — Airwallex, 72h rule, escrow 24h post-completion
+const String termsVersion = '2.1'; // v613 — prestataire 100 % de son tarif, propriétaire paie tarif + 20 % (15 % Top), libération à la confirmation ou 48 h après la fin
 
 const String _termsEn = r"""
 # HopeTSIT — Terms of Service
@@ -67,7 +67,7 @@ A Booking becomes firm and binding only after (i) acceptance by both parties and
 
 ## 10. Payment
 
-Payments are processed by **Airwallex** (Airwallex (UK) Limited / Airwallex (Hong Kong) Limited), a PCI-DSS Level 1 certified payment provider. HoPetSit never accesses, transmits or stores cardholder data. The platform commission is **twenty percent (20%)** of the Booking gross amount. Funds are held in escrow by Airwallex until **24 hours after the service ends**, at which point **80%** is released to the Petsitter's registered IBAN and **20%** is retained by HoPetSit as platform fee. Users accept that Airwallex's own terms apply to payment operations.
+Payments are processed by **Airwallex** (Airwallex (UK) Limited / Airwallex (Hong Kong) Limited), a PCI-DSS Level 1 certified payment provider. HoPetSit never accesses, transmits or stores cardholder data. **The Petsitter receives 100% of their rate.** The Petowner pays that rate plus a **20% HoPetSit commission** (15% with the Top badge). Example: an €18 rate → €21.60 paid by the Petowner, €18 received by the Petsitter. Funds are held in escrow during the service and HoPetSit does not access them; they are **released to the Petsitter's wallet when the Petowner confirms the service, or 48 hours after its scheduled end**, and can then be withdrawn to the Petsitter's IBAN. This period gives the Petowner time to open a dispute. Users accept that Airwallex's own terms apply to payment operations.
 
 ## 11. Cancellation and refund
 
@@ -183,7 +183,7 @@ Une Réservation devient ferme et définitive uniquement après (i) acceptation 
 
 ## 10. Paiement
 
-Les paiements sont traités par **Airwallex** (Airwallex (UK) Limited / Airwallex (Hong Kong) Limited), prestataire de paiement certifié PCI-DSS Niveau 1. HoPetSit n'accède jamais aux données de carte bancaire. La commission plateforme est de **vingt pour cent (20 %)** du montant brut de la Réservation. Les fonds sont retenus en séquestre par Airwallex jusqu'à **24 heures après la fin du service**, puis **80 %** sont libérés vers l'IBAN enregistré du Petsitter et **20 %** sont conservés par HoPetSit en frais plateforme. Les Utilisateurs acceptent que les conditions d'Airwallex s'appliquent aux opérations de paiement.
+Les paiements sont traités par **Airwallex** (Airwallex (UK) Limited / Airwallex (Hong Kong) Limited), prestataire de paiement certifié PCI-DSS Niveau 1. HoPetSit n'accède jamais aux données de carte bancaire. **Le Petsitter reçoit 100 % de son tarif.** Le Petowner paie ce tarif majoré de **20 % de commission HoPetSit** (15 % avec le badge Top). Exemple : tarif 18 € → 21,60 € payés par le Petowner, 18 € reçus par le Petsitter. Les fonds sont conservés sous séquestre pendant le service et HoPetSit n'y a pas accès ; ils sont **libérés dans le wallet du Petsitter à la confirmation du Petowner, ou 48 heures après la fin prévue du service**, puis retirés sur son IBAN. Ce délai laisse au Petowner le temps d'ouvrir un litige. Les Utilisateurs acceptent que les conditions d'Airwallex s'appliquent aux opérations de paiement.
 
 ## 11. Annulation et remboursement
 
@@ -297,7 +297,7 @@ Una reserva es firme solo tras (i) la aceptación de ambas partes y (ii) la conf
 
 ## 10. Pago
 
-Los pagos son procesados por **Airwallex**, un proveedor de pagos certificado PCI-DSS Nivel 1. HoPetSit nunca accede a los datos de la tarjeta. La comisión de la plataforma es del **veinte por ciento (20 %)** del importe bruto. Los fondos se mantienen en custodia hasta **24 horas después del fin del servicio**, momento en que el **80 %** se libera al IBAN del Petsitter y el **20 %** se retiene como comisión de plataforma.
+Los pagos son procesados por **Airwallex**, un proveedor de pagos certificado PCI-DSS Nivel 1. HoPetSit nunca accede a los datos de la tarjeta. **El Petsitter recibe el 100 % de su tarifa.** El Petowner paga esa tarifa más una **comisión HoPetSit del 20 %** (15 % con la insignia Top). Ejemplo: tarifa de 18 € → 21,60 € pagados por el Petowner, 18 € recibidos por el Petsitter. Los fondos se mantienen en custodia durante el servicio y HoPetSit no accede a ellos; se **liberan en el monedero del Petsitter cuando el Petowner confirma el servicio, o 48 horas después de su fin previsto**, y luego pueden retirarse a su IBAN. Este plazo da al Petowner tiempo para abrir una disputa.
 
 ## 11. Cancelación y reembolso
 
@@ -397,7 +397,7 @@ Eine Buchung wird erst nach (i) Annahme durch beide Parteien und (ii) Zahlungsbe
 
 ## 10. Zahlung
 
-Zahlungen werden von **Airwallex** (PCI-DSS Level 1 zertifiziert) abgewickelt. HoPetSit greift niemals auf Kartendaten zu. Die Plattform-Provision beträgt **zwanzig Prozent (20 %)** des Bruttobuchungsbetrags. Die Gelder werden bis **24 Stunden nach Ende der Leistung** bei Airwallex treuhänderisch verwahrt; danach werden **80 %** an die hinterlegte IBAN des Petsitters ausgezahlt und **20 %** als Plattformgebühr einbehalten.
+Zahlungen werden von **Airwallex** (PCI-DSS Level 1 zertifiziert) abgewickelt. HoPetSit greift niemals auf Kartendaten zu. **Der Petsitter erhält 100 % seines Tarifs.** Der Petowner zahlt diesen Tarif zuzüglich einer **HoPetSit-Provision von 20 %** (15 % mit dem Top-Abzeichen). Beispiel: Tarif 18 € → 21,60 € vom Petowner gezahlt, 18 € vom Petsitter erhalten. Die Gelder werden während der Leistung treuhänderisch verwahrt und HoPetSit hat keinen Zugriff darauf; sie werden **in das Wallet des Petsitters freigegeben, sobald der Petowner die Leistung bestätigt, oder 48 Stunden nach dem geplanten Ende**, und können dann auf seine IBAN abgehoben werden. Dieser Zeitraum gibt dem Petowner Zeit, einen Streitfall zu eröffnen.
 
 ## 11. Stornierung und Erstattung
 
@@ -497,7 +497,7 @@ Una prenotazione diventa definitiva solo dopo (i) l'accettazione di entrambe le 
 
 ## 10. Pagamento
 
-I pagamenti sono gestiti da **Airwallex** (certificato PCI-DSS Livello 1). HoPetSit non accede mai ai dati delle carte. La commissione della piattaforma è del **venti per cento (20 %)** dell'importo lordo della Prenotazione. I fondi sono custoditi da Airwallex fino a **24 ore dopo la fine del servizio**, poi l'**80 %** viene rilasciato sull'IBAN del Petsitter e il **20 %** trattenuto come commissione di piattaforma.
+I pagamenti sono gestiti da **Airwallex** (certificato PCI-DSS Livello 1). HoPetSit non accede mai ai dati delle carte. **Il Petsitter riceve il 100 % della sua tariffa.** Il Petowner paga tale tariffa più una **commissione HoPetSit del 20 %** (15 % con il badge Top). Esempio: tariffa 18 € → 21,60 € pagati dal Petowner, 18 € ricevuti dal Petsitter. I fondi sono tenuti in garanzia durante il servizio e HoPetSit non vi accede; vengono **rilasciati nel portafoglio del Petsitter quando il Petowner conferma il servizio, o 48 ore dopo la fine prevista**, e possono poi essere prelevati sul suo IBAN. Questo periodo lascia al Petowner il tempo di aprire una controversia.
 
 ## 11. Cancellazione e rimborso
 
@@ -597,7 +597,7 @@ Uma reserva torna-se firme apenas após (i) aceitação por ambas as partes e (i
 
 ## 10. Pagamento
 
-Os pagamentos são processados pela **Airwallex** (certificado PCI-DSS Nível 1). A HoPetSit nunca acede aos dados de cartão. A comissão da plataforma é de **vinte por cento (20 %)** do montante bruto da Reserva. Os fundos ficam retidos pela Airwallex até **24 horas após o fim do serviço**, sendo então **80 %** libertados para o IBAN do Petsitter e **20 %** retidos como comissão de plataforma.
+Os pagamentos são processados pela **Airwallex** (certificado PCI-DSS Nível 1). A HoPetSit nunca acede aos dados de cartão. **O Petsitter recebe 100 % da sua tarifa.** O Petowner paga essa tarifa acrescida de uma **comissão HoPetSit de 20 %** (15 % com o selo Top). Exemplo: tarifa de 18 € → 21,60 € pagos pelo Petowner, 18 € recebidos pelo Petsitter. Os fundos são mantidos em custódia durante o serviço e a HoPetSit não tem acesso a eles; são **libertados na carteira do Petsitter quando o Petowner confirma o serviço, ou 48 horas após o fim previsto**, e podem depois ser levantados para o seu IBAN. Este prazo dá ao Petowner tempo para abrir uma disputa.
 
 ## 11. Cancelamento e reembolso
 

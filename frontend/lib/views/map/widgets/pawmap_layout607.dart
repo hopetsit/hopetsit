@@ -71,6 +71,10 @@ int pawLayerPriority(PawLayer l) => switch (l) {
       PawLayer.other => 60,
     };
 
+/// 613 — couches qui BOUGENT à chaque point GPS (Moi, amis en direct) : elles
+/// ne retirent jamais une épingle immobile (sinon elle clignote).
+bool pawLayerMoving613(PawLayer l) => l == PawLayer.me || l == PawLayer.friend;
+
 /// Les couches qu'on peut retirer d'une vue chargée (jamais une personne).
 bool pawLayerDroppable(PawLayer l) =>
     l == PawLayer.report ||
@@ -148,6 +152,12 @@ Set<String> pawResolveCollisions(Iterable<PawPlaced> items,
       final p = pawLayerPriority(b.layer).compareTo(pawLayerPriority(a.layer));
       return p != 0 ? p : a.id.compareTo(b.id);
     });
+  // 613 (Daniel, 06/10 : « les icônes apparaissent / disparaissent »
+  // pendant la balade suivie) — « Moi » et les amis en direct BOUGENT : un
+  // PawSpot / signalement qui les touchait était retiré, puis remis dès
+  // qu'ils s'éloignaient — un clignotement à chaque pas. Seuls les marqueurs
+  // IMMOBILES retirent ; les personnes en mouvement passent dessus (zIndex
+  // plus haut).
   final kept = <Rect>[];
   final hidden = <String>{};
   for (final it in list) {
@@ -165,7 +175,7 @@ Set<String> pawResolveCollisions(Iterable<PawPlaced> items,
         continue;
       }
     }
-    kept.add(r);
+    if (!pawLayerMoving613(it.layer)) kept.add(r);
   }
   return hidden;
 }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/utils/commission_rate.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
@@ -109,6 +110,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   double _providerWalkRate60 = 0.0;
   double _providerMonthlyRate = 0.0;
   String _providerCurrency = 'EUR';
+  // 613 §9 (ZOE) — taux réel du prestataire connecté (15 % Top, 20 % sinon).
+  double? _providerCommissionRate613;
 
   Worker? _ratesVersionWorker;
 
@@ -146,6 +149,15 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   /// post cards can be computed. Silent on failure (block will just stay
   /// hidden).
   Future<void> _loadProviderRates() async {
+    unawaited(myProviderCommissionRate613(
+      Get.isRegistered<AuthController>()
+          ? (Get.find<AuthController>().userRole.value ?? '')
+          : (GetStorage().read(StorageKeys.userRole) ?? '').toString(),
+    ).then((rate) {
+      if (rate != null && mounted && rate != _providerCommissionRate613) {
+        setState(() => _providerCommissionRate613 = rate);
+      }
+    }));
     try {
       final role = Get.isRegistered<AuthController>()
           ? (Get.find<AuthController>().userRole.value ?? '').toLowerCase()
@@ -599,6 +611,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         // v23.1 part 114 — passe les tarifs exacts pour 30/60 min.
         walkRate30: _providerWalkRate30 > 0 ? _providerWalkRate30 : null,
         walkRate60: _providerWalkRate60 > 0 ? _providerWalkRate60 : null,
+        commissionRate: _providerCommissionRate613 ?? 0.20,
       );
     } catch (e) {
       AppLogger.logDebug('estimateForPost failed: $e');

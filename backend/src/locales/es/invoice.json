@@ -41,6 +41,6 @@
   "errorServer": "Se ha producido un error. Inténtalo de nuevo en un momento.",
   "legalMentions": "Información legal",
   "footer": "Pago procesado por Airwallex (certificado PCI-DSS Nivel 1). HoPetSit no accede, transmite ni almacena datos de tarjetas.",
-  "escrowText": "Los fondos se mantienen en depósito hasta 24h después del final del servicio, luego se liberan al IBAN registrado del prestador.",
+  "escrowText": "El proveedor recibe el 100 % de su tarifa. Los fondos se mantienen en custodia durante el servicio y se liberan en el monedero del proveedor cuando el propietario confirma el servicio, o 48 horas después de su fin previsto, y luego pueden retirarse a su IBAN.",
   "cancelTerms": "Cancelación gratuita con reembolso íntegro disponible hasta 72h antes del inicio del servicio. Ver"
 }

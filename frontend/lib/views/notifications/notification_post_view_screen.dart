@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/utils/commission_rate.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
@@ -53,6 +55,8 @@ class _NotificationPostViewScreenState
   double _providerWalkRate30 = 0.0;
   double _providerWalkRate60 = 0.0;
   String _providerCurrency = 'EUR';
+  // 613 §9 (ZOE) — taux réel du prestataire connecté (15 % Top, 20 % sinon).
+  double? _providerCommissionRate613;
 
   @override
   void initState() {
@@ -81,6 +85,15 @@ class _NotificationPostViewScreenState
   /// v442 — calque exact de sitter_homescreen._loadProviderRates (walker
   /// /walkers/me/rates ; sitter GET /sitters/:id). Aucune nouvelle source.
   Future<void> _loadProviderRates() async {
+    unawaited(myProviderCommissionRate613(
+      Get.isRegistered<AuthController>()
+          ? (Get.find<AuthController>().userRole.value ?? '')
+          : (GetStorage().read(StorageKeys.userRole) ?? '').toString(),
+    ).then((rate) {
+      if (rate != null && mounted && rate != _providerCommissionRate613) {
+        setState(() => _providerCommissionRate613 = rate);
+      }
+    }));
     try {
       final role = _viewerRole;
       if (role == 'walker') {
@@ -157,6 +170,7 @@ class _NotificationPostViewScreenState
         currency: _providerCurrency,
         walkRate30: _providerWalkRate30 > 0 ? _providerWalkRate30 : null,
         walkRate60: _providerWalkRate60 > 0 ? _providerWalkRate60 : null,
+        commissionRate: _providerCommissionRate613 ?? 0.20,
       );
     } catch (e) {
       AppLogger.logDebug('notif estimateForPost failed: $e');

@@ -4,7 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 /// « 14:05 » / « 2:05 PM » selon la locale.
+/// 613 §9 (ZOE, émulateur Android) — toutes ces fonctions travaillent sur
+/// l'heure LOCALE : les dates du serveur arrivent en UTC (`…Z`), et un
+/// message envoyé à 1 h 36 à Paris (23 h 36 UTC la veille) s'affichait
+/// « Hier » dans la liste des conversations. `toLocal()` ne change rien à
+/// une date déjà locale.
 String chatClock(BuildContext context, DateTime d) {
+  d = d.toLocal();
   try {
     return MaterialLocalizations.of(context)
         .formatTimeOfDay(TimeOfDay.fromDateTime(d));
@@ -15,11 +21,15 @@ String chatClock(BuildContext context, DateTime d) {
   }
 }
 
-bool _sameDay(DateTime a, DateTime b) =>
-    a.year == b.year && a.month == b.month && a.day == b.day;
+bool _sameDay(DateTime a, DateTime b) {
+  a = a.toLocal();
+  b = b.toLocal();
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
 
 /// Étiquette de jour pour les séparateurs : Aujourd'hui / Hier / date.
 String chatDayLabel(BuildContext context, DateTime d) {
+  d = d.toLocal();
   final now = DateTime.now();
   if (_sameDay(d, now)) return 'cs_today'.tr;
   if (_sameDay(d, now.subtract(const Duration(days: 1)))) {
@@ -35,6 +45,7 @@ String chatDayLabel(BuildContext context, DateTime d) {
 /// Heure dans la liste des conversations : heure si aujourd'hui, « Hier »,
 /// sinon date courte.
 String chatListTime(BuildContext context, DateTime d) {
+  d = d.toLocal();
   final now = DateTime.now();
   if (_sameDay(d, now)) return chatClock(context, d);
   if (_sameDay(d, now.subtract(const Duration(days: 1)))) {

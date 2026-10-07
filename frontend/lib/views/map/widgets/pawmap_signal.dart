@@ -262,6 +262,13 @@ class PawSignal {
   static DateTime? _lockUntil;
   static const Duration plushVisibleFor = Duration(seconds: 5);
 
+  /// 613 — la fête d'une peluche occupe le haut de l'écran : les autres
+  /// pastilles attendent la fin (même règle que la pastille peluche).
+  static void holdFor(Duration d) {
+    hide();
+    _lockUntil = DateTime.now().add(d);
+  }
+
   static void show(BuildContext context, PawSignalKind kind, String text,
       {VoidCallback? onTap, Duration? visibleFor, bool afterLock = false}) {
     final overlay = Overlay.maybeOf(context, rootOverlay: true);

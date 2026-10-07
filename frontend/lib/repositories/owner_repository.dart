@@ -9,6 +9,7 @@ import 'package:hopetsit/models/block_model.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/models/sitter_model.dart';
 import 'package:hopetsit/models/task_model.dart';
+import 'package:hopetsit/utils/commission_rate.dart';
 import 'package:hopetsit/utils/logger.dart';
 
 /// Handles owner-related API interactions.
@@ -280,6 +281,24 @@ class OwnerRepository {
     }
 
     throw ApiException('Unexpected get sitters response.', details: response);
+  }
+
+  /// v613 — taux de commission RÉEL d'un prestataire, calculé par le serveur
+  /// avec la même fonction que la réservation (15 % Top, 20 % sinon).
+  /// Null si le serveur ne répond pas ou renvoie une valeur invalide.
+  Future<double?> getProviderCommissionRate({
+    required String providerId,
+    required String role,
+  }) async {
+    final response = await _apiClient.get(
+      ApiEndpoints.pricingCommissionRate,
+      queryParameters: {
+        'providerId': providerId,
+        'role': role == 'walker' ? 'walker' : 'sitter',
+      },
+    );
+    if (response is Map) return parseCommissionRate(response['commissionRate']);
+    return null;
   }
 
   /// Fetches a single sitter's details by ID.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/send_request_controller.dart';
+import 'package:hopetsit/utils/commission_rate.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
@@ -1161,9 +1162,15 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       final eDate = controller.endDate.value;
       final duration = controller.selectedDuration.value; // "30" / "60" / "90"…
 
-      // v18.9.8 — commission 20% payée PAR L'OWNER au-dessus du tarif
-      // prestataire. L'estimateur affiche désormais le total owner TTC.
-      const double commissionRate = 0.20;
+      // v18.9.8 — commission payée PAR L'OWNER au-dessus du tarif
+      // prestataire. L'estimateur affiche le total owner TTC.
+      // v613 — le taux n'est plus figé à 20 % : il vient du serveur (même
+      // calcul que la réservation, 15 % pour un prestataire Top). Tant qu'il
+      // n'est pas connu, aucun total ni pourcentage n'est affiché.
+      final double? serverRate = controller.commissionRate.value;
+      final double commissionRate = serverRate ?? 0;
+      final String commissionPercent =
+          serverRate != null ? commissionPercentLabel(serverRate) : '';
       final currency = widget.currencyCode ?? 'EUR';
 
       String? totalText;
@@ -1218,6 +1225,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             'provider': providerGross.toStringAsFixed(2),
             'currency': currency,
             'commission': commission.toStringAsFixed(2),
+            'percent': commissionPercent,
           });
         } else if (notSetNotice != null) {
           breakdown = notSetNotice;
@@ -1252,6 +1260,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                 'rate': dailyRate.toStringAsFixed(2),
                 'currency': currency,
                 'commission': commission.toStringAsFixed(2),
+                'percent': commissionPercent,
               });
             }
           }
@@ -1283,9 +1292,19 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
               'rate': dailyRate.toStringAsFixed(2),
               'currency': currency,
               'commission': commission.toStringAsFixed(2),
+              'percent': commissionPercent,
             });
           }
         }
+      }
+
+      // v613 — taux pas encore connu : « À confirmer », jamais un total
+      // calculé sur un pourcentage supposé.
+      final bool ratePending = serverRate == null && providerGross != null;
+      if (ratePending) {
+        totalText = null;
+        breakdown = null;
+        providerGross = null;
       }
 
       // v20.0.12 — card modernisée avec breakdown 3 lignes clair :
@@ -1394,7 +1413,8 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                       context,
                       icon: Icons.percent_rounded,
                       iconColor: AppColors.textSecondary(context),
-                      label: 'send_request_commission_label'.tr,
+                      label: commissionLabel(
+                          'send_request_commission_label'.tr, serverRate),
                       amount:
                           '${commission.toStringAsFixed(2)} $currency',
                     ),
@@ -1427,7 +1447,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                   overflow: TextOverflow.visible,
                 ),
               ],
-            ] else ...[
+            ] else if (!ratePending) ...[
               InterText(
                 text: breakdown ??
                     'send_request_select_to_see_total'.tr,

@@ -64,6 +64,9 @@ import 'package:hopetsit/views/map/widgets/pawmap_rail.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_everyone607.dart';
 import 'package:hopetsit/views/map/pawmap_probe607.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_plush607.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_catch613.dart'; // 613 — fête de la peluche
+import 'package:hopetsit/views/map/widgets/pawmap_report_pin613.dart'; // 613 — jamais de rond vide
+import 'package:hopetsit/views/map/widgets/pawmap_alerts613.dart'; // 613 — alertes 4b + 4c
 import 'package:hopetsit/views/map/widgets/pawmap_walkcam610.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_spots610.dart';
 import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart' show PawspotLeaderboardScreen;
@@ -550,6 +553,38 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (me == null) return;
     unawaited(_plush.refreshHint(me, force: force));
   }
+  // ── 613 §4c — alerte EN PASSANT pendant MA balade ──
+  final PawPassingAlerts613 _passing613 = PawPassingAlerts613();
+  final RxBool _passingOn613 = pawPassingEnabled613().obs;
+  void _onPassingAlerts613(LatLng me) {
+    if (!mounted || !_passingOn613.value || !_liveMap.broadcasting.value) return;
+    final hit = _passing613.onPosition(me, [
+      for (final r in _reportController.reports)
+        if (!r.isExpired) PawAlertPoint613(r.id, r.type, LatLng(r.latitude, r.longitude)),
+    ]);
+    if (hit == null) return;
+    PawPassingBanner613.show(context, hit,
+        label: ReportTypes.labelFr(hit.type), emoji: ReportTypes.emoji(hit.type));
+  }
+
+  /// 613 — parcours au simulateur : rejoue une position de MA balade.
+  @visibleForTesting
+  void debugPassing613(LatLng me) {
+    final saved = _liveMap.broadcasting.value;
+    if (!saved) {
+      final hit = _passing613.onPosition(me, [
+        for (final r in _reportController.reports)
+          if (!r.isExpired) PawAlertPoint613(r.id, r.type, LatLng(r.latitude, r.longitude)),
+      ]);
+      if (hit != null) {
+        PawPassingBanner613.show(context, hit,
+            label: ReportTypes.labelFr(hit.type), emoji: ReportTypes.emoji(hit.type));
+      }
+      return;
+    }
+    _onPassingAlerts613(me);
+  }
+
   Timer? _plushFirstTimer;
   bool _plushLocating = false;
   final List<String> _plushTrace = <String>[]; // 607 — lu par les tests
@@ -1004,6 +1039,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (!_liveMap.broadcasting.value) return;
         _userPosition = pos;
         unawaited(_onPlushPosition(pos)); // 607 — peluche à portée ?
+        _onPassingAlerts613(pos); // 613 §4c — alerte à ≤ 50 m ?
         // v605 — Daniel : « j'ai laissé la carte sur ton profil et ça m'est
         // revenu sur ma position ». Pendant MA balade, chaque point GPS
         // recollait la caméra sur moi, même si je regardais quelqu'un
@@ -1062,6 +1098,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _plushTimer?.cancel();
       _plushFirstTimer?.cancel();
       if (!on) {
+        _passing613.reset(); // 613 — nouvelle balade = alertes ré-annoncées
         _plush.clear();
         _plushHintTick(force: true); // 607 — le rappel peut revenir
         return;
@@ -1277,8 +1314,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     // types (ReportTypes.all) → chaque signalement affiche bien son emoji.
     for (final t in ReportTypes.all) {
       try {
-        final bd = await _buildEmojiBitmap(ReportTypes.emoji(t));
-        _reportEmojiMarkers[t] = bd;
+        final k = _reportPinKey613(t, false);
+        final bd = await _buildReportBitmap613(k);
+        _reportEmojiMarkers[k] = bd;
       } catch (e) {
         debugPrint('[PawMap] emoji marker $t failed: $e');
       }
@@ -1299,7 +1337,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       return;
     }
     _emojiGenInProgress.add(type);
-    _buildEmojiBitmap(ReportTypes.emoji(type)).then((bd) {
+    _buildReportBitmap613(type).then((bd) {
       _reportEmojiMarkers[type] = bd;
       _emojiGenInProgress.remove(type);
       if (mounted) setState(() {});
@@ -2571,72 +2609,50 @@ class _PawMapScreenState extends State<PawMapScreen>
       ),
     );
   }
-  /// Renders a circular white-bg marker with the emoji centered inside.
-  /// 120x120 pixels gives a crisp icon on retina screens. Returns a
-  /// BitmapDescriptor ready to assign to Marker(icon: ...).
-  ///
-  /// v23.1.353 — refonte PawSpot : le générateur accepte désormais un fond
-  /// teinté ([bgColor], dessiné PAR-DESSUS la base blanche pour rester
-  /// lisible), une couleur d'anneau ([ringColor]) et une épaisseur
-  /// ([ringWidth]) pour les POIs (couleur catégorie) et les spots PawSpot
-  /// (couleur type / doré). Les valeurs par défaut préservent le rendu
-  /// historique des reports (blanc + anneau orange brand).
-  Future<BitmapDescriptor> _buildEmojiBitmap(
-    String emoji, {
-    Color? bgColor,
-    Color ringColor = const Color(0xFFC92A12),
-    double ringWidth = 2.0,
-  }) async {
-    // v23.1.193 — Daniel : "emoji du chat en enorme sur la carte". On
-    // reduit encore : 80 → 56px bitmap, emoji fontSize 40 → 28. Resultat
-    // un marker compact comparable aux pins Google Maps natifs.
-    const double size = 56.0;
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-
-    // Ombre douce derriere le cercle.
-    final shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.20)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-    canvas.drawCircle(const Offset(size / 2, size / 2 + 1.5), size / 2 - 2, shadowPaint);
-
-    // Cercle blanc (base) + voile teinté optionnel par-dessus.
-    final bgPaint = Paint()..color = Colors.white;
-    canvas.drawCircle(const Offset(size / 2, size / 2), size / 2 - 2, bgPaint);
-    if (bgColor != null) {
-      final tintPaint = Paint()..color = bgColor;
-      canvas.drawCircle(
-          const Offset(size / 2, size / 2), size / 2 - 2, tintPaint);
-    }
-    // Anneau (orange brand par défaut, couleur catégorie/type sinon).
-    final ringPaint = Paint()
-      ..color = ringColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = ringWidth;
-    canvas.drawCircle(const Offset(size / 2, size / 2), size / 2 - 3, ringPaint);
-
-    // Emoji compact 28px.
-    final tp = TextPainter(
-      text: TextSpan(text: emoji, style: const TextStyle(fontSize: 28)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(
-      canvas,
-      Offset((size - tp.width) / 2, (size - tp.height) / 2),
-    );
-
-    final img = await recorder.endRecording().toImage(size.toInt(), size.toInt());
-    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-    // v23.1.193 (verifie 3x) — Daniel : "emoji du chat en enorme". Sans
-    // width explicite, BitmapDescriptor.bytes rend a 1:1 logical pixels
-    // (56 raw → 56 logical = ENORME a cote des markers natifs ~30px).
-    // On passe width: 36 pour forcer un rendu compact comparable aux
-    // pins Google Maps natifs. height suit le ratio 1:1.
-    return BitmapDescriptor.bytes(
-      bytes!.buffer.asUint8List(),
-      width: 36,
-    );
+  /// 613 — épingle de signalement : emoji, ou icône de secours si l'emoji ne
+  /// se dessine pas (rond blanc vide « danger » ⚠️, La Isla 06/10).
+  final Map<String, bool> _reportPinFallback613 = <String, bool>{};
+  static String _reportPinKey613(String type, bool fresh) => '$type|${fresh ? 1 : 0}';
+  Future<BitmapDescriptor> _buildReportBitmap613(String key) async {
+    final parts = key.split('|');
+    final type = parts.first;
+    final fresh = parts.length > 1 && parts[1] == '1';
+    final pin = await pawBuildReportPin613(type, ReportTypes.emoji(type),
+        ringColor: pawAlertColor613(pawAlertLevel613(type)), fresh: fresh);
+    _reportPinFallback613[key] = pin.usedFallback;
+    if (pin.usedFallback) debugPrint('[PawMap613] signalement $type : emoji vide → icône');
+    return BitmapDescriptor.bytes(pin.png, width: 36);
   }
+
+  @visibleForTesting
+  Map<String, bool> reportPinFallbackForTest() => Map<String, bool>.of(_reportPinFallback613);
+
+  /// 613 — parcours au simulateur : pose un itinéraire comme le ferait
+  /// [_startDirections] (sans réseau), pour mesurer qu'il est VISIBLE.
+  @visibleForTesting
+  void debugSetRoute613(List<LatLng> pts, {int? z, LatLng? from, LatLng? to}) {
+    if (!mounted) return;
+    if (z != null) {
+      // l'ancien rendu (612) : un seul trait, zIndex donné, sans liaisons
+      setState(() => _routePolylines = {pawRoutePolyline613(pts, _routeColor).copyWith(zIndexParam: z)});
+      return;
+    }
+    setState(() => _routePolylines = pawRoutePolylines613(pts, _routeColor, from: from, to: to));
+  }
+
+  /// 613 — parcours au simulateur : couche « direct » allumée comme pour un
+  /// membre connecté (l'écartement « Moi » / personne suivie en dépend).
+  @visibleForTesting
+  void debugLiveLayer613() {
+    _showLiveLayer.value = true;
+    if (mounted) setState(() {});
+  }
+
+  @visibleForTesting
+  Set<Polyline> debugPolylines613() => {..._routePolylines, ..._walkPolylines()};
+
+  // 613 — l'ancien `_buildEmojiBitmap` (emoji seul, rond vide possible) est
+  // remplacé par [pawBuildReportPin613] (pawmap_report_pin613.dart).
 
   @override
   void dispose() {
@@ -3594,6 +3610,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v550 — perf : tant que la caméra bouge, le halo ne pulse pas (sinon la
     // GoogleMap se reconstruit 1,7×/s pendant le pan → saccades sur mobile).
     _cameraMoving = true;
+    _osmTiles.gestureActive = true; // 613 — pas de voisines pendant le geste
     _pinZoomTimer?.cancel(); // v598 — la caméra repart : pas de renvoi d'images.
     _zoomLevel = pos.zoom;
     _camBearing612 = pos.bearing;
@@ -3614,6 +3631,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// POI / report / request layers refresh after the user stops panning.
   void _scheduleReload() {
     _cameraMoving = false; // v550 — geste terminé : le halo repulse.
+    _osmTiles.gestureActive = false; // 613
     // v601 — premier arrêt de la caméra : la photo de lancement s'en va ;
     // une nouvelle photo est prise quand la carte est stable.
     if (_snapshotShown.value) _snapshotShown.value = false;
@@ -5259,13 +5277,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         accuracy: _liveMap.myLiveAccuracy.value); // 611 — tolérance GPS
     if (!mounted) return;
     if (res == PawPlushCatch.caught) {
-      final w = _plush.lastWin;
-      final String text = (w?.collector ?? false)
-          ? 'plush607_collector_won'.trParams({'points': '$pts'})
-          : (w?.golden ?? false)
-              ? 'plush607_golden_won'.trParams({'points': '$pts'})
-              : 'plush607_caught'.trParams({'points': '$pts'});
-      PawSignal.show(context, PawSignalKind.plush, text);
+      // 613 — une vraie fête (confettis, son, vibration, « +N points ·
+      // Chiot attrapé ! »), gardée si l'app est en arrière-plan (john,
+      // Alhama 06/10 : capture enregistrée, rien vu).
+      PawCatchCelebration.deliver(
+          context, _plush.lastWin ?? PawPlushWin(points: pts));
     } else if (res == PawPlushCatch.dailyDone) {
       PawSignal.show(context, PawSignalKind.plush, 'plush607_daily_done'.tr);
     } else if (res == PawPlushCatch.taken) {
@@ -5647,7 +5663,18 @@ class _PawMapScreenState extends State<PawMapScreen>
           labelW: PawMapPinPainter.photoLabelWidth('pawmap_me_label'.tr) - 8,
           labelH: 16.3,
           labelGap: 3);
-      final Rect friendBox = pawPinBox(PawMapLegend.friendSize / 2 + 2.5);
+      // 613 (captures 4-5 : la couronne de « Cam » touchait l'étiquette
+      // « john ») — la boîte d'un ami comptait le rond SEUL, alors qu'au zoom
+      // rue son étiquette est dessinée dessous : « Moi » se posait dessus.
+      final bool friendLabels613 = _pinZoom >= _priceZoom;
+      final Rect friendBox = pawFriendBox613(
+        PawMapLegend.friendSize / 2 + 2.5,
+        labelW: friendLabels613
+            ? _liveMap.friendPositions.values
+                .map((p) => PawMapPinPainter.photoLabelWidth(pawMapShortName(p.name)) - 8)
+                .fold<double>(0, math.max)
+            : 0,
+      );
       final liveFriends = [
         for (final fp in _liveMap.friendPositions.values)
           if (fp.liveState != FriendLiveState.seen) fp
@@ -6192,15 +6219,20 @@ class _PawMapScreenState extends State<PawMapScreen>
 
     // ── SIGNALEMENTS (inchangés : emoji du type, 48 h) ──
     if (_showReports.value) {
+      final now613 = DateTime.now();
       for (final r in _reportController.reports) {
         if (r.isExpired) continue;
-        final emojiIcon = _reportEmojiMarkers[r.type];
-        if (emojiIcon == null) _ensureEmojiMarker(r.type);
+        // 613 §4b — anneau de gravité, auréole si < 2 h, pâlit en vieillissant.
+        final key613 = _reportPinKey613(r.type, pawAlertFresh613(r.createdAt, now613));
+        final emojiIcon = _reportEmojiMarkers[key613];
+        if (emojiIcon == null) _ensureEmojiMarker(key613);
         markers.add(
           Marker(
             markerId: MarkerId('report_${r.id}'),
             position: LatLng(r.latitude, r.longitude),
             icon: emojiIcon ?? PawMapPinCache.transparent, // 607
+            alpha: pawAlertAlpha613(r.createdAt, now613),
+            zIndexInt: pawAlertLevel613(r.type) == PawAlertLevel.danger ? 4 : 3,
             onTap: () => _showReportBottomSheet(r),
           ),
         );
@@ -6299,9 +6331,11 @@ class _PawMapScreenState extends State<PawMapScreen>
               // v605 — Daniel : « t'es pas violet ». La personne que JE
               // suis est violette même boostée (pickPhotoHalo), et « je la
               // suis » se lit aussi dans la vérité partagée du service.
-              followPhase: _followedByMe(pos)
-                  ? (_reduceMotion ? 0 : _boostPhaseIdx)
-                  : -1,
+              // 613 (captures 4-5 de Daniel, même minute : halo présent sur
+              // l'une, absent sur l'autre) — l'auréole RESPIRAIT sur 4 phases
+              // dont une quasi invisible (s = 0). Désormais FIXE, à son plein
+              // (phase 1/4 → s = 1) : la personne suivie se voit toujours.
+              followPhase: _followedByMe(pos) ? kPawFollowHaloPhase613 : -1,
               label: _focusTapId == pos.userId || _pinZoom >= _priceZoom
                   ? pawMapShortName(displayName)
                   : null,
@@ -6974,7 +7008,14 @@ class _PawMapScreenState extends State<PawMapScreen>
                   left: 72.w,
                   right: 62.w,
                   bottom: _menuInset(context) + _sheetPeekPx + 10.h,
-                  child: Center(child: _buildFollowPill()),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    // 613 — « Rejoindre john · 350 m · 4 min à pied »
+                    if (_joining613 && _routePolylines.isNotEmpty) ...[
+                      _buildJoinBanner613(),
+                      SizedBox(height: 8.h),
+                    ],
+                    Center(child: _buildFollowPill()),
+                  ]),
                 );
               }
               if (_routePolylines.isEmpty) {
@@ -11248,6 +11289,13 @@ class _PawMapScreenState extends State<PawMapScreen>
               row('plush607_layer'.tr, _plush.shown.value,
                   () => _plush.shown.toggle(),
                   Icons.toys_rounded, const Color(0xFFDB2777)),
+              // 613 §4c — « ding » en passant près d'une alerte (balade).
+              row('alert613_setting'.tr, _passingOn613.value, () {
+                _passingOn613.toggle();
+                try {
+                  GetStorage().write(kPawPassingKey613, _passingOn613.value);
+                } catch (_) {}
+              }, Icons.notifications_active_rounded, const Color(0xFFEA580C)),
               row('pawmap592_osm_base'.tr, _osmBase.value, () {
                 _osmBase.value = !_osmBase.value;
                 GetStorage().write('pawmap_osm_base_v593', _osmBase.value);
@@ -12068,12 +12116,16 @@ class _PawMapScreenState extends State<PawMapScreen>
       if (followFriendId != null) {
         _routeFollow.start(followFriendId, dest, DateTime.now());
         _routeFollowName = followName;
-        if (mounted) {
+        // 613 (BOB) — « Rejoindre john » : le message vient APRÈS le calcul,
+        // avec la distance et le temps à pied (voir plus bas).
+        _joining613 = followFriendId == _followUserId;
+        if (mounted && !_joining613) {
           PawSignal.show(context, PawSignalKind.live,
               'pm611_route_follow'.trParams({'name': followName}));
         }
       } else {
         _routeFollow.stop();
+        _joining613 = false; // 613 — itinéraire vers un lieu
       }
     }
     final from = _userPosition;
@@ -12107,49 +12159,32 @@ class _PawMapScreenState extends State<PawMapScreen>
       final stepMarkers = await _buildRouteStepMarkers(route.steps);
       if (!mounted) return;
       setState(() {
-        _routePolylines = {
-          Polyline(
-            polylineId: const PolylineId('pawspot_route'),
-            points: route.points,
-            color: _routeColor,
-            width: 5,
-          ),
-        };
+        _routePolylines = pawRoutePolylines613(route.points, _routeColor, from: from, to: dest);
         _routeDistanceMeters = route.distanceMeters;
         _routeDurationSeconds = route.durationSeconds;
         _routeSteps = route.steps;
         _routeStepMarkers = stepMarkers;
       });
       if (quiet) return; // 611 — en marchant : pas de saut de caméra
-      // Caméra : englobe tout le trajet.
-      double minLat = route.points.first.latitude;
-      double maxLat = minLat;
-      double minLng = route.points.first.longitude;
-      double maxLng = minLng;
-      for (final p in route.points) {
-        if (p.latitude < minLat) minLat = p.latitude;
-        if (p.latitude > maxLat) maxLat = p.latitude;
-        if (p.longitude < minLng) minLng = p.longitude;
-        if (p.longitude > maxLng) maxLng = p.longitude;
-      }
+      // 613 (BOB) — « Rejoindre john » : le suivi ne recolle plus la caméra
+      // sur john tant que l'itinéraire est affiché (Moi ET john à l'écran).
+      if (_joining613) _followHoldUntil = DateTime.now().add(const Duration(hours: 4));
       try {
-        // v554 — Daniel : « le bouton Itinéraire sur la grande map n'est pas
-        // branché ». Il l'était, mais la caméra était animée sur _mapCtl (la
-        // PETITE carte, cachée sous le calque agrandi) : le tracé apparaissait
-        // hors champ et rien ne bougeait à l'écran. On vise désormais la carte
-        // RÉELLEMENT visible.
+        // v554 — la carte RÉELLEMENT visible (petite / grande).
         final ctl = await _activeMapCtl();
-        if (ctl == null) return;
-        await ctl.animateCamera(
-          CameraUpdate.newLatLngBounds(
-            LatLngBounds(
-              southwest: LatLng(minLat, minLng),
-              northeast: LatLng(maxLat, maxLng),
-            ),
-            60,
-          ),
-        );
+        if (ctl == null || !mounted) return;
+        // 613 (BOB) — cadrage dans la zone LIBRE : entre les rails, sous le
+        // bandeau du haut, au-dessus de la pilule / fiche du bas ; Moi, john
+        // et le trajet entiers (avant : newLatLngBounds 60 px sur tout
+        // l'écran → Moi sous le rail, john sous le bandeau).
+        final f = _freeMapRect613(context);
+        final (c, z) = pawFrameInRect613([...route.points, from, dest], f.$1, f.$2);
+        await ctl.animateCamera(CameraUpdate.newLatLngZoom(c, z));
       } catch (_) {/* map pas prête */}
+      if (_joining613 && mounted) {
+        PawSignal.show(context, PawSignalKind.live, _joinLine613(),
+            visibleFor: const Duration(seconds: 3));
+      }
     } catch (e) {
       if (quiet) return;
       if (PawSpotController.errorCode(e) == 'PAWFOLLOW_REQUIRED' ||
@@ -12300,6 +12335,83 @@ class _PawMapScreenState extends State<PawMapScreen>
     });
     _routeFollow.stop(); // 611
     _routeFriendId = null;
+    if (_joining613) {
+      _joining613 = false;
+      _followHoldUntil = null; // 613 — le suivi reprend la caméra
+    }
+  }
+
+  // ── 613 (BOB) — « Rejoindre john » ──
+  bool _joining613 = false;
+
+  /// « Rejoindre john · 350 m · 4 min à pied ».
+  String _joinLine613() {
+    final m = _routeDistanceMeters;
+    final dist = m == null ? '' : (m >= 1000 ? '${(m / 1000).toStringAsFixed(1)} km' : '$m m');
+    final dur = _formatDuration(_routeDurationSeconds);
+    return pawJoinLine613(
+      name: _routeFollowName,
+      dist: dist,
+      dur: dur.isEmpty ? '' : (_routeMode == 'walk' ? 'pm613_walk_time'.trParams({'t': dur}) : dur),
+    );
+  }
+
+  /// Zone LIBRE de la carte (px logiques) : écran moins rails, bandeau du
+  /// haut (en-tête + pastille de message) et pilule / bandeau du bas.
+  (Size, Rect) _freeMapRect613(BuildContext ctx) {
+    final mq = MediaQuery.of(ctx);
+    final size = mq.size;
+    final double top = mq.padding.top + 64.h + 58.h;
+    final double bottom = _menuInset(ctx) + _sheetPeekPx + 10.h + 64.h + 60.h;
+    final double left = 72.w, right = 62.w;
+    return (size, Rect.fromLTRB(left, top, size.width - right, size.height - bottom));
+  }
+
+  @visibleForTesting
+  (Size, Rect) freeMapRectForTest613() => _freeMapRect613(context);
+
+  /// Bandeau « Rejoindre john · 350 m · 4 min à pied » posé AU-DESSUS de la
+  /// pilule du suivi (jamais sur une personne : la caméra cadre au-dessus).
+  Widget _buildJoinBanner613() {
+    final color = AppColors.accentOn(context, _routeColor);
+    return Container(
+      key: const ValueKey<String>('join613_banner'),
+      padding: EdgeInsets.fromLTRB(12.w, 8.h, 6.w, 8.h),
+      decoration: BoxDecoration(
+        color: PawMapTheme.panelOn(context),
+        borderRadius: BorderRadius.circular(22.r),
+        border: Border.all(color: color.withValues(alpha: 0.55), width: PawMapTheme.pillBorderWidth),
+        boxShadow: PawMapTheme.pillShadowOn(context),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(_routeIcon, size: 18.sp, color: color),
+        SizedBox(width: 8.w),
+        Flexible(
+          child: InterText(
+            text: _joinLine613(),
+            fontSize: 12.5,
+            fontWeight: FontWeight.w800,
+            color: PawMapTheme.inkOn(context),
+            maxLines: 2,
+          ),
+        ),
+        SizedBox(width: 4.w),
+        Semantics(
+          button: true,
+          label: 'common_close'.tr,
+          child: GestureDetector(
+            key: const ValueKey<String>('join613_clear'),
+            behavior: HitTestBehavior.opaque,
+            onTap: _clearRoute,
+            child: SizedBox(
+              width: 36.w,
+              height: 36.w,
+              child: Icon(Icons.close_rounded, size: 18.sp, color: PawMapTheme.inkOn(context)),
+            ),
+          ),
+        ),
+      ]),
+    );
   }
 
   /// 611 — l'ami vers qui va l'itinéraire a bougé, ou a coupé son direct.
@@ -12364,6 +12476,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     for (int i = 0; i < steps.length; i++) {
       final s = steps[i];
       if (s.isStart) continue;
+      // 613 (BOB) — « Rejoindre john » : l'arrivée, c'est la photo de john ;
+      // pas de drapeau posé dessus.
+      if (s.isArrival && _joining613) continue;
       final glyph = s.isArrival
           ? 'flag'
           : s.isLeft

@@ -79,6 +79,21 @@ const loadInvoiceCatalog = (locale) => {
 };
 const invoiceTexts = (lang) => ({ ...loadInvoiceCatalog('en'), ...loadInvoiceCatalog(lang) });
 
+// v613 — le libellé « Commission HoPetSit (20%) » restait à 20 % même pour un
+// prestataire Top (commission réelle 15 %, cf. utils/pricing.js). Le taux est
+// relu sur la facture : commission / net prestataire (la commission est
+// calculée SUR le tarif du prestataire et ajoutée en plus). Seuls les deux taux
+// du barème (20 et 15) sont affichés ; toute autre valeur (facture ancienne,
+// données incomplètes) retire le pourcentage du libellé plutôt que d'afficher
+// un taux faux. Même règle que l'app (lib/utils/commission_rate.dart).
+const commissionLabel = (label, commission, netPayout) => {
+  const c = Number(commission);
+  const n = Number(netPayout);
+  const pct = c > 0 && n > 0 ? Math.round((c / n) * 100) : null;
+  if (pct === 15 || pct === 20) return String(label).replace(/20(\s?[%％])/, `${pct}$1`);
+  return String(label).replace(/\s*[(（][^()（）]*20\s?[%％][^()（）]*[)）]/, '').trim();
+};
+
 // ─── v576 — langue et page d'erreur (facture consultée en WebView) ──────────
 // Avant : un 401 / 403 / 404 renvoyait une phrase ANGLAISE en texte brut, que
 // la WebView de l'app affichait telle quelle (« Invoice not found »). On rend
@@ -756,7 +771,7 @@ const renderInvoiceHtml = async (req, res) => {
         <td>${money(inv.grossAmount)}</td>
       </tr>
       <tr>
-        <td>${esc(T.commission)}</td>
+        <td>${esc(commissionLabel(T.commission, inv.commission, inv.netPayout))}</td>
         <td>${money(inv.commission)}</td>
       </tr>
       <tr>
@@ -863,6 +878,7 @@ module.exports = {
   // v576 — exposés pour les tests (catalogue des libellés, logo embarqué).
   INVOICE_LOCALES,
   invoiceTexts,
+  commissionLabel,
   sendInvoiceError,
   CARDELLI_LOGO_DATA_URI,
   HOPETSIT_LOGO_DATA_URI,

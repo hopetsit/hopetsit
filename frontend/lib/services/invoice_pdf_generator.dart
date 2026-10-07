@@ -16,6 +16,7 @@ import 'package:hopetsit/models/invoice_model.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:hopetsit/utils/commission_rate.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 
 class InvoicePdfGenerator {
@@ -208,7 +209,11 @@ class InvoicePdfGenerator {
               child: pw.Column(children: [
                 _totalRow('invoice_pdf_gross'.tr, fmtAmount(inv.grossAmount), muted),
                 _totalRow(
-                  'invoice_pdf_commission'.tr,
+                  // v613 — taux réel relu sur la facture (15 % Top, 20 %).
+                  commissionLabel(
+                    'invoice_pdf_commission'.tr,
+                    invoiceCommissionRate(inv.commission, inv.netPayout),
+                  ),
                   '-${fmtAmount(inv.commission)}',
                   muted,
                 ),

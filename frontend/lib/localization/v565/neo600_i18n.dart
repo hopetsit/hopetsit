@@ -3,6 +3,8 @@
 // par défaut, brouillon « Reprendre ma demande ? »), accueil « Publie ta
 // première demande » et confirmation « Envoyée à N gardiens et promeneurs ».
 // 9 langues. Les variables {n} et {city} ne se traduisent jamais.
+// 613 §9 (ZOE) — `zoe613_sent_to_walkers|sitters` : la confirmation compte
+// seulement le rôle prévenu (promenade → promeneurs, garde → gardiens).
 const Map<String, Map<String, String>> neo600I18n =
     <String, Map<String, String>>{
   'en': <String, String>{
@@ -25,6 +27,10 @@ const Map<String, Map<String, String>> neo600I18n =
     'neo600_home_first_sub_count': "{n} pet sitters and dog walkers in {city} will be notified",
     'neo600_home_first_sub': "Pet sitters and dog walkers are notified as soon as you publish",
     'neo600_sent_to': "Sent to {n} pet sitters and dog walkers",
+    'zoe613_sent_to_walkers': "Sent to {n} dog walkers",
+    'zoe613_sent_to_sitters': "Sent to {n} pet sitters",
+    'zoe613_walk_date_required': "Pick the day of the walk.",
+    'zoe613_published_no_count': "Your request is published: nearby providers will see it.",
   },
   'fr': <String, String>{
     'neo600_species_title': "Quel animal ?",
@@ -46,6 +52,10 @@ const Map<String, Map<String, String>> neo600I18n =
     'neo600_home_first_sub_count': "{n} gardiens et promeneurs à {city} seront prévenus",
     'neo600_home_first_sub': "Gardiens et promeneurs prévenus dès que tu publies",
     'neo600_sent_to': "Envoyée à {n} gardiens et promeneurs",
+    'zoe613_sent_to_walkers': "Envoyée à {n} promeneurs",
+    'zoe613_sent_to_sitters': "Envoyée à {n} gardiens",
+    'zoe613_walk_date_required': "Choisis le jour de la promenade.",
+    'zoe613_published_no_count': "Ta demande est publiée : les prestataires proches la verront.",
   },
   'es': <String, String>{
     'neo600_species_title': "¿Qué animal?",
@@ -67,6 +77,10 @@ const Map<String, Map<String, String>> neo600I18n =
     'neo600_home_first_sub_count': "{n} cuidadores y paseadores en {city} recibirán el aviso",
     'neo600_home_first_sub': "Cuidadores y paseadores avisados en cuanto publiques",
     'neo600_sent_to': "Enviada a {n} cuidadores y paseadores",
+    'zoe613_sent_to_walkers': "Enviada a {n} paseadores",
+    'zoe613_sent_to_sitters': "Enviada a {n} cuidadores",
+    'zoe613_walk_date_required': "Elige el día del paseo.",
+    'zoe613_published_no_count': "Tu solicitud está publicada: los profesionales cercanos la verán.",
   },
   'de': <String, String>{
     'neo600_species_title': "Welches Tier?",
@@ -88,6 +102,10 @@ const Map<String, Map<String, String>> neo600I18n =
     'neo600_home_first_sub_count': "{n} Tiersitter und Gassigeher in {city} werden benachrichtigt",
     'neo600_home_first_sub': "Tiersitter und Gassigeher werden benachrichtigt, sobald du veröffentlichst",
     'neo600_sent_to': "An {n} Tiersitter und Gassigeher gesendet",
+    'zoe613_sent_to_walkers': "An {n} Gassigeher gesendet",
+    'zoe613_sent_to_sitters': "An {n} Tiersitter gesendet",
+    'zoe613_walk_date_required': "Wähle den Tag des Spaziergangs.",
+    'zoe613_published_no_count': "Deine Anfrage ist veröffentlicht: Betreuer in deiner Nähe sehen sie.",
   },
   'it': <String, String>{
     'neo600_species_title': "Quale animale?",
@@ -109,6 +127,10 @@ const Map<String, Map<String, String>> neo600I18n =
     'neo600_home_first_sub_count': "{n} pet sitter e dog walker a {city} saranno avvisati",
     'neo600_home_first_sub': "Pet sitter e dog walker avvisati non appena pubblichi",
     'neo600_sent_to': "Inviata a {n} pet sitter e dog walker",
+    'zoe613_sent_to_walkers': "Inviata a {n} dog walker",
+    'zoe613_sent_to_sitters': "Inviata a {n} pet sitter",
+    'zoe613_walk_date_required': "Scegli il giorno della passeggiata.",
+    'zoe613_published_no_count': "La tua richiesta è pubblicata: i professionisti vicini la vedranno.",
   },
   'pt': <String, String>{
     'neo600_species_title': "Que animal?",
@@ -130,6 +152,10 @@ const Map<String, Map<String, String>> neo600I18n =
     'neo600_home_first_sub_count': "{n} pet sitters e passeadores em {city} serão avisados",
     'neo600_home_first_sub': "Pet sitters e passeadores avisados assim que publicares",
     'neo600_sent_to': "Enviado a {n} pet sitters e passeadores",
+    'zoe613_sent_to_walkers': "Enviado a {n} passeadores",
+    'zoe613_sent_to_sitters': "Enviado a {n} pet sitters",
+    'zoe613_walk_date_required': "Escolhe o dia do passeio.",
+    'zoe613_published_no_count': "O teu pedido foi publicado: os profissionais próximos vão vê-lo.",
   },
   'ko': <String, String>{
     'neo600_species_title': "어떤 동물인가요?",
@@ -151,6 +177,10 @@ const Map<String, Map<String, String>> neo600I18n =
     'neo600_home_first_sub_count': "{city}의 펫시터와 산책 도우미 {n}명에게 알림이 전송됩니다",
     'neo600_home_first_sub': "게시하는 즉시 펫시터와 산책 도우미에게 알려드려요",
     'neo600_sent_to': "펫시터와 산책 도우미 {n}명에게 전송됨",
+    'zoe613_sent_to_walkers': "산책 도우미 {n}명에게 전송됨",
+    'zoe613_sent_to_sitters': "펫시터 {n}명에게 전송됨",
+    'zoe613_walk_date_required': "산책 날짜를 선택하세요.",
+    'zoe613_published_no_count': "요청이 게시되었습니다. 근처의 돌보미가 볼 수 있어요.",
   },
   'ja': <String, String>{
     'neo600_species_title': "どの動物ですか？",
@@ -172,6 +202,10 @@ const Map<String, Map<String, String>> neo600I18n =
     'neo600_home_first_sub_count': "{city}のペットシッターと散歩代行 {n}人に通知されます",
     'neo600_home_first_sub': "投稿するとすぐにペットシッターと散歩代行に通知されます",
     'neo600_sent_to': "ペットシッターと散歩代行 {n}人に送信しました",
+    'zoe613_sent_to_walkers': "散歩代行 {n}人に送信しました",
+    'zoe613_sent_to_sitters': "ペットシッター {n}人に送信しました",
+    'zoe613_walk_date_required': "散歩の日を選んでください。",
+    'zoe613_published_no_count': "リクエストを公開しました。近くのシッターが確認できます。",
   },
   'pl': <String, String>{
     'neo600_species_title': "Jakie zwierzę?",
@@ -193,5 +227,9 @@ const Map<String, Map<String, String>> neo600I18n =
     'neo600_home_first_sub_count': "{n} opiekunów i wyprowadzaczy w {city} otrzyma powiadomienie",
     'neo600_home_first_sub': "Opiekunowie i wyprowadzacze dostaną powiadomienie, gdy tylko opublikujesz",
     'neo600_sent_to': "Wysłano do {n} opiekunów i wyprowadzaczy",
+    'zoe613_sent_to_walkers': "Wysłano do {n} wyprowadzaczy",
+    'zoe613_sent_to_sitters': "Wysłano do {n} opiekunów",
+    'zoe613_walk_date_required': "Wybierz dzień spaceru.",
+    'zoe613_published_no_count': "Twoja prośba jest opublikowana: opiekunowie w pobliżu ją zobaczą.",
   },
 };

@@ -20,6 +20,13 @@ class PawOsmTileProvider implements TileProvider {
   PawOsmTileProvider({this.maxCached = 600});
 
   final int maxCached;
+  /// 613 — vrai pendant un geste sur la carte (posé par la PawMap).
+  bool gestureActive = false;
+  /// 613 — mesure A/B au simulateur (false = comportement 612).
+  static bool deferNeighbors613 = true;
+  // 613 — compteurs de MESURE (sonde HPS_PROBE603).
+  static int getTileCalls613 = 0;
+  static int netFetches613 = 0;
   static const _subdomains = ['a', 'b', 'c'];
   static const _userAgent =
       'HoPetSit/593 (+https://www.hopetsit.com; contact@hopetsit.com)';
@@ -41,9 +48,16 @@ class PawOsmTileProvider implements TileProvider {
   // tout sur le téléphone 14 jours (réouverture instantanée).
   @override
   Future<Tile> getTile(int x, int y, int? zoom) async {
+    getTileCalls613++;
     final z = zoom ?? 0;
     if (z < 0 || z > 19) return TileProvider.noTile;
     final bytes = await _get(z, x, y);
+    // 613 (§7, fluidité au pincement) — PENDANT un geste, la carte demande
+    // des dizaines de tuiles à chaque palier de zoom : aller chercher en plus
+    // leurs 8 voisines multipliait par 9 le travail du fil Dart au pire
+    // moment. Les voisines attendent l'arrêt de la caméra
+    // (`prefetchAround`, déjà appelé à l'arrêt).
+    if (gestureActive && deferNeighbors613) return bytes == null ? TileProvider.noTile : Tile(256, 256, bytes);
     final n = 1 << z;
     for (var dx = -1; dx <= 1; dx++) {
       for (var dy = -1; dy <= 1; dy++) {
@@ -112,6 +126,7 @@ class PawOsmTileProvider implements TileProvider {
         }
       }
     } catch (_) {/* cache disque illisible : on télécharge */}
+    netFetches613++;
     final sub = _subdomains[(x + y) % _subdomains.length];
     try {
       final resp = await _client

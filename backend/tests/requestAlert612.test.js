@@ -350,6 +350,44 @@ describe('autres services, comptes de test, publication non bloquée', () => {
   });
 });
 
+describe('613 §9 — la publication dit combien de prestataires sont RÉELLEMENT prévenus', () => {
+  const publish = async (body) => {
+    const res = {}; res.status = jest.fn(() => res); res.json = jest.fn((x) => { res.body = x; return res; });
+    await postController.createPost({ user: { id: owner, role: 'owner' }, body }, res);
+    return res;
+  };
+  const walk = (day) => ({
+    body: 'Balade 613', serviceTypes: ['dog_walking'], serviceLocation: 'at_owner',
+    startDate: `${day}T18:00:00.000Z`, endDate: `${day}T19:00:00.000Z`, location: { city: 'Paris', ...PARIS },
+  });
+  test('1re publication : notified = nombre de promeneurs réservés (pas l’offre de la ville)', async () => {
+    const res = await publish(walk('2026-10-21'));
+    expect(res.status).toHaveBeenCalledWith(201);
+    const id = res.body.post.id || res.body.post._id;
+    const rows = await RequestAlert.countDocuments({ postId: id });
+    expect(res.body.notified).toBe(rows);
+    expect(res.body.notified).toBe(7);
+  });
+  test('la MÊME demande republiée : notified = 0 (anti-doublon), jamais un chiffre gonflé', async () => {
+    const first = await publish(walk('2026-10-22'));
+    expect(first.body.notified).toBe(7);
+    const again = await publish(walk('2026-10-22'));
+    expect(again.status).toHaveBeenCalledWith(201);
+    expect(again.body.notified).toBe(0);
+  });
+  test('panne avant le décompte : la réponse part quand même, sans `notified` ni attente de 4 s', async () => {
+    const t0 = Date.now();
+    const out = await new Promise((resolve) => {
+      const res = {}; res.status = jest.fn(() => res); res.json = jest.fn((x) => { resolve(x); return res; });
+      const { selectRecipients } = alert612;
+      alert612.selectRecipients = async () => { alert612.selectRecipients = selectRecipients; throw new Error('base indisponible'); };
+      postController.createPost({ user: { id: owner, role: 'owner' }, body: walk('2026-10-23') }, res);
+    });
+    expect(out.notified).toBeUndefined();
+    expect(Date.now() - t0).toBeLessThan(3500);
+  });
+});
+
 describe('gabarit dans les 9 langues', () => {
   const { enrichRequestAlertData, LOCALES } = require('../src/utils/requestAlertText612');
   const { render } = require('../src/utils/i18nTemplate');

@@ -80,9 +80,12 @@ test('2 captures le même jour (+20 chacune), la 3e : DAILY_LIMIT ; liste vide a
   expect(mid.body.dailyMax).toBe(2);
   expect(mid.body.plushies.map((x) => x.id)).not.toContain(p1.id);
   expect(mid.body.plushies.length).toBeGreaterThan(0);
-  // la même peluche une 2e fois : refusée
+  // la même peluche une 2e fois : 613 — on lui RAPPELLE sa capture (réponse
+  // perdue), sans recréditer : 200 already, mêmes points, total inchangé.
   const again = await grab(a, p1);
-  expect(again.status).toBe(409);
+  expect(again.status).toBe(200);
+  expect(again.body).toMatchObject({ ok: true, already: true, points: 20 });
+  expect((await Owner.findById(a._id).select('pawPoints').lean()).pawPoints).toBe(20);
   plush._resetForTests(); walk(a, p2);
   const r2 = await grab(a, p2);
   expect(r2.status).toBe(200);

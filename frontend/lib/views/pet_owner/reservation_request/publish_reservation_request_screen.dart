@@ -69,6 +69,7 @@ class _PublishReservationRequestScreenState
       case 'meetingPoint':
         return 1;
       case 'startDate':
+      case 'walkDate': // 613 — jour d'une promenade
       case 'endDate':
       case 'startTime':
       case 'endTime':

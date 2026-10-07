@@ -585,7 +585,26 @@ async function catchPlush({ userId, role, plushId, lat, lng, accuracy, now = Dat
   const [pLng, pLat] = plush.location.coordinates;
   if (plush.day !== dayKeyFor(pLng, now, pLat)) throw new PlushError(410, 'EXPIRED');
   if (plush.testCopy || plush.copyOf) throw new PlushError(404, 'NOT_FOUND');
-  if (plush.caughtByPerson === me.key) throw new PlushError(409, 'ALREADY_CAUGHT');
+  // 613 (06/10, Alhama : john a attrapé le Chiot à 22:26:16 et n'a RIEN vu) —
+  // si la réponse de la 1re demande s'est perdue (réseau, app en arrière-
+  // plan), la demande suivante de la MÊME personne recevait 409 et l'app
+  // affichait « Trop tard : quelqu'un l'a attrapée juste avant toi ». On lui
+  // rend sa capture (200, `already: true`), SANS recréditer de points.
+  const mine = plush.caughtByPerson === me.key
+    ? plush
+    : await PawPlush.findOne({ caughtByPerson: me.key, copyOf: plush._id }).lean();
+  if (mine) {
+    return {
+      ok: true,
+      already: true,
+      plush: { id: String(mine._id), type: mine.type, golden: !!mine.golden, day: mine.day },
+      points: Number.isFinite(mine.creditedPoints) ? mine.creditedPoints : null,
+      lifetime: null,
+      streak: 0,
+      bonuses: [],
+      boostUntil: null,
+    };
+  }
   // 611 — une ordinaire déjà prise par quelqu'un d'autre : copie à mon nom.
   const sharedCatch = !me.test && !!plush.caughtByPerson && SHARED_CATCH_611 && !plush.golden;
   if (plush.caughtByPerson && !me.test && !sharedCatch) throw new PlushError(409, 'ALREADY_CAUGHT');
@@ -666,6 +685,10 @@ async function catchPlush({ userId, role, plushId, lat, lng, accuracy, now = Dat
   });
   let points = award ? award.credited : 0;
   let lifetime = award ? award.lifetime : null;
+  // 613 — mémorisé pour une éventuelle 2e demande de la même personne.
+  try {
+    await PawPlush.updateOne({ _id: won._id }, { $set: { creditedPoints: points } });
+  } catch (_) { /* facultatif : la capture est déjà enregistrée */ }
   const bonuses = [];
   let boostUntil = null;
   if (golden) {
