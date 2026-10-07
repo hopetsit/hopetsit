@@ -71,9 +71,19 @@ async function stopEverywhere(userId, { now = new Date(), notifyFriends = true }
   try { require('./liveTakeover611').clearFor(g.ids); } catch (_) { /* ignore */ }
   // 607 (ZOE) — PawPoints « Balade terminée » : on lit la session AVANT de
   // l'effacer (durée + tracé). Best-effort, n'attend rien, ne bloque rien.
+  // 614 (PAM, 07/10) — et sa DERNIÈRE position : avant, l'arrêt effaçait la
+  // session et les amis revoyaient la personne à sa position de PROFIL (john :
+  // centre d'Alhama, 13 km) au lieu de l'endroit où le direct s'est arrêté.
+  let lastGps = null;
   try {
     const sess = typeof map.getLiveSessionForIds === 'function'
       ? map.getLiveSessionForIds(g.ids.map(String)) : null;
+    const la = sess ? Number(sess.lat) : NaN;
+    const ln = sess ? Number(sess.lng) : NaN;
+    if (Number.isFinite(la) && Number.isFinite(ln) && !(la === 0 && ln === 0)
+      && Math.abs(la) <= 90 && Math.abs(ln) <= 180) {
+      lastGps = { coordinates: [ln, la], at: new Date(Number(sess.lastSeenAt) || now.getTime()) };
+    }
     if (sess) {
       const snap = { ...sess, trail: Array.isArray(sess.trail) ? sess.trail.slice() : [] };
       require('../services/pawPointsActivity607')
@@ -85,7 +95,7 @@ async function stopEverywhere(userId, { now = new Date(), notifyFriends = true }
     try {
       await modelOf(d.model).updateOne(
         { _id: d.id },
-        { $set: { ...LIVE_STOP_SET, [STOPPED_FIELD]: now } },
+        { $set: { ...LIVE_STOP_SET, [STOPPED_FIELD]: now, ...(lastGps ? { lastGps } : {}) } },
       );
     } catch (e) {
       logger.warn(`[liveDevices] stop ${d.model}:${d.id} failed: ${e.message}`);

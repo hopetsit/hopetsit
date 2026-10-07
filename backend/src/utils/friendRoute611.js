@@ -39,7 +39,7 @@ async function friendRouteCheck({ userId, friendId, toLat, toLng }) {
   for (const [name, role] of [['Owner', 'owner'], ['Sitter', 'sitter'], ['Walker', 'walker']]) {
     // eslint-disable-next-line no-await-in-loop
     const docs = await require(`../models/${name}`).find({ _id: { $in: ids } })
-      .select('location preferences.mapVisibility preferences.hideFromMap +homeLocation city updatedAt createdAt email')
+      .select('location preferences.mapVisibility preferences.hideFromMap +homeLocation +lastGps city updatedAt createdAt email')
       .lean().catch(() => []);
     for (const d of docs) entries.push({ d, role });
   }

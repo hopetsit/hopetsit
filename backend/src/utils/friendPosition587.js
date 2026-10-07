@@ -15,7 +15,7 @@
  */
 const logger = require('./logger');
 const mapVisibility = require('./mapVisibility');
-const { pickPersonPosition } = require('./personMapPosition');
+const { pickPersonPosition, validLngLat } = require('./personMapPosition');
 const { WORLD_APPROX_KM, blurTowardAnchor } = require('./coarseLocation');
 
 const ROLE_BY_MODEL = { Owner: 'owner', Sitter: 'sitter', Walker: 'walker' };
@@ -28,6 +28,24 @@ function _anchorOf(city) {
   } catch (_) {
     return null;
   }
+}
+
+/** 614 — fraîcheur maximale du GPS d'un ami hors direct (même fenêtre que le
+ *  « déménagement » v590 : au-delà, la position de profil reprend la main). */
+const FRIEND_GPS_MAX_MS = 12 * 60 * 60 * 1000;
+
+/** 614 — GPS le plus récent (< 12 h) parmi les profils d'une personne, ou null. */
+function freshGpsOf(docs, now = new Date()) {
+  const t0 = new Date(now).getTime();
+  let best = null;
+  for (const d of docs || []) {
+    const g = d && d.lastGps;
+    if (!g || !validLngLat(g.coordinates)) continue;
+    const t = g.at ? new Date(g.at).getTime() : NaN;
+    if (!Number.isFinite(t) || t > t0 + 60000 || t0 - t > FRIEND_GPS_MAX_MS) continue;
+    if (!best || t > best.at) best = { coordinates: g.coordinates.map(Number), at: t };
+  }
+  return best;
 }
 
 /** Le document sans son partage en direct : on ne garde que le PROFIL. */
@@ -57,6 +75,21 @@ function friendPositionOf(entries, { now = new Date(), cityAnchor = _anchorOf } 
     entries.map((e) => ({ ...e, d: _withoutLive(e.d) })),
     { now, cityAnchor },
   );
+  // 614 (PAM, 07/10) — GPS de l'app ouverte (< 12 h) : là où l'ami EST, pas
+  // là où il s'est inscrit. Un AMI seulement (cette fonction ne sert qu'aux
+  // amis) ; « Masqué » est déjà sorti plus haut.
+  const gps = freshGpsOf(docs, now);
+  if (gps) {
+    return {
+      mapVisibility: vis,
+      location: { coordinates: gps.coordinates },
+      approx: false,
+      approxKm: 0,
+      positionSource: 'gps',
+      positionAt: new Date(gps.at).toISOString(),
+      city: (pos && pos.city) || '',
+    };
+  }
   if (!pos) return empty;
   const [lng, lat] = pos.coordinates.map(Number);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return empty;
@@ -94,7 +127,7 @@ async function friendPositionsFor(idLists) {
       Sitter: require('../models/Sitter'),
       Walker: require('../models/Walker'),
     };
-    const sel = 'location +homeLocation city updatedAt createdAt email '
+    const sel = 'location +homeLocation +lastGps city updatedAt createdAt email '
       + 'preferences.hideFromMap preferences.mapVisibility';
     const rows = (await Promise.all(Object.entries(models).map(([name, M]) => M
       .find({ _id: { $in: all } }).select(sel).lean()
@@ -115,4 +148,4 @@ async function friendPositionsFor(idLists) {
   }
 }
 
-module.exports = { friendPositionOf, friendPositionsFor };
+module.exports = { friendPositionOf, friendPositionsFor, freshGpsOf, FRIEND_GPS_MAX_MS };

@@ -217,6 +217,18 @@ function homeLocationPlugin(schema) {
       select: false,
       default: undefined,
     },
+    // 614 (PAM, 07/10) — dernière position GPS envoyée par l'app ouverte
+    // (POST /users/me/home-position, à chaque ouverture de la carte), même
+    // dans la même ville. Lue UNIQUEMENT pour les AMIS (friendPosition587) ;
+    // jamais pour la couche monde ni les fiches publiques (`select: false`).
+    lastGps: {
+      type: new mongoose.Schema({
+        coordinates: { type: [Number], default: undefined },
+        at: { type: Date, default: null },
+      }, { _id: false }),
+      select: false,
+      default: undefined,
+    },
   });
 
   schema.pre('save', function homeOnSave(next) {

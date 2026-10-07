@@ -36,6 +36,18 @@ async function updateHomePosition(userId, { lat, lng, city = '' } = {}, now = ne
     if (doc) docs.push({ Model, doc });
   }
   if (!docs.length) return { updated: 0, reason: 'none' };
+  // 614 (PAM, 07/10) — Daniel : « pourquoi john n'est pas à côté de Cam alors
+  // qu'on est à côté ». Hors direct, le serveur ne connaissait que la position
+  // de PROFIL (pour john : le centre d'Alhama de Murcia, à 13 km de chez lui) :
+  // le GPS envoyé ici était JETÉ dès qu'il restait à moins de 50 km. On le garde
+  // désormais à part (`lastGps`, 3 profils), pour ses AMIS seulement.
+  try {
+    await Promise.all(docs.map(({ Model, doc }) => Model.updateOne(
+      { _id: doc._id }, { $set: { lastGps: { coordinates: next, at: now } } },
+      // updatedAt intact : il départage les positions de profil (homeOf).
+      { timestamps: false },
+    )));
+  } catch (_) { /* jamais bloquant */ }
   // Position de profil ACTUELLE de la personne = la plus récente de ses profils.
   const homes = docs.map((x) => homeOf(x.doc)).filter(Boolean).sort((a, b) => b.at - a.at);
   const current = homes.length ? homes[0].coordinates : null;

@@ -680,7 +680,7 @@ async function _withHiddenFriends(req, payload) {
     // ami « amis seulement » est ajouté ici, hors du cache partagé : sans
     // boostExpiry / isStaff / abonnement, il perdait son PawBoost et sa
     // couronne. Mêmes drapeaux que la couche monde.
-    const sel = 'name avatar profilePicture location preferences.hideFromMap preferences.mapVisibility +homeLocation city updatedAt createdAt email '
+    const sel = 'name avatar profilePicture location preferences.hideFromMap preferences.mapVisibility +homeLocation +lastGps city updatedAt createdAt email '
       + 'boostExpiry mapBoostExpiry isStaff oldId kycStatus identityVerification.status '
       + 'availableDates unavailableDates availableTimeSlots availableDays rating reviewsCount lastSeenAt '
       + 'pawPoints'; // 611 — rang
