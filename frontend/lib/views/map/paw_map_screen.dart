@@ -878,6 +878,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   @override
   void initState() {
     super.initState();
+    // 614 — la carte de fête « +N points » se pose SOUS l'en-tête et la
+    // pilule « En balade », entre les rails (jamais par-dessus une info).
+    PawCatchCelebration.freeZone614 = _catchFreeZone614;
     // v593 — carte détaillée : préchargement immédiat de la zone de départ
     // (dernière position connue), pour ne plus ouvrir sur un écran blanc.
     if (_osmBase.value && !_nightMode.value) {
@@ -2651,11 +2654,42 @@ class _PawMapScreenState extends State<PawMapScreen>
   @visibleForTesting
   Set<Polyline> debugPolylines613() => {..._routePolylines, ..._walkPolylines()};
 
+  /// 614 — parcours au simulateur, SANS compte : l'en-tête d'une Balade en
+  /// cours, comme sur la capture Android 613 (« En balade · 2 min » + pilule
+  /// « 1,6 km · 1/2 attrapée »), pour mesurer où tombe la carte de fête.
+  /// [on] = false : tout est remis comme avant (aucune écriture serveur).
+  @visibleForTesting
+  Future<void> debugWalkPills614(bool on) async {
+    if (!mounted) return;
+    if (!on) {
+      _liveMap.broadcasting.value = false;
+      _liveMap.serverConfirmed.value = false;
+      _liveMap.sessionStartedAt.value = null;
+      _plush.caughtTodayCount611.value = 0;
+      _plush.dailyMax611 = 1;
+      return;
+    }
+    await PawPlushLayer.preloadIcons(context);
+    if (!mounted) return;
+    final me = _userPosition ?? _currentCenter;
+    _liveMap.sessionStartedAt.value = DateTime.now().subtract(const Duration(minutes: 2));
+    _liveMap.serverConfirmed.value = true;
+    _liveMap.broadcasting.value = true;
+    _plush.dailyMax611 = 2;
+    _plush.caughtTodayCount611.value = 1;
+    _plush.items.value = <PawPlush>[
+      PawPlush(id: 'p614', type: 'teddy', lat: me.latitude + 0.0144, lng: me.longitude),
+    ];
+  }
+
   // 613 — l'ancien `_buildEmojiBitmap` (emoji seul, rond vide possible) est
   // remplacé par [pawBuildReportPin613] (pawmap_report_pin613.dart).
 
   @override
   void dispose() {
+    if (PawCatchCelebration.freeZone614 == _catchFreeZone614) {
+      PawCatchCelebration.freeZone614 = null;
+    }
     _pinZoomTimer?.cancel();
     _filtersBannerTimer?.cancel();
     _filtersBannerWorker?.dispose();
@@ -2726,6 +2760,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     super.didChangeAppLifecycleState(state);
     if (!mounted) return;
     if (state == AppLifecycleState.resumed) {
+      unawaited(_resendPositionOnResume614()); // 614 — amis : vraie position
       // v561 — Daniel : « quand on ferme l'app et qu'on la rouvre, ça revient
       // à ma position actuelle ». Après ≥ 2 min en arrière-plan, on se
       // recentre sur le GPS (sauf itinéraire en cours, suivi d'un ami ou
@@ -2837,8 +2872,27 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (mounted) unawaited(_loadMyRequests());
   }
 
+  /// 614 (PAM, 07/10) — retour de l'app au premier plan : position renvoyée
+  /// (au plus une fois toutes les 10 min, un seul relevé GPS, jamais pendant
+  /// une Balade qui envoie déjà la sienne) pour que les AMIS voient où l'on
+  /// est vraiment. Le serveur ne la montre qu'aux amis (`lastGps`).
+  DateTime? _lastPresence614;
+  Future<void> _resendPositionOnResume614() async {
+    if (!_viewerLoggedIn || _liveMap.broadcasting.value) return;
+    if (!pawPresenceDue614(_lastPresence614, DateTime.now())) return;
+    _lastPresence614 = DateTime.now();
+    try {
+      final loc = await LocationService()
+          .getCurrentLocation()
+          .timeout(const Duration(seconds: 8), onTimeout: () => null);
+      if (loc == null || !mounted) return;
+      await _sendHomePosition(LatLng(loc.latitude, loc.longitude));
+    } catch (_) {/* jamais bloquant */}
+  }
+
   /// v590 — une fois par ouverture : voir `POST /users/me/home-position`.
   Future<void> _sendHomePosition(LatLng p) async {
+    _lastPresence614 = DateTime.now(); // 614
     try {
       if (!Get.isRegistered<ApiClient>()) return;
       await Get.find<ApiClient>().post('/users/me/home-position',
@@ -6162,19 +6216,27 @@ class _PawMapScreenState extends State<PawMapScreen>
       ];
       Offset spotShift(LatLng at) => pawSpotShiftFromPeople610(
           pawMercatorPx(at.latitude, at.longitude, _pinZoom), spotObstacles);
+      // 614 (PAM, 07/10) — Daniel : « j'appuie sur le PawSpot, ça me donne le
+      // profil de Cam ». Le spot écarté d'une personne était décalé par son
+      // ANCRE (jusqu'à 1,7 × sa largeur, hors de sa propre image) : le dessin
+      // partait sur le côté, mais la zone d'appui gérée par Google Maps ne
+      // suit pas forcément une ancre hors de l'image — elle pouvait rester
+      // SOUS la photo de Cam (z 8 > 6). Désormais on déplace la POSITION du
+      // marqueur (même décalage en pixels, ancre normale) : dessin et zone
+      // d'appui coïncident toujours. La fiche garde la vraie position.
+      LatLng spotDrawAt(LatLng at) =>
+          pawSpotDisplayLatLng614(at, spotShift(at), _pinZoom);
       for (final group in spotGroups) {
         if (group.length > 1) {
           final target =
               _centroid<PawSpotModel>(group, (s) => LatLng(s.lat, s.lng));
-          final cs = PawMapPinPainter.squareClusterBitmapSize();
-          final off = spotShift(target);
           markers.add(
             Marker(
               markerId: MarkerId('scluster_${target.latitude.toStringAsFixed(4)}'
                   '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
-              position: target,
+              position: spotDrawAt(target), // 614 — dessin = zone d'appui
               icon: _spotClusterIcon(group.length),
-              anchor: Offset(0.5 - off.dx / cs, 0.5 - off.dy / cs),
+              anchor: const Offset(0.5, 0.5),
               zIndexInt: 5,
               consumeTapEvents: true,
               onTap: () => _zoomToCluster(target, spots: group),
@@ -6192,19 +6254,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         markers.add(
           Marker(
             markerId: MarkerId('pawspot_${spot.id}'),
-            position: LatLng(spot.lat, spot.lng),
+            // 614 — écarté des personnes par sa POSITION (dessin = zone d'appui).
+            position: spotDrawAt(LatLng(spot.lat, spot.lng)),
             // v597 — le nom sous la goutte au zoom rue (même seuil que les
             // prix et le site : `showPrice ? spot.name : null`).
-            anchor: pawSpotShiftedAnchor610(
-              _spotAnchor(size, withLabel: spotLabel != null),
-              spotShift(LatLng(spot.lat, spot.lng)),
-              width: spotLabel == null
-                  ? PawMapPinPainter.dropBitmapWidth(size)
-                  : math.max(PawMapPinPainter.dropBitmapWidth(size),
-                      PawMapPinPainter.spotLabelWidth(spotLabel)),
-              height: PawMapPinPainter.dropHeight(size) +
-                  (spotLabel != null ? PawMapPinPainter.spotLabelZone : 0),
-            ),
+            anchor: _spotAnchor(size, withLabel: spotLabel != null),
             // v590 — handoff §6 : au-dessus des lieux et des signalements.
             zIndexInt: spot.isGolden ? 6 : 5,
             icon: _spotIcon(spot.type, spot.isGolden, label: spotLabel),
@@ -7191,7 +7245,17 @@ class _PawMapScreenState extends State<PawMapScreen>
                                 })),
                                   // 607 — peluche la plus proche, sur la MÊME ligne
                                   // (ne pousse pas les barres vers le bas).
-                                  _buildNearestPlushPill(),
+                                  // 614 — mesuré sur iPhone SE (375 dp) : « En balade
+                                  // · 2 min » + « 1,6 km · 1/2 attrapée » débordait de
+                                  // 19 dp (pilule rognée au bord). Elle se réduit
+                                  // légèrement au lieu de sortir de l'écran.
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: _buildNearestPlushPill(),
+                                    ),
+                                  ),
                                 ]),
                               ),
                             ),
@@ -11075,6 +11139,15 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// n'étaient pas comptés, d'où le chevauchement.
   double _topChromeBottom = 0;
 
+  /// 614 — zone libre pour la carte de fête, en px écran : sous le bas
+  /// MESURÉ de l'en-tête + pilule Direct/« En balade » + bandeau des filtres
+  /// (`_topAreaKey`), entre les rails (mêmes marges que la pilule de suivi).
+  Rect? _catchFreeZone614() {
+    if (!mounted) return null;
+    return pawCatchZoneFromTop614(
+        _measureTopChromeBottom(), MediaQuery.sizeOf(context).width);
+  }
+
   double _measureTopChromeBottom() {
     final box = _topAreaKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize || !box.attached) return 0;
@@ -13425,6 +13498,25 @@ Offset pawSpotShiftFromPeople610(Offset at, List<Offset> people,
   final rel = at - best;
   final double side = rel.dx < 0 ? -1 : 1;
   return Offset(side * sidePx, rel.dy.clamp(-18.0, 18.0)) - rel;
+}
+
+/// 614 — faut-il renvoyer ma position au retour au premier plan ? Au plus
+/// une fois toutes les 10 minutes (batterie : un seul relevé GPS).
+bool pawPresenceDue614(DateTime? last, DateTime now,
+        {Duration every = const Duration(minutes: 10)}) =>
+    last == null || now.difference(last) >= every;
+
+/// 614 — point (lat/lng) où DESSINER un PawSpot écarté de [off] px écran au
+/// [zoom] donné : inverse de [pawMercatorPx]. Décaler la position (et non
+/// l'ancre) garde la zone d'appui de Google Maps sous le dessin.
+LatLng pawSpotDisplayLatLng614(LatLng at, Offset off, double zoom) {
+  if (off == Offset.zero) return at;
+  final p = pawMercatorPx(at.latitude, at.longitude, zoom) + off;
+  final scale = 256.0 * math.pow(2.0, zoom).toDouble();
+  final lng = p.dx / scale * 360.0 - 180.0;
+  final n = math.pi - 2.0 * math.pi * p.dy / scale;
+  final lat = 180.0 / math.pi * math.atan(0.5 * (math.exp(n) - math.exp(-n)));
+  return LatLng(lat, lng);
 }
 
 /// 610 — ancre d'un PawSpot décalée de [off] px (dessiné à côté de « Moi »).

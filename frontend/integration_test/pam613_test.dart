@@ -18,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/map_report_controller.dart';
 import 'package:hopetsit/controllers/pawspot_controller.dart';
 import 'package:hopetsit/firebase_options.dart';
@@ -302,9 +303,19 @@ void main() {
     if (pill.evaluate().isNotEmpty) t.widget<PawMapFollowPill>(pill).onTap();
     await t.pump(const Duration(seconds: 2));
     final joinBtn = find.byKey(const ValueKey<String>('follow_sheet_directions'), skipOffstage: false);
-    print('[P613] JOIN bouton=${joinBtn.evaluate().isNotEmpty}');
-    if (joinBtn.evaluate().isNotEmpty) (t.widget(joinBtn) as dynamic).onTap();
+    print('[P613] JOIN bouton=${joinBtn.evaluate().isNotEmpty} '
+        'controleur_faux=${identical(Get.find<PawSpotController>(), fakeSpots)} '
+        'etat=${st.plushDebugForTest()}');
+    // 614 (ZOE 07/10) — l'étape passait sans rien tracer : elle ÉCHOUE
+    // désormais si le bouton, l'appel d'itinéraire, le trait ou le bandeau
+    // « Rejoindre » manquent.
+    expect(joinBtn, findsOneWidget, reason: 'bouton « Rejoindre john » absent de la feuille du suivi');
+    final callsBefore = fakeSpots.calls;
+    (t.widget(joinBtn) as dynamic).onTap();
     await t.pump(const Duration(milliseconds: 1500));
+    print('[P613] JOIN appels_itineraire=${fakeSpots.calls - callsBefore} de=${fakeSpots.lastFrom} vers=${fakeSpots.lastTo}');
+    expect(fakeSpots.calls, greaterThan(callsBefore),
+        reason: 'le faux itinéraire n\'a jamais été appelé : « Rejoindre » ne demande aucun trajet');
     print('[P613] SNAP 4b-rejoindre-300m-message-vite');
     await t.pump(const Duration(seconds: 4));
     // mesures : Moi et john à l'écran, dans la zone libre ? trait continu ?
@@ -328,6 +339,12 @@ void main() {
         'trait_arrivee_john=${outLine.isNotEmpty && outLine.first.points.last == johnAt} '
         'traits=${lines.map((p) => '${p.polylineId.value}:z${p.zIndex}:${p.patterns.isEmpty ? 'plein' : 'pointille'}').toList()}');
     final banner = find.byKey(const ValueKey<String>('join613_banner'), skipOffstage: false);
+    expect(lines.where((p) => p.polylineId.value == 'pawspot_route'), isNotEmpty,
+        reason: 'aucun trait d\'itinéraire sur la carte après « Rejoindre »');
+    expect(lines.firstWhere((p) => p.polylineId.value == 'pawspot_route').points.length, greaterThanOrEqualTo(2));
+    expect(banner, findsOneWidget, reason: 'bandeau « Rejoindre john · … » absent');
+    expect(find.descendant(of: banner, matching: find.textContaining('john')), findsWidgets,
+        reason: 'le bandeau ne nomme pas john');
     if (banner.evaluate().isNotEmpty) {
       final r = t.getRect(banner);
       print('[P613] JOIN bandeau=${r.left.toInt()},${r.top.toInt()}→${r.right.toInt()},${r.bottom.toInt()} '
@@ -360,6 +377,70 @@ void main() {
     await t.pump(const Duration(milliseconds: 700));
     print('[P613] PASSAGE 2e_fois_bandeau=${find.byKey(const ValueKey<String>('alert613_banner'), skipOffstage: false).evaluate().isNotEmpty}');
     await t.pump(const Duration(seconds: 4));
+
+    // ── 614 §1 : la fête ne se pose JAMAIS sur la pilule « En balade » ──
+    // (capture Android 613 17_planche_fete.png). Sans balade puis EN balade
+    // (« En balade · 2 min » + « 1,6 km · 1/2 »), mesuré au pixel.
+    final ctx614 = t.element(find.byType(PawMapScreen));
+    if (Get.isRegistered<AuthController>()) Get.find<AuthController>().userRole.value = 'walker';
+    for (final walking in const [false, true]) {
+      await (st.debugWalkPills614(walking) as Future<void>);
+      await t.pump(const Duration(seconds: 3));
+      for (var i = 0; walking && i < 20 && find.byType(PawNearestPlushPill, skipOffstage: false).evaluate().isEmpty; i++) {
+        await t.pump(const Duration(milliseconds: 500));
+      }
+      print('[P614] PELUCHES ${st.plushDebugForTest()}');
+      PawCatchCelebration.show(ctx614, const PawPlushWin(points: 20, type: 'teddy'));
+      await t.pump(const Duration(milliseconds: 700));
+      final card = t.getRect(find.byKey(const ValueKey<String>('catch613_card')));
+      final direct = find.byKey(const ValueKey<String>('pawmap_direct_pill'), skipOffstage: false);
+      final plushPill = find.byType(PawNearestPlushPill, skipOffstage: false);
+      final infos = <String, Rect>{
+        if (direct.evaluate().isNotEmpty) 'pilule_direct': t.getRect(direct),
+        if (plushPill.evaluate().isNotEmpty) 'pilule_peluche': t.getRect(plushPill),
+      };
+      String r(Rect x) => '${x.left.toInt()},${x.top.toInt()}→${x.right.toInt()},${x.bottom.toInt()}';
+      print('[P614] FETE balade=$walking ecran=${t.view.physicalSize / t.view.devicePixelRatio} '
+          'carte=${r(card)} ${infos.entries.map((e) => '${e.key}=${r(e.value)} chevauche=${e.value.overlaps(card)}').join(' ')} '
+          'texte_pilule=${walking ? find.textContaining('1/2').evaluate().isNotEmpty : '-'}');
+      final scr = t.view.physicalSize / t.view.devicePixelRatio;
+      expect(infos.values.every((r) => r.right <= scr.width + 0.5), isTrue,
+          reason: 'une pilule du haut sort de l\'écran (${scr.width} dp) : $infos');
+      print('[P614] SNAP 7${walking ? 'b-fete-en-balade' : 'a-fete-sans-balade'}');
+      // le journal arrive en retard au script de capture : la carte est
+      // reposée 4 fois (≈ 11 s) pour que la capture la trouve.
+      for (var k = 0; k < 4; k++) {
+        await t.pump(const Duration(milliseconds: 2800));
+        PawCatchCelebration.show(ctx614, const PawPlushWin(points: 20, type: 'teddy'));
+        await t.pump(const Duration(milliseconds: 100));
+      }
+      if (walking) {
+        expect(infos.containsKey('pilule_direct'), isTrue, reason: 'pilule « En balade » absente');
+        expect(infos.containsKey('pilule_peluche'), isTrue, reason: 'pilule « 1,6 km · 1/2 » absente');
+      }
+      for (final e in infos.entries) {
+        expect(e.value.overlaps(card), isFalse, reason: 'la fête $card couvre ${e.key} ${e.value}');
+      }
+      await t.pump(const Duration(seconds: 4));
+    }
+    // AVANT (témoin) : même scène EN balade, zone retirée = rendu du 613.
+    final zone614 = PawCatchCelebration.freeZone614;
+    PawCatchCelebration.freeZone614 = null;
+    PawCatchCelebration.show(ctx614, const PawPlushWin(points: 20, type: 'teddy'));
+    await t.pump(const Duration(milliseconds: 700));
+    final cardAvant = t.getRect(find.byKey(const ValueKey<String>('catch613_card')));
+    final pillAvant = t.getRect(find.byKey(const ValueKey<String>('pawmap_direct_pill'), skipOffstage: false));
+    print('[P614] FETE AVANT(613) carte=$cardAvant pilule=$pillAvant chevauche=${cardAvant.overlaps(pillAvant)}');
+    print('[P614] SNAP 7c-avant-613-fete-sur-pilule');
+    for (var k = 0; k < 4; k++) {
+      await t.pump(const Duration(milliseconds: 2800));
+      PawCatchCelebration.show(ctx614, const PawPlushWin(points: 20, type: 'teddy'));
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    await t.pump(const Duration(seconds: 4));
+    PawCatchCelebration.freeZone614 = zone614;
+    await (st.debugWalkPills614(false) as Future<void>);
+    await t.pump(const Duration(seconds: 2));
 
     // ── §1 / 4d : la fête d'une capture (Chiot, +40) ──
     final ctx = t.element(find.byType(PawMapScreen));

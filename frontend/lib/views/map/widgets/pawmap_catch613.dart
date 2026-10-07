@@ -128,6 +128,14 @@ class PawCatchCelebration {
   @visibleForTesting
   static int shownCount = 0;
 
+  /// 614 (BOB, capture Android 613 `17_planche_fete.png`) — la carte
+  /// « +20 points · Ourson attrapé ! » se posait SUR la pilule « En balade ·
+  /// 1,6 km · 1/2 attrapée ». La PawMap déclare ici sa zone LIBRE, en px
+  /// écran, mesurée à chaque fête : `top` = bas réel de l'en-tête + pilules
+  /// (+ marge), `left`/`right` = entre les deux rails. Hors carte : null →
+  /// position d'origine (64 dp sous la barre d'état).
+  static Rect? Function()? freeZone614;
+
   /// Point d'entrée : fête maintenant si l'app est visible, sinon la garde.
   static void deliver(BuildContext context, PawPlushWin win,
       {AppLifecycleState? lifecycle}) {
@@ -310,7 +318,12 @@ class _PawCatchFx613State extends State<PawCatchFx613> with TickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top + 64.h;
+    final box = pawCatchCardBox614(
+      screen: MediaQuery.of(context).size,
+      padTop: MediaQuery.of(context).padding.top,
+      zone: PawCatchCelebration.freeZone614?.call(),
+    );
+    final top = box.top;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final title = pawCatchTitle613(widget.win);
     final sub = pawCatchSubtitle613(widget.win);
@@ -330,8 +343,8 @@ class _PawCatchFx613State extends State<PawCatchFx613> with TickerProviderStateM
                 ),
               ),
             Positioned(
-              left: 16.w,
-              right: 16.w,
+              left: box.left,
+              right: box.right,
               top: top,
               child: Center(
                 child: FadeTransition(
@@ -344,7 +357,7 @@ class _PawCatchFx613State extends State<PawCatchFx613> with TickerProviderStateM
                       label: [title, sub].where((s) => s.isNotEmpty).join(' · '),
                       child: Container(
                         key: const ValueKey<String>('catch613_card'),
-                        constraints: BoxConstraints(maxWidth: 340.w),
+                        constraints: BoxConstraints(maxWidth: box.maxWidth),
                         padding: EdgeInsets.fromLTRB(8.w, 8.h, 18.w, 8.h),
                         decoration: PawSignalStyle.glass(dark).copyWith(
                           border: Border.all(
@@ -415,6 +428,39 @@ class _PawCatchFx613State extends State<PawCatchFx613> with TickerProviderStateM
       ),
     );
   }
+}
+
+/// 614 — zone libre de la PawMap à partir du bas MESURÉ de son haut d'écran
+/// (en-tête + pilule « En balade » + bandeau des filtres) : 8 dp dessous,
+/// entre les rails (mêmes marges que la pilule de suivi : 72 / 62 dp).
+Rect? pawCatchZoneFromTop614(double chromeBottom, double screenWidth) {
+  if (chromeBottom <= 0 || screenWidth <= 0) return null;
+  final double top = chromeBottom + 8.h;
+  return Rect.fromLTRB(72.w, top, screenWidth - 62.w, top + 1);
+}
+
+/// 614 — où poser la carte de fête : sous tout ce qui est en haut de la
+/// PawMap (en-tête, pilule « En balade », bandeau des filtres) et entre les
+/// rails, jamais par-dessus une info. Sans zone (hors carte) : comme en 613.
+@visibleForTesting
+({double top, double left, double right, double maxWidth}) pawCatchCardBox614({
+  required Size screen,
+  required double padTop,
+  Rect? zone,
+}) {
+  final double defTop = padTop + 64.h;
+  if (zone == null || zone.isEmpty || !zone.isFinite) {
+    return (top: defTop, left: 16.w, right: 16.w, maxWidth: 340.w);
+  }
+  final double left = zone.left.clamp(0.0, screen.width / 2).toDouble();
+  final double right = (screen.width - zone.right).clamp(0.0, screen.width / 2).toDouble();
+  final double width = math.max(0.0, screen.width - left - right);
+  return (
+    top: math.max(defTop, zone.top),
+    left: left,
+    right: right,
+    maxWidth: math.min(340.w, width),
+  );
 }
 
 class _Bit {
