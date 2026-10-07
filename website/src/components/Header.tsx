@@ -45,7 +45,8 @@ export function Header() {
     : "bg-owner";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-white/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-[1600] border-b border-black/[0.06] bg-white/80 backdrop-blur-xl">
+      {/* 08/10 (Daniel) — z-40 laissait le menu des langues SOUS la PawMap (contrôles Leaflet z-1000, feuille z-1500) ; les fenêtres modales restent au-dessus (z-2000+). */}
       {/* v577 — TABLETTE (21/09/2026). Le menu du haut passait en version
           « bureau » des 768 px : a cette largeur exacte, « Comment ca marche »
           et « Se connecter » n'avaient plus la place, se cassaient en trois
