@@ -10,6 +10,9 @@ import { trackSiteEvent } from "@/components/SiteAnalytics";
 import ServiceLocationPicker587 from "@/components/ServiceLocationPicker587";
 // 29/09 (NEO) — « N gardiens et promeneurs à <ville> seront prévenus » sous le bouton.
 import ProofNearButton2909 from "@/components/ProofNearButton2909";
+// 616 (LEO, 08/10) — ville choisie dans une liste « GPS » + bouton « Ma position ».
+import CityAutocomplete616, { searchCities616, type CityCoords } from "@/components/CityAutocomplete616";
+import { c616 } from "@/lib/i18n/cityPicker616";
 import { locationComplete, locationOptions, locationToSend, p587, type ServiceLocation } from "@/lib/i18n/publish587";
 import {
   API_BASE,
@@ -46,6 +49,11 @@ export default function CreatePostPage() {
   // demande près de chez toi » chez les gardiens. Sans elle, une demande
   // publiée depuis le site ne prévenait PERSONNE.
   const [city, setCity] = useState("");
+  // 616 — coordonnées de la ville CHOISIE (liste ou « Ma position »), envoyées
+  // dans location.lat/lng : le serveur s'en sert pour l'alerte à 100 km
+  // (sinon il géocode le nom tapé, au risque de se tromper de ville).
+  const [cityCoords, setCityCoords] = useState<CityCoords | null>(null);
+  const [cityLabel, setCityLabel] = useState("");
   const [body, setBody] = useState("");
   const [services, setServices] = useState<string[]>([]);
   // v587 (point 8 de Daniel) — lieu du service pour CHAQUE service (avant :
@@ -175,7 +183,14 @@ export default function CreatePostPage() {
       if (typeof d.notes === "string") setNotes(d.notes);
       if (typeof d.animalCount === "number") setAnimalCount(d.animalCount);
       if (Array.isArray(d.animalTypes)) setAnimalTypes(d.animalTypes as string[]);
-      if (typeof d.city === "string" && d.city) setCity(d.city);
+      if (typeof d.city === "string" && d.city) {
+        setCity(d.city);
+        const la = Number(d.cityLat), ln = Number(d.cityLng);
+        if (Number.isFinite(la) && Number.isFinite(ln) && !(la === 0 && ln === 0)) {
+          setCityCoords({ lat: la, lng: ln });
+          if (typeof d.cityLabel === "string") setCityLabel(d.cityLabel);
+        }
+      }
       // Ciblage gardé avec le brouillon (l'URL, si elle en porte un, a priorité).
       {
         const tp = d.targetProvider as { role?: string; id?: string } | undefined;
@@ -246,6 +261,27 @@ export default function CreatePostPage() {
       setErr(p587(lang, svcLocation === "meeting_point" ? "svc587_meeting_required" : "svc587_required"));
       return;
     }
+    // 616 — ville tapée sans être choisie : on prend la 1re suggestion ; aucune
+    // ville trouvée → on demande gentiment de choisir dans la liste. Géocodeur
+    // injoignable → on laisse partir (le serveur géocode lui-même le nom).
+    let loc: { city: string; lat?: number; lng?: number } = cityCoords
+      ? { city: city.trim(), lat: cityCoords.lat, lng: cityCoords.lng }
+      : { city: city.trim() };
+    if (!cityCoords) {
+      setBusy(true); // pas de double envoi pendant la résolution
+      try {
+        const r = await searchCities616(city.trim(), lang);
+        if (!r.length) {
+          setErr(c616(lang, "choose_from_list"));
+          setBusy(false);
+          return;
+        }
+        loc = { city: r[0].city, lat: r[0].lat, lng: r[0].lng };
+        setCity(r[0].city);
+        setCityCoords({ lat: r[0].lat, lng: r[0].lng });
+        setCityLabel(r[0].label);
+      } catch { /* hors ligne : nom seul */ }
+    }
 
     setBusy(true);
     setErr("");
@@ -264,18 +300,18 @@ export default function CreatePostPage() {
         return fail(t("auth_error_password_rules"));
       }
       if (!acceptTerms) return fail(t("signup_terms_required"));
-      saveDraft({ accName: name });
+      saveDraft({ accName: name, ...locDraft(loc) });
       try {
         const res = await signup({
-          name, email: em, password: accPassword, role: "owner", city: city.trim(), lang,
+          name, email: em, password: accPassword, role: "owner", city: loc.city, lang,
           ...(referralCode ? { referralCode } : {}),
         });
         if (!res.needsVerification && res.token) {
-          await publishAfterAccount();
+          await publishAfterAccount(loc);
           return;
         }
         // Le serveur a envoyé le code : on le demande SUR PLACE.
-        saveDraft({ accName: name, pendingEmail: em });
+        saveDraft({ accName: name, pendingEmail: em, ...locDraft(loc) });
         setPendingEmail(em);
         setCode("");
         setStep("code");
@@ -287,7 +323,7 @@ export default function CreatePostPage() {
           try {
             await login(em, accPassword);
             trackSiteEvent("cta_click", { label: "pub_connexion" });
-            await publishAfterAccount();
+            await publishAfterAccount(loc);
             return;
           } catch {
             setErr(gp(lang, "taken"));
@@ -302,12 +338,12 @@ export default function CreatePostPage() {
     }
 
     try {
-      await publishNow(false);
+      await publishNow(false, loc);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         // Session expirée pendant la saisie : on garde le travail de la
         // personne plutôt que de le jeter avec elle vers /login.
-        saveDraft();
+        saveDraft(locDraft(loc));
         router.replace(`/login?next=${encodeURIComponent("/posts/create")}`);
         return;
       }
@@ -322,12 +358,25 @@ export default function CreatePostPage() {
     try {
       window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
         body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
-        animalCount, animalTypes, city, budget, targetProvider: target, ...extra,
+        animalCount, animalTypes, city, budget, targetProvider: target,
+        ...(cityCoords ? { cityLat: cityCoords.lat, cityLng: cityCoords.lng, cityLabel } : {}),
+        ...extra,
       }));
     } catch { /* navigation privée : on continue sans mémoriser */ }
   }
 
-  async function publishNow(fromGuest: boolean) {
+  /** Ville résolue à mémoriser dans le brouillon (survit au code e-mail). */
+  function locDraft(l: { city: string; lat?: number; lng?: number }): Record<string, unknown> {
+    return typeof l.lat === "number" && typeof l.lng === "number"
+      ? { city: l.city, cityLat: l.lat, cityLng: l.lng }
+      : { city: l.city };
+  }
+
+  async function publishNow(fromGuest: boolean, locIn?: { city: string; lat?: number; lng?: number }) {
+    // 616 — ville + coordonnées (location.lat/lng, lues par l'alerte 100 km).
+    const loc = locIn || (cityCoords
+      ? { city: city.trim(), lat: cityCoords.lat, lng: cityCoords.lng }
+      : { city: city.trim() });
     const input = {
       body: body.trim(),
       serviceTypes: services,
@@ -340,7 +389,7 @@ export default function CreatePostPage() {
       animalCount: animalCount > 0 ? animalCount : undefined,
       animalTypes: animalTypes.length ? animalTypes : undefined,
       // Sans ville, aucun gardien n'est prévenu (cf. le commentaire plus haut).
-      location: { city: city.trim() },
+      location: loc,
       // v587 — budget facultatif (rien envoyé sans montant).
       budget: budgetAmount > 0 ? budgetAmount : undefined,
       budgetCurrency: budgetAmount > 0 ? budgetCur : undefined,
@@ -360,14 +409,14 @@ export default function CreatePostPage() {
   }
 
   /** Compte actif (code validé ou connexion) : la demande part toute seule. */
-  async function publishAfterAccount() {
+  async function publishAfterAccount(locIn?: { city: string; lat?: number; lng?: number }) {
     setInvite(false);
     setRole("owner");
     setStep("form");
     setInfo(gp(lang, "publishing"));
-    saveDraft();
+    saveDraft(locIn ? locDraft(locIn) : {});
     try {
-      await publishNow(true);
+      await publishNow(true, locIn);
     } catch {
       setInfo("");
       setErr(gp(lang, "after_fail"));
@@ -512,17 +561,20 @@ export default function CreatePostPage() {
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-medium text-ink">{t("posts_city_label")}</label>
-          <input
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            required
-            autoComplete="address-level2"
-            placeholder={t("posts_city_ph")}
-            className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
-          />
-        </div>
+        {/* 616 — ville choisie dans la liste (suggestions) ou « Ma position ». */}
+        <CityAutocomplete616
+          lang={lang}
+          label={t("posts_city_label")}
+          placeholder={t("posts_city_ph")}
+          value={city}
+          coords={cityCoords}
+          pickedLabel={cityLabel}
+          onChange={(c, co, lb) => {
+            setCity(c);
+            setCityCoords(co);
+            setCityLabel(co ? lb || "" : "");
+          }}
+        />
 
         <div>
           <label className="block text-sm font-medium text-ink">{t("posts_body_label")}</label>
