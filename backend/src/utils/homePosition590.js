@@ -8,6 +8,7 @@
  * ne change : les trajets du quotidien ne sont jamais enregistrés.
  */
 const { distanceKm, MOVED_KM, homeOf, isLiveNow, validLngLat } = require('./personMapPosition');
+const { isCityApprox } = require('./cityPosition616');
 
 const MODELS = () => ({
   Owner: require('../models/Owner'),
@@ -32,7 +33,7 @@ async function updateHomePosition(userId, { lat, lng, city = '' } = {}, now = ne
   for (const d of g.docs) {
     const Model = M[d.model];
     if (!Model) continue;
-    const doc = await Model.findById(d.id).select('+homeLocation location city updatedAt createdAt').lean();
+    const doc = await Model.findById(d.id).select('+homeLocation +positionFromCity location city updatedAt createdAt').lean();
     if (doc) docs.push({ Model, doc });
   }
   if (!docs.length) return { updated: 0, reason: 'none' };
@@ -51,7 +52,13 @@ async function updateHomePosition(userId, { lat, lng, city = '' } = {}, now = ne
   // Position de profil ACTUELLE de la personne = la plus récente de ses profils.
   const homes = docs.map((x) => homeOf(x.doc)).filter(Boolean).sort((a, b) => b.at - a.at);
   const current = homes.length ? homes[0].coordinates : null;
-  if (!shouldMoveHome(current, next)) return { updated: 0, reason: 'same_city' };
+  // 616 — position de profil posée depuis la VILLE (centre-ville approximatif) :
+  // la 1re vraie position GPS la remplace toujours, même à moins de 50 km.
+  const fromCity = homes.length > 0 && docs.some(({ doc }) => {
+    const h = homeOf(doc);
+    return h && h.coordinates[0] === current[0] && h.coordinates[1] === current[1] && isCityApprox(doc);
+  });
+  if (!fromCity && !shouldMoveHome(current, next)) return { updated: 0, reason: 'same_city' };
   const cleanCity = String(city || '').trim().slice(0, 120);
   let updated = 0;
   for (const { Model, doc } of docs) {
@@ -71,7 +78,7 @@ async function updateHomePosition(userId, { lat, lng, city = '' } = {}, now = ne
       updated += 1;
     } catch (_) { /* un profil illisible n'empêche pas les autres */ }
   }
-  return { updated, reason: 'moved', fromKm: current ? Math.round(distanceKm(current, next)) : null };
+  return { updated, reason: fromCity ? 'replaced_city_center' : 'moved', fromKm: current ? Math.round(distanceKm(current, next)) : null };
 }
 
 module.exports = { shouldMoveHome, updateHomePosition };

@@ -229,7 +229,24 @@ function homeLocationPlugin(schema) {
       select: false,
       default: undefined,
     },
+    // 616 (ZOE, 08/10) — position de profil posée depuis la VILLE (centre-ville,
+    // approximative) faute de mieux : cityPosition616.js. Tant que la position de
+    // profil vaut exactement ces coordonnées, la 1re vraie position GPS la
+    // remplace sans condition de distance (homePosition590).
+    positionFromCity: {
+      type: new mongoose.Schema({
+        coordinates: { type: [Number], default: undefined },
+        city: { type: String, default: '' },
+        at: { type: Date, default: null },
+        provider: { type: String, default: '' },
+      }, { _id: false }),
+      select: false,
+      default: undefined,
+    },
   });
+
+  // 616 — centre-ville posé en tâche de fond pour un profil enregistré sans position.
+  require('./cityPosition616').attachCityPositionHooks(schema);
 
   schema.pre('save', function homeOnSave(next) {
     try {
