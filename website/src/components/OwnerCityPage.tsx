@@ -521,6 +521,14 @@ export default function OwnerCityPage({
       {!paris && <p className="mt-3 text-sm font-semibold text-owner">{copy.kicker(city)}</p>}
       <h1 className="mt-1.5 font-display text-[1.6rem] font-extrabold leading-[1.15] tracking-tight text-ink md:mt-2 md:text-4xl">{heading}</h1>
 
+      {/* 07/10/2026 (SAM) — page Paris : la question « Vous habitez où ? »
+          passe JUSTE SOUS LE TITRE. Mesuré en ligne à 375 px : placée sous les
+          3 profils chargés en direct, elle commençait à 892 px (écran 812 px,
+          dont ~90 px de barre collée) → 0 choix de quartier sur 35 visiteurs
+          de la pub en 24 h. Les autres villes gardent leur bouton plus bas.
+          Retour arrière : supprimer cette ligne. */}
+      {heroCta}
+
       {/* 22/09/2026 — preuve que l'offre existe vraiment (compte en direct).
           Les arrondissements interrogent « Paris » : un gardien inscrit à
           Paris dessert le 11e comme le 15e. Le bloc disparaît s'il n'y a
@@ -549,7 +557,7 @@ export default function OwnerCityPage({
           v577 — le bouton mène au parcours WEB (/signup puis
           /posts/create) : publier une demande ne demande plus d'installer
           l'app. Le store reste accessible juste en dessous. */}
-      {heroCta ?? (<>
+      {!heroCta && (<>
       <OwnerSignupCta
         label={copy.heroCta}
         city={city.name}
