@@ -458,11 +458,14 @@ export default function OwnerCityPage({
   city,
   h1,
   heroCta,
+  stickyWatchId,
   children,
 }: {
   city: RecruitCity;
   /** 06/10 (SAM) — remplace le bouton « Publier ma demande » du premier écran (page Paris). */
   heroCta?: React.ReactNode;
+  /** 08/10 (SAM) — id du bouton du premier écran : la barre collée reste cachée tant qu'il est visible. */
+  stickyWatchId?: string;
   /** Titre H1 propre à la page (sinon le H1 générique de la langue). */
   h1?: string;
   /** Bloc supplémentaire inséré sous l'encadré local (maillage interne…). */
@@ -646,7 +649,7 @@ export default function OwnerCityPage({
           écran : barre collante en bas, téléphone seulement, marchés actifs
           (Paris/France et USA). Clic compté « signup_web_barre ». */}
       {(city.lang === "fr" || city.lang === "en") && (
-        <OwnerStickyCta label={copy.ctaBtn} city={city.name} />
+        <OwnerStickyCta label={copy.ctaBtn} city={city.name} watchId={stickyWatchId} />
       )}
     </div>
   );

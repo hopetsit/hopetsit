@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import OwnerCityPage from "@/components/OwnerCityPage";
 import { TrackedLink } from "@/components/TrackedLink";
-import { ParisQuartierCta } from "@/components/ParisQuartierCta";
+import { ParisHeroCta } from "@/components/ParisHeroCta";
 import { RECRUIT_CITIES, OWNER_PATH_PREFIX, PARIS_CITY, type RecruitCity } from "@/lib/recruit-cities";
 
 // v575 — PAGE D'ATTERRISSAGE DE LA PUB META « Paris · Propriétaires (FR) ».
@@ -74,15 +74,19 @@ export default function GardeAnimauxParisPage() {
     <OwnerCityPage
       city={PARIS}
       h1="Garde d'animaux à Paris : pet-sitter, chat et promenade de chien"
-      // 06/10 (SAM) — « Vous habitez où ? » au premier écran : 26 visiteurs de
-      // la pub cliquent un arrondissement en bas de page, 1 seul « Publier ».
+      // 08/10 (SAM) — le menu « Vous habitez où ? » (06-07/10) : 17 visiteurs
+      // de la pub restés 3 s le 07/10 → 0 choix, 0 « Publier ». Remplacé par
+      // une phrase + UN bouton qui ouvre directement le formulaire (le quartier
+      // se précise dans son 1er champ, pré-rempli « Paris »).
       heroCta={
-        <ParisQuartierCta
-          places={[...ARRONDISSEMENTS, ...COMMUNES].map((c) => c.name)}
+        <ParisHeroCta
           city={PARIS.name}
-          note="Gratuit · sans compte pour commencer · 2 minutes"
+          lead="Décrivez votre besoin en 2 minutes : les gardiens et promeneurs de Paris reçoivent votre demande et vous répondent."
+          label="Publier ma demande — gratuit"
+          note="Sans compte pour commencer · vous choisissez ensuite, sans engagement"
         />
       }
+      stickyWatchId="hero-publier"
     >
       <section className="mt-12">
         <h2 className="font-display text-2xl font-extrabold text-ink">Votre arrondissement</h2>
