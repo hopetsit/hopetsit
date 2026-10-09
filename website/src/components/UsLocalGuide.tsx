@@ -375,6 +375,231 @@ const GUIDES: Record<string, Guide> = {
       ],
     },
   },
+  // 09/10/2026 (GUS) — 9 villes US à fortes impressions Google et 0 clic
+  // (Los Angeles 545, Indianapolis 389, Denver 353, Atlanta 304, Cincinnati 295,
+  // Miami 291, Columbus 248, Houston 248, Decatur GA 220 affichages / 28 j,
+  // positions 13-24). Même remède : contenu local réel, aucun chiffre inventé.
+  "los-angeles": {
+    hoods: ["Silver Lake", "Los Feliz", "Echo Park", "Santa Monica", "Venice", "Culver City", "Pasadena", "Sherman Oaks", "Studio City"],
+    walks: [
+      { name: "Runyon Canyon", note: "the Hollywood hike where many local dogs go off-leash on the marked trails — early mornings beat the heat and the crowds" },
+      { name: "Griffith Park", note: "miles of trails on leash, with shade along the Fern Dell and Ferndell Drive side" },
+      { name: "Silver Lake Dog Park", note: "the Eastside's busiest off-leash park, by the reservoir" },
+      { name: "Rosie's Dog Beach, Long Beach", note: "the only official off-leash beach in Los Angeles County, worth the drive for water dogs" },
+      { name: "Sepulveda Basin Off-Leash Dog Park", note: "a large fenced park in the Valley, with a separate small-dog area" },
+    ],
+    tips: [
+      "Los Angeles is a driving city: say in your request whether the sitter can reach you without a long freeway drive, or look for someone in your own neighborhood.",
+      "Summer afternoons are hot and the pavement burns paws — walks happen early in the morning or after sunset from June to September.",
+      "Entertainment and travel schedules change at the last minute: tell your sitter how flexible you need them to be before you book.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog run off-leash in Los Angeles?", a: "Fenced dog parks such as Silver Lake Dog Park or the Sepulveda Basin Off-Leash Dog Park, and the marked off-leash trails of Runyon Canyon. Elsewhere in the city dogs stay on a leash. Tell your sitter which places your dog already knows." },
+        { q: "I travel a lot for work. Can a sitter stay at my home?", a: "Yes. Post a request for overnight sitting: the sitter stays with your pet at your place, keeps the usual routine and sends you updates and photos in the app." },
+      ],
+      recruit: [
+        { q: "Which Los Angeles neighborhoods are easiest to start in?", a: "Your own. Owners prefer someone close by, and in Los Angeles that means avoiding freeway drives between clients. Set your service area to a few neighborhoods you can reach in minutes." },
+        { q: "What do Los Angeles owners ask for most?", a: "Midday walks for apartment dogs on the Westside and the Eastside, and overnight sitting when they travel. The map in HoPetSit shows owners nearby who are looking for help." },
+      ],
+    },
+  },
+  indianapolis: {
+    hoods: ["Broad Ripple", "Fountain Square", "Irvington", "Meridian-Kessler", "Butler-Tarkington", "Mass Ave", "Fishers", "Carmel"],
+    walks: [
+      { name: "Broad Ripple Park dog park", note: "a fenced off-leash area by the White River, the Northside's regular meeting point" },
+      { name: "Monon Trail", note: "a long paved trail from downtown through Broad Ripple to Carmel, ideal for leashed walks" },
+      { name: "Eagle Creek Park", note: "one of the largest city parks in the country, with wooded trails and a dedicated dog park" },
+      { name: "Paul Ruster Park dog park", note: "the Eastside's fenced park with room to run" },
+    ],
+    tips: [
+      "Indianapolis is affordable and spread out: most homes have a yard, so owners mostly need drop-in visits and overnight sitting when they travel.",
+      "Winters are cold and icy — ask your sitter to wipe paws after salted sidewalks and to shorten walks on the coldest days.",
+      "Race weekends and conventions fill the city: book your sitter early for May and for big event dates.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where do Indianapolis dog walkers take dogs?", a: "On the Monon Trail, in Broad Ripple Park or Eagle Creek Park, and in the fenced dog parks around the city. You can see each walk live on the map in the app." },
+        { q: "Can I get someone to feed my cat while I am away?", a: "Yes. Post a request for drop-in visits and a sitter nearby will come to feed, play and clean the litter box, with a short update after each visit." },
+      ],
+      recruit: [
+        { q: "Is there demand for pet sitters in Indianapolis?", a: "Owners here regularly look for someone close by for drop-in visits, dog walks and overnight stays. Start in your own neighborhood and set a service area you can reach easily." },
+        { q: "Do I need experience to start?", a: "You need to be reliable, comfortable with animals and clear about what you offer. Complete your profile with photos and the services you provide, then answer requests on the map." },
+      ],
+    },
+  },
+  denver: {
+    hoods: ["the Highlands", "Washington Park", "Cherry Creek", "Capitol Hill", "Sloan's Lake", "Park Hill", "Baker", "Stapleton/Central Park"],
+    walks: [
+      { name: "Cherry Creek State Park off-leash area", note: "a huge fenced-free off-leash area with water access, the weekend favorite" },
+      { name: "Washington Park", note: "a classic loop around the lakes, dogs on leash" },
+      { name: "Sloan's Lake Park", note: "a flat lakeside walk on the west side" },
+      { name: "Chatfield State Park dog off-leash area", note: "south of the city, trails and ponds for swimming" },
+      { name: "Railyard Dog Park", note: "downtown's fenced park near Union Station" },
+    ],
+    tips: [
+      "Denver owners hike and ski on weekends: weekend day care and overnight sitting are the most common requests.",
+      "Altitude and dry air mean dogs need water on every walk, and summer thunderstorms arrive fast in the afternoon.",
+      "Snow days are frequent in winter — agree with your sitter on what happens when roads are bad.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog go off-leash near Denver?", a: "The off-leash areas of Cherry Creek State Park and Chatfield State Park are the best known, plus fenced city dog parks such as Railyard Dog Park. Inside most city parks dogs stay on a leash." },
+        { q: "Can a sitter watch my dog while I ski for the weekend?", a: "Yes. Post a request for the weekend: a nearby sitter can host your dog or stay at your home, and you follow updates in the app." },
+      ],
+      recruit: [
+        { q: "When is pet sitting demand highest in Denver?", a: "Weekends and holidays, when owners head to the mountains. If you are free on weekends you will find regular clients quickly." },
+        { q: "Which Denver neighborhoods have the most dogs?", a: "The Highlands, Washington Park, Capitol Hill and Sloan's Lake are dense with dog owners. Start in the one you live in and keep your service area small." },
+      ],
+    },
+  },
+  atlanta: {
+    hoods: ["Midtown", "Virginia-Highland", "Inman Park", "Old Fourth Ward", "Grant Park", "Decatur", "Buckhead", "East Atlanta"],
+    walks: [
+      { name: "Piedmont Park Dog Park", note: "Midtown's fenced off-leash park, with a separate small-dog area" },
+      { name: "The Atlanta BeltLine Eastside Trail", note: "a paved loop through Old Fourth Ward and Inman Park, dogs on leash" },
+      { name: "Freedom Park Trail", note: "a quieter green trail linking Inman Park, Candler Park and Little Five Points" },
+      { name: "Grant Park", note: "shaded paths around Zoo Atlanta, popular with neighborhood dogs" },
+    ],
+    tips: [
+      "Atlanta summers are hot and humid: walks move to early morning and evening from June to September.",
+      "Traffic is slow — a sitter in your own neighborhood is worth more than one across town.",
+      "Many owners here travel for work through the airport: overnight sitting and drop-in visits for cats are common requests.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where do Atlanta dog walkers go?", a: "The BeltLine, Piedmont Park and the neighborhood parks of Grant Park, Inman Park and Decatur. Off-leash play happens in fenced dog parks such as Piedmont Park Dog Park." },
+        { q: "How do I find a trustworthy sitter near me in Atlanta?", a: "Open the map in HoPetSit to see sitters nearby, read their profile and reviews, chat with them in the app, then book. Verified profiles carry a badge." },
+      ],
+      recruit: [
+        { q: "Where should a new pet sitter in Atlanta start?", a: "In your own neighborhood: Midtown, Virginia-Highland, Inman Park and Decatur have many dogs and owners who work long days. A small service area means more regular clients." },
+        { q: "What services are most requested in Atlanta?", a: "Midday walks on weekdays, overnight sitting during business trips and drop-in visits for cats. Say clearly in your profile which ones you offer." },
+      ],
+    },
+  },
+  cincinnati: {
+    hoods: ["Over-the-Rhine", "Hyde Park", "Oakley", "Mount Adams", "Northside", "Clifton", "Mount Lookout", "Covington and Newport across the river"],
+    walks: [
+      { name: "Washington Park dog park", note: "Over-the-Rhine's fenced off-leash park right in the neighborhood" },
+      { name: "Mount Airy Forest dog park", note: "a large fenced park inside the city's biggest forest, with wooded trails" },
+      { name: "Ault Park", note: "gardens and overlooks in Mount Lookout, dogs on leash" },
+      { name: "Smale Riverfront Park", note: "a riverside walk downtown, with the Purple People Bridge to Newport" },
+    ],
+    tips: [
+      "Cincinnati's hills make walks a real workout: tell your sitter if your dog is older or prefers flat routes.",
+      "Many neighborhoods are made of townhouses and small yards, so weekday walks and drop-in visits are the usual requests.",
+      "Reds and Bengals game days fill downtown and Over-the-Rhine — plan walks around the crowds.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog run off-leash in Cincinnati?", a: "In fenced dog parks such as Washington Park dog park in Over-the-Rhine or Mount Airy Forest dog park. Elsewhere dogs stay leashed. Tell your sitter which park your dog knows." },
+        { q: "Can I book a cat sitter for a weekend away?", a: "Yes. Post a request for drop-in visits: the sitter feeds, plays and cleans the litter box, and you get an update after each visit in the app." },
+      ],
+      recruit: [
+        { q: "Which Cincinnati neighborhoods are good for a new sitter?", a: "Over-the-Rhine, Hyde Park, Oakley and Northside are full of dog owners. Start where you live and set a service area you can cover on foot or with a short drive." },
+        { q: "What do Cincinnati owners expect?", a: "Reliable weekday walks, respect for leash rules, and a short update with a photo after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  miami: {
+    hoods: ["Brickell", "Wynwood", "Coral Gables", "Coconut Grove", "Miami Beach", "Little Havana", "Edgewater", "Key Biscayne"],
+    walks: [
+      { name: "Haulover Beach dog park and dog beach", note: "the area's best-known place where dogs can play in the water, with set hours" },
+      { name: "Amelia Earhart Park Bark Park", note: "a large fenced off-leash park in Hialeah with small- and large-dog areas" },
+      { name: "Kennedy Park, Coconut Grove", note: "a fenced dog park by the bay, the Grove's meeting point" },
+      { name: "Tropical Park dog park", note: "fenced areas inside one of the city's biggest parks" },
+      { name: "South Pointe Park", note: "a bayfront walk at the tip of Miami Beach, dogs on leash" },
+    ],
+    tips: [
+      "Heat and humidity last most of the year: walks happen early morning or after sunset, and shade and water matter on every outing.",
+      "Many Miami dogs are small and live in high-rises: building rules and elevator etiquette are part of the job — mention them in your request.",
+      "Hurricane season runs from June to November — agree in advance with your sitter on what happens if a storm is announced.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog swim or play off-leash in Miami?", a: "Haulover Beach has a dog beach with set hours, and fenced parks such as Amelia Earhart Park Bark Park, Kennedy Park or Tropical Park let dogs run. Tell your sitter which places your dog already knows." },
+        { q: "I travel often. Can the same sitter come back each time?", a: "Yes. Once you have found a sitter you trust on the map, you can book them again directly in the app and keep the same routine for your pet." },
+      ],
+      recruit: [
+        { q: "Where do Miami pet sitters find clients?", a: "In the high-rise neighborhoods of Brickell, Edgewater and Miami Beach, and in family areas such as Coral Gables and Coconut Grove. Start in your own neighborhood and keep your service area small." },
+        { q: "What do Miami owners ask for?", a: "Midday walks for apartment dogs, overnight sitting during frequent travel, and drop-in visits for cats. Early-morning availability is a real advantage in the heat." },
+      ],
+    },
+  },
+  columbus: {
+    hoods: ["the Short North", "German Village", "Clintonville", "Grandview Heights", "Victorian Village", "Olde Towne East", "Upper Arlington", "Bexley"],
+    walks: [
+      { name: "Scioto Audubon Metro Park dog park", note: "a fenced off-leash park downtown by the river, with a separate small-dog area" },
+      { name: "Schiller Park", note: "German Village's leafy park, dogs on leash" },
+      { name: "Olentangy Trail", note: "a long paved trail along the river through Clintonville and the university area" },
+      { name: "Whetstone Park", note: "the Park of Roses and riverside paths in Clintonville" },
+      { name: "Alum Creek Dog Park", note: "a large off-leash park north of the city with water access" },
+    ],
+    tips: [
+      "Students and young families mean many weekday schedules: midday walks and drop-in visits are the most common requests.",
+      "Ohio State home games fill the campus area and the Short North — plan walks early on those Saturdays.",
+      "Winters bring ice and road salt: ask your sitter to wipe paws after walks.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog run off-leash in Columbus?", a: "In fenced parks such as the Scioto Audubon Metro Park dog park downtown or Alum Creek Dog Park north of the city. In neighborhood parks like Schiller Park dogs stay leashed." },
+        { q: "How do I choose a sitter in Columbus?", a: "Open the map, look at the sitters near you, read their profile and reviews, and chat with them in the app before you book. Verified profiles carry a badge." },
+      ],
+      recruit: [
+        { q: "Where should a new Columbus sitter start?", a: "In your own neighborhood: the Short North, German Village, Clintonville and Grandview have lots of dogs and owners who work or study all day." },
+        { q: "What services sell best in Columbus?", a: "Weekday walks, drop-in visits for cats and overnight sitting during holidays and travel. Say clearly in your profile what you offer and when." },
+      ],
+    },
+  },
+  houston: {
+    hoods: ["the Heights", "Montrose", "Midtown", "River Oaks", "West University", "the Museum District", "EaDo", "Memorial", "Sugar Land", "Katy"],
+    walks: [
+      { name: "Johnny Steele Dog Park, Buffalo Bayou", note: "the city's best-known fenced dog park, with ponds for swimming" },
+      { name: "Memorial Park", note: "miles of trails and a dedicated dog area, the west side's weekend walk" },
+      { name: "Discovery Green", note: "downtown's park with a small dog run" },
+      { name: "Hermann Park", note: "shaded loops in the Museum District, dogs on leash" },
+      { name: "White Oak Bayou Trail", note: "a paved trail through the Heights" },
+    ],
+    tips: [
+      "Houston heat lasts from May to October: walks happen early morning or after dark, and water comes on every walk.",
+      "The city is huge — a sitter in your own neighborhood saves everyone an hour on the freeway.",
+      "Hurricane season and sudden floods are part of life here: agree with your sitter in advance on what happens if a storm is announced.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog run off-leash in Houston?", a: "In fenced parks such as Johnny Steele Dog Park on Buffalo Bayou, the dog area of Memorial Park or the run at Discovery Green. Elsewhere dogs stay leashed. Tell your sitter which park your dog knows." },
+        { q: "Can a sitter stay at my home during a business trip?", a: "Yes. Post a request for overnight sitting: the sitter keeps your pet's routine at your place and sends updates and photos in the app." },
+      ],
+      recruit: [
+        { q: "Which Houston neighborhoods are good for a new pet sitter?", a: "The Heights, Montrose, Midtown and the Museum District are dense with dog owners. Start where you live and keep your service area to what you can reach without a long drive." },
+        { q: "What do Houston owners need most?", a: "Midday walks for dogs home alone, overnight sitting during travel and drop-in visits for cats. Early-morning availability is a real advantage in the heat." },
+      ],
+    },
+  },
+  "decatur-ga": {
+    hoods: ["Oakhurst", "Winnona Park", "Downtown Decatur", "Great Lakes", "Glennwood Estates", "Avondale Estates", "Kirkwood", "East Lake"],
+    walks: [
+      { name: "Glenlake Park dog park", note: "Decatur's fenced off-leash park, with separate areas for small and large dogs" },
+      { name: "Oakhurst Park", note: "the neighborhood park where many local dogs walk every morning" },
+      { name: "Decatur's downtown square", note: "a walkable center with dog-friendly patios, dogs on leash" },
+      { name: "PATH Foundation trails", note: "paved trails linking Decatur, Avondale Estates and the Atlanta BeltLine" },
+    ],
+    tips: [
+      "Decatur is one of the most walkable suburbs of Atlanta: most clients are within a short walk or bike ride of each other.",
+      "Hot, humid summers push walks to early morning and evening from June to September.",
+      "Many owners commute into Atlanta or travel through the airport: weekday walks and overnight sitting are the usual requests.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog go off-leash in Decatur?", a: "In Glenlake Park dog park, which has separate areas for small and large dogs. In Oakhurst Park and on the PATH trails dogs stay leashed." },
+        { q: "Is there already a sitter near me in Decatur?", a: "Open the map in HoPetSit to see sitters around Decatur and nearby Kirkwood, East Lake and Avondale Estates. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Is Decatur a good place to start as a pet sitter?", a: "Yes: it is walkable, full of dogs and close to Atlanta neighborhoods such as Kirkwood and East Lake. Start in your own area and keep your service area small." },
+        { q: "What do Decatur owners expect?", a: "Reliable weekday walks, respect for leash rules outside the dog park and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
 };
 
 // 08/10/2026 — même remède pour les villes françaises touchées (rattachées par
