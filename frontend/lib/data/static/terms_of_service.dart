@@ -6,12 +6,12 @@
 /// cancellation rules, escrow, etc.).
 library;
 
-const String termsVersion = '2.1'; // v613 — prestataire 100 % de son tarif, propriétaire paie tarif + 20 % (15 % Top), libération à la confirmation ou 48 h après la fin
+const String termsVersion = '2.2'; // v613 — prestataire 100 % de son tarif, propriétaire paie tarif + 20 % (15 % Top), libération à la confirmation ou 48 h après la fin
 
 const String _termsEn = r"""
 # HopeTSIT — Terms of Service
 
-Version 1.0 — Effective date: upon first publication to app stores.
+Version 2.2 — Effective date: upon first publication to app stores.
 
 ## 1. Preamble and definitions
 
@@ -60,6 +60,10 @@ Petsitters undertake to:
 ## 8. Insurance
 
 Users are exclusively responsible for subscribing any insurance (civil liability, personal liability) they consider necessary. CARDELLI HERMANOS LIMITED strongly recommends each User to hold a private civil-liability insurance policy. CARDELLI HERMANOS LIMITED does NOT provide insurance coverage and disclaims any liability in this respect.
+
+## 8a. Provider status, licences and tax obligations
+
+Sitters and walkers are independent providers. They are neither employees, agents nor representatives of HoPetSit. Each provider is solely responsible for: (a) obtaining and maintaining any licence, permit, registration, declaration or qualification required by the law of their country to look after or walk animals for payment; (b) declaring the income earned through the platform and paying the related taxes and social contributions. HoPetSit may request proof of such authorisations, suspend an account that fails to provide them, and cooperates with the competent authorities where the law so requires.
 
 ## 9. Booking and mutual acceptance
 
@@ -127,7 +131,7 @@ HopeTSIT may modify these Terms. A **30-day notice** is sent to active Users bef
 const String _termsFr = r"""
 # HopeTSIT — Conditions Générales d'Utilisation
 
-Version 1.0 — Date d'effet : dès la première publication sur les stores.
+Version 2.2 — Date d'effet : dès la première publication sur les stores.
 
 ## 1. Préambule et définitions
 
@@ -176,6 +180,10 @@ Le Petsitter s'engage à :
 ## 8. Assurances
 
 La souscription de toute assurance (responsabilité civile, assurance personnelle) jugée nécessaire relève de la responsabilité exclusive des Utilisateurs. CARDELLI HERMANOS LIMITED recommande vivement à chaque Utilisateur de disposer d'une assurance responsabilité civile vie privée. CARDELLI HERMANOS LIMITED ne fournit AUCUNE couverture d'assurance et décline toute responsabilité à cet égard.
+
+## 8 bis. Statut des prestataires, autorisations et obligations fiscales
+
+Les gardiens et promeneurs sont des prestataires indépendants. Ils ne sont ni employés, ni agents, ni mandataires de HoPetSit. Chaque prestataire est seul responsable : (a) d'obtenir et de maintenir les autorisations, agréments, déclarations ou qualifications exigés par la loi de son pays pour la garde ou la promenade d'animaux contre rémunération ; (b) de déclarer les revenus perçus via la plateforme et de payer les impôts et cotisations sociales qui s'y rapportent. HoPetSit peut demander la preuve de ces autorisations et suspendre un compte qui ne les fournit pas, et coopère avec les autorités compétentes lorsque la loi l'exige.
 
 ## 9. Réservation et acceptation mutuelle
 
@@ -243,7 +251,7 @@ HopeTSIT peut modifier les présentes CGU. Un **préavis de 30 jours** est adres
 const String _termsEs = r"""
 # HopeTSIT — Términos y Condiciones
 
-Versión 1.0 — Fecha de entrada en vigor: desde la primera publicación en las tiendas.
+Versión 2.2 — Fecha de entrada en vigor: desde la primera publicación en las tiendas.
 
 ## 1. Preámbulo y definiciones
 
@@ -290,6 +298,10 @@ El Petsitter se compromete a:
 ## 8. Seguros
 
 La suscripción de cualquier seguro corresponde exclusivamente a los Usuarios. CARDELLI HERMANOS LIMITED recomienda encarecidamente un seguro de responsabilidad civil privada. CARDELLI HERMANOS LIMITED no ofrece ninguna cobertura y declina cualquier responsabilidad al respecto.
+
+## 8 bis. Condición de los proveedores, autorizaciones y obligaciones fiscales
+
+Los cuidadores y paseadores son proveedores independientes. No son empleados, agentes ni representantes de HoPetSit. Cada proveedor es el único responsable de: (a) obtener y mantener las licencias, autorizaciones, declaraciones o cualificaciones exigidas por la ley de su país para cuidar o pasear animales a cambio de una remuneración; (b) declarar los ingresos obtenidos a través de la plataforma y pagar los impuestos y cotizaciones sociales correspondientes. HoPetSit puede solicitar prueba de dichas autorizaciones, suspender una cuenta que no las aporte y coopera con las autoridades competentes cuando la ley lo exige.
 
 ## 9. Reserva y aceptación mutua
 
@@ -357,7 +369,7 @@ Preaviso de **30 días** antes de la entrada en vigor de una nueva versión. El 
 const String _termsDe = r"""
 # HopeTSIT — Nutzungsbedingungen
 
-Version 1.0 — Inkrafttreten: ab der ersten Veröffentlichung in den App-Stores.
+Version 2.2 — Inkrafttreten: ab der ersten Veröffentlichung in den App-Stores.
 
 ## 1. Präambel und Definitionen
 
@@ -390,6 +402,10 @@ Der Petsitter verpflichtet sich insbesondere: wahrheitsgemäße Angaben zu Erfah
 ## 8. Versicherungen
 
 Der Abschluss von Versicherungen liegt ausschließlich in der Verantwortung der Nutzer. CARDELLI HERMANOS LIMITED empfiehlt dringend eine private Haftpflichtversicherung. CARDELLI HERMANOS LIMITED bietet keinerlei Versicherungsdeckung.
+
+## 8a. Status der Anbieter, Genehmigungen und steuerliche Pflichten
+
+Tiersitter und Hundeausführer sind unabhängige Anbieter. Sie sind weder Angestellte noch Vertreter oder Beauftragte von HoPetSit. Jeder Anbieter ist allein dafür verantwortlich: (a) alle Genehmigungen, Erlaubnisse (z. B. nach § 11 Tierschutzgesetz in Deutschland), Anmeldungen oder Qualifikationen einzuholen und aufrechtzuerhalten, die das Recht seines Landes für die entgeltliche Betreuung oder das Ausführen von Tieren verlangt; (b) die über die Plattform erzielten Einnahmen zu versteuern und die damit verbundenen Steuern und Sozialabgaben zu entrichten. HoPetSit kann einen Nachweis dieser Genehmigungen verlangen, ein Konto sperren, das ihn nicht erbringt, und arbeitet mit den zuständigen Behörden zusammen, wenn das Gesetz dies verlangt.
 
 ## 9. Buchung und gegenseitige Annahme
 
@@ -457,7 +473,7 @@ Diese Bedingungen unterliegen dem **Recht der Sonderverwaltungsregion Hongkong**
 const String _termsIt = r"""
 # HopeTSIT — Termini e Condizioni
 
-Versione 1.0 — Data di entrata in vigore: dalla prima pubblicazione sugli store.
+Versione 2.2 — Data di entrata in vigore: dalla prima pubblicazione sugli store.
 
 ## 1. Premessa e definizioni
 
@@ -490,6 +506,10 @@ Il Petsitter si impegna a: fornire informazioni veritiere su esperienza, disponi
 ## 8. Assicurazioni
 
 La sottoscrizione di qualsiasi assicurazione spetta esclusivamente agli Utenti. CARDELLI HERMANOS LIMITED raccomanda vivamente un'assicurazione RC privata. CARDELLI HERMANOS LIMITED non offre alcuna copertura.
+
+## 8 bis. Status dei prestatori, autorizzazioni e obblighi fiscali
+
+Pet sitter e dog walker sono prestatori indipendenti. Non sono dipendenti, agenti né mandatari di HoPetSit. Ogni prestatore è l'unico responsabile di: (a) ottenere e mantenere le licenze, autorizzazioni, dichiarazioni o qualifiche richieste dalla legge del proprio Paese per custodire o portare a spasso animali dietro compenso; (b) dichiarare i redditi percepiti tramite la piattaforma e pagare le imposte e i contributi sociali relativi. HoPetSit può richiedere la prova di tali autorizzazioni, sospendere un account che non le fornisce e collabora con le autorità competenti quando la legge lo richiede.
 
 ## 9. Prenotazione e accettazione reciproca
 
@@ -557,7 +577,7 @@ Si applica la **legge della SAR di Hong Kong**, salve le norme imperative di tut
 const String _termsPt = r"""
 # HopeTSIT — Termos e Condições
 
-Versão 1.0 — Data de entrada em vigor: a partir da primeira publicação nas stores.
+Versão 2.2 — Data de entrada em vigor: a partir da primeira publicação nas stores.
 
 ## 1. Preâmbulo e definições
 
@@ -590,6 +610,10 @@ Prestar informações verídicas sobre experiência, disponibilidade e localiza�
 ## 8. Seguros
 
 A subscrição de qualquer seguro compete exclusivamente aos Utilizadores. A CARDELLI HERMANOS LIMITED recomenda vivamente um seguro RC privado. A CARDELLI HERMANOS LIMITED não oferece qualquer cobertura.
+
+## 8-A. Estatuto dos prestadores, autorizações e obrigações fiscais
+
+Os cuidadores e passeadores são prestadores independentes. Não são empregados, agentes nem mandatários da HoPetSit. Cada prestador é o único responsável por: (a) obter e manter as licenças, autorizações, declarações ou qualificações exigidas pela lei do seu país para cuidar ou passear animais mediante remuneração; (b) declarar os rendimentos obtidos através da plataforma e pagar os impostos e contribuições sociais correspondentes. A HoPetSit pode exigir prova dessas autorizações, suspender uma conta que não as apresente e coopera com as autoridades competentes quando a lei o exige.
 
 ## 9. Reserva e aceitação mútua
 
