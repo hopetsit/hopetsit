@@ -14,9 +14,27 @@ void main() {
     'pt': '48 horas',
   };
 
-  test('termsVersion passe à 2.1', () {
-    expect(termsVersion, '2.1');
+  test('termsVersion passe à 2.2 (clause statut des prestataires, 09/10)', () {
+    expect(termsVersion, '2.2');
   });
+
+  // 09/10/2026 — clause « Statut des prestataires, autorisations et obligations
+  // fiscales » : indépendants, autorisations légales et impôts à leur charge.
+  const clause = {
+    'en': 'Provider status, licences and tax obligations',
+    'fr': 'Statut des prestataires, autorisations et obligations fiscales',
+    'es': 'Condición de los proveedores, autorizaciones y obligaciones fiscales',
+    'de': 'Status der Anbieter, Genehmigungen und steuerliche Pflichten',
+    'it': 'Status dei prestatori, autorizzazioni e obblighi fiscali',
+    'pt': 'Estatuto dos prestadores, autorizações e obrigações fiscais',
+  };
+  for (final entry in clause.entries) {
+    test('${entry.key} : clause statut des prestataires présente', () {
+      final t = termsOfServiceForLocale(entry.key);
+      expect(t, contains(entry.value));
+      expect(t, contains('HoPetSit'));
+    });
+  }
 
   for (final entry in hours48.entries) {
     test('${entry.key} : 100 %, 20 % / 15 % Top, 48 h — plus de 80 % ni 24 h', () {
