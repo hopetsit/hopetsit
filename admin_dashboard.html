@@ -354,6 +354,145 @@ label > input, label > select, label > textarea { color: var(--text); }
 .stat-mini .l { font-size: 12px; color: var(--text-muted); font-weight: 600; }
 @media (max-width: 760px) { .modal-grid { grid-template-columns: 1fr; } .stat-card.clickable::after { display: none; } }
 </style>
+<!-- 10/10/2026 (BOB) — Daniel : « améliore encore le design de la page admin entière ».
+     Couche de DESIGN seule, posée après la feuille d'origine : mêmes ids, mêmes classes, même JS.
+     Ligne directrice : dégradé horizontal de la marque (règle Daniel), rectangles arrondis, aucun gris froid,
+     empreintes de pattes discrètes en fond, lisibilité des chiffres et des tableaux. -->
+<style id="design-1010">
+:root {
+  --brand-grad: linear-gradient(90deg, #F05A28 0%, #D83C28 55%, #B02F1E 100%);
+  --brand-grad-soft: linear-gradient(90deg, #FFF1EC 0%, #FBE9E5 100%);
+  --ink: #231715; --ink-2: #4A2E28; --ink-3: #8A6A62;
+  --cream: #FFF8F5; --cream-2: #FDF1EC; --line: #F0E1DB;
+  --text-muted: #7A5A52;
+  --border: #EEDFD9;
+  --shadow: 0 1px 2px rgba(60,20,10,.04), 0 10px 30px -16px rgba(120,40,20,.22);
+  --radius: 20px;
+}
+/* fond : crème chaud + pattes très discrètes */
+body { background: var(--cream); }
+#app { background:
+  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='%23D83C28' fill-opacity='0.035'><ellipse cx='40' cy='44' rx='9' ry='12'/><ellipse cx='58' cy='32' rx='7' ry='10'/><ellipse cx='22' cy='32' rx='7' ry='10'/><ellipse cx='40' cy='18' rx='6' ry='8'/><ellipse cx='120' cy='124' rx='9' ry='12'/><ellipse cx='138' cy='112' rx='7' ry='10'/><ellipse cx='102' cy='112' rx='7' ry='10'/><ellipse cx='120' cy='98' rx='6' ry='8'/></g></svg>") fixed;
+  background-color: var(--cream); }
+
+/* EN-TÊTE : barre de marque en dégradé horizontal */
+header { background: var(--brand-grad); border-bottom: 0; height: 60px; box-shadow: 0 6px 24px -12px rgba(176,47,30,.55); }
+header::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: rgba(255,255,255,.25); }
+.header-logo { color: #fff; font-size: 18px; text-shadow: 0 1px 0 rgba(0,0,0,.08); }
+.header-badge { background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.35); backdrop-filter: blur(6px); }
+header .header-badge[title="Build version"] { background: rgba(255,255,255,.92) !important; color: #B02F1E; border-color: transparent; }
+#api-url-display { color: rgba(255,255,255,.85) !important; }
+#lang-switcher { background: rgba(255,255,255,.16) !important; color: #fff !important; border: 1px solid rgba(255,255,255,.4) !important; border-radius: 999px !important; padding: 7px 14px !important; font-weight: 600; }
+#lang-switcher option { color: var(--ink); }
+.logout-btn { background: #fff; color: #B02F1E; font-weight: 600; box-shadow: 0 2px 8px -2px rgba(0,0,0,.25); }
+.logout-btn:hover { background: #FFF1EC; color: #B02F1E; }
+.nav-toggle { background: rgba(255,255,255,.16); color: #fff; border: 1px solid rgba(255,255,255,.4); border-radius: 999px; padding: 6px 12px; font: inherit; font-weight: 600; }
+
+/* MENU LATÉRAL */
+.sidebar { background: #fff; border-right: 1px solid var(--line); top: 60px; height: calc(100vh - 60px); padding: 14px 12px 28px; }
+.nav-filter { background: var(--cream-2); border-radius: 12px; padding: 9px 12px; }
+.nav-section { color: var(--ink-3); font-size: 10.5px; letter-spacing: .12em; margin-bottom: 6px; }
+.nav-item { padding: 9px 12px; border-radius: 12px; font-size: 13.5px; color: var(--ink-2); }
+.nav-item:hover { background: var(--cream-2); color: var(--ink); }
+.nav-item.active { background: var(--brand-grad); color: #fff; font-weight: 600; box-shadow: 0 8px 18px -10px rgba(216,60,40,.7); }
+.nav-item.active .nav-count { background: rgba(255,255,255,.22); color: #fff; }
+.nav-icon { width: 26px; height: 26px; line-height: 26px; border-radius: 8px; background: var(--cream-2); text-align: center; font-size: 14px; flex-shrink: 0; }
+.nav-item.active .nav-icon { background: rgba(255,255,255,.2); }
+.nav-count { background: var(--cream-2); color: var(--ink-3); }
+
+/* PAGES ET TITRES */
+.page { padding: 26px 34px 56px; }
+.section-title { font-size: 20px; letter-spacing: -0.02em; color: var(--ink); position: relative; padding-left: 14px; }
+.section-title::before { content: ''; position: absolute; left: 0; top: 0.25em; width: 4px; height: 1em; border-radius: 4px; background: var(--brand-grad); }
+.table-wrap .section-title, .panel .section-title, .pp-pane-head .section-title { padding-left: 0; }
+.table-wrap .section-title::before, .panel .section-title::before, .pp-pane-head .section-title::before { display: none; }
+.page-desc, .page > p { color: var(--ink-3); }
+
+/* CARTES DE CHIFFRES */
+.stats-grid { gap: 16px; }
+.stat-card { border-radius: 20px; padding: 20px 22px 18px 26px; background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow); }
+.stat-card::before { width: 6px; border-radius: 0; background: var(--accent, var(--brand-grad)); }
+.stat-label { color: var(--ink-3); font-size: 12.5px; }
+.stat-value { font-size: 30px; letter-spacing: -0.03em; }
+.stat-sub { color: var(--ink-3); }
+.stat-card.clickable:hover { box-shadow: 0 18px 36px -18px rgba(176,47,30,.35); border-color: #F5D5CC; }
+
+/* PANNEAUX, TABLEAUX */
+.panel, .table-wrap, .card { border-radius: 20px; border: 1px solid var(--line); box-shadow: var(--shadow); background: #fff; }
+.table-toolbar { background: var(--cream); border-bottom: 1px solid var(--line); padding: 14px 18px; gap: 10px; }
+th { background: var(--cream); color: var(--ink-3); font-size: 11px; letter-spacing: .08em; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+td { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+tbody tr:nth-child(even) td { background: #FFFBF9; }
+tr:hover td { background: #FFF3EE !important; }
+.table-wrap .section-title { font-size: 16px; }
+
+/* CHAMPS */
+.search-input, input[type="text"], input[type="email"], input[type="url"], input[type="number"], input[type="date"], input[type="password"], textarea, .input {
+  border-radius: 12px; border: 1px solid var(--border); background: #fff; padding: 9px 13px; }
+.filter-select, select { border-radius: 12px; border: 1px solid var(--border); background-color: #fff;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B02F1E' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>"); }
+.search-input:focus, input:focus, textarea:focus, .filter-select:focus, select:focus, .input:focus { border-color: #E8603F; box-shadow: 0 0 0 4px rgba(216,60,40,.12); }
+input[type="checkbox"], input[type="radio"] { accent-color: #D83C28; }
+
+/* BOUTONS */
+.action-btn { border-radius: 999px; background: var(--cream-2); color: var(--ink-2); border: 1px solid transparent; padding: 7px 14px; }
+.action-btn:hover { background: #FBE2DA; color: var(--ink); filter: none; }
+.btn-primary, .action-btn.primary, .login-btn, .page-btn.active { background: var(--brand-grad) !important; color: #fff !important; border: 0; box-shadow: 0 8px 18px -10px rgba(216,60,40,.8); }
+.btn-primary:hover, .action-btn.primary:hover, .login-btn:hover { filter: brightness(1.06); box-shadow: 0 10px 22px -10px rgba(216,60,40,.9); }
+.btn-verify, .btn-approve { background: #E6F6EC; color: #157A42; }
+.btn-verify:hover, .btn-approve:hover { background: #D2EEDC; }
+.btn-delete, .btn-reject { background: #FDE8E6; color: #B4261B; }
+.btn-delete:hover, .btn-reject:hover { background: #F9D3CF; }
+.subtabs { background: var(--cream-2); }
+.subtab.active { background: #fff; color: #B02F1E; }
+
+/* BADGES, PUCES, INTERRUPTEURS */
+.badge { padding: 4px 11px; }
+.badge-neutral { background: var(--cream-2); color: var(--ink-3); }
+.chip { background: var(--cream-2); color: var(--ink-2); }
+.switch .knob { background: #E9D2CB; }
+.timeline li .dot { border-color: #E9D2CB; }
+.timeline li::before { background: var(--line); }
+
+/* FENÊTRES, MESSAGES */
+.modal { border-radius: 24px; border: 1px solid var(--line); }
+.modal-title { color: var(--ink); }
+.modal-title::before { content: ''; display: inline-block; width: 4px; height: 18px; border-radius: 4px; background: var(--brand-grad); margin-right: 10px; vertical-align: -2px; }
+.modal-value { background: var(--cream); border-radius: 12px; }
+.modal-close { background: var(--cream-2); color: var(--ink-2); }
+.toast { background: var(--ink); border-radius: 14px; box-shadow: 0 16px 40px -16px rgba(0,0,0,.5); }
+.toast.success { border-left: 4px solid #1F9D55; }
+.spinner { border-color: #F3DDD6; border-top-color: #D83C28; }
+.empty-state { color: var(--ink-3); }
+::-webkit-scrollbar-thumb { background: #E9D2CB; border-color: var(--cream); }
+
+/* CONNEXION */
+#login-screen { background: var(--cream);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><g fill='%23D83C28' fill-opacity='0.06'><ellipse cx='50' cy='56' rx='11' ry='15'/><ellipse cx='72' cy='40' rx='9' ry='12'/><ellipse cx='28' cy='40' rx='9' ry='12'/><ellipse cx='50' cy='22' rx='7' ry='10'/><ellipse cx='150' cy='156' rx='11' ry='15'/><ellipse cx='172' cy='140' rx='9' ry='12'/><ellipse cx='128' cy='140' rx='9' ry='12'/><ellipse cx='150' cy='122' rx='7' ry='10'/></g></svg>"),
+  radial-gradient(circle at 15% 25%, rgba(240,90,40,.14) 0%, transparent 42%), radial-gradient(circle at 85% 80%, rgba(176,47,30,.12) 0%, transparent 42%); }
+.login-card { border-radius: 28px; padding: 0 0 36px; overflow: hidden; border: 1px solid var(--line); width: 420px; }
+.login-card > .login-logo { background: var(--brand-grad); color: #fff; padding: 30px 40px 26px; margin: 0 0 6px; font-size: 26px; }
+.login-card > .login-sub { padding: 0 40px; margin: 10px 0 24px; }
+.login-card > .login-label, .login-card > .login-input, .login-card > .login-remember, .login-card > .login-btn, .login-card > .login-error { margin-left: 40px; margin-right: 40px; }
+.login-card > .login-input { width: calc(100% - 80px); border-radius: 12px; }
+.login-card > .login-btn { width: calc(100% - 80px); border-radius: 999px; }
+.login-card > .login-remember { margin-top: -4px; margin-bottom: 16px; }
+
+@media (max-width: 760px) {
+  header { height: auto; min-height: 56px; flex-wrap: wrap; padding: 8px 12px; row-gap: 6px; }
+  header > div:first-child { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+  .header-badge { margin-left: 0; }
+  .header-right { margin-left: auto; }
+  .sidebar { top: auto; height: auto; }
+  .nav-item.active { box-shadow: none; }
+  .login-card { width: 94vw; }
+  .login-card > .login-logo { padding: 22px 24px 20px; }
+  .login-card > .login-sub { padding: 0 24px; }
+  .login-card > .login-label, .login-card > .login-input, .login-card > .login-remember, .login-card > .login-btn, .login-card > .login-error { margin-left: 24px; margin-right: 24px; }
+  .login-card > .login-input, .login-card > .login-btn { width: calc(100% - 48px); }
+  .page { padding: 14px; }
+}
+</style>
 <script>
 // v562 — filtre du menu latéral : masque les entrées qui ne contiennent pas
 // le texte tapé, et les titres de section devenus vides.
