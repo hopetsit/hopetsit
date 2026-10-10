@@ -600,6 +600,207 @@ const GUIDES: Record<string, Guide> = {
       ],
     },
   },
+  // 10/10/2026 (GUS) — 8 villes de plus : Chicago, Boston et Fort Worth (pages clés
+  // non indexées, jumelles à 92 % des autres villes) + Naples, Arlington, St. Louis,
+  // Detroit et Washington (impressions sans clic, page 2). Faits locaux durables.
+  chicago: {
+    hoods: ["Lincoln Park", "Lakeview", "Wicker Park", "Logan Square", "Bucktown", "West Loop", "Hyde Park", "Andersonville"],
+    walks: [
+      { name: "Montrose Dog Beach", note: "the city's best-known off-leash dog beach on Lake Michigan, busy from spring to fall" },
+      { name: "Lakefront Trail", note: "18 miles along the lake, dogs on leash, with long stretches through Lincoln Park" },
+      { name: "The 606 (Bloomingdale Trail)", note: "an elevated trail linking Wicker Park, Bucktown, Humboldt Park and Logan Square" },
+      { name: "Wiggly Field (Noethling Park)", note: "Lakeview's fenced dog-friendly area, a neighborhood meeting point" },
+      { name: "Lincoln Park", note: "the large lakefront park, dogs on leash on the paths and lawns" },
+    ],
+    tips: [
+      "Chicago Park District dog-friendly areas require a permit tag for the dog: ask the owner for it before heading to an off-leash area.",
+      "Winters are long and salted sidewalks hurt paws: January and February walks are short, and many owners provide boots or paw balm.",
+      "Most owners in Lakeview, the West Loop or the Loop live in apartments or high-rises without a yard: the midday walk is the most requested service.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog run off-leash in Chicago?", a: "In the Chicago Park District dog-friendly areas such as Montrose Dog Beach or Wiggly Field, with the required permit tag. On the Lakefront Trail and in Lincoln Park dogs stay leashed." },
+        { q: "Is there a sitter near me in Chicago?", a: "Open the map in HoPetSit to see sitters and walkers around Lincoln Park, Lakeview, Wicker Park, Logan Square or Hyde Park. You chat with them in the app before booking." },
+      ],
+      recruit: [
+        { q: "Which Chicago neighborhoods are good to start in?", a: "Dense, walkable ones with many apartments: Lakeview, Lincoln Park, Wicker Park, Logan Square and the West Loop. Keep your service area to a few blocks so you can chain midday walks." },
+        { q: "What do Chicago owners expect in winter?", a: "Shorter walks, paws wiped after salted sidewalks and a message after each visit. HoPetSit shares the walk live on the map, so the owner sees the route." },
+      ],
+    },
+  },
+  boston: {
+    hoods: ["Back Bay", "South End", "Beacon Hill", "North End", "Jamaica Plain", "Charlestown", "Allston-Brighton", "South Boston"],
+    walks: [
+      { name: "Charles River Esplanade", note: "riverside paths from Beacon Hill to Allston, dogs on leash, the classic Boston walk" },
+      { name: "Arnold Arboretum", note: "281 acres of trees and trails in Jamaica Plain, dogs on leash" },
+      { name: "Peters Park dog run", note: "the fenced dog run of the South End, busy mornings and evenings" },
+      { name: "Castle Island and Pleasure Bay", note: "a waterfront loop in South Boston with sea air and wide paths" },
+      { name: "Boston Common and the Public Garden", note: "the historic parks downtown, dogs on leash" },
+    ],
+    tips: [
+      "Off-leash is only allowed in the city's designated dog recreation spaces: everywhere else, including the Common, dogs stay on leash.",
+      "Snow and ice from December to March make walks shorter; many owners ask for a quick paw rinse after salted sidewalks.",
+      "Many apartments are in triple-deckers and brownstones without a yard, and new tenants arrive each September: demand for midday walks rises in the fall.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog go off-leash in Boston?", a: "Only in designated dog recreation spaces such as the Peters Park dog run in the South End. On the Esplanade, in the Arboretum and on the Common dogs stay leashed." },
+        { q: "Is there a sitter near me in Boston?", a: "Open the map in HoPetSit to see sitters around Back Bay, the South End, Jamaica Plain, Charlestown or Allston-Brighton. You chat in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should a new pet sitter start in Boston?", a: "In walkable neighborhoods with many apartments: Back Bay, the South End, Beacon Hill, Jamaica Plain or Allston-Brighton. Start in your own neighborhood and keep your service area small." },
+        { q: "What do Boston owners expect?", a: "Punctual midday walks, leash rules respected outside dog runs and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  "fort-worth": {
+    hoods: ["Near Southside and Magnolia", "Fairmount", "TCU and Westcliff", "Arlington Heights", "Tanglewood", "Cultural District", "Downtown and Sundance Square", "Alliance"],
+    walks: [
+      { name: "Trinity Trails", note: "a network of paved trails along the Trinity River, dogs on leash, shaded sections near the Cultural District" },
+      { name: "Fort Woof Dog Park", note: "the large off-leash park in Gateway Park, with separate areas for small and large dogs" },
+      { name: "ZBonz Dog Park", note: "the off-leash park in Z Boaz Park on the west side" },
+      { name: "Trinity Park", note: "the riverside park next to the Cultural District, a favorite for evening walks" },
+      { name: "Magnolia Avenue", note: "the Near Southside street of dog-friendly patios, dogs on leash" },
+    ],
+    tips: [
+      "Summers are very hot: from June to September walks move to early morning and after sunset, and sitters check the pavement temperature before heading out.",
+      "Fort Worth is spread out and most homes have a yard: drop-in visits and overnight sitting are requested as often as walks.",
+      "Many sitters cover Fort Worth and nearby Dallas suburbs: keep your service area tight to avoid long drives between clients.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog run off-leash in Fort Worth?", a: "In Fort Woof Dog Park (Gateway Park) and ZBonz Dog Park (Z Boaz Park), both fenced with separate areas for small and large dogs. On the Trinity Trails dogs stay leashed." },
+        { q: "Is there a sitter near me in Fort Worth?", a: "Open the map in HoPetSit to see sitters around the Near Southside, Fairmount, TCU, Arlington Heights or Tanglewood. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should I start as a pet sitter in Fort Worth?", a: "In the walkable neighborhoods close to each other: Near Southside, Fairmount, TCU and Westcliff, Arlington Heights. Start in your own area and grow from there." },
+        { q: "What do Fort Worth owners expect?", a: "Walks at cool hours in summer, reliable drop-in visits while they travel and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  "naples-fl": {
+    hoods: ["Old Naples", "Park Shore", "Pelican Bay", "North Naples", "Vanderbilt Beach", "Golden Gate", "Lely Resort", "East Naples"],
+    walks: [
+      { name: "Rover Run dog park (Veterans Community Park)", note: "the city's fenced off-leash park in North Naples" },
+      { name: "Gordon River Greenway", note: "a paved trail through mangroves and wetlands, dogs on leash" },
+      { name: "Cambier Park", note: "the downtown park a few blocks from Fifth Avenue South, dogs on leash" },
+      { name: "Baker Park", note: "a waterfront park on the Gordon River, next to downtown" },
+      { name: "Dog Beach at Bonita Beach", note: "just north of Naples, one of the few beaches in the area where dogs may go off-leash" },
+    ],
+    tips: [
+      "Naples fills up with seasonal residents from November to April: demand for sitting and walks peaks in winter and drops in summer.",
+      "Summer afternoons bring heat and storms: walks happen early morning and in the evening, and hot sand burns paws.",
+      "Alligators live in ponds and canals across Collier County: keep dogs leashed and away from the water's edge, especially at dusk.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog go off-leash in Naples?", a: "In Rover Run at Veterans Community Park, which is fenced. Most Naples beaches do not allow dogs; the Dog Beach at Bonita Beach, just north, does." },
+        { q: "Is there a sitter near me in Naples?", a: "Open the map in HoPetSit to see sitters around Old Naples, Park Shore, Pelican Bay, North Naples or Lely Resort. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "When is the busy season for pet sitters in Naples?", a: "From November to April, when seasonal residents are in town and travel for the holidays. Summer is quieter, so build your regular clients in winter." },
+        { q: "What do Naples owners expect?", a: "Walks at cool hours, dogs kept away from ponds and canals, and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  "arlington-tx": {
+    hoods: ["Downtown Arlington and UTA", "North Arlington", "Southwest Arlington", "Viridian", "Interlochen", "Rush Creek", "East Arlington", "Entertainment District"],
+    walks: [
+      { name: "River Legacy Parks", note: "1,300 acres along the Trinity River with paved and natural trails, dogs on leash" },
+      { name: "Tails 'N Trails Dog Park", note: "Arlington's fenced off-leash park with separate areas for small and large dogs" },
+      { name: "Veterans Park", note: "a large park in southwest Arlington with trails and open lawns" },
+      { name: "Bowman Springs Park on Lake Arlington", note: "lakeside paths and shade on the west side" },
+    ],
+    tips: [
+      "Game days at AT&T Stadium and Globe Life Field clog the roads around the Entertainment District: plan walks before or after the crowds.",
+      "Summers are very hot: walks happen early morning and after sunset from June to September.",
+      "Arlington is a car city with many single-family homes: drop-in visits and overnight sitting are as common as walks, and UTA students look for part-time sitting work.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog run off-leash in Arlington?", a: "In Tails 'N Trails Dog Park, which is fenced with separate areas for small and large dogs. In River Legacy Parks and Veterans Park dogs stay leashed." },
+        { q: "Is there a sitter near me in Arlington?", a: "Open the map in HoPetSit to see sitters around Downtown and UTA, North Arlington, Southwest Arlington or Viridian. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should I start as a pet sitter in Arlington?", a: "Around UTA and downtown if you live there, or in your own neighborhood in North or Southwest Arlington. Keep your service area small: distances add up quickly in Arlington." },
+        { q: "What do Arlington owners expect?", a: "Reliable visits while they work or travel, walks at cool hours in summer and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  "st-louis": {
+    hoods: ["Central West End", "Tower Grove South", "Soulard", "The Hill", "Lafayette Square", "Dogtown", "Shaw", "Benton Park"],
+    walks: [
+      { name: "Forest Park", note: "1,300 acres of paths, lakes and lawns next to the Central West End, dogs on leash" },
+      { name: "Tower Grove Park", note: "the Victorian park between Shaw and Tower Grove South, a daily walk for many local dogs" },
+      { name: "Lafayette Park", note: "the historic square of Lafayette Square, dogs on leash" },
+      { name: "River des Peres Greenway", note: "a paved trail across the south side of the city" },
+    ],
+    tips: [
+      "Summers are hot and humid and winters bring ice: walk times shift to early morning in July and August, and paws need a wipe after salted sidewalks in January.",
+      "The Central West End and Soulard have many apartments without yards: midday walks are the usual request, while south-side houses ask for drop-in visits.",
+      "Many neighborhoods sit next to each other: a sitter based in Tower Grove South can cover Shaw, The Hill and Benton Park on foot or by bike.",
+    ],
+    faq: {
+      owner: [
+        { q: "Can my dog go off-leash in Forest Park?", a: "No: in Forest Park, Tower Grove Park and Lafayette Park dogs stay on leash. Off-leash play is for fenced dog parks only." },
+        { q: "Is there a sitter near me in St. Louis?", a: "Open the map in HoPetSit to see sitters around the Central West End, Tower Grove South, Soulard, Lafayette Square or Dogtown. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should I start as a pet sitter in St. Louis?", a: "In the walkable south-side neighborhoods (Tower Grove South, Shaw, Soulard, Benton Park) or around the Central West End. Start in your own neighborhood." },
+        { q: "What do St. Louis owners expect?", a: "Punctual midday walks, leash rules respected in the parks and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  detroit: {
+    hoods: ["Midtown", "Corktown", "Downtown", "Indian Village", "West Village", "Boston-Edison", "Palmer Woods", "Southwest Detroit"],
+    walks: [
+      { name: "Belle Isle Park", note: "the 982-acre island park on the Detroit River, dogs on leash on the paths and lawns" },
+      { name: "Detroit Riverwalk", note: "the riverfront promenade from downtown toward Belle Isle, dogs on leash" },
+      { name: "Dequindre Cut Greenway", note: "a below-grade trail linking the riverfront to Eastern Market and Midtown" },
+      { name: "Palmer Park", note: "a large park with wooded trails on the north side" },
+      { name: "Rouge Park", note: "Detroit's largest park, with trails on the far west side" },
+    ],
+    tips: [
+      "Winters are cold and snowy: January and February walks are short, and owners appreciate paws wiped after salted sidewalks.",
+      "Downtown, Midtown and Corktown have many apartments and lofts without yards: the midday walk is the most requested service.",
+      "Neighborhoods such as Indian Village, Boston-Edison and Palmer Woods are houses with yards: owners ask for drop-in visits and overnight sitting when they travel.",
+    ],
+    faq: {
+      owner: [
+        { q: "Can my dog go off-leash on Belle Isle?", a: "No: Belle Isle is a state park and dogs stay on leash there, as on the Riverwalk and the Dequindre Cut. Off-leash play is for fenced dog parks only." },
+        { q: "Is there a sitter near me in Detroit?", a: "Open the map in HoPetSit to see sitters around Midtown, Corktown, Downtown, Indian Village or Southwest Detroit. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should I start as a pet sitter in Detroit?", a: "In Midtown, Corktown or Downtown if you live nearby, where apartments are dense and midday walks are in demand. Otherwise start in your own neighborhood and keep your area small." },
+        { q: "What do Detroit owners expect?", a: "Reliable walks in all weather, leash rules respected in the parks and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  "washington-dc": {
+    hoods: ["Capitol Hill", "Dupont Circle", "Logan Circle", "Shaw", "Columbia Heights", "Georgetown", "Navy Yard", "Adams Morgan"],
+    walks: [
+      { name: "Rock Creek Park", note: "more than 1,700 acres of wooded trails through the city, dogs on leash" },
+      { name: "Shaw Dog Park", note: "a fenced dog park in the heart of Shaw, busy mornings and evenings" },
+      { name: "The National Mall", note: "wide gravel paths and lawns between the monuments, dogs on leash" },
+      { name: "Capital Crescent Trail", note: "a paved trail from Georgetown along the Potomac toward Bethesda" },
+      { name: "Yards Park and the Anacostia Riverwalk", note: "the Navy Yard waterfront, popular with the neighborhood's many dogs" },
+    ],
+    tips: [
+      "Summers are hot and humid: July and August walks move to early morning and evening.",
+      "Rowhouses and apartments without yards fill Capitol Hill, Shaw, Logan Circle and Navy Yard: midday walks are the most requested service.",
+      "Many owners travel for work: drop-in visits and overnight sitting for a few days are common requests, especially around congressional recesses and holidays.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog go off-leash in Washington, DC?", a: "In the official DC dog parks such as Shaw Dog Park, which are fenced. In Rock Creek Park, on the National Mall and along the waterfront dogs stay leashed." },
+        { q: "Is there a sitter near me in DC?", a: "Open the map in HoPetSit to see sitters around Capitol Hill, Dupont Circle, Shaw, Columbia Heights or Navy Yard. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should I start as a pet sitter in DC?", a: "In the dense rowhouse neighborhoods: Capitol Hill, Shaw, Logan Circle, Columbia Heights or Navy Yard. Keep your service area to a few blocks so you can chain midday walks." },
+        { q: "What do DC owners expect?", a: "Punctual midday walks, respect for leash rules outside dog parks and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
 };
 
 // 08/10/2026 — même remède pour les villes françaises touchées (rattachées par
