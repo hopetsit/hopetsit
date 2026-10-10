@@ -160,6 +160,11 @@ td > span[style*="border-radius"] { white-space: nowrap; display: inline-block; 
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: none; }
 
 /* TABLE */
+.bob-usearch { display:flex; align-items:center; gap:8px; flex:1 1 320px; max-width:520px; }
+.bob-usearch .search-input { flex:1; min-width:200px; font-size:14px; font-weight:400; letter-spacing:0; }
+.bob-usearch-count { font-size:13px; font-weight:600; color:var(--text-muted); white-space:nowrap; }
+.login-remember { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-muted); margin:-6px 0 14px; cursor:pointer; }
+.login-remember input { width:16px; height:16px; margin:0; accent-color: var(--primary); }
 .section-title { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; margin: 6px 0 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .table-wrap { background: var(--surface); border: 0; border-radius: var(--radius); overflow: hidden; margin-bottom: 28px; box-shadow: var(--shadow); }
 .table-wrap .section-title { padding: 16px 20px 0; margin-bottom: 8px; font-size: 16px; }
@@ -543,6 +548,9 @@ tr.ada-late td { background: #FFF1EE; }
     <input id="admin-email" class="login-input" type="email" autocomplete="username" name="email" placeholder="admin@hopetsit.local"/>
     <label class="login-label" for="admin-secret" data-i18n="admin_password">Admin Password</label>
     <input id="admin-secret" class="login-input" type="password" autocomplete="current-password" name="password" placeholder="Mot de passe admin"/>
+    <!-- 10/10/2026 (BOB) — Daniel : « la case sauvegarder mes infos ». Seul l'e-mail (et l'URL, déjà
+         mémorisée) est gardé dans ce navigateur ; le mot de passe n'est jamais enregistré. -->
+    <label class="login-remember" for="login-remember"><input type="checkbox" id="login-remember" checked/> <span data-i18n="login_remember">Se souvenir de mon e-mail sur cet ordinateur</span></label>
     <button type="submit" class="login-btn" data-i18n="access_dashboard">Access Dashboard →</button>
     <div class="login-error" id="login-error"></div>
   </form>
@@ -765,7 +773,16 @@ tr.ada-late td { background: #FFF1EE; }
            inscriptions / Dernières désinscriptions (Daniel : « je veux voir
            qui s'inscrit et se désinscrit »). -->
       <div id="page-owners" class="page">
-        <div class="section-title">👥 <span data-i18n="users_title">Tous les utilisateurs</span></div>
+        <!-- 10/10/2026 (BOB) — Daniel : « une barre de recherche utilisateur à droite de Tous les utilisateurs ».
+             Même recherche que la barre du grand tableau (nom, e-mail, téléphone, ville, pays), appliquée AUSSI
+             au bloc « Dernières inscriptions » ; les deux champs restent synchronisés. -->
+        <div class="section-title" style="justify-content:space-between">
+          <span>👥 <span data-i18n="users_title">Tous les utilisateurs</span></span>
+          <span class="bob-usearch">
+            <input class="search-input" id="owner-search-top" type="search" data-i18n-placeholder="users_search_top_ph" placeholder="🔍 Rechercher un utilisateur : nom, e-mail, téléphone, ville…" oninput="bobUserSearch(this.value, 'top')"/>
+            <span id="owner-search-top-count" class="bob-usearch-count"></span>
+          </span>
+        </div>
         <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;max-width:720px" data-i18n="users_desc">
           Vue unifiée : propriétaires + pet-sitters + walkers. Filtre par rôle en haut.
           Utilise les boutons « Staff » pour accorder Premium gratuit, ou « Supprimer » pour effacer un compte.
@@ -804,7 +821,7 @@ tr.ada-late td { background: #FFF1EE; }
         </div>
         <div class="table-wrap">
           <div class="table-toolbar">
-            <input class="search-input" id="owner-search" data-i18n-placeholder="users_search_ph" placeholder="🔍 Nom, prénom, e-mail ou téléphone…" oninput="renderOwners()"/>
+            <input class="search-input" id="owner-search" data-i18n-placeholder="users_search_ph" placeholder="🔍 Nom, prénom, e-mail ou téléphone…" oninput="bobUserSearch(this.value, 'bottom')"/>
             <select class="filter-select" id="owner-role-filter" onchange="renderOwners()">
               <option value="all" data-i18n="filter_all_roles">🌍 Tous les rôles</option>
               <option value="owner" data-i18n="role_owners">👤 Propriétaires</option>
@@ -2318,6 +2335,7 @@ function closeModal(id) {
 // Sprint 6.5 step 4 — persisted auth keys
 const LS_TOKEN_KEY = 'admin_token';
 const LS_URL_KEY = 'admin_api_url';
+const LS_EMAIL_KEY = 'admin_email_saved'; // 10/10 (BOB) — e-mail mémorisé si la case est cochée ; jamais le mot de passe
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 // Sprint 1 step 4 / 6.5 step 4: /auth/admin/login returns a JWT with role=admin,
@@ -2357,6 +2375,10 @@ async function login() {
     if (!r.ok) throw new Error('Identifiants admin invalides.');
     const data = await r.json();
     if (!data.token) throw new Error('Aucun token reçu du serveur.');
+    try {
+      if (document.getElementById('login-remember')?.checked) localStorage.setItem(LS_EMAIL_KEY, email);
+      else localStorage.removeItem(LS_EMAIL_KEY);
+    } catch (_) { /* navigation privée */ }
     _enterApp(url, data.token);
   } catch(e) { showLoginError(e.message); }
 }
@@ -2410,6 +2432,15 @@ window.addEventListener('DOMContentLoaded', async () => {
   // window.location.origin → l'admin n'a plus qu'à taper email + password.
   // Si tu ouvres en local (file://) ou via http://localhost:8080 (mini
   // serveur python), le champ est laissé vide et reste éditable.
+  // 10/10 (BOB) — e-mail mémorisé (case « Se souvenir de mon e-mail ») : pré-rempli, case cochée.
+  try {
+    const savedEmail = localStorage.getItem(LS_EMAIL_KEY) || '';
+    const emailInput = document.getElementById('admin-email');
+    const remember = document.getElementById('login-remember');
+    if (savedEmail && emailInput && !emailInput.value) emailInput.value = savedEmail;
+    if (remember) remember.checked = true;
+    if (savedEmail) { const pw = document.getElementById('admin-secret'); if (pw) setTimeout(() => pw.focus(), 50); }
+  } catch (_) { /* navigation privée */ }
   const apiUrlInput = document.getElementById('api-url');
   if (apiUrlInput && !apiUrlInput.value) {
     const proto = window.location.protocol;
@@ -7092,6 +7123,7 @@ function renderRecentSignups() {
   const list = (allOwners || [])
     .filter(u => signupTs(u) >= since)
     .filter(u => !hide || !_INTERNAL_EMAIL_RE.test(String(u.email || '')))
+    .filter(u => { const q = bobUserQuery(); return !q || _userMatchesSearch(u, q) || _normSearch(String(u.country || '')).includes(_normSearch(q)); })
     .sort((a, b) => signupTs(b) - signupTs(a));
   const n = { owner: 0, sitter: 0, walker: 0 };
   list.forEach(u => { if (n[u._role] != null) n[u._role]++; });
@@ -7327,8 +7359,22 @@ function _userMatchesSearch(u, search) {
   });
 }
 
+// 10/10/2026 (BOB) — une seule recherche, deux champs (en haut à droite du titre et dans le grand
+// tableau) : le dernier champ tapé fait foi, l'autre est recopié ; le bloc « Dernières inscriptions »
+// est filtré aussi, et le compteur à côté du champ du haut donne le nombre de comptes trouvés.
+function bobUserSearch(value, from) {
+  const top = document.getElementById('owner-search-top');
+  const bottom = document.getElementById('owner-search');
+  if (from === 'top' && bottom && bottom.value !== value) bottom.value = value;
+  if (from === 'bottom' && top && top.value !== value) top.value = value;
+  renderOwners();
+  renderRecentSignups();
+}
+function bobUserQuery() {
+  return (document.getElementById('owner-search')?.value || '').trim().toLowerCase();
+}
 function renderOwners() {
-  const search = (document.getElementById('owner-search')?.value || '').toLowerCase();
+  const search = bobUserQuery();
   const roleF = document.getElementById('owner-role-filter')?.value || 'all';
   const staffF = document.getElementById('owner-staff-filter')?.value || '';
   const realF = document.getElementById('owner-real-filter')?.value || '';
@@ -7340,8 +7386,11 @@ function renderOwners() {
     if (staffF === 'staff' && !u.isStaff) return false;
     if (staffF === 'nonstaff' && u.isStaff) return false;
     if (!search) return true;
-    return _userMatchesSearch(u, search);
+    // 10/10 (BOB) — le pays (code « FR », « DE »…) compte aussi, comme dans « Dernières inscriptions ».
+    return _userMatchesSearch(u, search) || _normSearch(String(u.country || '')).includes(_normSearch(search));
   });
+  const topCount = document.getElementById('owner-search-top-count');
+  if (topCount) topCount.textContent = search ? `${filtered.length} ${filtered.length > 1 ? 'comptes trouvés' : 'compte trouvé'}` : '';
   adaEmailSummary(emailF ? allOwners.filter(u => {
     if (roleF !== 'all' && u._role !== roleF) return false;
     if (realF === 'real' && _INTERNAL_EMAIL_RE.test(String(u.email || '').trim().toLowerCase())) return false;
@@ -10115,7 +10164,7 @@ async function revokePremiumGift(role, userId) {
         status_pending: "En attente", status_agreed: "Confirmée", status_completed: "Terminée", status_cancelled: "Annulée", status_processing: "En cours", status_done: "Terminé",
         pay_paid_f: "Payée", pay_failed_f: "Échouée", pay_paid: "Payé", pay_failed: "Échec", pay_refunded: "Remboursé",
         sitters_search_ph: "🔍 Rechercher un pet-sitter...", filter_all: "Tous", filter_verified: "Vérifiés ✓", filter_unverified: "Non vérifiés",
-        users_title: "Tous les utilisateurs", users_desc: "Vue unifiée : propriétaires + pet-sitters + walkers. Filtre par rôle en haut. Utilise les boutons « Staff » pour accorder Premium gratuit, ou « Supprimer » pour effacer un compte.", users_search_ph: "🔍 Nom, prénom, e-mail ou téléphone…",
+        users_title: "Tous les utilisateurs", users_desc: "Vue unifiée : propriétaires + pet-sitters + walkers. Filtre par rôle en haut. Utilise les boutons « Staff » pour accorder Premium gratuit, ou « Supprimer » pour effacer un compte.", users_search_ph: "🔍 Nom, prénom, e-mail ou téléphone…", users_search_top_ph: "🔍 Rechercher un utilisateur : nom, e-mail, téléphone, ville…", login_remember: "Se souvenir de mon e-mail sur cet ordinateur",
         filter_all_roles: "🌍 Tous les rôles", filter_all_roles_2: "Tous les rôles", role_owners: "👤 Propriétaires", role_sitters: "🐕 Pet-sitters", role_walkers: "🚶 Walkers",
         filter_all_staff: "Tous (staff & non-staff)", filter_staff_only: "⭐ Staff uniquement", filter_nonstaff_only: "Non-staff uniquement", filter_all_accounts: "Tous les comptes (test inclus)", filter_real_users: "✅ Vrais utilisateurs (hors test)",
         walkers_search_ph: "🔍 Rechercher un walker...", filter_all_verif: "Toutes vérifications", filter_verified_2: "✅ Vérifiés", filter_pending_2: "⏳ En attente", filter_unverified_2: "❌ Non vérifiés",
@@ -10283,7 +10332,7 @@ async function revokePremiumGift(role, userId) {
         status_pending: "Pending", status_agreed: "Confirmed", status_completed: "Completed", status_cancelled: "Cancelled", status_processing: "Processing", status_done: "Completed",
         pay_paid_f: "Paid", pay_failed_f: "Failed", pay_paid: "Paid", pay_failed: "Failed", pay_refunded: "Refunded",
         sitters_search_ph: "🔍 Search a pet-sitter...", filter_all: "All", filter_verified: "Verified ✓", filter_unverified: "Unverified",
-        users_title: "All users", users_desc: "Unified view: owners + pet-sitters + walkers. Filter by role at the top. Use the “Staff” buttons to grant free Premium, or “Delete” to remove an account.", users_search_ph: "🔍 Name, first name, e-mail or phone…",
+        users_title: "All users", users_desc: "Unified view: owners + pet-sitters + walkers. Filter by role at the top. Use the “Staff” buttons to grant free Premium, or “Delete” to remove an account.", users_search_ph: "🔍 Name, first name, e-mail or phone…", users_search_top_ph: "🔍 Find a user: name, e-mail, phone, city…", login_remember: "Remember my e-mail on this computer",
         filter_all_roles: "🌍 All roles", filter_all_roles_2: "All roles", role_owners: "👤 Owners", role_sitters: "🐕 Pet-sitters", role_walkers: "🚶 Walkers",
         filter_all_staff: "All (staff & non-staff)", filter_staff_only: "⭐ Staff only", filter_nonstaff_only: "Non-staff only", filter_all_accounts: "All accounts (test included)", filter_real_users: "✅ Real users (no test accounts)",
         walkers_search_ph: "🔍 Search a walker...", filter_all_verif: "All verifications", filter_verified_2: "✅ Verified", filter_pending_2: "⏳ Pending", filter_unverified_2: "❌ Unverified",
@@ -10450,7 +10499,7 @@ async function revokePremiumGift(role, userId) {
         status_pending: "Pendiente", status_agreed: "Confirmada", status_completed: "Completada", status_cancelled: "Cancelada", status_processing: "En curso", status_done: "Completado",
         pay_paid_f: "Pagada", pay_failed_f: "Fallida", pay_paid: "Pagado", pay_failed: "Fallido", pay_refunded: "Reembolsado",
         sitters_search_ph: "🔍 Buscar un cuidador...", filter_all: "Todos", filter_verified: "Verificados ✓", filter_unverified: "No verificados",
-        users_title: "Todos los usuarios", users_desc: "Vista unificada: propietarios + cuidadores + paseadores. Filtra por rol arriba. Usa los botones «Staff» para conceder Premium gratis, o «Eliminar» para borrar una cuenta.", users_search_ph: "🔍 Nombre, apellido, e-mail o teléfono…",
+        users_title: "Todos los usuarios", users_desc: "Vista unificada: propietarios + cuidadores + paseadores. Filtra por rol arriba. Usa los botones «Staff» para conceder Premium gratis, o «Eliminar» para borrar una cuenta.", users_search_ph: "🔍 Nombre, apellido, e-mail o teléfono…", users_search_top_ph: "🔍 Buscar un usuario: nombre, e-mail, teléfono, ciudad…", login_remember: "Recordar mi e-mail en este ordenador",
         filter_all_roles: "🌍 Todos los roles", filter_all_roles_2: "Todos los roles", role_owners: "👤 Propietarios", role_sitters: "🐕 Cuidadores", role_walkers: "🚶 Paseadores",
         filter_all_staff: "Todos (staff y no staff)", filter_staff_only: "⭐ Solo staff", filter_nonstaff_only: "Solo no staff", filter_all_accounts: "Todas las cuentas (prueba incluidas)", filter_real_users: "✅ Usuarios reales (sin prueba)",
         walkers_search_ph: "🔍 Buscar un paseador...", filter_all_verif: "Todas las verificaciones", filter_verified_2: "✅ Verificados", filter_pending_2: "⏳ Pendiente", filter_unverified_2: "❌ No verificados",
