@@ -42,5 +42,14 @@
   "legalMentions": "법적 고지",
   "footer": "결제는 Airwallex(PCI-DSS 레벨 1 인증)에서 처리됩니다. HoPetSit은 카드 정보에 접근하거나 전송·저장하지 않습니다.",
   "escrowText": "제공자는 자신의 요금 100%를 받습니다. 자금은 서비스 기간 동안 에스크로에 보관되며, 소유자가 서비스를 확인한 시점 또는 예정된 종료 후 48시간이 지난 시점에 제공자의 지갑으로 해제되고, 이후 제공자의 IBAN으로 출금할 수 있습니다.",
-  "cancelTerms": "서비스 시작 72시간 전까지 직접 취소 시 전액 환불됩니다. 자세히 보기:"
+  "cancelTerms": "서비스 시작 72시간 전까지 직접 취소 시 전액 환불됩니다. 자세히 보기:",
+  "sectionService": "1부 · 돌봄 서비스 — 제공자가 보호자에게 판매",
+  "sectionFees": "2부 · 플랫폼 수수료 — CARDELLI HERMANOS LIMITED가 보호자에게 청구",
+  "docNote": "서비스 명세서",
+  "mandateNote": "본 문서는 HoPetSit 이용약관에서 수락된 청구 위임에 따라 CARDELLI HERMANOS LIMITED가 제공자의 이름으로, 제공자를 대신하여 발행합니다. 제공자는 자신의 세금 및 사회보험 의무에 대해 단독으로 책임집니다.",
+  "vatIndividual": "부가가치세 해당 없음: 개인 제공자.",
+  "vatBusiness": "부가가치세: 제공자의 세무 지위에 따름(위의 식별번호 참조).",
+  "feesVat": "부가가치세 제외 금액. CARDELLI HERMANOS LIMITED는 부가가치세가 없는 홍콩 소재 회사입니다.",
+  "platformNote": "HoPetSit은 CARDELLI HERMANOS LIMITED가 운영하는 중개 플랫폼입니다. 회사는 돌봄 계약의 당사자가 아니며, 제공자의 고용주도 피고용인도 아니고, 플랫폼 수수료만 청구합니다.",
+  "providerAmount": "제공자 요금(1부)"
 }

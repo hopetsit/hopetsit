@@ -192,7 +192,7 @@ const placeholder = (sections: LegalSection[]): LegalDoc => ({
 
 export const TERMS: LegalDocByLang = {
   en: {
-    lastUpdated: "October 9, 2026",
+    lastUpdated: "October 10, 2026",
     sections: [
     { type: "p", html: `These Terms of Service (the "Terms") govern your use of the HoPetSit marketplace (the "Service"), operated by CARDELLI HERMANOS LIMITED (trading as HoPetSit), a company incorporated in Hong Kong (the "Company", "we", "us").` },
     { type: "h2", html: `1. The Service` },
@@ -218,6 +218,7 @@ export const TERMS: LegalDocByLang = {
     ]},
     { type: "h2", html: `7. Provider status, licences and tax obligations` },
     { type: "p", html: `Sitters and walkers are independent providers. They are neither employees, agents nor representatives of HoPetSit. Each provider is solely responsible for: (a) obtaining and maintaining any licence, permit, registration, declaration or qualification required by the law of their country to look after or walk animals for payment; (b) declaring the income earned through the platform and paying the related taxes and social contributions. HoPetSit may request proof of such authorisations, suspend an account that fails to provide them, and cooperates with the competent authorities where the law so requires.` },
+    { type: "p", html: `Billing mandate: the provider authorises CARDELLI HERMANOS LIMITED to issue, in their name and on their behalf, for each booking paid through the platform, the document recording their service (an invoice if they are a business, a service statement if they are a private individual), based on the billing details they entered. They remain solely responsible for their tax and social declarations and may end this mandate by closing their account. The platform fee is invoiced separately by CARDELLI HERMANOS LIMITED.` },
     { type: "h2", html: `8. Reviews &amp; reputation` },
     { type: "p", html: `Both parties may leave a review after a completed booking. Reviews must reflect a real experience. We may remove reviews that violate these Terms or applicable law.` },
     { type: "h2", html: `9. Intellectual property` },
@@ -233,7 +234,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   fr: {
-    lastUpdated: "9 octobre 2026",
+    lastUpdated: "10 octobre 2026",
     sections: [
     { type: "p", html: `Les présentes conditions d'utilisation (les « Conditions ») régissent votre utilisation du marché HoPetSit (le « Service »), exploité par CARDELLI HERMANOS LIMITED (exerçant ses activités sous le nom de HoPetSit), une société constituée à Hong Kong (la « Société », « nous », « notre »).` },
     { type: "h2", html: `1. Le service` },
@@ -259,6 +260,7 @@ export const TERMS: LegalDocByLang = {
     ]},
     { type: "h2", html: `7. Statut des prestataires, autorisations et obligations fiscales` },
     { type: "p", html: `Les gardiens et promeneurs sont des prestataires indépendants. Ils ne sont ni employés, ni agents, ni mandataires de HoPetSit. Chaque prestataire est seul responsable : (a) d'obtenir et de maintenir les autorisations, agréments, déclarations ou qualifications exigés par la loi de son pays pour la garde ou la promenade d'animaux contre rémunération ; (b) de déclarer les revenus perçus via la plateforme et de payer les impôts et cotisations sociales qui s'y rapportent. HoPetSit peut demander la preuve de ces autorisations et suspendre un compte qui ne les fournit pas, et coopère avec les autorités compétentes lorsque la loi l'exige.` },
+    { type: "p", html: `Mandat de facturation : le prestataire autorise CARDELLI HERMANOS LIMITED à établir en son nom et pour son compte, pour chaque réservation payée via la plateforme, le document qui matérialise sa prestation (facture s'il est professionnel, note de prestation s'il est particulier), à partir des informations de facturation qu'il a saisies. Il reste seul responsable de ses déclarations fiscales et sociales et peut mettre fin à ce mandat en fermant son compte. Les frais de plateforme font l'objet d'une facture distincte émise par CARDELLI HERMANOS LIMITED.` },
     { type: "h2", html: `8. Avis et avis réputation` },
     { type: "p", html: `Les deux parties peuvent laisser un avis une fois la réservation terminée. Les avis doivent refléter une expérience réelle. Nous pouvons supprimer les avis qui enfreignent les présentes Conditions ou la loi applicable.` },
     { type: "h2", html: `9. Propriété intellectuelle` },
@@ -274,7 +276,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   es: {
-    lastUpdated: "9 de octubre de 2026",
+    lastUpdated: "10 de octubre de 2026",
     sections: [
     { type: "p", html: `Estos Términos de servicio (los "Términos") rigen su uso del mercado HoPetSit (el "Servicio"), operado por CARDELLI HERMANOS LIMITED (que opera como HoPetSit), una empresa constituida en Hong Kong (la "Compañía", "nosotros", "nos").` },
     { type: "h2", html: `1. El Servicio` },
@@ -300,6 +302,7 @@ export const TERMS: LegalDocByLang = {
     ]},
     { type: "h2", html: `7. Condición de los proveedores, autorizaciones y obligaciones fiscales` },
     { type: "p", html: `Los cuidadores y paseadores son proveedores independientes. No son empleados, agentes ni representantes de HoPetSit. Cada proveedor es el único responsable de: (a) obtener y mantener las licencias, autorizaciones, declaraciones o cualificaciones exigidas por la ley de su país para cuidar o pasear animales a cambio de una remuneración; (b) declarar los ingresos obtenidos a través de la plataforma y pagar los impuestos y cotizaciones sociales correspondientes. HoPetSit puede solicitar prueba de dichas autorizaciones, suspender una cuenta que no las aporte y coopera con las autoridades competentes cuando la ley lo exige.` },
+    { type: "p", html: `Mandato de facturación: el proveedor autoriza a CARDELLI HERMANOS LIMITED a emitir en su nombre y por su cuenta, por cada reserva pagada a través de la plataforma, el documento que refleja su servicio (factura si es profesional, nota de servicio si es particular), a partir de los datos de facturación que haya introducido. Sigue siendo el único responsable de sus declaraciones fiscales y sociales y puede poner fin a este mandato cerrando su cuenta. La comisión de plataforma se factura por separado por CARDELLI HERMANOS LIMITED.` },
     { type: "h2", html: `8. Reseñas y comentarios reputación` },
     { type: "p", html: `Ambas partes pueden dejar una reseña después de completar la reserva. Las reseñas deben reflejar una experiencia real. Podemos eliminar reseñas que violen estos Términos o la ley aplicable.` },
     { type: "h2", html: `9. Propiedad intelectual` },
@@ -315,7 +318,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   de: {
-    lastUpdated: "9. Oktober 2026",
+    lastUpdated: "10. Oktober 2026",
     sections: [
     { type: "p", html: `Diese Nutzungsbedingungen (die „Bedingungen“) regeln Ihre Nutzung des HoPetSit-Marktplatzes (der „Dienst“), der von CARDELLI HERMANOS LIMITED (firmierend als HoPetSit), einem in Hongkong eingetragenen Unternehmen (das „Unternehmen“, „wir“, „uns“), betrieben wird.` },
     { type: "h2", html: `1. Der Dienst` },
@@ -341,6 +344,7 @@ export const TERMS: LegalDocByLang = {
     ]},
     { type: "h2", html: `7. Status der Anbieter, Genehmigungen und steuerliche Pflichten` },
     { type: "p", html: `Tiersitter und Hundeausführer sind unabhängige Anbieter. Sie sind weder Angestellte noch Vertreter oder Beauftragte von HoPetSit. Jeder Anbieter ist allein dafür verantwortlich: (a) alle Genehmigungen, Erlaubnisse (z. B. nach § 11 Tierschutzgesetz in Deutschland), Anmeldungen oder Qualifikationen einzuholen und aufrechtzuerhalten, die das Recht seines Landes für die entgeltliche Betreuung oder das Ausführen von Tieren verlangt; (b) die über die Plattform erzielten Einnahmen zu versteuern und die damit verbundenen Steuern und Sozialabgaben zu entrichten. HoPetSit kann einen Nachweis dieser Genehmigungen verlangen, ein Konto sperren, das ihn nicht erbringt, und arbeitet mit den zuständigen Behörden zusammen, wenn das Gesetz dies verlangt.` },
+    { type: "p", html: `Abrechnungsmandat: Der Anbieter ermächtigt CARDELLI HERMANOS LIMITED, für jede über die Plattform bezahlte Buchung in seinem Namen und für seine Rechnung das Dokument zu erstellen, das seine Leistung belegt (Rechnung, wenn er gewerblich tätig ist, Leistungsnachweis, wenn er Privatperson ist), auf Grundlage der von ihm eingegebenen Abrechnungsdaten. Er bleibt allein für seine steuerlichen und sozialrechtlichen Erklärungen verantwortlich und kann dieses Mandat durch Schließung seines Kontos beenden. Die Plattformgebühr wird von CARDELLI HERMANOS LIMITED gesondert in Rechnung gestellt.` },
     { type: "h2", html: `8. Bewertungen &amp; Ruf` },
     { type: "p", html: `Beide Parteien können nach einer abgeschlossenen Buchung eine Bewertung abgeben. Bewertungen müssen ein echtes Erlebnis widerspiegeln. Wir können Bewertungen entfernen, die gegen diese Bedingungen oder geltendes Recht verstoßen.` },
     { type: "h2", html: `9. Geistiges Eigentum` },
@@ -356,7 +360,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   it: {
-    lastUpdated: "9 ottobre 2026",
+    lastUpdated: "10 ottobre 2026",
     sections: [
     { type: "p", html: `I presenti Termini di servizio (i "Termini") regolano l'utilizzo del mercato HoPetSit (il "Servizio"), gestito da CARDELLI HERMANOS LIMITED (operante come HoPetSit), una società costituita a Hong Kong (la "Società", "noi", "ci").` },
     { type: "h2", html: `1. Il Servizio` },
@@ -382,6 +386,7 @@ export const TERMS: LegalDocByLang = {
     ]},
     { type: "h2", html: `7. Status dei prestatori, autorizzazioni e obblighi fiscali` },
     { type: "p", html: `Pet sitter e dog walker sono prestatori indipendenti. Non sono dipendenti, agenti né mandatari di HoPetSit. Ogni prestatore è l'unico responsabile di: (a) ottenere e mantenere le licenze, autorizzazioni, dichiarazioni o qualifiche richieste dalla legge del proprio Paese per custodire o portare a spasso animali dietro compenso; (b) dichiarare i redditi percepiti tramite la piattaforma e pagare le imposte e i contributi sociali relativi. HoPetSit può richiedere la prova di tali autorizzazioni, sospendere un account che non le fornisce e collabora con le autorità competenti quando la legge lo richiede.` },
+    { type: "p", html: `Mandato di fatturazione: il prestatore autorizza CARDELLI HERMANOS LIMITED a emettere in suo nome e per suo conto, per ogni prenotazione pagata tramite la piattaforma, il documento che attesta la sua prestazione (fattura se è un professionista, nota di prestazione se è un privato), sulla base dei dati di fatturazione da lui inseriti. Resta l'unico responsabile delle proprie dichiarazioni fiscali e previdenziali e può porre fine a questo mandato chiudendo il proprio account. La commissione di piattaforma è fatturata separatamente da CARDELLI HERMANOS LIMITED.` },
     { type: "h2", html: `8. Recensioni e informazioni reputazione` },
     { type: "p", html: `Entrambe le parti possono lasciare una recensione dopo una prenotazione completata. Le recensioni devono riflettere un'esperienza reale. Potremmo rimuovere le recensioni che violano i presenti Termini o la legge applicabile.` },
     { type: "h2", html: `9. Proprietà intellettuale` },
@@ -397,7 +402,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   pt: {
-    lastUpdated: "9 de outubro de 2026",
+    lastUpdated: "10 de outubro de 2026",
     sections: [
     { type: "p", html: `Estes Termos de Serviço (os "Termos") regem o uso do mercado HoPetSit (o "Serviço"), operado pela CARDELLI HERMANOS LIMITED (negociando como HoPetSit), uma empresa constituída em Hong Kong (a "Empresa", "nós", "nos").` },
     { type: "h2", html: `1. O serviço` },
@@ -423,6 +428,7 @@ export const TERMS: LegalDocByLang = {
     ]},
     { type: "h2", html: `7. Estatuto dos prestadores, autorizações e obrigações fiscais` },
     { type: "p", html: `Os cuidadores e passeadores são prestadores independentes. Não são empregados, agentes nem mandatários da HoPetSit. Cada prestador é o único responsável por: (a) obter e manter as licenças, autorizações, declarações ou qualificações exigidas pela lei do seu país para cuidar ou passear animais mediante remuneração; (b) declarar os rendimentos obtidos através da plataforma e pagar os impostos e contribuições sociais correspondentes. A HoPetSit pode exigir prova dessas autorizações, suspender uma conta que não as apresente e coopera com as autoridades competentes quando a lei o exige.` },
+    { type: "p", html: `Mandato de faturação: o prestador autoriza a CARDELLI HERMANOS LIMITED a emitir em seu nome e por sua conta, para cada reserva paga através da plataforma, o documento que comprova a sua prestação (fatura se for profissional, nota de prestação se for particular), com base nos dados de faturação que introduziu. Continua a ser o único responsável pelas suas declarações fiscais e sociais e pode pôr termo a este mandato encerrando a sua conta. A taxa de plataforma é faturada separadamente pela CARDELLI HERMANOS LIMITED.` },
     { type: "h2", html: `8. Críticas e avaliações reputação` },
     { type: "p", html: `Ambas as partes podem deixar um comentário após a conclusão da reserva. As avaliações devem refletir uma experiência real. Poderemos remover comentários que violem estes Termos ou a lei aplicável.` },
     { type: "h2", html: `9. Propriedade intelectual` },
@@ -438,7 +444,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   ko: {
-    lastUpdated: "2026년 10월 9일",
+    lastUpdated: "2026년 10월 10일",
     sections: [
     { type: "p", html: `본 서비스 이용약관(이하 "약관")은 홍콩에서 설립된 회사인 CARDELLI HERMANOS LIMITED(HoPetSit이라는 상호로 영업, 이하 "회사", "당사")가 운영하는 HoPetSit 마켓플레이스(이하 "서비스")의 이용에 적용됩니다.` },
     { type: "h2", html: `1. 서비스` },
@@ -464,6 +470,7 @@ export const TERMS: LegalDocByLang = {
     ]},
     { type: "h2", html: `7. 서비스 제공자의 지위, 인허가 및 세무 의무` },
     { type: "p", html: `펫시터와 도그워커는 독립적인 서비스 제공자입니다. 이들은 HoPetSit의 직원, 대리인 또는 수임인이 아닙니다. 각 제공자는 다음에 대해 단독으로 책임집니다. (a) 유상으로 동물을 돌보거나 산책시키기 위해 거주 국가의 법률이 요구하는 허가, 등록, 신고 또는 자격을 취득하고 유지할 것 (b) 플랫폼을 통해 얻은 소득을 신고하고 관련 세금과 사회보험료를 납부할 것. HoPetSit은 해당 인허가의 증빙을 요구할 수 있으며, 이를 제출하지 않는 계정을 정지할 수 있고, 법률이 요구하는 경우 관할 당국에 협조합니다.` },
+    { type: "p", html: `청구 위임: 제공자는 플랫폼을 통해 결제된 각 예약에 대해, 본인이 입력한 청구 정보를 바탕으로 서비스 내용을 기록한 문서(사업자인 경우 인보이스, 개인인 경우 서비스 명세서)를 CARDELLI HERMANOS LIMITED가 제공자의 이름으로, 제공자를 대신하여 발행하도록 승인합니다. 제공자는 자신의 세무 및 사회보험 신고에 대해 단독으로 책임지며, 계정을 폐쇄함으로써 이 위임을 종료할 수 있습니다. 플랫폼 수수료는 CARDELLI HERMANOS LIMITED가 별도로 청구합니다.` },
     { type: "h2", html: `8. 후기 및 평판` },
     { type: "p", html: `양 당사자는 완료된 예약에 대해 후기를 남길 수 있습니다. 후기는 실제 경험을 반영해야 합니다. 당사는 본 약관 또는 관련 법령을 위반하는 후기를 삭제할 수 있습니다.` },
     { type: "h2", html: `9. 지식재산권` },
@@ -479,7 +486,7 @@ export const TERMS: LegalDocByLang = {
   ],
   },
   ja: {
-    lastUpdated: "2026年10月9日",
+    lastUpdated: "2026年10月10日",
     sections: [
     { type: "p", html: `本利用規約（以下「本規約」）は、香港で設立された会社であるCARDELLI HERMANOS LIMITED（HoPetSitとして事業を行う。以下「当社」）が運営するHoPetSitマーケットプレイス（以下「本サービス」）のご利用に適用されます。` },
     { type: "h2", html: `1. 本サービス` },
@@ -505,6 +512,7 @@ export const TERMS: LegalDocByLang = {
     ]},
     { type: "h2", html: `7. サービス提供者の地位、許認可および納税義務` },
     { type: "p", html: `ペットシッターおよびドッグウォーカーは独立した事業者です。HoPetSitの従業員、代理人または受任者ではありません。各提供者は次の事項について単独で責任を負います。(a) 有償で動物を預かり、または散歩させるために居住国の法律が求める許可、登録、届出または資格を取得し維持すること。(b) プラットフォームを通じて得た収入を申告し、関連する税金および社会保険料を納付すること。HoPetSitはこれらの許認可の証明を求め、提出しないアカウントを停止することができ、法律が求める場合には管轄当局に協力します。` },
+    { type: "p", html: `請求代行の委任：提供者は、プラットフォームを通じて支払われた各予約について、本人が入力した請求情報に基づき、サービスを記録する書類（事業者の場合は請求書、個人の場合はサービス明細書）を、CARDELLI HERMANOS LIMITED が提供者の名において提供者に代わって発行することを承諾します。提供者は自身の税務および社会保険の申告について単独で責任を負い、アカウントを閉鎖することでこの委任を終了できます。プラットフォーム手数料は CARDELLI HERMANOS LIMITED が別途請求します。` },
     { type: "h2", html: `8. レビューと評価` },
     { type: "p", html: `予約完了後、双方の当事者がレビューを投稿できます。レビューは実際の体験を反映したものでなければなりません。当社は、本規約または適用法令に違反するレビューを削除する場合があります。` },
     { type: "h2", html: `9. 知的財産` },
@@ -523,7 +531,7 @@ export const TERMS: LegalDocByLang = {
   // juridique ne se traduit pas automatiquement ; à faire relire par un
   // traducteur juridique avant une version polonaise).
   pl: {
-    lastUpdated: "October 9, 2026",
+    lastUpdated: "October 10, 2026",
     sections: [
     { type: "p", html: `These Terms of Service (the "Terms") govern your use of the HoPetSit marketplace (the "Service"), operated by CARDELLI HERMANOS LIMITED (trading as HoPetSit), a company incorporated in Hong Kong (the "Company", "we", "us").` },
     { type: "h2", html: `1. The Service` },
@@ -549,6 +557,7 @@ export const TERMS: LegalDocByLang = {
     ]},
     { type: "h2", html: `7. Provider status, licences and tax obligations` },
     { type: "p", html: `Sitters and walkers are independent providers. They are neither employees, agents nor representatives of HoPetSit. Each provider is solely responsible for: (a) obtaining and maintaining any licence, permit, registration, declaration or qualification required by the law of their country to look after or walk animals for payment; (b) declaring the income earned through the platform and paying the related taxes and social contributions. HoPetSit may request proof of such authorisations, suspend an account that fails to provide them, and cooperates with the competent authorities where the law so requires.` },
+    { type: "p", html: `Billing mandate: the provider authorises CARDELLI HERMANOS LIMITED to issue, in their name and on their behalf, for each booking paid through the platform, the document recording their service (an invoice if they are a business, a service statement if they are a private individual), based on the billing details they entered. They remain solely responsible for their tax and social declarations and may end this mandate by closing their account. The platform fee is invoiced separately by CARDELLI HERMANOS LIMITED.` },
     { type: "h2", html: `8. Reviews &amp; reputation` },
     { type: "p", html: `Both parties may leave a review after a completed booking. Reviews must reflect a real experience. We may remove reviews that violate these Terms or applicable law.` },
     { type: "h2", html: `9. Intellectual property` },

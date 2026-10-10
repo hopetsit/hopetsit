@@ -42,5 +42,14 @@
   "legalMentions": "法的情報",
   "footer": "決済は Airwallex（PCI-DSS レベル1認定）が処理します。HoPetSit はカード情報へのアクセス・送信・保存を行いません。",
   "escrowText": "提供者は自身の料金の100%を受け取ります。資金はサービス期間中エスクローに保管され、飼い主がサービスを確認した時点、または予定終了の48時間後に提供者のウォレットへ解放され、その後、提供者のIBANへ出金できます。",
-  "cancelTerms": "サービス開始の72時間前までのキャンセルは全額返金されます。詳細："
+  "cancelTerms": "サービス開始の72時間前までのキャンセルは全額返金されます。詳細：",
+  "sectionService": "第1部 · ペットケアサービス — 提供者から飼い主への販売",
+  "sectionFees": "第2部 · プラットフォーム手数料 — CARDELLI HERMANOS LIMITED から飼い主への請求",
+  "docNote": "サービス明細書",
+  "mandateNote": "本書類は、HoPetSit利用規約で承諾された請求代行の委任に基づき、CARDELLI HERMANOS LIMITED が提供者の名において提供者に代わって発行するものです。提供者は自身の税務および社会保険上の義務について単独で責任を負います。",
+  "vatIndividual": "付加価値税は適用されません：個人の提供者。",
+  "vatBusiness": "付加価値税：提供者の税務上の地位によります（上記の識別番号を参照）。",
+  "feesVat": "付加価値税を含まない金額。CARDELLI HERMANOS LIMITED は付加価値税のない香港の会社です。",
+  "platformNote": "HoPetSit は CARDELLI HERMANOS LIMITED が運営する仲介プラットフォームです。当社はペットケア契約の当事者ではなく、提供者の雇用主でも従業員でもなく、プラットフォーム手数料のみを請求します。",
+  "providerAmount": "提供者の料金（第1部）"
 }

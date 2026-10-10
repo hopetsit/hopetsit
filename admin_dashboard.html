@@ -2496,7 +2496,10 @@ function _enterApp(url, token) {
   loadOwners();
   loadIdentityVerifications();
   // 02/10 (ADA) — rouvre la dernière section ouverte et compte la file « À traiter ».
-  try { adaRestoreLastPage(); } catch (_) { /* tableau de bord par défaut */ }
+  // 10/10/2026 (BOB) — Daniel : « que la page admin s'ouvre sur le tableau de bord » : plus de retour
+  // automatique à la dernière section visitée ; le tableau de bord à chaque connexion.
+  try { localStorage.removeItem('adminLastPage'); } catch (_) { /* privé */ }
+  try { showPage('dashboard', document.querySelector('.nav-item[data-page="dashboard"]')); } catch (_) { /* tableau de bord par défaut */ }
   try { loadQueue(true); } catch (_) { /* pastille facultative */ }
 }
 

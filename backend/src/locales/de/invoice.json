@@ -42,5 +42,14 @@
   "legalMentions": "Rechtliche Hinweise",
   "footer": "Zahlung verarbeitet durch Airwallex (PCI-DSS Stufe 1 zertifiziert). HoPetSit greift nicht auf Kartendaten zu, überträgt oder speichert sie nicht.",
   "escrowText": "Der Anbieter erhält 100 % seines Tarifs. Die Gelder werden während des Dienstes treuhänderisch verwahrt und in das Wallet des Anbieters freigegeben, sobald der Eigentümer den Dienst bestätigt, oder 48 Stunden nach dem geplanten Ende, und können dann auf seine IBAN abgehoben werden.",
-  "cancelTerms": "Kostenlose Stornierung mit voller Rückerstattung bis 72 Std. vor Servicebeginn möglich. Siehe"
+  "cancelTerms": "Kostenlose Stornierung mit voller Rückerstattung bis 72 Std. vor Servicebeginn möglich. Siehe",
+  "sectionService": "Teil 1 · Betreuungsleistung — vom Anbieter an den Tierhalter verkauft",
+  "sectionFees": "Teil 2 · Plattformgebühr — von CARDELLI HERMANOS LIMITED dem Tierhalter in Rechnung gestellt",
+  "docNote": "Leistungsnachweis",
+  "mandateNote": "Dokument, das CARDELLI HERMANOS LIMITED im Namen und für Rechnung des Anbieters im Rahmen des in den HoPetSit-Nutzungsbedingungen angenommenen Abrechnungsmandats erstellt. Der Anbieter bleibt allein für seine steuerlichen und sozialrechtlichen Pflichten verantwortlich.",
+  "vatIndividual": "Keine Umsatzsteuer: Anbieter ist Privatperson.",
+  "vatBusiness": "Umsatzsteuer: gemäß dem steuerlichen Status des Anbieters (Kennnummern oben).",
+  "feesVat": "Betrag ohne Umsatzsteuer. CARDELLI HERMANOS LIMITED, Gesellschaft in Hongkong, einem Gebiet ohne Umsatzsteuer.",
+  "platformNote": "HoPetSit ist eine Vermittlungsplattform, betrieben von CARDELLI HERMANOS LIMITED. Die Gesellschaft ist nicht Partei des Betreuungsvertrags, weder Arbeitgeber noch Arbeitnehmer des Anbieters, und stellt nur ihre Plattformgebühr in Rechnung.",
+  "providerAmount": "Tarif des Anbieters (Teil 1)"
 }

@@ -42,5 +42,14 @@
   "legalMentions": "Informações legais",
   "footer": "Pagamento processado pela Airwallex (certificado PCI-DSS Nível 1). A HoPetSit não acede, transmite nem armazena dados de cartões.",
   "escrowText": "O prestador recebe 100 % da sua tarifa. Os fundos são mantidos em custódia durante o serviço e libertados na carteira do prestador quando o proprietário confirma o serviço, ou 48 horas após o fim previsto, e podem depois ser levantados para o seu IBAN.",
-  "cancelTerms": "Cancelamento gratuito com reembolso integral disponível até 72h antes do início do serviço. Ver"
+  "cancelTerms": "Cancelamento gratuito com reembolso integral disponível até 72h antes do início do serviço. Ver",
+  "sectionService": "Parte 1 · Serviço de guarda — vendido pelo prestador ao proprietário",
+  "sectionFees": "Parte 2 · Taxa de plataforma — faturada pela CARDELLI HERMANOS LIMITED ao proprietário",
+  "docNote": "Nota de prestação",
+  "mandateNote": "Documento emitido pela CARDELLI HERMANOS LIMITED em nome e por conta do prestador, ao abrigo do mandato de faturação aceite nos termos de utilização da HoPetSit. O prestador continua a ser o único responsável pelas suas obrigações fiscais e sociais.",
+  "vatIndividual": "IVA não aplicável: prestador particular.",
+  "vatBusiness": "IVA: segundo o regime fiscal do prestador (identificadores acima).",
+  "feesVat": "Montante sem IVA. CARDELLI HERMANOS LIMITED, sociedade de Hong Kong, território sem IVA.",
+  "platformNote": "A HoPetSit é uma plataforma de intermediação explorada pela CARDELLI HERMANOS LIMITED. A sociedade não é parte no contrato de guarda, não é empregadora nem empregada do prestador, e fatura apenas a sua taxa de plataforma.",
+  "providerAmount": "Tarifa do prestador (parte 1)"
 }

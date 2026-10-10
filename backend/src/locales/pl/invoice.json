@@ -42,5 +42,14 @@
   "legalMentions": "Informacje prawne",
   "footer": "Płatność obsługuje Airwallex (certyfikat PCI-DSS poziom 1). HoPetSit nie ma dostępu do danych karty, nie przesyła ich ani nie przechowuje.",
   "escrowText": "Usługodawca otrzymuje 100% swojej stawki. Środki są przechowywane w depozycie przez czas trwania usługi i zwalniane do portfela usługodawcy, gdy właściciel potwierdzi usługę, lub 48 godzin po jej planowanym zakończeniu, a następnie mogą zostać wypłacone na IBAN usługodawcy.",
-  "cancelTerms": "Samodzielne anulowanie z pełnym zwrotem jest możliwe do 72 godzin przed rozpoczęciem usługi. Zobacz"
+  "cancelTerms": "Samodzielne anulowanie z pełnym zwrotem jest możliwe do 72 godzin przed rozpoczęciem usługi. Zobacz",
+  "sectionService": "Część 1 · Usługa opieki — sprzedana przez usługodawcę właścicielowi",
+  "sectionFees": "Część 2 · Opłata platformy — naliczona właścicielowi przez CARDELLI HERMANOS LIMITED",
+  "docNote": "Nota usługi",
+  "mandateNote": "Dokument wystawiony przez CARDELLI HERMANOS LIMITED w imieniu i na rzecz usługodawcy na podstawie upoważnienia do fakturowania zaakceptowanego w regulaminie HoPetSit. Usługodawca pozostaje wyłącznie odpowiedzialny za swoje obowiązki podatkowe i społeczne.",
+  "vatIndividual": "VAT nie ma zastosowania: usługodawca jest osobą prywatną.",
+  "vatBusiness": "VAT: zgodnie ze statusem podatkowym usługodawcy (identyfikatory powyżej).",
+  "feesVat": "Kwota bez VAT. CARDELLI HERMANOS LIMITED, spółka z Hongkongu, terytorium bez VAT.",
+  "platformNote": "HoPetSit to platforma pośrednictwa prowadzona przez CARDELLI HERMANOS LIMITED. Spółka nie jest stroną umowy opieki, nie jest pracodawcą ani pracownikiem usługodawcy i nalicza wyłącznie opłatę platformy.",
+  "providerAmount": "Stawka usługodawcy (część 1)"
 }

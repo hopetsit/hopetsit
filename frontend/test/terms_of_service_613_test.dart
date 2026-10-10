@@ -14,8 +14,8 @@ void main() {
     'pt': '48 horas',
   };
 
-  test('termsVersion passe à 2.2 (clause statut des prestataires, 09/10)', () {
-    expect(termsVersion, '2.2');
+  test('termsVersion passe à 2.3 (mandat de facturation, 10/10)', () {
+    expect(termsVersion, '2.3');
   });
 
   // 09/10/2026 — clause « Statut des prestataires, autorisations et obligations

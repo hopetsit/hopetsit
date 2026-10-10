@@ -42,5 +42,14 @@
   "legalMentions": "Legal information",
   "footer": "Payment processed by Airwallex (PCI-DSS Level 1 certified). HoPetSit does not access, transmit or store cardholder data.",
   "escrowText": "The provider receives 100% of their rate. Funds are held in escrow during the service and released to the provider's wallet when the owner confirms the service, or 48 hours after its scheduled end, and can then be withdrawn to the provider's IBAN.",
-  "cancelTerms": "Self-cancellation with full refund available up to 72h before the service starts. See"
+  "cancelTerms": "Self-cancellation with full refund available up to 72h before the service starts. See",
+  "sectionService": "Part 1 · Pet-care service — sold by the provider to the owner",
+  "sectionFees": "Part 2 · Platform fee — charged by CARDELLI HERMANOS LIMITED to the owner",
+  "docNote": "Service statement",
+  "mandateNote": "Document issued by CARDELLI HERMANOS LIMITED in the name and on behalf of the provider under the billing mandate accepted in the HoPetSit Terms of Service. The provider remains solely responsible for their tax and social obligations.",
+  "vatIndividual": "VAT not applicable: private individual provider.",
+  "vatBusiness": "VAT: according to the provider's own tax status (identifiers above).",
+  "feesVat": "Amount excluding VAT. CARDELLI HERMANOS LIMITED, a Hong Kong company; Hong Kong has no VAT.",
+  "platformNote": "HoPetSit is an intermediation platform operated by CARDELLI HERMANOS LIMITED. The company is not a party to the pet-care contract, is neither the provider's employer nor employee, and only charges its platform fee.",
+  "providerAmount": "Provider's rate (part 1)"
 }

@@ -34,6 +34,8 @@ const ISSUER_COMPANY = {
   place: 'Hong Kong',
   companyNumber: 'n-2671528',
   email: 'contact@hopetsit.com',
+  // 10/10/2026 (BOB, demande Daniel) — adresse complète du siège (fiche officielle du 10/07/2026).
+  address: 'Flat/Rm A, 12/F, ZJ 300, 300 Lockhart Road, Wan Chai, Hong Kong',
 };
 
 // ─── v576 — logos EMBARQUÉS (data URI) ──────────────────────────────────────
@@ -513,6 +515,8 @@ const renderInvoiceHtml = async (req, res) => {
     };
     const issuerB = snapshotForApi(inv.issuerBilling);
     const customerB = snapshotForApi(inv.customerBilling);
+    // 10/10 — un particulier n'émet pas de « facture » : son document s'appelle « note de prestation ».
+    const providerIsBusiness = !!(issuerB && issuerB.type === 'business');
 
     // v23.1.175 — helper qui traduit le serviceType brut (ex: 'dog_walk',
     // 'overnight_boarding') en label de la langue courante. Mirror exact
@@ -598,9 +602,13 @@ const renderInvoiceHtml = async (req, res) => {
   .rule { height: 3px; background: var(--brand); border-radius: 2px; margin: 18px 0 22px; }
   /* Blocs Émetteur / Client / Prestataire. */
   .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .part { margin: 14px 0 6px; }
+  .doc-kind-line { margin-top: 8px; }
+  .note { font-size: 11.5px; color: #555; margin: 6px 0 0; line-height: 1.45; }
   .card { border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; background: #fff; break-inside: avoid; }
   .card.issuer { background: var(--soft); border-left: 3px solid var(--gold); }
   .card.provider { grid-column: 1 / -1; }
+  .parties-2 .card.provider { grid-column: auto; } /* 10/10 : partie 1 = prestataire et client côte à côte */
   .card h3 {
     margin: 0 0 9px; font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
     text-transform: uppercase; color: var(--muted);
@@ -704,7 +712,7 @@ const renderInvoiceHtml = async (req, res) => {
         ${brandLogo}
         <div>
           <div class="brand-name">HoPetSit</div>
-          <div class="brand-sub">${esc(T.operatedBy)} ${esc(ISSUER_COMPANY.name)}<br/>${esc(ISSUER_COMPANY.place)} · ${esc(T.companyNumber)}${esc(T.labelSep)}${esc(ISSUER_COMPANY.companyNumber)}</div>
+          <div class="brand-sub">${esc(T.operatedBy)} ${esc(ISSUER_COMPANY.name)}<br/>${esc(ISSUER_COMPANY.address)}<br/>${esc(T.companyNumber)}${esc(T.labelSep)}${esc(ISSUER_COMPANY.companyNumber)}</div>
         </div>
       </div>
       <div class="doc">
@@ -718,65 +726,99 @@ const renderInvoiceHtml = async (req, res) => {
 
     <div class="rule"></div>
 
-    <div class="parties">
-      <div class="card issuer">
-        <h3>${esc(T.issuer)}</h3>
-        <div class="issuer-head">
-          ${issuerLogo}
-          <div>
-            <div class="name">${esc(ISSUER_COMPANY.name)}</div>
-            <div class="line">${esc(ISSUER_COMPANY.place)}</div>
-          </div>
+    <!-- 10/10/2026 (BOB, demande Daniel) — deux parties distinctes : la prestation est vendue par le
+         PRESTATAIRE au propriétaire (document établi en son nom, mandat de facturation des CGU) ; les
+         frais de plateforme sont facturés par CARDELLI HERMANOS LIMITED. La société ne vend pas la garde. -->
+    <div class="part">
+      <div class="section-title">${esc(T.sectionService)}</div>
+      <div class="parties parties-2">
+        <div class="card provider">
+          <h3>${esc(T.issuer)}${inv.providerRole ? `<span class="pill">${esc(roleLabel)}</span>` : ''}</h3>
+          <div class="name">${esc(inv.providerName || '—')}</div>
+          ${inv.providerEmail ? `<div class="line">${esc(inv.providerEmail)}</div>` : ''}
+          ${billingLines(issuerB, inv.providerName)}
+          <div class="line doc-kind-line"><b>${esc(providerIsBusiness ? T.invoiceLabel : T.docNote)}</b> · ${esc(inv.invoiceNumber)}-A</div>
         </div>
-        <div class="line">${esc(T.companyNumber)}${esc(T.labelSep)}${esc(ISSUER_COMPANY.companyNumber)}</div>
-        <div class="line">${esc(ISSUER_COMPANY.email)}</div>
+        <div class="card">
+          <h3>${esc(T.customer)} · ${esc(T.billTo)}</h3>
+          <div class="name">${esc(inv.ownerName || '—')}</div>
+          ${inv.ownerEmail ? `<div class="line">${esc(inv.ownerEmail)}</div>` : ''}
+          ${billingLines(customerB, inv.ownerName)}
+        </div>
       </div>
-      <div class="card">
-        <h3>${esc(T.customer)} · ${esc(T.billTo)}</h3>
-        <div class="name">${esc(inv.ownerName || '—')}</div>
-        ${inv.ownerEmail ? `<div class="line">${esc(inv.ownerEmail)}</div>` : ''}
-        ${billingLines(customerB, inv.ownerName)}
+      <table class="items">
+        <thead>
+          <tr>
+            <th>${esc(T.description)}</th>
+            <th>${esc(T.serviceDate)}</th>
+            <th>${esc(T.pets)}</th>
+            <th>${esc(T.amount)}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${serviceLabelHtml(inv.serviceType)}</td>
+            <td>${fmt(inv.serviceDate || inv.startDate)}${inv.endDate ? ' → ' + fmt(inv.endDate) : ''}</td>
+            <td>${(inv.petNames && inv.petNames.length ? esc(inv.petNames.join(', ')) : '—')}</td>
+            <td>${money(inv.netPayout)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note">${esc(providerIsBusiness ? T.vatBusiness : T.vatIndividual)}</p>
+      <p class="note">${esc(T.mandateNote)}</p>
+    </div>
+
+    <div class="part">
+      <div class="section-title">${esc(T.sectionFees)}</div>
+      <div class="parties parties-2">
+        <div class="card issuer">
+          <h3>${esc(T.issuer)}</h3>
+          <div class="issuer-head">
+            ${issuerLogo}
+            <div>
+              <div class="name">${esc(ISSUER_COMPANY.name)}</div>
+              <div class="line">${esc(ISSUER_COMPANY.address)}</div>
+            </div>
+          </div>
+          <div class="line">${esc(T.companyNumber)}${esc(T.labelSep)}${esc(ISSUER_COMPANY.companyNumber)}</div>
+          <div class="line">${esc(ISSUER_COMPANY.email)}</div>
+          <div class="line doc-kind-line"><b>${esc(T.invoiceLabel)}</b> · ${esc(inv.invoiceNumber)}-B</div>
+        </div>
+        <div class="card">
+          <h3>${esc(T.customer)} · ${esc(T.billTo)}</h3>
+          <div class="name">${esc(inv.ownerName || '—')}</div>
+          ${inv.ownerEmail ? `<div class="line">${esc(inv.ownerEmail)}</div>` : ''}
+          ${billingLines(customerB, inv.ownerName)}
+        </div>
       </div>
-      <div class="card provider">
-        <h3>${esc(T.serviceProvider)}${inv.providerRole ? `<span class="pill">${esc(roleLabel)}</span>` : ''}</h3>
-        <div class="name">${esc(inv.providerName || '—')}</div>
-        ${inv.providerEmail ? `<div class="line">${esc(inv.providerEmail)}</div>` : ''}
-        ${billingLines(issuerB, inv.providerName)}
-      </div>
+      <table class="items">
+        <thead>
+          <tr>
+            <th>${esc(T.description)}</th>
+            <th>${esc(T.serviceDate)}</th>
+            <th>${esc(T.amount)}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${esc(commissionLabel(T.commission, inv.commission, inv.netPayout))}</td>
+            <td>${fmt(inv.serviceDate || inv.startDate)}</td>
+            <td>${money(inv.commission)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note">${esc(T.feesVat)}</p>
     </div>
 
     <div class="section-title">${esc(T.summary)}</div>
-    <table class="items">
-      <thead>
-        <tr>
-          <th>${esc(T.description)}</th>
-          <th>${esc(T.serviceDate)}</th>
-          <th>${esc(T.pets)}</th>
-          <th>${esc(T.amount)}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>${serviceLabelHtml(inv.serviceType)}</td>
-          <td>${fmt(inv.serviceDate || inv.startDate)}${inv.endDate ? ' → ' + fmt(inv.endDate) : ''}</td>
-          <td>${(inv.petNames && inv.petNames.length ? esc(inv.petNames.join(', ')) : '—')}</td>
-          <td>${money(inv.grossAmount)}</td>
-        </tr>
-      </tbody>
-    </table>
-
     <table class="totals">
       <tr>
-        <td>${esc(T.grossAmount)}</td>
-        <td>${money(inv.grossAmount)}</td>
+        <td>${esc(T.providerAmount)}</td>
+        <td>${money(inv.netPayout)}</td>
       </tr>
       <tr>
         <td>${esc(commissionLabel(T.commission, inv.commission, inv.netPayout))}</td>
         <td>${money(inv.commission)}</td>
-      </tr>
-      <tr>
-        <td>${esc(T.netProvider)}</td>
-        <td>${money(inv.netPayout)}</td>
       </tr>
       <tr class="grand">
         <td>${esc(T.totalCharged)}</td>
@@ -786,7 +828,8 @@ const renderInvoiceHtml = async (req, res) => {
 
     <div class="legal">
       <h4>${esc(T.legalMentions)}</h4>
-      <p>${esc(T.operatedBy)} ${esc(ISSUER_COMPANY.name)} · ${esc(ISSUER_COMPANY.place)} · ${esc(T.companyNumber)}${esc(T.labelSep)}${esc(ISSUER_COMPANY.companyNumber)} · ${esc(ISSUER_COMPANY.email)}</p>
+      <p>${esc(T.platformNote)}</p>
+      <p>${esc(T.operatedBy)} ${esc(ISSUER_COMPANY.name)} · ${esc(ISSUER_COMPANY.address)} · ${esc(T.companyNumber)}${esc(T.labelSep)}${esc(ISSUER_COMPANY.companyNumber)} · ${esc(ISSUER_COMPANY.email)}</p>
       <p>${esc(T.footer)}</p>
       <p>${esc(T.escrowText)} ${esc(T.cancelTerms)} <a href="https://hopetsit.com/refund">https://hopetsit.com/refund</a>.</p>
     </div>
