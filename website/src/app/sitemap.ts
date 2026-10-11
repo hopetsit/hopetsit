@@ -31,6 +31,9 @@ const PUBLIC_PATHS = [
   "/remboursement",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  // 2026-W41 — recrutement Paris 18e + Los Angeles (routine marketing hebdo).
+  "/blog/devenir-pet-sitter-paris-18e",
+  "/blog/become-a-pet-sitter-in-los-angeles",
   // 05/10 (GUS) — recrutement New York.
   "/blog/dog-walker-jobs-nyc",
   "/blog/pet-sitting-jobs-new-york",

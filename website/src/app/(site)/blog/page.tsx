@@ -13,6 +13,21 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 2026-W41 — recrutement Paris 18e + Los Angeles (routine marketing hebdo).
+  {
+    slug: "devenir-pet-sitter-paris-18e",
+    lang: "🇫🇷",
+    title: "Devenir pet sitter dans le 18e arrondissement de Paris : le guide",
+    excerpt:
+      "Montmartre, Jules-Joffrin, la Goutte-d'Or : un quartier de voisinage où le bouche-à-oreille fait vite le plein — comment y trouver ses premiers clients.",
+  },
+  {
+    slug: "become-a-pet-sitter-in-los-angeles",
+    lang: "🇺🇸",
+    title: "How to become a pet sitter in Los Angeles (and what you can earn)",
+    excerpt:
+      "Silver Lake, Santa Monica, the Eastside: realistic LA rates ($40-65/day, $20-30/walk) and how to land your first regular clients.",
+  },
   // 06/10 (GUS) — recrutement Düsseldorf / Köln / Essen (mission de BOB, accord de Daniel).
   {
     slug: "haustiersitter-jobs-duesseldorf",
