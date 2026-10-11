@@ -997,6 +997,30 @@ export default function UsLocalGuide({ slug, lang, name, mode }: { slug: string;
           </li>
         ))}
       </ul>
+      {/* 11/10 (GUS) — Search Console : « cat sitting / cat sitter <ville> » en 11e-20e place
+          (Naples 38 affichages, Cincinnati 34, Honolulu 23, St. Louis 15) avec 0 clic : la page
+          ne parlait des chats qu'en un mot. Bloc propriétaire EN, texte vrai (visites à domicile),
+          aucun chiffre inventé ; les quartiers viennent du guide local de la ville. */}
+      {!fr && mode === "owner" && (
+        <div className="mt-8" aria-labelledby="us-cat-sitting">
+          <h2 id="us-cat-sitting" className="font-display text-2xl font-extrabold text-ink">{`Cat sitting in ${name}: drop-in visits at home`}</h2>
+          <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+            {`Most cats are happier staying home than being boarded. A cat sitter in ${name} comes to your place once or twice a day: fresh food and water, a clean litter box, playtime or quiet company, medication if your cat needs it, and a photo or short note after each visit in the app. Sitters who offer cat visits live around ${g.hoods.slice(0, 3).join(", ")} and the surrounding neighborhoods.`}
+          </p>
+          <ul className="mt-3 space-y-2">
+            {[
+              "Post a request for cat drop-in visits with your dates and how many visits a day you want; sitters near you reply in the app.",
+              "Chat first, then book: the amount stays in the app until the visits are done.",
+              `Longer trip? Ask for a sitter who can also sleep over so your cat keeps its routine in ${name}.`,
+            ].map((t) => (
+              <li key={t} className="flex gap-2 text-sm leading-relaxed text-ink-muted">
+                <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-owner" />
+                <span>{t}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

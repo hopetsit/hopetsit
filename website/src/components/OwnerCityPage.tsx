@@ -6,7 +6,7 @@ import { CitySupplyProof } from "@/components/CitySupplyProof";
 import { TrackedLink } from "@/components/TrackedLink";
 import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
 import OwnerPageEngagement from "@/components/OwnerPageEngagement";
-import UsLocalGuide, { usFaq } from "@/components/UsLocalGuide";
+import UsLocalGuide, { usFaq, usGuide } from "@/components/UsLocalGuide";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 
 // v560 — moteur de croissance : pages « trouver un pet sitter à <ville> »
@@ -149,7 +149,9 @@ const COPY: Record<RecruitLang, Copy> = {
     // ~5 000 affichages en 28 j : l'ancien titre faisait ~70 caractères (coupé par Google) et la
     // description était l'intro tronquée. Titre court qui reprend la requête + le tarif déjà
     // affiché sur la page ; description qui finit sa phrase.
-    metaTitle: (c) => `Dog Sitting & Pet Sitters in ${c.name}: ${c.dayRate}/day`,
+    // 11/10 (GUS) — villes US avec guide local : « cat sitting / cat sitter <ville> » en 11e-20e
+    // place sans clic ; le titre nomme aussi les chats (pet sitting + dog sitter gardés).
+    metaTitle: (c) => (usGuide(c.slug, "en") ? `Dog & Cat Sitters in ${c.name}: Pet Sitting ${c.dayRate}/day` : `Dog Sitting & Pet Sitters in ${c.name}: ${c.dayRate}/day`),
     metaDescription: (c) =>
       `Dog sitters and cat sitters near you in ${c.name}. Typical rates ${c.dayRate} a day, walks ${c.walkRate}. Post your request free and pay only when you book.`,
   },
