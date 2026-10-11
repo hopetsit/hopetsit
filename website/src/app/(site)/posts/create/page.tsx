@@ -13,6 +13,8 @@ import ProofNearButton2909 from "@/components/ProofNearButton2909";
 // 616 (LEO, 08/10) — ville choisie dans une liste « GPS » + bouton « Ma position ».
 import CityAutocomplete616, { searchCities616, type CityCoords } from "@/components/CityAutocomplete616";
 import { c616 } from "@/lib/i18n/cityPicker616";
+// 11/10 (SAM) — formulaire en 2 étapes : un écran pour la demande, un pour le compte.
+import { f2 } from "@/lib/i18n/formulaire2etapes1110";
 import { locationComplete, locationOptions, locationToSend, p587, type ServiceLocation } from "@/lib/i18n/publish587";
 import {
   API_BASE,
@@ -119,6 +121,19 @@ export default function CreatePostPage() {
   const [code, setCode] = useState("");
   const [info, setInfo] = useState("");
   const accStarted = useRef(false);
+
+  // 11/10/2026 (SAM, mission BOB) — DEUX ÉTAPES, UN ÉCRAN CHACUNE.
+  // Mesure du 10/10 (3 jours de pub Paris) : 225 arrivées → 3 formulaires
+  // ouverts → 0 demande ; sur 7 jours, 10 formulaires ouverts et PERSONNE n'a
+  // touché le champ « Prénom » (pub_compte = 0). À 375 px le formulaire faisait
+  // 3 338 px (4,1 écrans), 11 champs, le compte à 1 551 px, « Publier » à
+  // ≈ 3 200 px. Étape 1 = ville, service, dates, une phrase, « Continuer ».
+  // Étape 2 = compte (invité) + « Publier ma demande » ; budget, notes,
+  // animaux et photos sont repliés (facultatifs). Repère `pub_etape2` pour
+  // mesurer étape 1 → étape 2.
+  const [etape, setEtape] = useState<1 | 2>(1);
+  const [details, setDetails] = useState(false);
+  const etape2Started = useRef(false);
 
   function addPhotos(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
@@ -249,6 +264,8 @@ export default function CreatePostPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // 11/10 — touche Entrée à l'étape 1 = « Continuer », jamais une publication.
+    if (etape === 1) { onContinue(); return; }
     if (!body.trim()) {
       setErr(t("posts_error_body"));
       return;
@@ -475,6 +492,30 @@ export default function CreatePostPage() {
     trackSiteEvent("cta_click", { label: "pub_compte" });
   }
 
+  /** Étape 1 → 2 : la demande est complète (une phrase, un service, une ville). */
+  function onContinue() {
+    setErr("");
+    if (!body.trim()) return setErr(f2(lang, "body_required"));
+    if (!service) return setErr(f2(lang, "service_required"));
+    if (!city.trim()) return setErr(t("signup_city_required"));
+    if (!locationComplete(service, svcLocation, meetingPoint)) {
+      return setErr(p587(lang, svcLocation === "meeting_point" ? "svc587_meeting_required" : "svc587_required"));
+    }
+    saveDraft();
+    setEtape(2);
+    if (!etape2Started.current) {
+      etape2Started.current = true;
+      trackSiteEvent("cta_click", { label: "pub_etape2" });
+    }
+    try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* ignore */ }
+  }
+
+  function onBack() {
+    setErr("");
+    setEtape(1);
+    try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* ignore */ }
+  }
+
   // Les owners seuls publient des annonces (le backend renvoie 403 sinon).
   if (role && role !== "owner") {
     return (
@@ -485,10 +526,17 @@ export default function CreatePostPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-16 md:py-24">
-      <h1 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-        {t("posts_create_title")}
+    <div className="mx-auto max-w-lg px-4 py-8 md:py-24">
+      {/* 11/10 (SAM) — même promesse que le bouton de la page Paris. */}
+      <h1 className="text-center font-display text-[26px] font-extrabold leading-tight tracking-tight md:text-4xl">
+        {f2(lang, "title")}
       </h1>
+      <p className="mt-2 text-center text-sm leading-snug text-[#6E4F48]">{f2(lang, "sub")}</p>
+      {step !== "code" && (
+        <p data-testid="etape-indicateur" className="mt-4 text-center text-xs font-extrabold uppercase tracking-wide text-owner-dark">
+          {f2(lang, "step_of").replace("{n}", String(etape))}
+        </p>
+      )}
 
       {step === "code" ? (
         <form
@@ -535,8 +583,11 @@ export default function CreatePostPage() {
       ) : (
       <form
         onSubmit={onSubmit}
-        className="mt-10 space-y-5 rounded-3xl border border-ink/5 bg-white p-7 shadow-card"
+        data-testid={`etape-${etape}`}
+        className="mt-5 space-y-5 rounded-3xl border border-ink/5 bg-white p-5 shadow-card md:mt-10 md:p-7"
       >
+        {/* ——— ÉTAPE 1 : la demande, sur un écran (11/10 SAM). ——— */}
+        {etape === 1 && (<>
         {/* 28/09 soir — demande adressée à un prestataire précis. */}
         {target && targetName && (
           <div data-testid="target-provider" className="flex items-start gap-3 rounded-2xl border border-owner/25 bg-owner-light p-4">
@@ -575,18 +626,6 @@ export default function CreatePostPage() {
             setCityLabel(co ? lb || "" : "");
           }}
         />
-
-        <div>
-          <label className="block text-sm font-medium text-ink">{t("posts_body_label")}</label>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            required
-            rows={4}
-            placeholder={t("posts_body_ph")}
-            className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
-          />
-        </div>
 
         <div>
           <label className="block text-sm font-medium text-ink">{t("posts_services_label")}</label>
@@ -642,6 +681,96 @@ export default function CreatePostPage() {
             />
           </div>
         </div>
+
+        {/* 11/10 (SAM) — une phrase, pas un pavé : le texte libre obligatoire en
+            4 lignes était le 1er champ et bloquait l'écran. */}
+        <div>
+          <label htmlFor="body-1110" className="block text-sm font-medium text-ink">{f2(lang, "body_label")}</label>
+          <input
+            id="body-1110"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            maxLength={500}
+            placeholder={f2(lang, "body_ph")}
+            className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3.5 py-3 text-sm text-ink focus:border-owner focus:outline-none"
+          />
+        </div>
+
+        {err && <p className="text-center text-sm text-owner-dark">{err}</p>}
+        <button
+          type="button"
+          onClick={onContinue}
+          data-testid="continuer-1110"
+          className="w-full rounded-full bg-owner py-3.5 text-base font-extrabold text-white shadow-cta hover:bg-owner-dark"
+        >
+          {f2(lang, "next")}
+        </button>
+        </>)}
+
+        {/* ——— ÉTAPE 2 : le compte (invité) + « Publier » (11/10 SAM). ——— */}
+        {etape === 2 && (<>
+        <button type="button" onClick={onBack} className="text-sm font-semibold text-owner-dark underline max-lg:min-h-[44px]">
+          ← {f2(lang, "back")}
+        </button>
+
+        {/* 28/09 (NEO) — le compte, sur le même écran que la demande. */}
+        {invite && (
+          <div data-testid="guest-account" className="space-y-4 rounded-2xl border border-owner/25 bg-owner-light p-5">
+            <div>
+              <p className="font-display text-base font-extrabold text-owner-dark">{gp(lang, "acc_title")}</p>
+              <p className="mt-0.5 text-xs leading-snug text-[#6E4F48]">{gp(lang, "acc_sub")}</p>
+            </div>
+            <div>
+              <label htmlFor="acc-name" className="block text-sm font-medium text-ink">{gp(lang, "acc_name")}</label>
+              <input id="acc-name" value={accName} onFocus={accountStarted} onChange={(e) => setAccName(e.target.value)}
+                autoComplete="given-name" className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none" />
+            </div>
+            <div>
+              <label htmlFor="acc-email" className="block text-sm font-medium text-ink">{gp(lang, "acc_email")}</label>
+              <input id="acc-email" type="email" value={accEmail} onFocus={accountStarted} onChange={(e) => setAccEmail(e.target.value)}
+                autoComplete="email" inputMode="email" className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none" />
+            </div>
+            <div>
+              <label htmlFor="acc-pwd" className="block text-sm font-medium text-ink">{gp(lang, "acc_password")}</label>
+              <div className="relative">
+                <input id="acc-pwd" type={showPwd ? "text" : "password"} value={accPassword} onFocus={accountStarted}
+                  onChange={(e) => setAccPassword(e.target.value)} autoComplete="new-password"
+                  className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none pr-11" />
+                <button type="button" onClick={() => setShowPwd((v) => !v)} aria-label={showPwd ? "hide" : "show"}
+                  className="absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 text-owner-dark">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>{showPwd && <line x1="2" y1="2" x2="22" y2="22"/>}</svg>
+                </button>
+              </div>
+              <p className="mt-1 text-xs leading-snug text-[#6E4F48]">{gp(lang, "acc_pwd_hint")}</p>
+            </div>
+            <label className="flex items-start gap-2.5 text-sm text-ink">
+              <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-owner" />
+              <span>
+                {t("signup_terms_accept")}{" "}
+                <Link href="/terms" className="font-semibold text-owner-dark underline">{t("terms_title")}</Link>
+                {" · "}
+                <Link href="/privacy" className="font-semibold text-owner-dark underline">{t("privacy_title")}</Link>
+              </span>
+            </label>
+          </div>
+        )}
+
+        {/* 11/10 (SAM) — détails facultatifs repliés : budget, notes, animaux, photos. */}
+        <button
+          type="button"
+          onClick={() => setDetails((v) => !v)}
+          aria-expanded={details}
+          data-testid="details-1110"
+          className="flex w-full items-center justify-between rounded-2xl border border-ink/10 bg-bg-soft px-4 py-3 text-left max-lg:min-h-[44px]"
+        >
+          <span>
+            <span className="block text-sm font-semibold text-ink">{f2(lang, "details_toggle")}</span>
+            <span className="block text-xs text-[#6E4F48]">{f2(lang, "details_sub")}</span>
+          </span>
+          <span aria-hidden className="text-owner-dark">{details ? "−" : "+"}</span>
+        </button>
+        <div className={details ? "space-y-5" : "hidden"}>
 
         {/* v587 (option A de Daniel) — « Mon budget », facultatif. */}
         <div data-testid="budget587">
@@ -734,55 +863,14 @@ export default function CreatePostPage() {
           </div>
           <p className="mt-1 text-xs text-ink-muted">{t("posts_photos_hint")}</p>
         </div>
-
-        {/* 28/09 (NEO) — le compte, sur le même écran que la demande. */}
-        {invite && (
-          <div data-testid="guest-account" className="space-y-4 rounded-2xl border border-owner/25 bg-owner-light p-5">
-            <div>
-              <p className="font-display text-base font-extrabold text-owner-dark">{gp(lang, "acc_title")}</p>
-              <p className="mt-0.5 text-xs leading-snug text-[#6E4F48]">{gp(lang, "acc_sub")}</p>
-            </div>
-            <div>
-              <label htmlFor="acc-name" className="block text-sm font-medium text-ink">{gp(lang, "acc_name")}</label>
-              <input id="acc-name" value={accName} onFocus={accountStarted} onChange={(e) => setAccName(e.target.value)}
-                autoComplete="given-name" className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none" />
-            </div>
-            <div>
-              <label htmlFor="acc-email" className="block text-sm font-medium text-ink">{gp(lang, "acc_email")}</label>
-              <input id="acc-email" type="email" value={accEmail} onFocus={accountStarted} onChange={(e) => setAccEmail(e.target.value)}
-                autoComplete="email" inputMode="email" className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none" />
-            </div>
-            <div>
-              <label htmlFor="acc-pwd" className="block text-sm font-medium text-ink">{gp(lang, "acc_password")}</label>
-              <div className="relative">
-                <input id="acc-pwd" type={showPwd ? "text" : "password"} value={accPassword} onFocus={accountStarted}
-                  onChange={(e) => setAccPassword(e.target.value)} autoComplete="new-password"
-                  className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none pr-11" />
-                <button type="button" onClick={() => setShowPwd((v) => !v)} aria-label={showPwd ? "hide" : "show"}
-                  className="absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 text-owner-dark">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>{showPwd && <line x1="2" y1="2" x2="22" y2="22"/>}</svg>
-                </button>
-              </div>
-              <p className="mt-1 text-xs leading-snug text-[#6E4F48]">{gp(lang, "acc_pwd_hint")}</p>
-            </div>
-            <label className="flex items-start gap-2.5 text-sm text-ink">
-              <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 accent-owner" />
-              <span>
-                {t("signup_terms_accept")}{" "}
-                <Link href="/terms" className="font-semibold text-owner-dark underline">{t("terms_title")}</Link>
-                {" · "}
-                <Link href="/privacy" className="font-semibold text-owner-dark underline">{t("privacy_title")}</Link>
-              </span>
-            </label>
-          </div>
-        )}
+        </div>{/* fin des détails repliés */}
 
         {/* 29/09 (NEO) — qui va lire la demande : chiffre vrai, rien si 0. */}
         <ProofNearButton2909 city={city} lang={lang} />
         <button
           disabled={busy}
-          className="w-full rounded-full bg-owner py-3 text-sm font-semibold text-white shadow-cta hover:bg-owner-dark disabled:opacity-60"
+          data-testid="publier-1110"
+          className="w-full rounded-full bg-owner py-3.5 text-base font-extrabold text-white shadow-cta hover:bg-owner-dark disabled:opacity-60"
         >
           {busy ? t("posts_publishing") : invite ? gp(lang, "acc_cta") : t("posts_submit")}
         </button>
@@ -801,6 +889,7 @@ export default function CreatePostPage() {
         {info && <p className="text-center text-sm font-semibold text-owner-dark">{info}</p>}
         {err && <p className="text-center text-sm text-owner-dark">{err}</p>}
         <p className="text-center text-xs text-ink-muted">{t("posts_no_contact_info")}</p>
+        </>)}
       </form>
       )}
     </div>
