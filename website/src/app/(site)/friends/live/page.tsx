@@ -7,7 +7,7 @@
 // /map (couche PawFollow) — cette page ne fait plus qu'une redirection
 // client immédiate pour les anciens liens, favoris et notifications.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

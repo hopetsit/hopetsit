@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { TrackedLink } from "@/components/TrackedLink";
 import { ExpiringNotice } from "@/components/ExpiringNotice";
 import type { RecruitCity } from "@/lib/recruit-cities";

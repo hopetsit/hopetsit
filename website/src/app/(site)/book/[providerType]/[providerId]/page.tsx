@@ -20,7 +20,7 @@
 // Flow inchangé : POST /bookings → statut `pending` → /bookings ; le
 // prestataire reçoit la demande (push + socket) ; paiement après acceptation.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

@@ -3,7 +3,7 @@
 // v498 — Daniel : page « Supprimer mon compte » (exigence Google Play : URL
 // publique de suppression de compte). Web-only. Publique (consultable sans être
 // connecté) ; si connecté → bouton de suppression fonctionnel (DELETE /users/me).
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

@@ -10,7 +10,7 @@
 // Page claire comme /p (le site garde ses pages de contenu claires, même en mode sombre).
 // Tous les hooks EN HAUT (piège du 22/09 : hook après un retour = page plantée).
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";

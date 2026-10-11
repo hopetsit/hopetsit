@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // v531 — SEO : index du blog (pages 100% statiques côté serveur pour que
 // Google indexe le texte — contrairement aux pages app qui sont client-side).

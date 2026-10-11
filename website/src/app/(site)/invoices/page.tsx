@@ -5,7 +5,7 @@
 // Ctrl+P pour exporter en PDF depuis le navigateur. Même UX que l'app
 // Flutter (qui génère le PDF localement via le package `pdf`).
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

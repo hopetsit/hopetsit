@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { LogoWithText } from "./Logo";
 import { PawMapCTA } from "./PawMapCTA";
 import { useT } from "@/lib/i18n/LanguageProvider";

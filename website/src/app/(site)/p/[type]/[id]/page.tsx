@@ -16,7 +16,7 @@
 // Volontairement `noindex` (cf. middleware) : c'est un lien que la personne
 // partage elle-même, pas un annuaire public de prestataires.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

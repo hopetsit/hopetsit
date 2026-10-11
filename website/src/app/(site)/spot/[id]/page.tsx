@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { notFound } from "next/navigation";
 
 // v532 — PAGE DE PARTAGE D'UN PAWSPOT (auto-promotion).

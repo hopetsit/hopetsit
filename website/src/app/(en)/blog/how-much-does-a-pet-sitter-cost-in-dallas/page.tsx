@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // 2026-W40 — SEO US, owner angle (even ISO week), city rotation index 0/8
 // (Dallas). Topic #1 from marketing/sujets_us.md — links into the two

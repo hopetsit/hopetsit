@@ -6,7 +6,7 @@
 //   2. IBAN payout (mandatory pour recevoir les paiements)
 // Owner ne devrait pas accéder à cette page → redirect.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

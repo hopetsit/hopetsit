@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // 2026-W37 — SEO : article de recrutement ciblé sur le 11e arrondissement,
 // l'arrondissement le plus peuplé de Paris (généré par la routine marketing

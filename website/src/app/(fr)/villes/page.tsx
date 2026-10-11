@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { RECRUIT_CITIES, RECRUIT_PATH_PREFIX, OWNER_PATH_PREFIX, type RecruitLang } from "@/lib/recruit-cities";
 
 // v560 — moteur de croissance : page « hub » qui relie les 152 pages villes

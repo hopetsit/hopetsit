@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { trackSiteEvent, useCampaignHref } from "@/components/SiteAnalytics";
 
 // 03/10/2026 (SAM) — barre « Publier ma demande » collée en bas de l'écran,

@@ -3,7 +3,7 @@
 // v23.1 part 146 — Page profil : voir + éditer mes infos.
 // Miroir simplifié de l'écran "Mon profil" de l'app Flutter.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

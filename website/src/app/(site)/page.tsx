@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import StoreBadges from "@/components/StoreBadges";

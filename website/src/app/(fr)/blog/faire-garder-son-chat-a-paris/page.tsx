@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
 // v535 — SEO Paris : garde de chat (audience énorme, souvent oubliée des

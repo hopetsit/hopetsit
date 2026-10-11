@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // 2026-W38 — SEO US : Austin, angle PROPRIÉTAIRES (semaine ISO paire). Ville
 // en rotation (index 6/8), données reprises de lib/recruit-cities.ts (austin).

@@ -15,7 +15,7 @@
 // (profil, boutique). Style Apple : carte #FAF1EC, coins 24 px, texte
 // #231715 / #6E4F48, état sélectionné orange pâle.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import {

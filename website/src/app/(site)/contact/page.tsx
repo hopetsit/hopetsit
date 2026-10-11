@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { sendContactMessage } from "@/lib/api";
 import { PageHero } from "@/components/PageHero";

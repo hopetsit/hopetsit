@@ -3,7 +3,7 @@
 // v23.1 part 146 — Page "Mes animaux" : liste + création/édition/suppression.
 // Owner only. Les autres rôles voient un message d'invitation à utiliser l'app.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

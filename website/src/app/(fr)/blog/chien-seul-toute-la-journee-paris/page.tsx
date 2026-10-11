@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
 // v548 — SEO Paris, angle PROPRIÉTAIRE (semaine paire) : le chien seul toute

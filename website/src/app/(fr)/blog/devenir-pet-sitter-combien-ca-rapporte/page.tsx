@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // v546 — SEO : article statique « devenir pet sitter / revenus ». Cible le
 // RECRUTEMENT de prestataires (le vrai goulot : une ville sans sitters ne

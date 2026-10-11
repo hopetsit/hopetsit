@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { RHEIN_DEMAND_END, rheinDemandOpen } from "@/components/DeRheinRecruit";
 import { ExpiringNotice } from "@/components/ExpiringNotice";
 

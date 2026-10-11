@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { trackSiteEvent, useCampaignHref } from "@/components/SiteAnalytics";
 
 // 06/10/2026 (SAM) — page Paris (cible de la pub) : « Vous habitez où ? » AVANT

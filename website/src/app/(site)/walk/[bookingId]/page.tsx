@@ -11,7 +11,7 @@
 // discrète ; textes dans les 9 langues du site ; couleurs pleines (zéro gris).
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { TrailPoint } from "@/lib/trail612";

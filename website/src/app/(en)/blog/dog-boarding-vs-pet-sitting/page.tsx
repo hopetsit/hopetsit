@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // v535 — SEO US : comparatif boarding vs sitting (requête décisionnelle).
 export const metadata: Metadata = {

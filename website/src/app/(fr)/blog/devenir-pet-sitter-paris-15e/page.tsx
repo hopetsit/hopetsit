@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // 2026-W39 — SEO : article de recrutement ciblé sur le 15e arrondissement, le
 // plus grand de Paris (généré par la routine marketing hebdomadaire, semaine

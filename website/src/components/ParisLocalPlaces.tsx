@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import PLACES from "@/lib/paris-places.json";
 
 // v562 — SEO Paris (Search Console 17/09 : les 20 arrondissements « détectés, non

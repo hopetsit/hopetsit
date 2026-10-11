@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // v508 — Daniel : « le petit retour Mon espace n'est pas assez visible » →
 // vrai bouton pill (blanc, liseré orange, flèche dans un rond) commun à

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { notFound } from "next/navigation";
 
 // v552 — PAGE DE PARTAGE D'UN SIGNALEMENT / D'UN SOS ANIMAL.

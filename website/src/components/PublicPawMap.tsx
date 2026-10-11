@@ -10,7 +10,7 @@
 // Chargée en `dynamic(..., { ssr: false })` par les pages : Leaflet touche
 // `window` et ne se rend pas côté serveur.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer, ZoomControl, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";

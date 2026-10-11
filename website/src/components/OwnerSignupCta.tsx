@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { trackSiteEvent, useCampaignHref } from "@/components/SiteAnalytics";
 
 // v577 — 21/09, correction de l'étape qui fuit le plus.

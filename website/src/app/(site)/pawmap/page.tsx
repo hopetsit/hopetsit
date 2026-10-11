@@ -3,7 +3,7 @@
 import { PawPointsTeaser } from "@/components/PawPointsTeaser";
 import { VerifiedPill } from "@/components/VerifiedPill";
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PawMapHeroBadge } from "@/components/PawMapHeroBadge";

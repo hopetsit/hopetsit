@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { AppIcon } from "@/components/AppIcon";

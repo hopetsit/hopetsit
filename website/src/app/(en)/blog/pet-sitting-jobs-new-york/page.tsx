@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // 05/10/2026 (GUS, ordre de Daniel : recruter des prestataires à New York,
 // gratuitement). Requête visée : « pet sitting jobs new york » / « how much

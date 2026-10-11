@@ -22,8 +22,19 @@ const NOINDEX = [
   "/notifications", "/wallet", "/subscription", "/paw-spot", "/post", "/report",
 ];
 
+// 11/10/2026 (BOB) — Vercel gratuit : 100 % des lectures ISR consommées (1 M en 30 j), pause du
+// site annoncée. Observability : des centaines de pages villes différentes lues en 12 h = robots
+// (SEO payants, IA, scrapers), pas des visiteurs. Ils sont refusés ICI, avant le cache ISR, donc
+// sans lecture facturée. Google, Bing, Apple, DuckDuckGo, Facebook/WhatsApp/Twitter/LinkedIn
+// (aperçus de liens) restent autorisés : ce sont les seuls qui apportent des visiteurs.
+const BLOCKED_BOTS = /AhrefsBot|SemrushBot|MJ12bot|DotBot|PetalBot|Bytespider|GPTBot|ClaudeBot|anthropic-ai|CCBot|Amazonbot|DataForSeoBot|BLEXBot|MegaIndex|SeznamBot|serpstatbot|ZoominfoBot|Barkrowler|ImagesiftBot|Diffbot|omgili|meta-externalagent|Applebot-Extended|Google-Extended|PerplexityBot|YouBot|OAI-SearchBot|cohere-ai|TimpiBot|SiteAuditBot|AwarioBot|DuckAssistBot|Scrapy|python-requests|Go-http-client|curl\/|wget\//i;
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const ua = req.headers.get("user-agent") || "";
+  if (BLOCKED_BOTS.test(ua)) {
+    return new NextResponse("Forbidden", { status: 403, headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
+  }
   const res = NextResponse.next();
   const path = pathname !== "/" && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
   res.headers.set("Link", `<https://www.hopetsit.com${path === "/" ? "/" : path}>; rel="canonical"`);

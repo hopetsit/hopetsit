@@ -9,7 +9,7 @@
 // derniers gains. Tous les hooks EN HAUT (piège du 22/09).
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import BackLink from "@/components/BackLink";
 import { PlushVideo } from "@/components/PlushVideo";

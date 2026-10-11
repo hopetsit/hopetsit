@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // v535 — SEO US : "how long can you leave a cat alone" (très gros volume).
 export const metadata: Metadata = {

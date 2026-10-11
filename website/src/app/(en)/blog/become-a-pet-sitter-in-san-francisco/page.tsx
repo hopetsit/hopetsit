@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // 2026-W39 — SEO recruiting post for the San Francisco market (weekly
 // marketing routine, odd ISO week = recruiting angle, city from the US rotation).

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // 06/10/2026 (GUS) — maillage des guides Paris côté PROPRIÉTAIRES.
 // Search Console (inspection du 06/10) : 4 des 7 guides Paris n'étaient pas

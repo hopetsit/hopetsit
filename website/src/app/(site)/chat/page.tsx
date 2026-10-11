@@ -5,7 +5,7 @@
 // active à droite), stack vertical sur mobile (clic ouvre la conversation).
 // Temps réel via socket.io : nouveaux messages arrivent live.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

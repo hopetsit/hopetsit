@@ -17,7 +17,7 @@
 // `prefers-reduced-motion` → tout fixe. Habillage seul : l'action est celle
 // passée par la page.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
 

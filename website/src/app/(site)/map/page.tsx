@@ -30,7 +30,7 @@
 // Toutes les fonctions d'avant sont conservées (mêmes handlers, mêmes routes).
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

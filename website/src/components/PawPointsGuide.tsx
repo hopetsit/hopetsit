@@ -6,7 +6,7 @@
 // Tout vient du catalogue UNIQUE de ZOE (catalog607, rendu côté serveur puis
 // relu ici) : aucun chiffre en dur. La page membre (/pawpoints) reste privée.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";

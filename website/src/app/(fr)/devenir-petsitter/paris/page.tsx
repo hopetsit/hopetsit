@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
 import { PARIS_CITY } from "@/lib/recruit-cities";
 

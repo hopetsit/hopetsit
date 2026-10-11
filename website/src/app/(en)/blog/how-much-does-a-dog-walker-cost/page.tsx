@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // v531 — SEO: static English article targeting "dog walker cost" queries.
 export const metadata: Metadata = {

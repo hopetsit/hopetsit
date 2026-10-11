@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { PageHero, SectionTitle } from "@/components/PageHero";
 import { SubscriptionsExplainer } from "@/components/SubscriptionsExplainer";

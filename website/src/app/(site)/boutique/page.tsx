@@ -15,7 +15,7 @@
 
 import { PawPointsTeaser } from "@/components/PawPointsTeaser";
 import { memberPinHtml, PAWMAP_KEYFRAMES } from "@/lib/pawmapLegend";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { PawMemberBadge } from "@/components/PawMemberBadge";
 import { useRouter } from "next/navigation";

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { TrackedLink } from "@/components/TrackedLink";
 
 // 05/10/2026 (GUS, ordre de Daniel : « plus de prestataires à New York », gratuit).

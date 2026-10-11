@@ -12,7 +12,7 @@
 //   - les deux stores.
 // Un visiteur non connecté est envoyé sur /login?next=<page web>.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

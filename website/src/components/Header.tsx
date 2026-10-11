@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { LogoWithText } from "./Logo";

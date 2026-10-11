@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // v535 — SEO US : recrutement de l'offre (dog walkers) via requête à fort
 // volume "how to become a dog walker".

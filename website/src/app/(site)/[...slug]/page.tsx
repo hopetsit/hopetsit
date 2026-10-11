@@ -24,7 +24,7 @@
 // Cette implémentation évite la prolifération de 8 pages stubs identiques
 // (option (b) recommandée par l'audit).
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useEffect, useMemo, useState } from "react";
 // v576 — mesure d'audience : clics vers les stores depuis la page de repli.
 import StoreBadges from "@/components/StoreBadges";

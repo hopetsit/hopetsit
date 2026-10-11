@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 
 // v531 — SEO : template des pages ville « pet sitter à X » (statique serveur,
 // une langue par marché). Le préfixe _ exclut ce fichier du routing.

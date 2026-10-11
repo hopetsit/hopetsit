@@ -6,7 +6,7 @@
 // quand le booking est en `pending`. Refresh temps réel via socket events
 // `booking:accepted` / `booking:paid`.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

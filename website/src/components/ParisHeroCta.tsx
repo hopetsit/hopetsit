@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { trackSiteEvent, useCampaignHref } from "@/components/SiteAnalytics";
 
 // 08/10/2026 (SAM) — ordre de Daniel : « corrige-le en faisant tourner les pubs ».

@@ -3,7 +3,7 @@
 // v23.1 part 146 — Page recherche providers (sitters + walkers).
 // Owner only — sitter/walker n'a pas vocation à chercher des providers.
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
 // 2026-W40 — SEO FR, angle PROPRIÉTAIRES (semaine ISO paire). Angle non
