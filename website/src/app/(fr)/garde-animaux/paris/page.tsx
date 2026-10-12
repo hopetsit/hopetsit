@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import OwnerCityPage from "@/components/OwnerCityPage";
 import { TrackedLink } from "@/components/TrackedLink";
-import { ParisHeroCta } from "@/components/ParisHeroCta";
+import { ParisHeroForm } from "@/components/ParisHeroForm";
 import { RECRUIT_CITIES, OWNER_PATH_PREFIX, PARIS_CITY, type RecruitCity } from "@/lib/recruit-cities";
 
 // v575 — PAGE D'ATTERRISSAGE DE LA PUB META « Paris · Propriétaires (FR) ».
@@ -78,12 +78,15 @@ export default function GardeAnimauxParisPage() {
       // de la pub restés 3 s le 07/10 → 0 choix, 0 « Publier ». Remplacé par
       // une phrase + UN bouton qui ouvre directement le formulaire (le quartier
       // se précise dans son 1er champ, pré-rempli « Paris »).
+      // 12/10 (SAM) — changement d'approche : 956 arrivées pub en 7 j → 8 clics
+      // sur le bouton. Le premier écran EST désormais le formulaire court
+      // (service, dates, une phrase, « Continuer » → étape 2 du formulaire).
+      // Retour arrière : remettre <ParisHeroCta> (composant conservé).
       heroCta={
-        <ParisHeroCta
+        <ParisHeroForm
           city={PARIS.name}
-          lead="Décrivez votre besoin en 2 minutes : les gardiens et promeneurs de Paris reçoivent votre demande et vous répondent."
-          label="Publier ma demande — gratuit"
-          note="Sans compte pour commencer · vous choisissez ensuite, sans engagement"
+          lead="Dites-nous ce qu'il vous faut : les gardiens et promeneurs de Paris reçoivent votre demande et vous répondent."
+          note="Gratuit · sans compte pour commencer · vous choisissez ensuite, sans engagement"
         />
       }
       stickyWatchId="hero-publier"

@@ -169,10 +169,14 @@ export default function CreatePostPage() {
     if (!u) trackSiteEvent("cta_click", { label: "pub_ouvert" });
 
     // Ville pré-remplie par la page ville d'où l'on vient (?city=Paris).
+    // 12/10 (SAM) — ?etape=2 : arrivée depuis le formulaire court de la page
+    // Paris (ParisHeroForm), la demande est déjà dans le brouillon.
+    let etapeQ = "";
     try {
       const q = new URLSearchParams(window.location.search);
       const c = (q.get("city") || "").trim();
       if (c) setCity(c);
+      etapeQ = (q.get("etape") || "").trim();
       // Code parrain (même règle que /signup : format exact uniquement).
       const ref = (q.get("ref") || "").trim();
       if (/^[A-HJ-NP-Z2-9]{8}$/.test(ref)) setReferralCode(ref);
@@ -219,6 +223,18 @@ export default function CreatePostPage() {
         setStep("code");
       }
       if (typeof d.accName === "string") setAccName(d.accName);
+      // 12/10 (SAM) — demande déjà écrite sur la page Paris : on ouvre
+      // directement l'étape 2 (compte + « Publier »). « Modifier ma demande »
+      // ramène à l'étape 1 pré-remplie. Brouillon incomplet → étape 1.
+      if (etapeQ === "2" && !u && typeof d.body === "string" && d.body.trim()
+          && Array.isArray(d.services) && typeof d.services[0] === "string"
+          && locationComplete(d.services[0], String(d.serviceLocation || ""), String(d.meetingPoint || ""))) {
+        setEtape(2);
+        if (!etape2Started.current) {
+          etape2Started.current = true;
+          trackSiteEvent("cta_click", { label: "pub_etape2" });
+        }
+      }
     } catch { /* brouillon illisible → on repart d'une page vierge */ }
   }, [router]);
 
