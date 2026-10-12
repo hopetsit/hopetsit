@@ -179,7 +179,10 @@ class _PawRailButtonState extends State<PawRailButton> {
                         widget.child ??
                             SizedBox.square(
                               dimension: glyph,
-                              child: widget.svg != null
+                              // 615 — un SVG vide (PawPoints : icône Material)
+                              // faisait planter SvgPicture (« Invalid SVG data »).
+                              child: (widget.svg != null &&
+                                      widget.svg!.trim().isNotEmpty)
                                   ? SvgPicture.string(widget.svg!,
                                       width: glyph, height: glyph)
                                   : Icon(widget.icon ?? Icons.circle,

@@ -11196,7 +11196,9 @@ class _PawMapScreenState extends State<PawMapScreen>
         _topChromeBottom > 0 ? _topChromeBottom : fallback;
     final double maxH =
         mq.size.height - topBottom - 14.h - _railBottom(context, picking: false);
-    return maxH.clamp(120.0, mq.size.height).toDouble();
+    // 615 — clamp(120, h) plantait (« Invalid argument(s): 120.0 ») quand la
+    // fenêtre mesure moins de 120 dp (premier cadre iOS, lancement en fond).
+    return maxH.clamp(math.min(120.0, mq.size.height), mq.size.height).toDouble();
   }
 
   Widget _railScroller(Widget column) {
@@ -11221,7 +11223,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     final double maxH =
         h - topBottom - 14.h - _railBottom(context, picking: false);
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxH.clamp(120.0, h)),
+      // 615 — borne basse jamais au-dessus de h (sinon ArgumentError au 1er cadre).
+      constraints: BoxConstraints(maxHeight: maxH.clamp(math.min(120.0, h), h)),
       // 607 — rétrécit avant de défiler (jamais un bouton coupé à moitié).
       child: PawFitOrScroll(
         reverse: true,
