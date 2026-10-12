@@ -25,8 +25,13 @@ type Mode = "owner" | "recruit";
 
 const DATA = PLACES as Record<string, ParisEntry>;
 
-/** Phrase chiffrée propre à l'arrondissement : seulement ce qui existe, avec les noms. */
-function stats(e: ParisEntry): string {
+/** Phrase chiffrée propre à l'arrondissement : seulement ce qui existe, avec les noms.
+ *  10/12 (bob) : les pages garde-animaux/paris-N et devenir-petsitter/paris-N partageaient
+ *  ce paragraphe au mot près (Search Console : 5 des 6 pages clés encore non indexées sont
+ *  classées « doublon, mauvaise URL canonique » — même cause que les jumelles Chicago/Fort
+ *  Worth à 92 % corrigées le 10/10). Même liste de lieux réels, mais formulée différemment
+ *  selon qu'on s'adresse au propriétaire ou au futur pet sitter. */
+function stats(e: ParisEntry, mode: Mode): string {
   const c = e.counts;
   const bits = [
     c.vet ? nb(c.vet, "vétérinaire", "vétérinaires") : "",
@@ -37,7 +42,10 @@ function stats(e: ParisEntry): string {
     c.water ? nb(c.water, "fontaine", "fontaines") : "",
   ].filter(Boolean);
   const named = e.places.slice(0, 2).map((p) => p.title);
-  return `Paris ${ord(e.n)} : ${bits.join(", ")}${named.length ? `, dont ${named.join(" et ")}` : ""}.`;
+  const tail = named.length ? `, dont ${named.join(" et ")}` : "";
+  return mode === "owner"
+    ? `Autour de chez vous, dans le ${ord(e.n)} : ${bits.join(", ")}${tail}.`
+    : `Un pet sitter du ${ord(e.n)} travaille avec ça à proximité : ${bits.join(", ")}${tail}.`;
 }
 export const parisEntry = (slug: string): ParisEntry | undefined => DATA[slug];
 
@@ -77,11 +85,12 @@ function PlaceList({ items }: { items: Place[] }) {
 }
 
 /** Promenades : uniquement des noms réels (espaces canins du quartier et des voisins). */
-function walks(e: ParisEntry): string {
+function walks(e: ParisEntry, mode: Mode): string {
   const dog = e.places.filter((p) => p.cat === "dogpark").map((p) => p.title);
   const near = e.neighbours.flatMap((v) => (DATA[`paris-${v}`]?.places || []).filter((p) => p.cat === "dogpark").map((p) => `${p.title} (${ord(v)})`));
+  const lead = mode === "owner" ? "Pour vos propres sorties : " : "Pour varier les balades avec les animaux que vous gardez : ";
   const parts = [
-    dog.length ? `Espaces canins : ${dog.join(", ")}.` : "",
+    dog.length ? `${lead}${dog.join(", ")}.` : "",
     near.length ? `Tout près : ${near.slice(0, 4).join(", ")}.` : "",
     e.counts.water ? `${e.counts.water} fontaines.` : "",
   ].filter(Boolean);
@@ -100,9 +109,11 @@ export function parisFaq(slug: string, mode: Mode): { q: string; a: string }[] {
   const neighbourParks = e.neighbours.flatMap((v) => (DATA[`paris-${v}`]?.places || []).filter((p) => p.cat === "dogpark").map((p) => `${p.title} (${ord(v)})`));
   const faq: { q: string; a: string }[] = [];
   faq.push({
-    q: `Quel vétérinaire est le plus proche dans le ${a} ?`,
+    q: mode === "owner" ? `Quel vétérinaire est le plus proche dans le ${a} ?` : `Vers quel vétérinaire orienter un propriétaire du ${a} en urgence ?`,
     a: nearest
-      ? `D'après la PawMap, ${nearest.title}${nearest.address ? `, ${nearest.address}` : ""}, se trouve ${dist(nearest.m)}.${e.vetSat ? ` Dans le secteur, ${nb(e.vetSat, "cabinet ouvre", "cabinets ouvrent")} le samedi${e.vetSun ? ` et ${nb(e.vetSun, "le dimanche", "le dimanche")}` : ""}.` : " Aucun des cabinets dont les horaires sont connus n'ouvre le samedi : prévoyez un plan B dans un arrondissement voisin."}`
+      ? (mode === "owner"
+          ? `D'après la PawMap, ${nearest.title}${nearest.address ? `, ${nearest.address}` : ""}, se trouve ${dist(nearest.m)}.${e.vetSat ? ` Dans le secteur, ${nb(e.vetSat, "cabinet ouvre", "cabinets ouvrent")} le samedi${e.vetSun ? ` et ${nb(e.vetSun, "le dimanche", "le dimanche")}` : ""}.` : " Aucun des cabinets dont les horaires sont connus n'ouvre le samedi : prévoyez un plan B dans un arrondissement voisin."}`
+          : `Le plus proche, ${nearest.title}${nearest.address ? `, ${nearest.address}` : ""} (${dist(nearest.m)}), est à connaître avant votre première garde dans le ${a}.${e.vetSat ? ` ${nb(e.vetSat, "cabinet reste ouvert", "cabinets restent ouverts")} le samedi${e.vetSun ? ` et ${nb(e.vetSun, "le dimanche", "le dimanche")}` : ""} : utile pour une garde de week-end.` : " Aucun des cabinets répertoriés n'ouvre le samedi : prévenez le propriétaire avant un week-end de garde."}`)
       : `La PawMap ne recense pas encore de cabinet nommé autour du ${a} ; consultez ceux du ${e.neighbours.map(ord).join(", ")}.`,
   });
   faq.push({
@@ -112,8 +123,10 @@ export function parisFaq(slug: string, mode: Mode): { q: string; a: string }[] {
       : `Pas de commerce animalier nommé dans un rayon d'un kilomètre ; les plus proches sont dans le ${e.neighbours.map(ord).join(", ")}.`,
   });
   faq.push({
-    q: `Où promener un chien dans le ${a} et autour ?`,
-    a: `${parks.length ? `Sur place : ${parks.map((p) => p.title).join(", ")}. ` : "Peu d'espaces canins répertoriés sur place. "}${neighbourParks.length ? `À proximité : ${neighbourParks.slice(0, 4).join(", ")}. ` : ""}${e.counts.water ? `${nb(e.counts.water, "point d'eau est", "points d'eau sont")} cartographiés dans le secteur.` : ""}`,
+    q: mode === "owner" ? `Où promener mon chien dans le ${a} et autour ?` : `Où un pet sitter peut-il promener un chien dans le ${a} ?`,
+    a: mode === "owner"
+      ? `${parks.length ? `Sur place : ${parks.map((p) => p.title).join(", ")}. ` : "Peu d'espaces canins répertoriés sur place. "}${neighbourParks.length ? `À proximité : ${neighbourParks.slice(0, 4).join(", ")}. ` : ""}${e.counts.water ? `${nb(e.counts.water, "point d'eau est", "points d'eau sont")} cartographiés dans le secteur.` : ""}`
+      : `${parks.length ? `Dans le ${a} même : ${parks.map((p) => p.title).join(", ")}. ` : "Peu d'espaces canins dans l'arrondissement même. "}${neighbourParks.length ? `En élargissant un peu : ${neighbourParks.slice(0, 4).join(", ")}. ` : ""}${e.counts.water ? `Et ${nb(e.counts.water, "point d'eau", "points d'eau")} sur le trajet, utiles en été.` : ""}`,
   });
   return faq;
 }
@@ -136,7 +149,7 @@ export default function ParisLocalPlaces({ slug, mode }: { slug: string; mode: M
         <h2 className="font-display text-2xl font-extrabold text-ink">
           {mode === "owner" ? `Paris ${a} en chiffres` : `Paris ${a} côté pet sitter`}
         </h2>
-        <p className="mt-3 text-sm leading-relaxed text-ink-muted">{stats(e)}</p>
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted">{stats(e, mode)}</p>
       </section>
 
       {vets.length > 0 && (
@@ -145,6 +158,9 @@ export default function ParisLocalPlaces({ slug, mode }: { slug: string; mode: M
             Vétérinaires du {a}
             {e.vetHours ? <span className="ml-2 text-sm font-semibold text-ink-muted">(ouverts : {e.vetSat} le sam., {e.vetSun} le dim.)</span> : null}
           </h2>
+          <p className="mt-2 text-sm text-ink-muted">
+            {mode === "owner" ? "En cas de besoin, les plus proches de chez vous." : "À connaître avant une première garde dans le quartier."}
+          </p>
           <PlaceList items={vets} />
         </section>
       )}
@@ -152,6 +168,9 @@ export default function ParisLocalPlaces({ slug, mode }: { slug: string; mode: M
       {shops.length > 0 && (
         <section className="mt-10">
           <h2 className="font-display text-xl font-extrabold text-ink">Commerces animaliers du {a}</h2>
+          <p className="mt-2 text-sm text-ink-muted">
+            {mode === "owner" ? "Pour les croquettes, la litière ou un accessoire de dernière minute." : "Des adresses utiles si un client vous en parle."}
+          </p>
           <PlaceList items={shops} />
         </section>
       )}
@@ -159,6 +178,9 @@ export default function ParisLocalPlaces({ slug, mode }: { slug: string; mode: M
       {others.length > 0 && (
         <section className="mt-10">
           <h2 className="font-display text-xl font-extrabold text-ink">Espaces canins du {a}</h2>
+          <p className="mt-2 text-sm text-ink-muted">
+            {mode === "owner" ? "Les sorties habituelles du quartier." : "De bons points de rendez-vous avec vos premiers clients."}
+          </p>
           <PlaceList items={others} />
         </section>
       )}
@@ -166,6 +188,9 @@ export default function ParisLocalPlaces({ slug, mode }: { slug: string; mode: M
       {greens.length > 0 && (
         <section className="mt-10">
           <h2 className="font-display text-xl font-extrabold text-ink">Jardins du {a}</h2>
+          <p className="mt-2 text-sm text-ink-muted">
+            {mode === "owner" ? "Pour une promenade calme près de chez vous." : "De quoi varier les balades, garde après garde."}
+          </p>
           <ul className="mt-3 flex flex-wrap gap-2 text-sm">
             {greens.map((g) => (
               <li key={g.title} className="rounded-full bg-bg-soft px-3 py-1.5 text-ink">
@@ -179,7 +204,7 @@ export default function ParisLocalPlaces({ slug, mode }: { slug: string; mode: M
 
       <section className="mt-10">
         <h2 className="font-display text-xl font-extrabold text-ink">Balades canines, {a}</h2>
-        <p className="mt-3 text-sm leading-relaxed text-ink-muted">{walks(e)}</p>
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted">{walks(e, mode)}</p>
       </section>
 
       {/* 29/09 (SAM) — l'ancien bloc « Voisins du Ne » + lien Paris vit
