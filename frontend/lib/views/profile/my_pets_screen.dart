@@ -309,7 +309,7 @@ class _PetCard extends StatefulWidget {
   const _PetCard({required this.pet, required this.onDelete});
 
   final PetModel pet;
-  final Future<void> Function(BuildContext context, String petId) onDelete;
+  final Future<bool> Function(BuildContext context, String petId) onDelete;
 
   @override
   State<_PetCard> createState() => _PetCardState();
@@ -648,7 +648,7 @@ String _localizedCategory(String raw) {
 
 // v23.1 — Delete pet confirmation + API call.
 // v573 — dialogue maison (`app_dialog_kit`) au lieu de l'`AlertDialog` brut.
-Future<void> _confirmAndDeletePet(BuildContext context, String petId) async {
+Future<bool> _confirmAndDeletePet(BuildContext context, String petId) async {
   final confirmed = await showAppConfirmDialog(
     context,
     title: 'pet_delete_dialog_title'.tr,
@@ -658,7 +658,7 @@ Future<void> _confirmAndDeletePet(BuildContext context, String petId) async {
     destructive: true,
     icon: Icons.delete_outline_rounded,
   );
-  if (confirmed != true) return;
+  if (confirmed != true) return false;
   try {
     final repo = Get.isRegistered<PetRepository>()
         ? Get.find<PetRepository>()
@@ -671,8 +671,10 @@ Future<void> _confirmAndDeletePet(BuildContext context, String petId) async {
       title: 'common_success'.tr,
       message: 'pet_delete_success'.tr,
     );
+    return true;
   } catch (e) {
-    String msg = e.toString();
+    // ZOE 07/10 — jamais « ApiException(statusCode: …) » à l'écran.
+    String msg = 'common_error_message'.tr;
     if (e is ApiException && e.details is Map) {
       final d = (e.details as Map)['details'];
       if (d is String && d.isNotEmpty) msg = d;
@@ -681,5 +683,6 @@ Future<void> _confirmAndDeletePet(BuildContext context, String petId) async {
       title: 'common_error'.tr,
       message: msg,
     );
+    return false;
   }
 }

@@ -75,7 +75,10 @@ class _SubmitReviewDialogState extends State<SubmitReviewDialog> {
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
+      // ZOE 07/10 — jamais le texte technique « ApiException(statusCode: …) »
+      // en anglais : message traduit (9 langues).
+      CustomSnackbar.showError(
+          title: 'common_error'.tr, message: 'common_error_message'.tr);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

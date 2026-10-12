@@ -14,6 +14,8 @@ import 'package:hopetsit/controllers/edit_sitter_profile_controller.dart'
     show providerRatesVersion;
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
+import 'package:hopetsit/controllers/friend_controller.dart';
+import 'package:hopetsit/widgets/report_dialog.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
@@ -1978,11 +1980,32 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       ),
     );
     if (confirmed != true) return;
-    // TODO: wire real block API; for now surface a success snackbar.
+    // PAM 12/10/2026 — le bouton affichait une bannière de succès SANS rien
+    // bloquer (ancien stub). Branché sur la vraie API
+    // (`POST /blocks`, FriendController.blockUser, 3 rôles côté serveur), puis
+    // le fil est rechargé pour que les annonces de la personne disparaissent.
+    final FriendController friends = Get.isRegistered<FriendController>()
+        ? Get.find<FriendController>()
+        : Get.put(FriendController());
+    final bool ok = await friends.blockUser(
+      targetUserId: ownerId,
+      targetRole: 'owner',
+    );
+    if (!mounted) return;
+    if (!ok) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'block_user_failed'.tr,
+      );
+      return;
+    }
     CustomSnackbar.showSuccess(
       title: 'common_success'.tr,
-      message: 'block_user_confirm_message'.tr.replaceAll('{name}', ownerName),
+      message: 'block_user_success'.tr,
     );
+    if (Get.isRegistered<PostsController>()) {
+      await Get.find<PostsController>().refreshPosts();
+    }
   }
 
   /// v23.1 part 240 — Daniel : "deja quand la barre est a 0 sa dois
@@ -2001,11 +2024,17 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   static const double _kMaxRadiusKm = 500.0;
   static const double _kDefaultRadiusKm = 50.0;
 
-  /// Stub — report post flow. The real implementation opens ReportDialog.
-  /// Kept lightweight so the feed still compiles while the report UI is
-  /// finalised for the sitter side.
-  void _handleReportPost({required String postId}) {
-    // TODO: wire ReportDialog.show(context: context, targetType: 'post', targetId: postId)
+  /// PAM 12/10/2026 — « Signaler » ne faisait qu'écrire une ligne de journal
+  /// (stub). Il ouvre désormais le même dialogue de signalement que la fiche
+  /// d'un membre et le chat (`POST /reports`, targetType `post`).
+  Future<void> _handleReportPost({required String postId}) async {
     AppLogger.logUserAction('Report post pressed', data: {'postId': postId});
+    if (!mounted) return;
+    await ReportDialog.show(
+      context: context,
+      targetType: 'post',
+      targetId: postId,
+      postId: postId,
+    );
   }
 }

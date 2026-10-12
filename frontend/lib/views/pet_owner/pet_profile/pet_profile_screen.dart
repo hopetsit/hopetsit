@@ -86,7 +86,9 @@ class PetProfileScreen extends StatefulWidget {
 
   /// v427 — callback Supprimer (menu ••• Modifier / Supprimer).
   /// Null ⇒ option Supprimer masquée.
-  final VoidCallback? onDelete;
+  /// ZOE 07/10 — renvoie true si l'animal a bien été supprimé : la fiche se
+  /// ferme alors (avant, elle restait affichée sur un animal qui n'existe plus).
+  final Future<bool> Function()? onDelete;
 
   const PetProfileScreen({
     super.key,
@@ -134,6 +136,11 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
       Theme.of(context).brightness == Brightness.dark;
 
   // ── navigation ────────────────────────────────────────────────────────────
+  Future<void> _onDelete() async {
+    final ok = await widget.onDelete?.call() ?? false;
+    if (ok && mounted) Navigator.of(context).pop(true);
+  }
+
   Future<void> _openEdit() async {
     await Get.to(() => EditPetScreen(petId: _pet.id, petData: _pet));
     await _reloadInPlace();
@@ -374,7 +381,7 @@ class _PetProfileScreenState extends State<PetProfileScreen> {
                 if (v == 'edit') {
                   _openEdit();
                 } else if (v == 'delete') {
-                  widget.onDelete?.call();
+                  _onDelete();
                 }
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
