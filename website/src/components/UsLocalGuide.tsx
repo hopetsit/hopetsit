@@ -997,6 +997,31 @@ export default function UsLocalGuide({ slug, lang, name, mode }: { slug: string;
           </li>
         ))}
       </ul>
+      {/* 12/10 (GUS) — Search Console 28 j : « dog sitting <ville> » et « dog sitter <ville> » en
+          10e-20e place avec 0 clic sur ~800 affichages (Los Angeles 78, Columbus 71+58, Miami 48,
+          Naples 39, Detroit 37, Houston 37, Decatur 81+63…). La page ne disait pas ce qu'est une
+          garde de chien ici. Bloc propriétaire EN, texte vrai (garde à domicile, visites, balades
+          suivies en direct), aucun chiffre inventé ; lieux de promenade pris dans le guide local. */}
+      {!fr && mode === "owner" && (
+        <div className="mt-8" aria-labelledby="us-dog-sitting">
+          <h2 id="us-dog-sitting" className="font-display text-2xl font-extrabold text-ink">{`Dog sitting in ${name}: at your home, walks included`}</h2>
+          <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+            {`Dog sitting in ${name} means your dog stays in its own home and routine: the sitter sleeps over or stops by for feeding, play and walks, and sends you a photo or a short note after each visit. Walks are tracked live on the map, so you can see when your dog went out to ${g.walks.slice(0, 2).map((w) => w.name).join(" or ")} and for how long. Sitters live around ${g.hoods.slice(0, 3).join(", ")} and the nearby neighborhoods.`}
+          </p>
+          <ul className="mt-3 space-y-2">
+            {[
+              "Going away for a weekend or a vacation? Ask for an overnight sitter who stays at your place, or for daily visits if your dog is fine alone at night.",
+              "Long workdays? Book a dog sitter for a midday visit and a walk, at the time that suits you.",
+              `Post your dates and what your dog needs; sitters near you in ${name} reply in the app. You chat first, read reviews, and the amount stays in the app until the sitting is done.`,
+            ].map((t) => (
+              <li key={t} className="flex gap-2 text-sm leading-relaxed text-ink-muted">
+                <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-owner" />
+                <span>{t}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {/* 11/10 (GUS) — Search Console : « cat sitting / cat sitter <ville> » en 11e-20e place
           (Naples 38 affichages, Cincinnati 34, Honolulu 23, St. Louis 15) avec 0 clic : la page
           ne parlait des chats qu'en un mot. Bloc propriétaire EN, texte vrai (visites à domicile),

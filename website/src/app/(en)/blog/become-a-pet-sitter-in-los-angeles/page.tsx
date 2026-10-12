@@ -23,7 +23,7 @@ const FAQ = [
   },
   {
     q: "How much can a pet sitter actually earn in LA?",
-    a: "A few walks a week as a side activity typically brings in a few hundred dollars a month. With regular clients around Silver Lake, Santa Monica, or the Eastside and the occasional overnight stay, many sitters clear well over that.",
+    a: "That depends on your rates, how many regular clients you keep and whether you take overnight stays. You set your own prices in the app and see them before each booking. Most sitters start with a few walks a week around their own neighborhood, such as Silver Lake, Santa Monica or the Eastside, and grow from there.",
   },
   {
     q: "Which LA neighborhoods have the most demand?",
