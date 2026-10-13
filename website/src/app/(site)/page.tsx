@@ -317,7 +317,10 @@ export default function HomePage() {
 
       {/* ── 6. VILLES ── v562 (Search Console 17/09) : liens directs vers les
           pages Paris / Île-de-France et USA (exploration Google). Rendu dans les
-          deux langues quel que soit le choix de l'utilisateur. Contenu inchangé. */}
+          deux langues quel que soit le choix de l'utilisateur. Contenu inchangé.
+          13/10 (GUS) : + 9 villes US déjà en ligne, celles qui ont le plus
+          d'affichages Google sans clic (positions 14-21 sur « dog sitting <ville> ») :
+          un lien depuis l'accueil, la page la plus forte du site. Aucune page créée. */}
       <section className="mx-auto max-w-5xl px-4 pb-6 pt-4">
         <div className="grid gap-8 md:grid-cols-2">
           <div>
@@ -335,7 +338,7 @@ export default function HomePage() {
           <div>
             <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[#231715] md:text-2xl">Pet sitters in the United States</h2>
             <ul className="mt-3 flex flex-wrap gap-1.5 text-sm">
-              {[["dallas","Dallas"],["fort-worth","Fort Worth"],["plano","Plano"],["frisco","Frisco"],["houston","Houston"],["austin","Austin"],["new-york","New York"],["los-angeles","Los Angeles"],["chicago","Chicago"],["miami","Miami"],["san-francisco","San Francisco"],["seattle","Seattle"],["boston","Boston"],["atlanta","Atlanta"],["denver","Denver"],["phoenix","Phoenix"]].map(([slug, name]) => (
+              {[["dallas","Dallas"],["fort-worth","Fort Worth"],["plano","Plano"],["frisco","Frisco"],["houston","Houston"],["austin","Austin"],["new-york","New York"],["los-angeles","Los Angeles"],["chicago","Chicago"],["miami","Miami"],["san-francisco","San Francisco"],["seattle","Seattle"],["boston","Boston"],["atlanta","Atlanta"],["denver","Denver"],["phoenix","Phoenix"],["indianapolis","Indianapolis"],["cincinnati","Cincinnati"],["minneapolis","Minneapolis"],["columbus","Columbus"],["detroit","Detroit"],["arlington-tx","Arlington, TX"],["decatur-ga","Decatur, GA"],["naples-fl","Naples, FL"],["honolulu","Honolulu"]].map(([slug, name]) => (
                 <li key={slug}><Link href={`/pet-sitting/${slug}`} className="inline-flex items-center rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:min-h-[44px]">{name}</Link></li>
               ))}
             </ul>
