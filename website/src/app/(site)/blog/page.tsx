@@ -13,6 +13,14 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 14/10 (GUS) — « dog sitting » 931 affichages / 0 clic (USA, 28 j) : guide propriétaire général.
+  {
+    slug: "what-is-dog-sitting",
+    lang: "🇺🇸",
+    title: "Dog sitting explained: how it works and how to find a dog sitter near you",
+    excerpt:
+      "Drop-in visits, day sitting or overnight stays: what each format involves, how it differs from boarding, what drives the price, and how to pick a sitter you can trust.",
+  },
   // 2026-W41 — recrutement Paris 18e + Los Angeles (routine marketing hebdo).
   {
     slug: "devenir-pet-sitter-paris-18e",

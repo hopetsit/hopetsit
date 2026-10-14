@@ -5,6 +5,8 @@
 // où l'on promène, contraintes locales. Aucun chiffre d'activité, aucune
 // promesse de revenus. Composant serveur, aucun hook.
 
+import Link from "@/components/SiteLink";
+
 type Mode = "owner" | "recruit";
 type Guide = {
   hoods: string[];
@@ -1020,6 +1022,14 @@ export default function UsLocalGuide({ slug, lang, name, mode }: { slug: string;
               </li>
             ))}
           </ul>
+          {/* 14/10 (GUS) — lien vers le guide général « dog sitting » (article du 14/10). */}
+          <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+            New to this?{" "}
+            <Link href="/blog/what-is-dog-sitting" className="font-semibold text-owner underline">
+              Dog sitting explained: visits, day sitting or overnight stays, and how to choose a sitter
+            </Link>
+            .
+          </p>
         </div>
       )}
       {/* 11/10 (GUS) — Search Console : « cat sitting / cat sitter <ville> » en 11e-20e place
