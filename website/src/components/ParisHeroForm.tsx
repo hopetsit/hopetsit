@@ -44,7 +44,18 @@ export function ParisHeroForm({ city, lead, note }: { city: string; lead: string
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState(false);
+  const [touched, setTouched] = useState(false);
   const href = useCampaignHref(`/posts/create?city=${encodeURIComponent(city)}&etape=2&from=hero`);
+
+  // 13/10 (SAM) : 1re interaction de TOUTE sorte dans le formulaire (date,
+  // phrase, service ou « Continuer »). Avant, seul le tap sur un service était
+  // compté : un visiteur qui commençait par la date ou la phrase restait
+  // invisible, et « 0 tap » ne prouvait pas que personne ne touchait au formulaire.
+  function touch() {
+    if (touched) return;
+    setTouched(true);
+    trackSiteEvent("cta_click", { label: "hero_form_touche" });
+  }
 
   function pick(id: string) {
     setErr("");
@@ -57,8 +68,11 @@ export function ParisHeroForm({ city, lead, note }: { city: string; lead: string
 
   function onContinue() {
     setErr("");
-    if (!service) return setErr("Choisissez un service.");
-    if (!body.trim()) return setErr("Décrivez votre besoin en une phrase.");
+    if (!service || !body.trim()) {
+      // Clic sur « Continuer » refusé : compté pour voir si le formulaire bloque.
+      trackSiteEvent("cta_click", { label: !service ? "hero_form_sans_service" : "hero_form_sans_phrase" });
+      return setErr(!service ? "Choisissez un service." : "Décrivez votre besoin en une phrase.");
+    }
     const svc = SERVICES.find((s) => s.id === service);
     try {
       window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
@@ -85,7 +99,7 @@ export function ParisHeroForm({ city, lead, note }: { city: string; lead: string
   const field = "mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-2.5 text-sm text-ink focus:border-owner focus:outline-none";
 
   return (
-    <div className="mt-3 rounded-3xl border border-owner/20 bg-owner-light/60 p-4 md:mx-auto md:max-w-md" data-testid="hero-form">
+    <div className="mt-3 rounded-3xl border border-owner/20 bg-owner-light/60 p-4 md:mx-auto md:max-w-md" data-testid="hero-form" onPointerDownCapture={touch} onFocusCapture={touch}>
       <p className="text-[15px] font-semibold leading-snug text-ink md:text-base">{lead}</p>
 
       <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Service">

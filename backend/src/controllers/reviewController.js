@@ -36,6 +36,25 @@ const createReview = async (req, res) => {
 
     const { revieweeId, rating, comment = '', bookingId } = req.body || {};
     let revieweeRole = (req.body?.revieweeRole || '').toString().toLowerCase();
+    if (!revieweeRole && reviewerRole === 'owner') {
+      // ZOE 07/10/2026 — l'app n'envoie pas revieweeRole : le « sitter par
+      // défaut » renvoyait 404 « Reviewee not found » à tout propriétaire qui
+      // notait son PROMENEUR. On lit le rôle sur la réservation, sinon sur le
+      // profil qui existe (un id n'appartient qu'à une collection).
+      const B = require('../models/Booking');
+      const b = bookingId && mongoose.Types.ObjectId.isValid(bookingId)
+        ? await B.findById(bookingId).select('walkerId sitterId').lean()
+        : null;
+      if (b && b.walkerId && String(b.walkerId) === String(revieweeId)) {
+        revieweeRole = 'walker';
+      } else if (b && b.sitterId && String(b.sitterId) === String(revieweeId)) {
+        revieweeRole = 'sitter';
+      } else if (mongoose.Types.ObjectId.isValid(revieweeId)
+        && !(await Sitter.exists({ _id: revieweeId }))
+        && (await Walker.exists({ _id: revieweeId }))) {
+        revieweeRole = 'walker';
+      }
+    }
     if (!revieweeRole) {
       // Fallback heuristique : owner → sitter par défaut (legacy).
       revieweeRole = reviewerRole === 'owner' ? 'sitter' : 'owner';
