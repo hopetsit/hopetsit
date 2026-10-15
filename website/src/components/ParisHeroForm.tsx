@@ -51,6 +51,9 @@ export function ParisHeroForm({ city, lead, note }: { city: string; lead: string
   // phrase, service ou « Continuer »). Avant, seul le tap sur un service était
   // compté : un visiteur qui commençait par la date ou la phrase restait
   // invisible, et « 0 tap » ne prouvait pas que personne ne touchait au formulaire.
+  // 15/10 (SAM) : écouté sur click/focus, plus sur pointerdown — sur téléphone un
+  // DÉFILEMENT qui commence sur le formulaire déclenchait pointerdown : le 14/10,
+  // 119 « taps » pub pour 44 lectures de 3 s et 0 service choisi = des défilements.
   function touch() {
     if (touched) return;
     setTouched(true);
@@ -99,7 +102,7 @@ export function ParisHeroForm({ city, lead, note }: { city: string; lead: string
   const field = "mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-2.5 text-sm text-ink focus:border-owner focus:outline-none";
 
   return (
-    <div className="mt-3 rounded-3xl border border-owner/20 bg-owner-light/60 p-4 md:mx-auto md:max-w-md" data-testid="hero-form" onPointerDownCapture={touch} onFocusCapture={touch}>
+    <div className="mt-3 rounded-3xl border border-owner/20 bg-owner-light/60 p-4 md:mx-auto md:max-w-md" data-testid="hero-form" onClickCapture={touch} onFocusCapture={touch}>
       <p className="text-[15px] font-semibold leading-snug text-ink md:text-base">{lead}</p>
 
       <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Service">
