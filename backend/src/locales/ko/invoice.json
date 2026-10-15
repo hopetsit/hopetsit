@@ -47,6 +47,7 @@
   "sectionFees": "2부 · 플랫폼 수수료 — CARDELLI HERMANOS LIMITED가 보호자에게 청구",
   "docNote": "서비스 명세서",
   "mandateNote": "본 문서는 HoPetSit 이용약관에서 수락된 청구 위임에 따라 CARDELLI HERMANOS LIMITED가 제공자의 이름으로, 제공자를 대신하여 발행합니다. 제공자는 자신의 세금 및 사회보험 의무에 대해 단독으로 책임집니다.",
+  "mandateAcceptedOn": "제공자가 {date}에 청구 위임을 수락했습니다 (이용약관 버전 {version}).",
   "vatIndividual": "부가가치세 해당 없음: 개인 제공자.",
   "vatBusiness": "부가가치세: 제공자의 세무 지위에 따름(위의 식별번호 참조).",
   "feesVat": "부가가치세 제외 금액. CARDELLI HERMANOS LIMITED는 부가가치세가 없는 홍콩 소재 회사입니다.",

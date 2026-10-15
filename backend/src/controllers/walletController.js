@@ -17,6 +17,13 @@ const WalletTransaction = require('../models/WalletTransaction');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const logger = require('../utils/logger');
+const {
+  BILLING_MANDATE_VERSION,
+  BILLING_MANDATE_MIN_BUILD,
+  isBillingMandateAccepted,
+  withdrawalBlockedByMandate,
+  billingMandateView,
+} = require('../utils/billingMandate');
 
 const MIN_WITHDRAWAL = 5.0; // Vinted-style : évite les frais SEPA bas montant.
 
@@ -79,10 +86,17 @@ exports.getWallet = async (req, res) => {
     const pendingEscrowTotal =
       Math.round(((escrowAgg[0]?.total || 0)) * 100) / 100;
 
+    // 616 (FLO) — état du mandat de facturation, pour que l'app sache si la
+    // case doit être cochée (jamais acceptée) ou seulement rappelée.
+    const MandateModel = role === 'walker' ? Walker : Sitter;
+    const mandateDoc = await MandateModel.findById(req.user.id)
+      .select('billingMandateAcceptedAt billingMandateVersion').lean().catch(() => null);
+
     res.json({
       balance: data.balance,
       currency: data.currency,
       pendingWithdrawals,
+      ...billingMandateView(mandateDoc),
       pendingAmount: pendingAmount[0]?.total || 0,
       // v23.1.349 — montant bloqué (séquestre) affiché dans le bandeau cadenas.
       pendingEscrowTotal,
@@ -162,9 +176,29 @@ exports.requestWithdrawal = async (req, res) => {
     // Vérif que le user a bien configuré sa méthode de retrait.
     const Model = role === 'walker' ? Walker : Sitter;
     const user = await Model.findById(req.user.id).select(
-      'ibanHolder ibanVerified paypalEmail walletBalance walletCurrency email',
+      'ibanHolder ibanVerified paypalEmail walletBalance walletCurrency email billingMandateAcceptedAt billingMandateVersion',
     );
     if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    // 616 (FLO, demande Daniel 10/10) — pas de retrait sans mandat de facturation
+    // accepté explicitement (case cochée dans l'app → POST /wallet/billing-mandate).
+    // Compatibilité (BOB, 15/10) : seules les apps ≥ 616 (X-App-Version) sont
+    // refusées — elles affichent la case. Une app ≤ 615, le site ou un client
+    // sans en-tête passent, avec une trace, pour ne jamais bloquer un vrai
+    // versement aujourd'hui.
+    if (withdrawalBlockedByMandate(req, user)) {
+      return res.status(400).json({
+        error: 'Accept the billing mandate before withdrawing.',
+        code: 'BILLING_MANDATE_REQUIRED',
+        billingMandateCurrentVersion: BILLING_MANDATE_VERSION,
+      });
+    }
+    if (!isBillingMandateAccepted(user)) {
+      logger.info(
+        `[wallet.requestWithdrawal] ${role} ${req.user.id} retire sans mandat (client ` +
+        `${String(req.headers['x-app-version'] || 'inconnu')} < build ${BILLING_MANDATE_MIN_BUILD}) — toléré`,
+      );
+    }
 
     if (method === 'iban' && (!user.ibanHolder || !user.ibanVerified)) {
       return res.status(400).json({
@@ -213,6 +247,42 @@ exports.requestWithdrawal = async (req, res) => {
       });
     }
     logger.error('[wallet.requestWithdrawal]', e);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+// ── POST /wallet/billing-mandate ───────────────────────────────────────────
+// 616 (FLO) — enregistre l'acceptation EXPLICITE du mandat de facturation.
+// Body facultatif : { version } (par défaut la version courante des CGU).
+// Idempotent : une acceptation déjà enregistrée n'est jamais écrasée (la
+// première date fait foi) ; on renvoie simplement l'état.
+exports.acceptBillingMandate = async (req, res) => {
+  try {
+    const role = _requireProvider(req, res);
+    if (!role) return;
+    const Model = role === 'walker' ? Walker : Sitter;
+    const existing = await Model.findById(req.user.id)
+      .select('billingMandateAcceptedAt billingMandateVersion').lean();
+    if (!existing) return res.status(404).json({ error: 'User not found.' });
+
+    if (isBillingMandateAccepted(existing)) {
+      return res.json({ ok: true, alreadyAccepted: true, ...billingMandateView(existing) });
+    }
+
+    const requested = String(req.body?.version || '').trim();
+    const version = /^\d+\.\d+$/.test(requested) ? requested : BILLING_MANDATE_VERSION;
+    const updated = await Model.findOneAndUpdate(
+      { _id: req.user.id, billingMandateAcceptedAt: null },
+      { $set: { billingMandateAcceptedAt: new Date(), billingMandateVersion: version } },
+      { new: true },
+    ).select('billingMandateAcceptedAt billingMandateVersion').lean();
+    // Course entre deux requêtes : la première a gagné, on relit.
+    const doc = updated || (await Model.findById(req.user.id)
+      .select('billingMandateAcceptedAt billingMandateVersion').lean());
+    logger.info(`[wallet.billingMandate] ${role} ${req.user.id} accepted v${doc.billingMandateVersion}`);
+    res.json({ ok: true, alreadyAccepted: !updated, ...billingMandateView(doc) });
+  } catch (e) {
+    logger.error('[wallet.acceptBillingMandate]', e);
     res.status(500).json({ error: e.message });
   }
 };

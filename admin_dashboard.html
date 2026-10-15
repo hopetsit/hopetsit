@@ -8370,6 +8370,7 @@ async function openIbanModal(sitterId, role = 'sitter') {
       <div class="modal-field"><label class="modal-label">IBAN (masqué)</label><div class="modal-value" style="font-family:monospace">${d.ibanNumberMasked||'-'}</div></div>
       <div class="modal-field"><label class="modal-label">BIC / SWIFT</label><div class="modal-value">${d.ibanBic||'-'}</div></div>
       <div class="modal-field"><label class="modal-label">Statut actuel</label><div class="modal-value">${d.ibanVerified ? '✅ Vérifié — virements activés' : '⏳ En attente — virements bloqués tant que non vérifié'}</div></div>
+      <div class="modal-field"><label class="modal-label">Mandat de facturation</label><div class="modal-value">${d.billingMandateAcceptedAt ? '✅ Accepté le ' + escapeHtml(new Date(d.billingMandateAcceptedAt).toLocaleDateString('fr-FR')) + ' (CGU v' + escapeHtml(d.billingMandateVersion || '?') + ')' : '⏳ Pas encore accepté — une app ≥ 616 exige la case cochée avant le retrait (les apps ≤ 615 ne sont pas bloquées)'}</div></div>
       <p style="font-size:12px;color:var(--text-muted);margin-top:12px">⚠️ Une fois vérifié, ce provider recevra des virements IBAN après chaque réservation terminée.</p>
     `;
     const btn = document.getElementById('modal-iban-verify-btn');

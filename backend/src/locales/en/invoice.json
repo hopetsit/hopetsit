@@ -47,6 +47,7 @@
   "sectionFees": "Part 2 · Platform fee — charged by CARDELLI HERMANOS LIMITED to the owner",
   "docNote": "Service statement",
   "mandateNote": "Document issued by CARDELLI HERMANOS LIMITED in the name and on behalf of the provider under the billing mandate accepted in the HoPetSit Terms of Service. The provider remains solely responsible for their tax and social obligations.",
+  "mandateAcceptedOn": "Billing mandate accepted by the provider on {date} (Terms version {version}).",
   "vatIndividual": "VAT not applicable: private individual provider.",
   "vatBusiness": "VAT: according to the provider's own tax status (identifiers above).",
   "feesVat": "Amount excluding VAT. CARDELLI HERMANOS LIMITED, a Hong Kong company; Hong Kong has no VAT.",

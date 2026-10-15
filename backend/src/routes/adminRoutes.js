@@ -1249,7 +1249,7 @@ router.post('/bookings/:id/cancel-payment', requireAdmin, async (req, res) => {
 // ─── IBAN: ADMIN VIEW SITTER IBAN (masked) ────────────────────────────────────
 router.get('/sitters/:id/iban', requireAdmin, async (req, res) => {
   try {
-    const sitter = await Sitter.findById(req.params.id).select('ibanHolder ibanNumber ibanBic ibanVerified payoutMethod');
+    const sitter = await Sitter.findById(req.params.id).select('ibanHolder ibanNumber ibanBic ibanVerified payoutMethod billingMandateAcceptedAt billingMandateVersion');
     if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
     // Mask IBAN for display: decrypt then show first 4 + last 4
     const iban = decrypt(sitter.ibanNumber);
@@ -1262,6 +1262,8 @@ router.get('/sitters/:id/iban', requireAdmin, async (req, res) => {
       ibanBic: sitter.ibanBic,
       ibanVerified: sitter.ibanVerified,
       payoutMethod: sitter.payoutMethod,
+      // 616 (FLO) — mandat de facturation (fiche prestataire).
+      ...require('../utils/billingMandate').billingMandateView(sitter),
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -5966,7 +5968,7 @@ router.get('/company-sweeps', requireAdmin, async (req, res) => {
 router.get('/walkers/:id/iban', requireAdmin, async (req, res) => {
   try {
     const Walker = require('../models/Walker');
-    const walker = await Walker.findById(req.params.id).select('ibanHolder ibanNumber ibanBic ibanVerified payoutMethod');
+    const walker = await Walker.findById(req.params.id).select('ibanHolder ibanNumber ibanBic ibanVerified payoutMethod billingMandateAcceptedAt billingMandateVersion');
     if (!walker) return res.status(404).json({ error: 'Walker not found.' });
     const iban = decrypt(walker.ibanNumber);
     const masked = iban ? iban.slice(0, 4) + '****' + iban.slice(-4) : '';
@@ -5976,6 +5978,8 @@ router.get('/walkers/:id/iban', requireAdmin, async (req, res) => {
       ibanBic: walker.ibanBic,
       ibanVerified: walker.ibanVerified,
       payoutMethod: walker.payoutMethod,
+      // 616 (FLO) — mandat de facturation (fiche prestataire).
+      ...require('../utils/billingMandate').billingMandateView(walker),
     });
   } catch (e) {
     res.status(500).json({ error: e.message });

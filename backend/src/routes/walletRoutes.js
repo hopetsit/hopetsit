@@ -11,6 +11,7 @@ const {
   getWallet,
   getTransactions,
   requestWithdrawal,
+  acceptBillingMandate,
   payShop,
 } = require('../controllers/walletController');
 
@@ -21,6 +22,8 @@ router.use(requireAuth, requireRole('sitter', 'walker'));
 router.get('/', getWallet);
 router.get('/transactions', getTransactions);
 router.post('/withdraw', requireVerifiedEmail, requestWithdrawal);
+// 616 (FLO) — acceptation explicite du mandat de facturation (idempotente).
+router.post('/billing-mandate', acceptBillingMandate);
 router.post('/pay-shop', payShop);
 
 module.exports = router;

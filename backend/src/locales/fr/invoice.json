@@ -47,6 +47,7 @@
   "sectionFees": "Partie 2 · Frais de plateforme — facturés par CARDELLI HERMANOS LIMITED au propriétaire",
   "docNote": "Note de prestation",
   "mandateNote": "Document établi par CARDELLI HERMANOS LIMITED au nom et pour le compte du prestataire, dans le cadre du mandat de facturation accepté dans les conditions d'utilisation de HoPetSit. Le prestataire reste seul responsable de ses obligations fiscales et sociales.",
+  "mandateAcceptedOn": "Mandat de facturation accepté par le prestataire le {date} (CGU version {version}).",
   "vatIndividual": "TVA non applicable : prestataire particulier.",
   "vatBusiness": "TVA : selon le régime fiscal du prestataire (identifiants ci-dessus).",
   "feesVat": "Montant hors TVA. CARDELLI HERMANOS LIMITED, société de Hong Kong, territoire sans TVA.",

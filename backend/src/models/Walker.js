@@ -353,6 +353,10 @@ const walkerSchema = new mongoose.Schema(
       enum: ['stripe', 'paypal', 'iban'],
       default: 'stripe',
     },
+    // 616 (FLO) — mandat de facturation accepté explicitement au premier retrait
+    // (date + version des CGU). Sans date : retrait refusé (BILLING_MANDATE_REQUIRED).
+    billingMandateAcceptedAt: { type: Date, default: null },
+    billingMandateVersion: { type: String, default: '' },
     // v19.0 — Wallet Vinted-style (voir Sitter.js pour le détail).
     walletBalance: { type: Number, default: 0, min: 0 },
     walletCurrency: { type: String, default: 'EUR' },

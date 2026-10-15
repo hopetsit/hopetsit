@@ -47,6 +47,7 @@
   "sectionFees": "Teil 2 · Plattformgebühr — von CARDELLI HERMANOS LIMITED dem Tierhalter in Rechnung gestellt",
   "docNote": "Leistungsnachweis",
   "mandateNote": "Dokument, das CARDELLI HERMANOS LIMITED im Namen und für Rechnung des Anbieters im Rahmen des in den HoPetSit-Nutzungsbedingungen angenommenen Abrechnungsmandats erstellt. Der Anbieter bleibt allein für seine steuerlichen und sozialrechtlichen Pflichten verantwortlich.",
+  "mandateAcceptedOn": "Abrechnungsmandat vom Anbieter angenommen am {date} (AGB-Version {version}).",
   "vatIndividual": "Keine Umsatzsteuer: Anbieter ist Privatperson.",
   "vatBusiness": "Umsatzsteuer: gemäß dem steuerlichen Status des Anbieters (Kennnummern oben).",
   "feesVat": "Betrag ohne Umsatzsteuer. CARDELLI HERMANOS LIMITED, Gesellschaft in Hongkong, einem Gebiet ohne Umsatzsteuer.",

@@ -226,6 +226,10 @@ const sitterSchema = new mongoose.Schema(
     // save when PAYMENT_PROVIDER=airwallex ; reused for every payout.
     airwallexBeneficiaryId: { type: String, default: '' },
     payoutMethod: { type: String, enum: ['stripe', 'paypal', 'iban'], default: 'stripe' },
+    // 616 (FLO) — mandat de facturation accepté explicitement au premier retrait
+    // (date + version des CGU). Sans date : retrait refusé (BILLING_MANDATE_REQUIRED).
+    billingMandateAcceptedAt: { type: Date, default: null },
+    billingMandateVersion: { type: String, default: '' },
     // v19.0 — Wallet Vinted-style. Crédité automatiquement quand owner paye
     // une booking (via stripeWebhookController). Le provider peut retirer
     // (SEPA/PayPal) ou payer ses options shop avec. Source de vérité =

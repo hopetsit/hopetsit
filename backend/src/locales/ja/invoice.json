@@ -47,6 +47,7 @@
   "sectionFees": "第2部 · プラットフォーム手数料 — CARDELLI HERMANOS LIMITED から飼い主への請求",
   "docNote": "サービス明細書",
   "mandateNote": "本書類は、HoPetSit利用規約で承諾された請求代行の委任に基づき、CARDELLI HERMANOS LIMITED が提供者の名において提供者に代わって発行するものです。提供者は自身の税務および社会保険上の義務について単独で責任を負います。",
+  "mandateAcceptedOn": "提供者は {date} に請求代行の委任を承諾しました（利用規約バージョン {version}）。",
   "vatIndividual": "付加価値税は適用されません：個人の提供者。",
   "vatBusiness": "付加価値税：提供者の税務上の地位によります（上記の識別番号を参照）。",
   "feesVat": "付加価値税を含まない金額。CARDELLI HERMANOS LIMITED は付加価値税のない香港の会社です。",

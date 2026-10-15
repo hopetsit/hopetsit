@@ -47,6 +47,7 @@
   "sectionFees": "Część 2 · Opłata platformy — naliczona właścicielowi przez CARDELLI HERMANOS LIMITED",
   "docNote": "Nota usługi",
   "mandateNote": "Dokument wystawiony przez CARDELLI HERMANOS LIMITED w imieniu i na rzecz usługodawcy na podstawie upoważnienia do fakturowania zaakceptowanego w regulaminie HoPetSit. Usługodawca pozostaje wyłącznie odpowiedzialny za swoje obowiązki podatkowe i społeczne.",
+  "mandateAcceptedOn": "Upoważnienie do fakturowania zaakceptowane przez usługodawcę dnia {date} (regulamin w wersji {version}).",
   "vatIndividual": "VAT nie ma zastosowania: usługodawca jest osobą prywatną.",
   "vatBusiness": "VAT: zgodnie ze statusem podatkowym usługodawcy (identyfikatory powyżej).",
   "feesVat": "Kwota bez VAT. CARDELLI HERMANOS LIMITED, spółka z Hongkongu, terytorium bez VAT.",

@@ -489,6 +489,21 @@ const renderInvoiceHtml = async (req, res) => {
     // anglais résiduel (le statut « paid » était affiché brut avant la v576).
     const T = invoiceTexts(lang);
 
+    // 616 (FLO) — rappel « mandat accepté le … » sur chaque document de prestation
+    // (date + version enregistrées au premier retrait, voir utils/billingMandate.js).
+    let mandateAcceptedLine = '';
+    if (inv.providerId) {
+      try {
+        const p = await _providerModel(inv.providerRole).findById(inv.providerId)
+          .select('billingMandateAcceptedAt billingMandateVersion').lean();
+        if (p && p.billingMandateAcceptedAt) {
+          mandateAcceptedLine = String(T.mandateAcceptedOn || '')
+            .replace('{date}', new Date(p.billingMandateAcceptedAt).toISOString().slice(0, 10))
+            .replace('{version}', p.billingMandateVersion || '');
+        }
+      } catch (_) { /* sans rappel plutôt qu'une facture en erreur */ }
+    }
+
     // Libellé du type d'identifiant du client / du prestataire. Les sigles
     // nationaux (NIF, NIE, CIF, SIRET, EIN) ne se traduisent pas ; TVA,
     // passeport et numéro d'entreprise, si.
@@ -766,6 +781,7 @@ const renderInvoiceHtml = async (req, res) => {
       </table>
       <p class="note">${esc(providerIsBusiness ? T.vatBusiness : T.vatIndividual)}</p>
       <p class="note">${esc(T.mandateNote)}</p>
+      ${mandateAcceptedLine ? `<p class="note">${esc(mandateAcceptedLine)}</p>` : ''}
     </div>
 
     <div class="part">

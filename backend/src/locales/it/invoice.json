@@ -47,6 +47,7 @@
   "sectionFees": "Parte 2 · Commissione di piattaforma — fatturata da CARDELLI HERMANOS LIMITED al proprietario",
   "docNote": "Nota di prestazione",
   "mandateNote": "Documento emesso da CARDELLI HERMANOS LIMITED in nome e per conto del prestatore, in base al mandato di fatturazione accettato nei termini di servizio di HoPetSit. Il prestatore resta l'unico responsabile dei propri obblighi fiscali e previdenziali.",
+  "mandateAcceptedOn": "Mandato di fatturazione accettato dal prestatore il {date} (Termini versione {version}).",
   "vatIndividual": "IVA non applicabile: prestatore privato.",
   "vatBusiness": "IVA: secondo il regime fiscale del prestatore (identificativi sopra).",
   "feesVat": "Importo senza IVA. CARDELLI HERMANOS LIMITED, società di Hong Kong, territorio senza IVA.",

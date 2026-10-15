@@ -47,6 +47,7 @@
   "sectionFees": "Parte 2 · Comisión de plataforma — facturada por CARDELLI HERMANOS LIMITED al propietario",
   "docNote": "Nota de servicio",
   "mandateNote": "Documento emitido por CARDELLI HERMANOS LIMITED en nombre y por cuenta del proveedor, en virtud del mandato de facturación aceptado en las condiciones de uso de HoPetSit. El proveedor sigue siendo el único responsable de sus obligaciones fiscales y sociales.",
+  "mandateAcceptedOn": "Mandato de facturación aceptado por el proveedor el {date} (Condiciones versión {version}).",
   "vatIndividual": "IVA no aplicable: proveedor particular.",
   "vatBusiness": "IVA: según el régimen fiscal del proveedor (identificadores arriba).",
   "feesVat": "Importe sin IVA. CARDELLI HERMANOS LIMITED, sociedad de Hong Kong, territorio sin IVA.",
