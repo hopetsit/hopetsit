@@ -6,12 +6,12 @@
 /// cancellation rules, escrow, etc.).
 library;
 
-const String termsVersion = '2.3'; // v613 — prestataire 100 % de son tarif, propriétaire paie tarif + 20 % (15 % Top), libération à la confirmation ou 48 h après la fin
+const String termsVersion = '2.4'; // v616 — clause « Responsabilité individuelle et conformité aux législations applicables » (Daniel, 14/10)
 
 const String _termsEn = r"""
 # HopeTSIT — Terms of Service
 
-Version 2.3 — Effective date: upon first publication to app stores.
+Version 2.4 — Effective date: upon first publication to app stores.
 
 ## 1. Preamble and definitions
 
@@ -66,6 +66,22 @@ Users are exclusively responsible for subscribing any insurance (civil liability
 Sitters and walkers are independent providers. They are neither employees, agents nor representatives of HoPetSit. Each provider is solely responsible for: (a) obtaining and maintaining any licence, permit, registration, declaration or qualification required by the law of their country to look after or walk animals for payment; (b) declaring the income earned through the platform and paying the related taxes and social contributions. HoPetSit may request proof of such authorisations, suspend an account that fails to provide them, and cooperates with the competent authorities where the law so requires.
 
 Billing mandate: the provider authorises CARDELLI HERMANOS LIMITED to issue, in their name and on their behalf, for each booking paid through the platform, the document recording their service (an invoice if they are a business, a service statement if they are a private individual), based on the billing details they entered. They remain solely responsible for their tax and social declarations and may end this mandate by closing their account. The platform fee is invoiced separately by CARDELLI HERMANOS LIMITED.
+
+## 8b. Individual responsibility and compliance with applicable laws
+
+Every HoPetSit user, whether a private individual or a professional, is personally responsible for verifying that the activities and services they offer or perform are legally permitted in their country of residence and in the country where they are carried out.
+
+They undertake to comply with all applicable local, national and international laws and regulations, in particular regarding qualifications, diplomas, certifications, administrative authorisations, professional declarations, tax and social obligations, insurance and animal welfare protection.
+
+Registration on HoPetSit and the generation of billing documents do not under any circumstances constitute a legal authorisation to practise.
+
+HoPetSit acts exclusively as a digital intermediation platform and is not the employer of the independent providers.
+
+In accordance with Article 8 of Regulation (EU) 2022/2065 (Digital Services Act), the providers of intermediary services concerned are not subject to a general obligation to monitor the information they transmit or store.
+
+Each user remains responsible for the consequences of their own breaches of the applicable regulations, without prejudice to HoPetSit's own legal obligations, in particular regarding the handling of reports, safety and cooperation with the competent authorities.
+
+This clause applies subject to the mandatory provisions in force in each jurisdiction.
 
 ## 9. Booking and mutual acceptance
 
@@ -133,7 +149,7 @@ HopeTSIT may modify these Terms. A **30-day notice** is sent to active Users bef
 const String _termsFr = r"""
 # HopeTSIT — Conditions Générales d'Utilisation
 
-Version 2.3 — Date d'effet : dès la première publication sur les stores.
+Version 2.4 — Date d'effet : dès la première publication sur les stores.
 
 ## 1. Préambule et définitions
 
@@ -188,6 +204,22 @@ La souscription de toute assurance (responsabilité civile, assurance personnell
 Les gardiens et promeneurs sont des prestataires indépendants. Ils ne sont ni employés, ni agents, ni mandataires de HoPetSit. Chaque prestataire est seul responsable : (a) d'obtenir et de maintenir les autorisations, agréments, déclarations ou qualifications exigés par la loi de son pays pour la garde ou la promenade d'animaux contre rémunération ; (b) de déclarer les revenus perçus via la plateforme et de payer les impôts et cotisations sociales qui s'y rapportent. HoPetSit peut demander la preuve de ces autorisations et suspendre un compte qui ne les fournit pas, et coopère avec les autorités compétentes lorsque la loi l'exige.
 
 Mandat de facturation : le prestataire autorise CARDELLI HERMANOS LIMITED à établir en son nom et pour son compte, pour chaque réservation payée via la plateforme, le document qui matérialise sa prestation (facture s'il est professionnel, note de prestation s'il est particulier), à partir des informations de facturation qu'il a saisies. Il reste seul responsable de ses déclarations fiscales et sociales et peut mettre fin à ce mandat en fermant son compte. Les frais de plateforme font l'objet d'une facture distincte émise par CARDELLI HERMANOS LIMITED.
+
+## 8 ter. Responsabilité individuelle et conformité aux législations applicables
+
+Chaque utilisateur de HoPetSit, qu'il soit particulier ou professionnel, est personnellement responsable de vérifier que les activités et prestations qu'il propose ou réalise sont légalement autorisées dans son pays de résidence et dans le pays où elles sont exercées.
+
+Il s'engage à respecter l'ensemble des lois et réglementations locales, nationales et internationales applicables, notamment en matière de qualifications, diplômes, certifications, autorisations administratives, déclarations professionnelles, obligations fiscales et sociales, assurances et protection du bien-être animal.
+
+L'inscription sur HoPetSit et la génération de documents de facturation ne constituent en aucun cas une autorisation légale d'exercer.
+
+HoPetSit intervient exclusivement en qualité de plateforme numérique de mise en relation et ne constitue pas l'employeur des prestataires indépendants.
+
+Conformément à l'article 8 du règlement européen (UE) 2022/2065 (Digital Services Act), les fournisseurs de services intermédiaires concernés ne sont pas soumis à une obligation générale de surveillance des informations qu'ils transmettent ou stockent.
+
+Chaque utilisateur demeure responsable des conséquences de ses propres manquements à la réglementation applicable, sans préjudice des obligations légales propres à HoPetSit, notamment en matière de traitement des signalements, de sécurité et de coopération avec les autorités compétentes.
+
+Cette clause s'applique sous réserve des dispositions impératives en vigueur dans chaque juridiction.
 
 ## 9. Réservation et acceptation mutuelle
 
@@ -255,7 +287,7 @@ HopeTSIT peut modifier les présentes CGU. Un **préavis de 30 jours** est adres
 const String _termsEs = r"""
 # HopeTSIT — Términos y Condiciones
 
-Versión 2.3 — Fecha de entrada en vigor: desde la primera publicación en las tiendas.
+Versión 2.4 — Fecha de entrada en vigor: desde la primera publicación en las tiendas.
 
 ## 1. Preámbulo y definiciones
 
@@ -308,6 +340,22 @@ La suscripción de cualquier seguro corresponde exclusivamente a los Usuarios. C
 Los cuidadores y paseadores son proveedores independientes. No son empleados, agentes ni representantes de HoPetSit. Cada proveedor es el único responsable de: (a) obtener y mantener las licencias, autorizaciones, declaraciones o cualificaciones exigidas por la ley de su país para cuidar o pasear animales a cambio de una remuneración; (b) declarar los ingresos obtenidos a través de la plataforma y pagar los impuestos y cotizaciones sociales correspondientes. HoPetSit puede solicitar prueba de dichas autorizaciones, suspender una cuenta que no las aporte y coopera con las autoridades competentes cuando la ley lo exige.
 
 Mandato de facturación: el proveedor autoriza a CARDELLI HERMANOS LIMITED a emitir en su nombre y por su cuenta, por cada reserva pagada a través de la plataforma, el documento que refleja su servicio (factura si es profesional, nota de servicio si es particular), a partir de los datos de facturación que haya introducido. Sigue siendo el único responsable de sus declaraciones fiscales y sociales y puede poner fin a este mandato cerrando su cuenta. La comisión de plataforma se factura por separado por CARDELLI HERMANOS LIMITED.
+
+## 8 ter. Responsabilidad individual y cumplimiento de la legislación aplicable
+
+Cada usuario de HoPetSit, ya sea particular o profesional, es personalmente responsable de verificar que las actividades y servicios que ofrece o realiza están legalmente autorizados en su país de residencia y en el país donde se ejercen.
+
+Se compromete a respetar el conjunto de leyes y reglamentos locales, nacionales e internacionales aplicables, en particular en materia de cualificaciones, títulos, certificaciones, autorizaciones administrativas, declaraciones profesionales, obligaciones fiscales y sociales, seguros y protección del bienestar animal.
+
+La inscripción en HoPetSit y la generación de documentos de facturación no constituyen en ningún caso una autorización legal para ejercer.
+
+HoPetSit interviene exclusivamente en calidad de plataforma digital de intermediación y no es el empleador de los proveedores independientes.
+
+De conformidad con el artículo 8 del Reglamento (UE) 2022/2065 (Ley de Servicios Digitales), los prestadores de servicios intermediarios afectados no están sujetos a una obligación general de supervisión de la información que transmiten o almacenan.
+
+Cada usuario sigue siendo responsable de las consecuencias de sus propios incumplimientos de la normativa aplicable, sin perjuicio de las obligaciones legales propias de HoPetSit, en particular en materia de tratamiento de las denuncias, seguridad y cooperación con las autoridades competentes.
+
+Esta cláusula se aplica sin perjuicio de las disposiciones imperativas vigentes en cada jurisdicción.
 
 ## 9. Reserva y aceptación mutua
 
@@ -375,7 +423,7 @@ Preaviso de **30 días** antes de la entrada en vigor de una nueva versión. El 
 const String _termsDe = r"""
 # HopeTSIT — Nutzungsbedingungen
 
-Version 2.3 — Inkrafttreten: ab der ersten Veröffentlichung in den App-Stores.
+Version 2.4 — Inkrafttreten: ab der ersten Veröffentlichung in den App-Stores.
 
 ## 1. Präambel und Definitionen
 
@@ -414,6 +462,22 @@ Der Abschluss von Versicherungen liegt ausschließlich in der Verantwortung der 
 Tiersitter und Hundeausführer sind unabhängige Anbieter. Sie sind weder Angestellte noch Vertreter oder Beauftragte von HoPetSit. Jeder Anbieter ist allein dafür verantwortlich: (a) alle Genehmigungen, Erlaubnisse (z. B. nach § 11 Tierschutzgesetz in Deutschland), Anmeldungen oder Qualifikationen einzuholen und aufrechtzuerhalten, die das Recht seines Landes für die entgeltliche Betreuung oder das Ausführen von Tieren verlangt; (b) die über die Plattform erzielten Einnahmen zu versteuern und die damit verbundenen Steuern und Sozialabgaben zu entrichten. HoPetSit kann einen Nachweis dieser Genehmigungen verlangen, ein Konto sperren, das ihn nicht erbringt, und arbeitet mit den zuständigen Behörden zusammen, wenn das Gesetz dies verlangt.
 
 Abrechnungsmandat: Der Anbieter ermächtigt CARDELLI HERMANOS LIMITED, für jede über die Plattform bezahlte Buchung in seinem Namen und für seine Rechnung das Dokument zu erstellen, das seine Leistung belegt (Rechnung, wenn er gewerblich tätig ist, Leistungsnachweis, wenn er Privatperson ist), auf Grundlage der von ihm eingegebenen Abrechnungsdaten. Er bleibt allein für seine steuerlichen und sozialrechtlichen Erklärungen verantwortlich und kann dieses Mandat durch Schließung seines Kontos beenden. Die Plattformgebühr wird von CARDELLI HERMANOS LIMITED gesondert in Rechnung gestellt.
+
+## 8b. Eigenverantwortung und Einhaltung der anwendbaren Gesetze
+
+Jeder Nutzer von HoPetSit, ob Privatperson oder Gewerbetreibender, ist persönlich dafür verantwortlich zu prüfen, dass die von ihm angebotenen oder erbrachten Tätigkeiten und Leistungen in seinem Wohnsitzland und in dem Land, in dem sie ausgeübt werden, gesetzlich zulässig sind.
+
+Er verpflichtet sich, sämtliche anwendbaren lokalen, nationalen und internationalen Gesetze und Vorschriften einzuhalten, insbesondere in Bezug auf Qualifikationen, Abschlüsse, Zertifizierungen, behördliche Genehmigungen, gewerbliche Anmeldungen, steuerliche und sozialversicherungsrechtliche Pflichten, Versicherungen und den Schutz des Tierwohls.
+
+Die Registrierung bei HoPetSit und die Erstellung von Abrechnungsdokumenten stellen in keinem Fall eine gesetzliche Erlaubnis zur Ausübung einer Tätigkeit dar.
+
+HoPetSit handelt ausschließlich als digitale Vermittlungsplattform und ist nicht der Arbeitgeber der unabhängigen Anbieter.
+
+Gemäß Artikel 8 der Verordnung (EU) 2022/2065 (Gesetz über digitale Dienste) unterliegen die betroffenen Anbieter von Vermittlungsdiensten keiner allgemeinen Verpflichtung zur Überwachung der von ihnen übermittelten oder gespeicherten Informationen.
+
+Jeder Nutzer bleibt für die Folgen seiner eigenen Verstöße gegen die anwendbaren Vorschriften verantwortlich, unbeschadet der eigenen gesetzlichen Pflichten von HoPetSit, insbesondere hinsichtlich der Bearbeitung von Meldungen, der Sicherheit und der Zusammenarbeit mit den zuständigen Behörden.
+
+Diese Klausel gilt vorbehaltlich der in jeder Rechtsordnung geltenden zwingenden Bestimmungen.
 
 ## 9. Buchung und gegenseitige Annahme
 
@@ -481,7 +545,7 @@ Diese Bedingungen unterliegen dem **Recht der Sonderverwaltungsregion Hongkong**
 const String _termsIt = r"""
 # HopeTSIT — Termini e Condizioni
 
-Versione 2.3 — Data di entrata in vigore: dalla prima pubblicazione sugli store.
+Versione 2.4 — Data di entrata in vigore: dalla prima pubblicazione sugli store.
 
 ## 1. Premessa e definizioni
 
@@ -520,6 +584,22 @@ La sottoscrizione di qualsiasi assicurazione spetta esclusivamente agli Utenti. 
 Pet sitter e dog walker sono prestatori indipendenti. Non sono dipendenti, agenti né mandatari di HoPetSit. Ogni prestatore è l'unico responsabile di: (a) ottenere e mantenere le licenze, autorizzazioni, dichiarazioni o qualifiche richieste dalla legge del proprio Paese per custodire o portare a spasso animali dietro compenso; (b) dichiarare i redditi percepiti tramite la piattaforma e pagare le imposte e i contributi sociali relativi. HoPetSit può richiedere la prova di tali autorizzazioni, sospendere un account che non le fornisce e collabora con le autorità competenti quando la legge lo richiede.
 
 Mandato di fatturazione: il prestatore autorizza CARDELLI HERMANOS LIMITED a emettere in suo nome e per suo conto, per ogni prenotazione pagata tramite la piattaforma, il documento che attesta la sua prestazione (fattura se è un professionista, nota di prestazione se è un privato), sulla base dei dati di fatturazione da lui inseriti. Resta l'unico responsabile delle proprie dichiarazioni fiscali e previdenziali e può porre fine a questo mandato chiudendo il proprio account. La commissione di piattaforma è fatturata separatamente da CARDELLI HERMANOS LIMITED.
+
+## 8 ter. Responsabilità individuale e conformità alle normative applicabili
+
+Ogni utente di HoPetSit, sia privato che professionista, è personalmente responsabile di verificare che le attività e le prestazioni che propone o svolge siano legalmente autorizzate nel proprio Paese di residenza e nel Paese in cui vengono esercitate.
+
+Si impegna a rispettare l'insieme delle leggi e dei regolamenti locali, nazionali e internazionali applicabili, in particolare in materia di qualifiche, diplomi, certificazioni, autorizzazioni amministrative, dichiarazioni professionali, obblighi fiscali e previdenziali, assicurazioni e tutela del benessere animale.
+
+L'iscrizione a HoPetSit e la generazione di documenti di fatturazione non costituiscono in alcun caso un'autorizzazione legale all'esercizio dell'attività.
+
+HoPetSit interviene esclusivamente in qualità di piattaforma digitale di intermediazione e non è il datore di lavoro dei prestatori indipendenti.
+
+Conformemente all'articolo 8 del regolamento (UE) 2022/2065 (Digital Services Act), i prestatori di servizi intermediari interessati non sono soggetti a un obbligo generale di sorveglianza sulle informazioni che trasmettono o memorizzano.
+
+Ogni utente resta responsabile delle conseguenze delle proprie violazioni della normativa applicabile, senza pregiudizio degli obblighi legali propri di HoPetSit, in particolare in materia di gestione delle segnalazioni, di sicurezza e di cooperazione con le autorità competenti.
+
+La presente clausola si applica fatte salve le disposizioni imperative in vigore in ciascuna giurisdizione.
 
 ## 9. Prenotazione e accettazione reciproca
 
@@ -587,7 +667,7 @@ Si applica la **legge della SAR di Hong Kong**, salve le norme imperative di tut
 const String _termsPt = r"""
 # HopeTSIT — Termos e Condições
 
-Versão 2.3 — Data de entrada em vigor: a partir da primeira publicação nas stores.
+Versão 2.4 — Data de entrada em vigor: a partir da primeira publicação nas stores.
 
 ## 1. Preâmbulo e definições
 
@@ -626,6 +706,22 @@ A subscrição de qualquer seguro compete exclusivamente aos Utilizadores. A CAR
 Os cuidadores e passeadores são prestadores independentes. Não são empregados, agentes nem mandatários da HoPetSit. Cada prestador é o único responsável por: (a) obter e manter as licenças, autorizações, declarações ou qualificações exigidas pela lei do seu país para cuidar ou passear animais mediante remuneração; (b) declarar os rendimentos obtidos através da plataforma e pagar os impostos e contribuições sociais correspondentes. A HoPetSit pode exigir prova dessas autorizações, suspender uma conta que não as apresente e coopera com as autoridades competentes quando a lei o exige.
 
 Mandato de faturação: o prestador autoriza a CARDELLI HERMANOS LIMITED a emitir em seu nome e por sua conta, para cada reserva paga através da plataforma, o documento que comprova a sua prestação (fatura se for profissional, nota de prestação se for particular), com base nos dados de faturação que introduziu. Continua a ser o único responsável pelas suas declarações fiscais e sociais e pode pôr termo a este mandato encerrando a sua conta. A taxa de plataforma é faturada separadamente pela CARDELLI HERMANOS LIMITED.
+
+## 8-B. Responsabilidade individual e conformidade com a legislação aplicável
+
+Cada utilizador da HoPetSit, seja particular ou profissional, é pessoalmente responsável por verificar que as atividades e prestações que propõe ou realiza são legalmente autorizadas no seu país de residência e no país onde são exercidas.
+
+Compromete-se a respeitar o conjunto das leis e regulamentos locais, nacionais e internacionais aplicáveis, nomeadamente em matéria de qualificações, diplomas, certificações, autorizações administrativas, declarações profissionais, obrigações fiscais e sociais, seguros e proteção do bem-estar animal.
+
+A inscrição na HoPetSit e a emissão de documentos de faturação não constituem em caso algum uma autorização legal para exercer.
+
+A HoPetSit intervém exclusivamente na qualidade de plataforma digital de intermediação e não é a entidade empregadora dos prestadores independentes.
+
+Em conformidade com o artigo 8.º do Regulamento (UE) 2022/2065 (Regulamento dos Serviços Digitais), os prestadores de serviços intermediários em causa não estão sujeitos a uma obrigação geral de vigilância das informações que transmitem ou armazenam.
+
+Cada utilizador continua a ser responsável pelas consequências dos seus próprios incumprimentos da regulamentação aplicável, sem prejuízo das obrigações legais próprias da HoPetSit, nomeadamente em matéria de tratamento de denúncias, segurança e cooperação com as autoridades competentes.
+
+A presente cláusula aplica-se sem prejuízo das disposições imperativas em vigor em cada jurisdição.
 
 ## 9. Reserva e aceitação mútua
 
