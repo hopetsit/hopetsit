@@ -267,4 +267,29 @@ router.get('/cities/non-canonical', requireAdmin, async (req, res) => {
   }
 });
 
+/**
+ * 616 (BOB, 15/10/2026) — LECTURE du registre des rappels « tu as N candidats,
+ * choisis le tien » (ApplicationReminder615). Preuve en production que le
+ * rappel tourne (aucun journal serveur lisible depuis l'admin). LECTURE SEULE,
+ * aucune adresse e-mail renvoyée.
+ *   GET /admin/requests0410/reminders615?limit=50
+ */
+router.get('/reminders615', requireAdmin, async (req, res) => {
+  try {
+    const Reminder = require('../models/ApplicationReminder615');
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+    const [total, failed, last] = await Promise.all([
+      Reminder.countDocuments({}),
+      Reminder.countDocuments({ status: 'failed' }),
+      Reminder.find({}).select('postId slot ownerId candidates serviceKind timeZone status createdAt')
+        .sort({ createdAt: -1 }).limit(limit).lean(),
+    ]);
+    const schedulerOff = String(process.env.APPLICATION_REMINDERS || '').toLowerCase() === 'off';
+    res.json({ total, failed, schedulerOff, reminders: last });
+  } catch (e) {
+    logger.error('[admin/requests0410/reminders615]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
