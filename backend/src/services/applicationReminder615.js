@@ -134,11 +134,20 @@ const serviceKindOf = (services) => {
  * Décide, pour UNE demande, quel rappel est dû maintenant. Fonction pure.
  * @returns {{slot:'r1'|'r2'|null, why:string}}
  */
-const decideSlot = ({ now, firstAppAt, start, kind, sent = [], tz }) => {
+const decideSlot = ({ now, firstAppAt, start, end, kind, sent = [], tz }) => {
   const nowMs = now.getTime();
   const has = (s) => sent.some((r) => r.slot === s);
   if (sent.length >= 2 || has('r2')) return { slot: null, why: 'done' };
-  const startMs = start ? start.getTime() : null;
+  let startMs = start ? start.getTime() : null;
+  // 616 (BOB, 15/10) — GARDE DÉJÀ COMMENCÉE mais pas finie (cas réel : garde New
+  // York du 05 au 29/10, 3 candidatures arrivées APRÈS le début, 0 rappel) :
+  // le propriétaire peut encore choisir pour les jours restants → la date
+  // limite devient la FIN de la garde (r2 = 24 h avant la fin).
+  const endMs = end ? end.getTime() : null;
+  if (kind === 'sitting' && startMs != null && nowMs >= startMs - MIN_BEFORE_START_MS
+      && endMs != null && endMs > startMs && endMs - nowMs > MIN_BEFORE_START_MS) {
+    startMs = endMs;
+  }
   if (startMs != null && nowMs >= startMs - MIN_BEFORE_START_MS) return { slot: null, why: 'too_late' };
   const r1Due = firstAppAt.getTime() + R1_DELAY_MS;
   const lead = kind === 'sitting' ? R2_LEAD_SITTING_MS : R2_LEAD_SHORT_MS;
@@ -251,9 +260,10 @@ const runApplicationReminders = async (opts = {}) => {
       const tz = ownerTimeZone(post, owner);
       const kind = serviceKindOf(post.serviceTypes);
       const start = post.startDate ? wallToInstant(post.startDate, tz) : null;
+      const end = post.endDate ? wallToInstant(post.endDate, tz) : null;
       // eslint-disable-next-line no-await-in-loop
       const sent = await Reminder.find({ postId }).select('slot createdAt').lean();
-      const { slot, why } = decideSlot({ now, firstAppAt: new Date(valid[0].createdAt), start, kind, sent, tz });
+      const { slot, why } = decideSlot({ now, firstAppAt: new Date(valid[0].createdAt), start, end, kind, sent, tz });
       if (!slot) { skip(why); continue; }
 
       const latest = valid[valid.length - 1];

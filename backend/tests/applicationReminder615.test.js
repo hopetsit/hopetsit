@@ -213,6 +213,30 @@ describe('arrêt dès qu\'il y a une décision', () => {
     expect(r.sent).toHaveLength(0);
     expect(r.skipped.too_late).toBe(1);
   });
+  test('616 — garde DÉJÀ COMMENCÉE (New York 05→29/10, candidatures après le début) : rappel quand même, jusqu\'à la fin', async () => {
+    const postId = await mkPost(O.en, {
+      serviceTypes: ['pet_sitting'], location: { city: 'New York', lat: 40.7128, lng: -74.006 },
+      startDate: utc('2026-10-05T15:00:00'), endDate: utc('2026-10-29T00:00:00'), createdAt: utc('2026-10-04T23:14:55'),
+    });
+    await apply(postId, O.en, { sitterId: oid(S.a) }, utc('2026-10-09T14:22:13'));
+    await apply(postId, O.en, { walkerId: oid(W.b) }, utc('2026-10-12T21:47:47'));
+    // 15/10 19:40Z = 15 h 40 à New York : r1 dû depuis le 09/10, pas la nuit.
+    const r = await run('2026-10-15T19:40:00');
+    expect(r.sent).toEqual([expect.objectContaining({ slot: 'r1', candidates: 2 })]);
+    expect(mockMails).toHaveLength(0);
+    // r2 = 24 h avant la FIN (29/10 00:00 New York = 29/10 04:00Z → dû le 28/10 04:00Z = minuit local, nuit → 8 h locales = 12:00Z).
+    expect((await run('2026-10-28T05:00:00')).skipped.night).toBe(1);
+    expect((await run('2026-10-28T12:05:00')).sent).toEqual([expect.objectContaining({ slot: 'r2' })]);
+    // Garde finie : plus rien.
+    await Reminder.deleteMany({});
+    expect((await run('2026-10-29T10:00:00')).skipped.too_late).toBe(1);
+  });
+  test('616 — balade dont l\'heure est passée (fin dans la même heure) : toujours rien', async () => {
+    await twoCandidates();
+    const r = await run('2026-10-20T17:00:00'); // balade 18 h 30 - 19 h 30 Paris = 16:30Z - 17:30Z
+    expect(r.sent).toHaveLength(0);
+    expect(r.skipped.too_late).toBe(1);
+  });
 });
 
 describe('moments', () => {
