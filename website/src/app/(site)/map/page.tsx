@@ -609,7 +609,7 @@ export default function MapPage() {
     if (!me) return;
     getSocket()?.emit("map:identify", { userId: me.id, role: me.role });
   }, [socketConnected]);
-  const { presence, resolveOnline } = usePresence();
+  const { presence, resolveOnline, watch: watchPresence } = usePresence();
 
   // 25/09 (587, point 6) — UNE personne = UN id canonique (celui de
   // l'amitié, `other.id`), quel que soit le rôle qui partage : la socket et
@@ -1575,6 +1575,8 @@ export default function MapPage() {
     () => allMembers.map((m) => (m.approx ? m : { ...m, isOnline: resolveOnline(m.id, m.isOnline) })),
     [allMembers, resolveOnline],
   );
+  // 616 — les membres affichés (hors positions floutées) sont relus toutes les 30 s.
+  useEffect(() => { watchPresence(allMembers.filter((m) => !m.approx).map((m) => m.id)); }, [allMembers, watchPresence]);
   const followed = followUserId ? livePositionsList.find((p) => p.userId === followUserId) : undefined;
   // 588 — clic sur un ami du panneau : son direct s'il partage, sinon sa
   // position de profil floutée (couche amis 587, fusionnée dans les membres),

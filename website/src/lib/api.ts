@@ -2395,6 +2395,19 @@ export async function getNearbyMembers(opts: {
   );
 }
 
+// 616 (15/10) — présence des membres AFFICHÉS, relue toutes les 30 s par la
+// carte (comme l'app) : `presence:update` ne part qu'aux amis et aux
+// correspondants ; pour les autres, sans cette lecture, tout le monde restait
+// « hors ligne » (point orange pour tous). ≤ 300 ids par appel.
+export async function getMembersPresence(ids: string[]): Promise<Record<string, boolean>> {
+  const uniq = [...new Set(ids.filter(Boolean))].slice(0, 300);
+  if (uniq.length === 0) return {};
+  const raw = await request<{ online?: Record<string, boolean> }>(
+    `/friends/members/presence?ids=${encodeURIComponent(uniq.join(","))}`,
+  );
+  return raw.online || {};
+}
+
 // 24/09/2026 — LOT B : LA CARTE SANS COMPTE (/pawmap, accueil).
 // `GET /sitters/nearby` et `GET /walkers/nearby` sont publiques (optionalAuth).
 // ⚠️ Elles renvoient la position telle quelle : on la FLOUTE ICI, dans la

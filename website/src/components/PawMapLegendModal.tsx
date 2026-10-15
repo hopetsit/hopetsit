@@ -251,7 +251,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
           ))}
         </span>
       ), title: t("priv2709_halo_t"), body: t("priv2709_halo_b"), color: "#17141F" },
-    { html: memberClusterHtml(4, "sitter"), title: t("legend_member_group"), body: t("legend_member_group_body"), color: ROLE_COLOR.sitter },
+    { html: memberClusterHtml(4, "sitter", false, { sitter: 2, walker: 1, owner: 1 }), title: t("legend_member_group"), body: t("legend_member_group_body"), color: ROLE_COLOR.sitter },
     { html: memberClusterHtml(3, "walker", true), title: t("legend_member_group_friend"), body: t("legend_member_group_friend_body"), color: FRIEND_PINK },
     { html: requestBubbleHtml({ service: "sitting", priceLabel: "25 €" }), title: t("legend_request"), body: t("legend_request_body"), color: ROLE_COLOR.owner },
     { html: placePinHtml("vet"), title: t("legend_place"), body: t("legend_place_body") },

@@ -425,20 +425,67 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}${disc}${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? (o.me ? rocketBadge(20, -1) : rocketBadge(18)) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${label}${bubble}</div>`;
 }
 
+/** Couleur foncée d'un rôle (bas du dégradé 160°, même valeur que l'app). */
+export function roleDark(role: string | undefined | null): string {
+  const key = roleKey(role);
+  return key === "sitter" ? "#1E4FB0" : key === "walker" ? "#15803D" : "#9E1F0B";
+}
+
+/** Effectif par rôle d'un groupe (616) : { owner, sitter, walker }. */
+export function roleCounts(roles: (string | undefined | null)[]): Record<RoleKey, number> {
+  const n: Record<RoleKey, number> = { owner: 0, sitter: 0, walker: 0 };
+  for (const r of roles) n[roleKey(r)] += 1;
+  return n;
+}
+
+/**
+ * 616 (site, 15/10, demande Daniel du 14/10 « quesitos du Trivial », même
+ * règle que `memberClusterSlices` de l'app) : parts d'un rond de groupe —
+ * une part par rôle PRÉSENT (propriétaire → gardien → promeneur),
+ * proportionnelle à l'effectif. Sans détail = une seule part « sitter ».
+ */
+export function memberClusterSlices(counts?: Partial<Record<RoleKey, number>> | null): { role: RoleKey; share: number }[] {
+  const out: { role: RoleKey; share: number }[] = [];
+  if (counts) {
+    const order: RoleKey[] = ["owner", "sitter", "walker"];
+    const total = order.reduce((s, k) => s + Math.max(0, counts[k] || 0), 0);
+    if (total > 0) for (const k of order) { const v = Math.max(0, counts[k] || 0); if (v > 0) out.push({ role: k, share: v / total }); }
+  }
+  if (out.length === 0) out.push({ role: "sitter", share: 1 });
+  return out;
+}
+
 /**
  * Groupe de MEMBRES (25/09, retour de Daniel : « les cadres des groupes et des
- * lieux sont identiques ») : un ROND — comme une personne — plein à la
- * couleur DOMINANTE du rôle, chiffre blanc gras, liseré blanc ; fin anneau
- * rose s'il contient un ami. Jamais un carré (le carré = groupe de lieux).
+ * lieux sont identiques ») : un ROND — comme une personne — liseré blanc ; fin
+ * anneau rose s'il contient un ami. Jamais un carré (le carré = groupe de lieux).
+ * 616 (15/10) — comme dans l'app : le rond est découpé en PARTS aux couleurs
+ * des rôles présents (`counts`, proportionnelles aux effectifs) ; un seul rôle
+ * = rond uni au dégradé du rôle. Le nombre est posé sur une pastille blanche
+ * au centre, à la couleur foncée du rôle dominant.
  */
-export function memberClusterHtml(count: number, dominantRole?: string | null, hasFriend = false): string {
+export function memberClusterHtml(count: number, dominantRole?: string | null, hasFriend = false, counts?: Partial<Record<RoleKey, number>> | null): string {
   const label = count > 99 ? "99+" : String(count);
-  const key = roleKey(dominantRole || "sitter");
-  const c = ROLE_COLOR[key];
-  const dark = key === "sitter" ? "#1E4FB0" : key === "walker" ? "#15803D" : "#9E1F0B";
+  const slices = memberClusterSlices(counts);
+  const dom: RoleKey = counts ? slices.reduce((b, s) => (s.share > b.share ? s : b), slices[0]).role : roleKey(dominantRole || "sitter");
+  const c = ROLE_COLOR[dom];
+  const dark = roleDark(dom);
   const size = count >= 10 ? 44 : 40;
   const ring = hasFriend ? `box-shadow:0 0 0 2.5px ${FRIEND_PINK},0 3px 8px rgba(23,20,31,.35);` : `box-shadow:0 3px 8px rgba(23,20,31,.35);`;
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(160deg,${c},${dark});border:2.5px solid #fff;${ring}color:#fff;display:flex;align-items:center;justify-content:center;font:800 ${label.length > 2 ? 12 : 15}px/1 Inter,system-ui,sans-serif;box-sizing:border-box;">${label}</div>`;
+  if (slices.length === 1) {
+    return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(160deg,${c},${dark});border:2.5px solid #fff;${ring}color:#fff;display:flex;align-items:center;justify-content:center;font:800 ${label.length > 2 ? 12 : 15}px/1 Inter,system-ui,sans-serif;box-sizing:border-box;">${label}</div>`;
+  }
+  // Parts : départ à midi, sens horaire ; fins traits blancs entre les parts.
+  let acc = 0;
+  const stops: string[] = [];
+  const seps: string[] = [];
+  for (const s of slices) {
+    const from = acc * 360; acc += s.share; const to = acc * 360;
+    stops.push(`${ROLE_COLOR[s.role]} ${from.toFixed(2)}deg ${to.toFixed(2)}deg`);
+    seps.push(`<span style="position:absolute;left:50%;top:50%;width:1.5px;height:50%;margin-left:-0.75px;background:#fff;transform-origin:top center;transform:rotate(${(from + 180).toFixed(2)}deg);"></span>`);
+  }
+  const badge = count > 99 ? 27 : count >= 10 ? 25 : 23;
+  return `<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:conic-gradient(from 0deg,${stops.join(",")});border:2.5px solid #fff;${ring}box-sizing:border-box;overflow:hidden;">${seps.join("")}<span style="position:absolute;left:50%;top:50%;width:${badge}px;height:${badge}px;margin:-${badge / 2}px 0 0 -${badge / 2}px;border-radius:50%;background:#fff;color:${dark};display:flex;align-items:center;justify-content:center;font:800 ${label.length > 2 ? 10 : 12}px/1 Inter,system-ui,sans-serif;">${label}</span></div>`;
 }
 
 /** Rôle le plus représenté d'un groupe (couleur du rond de groupe). */

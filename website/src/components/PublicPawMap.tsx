@@ -34,6 +34,7 @@ import {
 import {
   memberPinHtml,
   memberClusterHtml,
+  roleCounts,
   spotPinHtml,
   spotClusterHtml,
   spotPinAnchor,
@@ -70,7 +71,7 @@ function memberIcon(p: PublicProvider, caption: string | null, bubble: string | 
 }
 function clusterIcon(items: PublicProvider[]): L.DivIcon {
   const sz = items.length >= 10 ? 44 : 40;
-  return L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(items.length, dominantRole(items.map((p) => p.role))), iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
+  return L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(items.length, dominantRole(items.map((p) => p.role)), false, roleCounts(items.map((p) => p.role))), iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
 }
 
 // 04/10 (610, ajout de Daniel) — PawSpots en LECTURE SEULE sur la carte

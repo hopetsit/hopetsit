@@ -80,6 +80,7 @@ import {
   spotPinHtml,
   spotClusterHtml,
   dominantRole,
+  roleCounts,
   requestBubbleHtml,
   ROLE_COLOR,
   PAWFOLLOW_VIOLET,
@@ -367,12 +368,15 @@ function MemberCluster({ center, items, onList, friendSet, shift }: { center: [n
   const count = items.length;
   const dom = dominantRole(items.map((m) => m.role));
   const hasFriend = items.some((m) => isFriendMember(m, friendSet));
+  // 616 — parts aux couleurs des rôles présents (comme l'app).
+  const counts = roleCounts(items.map((m) => m.role));
+  const countsKey = `${counts.owner}/${counts.sitter}/${counts.walker}`;
   const sz = count >= 10 ? 44 : 40;
   // 607 — décalée (au plus 48 px, pawRepelAll) quand elle toucherait « Moi » ou un ami :
   // le DESSIN bouge, la position du groupe reste la même (comme l'app).
   const sx = Math.round(shift?.x ?? 0);
   const sy = Math.round(shift?.y ?? 0);
-  const icon = useMemo(() => L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(count, dom, hasFriend), iconSize: [sz, sz], iconAnchor: [sz / 2 - sx, sz / 2 - sy] }), [count, dom, hasFriend, sz, sx, sy]);
+  const icon = useMemo(() => L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(count, dom, hasFriend, counts), iconSize: [sz, sz], iconAnchor: [sz / 2 - sx, sz / 2 - sy] }), [count, dom, hasFriend, countsKey, sz, sx, sy]);
   const onClick = () => {
     if (isStackedGroup(items) || map.getZoom() >= 17) { onList(items); return; }
     const pts = items.map(pointOf).filter((p): p is [number, number] => !!p);
@@ -896,7 +900,7 @@ export default function PoiMap({
   }, [followed]);
   const followTarget = useMemo(
     () => (followed && !followCamHold ? { lat: followed.lat, lng: followed.lng, key: followed.userId } : null),
-    [followed?.lat, followed?.lng, followed?.userId, followCamHold], // eslint-disable-line react-hooks/exhaustive-deps
+    [followed?.lat, followed?.lng, followed?.userId, followCamHold],
   );
   const trail = followUserId ? trails.current.get(followUserId) || [] : [];
 
@@ -1047,7 +1051,7 @@ export default function PoiMap({
   flyToFriendRef.current = flyToFriend;
   useEffect(() => {
     if (focusFriend) flyToFriendRef.current(focusFriend.m);
-  }, [focusFriend?.ts]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [focusFriend?.ts]);
 
   const dirClose = onDirections
     ? (target: { lat: number; lng: number; friendId?: string }) => { try { mapObj?.closePopup(); } catch { /* */ } onDirections(target); }
