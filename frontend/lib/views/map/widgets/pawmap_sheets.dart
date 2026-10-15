@@ -584,6 +584,7 @@ class _MemberHeader extends StatelessWidget {
             icon: PawMapLegend.roleIcon(member.role),
             crown: member.premium,
             online: member.online && !member.approx,
+            offlineDot: !member.approx, // 616
             verified: member.verified,
             size: 84,
           ),
@@ -636,9 +637,11 @@ class _MemberHeader extends StatelessWidget {
                         height: 8.w,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
+                          // 616 — hors ligne = orange foncé PLEIN (jamais
+                          // une teinte délavée, jamais gris).
                           color: member.online
                               ? PawMapLegend.online
-                              : tone.withValues(alpha: 0.45),
+                              : PawMapLegend.offline,
                         ),
                       ),
                       SizedBox(width: 6.w),
@@ -966,6 +969,7 @@ class _Avatar extends StatelessWidget {
     required this.online,
     this.verified = false,
     this.size = 62,
+    this.offlineDot = false,
   });
 
   final String url;
@@ -974,6 +978,9 @@ class _Avatar extends StatelessWidget {
   final bool crown;
   final bool online;
   final bool verified;
+
+  /// 616 — point de statut aussi hors ligne (orange foncé plein).
+  final bool offlineDot;
 
   /// Diamètre logique (dp avant `.w`).
   final double size;
@@ -1060,7 +1067,7 @@ class _Avatar extends StatelessWidget {
               ),
             ),
           ),
-          if (online)
+          if (online || offlineDot)
             Positioned(
               right: d * 0.04,
               bottom: d * 0.04,
@@ -1068,7 +1075,7 @@ class _Avatar extends StatelessWidget {
                 width: badge * 0.72,
                 height: badge * 0.72,
                 decoration: BoxDecoration(
-                  color: PawMapLegend.online,
+                  color: online ? PawMapLegend.online : PawMapLegend.offline,
                   shape: BoxShape.circle,
                   border: Border.all(color: PawMapTheme.panelOn(context), width: 2.5),
                 ),

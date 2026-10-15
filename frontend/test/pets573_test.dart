@@ -248,7 +248,7 @@ void main() {
       for (final String lang in <String>['fr', 'de', 'pl']) {
         _sizeTo320(tester);
         await tester.pumpWidget(_app(
-          PetProfileScreen(pet: _pet(), editable: true, onDelete: () {}),
+          PetProfileScreen(pet: _pet(), editable: true, onDelete: () async => false),
           lang: lang,
         ));
         await tester.pump(const Duration(milliseconds: 60));

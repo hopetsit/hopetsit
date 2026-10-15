@@ -31,6 +31,15 @@ class ReviewsController extends GetxController {
 
   /// Navigates to the home screen based on user role
   void _navigateToHome() {
+    // ZOE 14/10/2026 — on REVIENT à l'écran d'où l'avis a été ouvert (la
+    // réservation, qui recharge alors « Déjà noté · Modifier ») au lieu de
+    // tout reconstruire sur l'Accueil : mesuré au simulateur, le propriétaire
+    // ne voyait jamais son avis pris en compte. Accueil seulement si l'écran
+    // d'avis est la racine (ouvert par un lien).
+    if (Get.key.currentState?.canPop() ?? false) {
+      Get.back(result: true);
+      return;
+    }
     final role = Get.isRegistered<AuthController>()
         ? Get.find<AuthController>().userRole.value
         : null;

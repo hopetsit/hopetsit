@@ -3393,4 +3393,8 @@ const Map<String, String> plPLTranslations = <String, String>{
   'Services Selected': 'Usługi wybrane',
   'Switch Role Failed': 'Nie udało się zmienić roli',
   'Verification Code Sent': 'Kod weryfikacyjny wysłany',
+  // 616 (FLO) — mandat de facturation accepté au premier retrait.
+  'wallet_mandate_checkbox': 'Upoważniam HoPetSit (CARDELLI HERMANOS LIMITED) do wystawiania w moim imieniu dokumentów usługi dla moich rezerwacji.',
+  'wallet_mandate_accepted_on': 'Upoważnienie do fakturowania zaakceptowane dnia @date (regulamin v@version).',
+  'wallet_mandate_required': 'Zaznacz pole upoważnienia do fakturowania, aby móc wypłacić.',
 };

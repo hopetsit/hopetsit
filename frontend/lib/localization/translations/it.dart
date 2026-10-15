@@ -3747,4 +3747,8 @@ const Map<String, String> itITTranslations = <String, String>{
   'shop_card_follow_sub': 'Segui il tuo animale in passeggiata',
   'shop_card_spot_sub': 'Gli spot della community',
   'shop_card_premium_sub': 'Follow + Spot illimitati',
+  // 616 (FLO) — mandat de facturation accepté au premier retrait.
+  'wallet_mandate_checkbox': 'Autorizzo HoPetSit (CARDELLI HERMANOS LIMITED) a emettere a mio nome i documenti di prestazione delle mie prenotazioni.',
+  'wallet_mandate_accepted_on': 'Mandato di fatturazione accettato il @date (Termini v@version).',
+  'wallet_mandate_required': 'Spunta la casella del mandato di fatturazione per poter prelevare.',
 };

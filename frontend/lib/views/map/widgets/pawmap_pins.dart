@@ -991,6 +991,9 @@ class PawMapPinPainter {
     double rating = 0,
     String? priceBubble,
     double margin = memberMargin,
+    // 616 (PAM) — point de statut aussi HORS LIGNE (orange foncé plein) :
+    // Daniel, 10/10 : « jamais la même pour tous ».
+    bool offlineDot = false,
   }) {
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
     if (withBubble) {
@@ -1040,9 +1043,10 @@ class PawMapPinPainter {
     // vérifiée » EN BAS À DROITE (comme sur l'avatar de la fiche publique),
     // jamais cachée par la fusée PawBoost (en bas à gauche) ni la couronne
     // (en haut à droite). Le point « en ligne » passe alors en haut à gauche.
-    if (online) {
+    if (online || offlineDot) {
       final s = (size * 12 / 46).roundToDouble();
-      drawOnlineDot(canvas, pawOnlineDotCenter(c, r, s, verified: verified), s);
+      drawOnlineDot(canvas, pawOnlineDotCenter(c, r, s, verified: verified), s,
+          online: online);
     }
     if (boostPhase != null) {
       drawRocketBadge(canvas, Offset(c.dx - (r + 5 - 9), c.dy + r + 5 - 9), 18);
@@ -1296,6 +1300,8 @@ class PawMapPinPainter {
     // de [photoLabelExtra] pour lui laisser la place ; l'ancre suit
     // ([photoAnchorY] avec labelAbove).
     bool labelAbove = false,
+    // 616 (PAM) — point de statut aussi hors ligne (orange foncé plein).
+    bool offlineDot = false,
   }) {
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
     if (withBubble) {
@@ -1330,6 +1336,7 @@ class PawMapPinPainter {
       labelStyle: labelStyle,
       margin: margin,
       labelAbove: labelAbove,
+      offlineDot: offlineDot,
     );
     if (withBubble) canvas.restore();
   }
@@ -1366,6 +1373,7 @@ class PawMapPinPainter {
     PawPinLabelStyle? labelStyle,
     double margin = photoMargin,
     bool labelAbove = false,
+    bool offlineDot = false,
   }) {
     final r = size / 2;
     final bool hasLabel = label != null && label.isNotEmpty;
@@ -1509,7 +1517,9 @@ class PawMapPinPainter {
     canvas.restore();
 
     // 5. Pastilles (positions du site, en px CSS).
-    if (online || dimmed) {
+    // 616 — [offlineDot] : le point est aussi dessiné HORS LIGNE (orange
+    // foncé plein), jamais la même pastille pour tout le monde.
+    if (online || dimmed || offlineDot) {
       final s = (size * 13 / 50).roundToDouble();
       drawOnlineDot(canvas, pawOnlineDotCenter(c, r, s, verified: verified), s,
           online: online && !dimmed);
@@ -1525,7 +1535,7 @@ class PawMapPinPainter {
       drawVerifiedBadge(canvas, pawVerifiedBadgeCenter(c, r));
     }
     if (eyeOff) {
-      drawEyeOffBadge(canvas, eyeOffBadgeCenter(c, r, online: online || dimmed), 20);
+      drawEyeOffBadge(canvas, eyeOffBadgeCenter(c, r, online: online || dimmed || offlineDot), 20);
     }
     if (crown) {
       _crownAt(canvas, c, r, crownSize);
@@ -1635,21 +1645,49 @@ class PawMapPinPainter {
 
   // ── GROUPES ────────────────────────────────────────────────────────────
 
-  /// Groupe de MEMBRES (site : `memberClusterHtml`, 25/09) : un ROND plein
-  /// au dégradé 160° du rôle DOMINANT, chiffre blanc Inter 800, liseré
-  /// blanc 2,5 ; fin anneau rose s'il contient un ami. Jamais un carré.
+  /// 616 (PAM, demande Daniel 14/10 « quesitos du Trivial ») — parts d'un
+  /// rond de regroupement : une part par rôle PRÉSENT (propriétaire →
+  /// gardien → promeneur), proportionnelle à l'effectif. Un seul rôle (ou
+  /// pas de détail) = une seule part pleine. Pure, testée (pam616).
+  static List<({String role, double share})> memberClusterSlices(
+      Map<String, int>? roleCounts, int count) {
+    final out = <({String role, double share})>[];
+    if (roleCounts != null) {
+      var total = 0;
+      for (final k in const ['owner', 'sitter', 'walker']) {
+        total += math.max(0, roleCounts[k] ?? 0);
+      }
+      if (total > 0) {
+        for (final k in const ['owner', 'sitter', 'walker']) {
+          final v = math.max(0, roleCounts[k] ?? 0);
+          if (v > 0) out.add((role: k, share: v / total));
+        }
+      }
+    }
+    if (out.isEmpty) out.add((role: 'sitter', share: 1.0));
+    return out;
+  }
+
+  /// Rayon de la pastille blanche au centre d'un rond de groupe.
+  static double memberClusterBadgeRadius(int count) =>
+      count > 99 ? 13.5 : (count >= 10 ? 12.5 : 11.5);
+
+  /// Groupe de MEMBRES (site : `memberClusterHtml`, 25/09) : un ROND plein,
+  /// liseré blanc 2,5 ; fin anneau rose s'il contient un ami. Jamais un carré.
+  /// 616 — le rond est découpé en PARTS aux couleurs des rôles présents
+  /// (proportionnelles aux effectifs, `memberClusterSlices`) ; un seul rôle
+  /// = rond uni au dégradé 160° du rôle. Le nombre est posé sur une pastille
+  /// blanche au centre, à la couleur foncée du rôle dominant.
   static void paintMemberCluster(Canvas canvas, int count,
       {Map<String, int>? roleCounts, bool hasFriend = false}) {
     final label = count > 99 ? '99+' : '$count';
-    String dom = 'sitter';
-    if (roleCounts != null) {
-      var best = -1;
-      for (final k in const ['owner', 'sitter', 'walker']) {
-        final v = roleCounts[k] ?? 0;
-        if (v > best) {
-          best = v;
-          dom = k;
-        }
+    final slices = memberClusterSlices(roleCounts, count);
+    String dom = slices.first.role;
+    var best = -1.0;
+    for (final sl in slices) {
+      if (sl.share > best) {
+        best = sl.share;
+        dom = sl.role;
       }
     }
     final double size = count >= 10 ? 44 : 40;
@@ -1664,13 +1702,43 @@ class PawMapPinPainter {
     }
     final rect = Rect.fromCircle(center: c, radius: r);
     canvas.drawCircle(c, r, Paint()..color = Colors.white);
-    canvas.drawCircle(
-        c,
-        r - 2.5,
-        Paint()
-          ..shader = cssLinear(rect, 160,
-              [PawMapLegend.roleColor(dom), PawMapLegend.roleDark(dom)]));
-    drawText(canvas, label, c, label.length > 2 ? 12 : 15, Colors.white);
+    final inner = r - 2.5;
+    if (slices.length == 1) {
+      canvas.drawCircle(
+          c,
+          inner,
+          Paint()
+            ..shader = cssLinear(rect, 160,
+                [PawMapLegend.roleColor(dom), PawMapLegend.roleDark(dom)]));
+    } else {
+      // Parts : départ à midi, sens horaire, propriétaire → gardien → promeneur.
+      final arcRect = Rect.fromCircle(center: c, radius: inner);
+      var start = -math.pi / 2;
+      for (final sl in slices) {
+        final sweep = 2 * math.pi * sl.share;
+        canvas.drawArc(arcRect, start, sweep, true,
+            Paint()..color = PawMapLegend.roleColor(sl.role));
+        start += sweep;
+      }
+      // Fins traits blancs entre les parts (lisibilité, comme un camembert).
+      start = -math.pi / 2;
+      final sep = Paint()
+        ..color = Colors.white
+        ..strokeWidth = 1.5
+        ..style = PaintingStyle.stroke;
+      for (final sl in slices) {
+        canvas.drawLine(
+            c,
+            Offset(c.dx + inner * math.cos(start), c.dy + inner * math.sin(start)),
+            sep);
+        start += 2 * math.pi * sl.share;
+      }
+    }
+    // Pastille blanche + nombre à la couleur foncée du rôle dominant.
+    final br = memberClusterBadgeRadius(count);
+    canvas.drawCircle(c, br, Paint()..color = Colors.white);
+    drawText(canvas, label, c, label.length > 2 ? 10 : 12,
+        PawMapLegend.roleDark(dom));
   }
 
   /// Côté du bitmap d'un groupe de membres, marge de 6 px déduite (le rond

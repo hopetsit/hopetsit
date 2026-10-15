@@ -3393,4 +3393,8 @@ const Map<String, String> jaJPTranslations = <String, String>{
   'shop_card_follow_sub': '散歩中のペットを追跡',
   'shop_card_spot_sub': 'コミュニティのスポット',
   'shop_card_premium_sub': 'Follow + Spot 使い放題',
+  // 616 (FLO) — mandat de facturation accepté au premier retrait.
+  'wallet_mandate_checkbox': 'HoPetSit（CARDELLI HERMANOS LIMITED）が私の名前で予約のサービス書類を発行することを許可します。',
+  'wallet_mandate_accepted_on': '@date に請求代行の委任を承諾（利用規約 v@version）。',
+  'wallet_mandate_required': '出金するには請求代行の委任にチェックしてください。',
 };

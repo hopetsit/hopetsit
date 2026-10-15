@@ -36,7 +36,9 @@ Map<String, dynamic> _n(String id, String role) => <String, dynamic>{
       'body': 'Rex · samedi',
       'data': <String, dynamic>{},
       'readAt': null,
-      'createdAt': '2026-10-04T10:00:00.000Z',
+      // Date RELATIVE : une date figée passe au-delà de 7 jours et l'affichage
+      // bascule sur DateFormat (non initialisé en test) — échec du 14/10.
+      'createdAt': DateTime.now().toUtc().subtract(const Duration(hours: 2)).toIso8601String(),
     };
 
 bool _person(http.Request r) => r.url.queryParameters['scope'] == 'person';

@@ -18,6 +18,7 @@ import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/views/wallet/billing_mandate_consent.dart';
 
 /// Mon portefeuille — v19.0.
 ///
@@ -59,6 +60,11 @@ class _WalletScreenState extends State<WalletScreen> {
   // séquestre (réservations payées pas encore confirmées), calculée backend.
   double _pendingEscrowTotal = 0;
   double _minWithdrawal = 5.0;
+  // 616 (FLO) — mandat de facturation : null tant qu'il n'a jamais été accepté
+  // (la case est alors obligatoire dans la feuille de retrait).
+  DateTime? _mandateAcceptedAt;
+  String _mandateVersion = '';
+  String _mandateCurrentVersion = '2.4';
   List<dynamic> _transactions = [];
   // v565 (lot app-calendar-wallet) — statut IBAN lu en même temps que le solde :
   // null = inconnu (erreur réseau, on n'affiche rien), false = pas d'IBAN →
@@ -87,6 +93,11 @@ class _WalletScreenState extends State<WalletScreen> {
         _pendingEscrowTotal =
             (w['pendingEscrowTotal'] as num?)?.toDouble() ?? 0;
         _minWithdrawal = (w['minWithdrawal'] as num?)?.toDouble() ?? 5.0;
+        _mandateAcceptedAt = DateTime.tryParse(
+            (w['billingMandateAcceptedAt'] as String?) ?? '');
+        _mandateVersion = (w['billingMandateVersion'] as String?) ?? '';
+        _mandateCurrentVersion =
+            (w['billingMandateCurrentVersion'] as String?) ?? '2.4';
       }
       final t = await _api.get('/wallet/transactions?limit=30',
           requiresAuth: true);
@@ -512,6 +523,9 @@ class _WalletScreenState extends State<WalletScreen> {
         currency: _currency,
         minWithdrawal: _minWithdrawal,
         roleColor: _roleColor,
+        mandateAcceptedAt: _mandateAcceptedAt,
+        mandateVersion: _mandateVersion,
+        mandateCurrentVersion: _mandateCurrentVersion,
         onSuccess: () {
           Get.back();
           _load();
@@ -529,6 +543,9 @@ class _WithdrawSheet extends StatefulWidget {
     required this.minWithdrawal,
     required this.roleColor,
     required this.onSuccess,
+    this.mandateAcceptedAt,
+    this.mandateVersion = '',
+    this.mandateCurrentVersion = '2.4',
   });
 
   final double balance;
@@ -536,6 +553,11 @@ class _WithdrawSheet extends StatefulWidget {
   final double minWithdrawal;
   final Color roleColor;
   final VoidCallback onSuccess;
+
+  /// 616 (FLO) — mandat de facturation (null = jamais accepté → case obligatoire).
+  final DateTime? mandateAcceptedAt;
+  final String mandateVersion;
+  final String mandateCurrentVersion;
 
   @override
   State<_WithdrawSheet> createState() => _WithdrawSheetState();
@@ -552,7 +574,7 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit({required bool mandateJustChecked}) async {
     final amount = double.tryParse(_amountCtrl.text.replaceAll(',', '.'));
     if (amount == null || amount < widget.minWithdrawal) {
       CustomSnackbar.showError(
@@ -573,6 +595,13 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
     setState(() => _processing = true);
     try {
       final api = Get.find<ApiClient>();
+      // 616 (FLO) — la case vient d'être cochée : on enregistre le mandat
+      // (date + version) AVANT le retrait, sinon le serveur refuse.
+      if (mandateJustChecked) {
+        await api.post('/wallet/billing-mandate',
+            requiresAuth: true,
+            body: {'version': widget.mandateCurrentVersion});
+      }
       await api.post('/wallet/withdraw',
           requiresAuth: true,
           body: {'amount': amount, 'method': _method});
@@ -612,6 +641,11 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
             Navigator.of(context).pop();
             Get.to(() => const IbanSetupScreen());
           },
+        );
+      } else if (code == 'BILLING_MANDATE_REQUIRED') {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'wallet_mandate_required'.tr,
         );
       } else {
         // Fallback generic message — no more raw ApiException toString.
@@ -734,12 +768,17 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
             _methodTile('paypal', Icons.mail_outline_rounded,
                 'wallet_method_paypal'.tr, 'wallet_method_paypal_desc'.tr),
             SizedBox(height: 22.h),
-            ProfilePrimaryButton(
-              label: 'wallet_confirm_withdrawal'.tr,
+            // 616 (FLO) — case du mandat de facturation (obligatoire au premier
+            // retrait) + bouton ; rappel seul quand le mandat est déjà accepté.
+            BillingMandateWithdrawGate(
+              acceptedAt: widget.mandateAcceptedAt,
+              acceptedVersion: widget.mandateVersion,
+              currentVersion: widget.mandateCurrentVersion,
               accent: widget.roleColor,
+              buttonLabel: 'wallet_confirm_withdrawal'.tr,
+              buttonIcon: Icons.call_made_rounded,
               loading: _processing,
-              icon: Icons.call_made_rounded,
-              onTap: _processing ? null : _submit,
+              onConfirm: _processing ? null : _submit,
             ),
           ],
         ),

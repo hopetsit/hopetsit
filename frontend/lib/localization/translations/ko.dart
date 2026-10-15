@@ -3393,4 +3393,8 @@ const Map<String, String> koKRTranslations = <String, String>{
   'shop_card_follow_sub': '산책 중인 반려동물 추적',
   'shop_card_spot_sub': '커뮤니티 스팟',
   'shop_card_premium_sub': 'Follow + Spot 무제한',
+  // 616 (FLO) — mandat de facturation accepté au premier retrait.
+  'wallet_mandate_checkbox': 'HoPetSit(CARDELLI HERMANOS LIMITED)가 내 이름으로 내 예약의 서비스 문서를 발행하는 것을 허가합니다.',
+  'wallet_mandate_accepted_on': '@date에 청구 위임 수락 (이용약관 v@version).',
+  'wallet_mandate_required': '출금하려면 청구 위임 확인란에 체크하세요.',
 };

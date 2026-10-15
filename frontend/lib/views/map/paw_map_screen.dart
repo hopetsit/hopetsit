@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/paw_rank611.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_route611.dart';
@@ -53,6 +53,7 @@ import 'package:hopetsit/views/map/pawspot_sheets.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/map/widgets/paw_rail_button.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_pins.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_zoom616.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_placeholder.dart';
 import 'package:hopetsit/views/map/pawmap_snapshot.dart';
 import 'package:hopetsit/views/map/pawmap_help_screen.dart';
@@ -128,6 +129,13 @@ class PawMapScreen extends StatefulWidget {
   // précise ». Un lien /spot/<id> ou /alert/<id> ouvre désormais la carte
   // CENTRÉE sur l'élément, avec sa fiche ouverte — au lieu d'atterrir sur
   // une carte générique.
+  /// 616 — crochets de MESURE (tests d'intégration seulement, `kDebugMode`) :
+  /// le contrôleur de la carte, chaque liste de marqueurs remise à Google
+  /// Maps, et la durée de la dernière construction des marqueurs.
+  static GoogleMapController? debugMapController616;
+  static void Function(Set<Marker> markers)? debugMarkersTap616;
+  static int debugLastBuildUs616 = 0;
+
   const PawMapScreen({
     super.key,
     this.initialLat,
@@ -931,7 +939,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     // incomingRequests pouvait être périmé/vide → badge à 0. On force un
     // refresh à l'ouverture de la PawMap pour que le compteur (et donc le
     // badge sur le bouton "Famille & Amis") soit à jour.
-    unawaited(_friendController.refresh());
+    // ZOE 14/10/2026 — après la 1re image : refresh() passe isLoading à true
+    // tout de suite, ce qui redessinait un Obx PENDANT la construction de la
+    // carte (« setState() called during build », mesuré au simulateur).
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => unawaited(_friendController.refresh()));
     // v23.1 part 244d — Daniel : "jai ajouter un walker a ma famille son
     // halo ne cest pas changer". Root cause : la PawMap ne chargait pas
     // la liste famille au mount → familyMembers.isEmpty → isFamily=false
@@ -1251,6 +1263,15 @@ class _PawMapScreenState extends State<PawMapScreen>
     _haloTimer = Timer.periodic(const Duration(milliseconds: 600), (_) {
       if (!mounted || _cameraMoving || !_haloTickDue()) return;
       _haloPhase.value = (_haloPhase.value + 1.0 / 8.0) % 1.0;
+    });
+    // 616 (PAM) — point en ligne / hors ligne À JOUR sans relancer l'app :
+    // `presence:update` (socket) n'est envoyé qu'aux amis et aux
+    // correspondants ; pour les autres membres affichés, l'app sonde toutes
+    // les 30 s la route légère GET /friends/members/presence?ids=… (même
+    // index que /members/nearby) — seulement carte visible et app au premier
+    // plan. Jamais la lourde liste « proches » en boucle.
+    _presencePoll616 = Timer.periodic(const Duration(seconds: 30), (_) {
+      unawaited(_pollPresence616());
     });
 
     // v552 — `canPop` du PopScope est calculé DANS build() : sans ce worker,
@@ -2693,6 +2714,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     _pinZoomTimer?.cancel();
     _filtersBannerTimer?.cancel();
     _filtersBannerWorker?.dispose();
+    _presencePoll616?.cancel();
     // v589 — plus de signal « je suis ce direct » après la carte.
     _followPresenceTimer?.cancel();
     if (_followUserId != null) {
@@ -3652,6 +3674,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   double get _pinZoom => _idleZoom;
   double _idleZoom = _restoreLastZoom();
   Timer? _pinZoomTimer;
+  DateTime? _lastMoveRecalc616;
+
+  /// 616 — présence en direct de la PERSONNE (un de ses ids de rôle en
+  /// ligne = en ligne ; tous connus hors ligne = hors ligne ; sinon null).
+  bool? _presenceOf616(Iterable<String> ids) =>
+      pawPersonPresence616(ids, _liveMap.isOnline);
 
   void _onCameraMove(CameraPosition pos) {
     _currentCenter = pos.target;
@@ -3667,6 +3695,26 @@ class _PawMapScreenState extends State<PawMapScreen>
     _osmTiles.gestureActive = true; // 613 — pas de voisines pendant le geste
     _pinZoomTimer?.cancel(); // v598 — la caméra repart : pas de renvoi d'images.
     _zoomLevel = pos.zoom;
+    // 616 (PAM, §6.2 + §7, captures Daniel 14-15/10) — zoom/dézoom RAPIDE :
+    // les ronds de regroupement étaient calculés au zoom d'ARRÊT précédent
+    // (`_idleZoom`, posé 450 ms APRÈS l'arrêt, v598) : pendant un pincement
+    // ils restaient groupés comme à l'ancien zoom (ronds qui se recouvrent
+    // en dézoomant, gros rond immobile en zoomant), puis tout sautait d'un
+    // coup à l'arrêt, chaque rond étant DÉTRUIT et RECRÉÉ côté Google Maps
+    // (son id portait position + effectif). Dès que le zoom s'écarte de
+    // ≥ 0,5 niveau de celui des épingles posées, elles sont recalculées
+    // PENDANT le geste (au plus toutes les 120 ms, `pawmap_zoom616.dart`) et
+    // les ronds gardent un id stable (mis à jour en place).
+    final now616 = DateTime.now();
+    if (pawMapRecalcDuringMove616(
+        zoom: pos.zoom,
+        pinZoom: _idleZoom,
+        lastAt: _lastMoveRecalc616,
+        now: now616)) {
+      _lastMoveRecalc616 = now616;
+      _idleZoom = pos.zoom;
+      _camIdleRev.value++;
+    }
     _camBearing612 = pos.bearing;
     _camTilt612 = pos.tilt;
     _lastCam612 = pos;
@@ -4646,8 +4694,11 @@ class _PawMapScreenState extends State<PawMapScreen>
           .where((f) => !PawFriendReqSession610.handled.contains(f.id))
           .map((f) => f.other?.id ?? '')
           .join(','),
-      _pinZoom.round(),
+      // 616 — recalcul par DEMI-niveau de zoom (pincement rapide, voir
+      // `_onCameraMove`) et présence en direct.
+      (_pinZoom * 2).round(),
       _pinZoom >= _priceZoom ? 1 : 0,
+      _liveMap.presence.entries.map((e) => '${e.key}:${e.value ? 1 : 0}').join(','),
       '${_currentCenter.latitude.toStringAsFixed(1)},'
           '${_currentCenter.longitude.toStringAsFixed(1)}',
       _userPosition == null
@@ -4665,7 +4716,12 @@ class _PawMapScreenState extends State<PawMapScreen>
       _cachedMarkersKey = key;
     }
     final int phase = _anyBoosted && !_reduceMotion ? _boostPhaseIdx : -1;
-    return _markersByPhase[phase] ??= _applyLayout607(_buildMarkers());
+    final cached = _markersByPhase[phase];
+    if (cached != null) return cached;
+    final sw = kDebugMode ? (Stopwatch()..start()) : null; // 616 — mesure
+    final built = _applyLayout607(_buildMarkers());
+    if (sw != null) PawMapScreen.debugLastBuildUs616 = sw.elapsedMicroseconds;
+    return _markersByPhase[phase] = built;
   }
 
   /// 607 — passe de mise en page unique (pawmap_layout607.dart) : les lieux,
@@ -4786,6 +4842,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v592 — comme le web : prénom dessous, prix dans la bulle colorée au-dessus.
     String? priceBubble,
     String? slot,
+    bool offlineDot = false, // 616
   }) {
     final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
     final size = PawMapLegend.memberSize;
@@ -4796,7 +4853,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final double mm = PawMapPinPainter.memberMarginFor(
         boosted: boosted, crown: crown, selected: selected);
     final key =
-        'member:m$mm:$role:${crown ? 1 : 0}:$phase:${verified ? 1 : 0}:${online ? 1 : 0}:${selected ? 1 : 0}:${priceLabel ?? ''}:$r1:${priceBubble ?? ''}';
+        'member:m$mm:$role:${crown ? 1 : 0}:$phase:${verified ? 1 : 0}:${online ? 1 : 0}${offlineDot ? 'o' : ''}:${selected ? 1 : 0}:${priceLabel ?? ''}:$r1:${priceBubble ?? ''}';
     // v605 — bitmap élargi à la bulle (duo, prix longs) : plus de bulle rognée.
     final w = PawMapPinPainter.memberBitmapWidth(size,
         priceBubble: withBubble ? priceBubble : null,
@@ -4829,6 +4886,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             rating: r1,
             priceBubble: withBubble ? priceBubble : null,
             margin: mm,
+            offlineDot: offlineDot,
           );
             c.restore();
           },
@@ -4864,6 +4922,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     bool labelAbove = false,
     // 609 — coche « identité vérifiée » en bas à droite.
     bool verified = false,
+    bool offlineDot = false, // 616
   }) {
     final avatar = _pins.avatarFor(avatarUrl);
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
@@ -4873,7 +4932,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
     final withLabel = label != null && label.isNotEmpty;
     final key =
-        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey:${withBubble ? '$priceBubble/$priceRole' : ''}:${labelAbove && withLabel ? 'up' : ''}:${verified ? 'v' : ''}';
+        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey:${withBubble ? '$priceBubble/$priceRole' : ''}:${labelAbove && withLabel ? 'up' : ''}:${verified ? 'v' : ''}${offlineDot ? 'o' : ''}';
     // v594 — la bulle duo gardien/promeneur est plus large que le rond : le
     // bitmap s'élargit des deux côtés (le rond reste centré, ancre x = 0,5).
     // v594 — grande marge seulement pour les ronds à halo (voir photoMarginGlow).
@@ -4928,6 +4987,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             priceRole: priceRole,
             margin: m,
             labelAbove: labelAbove && withLabel,
+            offlineDot: offlineDot,
           );
             c.restore();
           },
@@ -5396,6 +5456,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// 607 — la mesure de fluidité voit la liste remise à la carte.
   Set<Marker> _probeMarkers(Set<Marker> m) {
     if (kPawMap603Probe) PawProbe607.instance.onMarkers(m);
+    if (kDebugMode) PawMapScreen.debugMarkersTap616?.call(m); // 616
     return m;
   }
 
@@ -5827,8 +5888,11 @@ class _PawMapScreenState extends State<PawMapScreen>
           }
           markers.add(
             Marker(
-              markerId: MarkerId('mcluster_${target.latitude.toStringAsFixed(4)}'
-                  '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
+              // 616 — id STABLE (plus petit id du groupe) : à chaque
+              // recalcul, Google Maps met le rond à jour en place au lieu de
+              // le détruire et d'en recréer un (ronds qui « se dédoublent »).
+              markerId: MarkerId('mcluster_${pawClusterKey616(
+                  group.map((m) => (m['id'] ?? m['_id'] ?? '').toString()))}'),
               // 612 — décalé par l'ANCRE (px) : rien ne saute pendant un zoom.
               position: target,
               // v592 — un groupe qui contient un ami porte l'anneau rose (web).
@@ -5875,7 +5939,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         final bool boosted = p['isBoosted'] == true ||
             pawMapPersonIds(p).any(_personBoosted);
         if (boosted) _anyBoosted = true;
-        final bool online = p['isOnline'] != false && p['online'] != false;
+        // 616 (PAM) — la présence reçue en direct (`presence:update`, tous
+        // les ids de rôle de la personne) prime sur le champ chargé : le point
+        // vert / orange change sans relancer l'app.
+        final bool online = _presenceOf616(pawMapPersonIds(p)) ??
+            (p['isOnline'] != false && p['online'] != false);
         final bool selected = _selectedNearbyId == id;
         final bool approx = p['approx'] == true;
         final double approxKm = (p['approxKm'] as num?)?.toDouble() ?? 1.0;
@@ -5987,6 +6055,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             labelColor: PawMapLegend.darken(PawMapLegend.friend, 0.25),
             crown: premium && _showPremiumLayer.value,
             online: online && !approx,
+            offlineDot: !approx, // 616 — orange plein hors ligne
             verified: verified, // 609
             boosted: boosted,
             fallbackIcon: PawMapLegend.roleIcon(role),
@@ -6013,6 +6082,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             crown: premium && _showPremiumLayer.value,
             crownSize: PawMapLegend.crownMember,
             online: online && !approx,
+            offlineDot: !approx, // 616 — orange plein hors ligne
             verified: verified, // 609
             boosted: boosted,
             fallbackIcon: PawMapLegend.roleIcon(role),
@@ -6035,6 +6105,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             crown: premium && _showPremiumLayer.value,
             crownSize: PawMapLegend.crownMember,
             online: online && !approx,
+            offlineDot: !approx, // 616 — orange plein hors ligne
             verified: verified, // 609
             boosted: boosted,
             fallbackIcon: PawMapLegend.roleIcon(role),
@@ -6049,6 +6120,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             boosted: boosted,
             verified: verified,
             online: online && !approx,
+            offlineDot: !approx, // 616 — orange plein hors ligne
             selected: selected,
             priceLabel: photoLabel,
             rating: (p['rating'] as num?)?.toDouble() ?? 0,
@@ -7711,6 +7783,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       // v23.1 part 123 — tick halo (~1,7 fps) : la pulsation reste fluide.
       _haloPhase.value;
       _camIdleRev.value;
+      _liveMap.presence.length; // 616 — point en ligne / hors ligne en direct
       // v23.1.163 — providers + interrupteur (sinon aucun halo à l'arrivée).
       _nearbyProviders.length;
       _showProviders.value;
@@ -7752,6 +7825,9 @@ class _PawMapScreenState extends State<PawMapScreen>
         onMapCreated: (c) {
           pawMap603Log('onMapCreated');
           if (!_mapCtl.isCompleted) _mapCtl.complete(c);
+          if (kDebugMode) PawMapScreen.debugMapController616 = c; // 616
+          // 616 — premier sondage de présence peu après l'arrivée des listes.
+          Timer(const Duration(seconds: 8), () => unawaited(_pollPresence616()));
           // v23.1 part 213 — centre initial demandé (alerte, ami, lien) :
           // on y va tout de suite, avant le recentrage GPS.
           final lat = widget.initialLat;
@@ -8415,6 +8491,38 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   Timer? _followPresenceTimer;
+  Timer? _presencePoll616;
+
+  /// 616 — relit l'état « en ligne » des membres affichés (position exacte)
+  /// sur GET /friends/members/presence et met à jour la table de présence
+  /// partagée ([LiveMapService.presence], déjà lue par les ronds et la
+  /// fiche). Un changement redessine les ronds par la clé du cache.
+  Future<void> _pollPresence616({bool force = false}) async {
+    if (!mounted || _pausedAt != null || _cameraMoving) return;
+    if (!force && !TickerMode.valuesOf(context).enabled) return; // onglet caché
+    final ids = pawPresenceIdsToPoll616([
+      ..._nearbyProviders,
+      ..._worldMembers.where((m) => m['approx'] != true),
+    ]);
+    if (ids.isEmpty) return;
+    try {
+      final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
+      if (api == null) return;
+      final res = await api.get(
+          '/friends/members/presence?ids=${Uri.encodeComponent(ids.join(','))}',
+          requiresAuth: true);
+      if (!mounted) return;
+      final online = (res is Map) ? res['online'] : null;
+      if (online is! Map) return;
+      final changed = pawApplyPresence616(_liveMap.presence, online);
+      if (changed > 0) _camIdleRev.value++;
+      if (kPawMap603Probe) {
+        pawMap603Log('P616 presence sondée=${ids.length} changées=$changed');
+      }
+    } catch (e) {
+      debugPrint('[pawmap616] presence : $e');
+    }
+  }
 
   /// v605 — cette position est-elle celle de la personne que JE suis ?
   /// (suivi de la carte OU vérité partagée [LiveMapService.followingUserId],

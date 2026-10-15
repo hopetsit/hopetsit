@@ -555,6 +555,41 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
   }
 });
 
+// 616 (PAM, 15/10/2026) — Daniel (10/10) : le point « en ligne / hors ligne »
+// des ronds de la PawMap doit refléter le VRAI état et se mettre à jour sans
+// relancer l'app. `presence:update` (socket) ne part qu'aux amis et aux
+// correspondants ; pour les autres membres affichés, l'app relit ici, toutes
+// les 30 s quand la carte est visible, l'état des ids qu'elle montre :
+//   GET /friends/members/presence?ids=a,b,c   (≤ 300 ids de rôle)
+//   → { online: { id: true | false }, at }
+// Même index que /members/nearby (cache 10 s, `buildPresenceIndex`), la
+// personne entière compte (un de ses profils en ligne = en ligne). Route
+// AJOUTÉE, rien retiré : les apps ≤ 615 ne l'appellent jamais.
+const PRESENCE_IDS_MAX_616 = 300;
+router.get('/members/presence', requireAuth, async (req, res) => {
+  try {
+    const raw = typeof req.query.ids === 'string' ? req.query.ids : '';
+    const ids = [...new Set(raw.split(',').map((s) => s.trim()).filter(Boolean))]
+      .slice(0, PRESENCE_IDS_MAX_616);
+    const online = {};
+    if (!ids.length) return res.json({ online, at: new Date().toISOString() });
+    const { buildPresenceIndex, isIdentityOnline } = require('../sockets/emitter');
+    const presenceIdx = await buildPresenceIndex();
+    const docs = (await Promise.all([Owner, Sitter, Walker].map((M) =>
+      M.find({ _id: { $in: ids } }).select('_id email oldId').lean(),
+    ))).flat();
+    const byId = new Map(docs.map((d) => [String(d._id), d]));
+    for (const id of ids) {
+      const d = byId.get(id);
+      online[id] = !!(d && presenceIdx && isIdentityOnline(d, presenceIdx));
+    }
+    return res.json({ online, at: new Date().toISOString() });
+  } catch (e) {
+    logger.error('[friends/members/presence]', e);
+    return res.status(500).json({ error: 'Unable to fetch presence.' });
+  }
+});
+
 // v548 — Daniel : « quand on dézoome, faire en sorte qu'on voie TOUS les
 // utilisateurs sur la carte mondiale » + « cliquer sur eux et demander en ami ».
 // Couche MONDE : tous les membres géolocalisés, tous rôles, abonnés ou non,
