@@ -31,6 +31,8 @@ const PUBLIC_PATHS = [
   "/remboursement",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  // 16/10 (SAM) — saisonnier Toussaint 2026 Paris (propriétaires).
+  "/blog/garde-animaux-toussaint-paris",
   // 14/10 (GUS) — guide propriétaire « dog sitting » (demande USA 931 affichages / 0 clic).
   "/blog/what-is-dog-sitting",
   // 2026-W41 — recrutement Paris 18e + Los Angeles (routine marketing hebdo).

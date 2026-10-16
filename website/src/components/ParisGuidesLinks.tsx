@@ -8,6 +8,8 @@ import Link from "@/components/SiteLink";
 // pas vers eux. Ce bloc relie les 7 guides entre eux depuis chaque article.
 // Ne pas y ajouter de nouvelle page : uniquement des articles déjà en ligne.
 const GUIDES = [
+  // 16/10 (SAM) — saisonnier Toussaint 2026 (17/10 → 2/11), relié aux guides existants.
+  { href: "/blog/garde-animaux-toussaint-paris", t: "Garde de chien et de chat pendant les vacances de la Toussaint à Paris" },
   { href: "/blog/faire-garder-son-chat-a-paris", t: "Faire garder son chat à Paris : visites à domicile ou pension ?" },
   { href: "/blog/promener-son-chien-a-paris", t: "Promener son chien à Paris : parcs, bois et bons plans" },
   { href: "/blog/chien-seul-toute-la-journee-paris", t: "Chien seul toute la journée à Paris : la promenade de midi" },

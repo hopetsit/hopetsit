@@ -13,6 +13,14 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 16/10 (SAM) — saisonnier : vacances de la Toussaint à Paris (17/10 → 2/11/2026).
+  {
+    slug: "garde-animaux-toussaint-paris",
+    lang: "🇫🇷",
+    title: "Garde de chien et de chat pendant les vacances de la Toussaint à Paris",
+    excerpt:
+      "Du 17 octobre au 2 novembre 2026 : gardien à domicile, pension ou famille, prix réels, check-list et pourquoi réserver tôt.",
+  },
   // 14/10 (GUS) — « dog sitting » 931 affichages / 0 clic (USA, 28 j) : guide propriétaire général.
   {
     slug: "what-is-dog-sitting",

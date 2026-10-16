@@ -92,7 +92,18 @@ export default function GardeAnimauxParisPage() {
       stickyWatchId="hero-publier"
     >
       <section className="mt-12">
-        <h2 className="font-display text-2xl font-extrabold text-ink">Votre arrondissement</h2>
+        {/* 16/10 (SAM) — lien saisonnier vers l'article Toussaint, sous la ligne de
+            flottaison (le premier écran / formulaire est mesuré : ne rien y ajouter). */}
+        <p className="text-sm font-semibold">
+          <TrackedLink
+            href="/blog/garde-animaux-toussaint-paris"
+            label="maillage"
+            className="text-owner-dark underline-offset-4 hover:underline"
+          >
+            🍂 Vacances de la Toussaint : qui garde votre animal ? →
+          </TrackedLink>
+        </p>
+        <h2 className="mt-8 font-display text-2xl font-extrabold text-ink">Votre arrondissement</h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">
           Chaque arrondissement a sa page : les vétérinaires ouverts le week-end, les animaleries,
           les espaces canins et les gardiens HoPetSit du quartier.
