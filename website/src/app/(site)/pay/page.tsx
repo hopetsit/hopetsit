@@ -74,6 +74,10 @@ export default function PayPage() {
   // booking_accepted / payment_failed : sans intent Airwallex, on explique
   // où payer (app ou réservations) au lieu de « Missing payment parameters ».
   const [bookingHint, setBookingHint] = useState(false);
+  // 16/10/2026 (LEO) — montant relayé par /posts et /bookings (`amount` + `currency`) : affiché
+  // pendant la redirection pour que le propriétaire voie ce qu'il va payer. Textes traduits
+  // (FLO 16/10 : la page était en anglais sur le site en français).
+  const [amountLabel, setAmountLabel] = useState<string>("");
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -99,6 +103,14 @@ export default function PayPage() {
     // l'intentId (qui sert de référence Airwallex). On le relaie sous `booking`
     // pour que /pay/done puisse appeler confirm-payment/:bookingId/:intentId.
     const bookingParam = params.get("booking") || params.get("id") || "";
+    const amountParam = Number(params.get("amount") || "");
+    if (Number.isFinite(amountParam) && amountParam > 0) {
+      try {
+        setAmountLabel(new Intl.NumberFormat(document.documentElement.lang || "fr", { style: "currency", currency }).format(amountParam));
+      } catch {
+        setAmountLabel(`${amountParam.toFixed(2)} ${currency}`);
+      }
+    }
     const extraParams = new URLSearchParams();
     if (purpose) extraParams.set("purpose", purpose);
     if (planParam) extraParams.set("plan", planParam);
@@ -158,10 +170,13 @@ export default function PayPage() {
       </div>
       {status !== "error" ? (
         <>
-          <p className="text-lg font-semibold text-ink">Preparing your secure payment…</p>
-          <p className="mt-2 text-sm text-ink-muted">
-            You're being redirected to the secure payment page. Please don't close this window.
-          </p>
+          <p className="text-lg font-semibold text-ink">{t("c1610_pay_preparing")}</p>
+          {amountLabel && (
+            <p className="mt-2 text-xl font-extrabold text-owner-dark" data-pay-amount={amountLabel}>
+              {t("c1610_pay_amount").replace("{amount}", amountLabel)}
+            </p>
+          )}
+          <p className="mt-2 text-sm text-ink-muted">{t("c1610_pay_redirect")}</p>
           <div className="mt-6 h-2 w-48 overflow-hidden rounded-full bg-bg-soft">
             <div className="h-full w-1/3 animate-pulse bg-owner" />
           </div>
@@ -180,11 +195,9 @@ export default function PayPage() {
             </>
           ) : (
             <>
-              <p className="text-lg font-semibold text-owner-dark">Couldn't start payment.</p>
+              <p className="text-lg font-semibold text-owner-dark">{t("c1610_pay_fail")}</p>
               <p className="mt-2 max-w-sm text-sm text-ink-muted">{errorMsg}</p>
-              <p className="mt-6 text-xs text-ink-soft">
-                You can close this window and try again from the app.
-              </p>
+              <p className="mt-6 text-xs text-ink-soft">{t("c1610_pay_retry")}</p>
             </>
           )}
         </>

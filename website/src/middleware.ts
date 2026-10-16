@@ -12,6 +12,8 @@ const NOINDEX = [
   "/login", "/signup", "/verify-email", "/open", "/pay", "/kyc-complete",
   "/search", "/map", "/boutique", "/posts", "/pawpoints", "/family", "/book",
   "/dashboard", "/chat", "/bookings", "/invoices", "/profile", "/pets",
+  // 16/10/2026 (LEO) — /application/<id> : lien e-mail « candidature reçue » du propriétaire (privé).
+  "/application",
   // 22/09/2026 — /p/<role>/<id> : lien de profil qu'un prestataire partage
   // lui-même. Utile et public, mais ce n'est PAS un annuaire : on ne le fait
   // pas indexer par Google.

@@ -4,7 +4,7 @@ import Link from "@/components/SiteLink";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { ApiError, AuthUser, AuthRole, Booking, clearAuth, getConversations, getMyBookings, getMyRoles, getStoredUser, openInApp, redeemPromo, switchRole } from "@/lib/api";
+import { ApiError, AuthUser, AuthRole, Booking, clearAuth, getConversations, getMyApplications, getMyBookings, getMyRoles, getStoredUser, openInApp, redeemPromo, switchRole } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { disconnectSocket } from "@/lib/socket";
 import NotificationBanner from "@/components/NotificationBanner";
@@ -118,6 +118,16 @@ export default function DashboardPage() {
       .then((list) => { if (alive) setBookings(list); })
       .catch(() => {})
       .finally(() => { if (alive) setBookingsLoaded(true); });
+    return () => { alive = false; };
+  }, [user?.role, user?.id]);
+  // 16/10/2026 (LEO) — propriétaire : candidats en attente d'un choix (→ /posts, puis Payer).
+  const [pendingCandidates, setPendingCandidates] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    if (!user || user.role !== "owner") { setPendingCandidates(0); return; }
+    getMyApplications()
+      .then((list) => { if (alive) setPendingCandidates(list.filter((a) => a.status === "pending").length); })
+      .catch(() => {});
     return () => { alive = false; };
   }, [user?.role, user?.id]);
 
@@ -249,6 +259,9 @@ export default function DashboardPage() {
   if (isOwner && today.toPay.length > 0) {
     const b = today.toPay[0];
     todo.push({ icon: "wallet", count: today.toPay.length, label: t("dash_today_to_pay"), sub: `${b.otherParty?.name || ""} ${fmtDate(b)}`.trim(), href: today.toPay.length === 1 ? `/pay?bookingId=${encodeURIComponent(b.id)}` : "/bookings", cta: t("dash_pay_now"), color: ROLE_COLOR.owner, light: "#FBE9E5" });
+  }
+  if (isOwner && pendingCandidates > 0) {
+    todo.push({ icon: "people", count: pendingCandidates, label: t("c1610_dash_label"), sub: t("c1610_then_pay"), href: "/posts", cta: t("c1610_dash_cta"), color: ROLE_COLOR.owner, light: "#FBE9E5" });
   }
   if (isProvider && today.pendingReq.length > 0) {
     todo.push({ icon: "megaphone", count: today.pendingReq.length, label: t("dash_today_requests"), sub: `${today.pendingReq[0].otherParty?.name || ""} ${fmtDate(today.pendingReq[0])}`.trim(), href: "/bookings", cta: t("dash_answer_now"), color: tint.dark, light: tint.light });
@@ -393,7 +406,7 @@ export default function DashboardPage() {
                         )}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-bold text-[#231715]">{it.label}</span>
+                        <span className="block text-sm font-bold leading-tight text-[#231715]">{it.label}</span>
                         {it.sub && <span className="block truncate text-xs text-[#6E4F48]">{it.sub}</span>}
                       </span>
                       <span className="shrink-0 rounded-full px-3 py-1.5 text-xs font-bold text-white" style={{ background: it.color }}>{it.cta}</span>

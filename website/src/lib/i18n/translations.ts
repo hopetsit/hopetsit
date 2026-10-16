@@ -9672,3 +9672,7 @@ for (const code of Object.keys(SITE612) as Lang[]) Object.assign(t[code], SITE61
 // légende de la nouvelle épingle d'alerte. Généré par ~/hopetsit-social/site_613/build_site613.py. Fusionné EN DERNIER.
 import { SITE613 } from "./site613";
 for (const code of Object.keys(SITE613) as Lang[]) Object.assign(t[code], SITE613[code]);
+// 16/10/2026 — LEO : choisir un candidat et payer depuis le site (clés c1610_*, mots de l'app).
+// Généré par ~/hopetsit-social/site_1610/build_candidats1610.py. Fusionné EN DERNIER.
+import { CANDIDATS1610 } from "./candidats1610";
+for (const code of Object.keys(CANDIDATS1610) as Lang[]) Object.assign(t[code], CANDIDATS1610[code]);

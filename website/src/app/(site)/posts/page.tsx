@@ -9,9 +9,13 @@ import { petTraitLabel } from "@/lib/petTraits";
 import { locationDisplay } from "@/lib/i18n/publish587";
 import { formatPrice } from "@/lib/pawmapLegend";
 import { localizedTimeSlot } from "@/lib/timeSlot";
+// 16/10/2026 (LEO) — les candidats de chaque demande, « Choisir » puis « Payer » sur le site.
+import { PostCandidates1610 } from "@/components/PostCandidates1610";
 import {
   ApiError,
+  type ApplicationItem,
   RequestPost,
+  getMyApplications,
   addPostComment,
   contactOwnerAboutPost,
   deletePost,
@@ -48,6 +52,9 @@ export default function PostsPage() {
 
   const [role, setRole] = useState<string | null>(null);
   const [posts, setPosts] = useState<RequestPost[]>([]);
+  // 16/10 — candidatures reçues (propriétaire) + candidature ciblée par le lien e-mail (?application=…).
+  const [apps, setApps] = useState<ApplicationItem[]>([]);
+  const [focusId, setFocusId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,11 +65,22 @@ export default function PostsPage() {
       return;
     }
     setRole(u.role);
+    try {
+      setFocusId(new URLSearchParams(window.location.search).get("application") || "");
+    } catch { /* ignore */ }
     (async () => {
       setLoading(true);
       setError(null);
       try {
         const list = u.role === "owner" ? await getMyPosts() : await getRequestPosts();
+        if (u.role === "owner") {
+          const mine = await getMyApplications().catch(() => [] as ApplicationItem[]);
+          setApps(mine);
+          // Les demandes qui ont des candidats en attente passent en tête.
+          const pendingByPost = new Map<string, number>();
+          for (const a of mine) if (a.status === "pending" && a.postId) pendingByPost.set(a.postId, (pendingByPost.get(a.postId) || 0) + 1);
+          list.sort((a, b) => (pendingByPost.get(postId(b)) || 0) - (pendingByPost.get(postId(a)) || 0));
+        }
         setPosts(list);
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) {
@@ -112,6 +130,8 @@ export default function PostsPage() {
             key={postId(p)}
             post={p}
             isOwner={isOwner}
+            applications={isOwner ? apps.filter((a) => a.postId === postId(p)) : []}
+            focusId={focusId}
             onDeleted={() => setPosts((prev) => prev.filter((x) => postId(x) !== postId(p)))}
           />
         ))}
@@ -123,10 +143,14 @@ export default function PostsPage() {
 function PostCard({
   post,
   isOwner,
+  applications,
+  focusId,
   onDeleted,
 }: {
   post: RequestPost;
   isOwner: boolean;
+  applications: ApplicationItem[];
+  focusId: string;
   onDeleted: () => void;
 }) {
   const { t, lang } = useT();
@@ -340,6 +364,11 @@ function PostCard({
           {post.notes && <ResCell icon="📝" label={t("posts_field_details")} value={post.notes} />}
         </div>
       </div>
+
+      {/* 16/10 — propriétaire : les candidats de cette demande → Choisir → Payer. */}
+      {isOwner && applications.length > 0 && (
+        <PostCandidates1610 post={post} applications={applications} focusId={focusId} />
+      )}
 
       {/* Bande animaux : nom · race · âge · sexe + nombre de photos. */}
       {pets.length > 0 && (

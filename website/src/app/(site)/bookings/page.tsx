@@ -171,6 +171,10 @@ export default function BookingsPage() {
         purpose: "booking",
         booking: booking.id,
       });
+      // 16/10 (LEO) — le montant s'affiche sur /pay pendant la redirection.
+      // ⚠️ `intent.amount` est en CENTIMES (mesuré 16/10) → prix de la réservation, en euros.
+      const amt = booking.pricing?.totalPrice ?? booking.totalAmount ?? booking.basePrice ?? 0;
+      if (amt > 0) qs.set("amount", String(amt));
       router.push(`/pay?${qs.toString()}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Échec du paiement");

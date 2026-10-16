@@ -1275,6 +1275,97 @@ export async function respondToBooking(
   return raw.booking;
 }
 
+// ─── Candidatures reçues par un PROPRIÉTAIRE (16/10/2026, LEO) ───────────────
+// Ordre de Daniel : « en cas d'urgence quelqu'un se connecte sur le site et
+// paye ». Le site savait payer (/bookings → /pay) mais pas ACCEPTER un candidat.
+// Mêmes routes et même corps que l'app (owner_repository.dart) :
+//   GET  /applications/my                 → { applications: [...] }
+//   POST /applications/:id/respond        → body { action: 'accept' | 'reject' }
+// Un refus serveur arrive avec un `code` : CURRENCY_MISMATCH (409, devise du
+// candidat ≠ devise du propriétaire) ou TOO_FAR (403, > 200 km) — le message
+// est déjà dans la langue du propriétaire ; le site l'affiche tel quel.
+export type ApplicationProvider = {
+  id?: string;
+  _id?: string;
+  name?: string;
+  avatar?: string;
+  city?: string;
+  rating?: number;
+  reviewCount?: number;
+  reviewsCount?: number;
+  totalReviews?: number;
+  identityVerified?: boolean;
+  location?: { lat?: number; lng?: number; city?: string } | null;
+};
+
+export type ApplicationItem = {
+  id?: string;
+  _id?: string;
+  postId: string | null;
+  status: "pending" | "accepted" | "rejected" | "cancelled" | string;
+  createdAt?: string;
+  serviceType?: string;
+  serviceDate?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  description?: string;
+  petName?: string;
+  sitter?: ApplicationProvider | null;
+  walker?: ApplicationProvider | null;
+  booking?: Booking | null;
+  bookingId?: string | Booking | null;
+  pricing?: {
+    basePrice?: number | null;
+    totalPrice?: number | null;
+    commission?: number | null;
+    netPayout?: number | null;
+    currency?: string;
+    pricingTier?: string;
+  } | null;
+};
+
+export function applicationId(a: ApplicationItem): string {
+  return String(a.id || a._id || "");
+}
+
+/** Le prestataire d'une candidature (gardien OU promeneur) et son rôle. */
+export function applicationProvider(a: ApplicationItem): { role: "sitter" | "walker"; who: ApplicationProvider | null } {
+  if (a.walker) return { role: "walker", who: a.walker };
+  return { role: "sitter", who: a.sitter || null };
+}
+
+/** Toutes mes candidatures (le serveur filtre par mon rôle). */
+export async function getMyApplications(): Promise<ApplicationItem[]> {
+  const raw = await request<{ applications?: ApplicationItem[] }>(`/applications/my`);
+  return Array.isArray(raw?.applications) ? raw.applications : [];
+}
+
+export type RespondToApplicationResult = {
+  application: ApplicationItem;
+  booking?: Booking | null;
+  payment?: { clientSecret?: string; paymentIntentId?: string; currency?: string; amount?: number; error?: string } | null;
+};
+
+/** Propriétaire : accepter (→ réservation créée, à payer) ou refuser un candidat. */
+export async function respondToApplication(
+  id: string,
+  action: "accept" | "reject",
+): Promise<RespondToApplicationResult> {
+  return await request<RespondToApplicationResult>(`/applications/${encodeURIComponent(id)}/respond`, {
+    method: "POST",
+    body: JSON.stringify({ action }),
+  });
+}
+
+/** Code d'erreur métier renvoyé par le serveur (CURRENCY_MISMATCH, TOO_FAR…), sinon ''. */
+export function apiErrorCode(e: unknown): string {
+  if (e instanceof ApiError && e.details && typeof e.details === "object") {
+    const c = (e.details as { code?: unknown }).code;
+    return typeof c === "string" ? c : "";
+  }
+  return "";
+}
+
 // ─── Paiement d'une réservation depuis le SITE (parité app) ──────────────────
 // Jusqu'ici le paiement d'un booking était délégué à l'app mobile. On expose
 // désormais les mêmes endpoints que l'app pour permettre à l'owner de payer
