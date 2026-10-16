@@ -103,7 +103,7 @@ async function people(byRole) {
     const docs = await MOD[role].find({ _id: { $in: list } })
       .select('name email isStaff city coverageCity location.city location.coordinates currency country countryCode hourlyRate dailyRate weeklyRate monthlyRate walkRates').lean();
     for (const d of docs) {
-      out.set(`${role}:${d._id}`, { name: firstName(d.name), city: cityOf(d), kind: kindOf(d), coords: DIST.profileCoords(d), currency: CUR.resolveCurrency(d).currency, currencyStored: CUR.currencyOf(d), currencyInferred: CUR.resolveCurrency(d).inferred, rate: rateOf(d) });
+      out.set(`${role}:${d._id}`, { name: firstName(d.name), city: cityOf(d), country: String(d.country || '').toUpperCase(), kind: kindOf(d), coords: DIST.profileCoords(d), currency: CUR.resolveCurrency(d).currency, currencyStored: CUR.currencyOf(d), currencyInferred: CUR.resolveCurrency(d).inferred, rate: rateOf(d) });
     }
   }));
   return out;
@@ -254,6 +254,8 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
       postId: pid,
       owner: { id: ownerId, name: ownerP.name, kind: ownerP.kind },
       city: (p.location && p.location.city) || '',
+      country: (p.location && p.location.country ? String(p.location.country).toUpperCase() : '') || ownerP.country || '',
+      applicationsAt: a.map((x) => x.createdAt),
       serviceTypes: p.serviceTypes || [],
       serviceDate: serviceDateOf(p),
       serviceEnd: p.endDate || null,
@@ -278,7 +280,7 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
           who: a.slice(0, 5).map((x) => {
             const role = x.walkerId ? 'walker' : 'sitter';
             const pr = person(role, x.walkerId || x.sitterId);
-            return { name: pr.name, role, kind: pr.kind };
+            return { name: pr.name, role, kind: pr.kind, km: kmTo(p, pr) };
           }),
         },
         decision,
@@ -378,6 +380,71 @@ router.get('/live', requireAdmin, async (req, res) => {
     res.json({ counters, excludedTestOrStaff: excluded, items: real.slice(0, limit) });
   } catch (e) {
     logger.error('[admin/requests613/live]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
+ * 16/10/2026 (ADA, demande de Daniel « observer les publications d'un coup d'œil ») —
+ * GET /admin/requests613/board?limit=100&tz=Europe/Paris
+ *   → compteurs du jour / de la veille / 7 j / 7 j précédents (publiées, prévenus,
+ *     candidatures, validées, payées, expirées sans validation), heure du relevé,
+ *     et les demandes des VRAIS comptes (masquées comprises : « retirée »), plus
+ *     récentes d'abord. Lecture seule.
+ */
+function dayStartIn(tz, now) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+      .formatToParts(now).reduce((o, x) => { o[x.type] = x.value; return o; }, {});
+    const asUtc = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+    const offset = asUtc - now.getTime(); // décalage du fuseau à cet instant
+    return new Date(Date.UTC(+parts.year, +parts.month - 1, +parts.day) - offset);
+  } catch (_) {
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  }
+}
+function boardCounters(items, now, tz) {
+  const DAY = 86400000;
+  const t0 = dayStartIn(tz, now);
+  const windows = {
+    today: [t0, now], yesterday: [new Date(t0 - DAY), t0],
+    d7: [new Date(now - 7 * DAY), now], prev7: [new Date(now - 14 * DAY), new Date(now - 7 * DAY)],
+  };
+  const inW = (d, w) => { if (!d) return false; const t = new Date(d).getTime(); return t >= w[0].getTime() && t < w[1].getTime(); };
+  const out = {};
+  for (const [k, w] of Object.entries(windows)) {
+    const c = { published: 0, notified: 0, applications: 0, accepted: 0, paid: 0, expired: 0 };
+    for (const it of items) {
+      const st = it.stages;
+      if (inW(st.published.at, w)) { c.published += 1; c.notified += st.notified.count; }
+      for (const d of it.applicationsAt || []) if (inW(d, w)) c.applications += 1;
+      if (st.decision.state === 'accepted' && inW(st.decision.at, w)) c.accepted += 1;
+      if (st.payment.state === 'paid' && inW(st.payment.at, w)) c.paid += 1;
+      if (st.end.state === 'expired' && st.decision.state !== 'accepted' && inW(st.end.at, w)) c.expired += 1;
+    }
+    out[k] = c;
+  }
+  return out;
+}
+
+router.get('/board', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 100));
+    const tz = String(req.query.tz || 'Europe/Paris');
+    const now = new Date();
+    const { Post } = M();
+    const posts = await Post.find({ postType: 'request' }).sort({ createdAt: -1 }).limit(500).select(POST_FIELDS).lean();
+    const map = await journeys(posts, { now });
+    const real = [...map.values()].filter((x) => x.owner.kind === 'real');
+    res.json({
+      generatedAt: now, timeZone: tz,
+      counters: boardCounters(real, now, tz),
+      excludedTestOrStaff: map.size - real.length,
+      total: real.length,
+      items: real.slice(0, limit),
+    });
+  } catch (e) {
+    logger.error('[admin/requests613/board]', e);
     res.status(500).json({ error: e.message });
   }
 });

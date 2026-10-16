@@ -100,7 +100,7 @@ describe('cas de BOB : 3 prévenus dont 1 lu, 1 candidature', () => {
     expect(it.stages.notified.count).toBe(3);
     expect(it.stages.opened.count).toBe(1);
     expect(it.stages.applications.count).toBe(1);
-    expect(it.stages.applications.who).toEqual([{ name: 'Sarah', role: 'walker', kind: 'real' }]);
+    expect(it.stages.applications.who).toEqual([{ name: 'Sarah', role: 'walker', kind: 'real', km: null }]);
     expect(it.color).toBe('green');
     expect(it.status).toBe('applied');
     expect(it.stages.decision.state).toBe('none');

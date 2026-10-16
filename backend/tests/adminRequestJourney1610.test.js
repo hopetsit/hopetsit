@@ -146,3 +146,34 @@ describe('visibilité selon l’état', () => {
     expect(again.applications[0].km).toBeNull(); // sans position : pas de distance inventée
   });
 });
+
+describe('tableau de bord des demandes (/board)', () => {
+  test('compteurs du jour / veille / 7 j, heure du relevé, cartes avec pays, prénoms et distances', async () => {
+    const r = await get('/admin/requests613/board?limit=5&tz=Europe/Paris');
+    expect(r.status).toBe(200);
+    expect(r.body.timeZone).toBe('Europe/Paris');
+    expect(new Date(r.body.generatedAt).getTime()).toBeGreaterThan(NOW - 60000);
+    for (const k of ['today', 'yesterday', 'd7', 'prev7']) {
+      expect(r.body.counters[k]).toEqual(expect.objectContaining({ published: expect.any(Number), notified: expect.any(Number), applications: expect.any(Number), accepted: expect.any(Number), paid: expect.any(Number), expired: expect.any(Number) }));
+    }
+    const c = r.body.counters;
+    expect(c.d7.published).toBeGreaterThanOrEqual(6); // toutes les demandes fictives publiées il y a 24 h
+    expect(c.d7.applications).toBeGreaterThanOrEqual(4);
+    expect(c.d7.expired).toBeGreaterThanOrEqual(1); // « finie hier »
+    expect(c.prev7.published).toBe(0);
+    expect(r.body.items.length).toBeLessThanOrEqual(5);
+    const ny = r.body.items.find((x) => x.stages.applications.count === 3);
+    expect(ny).toBeTruthy();
+    expect(ny.country).toBe('');
+    expect(ny.stages.applications.who.map((w) => w.name).sort()).toEqual(['Anahi', 'Nieheem', '유주'].sort());
+    expect(ny.stages.applications.who.find((w) => w.name === '유주').km).toBeGreaterThan(10000);
+    expect(ny.applicationsAt).toHaveLength(3);
+    expect(JSON.stringify(r.body)).not.toMatch(/@/);
+  });
+  test('fenêtre « aujourd’hui » dans un fuseau : minuit local, pas minuit UTC', async () => {
+    const r = await get('/admin/requests613/board?tz=America/New_York');
+    expect(r.status).toBe(200);
+    expect(r.body.timeZone).toBe('America/New_York');
+  });
+});
+
