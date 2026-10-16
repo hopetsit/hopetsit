@@ -351,6 +351,8 @@ const versionedRoutes = [
   // 616 (ZOE, 08/10) — rattrapage : centre de la ville pour les profils sans position
   // (simulation ?dryRun=1, aucun e-mail, aucune notification). requireAdmin dans le routeur.
   { path: '/admin/positions-from-city', mw: [], router: require('./routes/adminPositionsFromCity616') },
+  // 1610 (SAM, 16/10) — « Partagez votre fiche » : registre + passage à la main (testOnly par défaut). requireAdmin dans le routeur.
+  { path: '/admin/sitter-invite-1610', mw: [], router: require('./routes/adminSitterInvite1610') },
   // 607 (ADA, 02/10) — renvoi groupé de l'e-mail de vérification (garde-fous, simulation, journal).
   { path: '/admin/users/resend-verification', mw: [], router: require('./routes/adminVerificationResend607') },
   // v23.1 part 36 — KYC verification (Persona) payante 3 EUR pour sitter/walker.

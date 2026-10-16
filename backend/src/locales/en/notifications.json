@@ -446,5 +446,11 @@
     "body": "{{reminderBody}}",
     "emailSubject": "{{reminderTitle}}",
     "emailBody": "<p>{{reminderBody}}</p>"
+  },
+  "sitter_invite_1610": {
+    "title": "No client yet?",
+    "body": "Share your HoPetSit profile with the pet owners you know and your neighbours: {{profileUrl}}",
+    "emailSubject": "No client yet?",
+    "emailBody": "<p>Share your HoPetSit profile with the pet owners you know and your neighbours: <a href=\"{{profileUrl}}\">{{profileUrl}}</a></p>"
   }
 }

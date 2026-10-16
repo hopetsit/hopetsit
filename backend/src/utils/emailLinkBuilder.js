@@ -85,7 +85,8 @@ const buildAppRoute = (notifType, data = {}) => {
   }
   // Profil / badges / identité
   if (t === 'new_review' || t === 'premium_achieved' ||
-      t === 'top_sitter_achieved' || t.startsWith('kyc_')) {
+      t === 'top_sitter_achieved' || t.startsWith('kyc_') ||
+      t === 'sitter_invite_1610') { // 1610 (SAM) — « Partagez votre fiche » : son profil
     return '/profile';
   }
   // Boutique

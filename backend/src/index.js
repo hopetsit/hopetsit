@@ -139,6 +139,8 @@ async function startServer() {
     require('./services/chatUnreadEmailScheduler599').startChatUnreadEmailScheduler();
     // 615 (ZOE, 07/10) — rappel au propriétaire qui a des candidats sans choisir (push + cloche, jamais d'e-mail).
     require('./services/applicationReminder615').startApplicationReminderScheduler();
+    // 1610 (SAM, 16/10) — « Partagez votre fiche » aux gardiens/promeneurs, une fois par personne, étalé, de jour, jamais d'e-mail.
+    require('./services/sitterInvite1610').startSitterInviteScheduler();
   } catch (error) {
     logger.error('Failed to start server', error);
     process.exit(1);

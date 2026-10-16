@@ -446,5 +446,11 @@
     "body": "{{reminderBody}}",
     "emailSubject": "{{reminderTitle}}",
     "emailBody": "<p>{{reminderBody}}</p>"
+  },
+  "sitter_invite_1610": {
+    "title": "아직 고객이 없으신가요?",
+    "body": "알고 있는 반려동물 보호자와 이웃에게 HoPetSit 프로필을 공유해 보세요: {{profileUrl}}",
+    "emailSubject": "아직 고객이 없으신가요?",
+    "emailBody": "<p>알고 있는 반려동물 보호자와 이웃에게 HoPetSit 프로필을 공유해 보세요: <a href=\"{{profileUrl}}\">{{profileUrl}}</a></p>"
   }
 }
