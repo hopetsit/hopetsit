@@ -366,6 +366,24 @@ const createApplication = async (req, res) => {
       'Owner currency must be USD or EUR.'
     );
 
+    // 16/10/2026 (ADA, décision BOB, mesure FLO) — devise du candidat ≠ devise du
+    // propriétaire : refus. Le serveur ne convertit pas (tierPricing prend les
+    // tarifs tels quels) : une fiche en KRW acceptée par un propriétaire en USD
+    // donnait 1 851 428 $ pour 24 jours. Message dans la langue du candidat.
+    {
+      const cur = require('../utils/applicationCurrency1610');
+      const check = cur.checkCurrencies(owner, sitter);
+      if (!check.ok) {
+        logger.info(`[createApplication] refusée : devise ${check.providerCurrency} ≠ ${check.ownerCurrency} (${providerRole} ${sitterId})`);
+        return res.status(403).json({
+          error: cur.mismatchMessageForProvider(cur.localeOf(sitter), check.ownerCurrency, check.providerCurrency),
+          code: 'CURRENCY_MISMATCH',
+          ownerCurrency: check.ownerCurrency,
+          providerCurrency: check.providerCurrency,
+        });
+      }
+    }
+
     const normalizedAddOns = Array.isArray(addOns)
       ? addOns.map((addOn) => ({
           type: typeof addOn?.type === 'string' ? addOn.type.trim() : '',
@@ -517,6 +535,29 @@ const createApplication = async (req, res) => {
           });
         }
       } catch (_) { /* non bloquant */ }
+
+      // 16/10/2026 (ADA, décision de Daniel : 200 km) — pas de candidature à plus
+      // de APPLY_MAX_KM (défaut 200 km) de la demande. Mesuré : une garde à New
+      // York avait reçu une candidature de Busan, Corée (11 000 km). Sans position connue d'un côté : on laisse
+      // passer. Message dans la langue du candidat, code TOO_FAR.
+      try {
+        const dist = require('../utils/applicationDistance1610');
+        const target = await require('../models/Post').findById(normalizedPostId).select('location').lean();
+        if (target) {
+          const check = await dist.checkApplicantDistance({ post: target, provider: sitter });
+          if (!check.ok) {
+            logger.info(`[createApplication] refusée : ${check.km} km > ${check.limitKm} km (post ${normalizedPostId}, ${providerRole} ${sitterId})`);
+            return res.status(403).json({
+              error: dist.tooFarMessage(dist.localeOf(sitter), check.km, check.limitKm),
+              code: 'TOO_FAR',
+              km: check.km,
+              limitKm: check.limitKm,
+            });
+          }
+        }
+      } catch (e) {
+        logger.warn(`[createApplication] distance non vérifiée : ${e?.message || e}`);
+      }
     }
 
     // v587 (point 8) — le lieu choisi par le propriétaire dans son annonce
@@ -721,6 +762,24 @@ const respondToApplication = async (req, res) => {
     }
 
     if (normalizedAction === 'accept') {
+      // 16/10/2026 (ADA, décision BOB, mesure FLO) — couvre les candidatures
+      // déjà en attente : devise du prestataire ≠ devise du propriétaire → le
+      // prix stocké est faux (aucune conversion), on refuse l'acceptation.
+      try {
+        const cur = require('../utils/applicationCurrency1610');
+        const check = cur.checkCurrencies(application.ownerId, providerDoc);
+        if (!check.ok) {
+          logger.info(`[respondToApplication] acceptation refusée : devise ${check.providerCurrency} ≠ ${check.ownerCurrency} (candidature ${id})`);
+          return res.status(409).json({
+            error: cur.mismatchMessageForOwner(cur.localeOf(application.ownerId), check.ownerCurrency, check.providerCurrency),
+            code: 'CURRENCY_MISMATCH',
+            ownerCurrency: check.ownerCurrency,
+            providerCurrency: check.providerCurrency,
+          });
+        }
+      } catch (e) {
+        logger.warn(`[respondToApplication] devise non vérifiée : ${e?.message || e}`);
+      }
       application.status = 'accepted';
 
       // Move accepted application into booking flow so owner can pay.

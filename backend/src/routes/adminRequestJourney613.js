@@ -20,6 +20,16 @@
  *   8 Fin                Booking completed / cancelled / refunded, ou date de la
  *                        prestation dépassée sans validation → expirée
  *
+ * 16/10/2026 (ADA, demande de Daniel) : en plus, pour chaque demande
+ *   · serviceEnd / walkDurationMinutes / serviceTimeZone (fuseau de la ville de
+ *     la demande, d'après ses coordonnées ; null = afficher en UTC) → l'admin
+ *     montre « Prestation du … au … » ;
+ *   · visibility : en ligne pour les prestataires, ou retirée (réservée,
+ *     prestation finie, fermée, masquée) avec la date de suppression prévue
+ *     (postCleanupScheduler : 48 h après la fin) ;
+ *   · détail : distance (km) de chaque prestataire prévenu et de chaque
+ *     candidat par rapport à la demande (ex. « Busan · 11 000 km »).
+ *
  *   GET /admin/requests613/summary?ids=a,b,c   (50 au plus) → { items: { id: résumé } }
  *   GET /admin/requests613/live?limit=10       → demandes des VRAIS comptes, en ligne,
  *        plus récentes d'abord + compteurs (ouvertes / avec candidature / validées / payées)
@@ -66,6 +76,21 @@ function kindOf(doc) {
 }
 const firstName = (n) => String(n || '').trim().split(/\s+/)[0] || '';
 const cityOf = (d) => (d && ((d.location && d.location.city) || d.city || d.coverageCity)) || '';
+const DIST = require('../utils/applicationDistance1610');
+const CUR = require('../utils/applicationCurrency1610');
+/** Tarif affiché du prestataire : { amount, unit: 'day'|'hour'|'week'|'month'|'walk', minutes? }. */
+function rateOf(d) {
+  if (!d) return null;
+  if (d.dailyRate > 0) return { amount: d.dailyRate, unit: 'day' };
+  if (d.hourlyRate > 0) return { amount: d.hourlyRate, unit: 'hour' };
+  if (d.weeklyRate > 0) return { amount: d.weeklyRate, unit: 'week' };
+  if (d.monthlyRate > 0) return { amount: d.monthlyRate, unit: 'month' };
+  const w = (Array.isArray(d.walkRates) ? d.walkRates : []).find((r) => r && r.enabled !== false && r.basePrice > 0);
+  return w ? { amount: w.basePrice, unit: 'walk', minutes: w.durationMinutes || null } : null;
+}
+const PURGE_GRACE_MS = 48 * 60 * 60 * 1000; // postCleanupScheduler.GRACE_MS
+let timeZoneFor = () => null;
+try { ({ timeZoneFor } = require('../services/plushService607')); } catch (_) { /* sans fuseau */ }
 
 /** Charge prénom / ville / type de compte → Map "role:id". */
 async function people(byRole) {
@@ -76,9 +101,9 @@ async function people(byRole) {
     const list = [...new Set(ids.filter(isId).map(String))];
     if (!list.length || !MOD[role]) return;
     const docs = await MOD[role].find({ _id: { $in: list } })
-      .select('name email isStaff city coverageCity location.city').lean();
+      .select('name email isStaff city coverageCity location.city location.coordinates currency hourlyRate dailyRate weeklyRate monthlyRate walkRates').lean();
     for (const d of docs) {
-      out.set(`${role}:${d._id}`, { name: firstName(d.name), city: cityOf(d), kind: kindOf(d) });
+      out.set(`${role}:${d._id}`, { name: firstName(d.name), city: cityOf(d), kind: kindOf(d), coords: DIST.profileCoords(d), currency: CUR.currencyOf(d), rate: rateOf(d) });
     }
   }));
   return out;
@@ -119,7 +144,7 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
     Notification.find({ 'data.postId': { $in: ids }, type: { $in: NOTIF_TYPES } })
       .select('data.postId type recipientRole recipientId createdAt readAt').sort({ createdAt: 1 }).lean(),
     Application.find({ postId: { $in: ids.map(oid) } })
-      .select('postId sitterId walkerId status bookingId createdAt updatedAt').sort({ createdAt: 1 }).lean(),
+      .select('postId sitterId walkerId status bookingId createdAt updatedAt pricing.totalPrice pricing.currency').sort({ createdAt: 1 }).lean(),
   ]);
 
   const bookingIds = new Set();
@@ -160,7 +185,9 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
     }
   }
   const who = await people(peopleWanted);
-  const person = (role, id) => ({ role, id: String(id), ...(who.get(`${role}:${id}`) || { name: '', city: '', kind: 'real' }) });
+  const person = (role, id) => ({ role, id: String(id), ...(who.get(`${role}:${id}`) || { name: '', city: '', kind: 'real', coords: null }) });
+  // Distance (km) d'un profil à la demande, d'après les coordonnées de l'annonce.
+  const kmTo = (p, pr) => (pr && pr.coords ? DIST.distanceKm(p, { location: { coordinates: [pr.coords.lng, pr.coords.lat] } }) : null);
 
   for (const p of posts) {
     const pid = String(p._id);
@@ -221,6 +248,8 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
     else color = 'yellow';
 
     const ownerP = person('owner', ownerId);
+    const center = DIST.postCenter(p);
+    const visibility = visibilityOf(p, { svcEnd, decision, bs, now });
     const item = {
       postId: pid,
       owner: { id: ownerId, name: ownerP.name, kind: ownerP.kind },
@@ -228,6 +257,11 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
       serviceTypes: p.serviceTypes || [],
       serviceDate: serviceDateOf(p),
       serviceEnd: p.endDate || null,
+      walkDurationMinutes: typeof p.walkDurationMinutes === 'number' ? p.walkDurationMinutes : null,
+      serviceTimeZone: center ? timeZoneFor(center.lat, center.lng) : null,
+      hasPosition: !!center,
+      applyMaxKm: DIST.maxKm(), // 16/10 (Daniel) : 200 km
+      visibility,
       hidden: p.hidden === true,
       status,
       color,
@@ -255,7 +289,7 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
     if (detail) {
       item.notified = n.map((x) => {
         const pr = person(x.recipientRole, x.recipientId);
-        return { name: pr.name, role: x.recipientRole, city: pr.city, kind: pr.kind, at: x.createdAt, read: !!x.readAt, readAt: x.readAt || null, targeted: x.type === 'new_request_for_you' };
+        return { id: String(x.recipientId), name: pr.name, role: x.recipientRole, city: pr.city, kind: pr.kind, km: kmTo(p, pr), at: x.createdAt, read: !!x.readAt, readAt: x.readAt || null, targeted: x.type === 'new_request_for_you' };
       });
       // 612 (ZOE) — prévenus PAR CANAL, lus dans le registre des alertes (null pour
       // une annonce d'avant le 612 : seule la cloche en garde la trace).
@@ -268,7 +302,17 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
       item.applications = a.map((x) => {
         const role = x.walkerId ? 'walker' : 'sitter';
         const pr = person(role, x.walkerId || x.sitterId);
-        return { name: pr.name, role, city: pr.city, kind: pr.kind, status: x.status, at: x.createdAt, updatedAt: x.updatedAt };
+        // 16/10 — devise de la fiche du candidat vs devise du propriétaire, tarif
+        // affiché, et total STOCKÉ sur la candidature (= ce que l'acceptation
+        // facturerait : pricing recopié tel quel dans la réservation).
+        const ownerCurrency = ownerP.currency || 'EUR';
+        const pricing = x.pricing || {};
+        return {
+          name: pr.name, role, city: pr.city, kind: pr.kind, km: kmTo(p, pr), tooFar: (() => { const k = kmTo(p, pr); const m = DIST.maxKm(); return m > 0 && typeof k === 'number' && k > m; })(),
+          status: x.status, at: x.createdAt, updatedAt: x.updatedAt,
+          currency: pr.currency || null, ownerCurrency, currencyMismatch: !!pr.currency && pr.currency !== ownerCurrency, rate: pr.rate || null,
+          total: typeof pricing.totalPrice === 'number' ? pricing.totalPrice : null, totalCurrency: pricing.currency || ownerCurrency,
+        };
       });
       item.contacts = await Promise.all(contactConvs.map(async (c) => {
         const role = c.walkerId ? 'walker' : 'sitter';
@@ -283,7 +327,23 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
   return out;
 }
 
-const POST_FIELDS = 'ownerId postType location.city serviceTypes startDate endDate createdAt hidden status closedAt reservedBy';
+const POST_FIELDS = 'ownerId postType location serviceTypes startDate endDate walkDurationMinutes createdAt hidden bannedAt status closedAt reservedBy';
+
+/**
+ * 16/10 — ce que voient les prestataires (feed /posts/requests et PawMap), et
+ * quand l'annonce sera supprimée (postCleanupScheduler : 48 h après la fin).
+ *   state : 'online' | 'reserved' | 'expired' | 'closed' | 'hidden'
+ */
+function visibilityOf(p, { svcEnd, decision, bs, now }) {
+  const endAt = svcEnd ? new Date(svcEnd) : null;
+  const deleteAt = (from) => (from ? new Date(new Date(from).getTime() + PURGE_GRACE_MS) : null);
+  if (p.hidden === true) return { state: 'hidden', since: p.bannedAt || null, deleteAt: deleteAt(p.closedAt || endAt) };
+  if (p.status === 'closed') return { state: 'closed', since: p.closedAt || null, deleteAt: deleteAt(p.closedAt || endAt) };
+  const reserved = !!(p.reservedBy && p.reservedBy.bookingId) || decision.state === 'accepted' || (bs && bs.payment && bs.payment.state === 'paid');
+  if (reserved) return { state: 'reserved', since: (p.reservedBy && p.reservedBy.reservedAt) || decision.at || null, deleteAt: deleteAt(endAt) };
+  if (endAt && endAt < now) return { state: 'expired', since: endAt, deleteAt: deleteAt(endAt) };
+  return { state: 'online', since: p.createdAt || null, until: endAt, deleteAt: deleteAt(endAt) };
+}
 
 router.get('/summary', requireAdmin, async (req, res) => {
   try {

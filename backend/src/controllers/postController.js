@@ -910,10 +910,26 @@ const getMediaPosts = async (req, res) => {
 // v538 — MODE INVITÉ : demandes des propriétaires en lecture publique.
 // Champs volontairement réduits (pas de notes privées, pas d'ids animaux,
 // ville seule côté localisation) — vitrine pour recruter des prestataires.
+/**
+ * 16/10/2026 (ADA) — « encore ouverte aux candidatures » : prestation pas finie
+ * (endDate, sinon startDate, sinon sans date) et pas de réservation en cours.
+ * À ajouter au filtre Mongo des feeds prestataires.
+ */
+const openRequestFilter = (now = new Date()) => ({
+  'reservedBy.bookingId': { $in: [null] },
+  $or: [
+    { endDate: { $gte: now } },
+    { endDate: { $in: [null] }, startDate: { $gte: now } },
+    { endDate: { $in: [null] }, startDate: { $in: [null] } },
+  ],
+});
+
 const getPublicRequestPosts = async (req, res) => {
   try {
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 30));
-    const posts = await Post.find({ postType: 'request', status: { $ne: 'closed' } })
+    // 16/10/2026 (ADA) — mêmes règles que le feed : ni masquée, ni réservée,
+    // ni dont la prestation est passée.
+    const posts = await Post.find({ postType: 'request', hidden: { $ne: true }, status: { $ne: 'closed' }, ...openRequestFilter() })
       .sort({ createdAt: -1 })
       .limit(limit)
       .populate('ownerId', 'name avatar')
@@ -958,6 +974,17 @@ const getRequestPosts = async (req, res) => {
     const filter = { postType: 'request', hidden: { $ne: true }, status: { $ne: 'closed' } };
     if (ownerId) {
       filter.ownerId = ownerId;
+    } else {
+      // 16/10/2026 (ADA, demande de Daniel : « vérifier qu'elle s'efface bien
+      // une fois exécutée, finie ou délai passé ») — mesuré en production : une
+      // demande dont la date était passée restait dans le feed des prestataires
+      // jusqu'à sa suppression (48 h après la fin, postCleanupScheduler), et une
+      // demande déjà réservée (validée/payée) y restait jusqu'au « terminé ».
+      // Désormais le feed ne montre que les demandes encore ouvertes : fin de
+      // prestation à venir (endDate, sinon startDate, sinon sans date) et aucune
+      // réservation en cours. La PawMap (getNearbyRequestPosts) excluait déjà les
+      // réservées. L'admin et « mes annonces » (ownerId) voient toujours tout.
+      Object.assign(filter, openRequestFilter());
     }
 
     // Sprint 5 step 2 — filter requests by sitter's service preferences.
@@ -2323,6 +2350,7 @@ const getPostById = async (req, res) => {
 
 module.exports = {
   resolveMediaPostType,
+  openRequestFilter,
   getPublicRequestPosts,
   createPost,
   createPostWithMedia,
