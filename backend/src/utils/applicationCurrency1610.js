@@ -11,16 +11,19 @@
  *   · à la CRÉATION d'une candidature : refus 403 CURRENCY_MISMATCH, message
  *     dans la langue du prestataire ;
  *   · à l'ACCEPTATION par le propriétaire : refus 409 CURRENCY_MISMATCH (couvre
- *     les candidatures déjà en attente), message dans la langue du propriétaire.
+ *     les candidatures déjà en attente), message dans la langue du propriétaire ;
+ *   · décision BOB (16/10) : une devise restée sur la valeur PAR DÉFAUT (EUR,
+ *     jamais réglée) est DÉDUITE du pays / indicatif / position du prestataire
+ *     (New York → USD) ; ses montants sont alors lus dans cette devise.
  * La logique de paiement n'est pas touchée : on refuse AVANT qu'un prix faux
  * devienne une réservation. APPLY_CURRENCY_CHECK=off coupe le contrôle.
  */
 const { DEFAULT_CURRENCY } = require('./currency');
-const { LANGS, localeOf } = require('./applicationDistance1610');
+const { LANGS, localeOf, profileCoords } = require('./applicationDistance1610');
 
 const enabled = () => String(process.env.APPLY_CURRENCY_CHECK || '').toLowerCase() !== 'off';
 
-/** Devise d'un profil : champ `currency`, sinon celle du 1er tarif de balade, sinon EUR. */
+/** Devise STOCKÉE d'un profil : champ `currency`, sinon celle du 1er tarif de balade, sinon EUR. */
 function currencyOf(doc) {
   if (!doc) return DEFAULT_CURRENCY;
   const c = String(doc.currency || '').trim().toUpperCase();
@@ -30,13 +33,78 @@ function currencyOf(doc) {
   return r ? String(r.currency).trim().toUpperCase() : DEFAULT_CURRENCY;
 }
 
-/** @returns {{ok:boolean, ownerCurrency:string, providerCurrency:string, reason:string}} */
-function checkCurrencies(owner, provider) {
+// Décision BOB du 16/10 : la devise par défaut (EUR) d'un profil JAMAIS réglé ne
+// vaut pas un choix. Aucun horodatage ne dit si elle a été réglée (vérifié :
+// Sitter/Walker/Owner n'ont que `currency`, `walletCurrency`, `country`,
+// `countryCode`). Donc : devise == EUR → on la DÉDUIT du pays (ISO), sinon de
+// l'indicatif téléphonique, sinon du fuseau de ses coordonnées (ou de sa ville
+// géocodée). Déduction dans la zone euro ou inconnue → EUR (même résultat).
+// Mesuré en prod : 51 gardiens en EUR sans pays ; Nieheem (New York) = EUR,
+// pays vide, indicatif +1 → USD.
+const EURO_COUNTRIES = new Set(['AT', 'BE', 'CY', 'DE', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'IE', 'IT', 'LT', 'LU', 'LV', 'MC', 'MT', 'NL', 'PT', 'SI', 'SK', 'AD', 'SM', 'VA', 'ME', 'XK', 'BG']);
+const COUNTRY_CURRENCY = { US: 'USD', PR: 'USD', GB: 'GBP', UK: 'GBP', CH: 'CHF', LI: 'CHF', KR: 'KRW', JP: 'JPY' };
+const PHONE_CURRENCY = { '+1': 'USD', '+44': 'GBP', '+41': 'CHF', '+82': 'KRW', '+81': 'JPY' };
+const EURO_PHONES = new Set(['+33', '+49', '+34', '+39', '+351', '+32', '+31', '+43', '+353', '+358', '+30', '+352', '+370', '+371', '+372', '+386', '+421', '+385', '+356', '+357', '+377']);
+const TZ_CURRENCY = { 'America/New_York': 'USD', 'America/Chicago': 'USD', 'America/Denver': 'USD', 'America/Los_Angeles': 'USD', 'Europe/London': 'GBP', 'Europe/Paris': 'EUR', 'Europe/Athens': 'EUR' };
+
+function currencyFromCountry(doc) {
+  const iso = String((doc && doc.country) || '').trim().toUpperCase();
+  if (iso) {
+    if (COUNTRY_CURRENCY[iso]) return COUNTRY_CURRENCY[iso];
+    if (EURO_COUNTRIES.has(iso)) return 'EUR';
+  }
+  const phone = String((doc && doc.countryCode) || '').trim().replace(/\s+/g, '');
+  if (phone) {
+    if (PHONE_CURRENCY[phone]) return PHONE_CURRENCY[phone];
+    if (EURO_PHONES.has(phone)) return 'EUR';
+  }
+  return null;
+}
+function currencyFromCoords(lat, lng) {
+  try {
+    const tz = require('../services/plushService607').timeZoneFor(lat, lng);
+    return (tz && TZ_CURRENCY[tz]) || null;
+  } catch (_) { return null; }
+}
+
+/**
+ * Devise EFFECTIVE d'un prestataire (sans réseau) :
+ *  { currency, stored, inferred: bool, via: 'explicit'|'country'|'phone'|'coords'|'default' }
+ */
+function resolveCurrency(doc) {
+  const stored = currencyOf(doc);
+  if (stored !== DEFAULT_CURRENCY) return { currency: stored, stored, inferred: false, via: 'explicit' };
+  const byCountry = currencyFromCountry(doc);
+  if (byCountry) return { currency: byCountry, stored, inferred: byCountry !== stored, via: String((doc && doc.country) || '').trim() ? 'country' : 'phone' };
+  const c = profileCoords(doc);
+  const byCoords = c ? currencyFromCoords(c.lat, c.lng) : null;
+  if (byCoords) return { currency: byCoords, stored, inferred: byCoords !== stored, via: 'coords' };
+  return { currency: stored, stored, inferred: false, via: 'default' };
+}
+
+/** Même chose, avec un dernier recours : géocoder la ville du profil (réseau, mémorisé). */
+async function resolveCurrencyAsync(doc, geocode) {
+  const r = resolveCurrency(doc);
+  if (r.via !== 'default') return r;
+  const city = String((doc && (doc.city || (doc.location && doc.location.city) || doc.coverageCity)) || '').trim();
+  if (!city) return r;
+  try {
+    const geo = typeof geocode === 'function' ? geocode : require('./geocodeCity').geocodeCity;
+    const g = await geo(city);
+    const byCity = g ? currencyFromCoords(Number(g.lat), Number(g.lng)) : null;
+    if (byCity) return { currency: byCity, stored: r.stored, inferred: byCity !== r.stored, via: 'city' };
+  } catch (_) { /* sans réseau : défaut */ }
+  return r;
+}
+
+/** @returns {{ok:boolean, ownerCurrency:string, providerCurrency:string, providerStored:string, inferred:boolean, via:string, reason:string}} */
+async function checkCurrencies(owner, provider, geocode) {
   const ownerCurrency = currencyOf(owner);
-  const providerCurrency = currencyOf(provider);
-  if (!enabled()) return { ok: true, ownerCurrency, providerCurrency, reason: 'disabled' };
-  const ok = ownerCurrency === providerCurrency;
-  return { ok, ownerCurrency, providerCurrency, reason: ok ? 'same' : 'mismatch' };
+  const p = await resolveCurrencyAsync(provider, geocode);
+  const base = { ownerCurrency, providerCurrency: p.currency, providerStored: p.stored, inferred: p.inferred, via: p.via };
+  if (!enabled()) return { ok: true, ...base, reason: 'disabled' };
+  const ok = ownerCurrency === p.currency;
+  return { ok, ...base, reason: ok ? 'same' : 'mismatch' };
 }
 
 const FOR_PROVIDER = {
@@ -66,4 +134,4 @@ const fill = (tpl, own, prov) => tpl.split('{own}').join(own).split('{prov}').jo
 const mismatchMessageForProvider = (lang, own, prov) => fill(FOR_PROVIDER[LANGS.includes(lang) ? lang : 'en'], own, prov);
 const mismatchMessageForOwner = (lang, own, prov) => fill(FOR_OWNER[LANGS.includes(lang) ? lang : 'en'], own, prov);
 
-module.exports = { currencyOf, checkCurrencies, mismatchMessageForProvider, mismatchMessageForOwner, localeOf };
+module.exports = { currencyOf, resolveCurrency, resolveCurrencyAsync, checkCurrencies, mismatchMessageForProvider, mismatchMessageForOwner, localeOf };

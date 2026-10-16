@@ -54,11 +54,11 @@ beforeAll(async () => {
   await mongoose.connect(mongo.getUri());
   Owner = require('../src/models/Owner'); Sitter = require('../src/models/Sitter'); Post = require('../src/models/Post');
   Notification = require('../src/models/Notification'); Application = require('../src/models/Application');
-  ids.owner = await ins(Owner, { name: 'Abraham', email: 'abraham1610@example.org', city: 'New York' });
+  ids.owner = await ins(Owner, { name: 'Abraham', email: 'abraham1610@example.org', city: 'New York', currency: 'USD' });
   ids.persia = await ins(Sitter, { name: 'Persia', email: 'persia1610@example.org', city: 'New York', location: { type: 'Point', coordinates: [-73.8559, 40.8331] } });
-  ids.nieheem = await ins(Sitter, { name: 'Nieheem', email: 'nieheem1610@example.org', city: 'New York', location: { type: 'Point', coordinates: [-73.9097, 40.8361] } });
+  ids.nieheem = await ins(Sitter, { name: 'Nieheem', email: 'nieheem1610@example.org', city: 'New York', currency: 'EUR', countryCode: '+1', dailyRate: 100, location: { type: 'Point', coordinates: [-73.9097, 40.8361] } });
   ids.anahi = await ins(Sitter, { name: 'Anahi', email: 'anahi1610@example.org', city: 'Hartford', location: { type: 'Point', coordinates: [-72.6708, 41.7702] } });
-  ids.yuju = await ins(Sitter, { name: '유주', email: 'yuju1610@example.org', city: '부산광역시', location: { type: 'Point', coordinates: [129.036, 35.1718] } });
+  ids.yuju = await ins(Sitter, { name: '유주', email: 'yuju1610@example.org', city: '부산광역시', currency: 'KRW', country: 'KR', dailyRate: 80000, location: { type: 'Point', coordinates: [129.036, 35.1718] } });
   ids.nowhere = await ins(Sitter, { name: 'Sans', email: 'sans1610@example.org', city: '' });
   app = express();
   app.use(express.json());
@@ -92,6 +92,12 @@ describe('la garde de New York (en cours, 3 candidatures)', () => {
     expect(km['Nieheem']).toBeGreaterThan(5); expect(km['Nieheem']).toBeLessThan(30);
     expect(km['Anahi']).toBeGreaterThan(140); expect(km['Anahi']).toBeLessThan(200);
     expect(km['유주']).toBeGreaterThan(10500); expect(km['유주']).toBeLessThan(11500);
+  });
+  test('devise : Nieheem EUR par défaut + indicatif +1 → « déduite (USD) », pas de refus ; 유주 KRW explicite → refus', () => {
+    const by = Object.fromEntries(it.applications.map((a) => [a.name, a]));
+    expect(by['Nieheem']).toMatchObject({ currency: 'USD', currencyStored: 'EUR', currencyInferred: true, ownerCurrency: 'USD', currencyMismatch: false });
+    expect(by['유주']).toMatchObject({ currency: 'KRW', currencyInferred: false, currencyMismatch: true, tooFar: true });
+    expect(by['Nieheem'].rate).toEqual({ amount: 100, unit: 'day' });
   });
   test('prévenus : 1 personne, 2 notifications, distance sur chaque ligne', () => {
     expect(it.stages.notified.count).toBe(1);

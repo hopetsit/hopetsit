@@ -28,7 +28,7 @@ let mongo; let app; let Application; let Post; let Sitter; let Booking;
 let owner; let pet;
 const tok = (id, role) => `Bearer ${jwt.sign({ id: String(id), role }, process.env.JWT_SECRET, { expiresIn: '1h' })}`;
 const mkSitter = async (name, currency, extra = {}) => (await Sitter.collection.insertOne({
-  name, email: `${name.toLowerCase()}-cur1610@example.test`, status: 'active', verified: true, currency, country: 'US',
+  name, email: `${name.toLowerCase()}-cur1610@example.test`, status: 'active', verified: true, currency, country: currency === 'KRW' ? 'KR' : 'US',
   dailyRate: currency === 'KRW' ? 80000 : 40, location: { type: 'Point', coordinates: BRONX, city: 'New York' }, ...extra,
 })).insertedId;
 const mkPost = async () => String((await Post.collection.insertOne({
@@ -63,12 +63,25 @@ afterAll(async () => { await mongoose.disconnect(); if (mongo) await mongo.stop(
 afterEach(() => { delete process.env.APPLY_CURRENCY_CHECK; });
 
 describe('utilitaire', () => {
-  test('devise d’un profil : champ currency, sinon 1er tarif de balade, sinon EUR', () => {
+  test('devise d’un profil : champ currency, sinon 1er tarif de balade, sinon EUR', async () => {
     expect(cur.currencyOf({ currency: 'krw' })).toBe('KRW');
     expect(cur.currencyOf({ walkRates: [{ basePrice: 5, currency: 'USD', enabled: true }] })).toBe('USD');
     expect(cur.currencyOf({})).toBe('EUR');
-    expect(cur.checkCurrencies({ currency: 'USD' }, { currency: 'KRW' })).toMatchObject({ ok: false, ownerCurrency: 'USD', providerCurrency: 'KRW' });
-    expect(cur.checkCurrencies({ currency: 'USD' }, { currency: 'USD' }).ok).toBe(true);
+    expect(await cur.checkCurrencies({ currency: 'USD' }, { currency: 'KRW' })).toMatchObject({ ok: false, ownerCurrency: 'USD', providerCurrency: 'KRW' });
+    expect((await cur.checkCurrencies({ currency: 'USD' }, { currency: 'USD' })).ok).toBe(true);
+  });
+  test('décision BOB : EUR par défaut jamais réglé → devise déduite du pays, de l’indicatif ou de la position', async () => {
+    expect(cur.resolveCurrency({ currency: 'EUR', country: 'US' })).toMatchObject({ currency: 'USD', inferred: true, via: 'country' });
+    expect(cur.resolveCurrency({ currency: 'EUR', country: '', countryCode: '+1' })).toMatchObject({ currency: 'USD', inferred: true, via: 'phone' });
+    expect(cur.resolveCurrency({ currency: 'EUR', location: { coordinates: BRONX } })).toMatchObject({ currency: 'USD', inferred: true, via: 'coords' });
+    expect(cur.resolveCurrency({ currency: 'EUR', country: 'FR' })).toMatchObject({ currency: 'EUR', inferred: false });
+    expect(cur.resolveCurrency({ currency: 'EUR', country: 'KR' })).toMatchObject({ currency: 'KRW', inferred: true });
+    expect(cur.resolveCurrency({ currency: 'USD', country: 'FR' })).toMatchObject({ currency: 'USD', inferred: false, via: 'explicit' }); // réglée : respectée
+    expect(cur.resolveCurrency({ currency: 'EUR' })).toMatchObject({ currency: 'EUR', via: 'default' });
+    // dernier recours : ville géocodée (réseau simulé)
+    const r = await cur.resolveCurrencyAsync({ currency: 'EUR', city: 'New York' }, async () => ({ lat: 40.71, lng: -74 }));
+    expect(r).toMatchObject({ currency: 'USD', inferred: true, via: 'city' });
+    expect(await cur.checkCurrencies({ currency: 'USD' }, { currency: 'EUR', countryCode: '+1' })).toMatchObject({ ok: true, providerCurrency: 'USD', providerStored: 'EUR', inferred: true });
   });
   test('messages dans les 9 langues, devises remplacées', () => {
     for (const l of ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl']) {
@@ -77,9 +90,9 @@ describe('utilitaire', () => {
       }
     }
   });
-  test('APPLY_CURRENCY_CHECK=off coupe le contrôle', () => {
+  test('APPLY_CURRENCY_CHECK=off coupe le contrôle', async () => {
     process.env.APPLY_CURRENCY_CHECK = 'off';
-    expect(cur.checkCurrencies({ currency: 'USD' }, { currency: 'KRW' })).toMatchObject({ ok: true, reason: 'disabled' });
+    expect(await cur.checkCurrencies({ currency: 'USD' }, { currency: 'KRW' })).toMatchObject({ ok: true, reason: 'disabled' });
   });
 });
 
@@ -92,6 +105,19 @@ describe('création de candidature', () => {
     expect(r.body).toMatchObject({ code: 'CURRENCY_MISMATCH', ownerCurrency: 'USD', providerCurrency: 'KRW' });
     expect(r.body.error).toBe(cur.mismatchMessageForProvider('ko', 'USD', 'KRW'));
     expect(await Application.countDocuments({ postId: pid })).toBe(0);
+  });
+  test('cas Nieheem : New York, fiche restée en EUR par défaut, pays vide, indicatif +1 → devise déduite USD, accepté, 1 645 $', async () => {
+    const s = await mkSitter('Nieheem0', 'EUR', { country: '', countryCode: '+1', dailyRate: 100 });
+    const r = await applyTo(await mkPost(), s);
+    expect(r.status).toBe(201);
+    expect(r.body.application.pricing.currency).toBe('USD');
+    expect(r.body.application.pricing.totalPrice).toBeLessThan(5000); // ordre de grandeur de FLO (1 645,72 $ en prod), pas 1,8 million
+  });
+  test('gardien parisien, EUR explicite (pays FR), propriétaire USD : refusé', async () => {
+    const s = await mkSitter('Jules', 'EUR', { country: 'FR', countryCode: '+33', location: { type: 'Point', coordinates: [2.3522, 48.8566], city: 'Paris' } });
+    const r = await applyTo(await mkPost(), s);
+    expect(r.status).toBe(403);
+    expect(r.body).toMatchObject({ code: 'CURRENCY_MISMATCH', providerCurrency: 'EUR', ownerCurrency: 'USD' });
   });
   test('gardien en USD : accepté (201), total en USD raisonnable', async () => {
     const s = await mkSitter('Nieheem', 'USD');
@@ -121,6 +147,15 @@ describe('acceptation d’une candidature déjà en attente', () => {
     expect(r.status).toBe(200);
     expect((await Application.findById(appId).lean()).status).toBe('rejected');
   });
+  test('EUR par défaut + indicatif +1 en attente (Nieheem) : acceptation 200, réservation créée en USD', async () => {
+    const s = await mkSitter('Nieheem3', 'EUR', { country: '', countryCode: '+1', dailyRate: 100 });
+    const pid = await mkPost();
+    const a = await applyTo(pid, s);
+    expect(a.status).toBe(201);
+    const r = await respond(a.body.application.id || a.body.application._id, 'accept');
+    expect(r.status).toBe(200);
+    expect(r.body.booking ? r.body.booking.pricing.currency : 'USD').toBe('USD');
+  });
   test('USD en attente, propriétaire USD : acceptation 200, réservation créée', async () => {
     const s = await mkSitter('Nieheem2', 'USD');
     const pid = await mkPost();
@@ -128,6 +163,6 @@ describe('acceptation d’une candidature déjà en attente', () => {
     expect(a.status).toBe(201);
     const r = await respond(a.body.application.id || a.body.application._id, 'accept');
     expect(r.status).toBe(200);
-    expect(await Booking.countDocuments({ ownerId: owner })).toBe(1);
+    expect(await Booking.countDocuments({ ownerId: owner })).toBe(2);
   });
 });

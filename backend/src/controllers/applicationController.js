@@ -372,9 +372,9 @@ const createApplication = async (req, res) => {
     // donnait 1 851 428 $ pour 24 jours. Message dans la langue du candidat.
     {
       const cur = require('../utils/applicationCurrency1610');
-      const check = cur.checkCurrencies(owner, sitter);
+      const check = await cur.checkCurrencies(owner, sitter);
       if (!check.ok) {
-        logger.info(`[createApplication] refusée : devise ${check.providerCurrency} ≠ ${check.ownerCurrency} (${providerRole} ${sitterId})`);
+        logger.info(`[createApplication] refusée : devise ${check.providerCurrency} (${check.via}) ≠ ${check.ownerCurrency} (${providerRole} ${sitterId})`);
         return res.status(403).json({
           error: cur.mismatchMessageForProvider(cur.localeOf(sitter), check.ownerCurrency, check.providerCurrency),
           code: 'CURRENCY_MISMATCH',
@@ -767,7 +767,7 @@ const respondToApplication = async (req, res) => {
       // prix stocké est faux (aucune conversion), on refuse l'acceptation.
       try {
         const cur = require('../utils/applicationCurrency1610');
-        const check = cur.checkCurrencies(application.ownerId, providerDoc);
+        const check = await cur.checkCurrencies(application.ownerId, providerDoc);
         if (!check.ok) {
           logger.info(`[respondToApplication] acceptation refusée : devise ${check.providerCurrency} ≠ ${check.ownerCurrency} (candidature ${id})`);
           return res.status(409).json({

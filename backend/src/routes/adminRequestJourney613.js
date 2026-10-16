@@ -101,9 +101,9 @@ async function people(byRole) {
     const list = [...new Set(ids.filter(isId).map(String))];
     if (!list.length || !MOD[role]) return;
     const docs = await MOD[role].find({ _id: { $in: list } })
-      .select('name email isStaff city coverageCity location.city location.coordinates currency hourlyRate dailyRate weeklyRate monthlyRate walkRates').lean();
+      .select('name email isStaff city coverageCity location.city location.coordinates currency country countryCode hourlyRate dailyRate weeklyRate monthlyRate walkRates').lean();
     for (const d of docs) {
-      out.set(`${role}:${d._id}`, { name: firstName(d.name), city: cityOf(d), kind: kindOf(d), coords: DIST.profileCoords(d), currency: CUR.currencyOf(d), rate: rateOf(d) });
+      out.set(`${role}:${d._id}`, { name: firstName(d.name), city: cityOf(d), kind: kindOf(d), coords: DIST.profileCoords(d), currency: CUR.resolveCurrency(d).currency, currencyStored: CUR.currencyOf(d), currencyInferred: CUR.resolveCurrency(d).inferred, rate: rateOf(d) });
     }
   }));
   return out;
@@ -310,7 +310,7 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
         return {
           name: pr.name, role, city: pr.city, kind: pr.kind, km: kmTo(p, pr), tooFar: (() => { const k = kmTo(p, pr); const m = DIST.maxKm(); return m > 0 && typeof k === 'number' && k > m; })(),
           status: x.status, at: x.createdAt, updatedAt: x.updatedAt,
-          currency: pr.currency || null, ownerCurrency, currencyMismatch: !!pr.currency && pr.currency !== ownerCurrency, rate: pr.rate || null,
+          currency: pr.currency || null, currencyStored: pr.currencyStored || null, currencyInferred: !!pr.currencyInferred, ownerCurrency, currencyMismatch: !!pr.currency && pr.currency !== ownerCurrency, rate: pr.rate || null,
           total: typeof pricing.totalPrice === 'number' ? pricing.totalPrice : null, totalCurrency: pricing.currency || ownerCurrency,
         };
       });
