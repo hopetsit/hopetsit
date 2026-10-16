@@ -452,5 +452,29 @@
     "body": "Udostępnij swój profil HoPetSit znajomym właścicielom zwierząt i sąsiadom: {{profileUrl}}",
     "emailSubject": "Nie masz jeszcze klientów?",
     "emailBody": "<p>Udostępnij swój profil HoPetSit znajomym właścicielom zwierząt i sąsiadom: <a href=\"{{profileUrl}}\">{{profileUrl}}</a></p>"
+  },
+  "application_reminder_provider_617": {
+    "title": "{{ownerName}} jeszcze nie odpowiedział(a)",
+    "body": "{{ownerName}} jeszcze nie odpowiedział(a) na Twoje zgłoszenie. Napisz wiadomość i przedstaw się.",
+    "emailSubject": "{{ownerName}} jeszcze nie odpowiedział(a)",
+    "emailBody": "<p>{{ownerName}} jeszcze nie odpowiedział(a) na Twoje zgłoszenie. Napisz wiadomość i przedstaw się.</p>"
+  },
+  "request_expiry_617": {
+    "title": "Twoje ogłoszenie wygasa za 2 dni",
+    "body": "Opiekunów czekających na odpowiedź: {{candidates}} — wybierz jednego teraz.",
+    "emailSubject": "Twoje ogłoszenie wygasa za 2 dni",
+    "emailBody": "<p>Opiekunów czekających na odpowiedź: {{candidates}} — wybierz jednego teraz.</p>"
+  },
+  "review_request_617": {
+    "title": "Jak przebiegła opieka z {{providerName}}?",
+    "body": "Zostaw opinię — pomoże to znaleźć kolejnych klientów.",
+    "emailSubject": "Jak przebiegła opieka z {{providerName}}?",
+    "emailBody": "<p>Zostaw opinię — pomoże to znaleźć kolejnych klientów.</p>"
+  },
+  "application_new_617": {
+    "title": "{{candidateName}} odpowiedział(a)",
+    "body": "Kandydaci na Twoje ogłoszenie: {{candidates}} · wybierz i zapłać w 2 minuty",
+    "emailSubject": "{{candidateName}} odpowiedział(a) — HoPetSit",
+    "emailBody": "<p>Kandydaci na Twoje ogłoszenie: {{candidates}} · wybierz i zapłać w 2 minuty</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz zgłoszenie</a></p>"
   }
 }

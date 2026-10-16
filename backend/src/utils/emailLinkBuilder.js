@@ -75,7 +75,8 @@ const buildAppRoute = (notifType, data = {}) => {
   // Tout le déroulé d'une réservation / candidature / service / rapport
   if (t.startsWith('booking_') || t.startsWith('application_') ||
       t.startsWith('service_') || t.startsWith('handover_') ||
-      t === 'visit_report' || t === 'payment_success') {
+      t === 'visit_report' || t === 'payment_success' ||
+      t === 'review_request_617') { // 617 (ADA) — demande d'avis : la réservation
     return bookingPath;
   }
   // Argent
@@ -267,7 +268,8 @@ const buildPreciseRoute = (notifType, data = {}, role = '') => {
   }
   if (t.startsWith('booking_') || t.startsWith('application_') ||
       t.startsWith('service_') || t.startsWith('handover_') ||
-      t === 'visit_report' || t === 'payment_success') {
+      t === 'visit_report' || t === 'payment_success' ||
+      t === 'review_request_617') { // 617 (ADA) — demande d'avis : la réservation
     return bookingPath;
   }
   if (t.startsWith('payout_') || t.startsWith('withdrawal_') ||

@@ -452,5 +452,29 @@
     "body": "知り合いのペットオーナーやご近所の方にHoPetSitのプロフィールを共有しましょう: {{profileUrl}}",
     "emailSubject": "まだお客様がいませんか？",
     "emailBody": "<p>知り合いのペットオーナーやご近所の方にHoPetSitのプロフィールを共有しましょう: <a href=\"{{profileUrl}}\">{{profileUrl}}</a></p>"
+  },
+  "application_reminder_provider_617": {
+    "title": "{{ownerName}}さんからまだ返事がありません",
+    "body": "{{ownerName}}さんはまだあなたの応募に返事をしていません。メッセージで自己紹介をしてみましょう。",
+    "emailSubject": "{{ownerName}}さんからまだ返事がありません",
+    "emailBody": "<p>{{ownerName}}さんはまだあなたの応募に返事をしていません。メッセージで自己紹介をしてみましょう。</p>"
+  },
+  "request_expiry_617": {
+    "title": "リクエストは2日後に期限切れです",
+    "body": "{{candidates}}人のシッターが返事を待っています。今すぐ1人を選んでください。",
+    "emailSubject": "リクエストは2日後に期限切れです",
+    "emailBody": "<p>{{candidates}}人のシッターが返事を待っています。今すぐ1人を選んでください。</p>"
+  },
+  "review_request_617": {
+    "title": "{{providerName}}さんとのお世話はいかがでしたか？",
+    "body": "レビューを残してください。次のお客様を見つける助けになります。",
+    "emailSubject": "{{providerName}}さんとのお世話はいかがでしたか？",
+    "emailBody": "<p>レビューを残してください。次のお客様を見つける助けになります。</p>"
+  },
+  "application_new_617": {
+    "title": "{{candidateName}}さんが応募しました",
+    "body": "リクエストに{{candidates}}人の応募 · 2分で選んで支払い",
+    "emailSubject": "{{candidateName}}さんが応募しました — HoPetSit",
+    "emailBody": "<p>リクエストに{{candidates}}人の応募 · 2分で選んで支払い</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">応募を見る</a></p>"
   }
 }

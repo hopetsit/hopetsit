@@ -452,5 +452,29 @@
     "body": "Teilen Sie Ihr HoPetSit-Profil mit Tierhaltern, die Sie kennen, und mit Ihren Nachbarn: {{profileUrl}}",
     "emailSubject": "Noch keine Kunden?",
     "emailBody": "<p>Teilen Sie Ihr HoPetSit-Profil mit Tierhaltern, die Sie kennen, und mit Ihren Nachbarn: <a href=\"{{profileUrl}}\">{{profileUrl}}</a></p>"
+  },
+  "application_reminder_provider_617": {
+    "title": "{{ownerName}} hat noch nicht geantwortet",
+    "body": "{{ownerName}} hat noch nicht auf deine Bewerbung geantwortet. Schreib eine Nachricht und stell dich vor.",
+    "emailSubject": "{{ownerName}} hat noch nicht geantwortet",
+    "emailBody": "<p>{{ownerName}} hat noch nicht auf deine Bewerbung geantwortet. Schreib eine Nachricht und stell dich vor.</p>"
+  },
+  "request_expiry_617": {
+    "title": "Deine Anfrage läuft in 2 Tagen ab",
+    "body": "{{candidates}} Betreuer warten auf deine Antwort: wähle jetzt einen aus.",
+    "emailSubject": "Deine Anfrage läuft in 2 Tagen ab",
+    "emailBody": "<p>{{candidates}} Betreuer warten auf deine Antwort: wähle jetzt einen aus.</p>"
+  },
+  "review_request_617": {
+    "title": "Wie lief die Betreuung mit {{providerName}}?",
+    "body": "Hinterlass eine Bewertung – das hilft bei der Suche nach neuen Kunden.",
+    "emailSubject": "Wie lief die Betreuung mit {{providerName}}?",
+    "emailBody": "<p>Hinterlass eine Bewertung – das hilft bei der Suche nach neuen Kunden.</p>"
+  },
+  "application_new_617": {
+    "title": "{{candidateName}} hat geantwortet",
+    "body": "{{candidates}} Bewerbung(en) auf deine Anfrage · auswählen und in 2 Minuten bezahlen",
+    "emailSubject": "{{candidateName}} hat geantwortet — HoPetSit",
+    "emailBody": "<p>{{candidates}} Bewerbung(en) auf deine Anfrage · auswählen und in 2 Minuten bezahlen</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Bewerbung ansehen</a></p>"
   }
 }

@@ -621,16 +621,31 @@ const createApplication = async (req, res) => {
     // the locale-rendered body. We now rely on sendNotification alone: it
     // writes the in-app bell entry using the correct locale template AND
     // fires FCM + email.
+    // 617 (ADA, 16/10 — §D.3) : « <Prénom du candidat> a répondu » / « N candidat(s)
+    // sur ta demande · choisis et paie en 2 minutes ». N = candidatures en attente
+    // sur la demande (1 au minimum). Gabarit `application_new_617`, type inchangé.
+    let pendingCount617 = 1;
+    try {
+      if (application.postId) {
+        pendingCount617 = await Application.countDocuments({
+          postId: application.postId._id || application.postId, status: 'pending',
+        });
+      }
+    } catch (_) { pendingCount617 = 1; }
+    const text617 = require('../utils/applicationNewText617');
+    const providerDoc617 = providerRole === 'walker' ? application.walkerId : application.sitterId;
     sendNotification({
       userId: ownerId,
       role: 'owner',
       type: 'application_new',
+      templateType: text617.TEMPLATE,
       data: {
         applicationId: application._id.toString(),
         providerRole: providerRole === 'walker' ? 'walker' : 'sitter',
         providerId: sitterId.toString(),
         // v602 (ZOE) — la demande concernée : l'app ouvre ses candidats.
         ...(application.postId ? { postId: String(application.postId._id || application.postId) } : {}),
+        ...text617.applicationNewData617({ provider: providerDoc617, pendingCount: pendingCount617 }),
       },
       actor: {
         role: providerRole === 'walker' ? 'walker' : 'sitter',

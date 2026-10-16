@@ -345,6 +345,7 @@ const versionedRoutes = [
   // 04/10 (ZOE) — 1re vraie demande : qui a été prévenu, relance sans doublon
   // (simulation par défaut), villes écrites dans une langue étrangère (lecture seule).
   { path: '/admin/requests0410', mw: [], router: require('./routes/adminRequests0410') },
+  { path: '/admin/review-requests-617', mw: [], router: require('./routes/adminReviewRequests617') }, // 617 (ADA) — registre des demandes d'avis, lecture seule
   // 613 (ADA, 04/10) — parcours d'une demande (prévenus → ouverts → contacts → candidatures →
   // validée → payée → fin), lecture seule, comptes +test / staff signalés.
   { path: '/admin/requests613', mw: [], router: require('./routes/adminRequestJourney613') },

@@ -452,5 +452,29 @@
     "body": "알고 있는 반려동물 보호자와 이웃에게 HoPetSit 프로필을 공유해 보세요: {{profileUrl}}",
     "emailSubject": "아직 고객이 없으신가요?",
     "emailBody": "<p>알고 있는 반려동물 보호자와 이웃에게 HoPetSit 프로필을 공유해 보세요: <a href=\"{{profileUrl}}\">{{profileUrl}}</a></p>"
+  },
+  "application_reminder_provider_617": {
+    "title": "{{ownerName}}님이 아직 답하지 않았어요",
+    "body": "{{ownerName}}님이 아직 지원에 답하지 않았어요. 메시지를 보내 자신을 소개해 보세요.",
+    "emailSubject": "{{ownerName}}님이 아직 답하지 않았어요",
+    "emailBody": "<p>{{ownerName}}님이 아직 지원에 답하지 않았어요. 메시지를 보내 자신을 소개해 보세요.</p>"
+  },
+  "request_expiry_617": {
+    "title": "요청이 2일 후 만료돼요",
+    "body": "돌보미 {{candidates}}명이 답을 기다리고 있어요. 지금 한 명을 선택해 주세요.",
+    "emailSubject": "요청이 2일 후 만료돼요",
+    "emailBody": "<p>돌보미 {{candidates}}명이 답을 기다리고 있어요. 지금 한 명을 선택해 주세요.</p>"
+  },
+  "review_request_617": {
+    "title": "{{providerName}}님과의 돌봄은 어땠나요?",
+    "body": "후기를 남겨 주세요. 다음 고객을 찾는 데 큰 도움이 돼요.",
+    "emailSubject": "{{providerName}}님과의 돌봄은 어땠나요?",
+    "emailBody": "<p>후기를 남겨 주세요. 다음 고객을 찾는 데 큰 도움이 돼요.</p>"
+  },
+  "application_new_617": {
+    "title": "{{candidateName}}님이 답했어요",
+    "body": "요청에 지원자 {{candidates}}명 · 2분 안에 선택하고 결제하세요",
+    "emailSubject": "{{candidateName}}님이 답했어요 — HoPetSit",
+    "emailBody": "<p>요청에 지원자 {{candidates}}명 · 2분 안에 선택하고 결제하세요</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">지원 보기</a></p>"
   }
 }

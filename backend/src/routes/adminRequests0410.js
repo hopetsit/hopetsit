@@ -292,4 +292,30 @@ router.get('/reminders615', requireAdmin, async (req, res) => {
   }
 });
 
+/**
+ * 617 (ADA, 16/10/2026) — LECTURE du registre des rappels « des deux côtés »
+ * (ApplicationReminder617 : p24 au gardien sans réponse, x48 au propriétaire
+ * 48 h avant l'expiration). LECTURE SEULE, aucune adresse e-mail renvoyée.
+ *   GET /admin/requests0410/reminders617?limit=50
+ */
+router.get('/reminders617', requireAdmin, async (req, res) => {
+  try {
+    const Reminder = require('../models/ApplicationReminder617');
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+    const [total, failed, p24, x48, last] = await Promise.all([
+      Reminder.countDocuments({}),
+      Reminder.countDocuments({ status: 'failed' }),
+      Reminder.countDocuments({ slot: 'p24' }),
+      Reminder.countDocuments({ slot: 'x48' }),
+      Reminder.find({}).select('postId applicationId slot recipientRole recipientId candidates timeZone status createdAt')
+        .sort({ createdAt: -1 }).limit(limit).lean(),
+    ]);
+    const schedulerOff = String(process.env.APPLICATION_REMINDERS_617 || '').toLowerCase() === 'off';
+    res.json({ total, failed, p24, x48, schedulerOff, reminders: last });
+  } catch (e) {
+    logger.error('[admin/requests0410/reminders617]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

@@ -1062,6 +1062,15 @@ const renderNotificationContent = (type, data = {}, userLanguage) => {
     if (safeData.reminder615) {
       tmplKey = 'application_reminder_615';
       safeData = require('../utils/applicationReminderText615').enrichReminderData(safeData, locale);
+    } else if (safeData.reminder617 === 'p24') {
+      // 617 (ADA) — rappel au gardien « X n'a pas encore répondu » (type application_new).
+      tmplKey = 'application_reminder_provider_617';
+    } else if (safeData.reminder617 === 'x48') {
+      // 617 (ADA) — rappel « ta demande expire dans 2 jours » (type application_new).
+      tmplKey = 'request_expiry_617';
+    } else if (safeData.appNew617) {
+      // 617 (ADA, §D.3) — « <Prénom> a répondu · N candidat(s) » (type application_new).
+      tmplKey = require('../utils/applicationNewText617').TEMPLATE;
     } else {
       const { REQUEST_ALERT_TYPES, enrichRequestAlertData } = require('../utils/requestAlertText612');
       if (REQUEST_ALERT_TYPES.has(String(type))) safeData = enrichRequestAlertData(safeData, locale);

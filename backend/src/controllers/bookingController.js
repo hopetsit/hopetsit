@@ -5105,6 +5105,13 @@ const completeBooking = async (req, res) => {
     } catch (e) {
       logger.warn('loyalty hook failed', e.message);
     }
+    // 617 (ADA, 16/10) — §B.3 : demande d'avis au propriétaire (push + cloche,
+    // jamais d'e-mail), une seule fois par réservation. Ne lève jamais.
+    try {
+      require('../services/reviewRequest617').requestReviewForBooking(booking).catch(() => {});
+    } catch (e) {
+      logger.warn(`[completeBooking] demande d'avis 617 : ${e.message}`);
+    }
     // v23.1 part 68 — Daniel : "ancinne publication sefface apres le
     // booking FINI". Auto-close the originating Post (if any) so the
     // owner's old request stops appearing in candidate feeds. We only

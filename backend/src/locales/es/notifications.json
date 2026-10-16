@@ -452,5 +452,29 @@
     "body": "Comparta su ficha HoPetSit con los dueños de mascotas que conoce y con sus vecinos: {{profileUrl}}",
     "emailSubject": "¿Aún no tiene clientes?",
     "emailBody": "<p>Comparta su ficha HoPetSit con los dueños de mascotas que conoce y con sus vecinos: <a href=\"{{profileUrl}}\">{{profileUrl}}</a></p>"
+  },
+  "application_reminder_provider_617": {
+    "title": "{{ownerName}} aún no ha respondido",
+    "body": "{{ownerName}} aún no ha respondido a tu candidatura. Envíale un mensaje para presentarte.",
+    "emailSubject": "{{ownerName}} aún no ha respondido",
+    "emailBody": "<p>{{ownerName}} aún no ha respondido a tu candidatura. Envíale un mensaje para presentarte.</p>"
+  },
+  "request_expiry_617": {
+    "title": "Tu solicitud caduca en 2 días",
+    "body": "{{candidates}} cuidador(es) esperan tu respuesta: elige uno ahora.",
+    "emailSubject": "Tu solicitud caduca en 2 días",
+    "emailBody": "<p>{{candidates}} cuidador(es) esperan tu respuesta: elige uno ahora.</p>"
+  },
+  "review_request_617": {
+    "title": "¿Cómo fue el cuidado con {{providerName}}?",
+    "body": "Déjale una valoración: le ayuda a encontrar sus próximos clientes.",
+    "emailSubject": "¿Cómo fue el cuidado con {{providerName}}?",
+    "emailBody": "<p>Déjale una valoración: le ayuda a encontrar sus próximos clientes.</p>"
+  },
+  "application_new_617": {
+    "title": "{{candidateName}} ha respondido",
+    "body": "{{candidates}} candidato(s) en tu solicitud · elige y paga en 2 minutos",
+    "emailSubject": "{{candidateName}} ha respondido — HoPetSit",
+    "emailBody": "<p>{{candidates}} candidato(s) en tu solicitud · elige y paga en 2 minutos</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la candidatura</a></p>"
   }
 }
