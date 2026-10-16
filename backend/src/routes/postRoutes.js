@@ -16,6 +16,7 @@ const {
   updatePost,
   addPostMedia,
   getPublicRequestPosts,
+  getPublicRequestStats,
 } = require('../controllers/postController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { attachOwnerFromToken } = require('../middleware/ownerContext');
@@ -255,6 +256,9 @@ router.get('/by-id/:id', requireAuth, getPostById);
 // seeing the wrong posts or seeing nothing after the Flutter-side filter.
 // v538 — lecture publique (mode invité) : demandes récentes, champs réduits.
 router.get('/requests/public', getPublicRequestPosts);
+// 1617 (LEO, 16/10) — lecture publique : « N propriétaires cherchent un gardien à
+// <ville> cette semaine » + bulles floutées (~1 km) sans nom. Cache 5 min.
+router.get('/requests/public-stats', getPublicRequestStats);
 router.get('/requests', requireAuth, getRequestPosts);
 
 // PawMap layer — geo-filtered request posts for sitter/walker discovery.

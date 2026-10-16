@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import OwnerCityPage from "@/components/OwnerCityPage";
 import { TrackedLink } from "@/components/TrackedLink";
 import { ParisHeroForm } from "@/components/ParisHeroForm";
+// 1617 (LEO, 16/10, §B.5) — « N propriétaires cherchent un gardien à Paris cette semaine » (rien si 0).
+import RequestsPulse1617 from "@/components/RequestsPulse1617";
 import { RECRUIT_CITIES, OWNER_PATH_PREFIX, PARIS_CITY, type RecruitCity } from "@/lib/recruit-cities";
 
 // v575 — PAGE D'ATTERRISSAGE DE LA PUB META « Paris · Propriétaires (FR) ».
@@ -83,11 +85,15 @@ export default function GardeAnimauxParisPage() {
       // (service, dates, une phrase, « Continuer » → étape 2 du formulaire).
       // Retour arrière : remettre <ParisHeroCta> (composant conservé).
       heroCta={
-        <ParisHeroForm
-          city={PARIS.name}
-          lead="Dites-nous ce qu'il vous faut : les gardiens et promeneurs de Paris reçoivent votre demande et vous répondent."
-          note="Gratuit · sans compte pour commencer · vous choisissez ensuite, sans engagement"
-        />
+        <>
+          <ParisHeroForm
+            city={PARIS.name}
+            lead="Dites-nous ce qu'il vous faut : les gardiens et promeneurs de Paris reçoivent votre demande et vous répondent."
+            note="Gratuit · sans compte pour commencer · vous choisissez ensuite, sans engagement"
+          />
+          {/* 1617 — preuve sociale réelle (demandes ouvertes de vrais propriétaires) ; absente si 0. */}
+          <RequestsPulse1617 city="Paris" lang="fr" className="mt-3" />
+        </>
       }
       stickyWatchId="hero-publier"
     >

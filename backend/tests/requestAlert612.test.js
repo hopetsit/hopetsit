@@ -368,12 +368,17 @@ describe('613 §9 — la publication dit combien de prestataires sont RÉELLEMEN
     expect(res.body.notified).toBe(rows);
     expect(res.body.notified).toBe(7);
   });
-  test('la MÊME demande republiée : notified = 0 (anti-doublon), jamais un chiffre gonflé', async () => {
+  // 1617 (LEO, 16/10, ordre BOB §D.2) — la MÊME demande encore ouverte n'est plus
+  // republiée (201 + notified 0) : elle est REFUSÉE (409 DUPLICATE_REQUEST, lien
+  // vers l'existante). Le registre 612 garde son rôle pour une demande fermée puis
+  // republiée (voir tests/duplicateRequest1617.test.js et postPublished1617.test.js).
+  test('la MÊME demande republiée (encore ouverte) : 409 DUPLICATE_REQUEST, jamais une 2e annonce', async () => {
     const first = await publish(walk('2026-10-22'));
     expect(first.body.notified).toBe(7);
     const again = await publish(walk('2026-10-22'));
-    expect(again.status).toHaveBeenCalledWith(201);
-    expect(again.body.notified).toBe(0);
+    expect(again.status).toHaveBeenCalledWith(409);
+    expect(again.body.code).toBe('DUPLICATE_REQUEST');
+    expect(again.body.existingPostId).toBe(first.body.post.id || first.body.post._id);
   });
   test('panne avant le décompte : la réponse part quand même, sans `notified` ni attente de 4 s', async () => {
     const t0 = Date.now();

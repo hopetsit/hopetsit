@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import OwnerCityPage from "@/components/OwnerCityPage";
 import { PARIS_CITY } from "@/lib/recruit-cities";
+// 1617 (LEO, 16/10, §B.5) — « N propriétaires cherchent un gardien à Paris cette semaine » (rien si 0).
+import RequestsPulse1617 from "@/components/RequestsPulse1617";
 
 // 29/09/2026 (SAM, demande de Daniel : « toutes les pages Paris dans ce
 // style »). Cette ancienne page (v531 : texte + bouton « Télécharger l'app »)
@@ -21,5 +23,9 @@ export const metadata: Metadata = {
 };
 
 export default function ParisPage() {
-  return <OwnerCityPage city={PARIS_CITY} h1="Pet sitter à Paris : garde de chien, chat & promenades" />;
+  return (
+    <OwnerCityPage city={PARIS_CITY} h1="Pet sitter à Paris : garde de chien, chat & promenades">
+      <RequestsPulse1617 city="Paris" lang="fr" className="mt-8" />
+    </OwnerCityPage>
+  );
 }

@@ -3,6 +3,10 @@
 // une annonce », stocké (Post.budget / Post.budgetCurrency) et renvoyé par les
 // routes des demandes (nearby, by-owner, /posts). VRAIE base Mongo en mémoire,
 // vrais gestionnaires, zone fictive (lat -35 / lng -30), aucun réseau.
+// 1617 (LEO, 16/10) — cette suite publie VOLONTAIREMENT plusieurs fois la même
+// demande (même service, dates, ville) pour tester autre chose ; le refus de doublon
+// (409 DUPLICATE_REQUEST, tests/duplicateRequest1617.test.js) est coupé ici.
+process.env.DUPLICATE_REQUEST_CHECK = 'off';
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test_jwt_secret_'.padEnd(64, 'x');
 

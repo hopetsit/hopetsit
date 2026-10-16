@@ -417,6 +417,23 @@ const notifyNearbyProviders = ({ newPost, postPayload, normalizedServices, owner
           await Promise.all(claimed.slice(i, i + PARALLEL).map(([r, t]) => sendOne(r, 'new_request_nearby', t)));
         }
 
+        // 1617 (LEO, complément BOB) — le PROPRIÉTAIRE est prévenu à son tour
+        // (cloche + téléphone, pas d'e-mail) : « N gardiens à moins de 100 km… »
+        // ou « Aucun gardien… partage ton annonce ». Jamais en simulation, jamais
+        // depuis l'admin (resend/skipIds), jamais pour une republication déjà
+        // prévenue (tous les candidats écartés par le registre : same_request).
+        const republished1617 = bilan.candidates.length > 0 && bilan.sent.length === 0;
+        if (!dryRun && !resend && !(opts.skipIds instanceof Set) && !republished1617) {
+          try {
+            await require('../utils/postPublished1617').notifyOwnerPublished({
+              ownerId, owner, postId, notified: bilan.sent.length, radiusKm: picked.radiusKm,
+              role: picked.roles[0] === 'walker' ? 'walker' : 'sitter',
+            });
+          } catch (e) {
+            logger.warn(`[post1617] notification propriétaire : ${e && e.message ? e.message : e}`);
+          }
+        }
+
         logger.info(
           `[createPost] alerte 612 : ${bilan.sent.length} personne(s) prévenue(s) sur ${bilan.candidates.length} `
           + `(${picked.roles.join('+') || '—'}, ${picked.radiusKm} km, ${cityKey || 'sans ville'}) ; `
@@ -589,6 +606,18 @@ const createPost = async (req, res) => {
       if (tp) postPayload.targetProvider = tp;
     }
 
+    // 1617 (LEO, 16/10) — doublon de publication refusé : même propriétaire,
+    // mêmes services, même ville, mêmes jours, demande existante encore ouverte
+    // (cas réel : 2 balades identiques à Tallinn le 15/10). utils/duplicateRequest1617.
+    {
+      const dup1617 = require('../utils/duplicateRequest1617');
+      const twin = await dup1617.findOpenDuplicate({
+        ownerId, services: normalizedServices, city: postPayload.location && (postPayload.location.city || postPayload.location.label),
+        startDate: postPayload.startDate, endDate: postPayload.endDate,
+      });
+      if (twin) return res.status(409).json(dup1617.duplicateResponse(owner, twin.existingPostId));
+    }
+
     // Sprint 4 step 6 — auto-translate body to all supported locales.
     try {
       const sourceLang =
@@ -620,7 +649,13 @@ const createPost = async (req, res) => {
       newPost, postPayload, normalizedServices, owner, ownerId, opts: { onClaimed },
     }));
 
-    res.status(201).json({ post: sanitizePost(newPost), ...(notified === null ? {} : { notified }) });
+    // 1617 — `alertRadiusKm` à côté de `notified` : le site et l'app n'écrivent
+    // pas « 100 » en dur (rayon = ALERT_RADIUS_KM de requestAlert612).
+    res.status(201).json({
+      post: sanitizePost(newPost),
+      ...(notified === null ? {} : { notified }),
+      alertRadiusKm: require('../services/requestAlert612').ALERT_RADIUS_KM,
+    });
   } catch (error) {
     logger.error('Create post error', error);
     if (error.name === 'CastError') {
@@ -1950,6 +1985,18 @@ const createPostWithMedia = async (req, res) => {
       if (tp) postPayload.targetProvider = tp;
     }
 
+    // 1617 (LEO, 16/10) — même anti-doublon que createPost (une demande AVEC photo
+    // passe par ici). Les médias sont déjà envoyés à Cloudinary à ce stade : le
+    // doublon est rare, on préfère un refus net à une 2e annonce en ligne.
+    if (resolvedPostType === 'request') {
+      const dup1617 = require('../utils/duplicateRequest1617');
+      const twin = await dup1617.findOpenDuplicate({
+        ownerId, services: normalizedServices, city: postPayload.location && (postPayload.location.city || postPayload.location.label),
+        startDate: postPayload.startDate, endDate: postPayload.endDate,
+      });
+      if (twin) return res.status(409).json(dup1617.duplicateResponse(owner, twin.existingPostId));
+    }
+
     // Create the post
     // 612 §8 — une demande a toujours un animal : sans cela AUCUN prestataire ne
     // pouvait postuler (mesuré). Fiche minimale créée si le propriétaire n'en a pas.
@@ -1977,6 +2024,8 @@ const createPostWithMedia = async (req, res) => {
       message: 'Post created successfully.',
       post: sanitizePost(newPost),
       ...(notified === null ? {} : { notified }),
+      // 1617 — rayon réel de l'alerte (jamais « 100 » en dur côté client).
+      ...(resolvedPostType === 'request' ? { alertRadiusKm: require('../services/requestAlert612').ALERT_RADIUS_KM } : {}),
     });
   } catch (error) {
     logger.error('Create post with media error', error);
@@ -2352,6 +2401,8 @@ module.exports = {
   resolveMediaPostType,
   openRequestFilter,
   getPublicRequestPosts,
+  // 1617 (LEO) — « N propriétaires cherchent un gardien à Paris cette semaine ».
+  getPublicRequestStats: require('../utils/publicRequestStats1617').getPublicRequestStats,
   createPost,
   createPostWithMedia,
   notifyNearbyProviders,

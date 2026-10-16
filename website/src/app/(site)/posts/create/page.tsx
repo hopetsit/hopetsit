@@ -16,11 +16,14 @@ import { c616 } from "@/lib/i18n/cityPicker616";
 // 11/10 (SAM) — formulaire en 2 étapes : un écran pour la demande, un pour le compte.
 import { f2 } from "@/lib/i18n/formulaire2etapes1110";
 import { locationComplete, locationOptions, locationToSend, p587, type ServiceLocation } from "@/lib/i18n/publish587";
+// 1617 (LEO, 16/10) — « N gardiens prévenus » / « aucun : partage » + refus de doublon.
+import PublishedConfirmation1617, { type PublishedInfo } from "@/components/PublishedConfirmation1617";
+import { p1617 } from "@/lib/i18n/publier1617";
 import {
   API_BASE,
   ApiError,
-  createPost,
-  createPostWithMedia,
+  createPostWithMeta,
+  createPostWithMediaMeta,
   getMyProfile,
   getStoredUser,
   login,
@@ -133,6 +136,9 @@ export default function CreatePostPage() {
   // mesurer étape 1 → étape 2.
   const [etape, setEtape] = useState<1 | 2>(1);
   const [details, setDetails] = useState(false);
+  // 1617 — écran de confirmation (N prévenus réels) et demande existante (409).
+  const [published, setPublished] = useState<PublishedInfo | null>(null);
+  const [dupId, setDupId] = useState<string | null>(null);
   const etape2Started = useRef(false);
 
   function addPhotos(e: React.ChangeEvent<HTMLInputElement>) {
@@ -380,7 +386,7 @@ export default function CreatePostPage() {
         router.replace(`/login?next=${encodeURIComponent("/posts/create")}`);
         return;
       }
-      setErr(e instanceof ApiError ? e.message : t("posts_error"));
+      if (!handleDuplicate(e)) setErr(e instanceof ApiError ? e.message : t("posts_error"));
     } finally {
       setBusy(false);
     }
@@ -430,15 +436,35 @@ export default function CreatePostPage() {
       targetProvider: target || undefined,
     };
     // Avec photos → /posts/with-media (postType=request) ; sinon → /posts.
-    if (photos.length > 0) {
-      await createPostWithMedia(input, photos);
-    } else {
-      await createPost(input);
-    }
+    // 1617 — la réponse porte `notified` (réel) et `alertRadiusKm` : on les montre.
+    setDupId(null);
+    const meta = photos.length > 0
+      ? await createPostWithMediaMeta(input, photos)
+      : await createPostWithMeta(input);
     try { window.localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
     trackSiteEvent("cta_click", { label: fromGuest ? "pub_publiee" : "pub_publiee_membre" });
     if (target) trackSiteEvent("cta_click", { label: "pub_pour_prestataire" });
-    router.push("/posts");
+    const walk = services.length > 0 && services.every((s) => s === "dog_walking");
+    if (meta.notified === 0) trackSiteEvent("cta_click", { label: "pub_zero_prevenu_1617" });
+    setPublished({
+      postId: String(meta.post?.id || meta.post?._id || ""),
+      notified: meta.notified,
+      alertRadiusKm: meta.alertRadiusKm ?? 100,
+      walk,
+      city: loc.city,
+    });
+    try { window.scrollTo({ top: 0 }); } catch { /* ignore */ }
+  }
+
+  /** 1617 — refus 409 DUPLICATE_REQUEST : message du serveur + lien vers la demande existante. */
+  function handleDuplicate(e: unknown): boolean {
+    if (!(e instanceof ApiError) || e.status !== 409) return false;
+    const d = e.details as { code?: string; existingPostId?: string } | null;
+    if (!d || d.code !== "DUPLICATE_REQUEST") return false;
+    setDupId(String(d.existingPostId || ""));
+    setErr(e.message);
+    trackSiteEvent("cta_click", { label: "pub_doublon_1617" });
+    return true;
   }
 
   /** Compte actif (code validé ou connexion) : la demande part toute seule. */
@@ -450,9 +476,9 @@ export default function CreatePostPage() {
     saveDraft(locIn ? locDraft(locIn) : {});
     try {
       await publishNow(true, locIn);
-    } catch {
+    } catch (e) {
       setInfo("");
-      setErr(gp(lang, "after_fail"));
+      if (!handleDuplicate(e)) setErr(gp(lang, "after_fail"));
     }
   }
 
@@ -532,6 +558,11 @@ export default function CreatePostPage() {
     try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* ignore */ }
   }
 
+  // 1617 — demande publiée : écran de confirmation (après tous les hooks).
+  if (published) {
+    return <PublishedConfirmation1617 info={published} lang={lang} />;
+  }
+
   // Les owners seuls publient des annonces (le backend renvoie 403 sinon).
   if (role && role !== "owner") {
     return (
@@ -595,6 +626,13 @@ export default function CreatePostPage() {
           <p className="text-center text-xs text-[#6E4F48]">{gp(lang, "code_spam")} {gp(lang, "code_kept")}</p>
           {info && <p className="text-center text-sm font-semibold text-owner-dark">{info}</p>}
           {err && <p className="text-center text-sm text-owner-dark">{err}</p>}
+        {dupId !== null && (
+          <p data-testid="dup-link" className="text-center text-sm">
+            <Link href="/posts" className="inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-owner bg-white px-5 font-bold text-owner-dark transition hover:bg-owner-light">
+              {p1617(lang, "dup_link")}
+            </Link>
+          </p>
+        )}
         </form>
       ) : (
       <form
@@ -713,6 +751,13 @@ export default function CreatePostPage() {
         </div>
 
         {err && <p className="text-center text-sm text-owner-dark">{err}</p>}
+        {dupId !== null && (
+          <p data-testid="dup-link" className="text-center text-sm">
+            <Link href="/posts" className="inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-owner bg-white px-5 font-bold text-owner-dark transition hover:bg-owner-light">
+              {p1617(lang, "dup_link")}
+            </Link>
+          </p>
+        )}
         <button
           type="button"
           onClick={onContinue}
@@ -904,6 +949,13 @@ export default function CreatePostPage() {
         )}
         {info && <p className="text-center text-sm font-semibold text-owner-dark">{info}</p>}
         {err && <p className="text-center text-sm text-owner-dark">{err}</p>}
+        {dupId !== null && (
+          <p data-testid="dup-link" className="text-center text-sm">
+            <Link href="/posts" className="inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-owner bg-white px-5 font-bold text-owner-dark transition hover:bg-owner-light">
+              {p1617(lang, "dup_link")}
+            </Link>
+          </p>
+        )}
         <p className="text-center text-xs text-ink-muted">{t("posts_no_contact_info")}</p>
         </>)}
       </form>

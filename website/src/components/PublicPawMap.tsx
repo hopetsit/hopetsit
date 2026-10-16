@@ -17,7 +17,9 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
-import { getPublicProviders, getPublicPawSpots, type PublicProvider, type PublicPawSpot } from "@/lib/api";
+import { getPublicProviders, getPublicPawSpots, getPublicRequestStats, type PublicProvider, type PublicPawSpot, type PublicRequestBubble } from "@/lib/api";
+// 1617 (LEO, 16/10, §B.5) — demandes des propriétaires en bulles floutées sans nom.
+import { p1617, statsSentence } from "@/lib/i18n/publier1617";
 import { formatPriceUnit, priceUnitLabels } from "@/lib/priceUnit";
 import { clusterize, haversineKm } from "@/lib/mapCluster";
 import {
@@ -69,6 +71,20 @@ function memberIcon(p: PublicProvider, caption: string | null, bubble: string | 
     popupAnchor: [0, -26],
   });
 }
+// 1617 — bulle orange #C92A12 translucide + pastille du service (garde / promenade),
+// pointe sur la position FLOUTÉE (~1 km, floutage serveur). Aucun nom, aucune adresse.
+const MS_WALK_1617 = "M13.5 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.2 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7z";
+const MS_HOME_1617 = "M12 3 2 12h3v8h5v-6h4v6h5v-8h3L12 3z";
+function requestBubbleIcon(b: PublicRequestBubble, serviceLabel: string, daysLabel: string | null): L.DivIcon {
+  const icon = `<svg viewBox="0 0 24 24" width="13" height="13" fill="#fff" aria-hidden="true"><path d="${b.service === "walk" ? MS_WALK_1617 : MS_HOME_1617}"/></svg>`;
+  const text = daysLabel ? `${serviceLabel} · ${daysLabel}` : serviceLabel;
+  const html = `<div style="position:relative;display:flex;flex-direction:column;align-items:center;">
+    <div style="height:26px;background:rgba(201,42,18,.82);color:#fff;border-radius:9px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;font:700 11.5px/1 Poppins,Inter,system-ui,sans-serif;white-space:nowrap;box-shadow:0 0 0 2px #fff,0 6px 12px -4px rgba(23,20,31,.5);backdrop-filter:blur(2px);">${icon}<span>${text.replace(/</g, "&lt;")}</span></div>
+    <svg viewBox="0 0 12 7" width="12" height="7" style="display:block;margin-top:1px;" aria-hidden="true"><path d="M0 0h12L6 7z" fill="rgba(201,42,18,.82)"/></svg>
+  </div>`;
+  return L.divIcon({ className: "hps-l-request-public", html, iconSize: [110, 34], iconAnchor: [55, 34], popupAnchor: [0, -32] });
+}
+
 function clusterIcon(items: PublicProvider[]): L.DivIcon {
   const sz = items.length >= 10 ? 44 : 40;
   return L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(items.length, dominantRole(items.map((p) => p.role)), false, roleCounts(items.map((p) => p.role))), iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
@@ -176,6 +192,8 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   const [dark, setDark] = useState(false);
   // 02/10 (609) — « Vérifiés seulement » (identité vérifiée).
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  // 1617 — demandes des propriétaires autour du centre (compteur + bulles floutées).
+  const [reqStats, setReqStats] = useState<{ count: number; city: string; bubbles: PublicRequestBubble[] }>({ count: 0, city: "", bubbles: [] });
   const lastFetch = useRef<{ lat: number; lng: number } | null>(null);
   const reqSeq = useRef(0);
 
@@ -201,6 +219,8 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
       .finally(() => { if (seq === reqSeq.current) { setLoading(false); setFetchedOnce(true); } });
     // 610 — PawSpots publics (jamais d'erreur : liste vide si la route manque).
     void getPublicPawSpots({ lat: view.lat, lng: view.lng, radiusKm: 30 }).then((list) => { if (seq === reqSeq.current) setSpots(list); });
+    // 1617 — demandes ouvertes de propriétaires réels (serveur : floutées, sans nom, cache 5 min).
+    void getPublicRequestStats({ lat: view.lat, lng: view.lng, radiusKm: 30 }).then((s) => { if (seq === reqSeq.current) setReqStats({ count: s.count, city: s.city, bubbles: s.bubbles }); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view.lat, view.lng]);
 
@@ -303,6 +323,23 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                       {t("nav_signup")}
                     </Link>
                   </>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+        {/* 1617 — bulles des demandes (sous les personnes : PIN_Z.request). Clic = note « position approximative ». */}
+        {reqStats.bubbles.map((b, i) => (
+          <Marker key={`rq-${i}-${b.lat}-${b.lng}`} position={[b.lat, b.lng]} icon={requestBubbleIcon(b, p1617(lang, b.service === "walk" ? "bubble_walk" : "bubble_sitting"), b.days ? p1617(lang, "bubble_days").replace("{n}", String(b.days)) : null)} zIndexOffset={PIN_Z.request}>
+            {/* Marge haute 112 px : la fiche passe sous la rangée de boutons ET sous la phrase « N propriétaires… ». */}
+            <Popup autoPan autoPanPaddingTopLeft={[12, 112]} autoPanPaddingBottomRight={[12, 12]}>
+              <div style={{ minWidth: 180, maxWidth: 230 }} data-public-request="">
+                <div className="text-[13px] font-bold text-[#231715]">{p1617(lang, b.service === "walk" ? "bubble_walk" : "bubble_sitting")}{b.days ? ` · ${p1617(lang, "bubble_days").replace("{n}", String(b.days))}` : ""}</div>
+                <div className="mt-1 text-xs leading-snug text-[#6E4F48]">{p1617(lang, "bubble_note")}</div>
+                {!(ready && user) && (
+                  <Link href="/signup" onClick={() => trackSiteEvent("cta_click", { label: "inscription_demande_carte_1617" })} className="mt-2 flex min-h-[40px] items-center justify-center rounded-[14px] bg-[#2563EB] px-4 text-sm font-bold" style={{ color: "#fff" }}>
+                    {t("map_empty_provider_cta")}
+                  </Link>
                 )}
               </div>
             </Popup>
@@ -415,6 +452,12 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         )}
         {loading && <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#C92A12] border-t-transparent" />}
       </div>
+      {/* 1617 — « N propriétaires cherchent un gardien à <ville> cette semaine » : seulement si N ≥ 1. */}
+      {reqStats.count >= 1 && reqStats.city && (
+        <div data-testid="requests-stats-1617" className="pointer-events-none absolute left-3 top-[60px] z-[1000] max-w-[calc(100%-24px)] rounded-full px-3.5 py-2 text-xs font-bold text-white shadow-lg" style={{ background: "rgba(201,42,18,.92)" }}>
+          {statsSentence(lang, reqStats.count, reqStats.city)}
+        </div>
+      )}
 
       {/* Carte vide = une action (idée 1 validée) : sans gardien autour, on propose la suite. */}
       {empty && (

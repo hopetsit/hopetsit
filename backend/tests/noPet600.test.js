@@ -4,6 +4,10 @@
 // ACCEPTE ce cas (201), garde espèces + nombre, et prévient quand même les
 // prestataires de la ville. Vraie base Mongo en mémoire, zone fictive
 // (lat -35 / lng -30), aucun réseau (géocodage simulé).
+// 1617 (LEO, 16/10) — cette suite publie VOLONTAIREMENT plusieurs fois la même
+// demande (même service, dates, ville) pour tester autre chose ; le refus de doublon
+// (409 DUPLICATE_REQUEST, tests/duplicateRequest1617.test.js) est coupé ici.
+process.env.DUPLICATE_REQUEST_CHECK = 'off';
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test_jwt_secret_'.padEnd(64, 'x');
 

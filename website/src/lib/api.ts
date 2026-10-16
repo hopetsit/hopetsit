@@ -2000,17 +2000,37 @@ function postId(p: RequestPost): string {
 export { postId };
 
 export async function createPost(input: CreatePostInput): Promise<RequestPost> {
-  const raw = await request<{ post?: RequestPost } & RequestPost>("/posts", {
+  return (await createPostWithMeta(input)).post;
+}
+
+// 1617 (LEO, 16/10) — la réponse 201 porte aussi `notified` (nombre RÉEL de
+// gardiens/promeneurs prévenus, registre 612) et `alertRadiusKm` (rayon réel,
+// jamais « 100 » en dur côté site). Même appel que createPost.
+export type CreatedPostMeta = { post: RequestPost; notified: number | null; alertRadiusKm: number | null };
+function postMeta(raw: { post?: RequestPost; notified?: unknown; alertRadiusKm?: unknown } & RequestPost): CreatedPostMeta {
+  const n = Number(raw.notified);
+  const km = Number(raw.alertRadiusKm);
+  return {
+    post: (raw.post as RequestPost) || (raw as RequestPost),
+    notified: Number.isFinite(n) ? n : null,
+    alertRadiusKm: Number.isFinite(km) && km > 0 ? km : null,
+  };
+}
+export async function createPostWithMeta(input: CreatePostInput): Promise<CreatedPostMeta> {
+  const raw = await request<{ post?: RequestPost; notified?: unknown; alertRadiusKm?: unknown } & RequestPost>("/posts", {
     method: "POST",
     body: JSON.stringify(input),
   });
-  return (raw.post as RequestPost) || (raw as RequestPost);
+  return postMeta(raw);
 }
 
 // v402 — annonce AVEC photos. Le backend /posts/with-media accepte
 // postType='request' (additif) → l'annonce porte ses images + apparaît dans le
 // feed des demandes (et dans l'app). Champ multipart 'photos'.
 export async function createPostWithMedia(input: CreatePostInput, files: File[]): Promise<RequestPost> {
+  return (await createPostWithMediaMeta(input, files)).post;
+}
+export async function createPostWithMediaMeta(input: CreatePostInput, files: File[]): Promise<CreatedPostMeta> {
   const fd = new FormData();
   fd.append("body", input.body);
   fd.append("postType", "request");
@@ -2030,11 +2050,34 @@ export async function createPostWithMedia(input: CreatePostInput, files: File[])
   if (input.location?.city) fd.append("location", JSON.stringify(input.location));
   if (input.targetProvider) fd.append("targetProvider", JSON.stringify(input.targetProvider));
   files.forEach((f) => fd.append("photos", f));
-  const raw = await request<{ post?: RequestPost } & RequestPost>("/posts/with-media", {
+  const raw = await request<{ post?: RequestPost; notified?: unknown; alertRadiusKm?: unknown } & RequestPost>("/posts/with-media", {
     method: "POST",
     body: fd,
   });
-  return (raw.post as RequestPost) || (raw as RequestPost);
+  return postMeta(raw);
+}
+
+// 1617 (LEO, 16/10, §B.5) — « N propriétaires cherchent un gardien à Paris cette
+// semaine » : lecture publique, propriétaires réels seulement, positions floutées
+// par le serveur (~1 km), jamais de nom. count = 0 → le site n'affiche rien.
+export type PublicRequestBubble = { lat: number; lng: number; service: "sitting" | "walk"; days: number | null };
+export type PublicRequestStats = { city: string; count: number; bubbles: PublicRequestBubble[] };
+export async function getPublicRequestStats(opts: { city?: string; lat?: number; lng?: number; radiusKm?: number }): Promise<PublicRequestStats> {
+  const qs = new URLSearchParams();
+  if (opts.city) qs.set("city", opts.city);
+  if (typeof opts.lat === "number" && typeof opts.lng === "number") { qs.set("lat", String(opts.lat)); qs.set("lng", String(opts.lng)); }
+  if (opts.radiusKm) qs.set("radius", String(opts.radiusKm));
+  try {
+    const raw = await request<Partial<PublicRequestStats>>(`/posts/requests/public-stats?${qs.toString()}`);
+    const bubbles = Array.isArray(raw.bubbles)
+      ? raw.bubbles.filter((b) => Number.isFinite(Number(b.lat)) && Number.isFinite(Number(b.lng)))
+        .map((b) => ({ lat: Number(b.lat), lng: Number(b.lng), service: b.service === "walk" ? "walk" as const : "sitting" as const, days: Number.isFinite(Number(b.days)) ? Number(b.days) : null }))
+      : [];
+    const count = Number(raw.count);
+    return { city: String(raw.city || opts.city || ""), count: Number.isFinite(count) ? count : 0, bubbles };
+  } catch {
+    return { city: opts.city || "", count: 0, bubbles: [] };
+  }
 }
 
 export async function getRequestPosts(): Promise<RequestPost[]> {
