@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/apply_distance617.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/paw_tab_bar.dart' show PawGlyph;
 
@@ -482,6 +483,63 @@ class HomeDistancePill extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+
+/// 617 (BOB, 16/10/2026) — « Aucune demande à moins de 200 km » : des
+/// demandes existent, mais toutes au-delà de la distance de candidature du
+/// serveur. On l'explique au lieu de proposer des annonces impossibles à
+/// honorer (cas réel : gardien de Busan candidat à New York).
+class HomeTooFarCard617 extends StatelessWidget {
+  const HomeTooFarCard617({super.key, required this.accent});
+
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final int maxKm = kApplyMaxKm617.round();
+    return Container(
+      key: const ValueKey<String>('home617_too_far'),
+      padding: EdgeInsets.fromLTRB(14.w, 12.h, 12.w, 12.h),
+      margin: EdgeInsets.only(bottom: 14.h),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: accent.withValues(alpha: 0.20), width: 1),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.near_me_disabled_rounded, size: 20.sp, color: accent),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                PoppinsText(
+                  text: 'bob617_nothing_within_max'
+                      .tr
+                      .replaceAll('{max}', '$maxKm'),
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 2,
+                ),
+                SizedBox(height: 2.h),
+                InterText(
+                  text: 'bob617_nothing_within_max_sub'.tr,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textSecondary(context),
+                  maxLines: 4,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

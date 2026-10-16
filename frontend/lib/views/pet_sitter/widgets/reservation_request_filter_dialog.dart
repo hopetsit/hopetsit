@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/utils/apply_distance617.dart';
 
 /// Filter state for reservation requests (location, dates, service type, distance).
 class ReservationRequestFilterState {
@@ -91,7 +92,8 @@ class _ReservationRequestFilterDialogState
   String? _serviceType;
   // v23.1 part 240 — slider min 50km (Daniel "0 = 0-50km").
   static const double _kMinRadiusKm = 50.0;
-  static const double _kMaxRadiusKm = 500.0;
+  // 617 (BOB) — même plafond que le serveur (candidature refusée au-delà).
+  static const double _kMaxRadiusKm = kApplyMaxKm617;
   double _maxDistanceKm = _kMinRadiusKm;
 
   @override

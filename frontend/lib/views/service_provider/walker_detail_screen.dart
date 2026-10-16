@@ -398,10 +398,13 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
               fontWeight: FontWeight.w700,
               color: AppColors.textSecondary(context),
             ),
+      // 617 (BOB, §B.3) — fiche sans avis : badge « Nouveau · vérifié »
+      // (ou « Nouveau ») à la place du vide, pour rassurer et donner envie
+      // d'être le premier à réserver.
       child: reviews.isEmpty
-          ? PublicProfileEmptyLine(
-              icon: Icons.star_outline_rounded,
-              text: 'sitter_detail_no_reviews'.tr,
+          ? NewProviderBadge617(
+              accent: _palette.accent,
+              verified: w.identityVerified,
             )
           : Column(
               children: <Widget>[

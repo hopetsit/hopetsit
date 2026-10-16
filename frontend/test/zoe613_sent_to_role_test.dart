@@ -55,8 +55,12 @@ void main() {
     Get.locale = const Locale('fr', 'FR');
     String msg(Map<String, dynamic> r, String role) =>
         PublishReservationRequestController.publishedMessage613(r, role);
-    expect(msg(<String, dynamic>{'post': <String, dynamic>{}, 'notified': 35}, 'walker'), 'Envoyée à 35 promeneurs');
-    expect(msg(<String, dynamic>{'post': <String, dynamic>{}, 'notified': 4}, 'sitter'), 'Envoyée à 4 gardiens');
+    // 617 (BOB, §D.1) — « N … à moins de X km ont été prévenus ; en général
+    // ils répondent dans la journée » (X = rayon renvoyé par le serveur).
+    expect(msg(<String, dynamic>{'post': <String, dynamic>{}, 'notified': 35, 'alertRadiusKm': 100}, 'walker'),
+        '35 promeneurs à moins de 100 km ont été prévenus. En général ils répondent dans la journée.');
+    expect(msg(<String, dynamic>{'post': <String, dynamic>{}, 'notified': 4}, 'sitter'),
+        '4 gardiens à moins de 100 km ont été prévenus. En général ils répondent dans la journée.');
     // Anti-doublon : 0 prévenu → jamais « Envoyée à 0 », jamais l'offre de la ville.
     expect(msg(<String, dynamic>{'post': <String, dynamic>{}, 'notified': 0}, 'walker'),
         'Ta demande est publiée : les prestataires proches la verront.');

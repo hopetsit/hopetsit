@@ -1418,7 +1418,12 @@ const acceptTerms = async (req, res) => {
   try {
     const Model = resolveUserModel(req.user?.role);
     if (!Model) return res.status(403).json({ error: 'Unsupported role.' });
-    const version = process.env.TERMS_VERSION || 'v1.0';
+    // 617 (BOB, 16/10) — reste du 616 : `TERMS_VERSION` n'a jamais été posé sur
+    // Render → le journal d'acceptation écrivait « v1.0 » alors que les CGU
+    // sont en 2.4. Repli = la version lue dans le texte des CGU de l'app
+    // (billingMandate.readTermsVersionFromCode, 2.4), l'env garde la main.
+    const version = process.env.TERMS_VERSION
+      || require('../utils/billingMandate').readTermsVersionFromCode();
     const result = await Model.findByIdAndUpdate(
       req.user.id,
       {

@@ -637,10 +637,13 @@ class _CandidateCard extends StatelessWidget {
                             size: 14.sp, color: const Color(0xFFFFB400)),
                         SizedBox(width: 2.w),
                         InterText(
+                          // 617 (BOB, §B.3) — sans avis : « Nouveau · vérifié ».
                           text: app.sitter.rating > 0
                               ? '${app.sitter.rating.toStringAsFixed(1)} '
                                   '(${app.sitter.reviewsCount})'
-                              : 'candidates_no_reviews'.tr,
+                              : (app.sitter.verified
+                                  ? 'bob617_new_verified'
+                                  : 'bob617_new').tr,
                           fontSize: 11.sp,
                           color: AppColors.textSecondary(context),
                         ),

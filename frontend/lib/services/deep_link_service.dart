@@ -608,7 +608,9 @@ class DeepLinkService {
       return isOwner ? bookingPath : '/request/$bookingId';
     }
     // Candidature reçue par le propriétaire : la candidature elle-même.
-    if (t == 'application_new') {
+    // 617 (ADA) — « ta demande expire dans 2 jours, N candidats » : même
+    // destination que la candidature reçue (Choisir → Payer).
+    if (t == 'application_new' || t == 'request_expiry_617') {
       if (applicationId.isNotEmpty && !isProvider) {
         return '/application/$applicationId';
       }
@@ -638,6 +640,13 @@ class DeepLinkService {
     // Vérification d'identité (Didit, 3 €) : l'écran de vérification.
     if (t.startsWith('kyc_')) return '/identity';
     if (t == 'new_review') return '/reviews';
+    // 617 (BOB) — demande d'avis à la fin de la 1re garde : la réservation
+    // (bouton « Laisser un avis » dessus) ; « N prévenus » après la
+    // publication : la demande elle-même.
+    if (t == 'review_request_617') return bookingPath;
+    // 1610 (SAM) — « Partagez votre fiche » : le profil du prestataire.
+    if (t == 'sitter_invite_1610') return '/profile';
+    if (t == 'post_published_617') return postPath;
     if (t == 'premium_achieved' || t == 'top_sitter_achieved') {
       return '/profile';
     }

@@ -6054,8 +6054,12 @@ class _PawMapScreenState extends State<PawMapScreen>
             priceRole: priceRole,
             labelColor: PawMapLegend.darken(PawMapLegend.friend, 0.25),
             crown: premium && _showPremiumLayer.value,
-            online: online && !approx,
-            offlineDot: !approx, // 616 — orange plein hors ligne
+            // 617 (BOB, reste du 616) — un AMI porte TOUJOURS son point de
+            // statut (vert en ligne / orange plein hors ligne), photo ou pas,
+            // position précise ou approximative : le point dit s'il est là,
+            // pas où il est exactement.
+            online: online,
+            offlineDot: true, // 616 — orange plein hors ligne
             verified: verified, // 609
             boosted: boosted,
             fallbackIcon: PawMapLegend.roleIcon(role),

@@ -1582,3 +1582,54 @@ class PublicProfileBackground extends StatelessWidget {
   Widget build(BuildContext context) =>
       PawPatternBackground(color: accent, child: child);
 }
+
+
+/// 617 (BOB, 16/10/2026) — « Nouveau · vérifié » : fiche sans avis. Pastille à
+/// la couleur du rôle + une ligne d'explication, à la place du vide.
+class NewProviderBadge617 extends StatelessWidget {
+  const NewProviderBadge617({super.key, required this.accent, required this.verified});
+
+  final Color accent;
+  final bool verified;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Container(
+          key: const ValueKey<String>('bob617_new_badge'),
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: accent.withValues(alpha: 0.35), width: 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(verified ? Icons.verified_rounded : Icons.auto_awesome_rounded,
+                  size: 14.sp, color: accent),
+              SizedBox(width: 6.w),
+              InterText(
+                text: (verified ? 'bob617_new_verified' : 'bob617_new').tr,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: accent,
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 6.h),
+        InterText(
+          text: 'bob617_new_hint'.tr,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.textSecondary(context),
+          maxLines: 3,
+        ),
+      ],
+    );
+  }
+}

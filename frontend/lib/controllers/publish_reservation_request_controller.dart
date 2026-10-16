@@ -23,6 +23,8 @@ import 'package:hopetsit/widgets/city_location_picker.dart'
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/walk_duration.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/app_dialog_kit.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -1171,6 +1173,10 @@ class PublishReservationRequestController extends GetxController {
       );
       // v600 NEO — l'accueil lit ce résultat pour rester sur « Mes demandes ».
       Get.back(result: kPublishedResult600);
+      // 617 (§D.2) — personne prévenu : on le dit et on propose de partager.
+      if (nobodyNotified617(created)) {
+        unawaited(showNobodyNearby617(createdPostId617(created)));
+      }
     } on ApiException catch (error) {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
@@ -1202,11 +1208,81 @@ class PublishReservationRequestController extends GetxController {
   static String publishedMessage613(Map<String, dynamic> res, String role) {
     final n = notifiedCountFromResponse(res);
     if (n != null && n > 0) {
-      return (role == 'walker' ? 'zoe613_sent_to_walkers' : 'zoe613_sent_to_sitters')
+      // 617 (BOB, §D.1) — « N gardiens à moins de X km ont été prévenus ; en
+      // général ils répondent dans la journée ». X = rayon RÉEL d'alerte
+      // renvoyé par le serveur (`alertRadiusKm`, 100 km), jamais écrit en dur.
+      return (role == 'walker' ? 'bob617_sent_walkers' : 'bob617_sent_sitters')
           .tr
-          .replaceAll('{n}', '$n');
+          .replaceAll('{n}', '$n')
+          .replaceAll('{km}', '${alertRadiusKmFromResponse(res)}');
     }
     return 'zoe613_published_no_count'.tr;
+  }
+
+  /// 617 — rayon d'alerte renvoyé par le serveur (`alertRadiusKm`), 100 sinon
+  /// (valeur du serveur `requestAlert612.ALERT_RADIUS_KM` au 16/10/2026).
+  static int alertRadiusKmFromResponse(Map<String, dynamic> res) {
+    final v = res['alertRadiusKm'];
+    if (v is num && v > 0) return v.round();
+    return 100;
+  }
+
+  /// 617 (§D.2) — vrai quand le serveur a RÉPONDU « 0 prévenu » (clé
+  /// présente, valeur 0) : personne près de chez le propriétaire. Un serveur
+  /// muet (clé absente) ne vaut pas zéro.
+  static bool nobodyNotified617(Map<String, dynamic> res) {
+    Object? v = res['notified'] ?? res['notifiedCount'];
+    if (v == null && res['post'] is Map) {
+      final post = res['post'] as Map;
+      v = post['notified'] ?? post['notifiedCount'];
+    }
+    return v is num && v <= 0;
+  }
+
+  /// 617 — id de la demande créée, pour le lien public à partager.
+  static String createdPostId617(Map<String, dynamic> res) {
+    final post = res['post'];
+    if (post is Map) {
+      final id = (post['id'] ?? post['_id'] ?? '').toString();
+      if (id.isNotEmpty) return id;
+    }
+    return (res['id'] ?? res['_id'] ?? '').toString();
+  }
+
+  /// 617 (§D.2) — N = 0 : on le dit tout de suite et on propose de partager
+  /// l'annonce (feuille de partage du téléphone, lien public hopetsit.com).
+  Future<void> showNobodyNearby617(String postId) async {
+    final link = postId.isEmpty
+        ? 'https://hopetsit.com'
+        : 'https://hopetsit.com/post/$postId';
+    await Get.dialog<void>(
+      AppDialogCard(
+        title: 'bob617_sent_none_title'.tr,
+        message: 'bob617_sent_none'.tr,
+        icon: Icons.campaign_rounded,
+        actions: <Widget>[
+          AppDialogPrimaryButton(
+            key: const ValueKey<String>('bob617_share'),
+            label: 'bob617_share'.tr,
+            onTap: () async {
+              Get.back<void>();
+              try {
+                await SharePlus.instance.share(ShareParams(
+                  text: 'bob617_share_text'.tr.replaceAll('{link}', link),
+                ));
+              } catch (e) {
+                AppLogger.logError('share request failed', error: e);
+              }
+            },
+          ),
+          AppDialogSecondaryButton(
+            label: 'bob617_later'.tr,
+            onTap: () => Get.back<void>(),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
   }
 
   static int? notifiedCountFromResponse(Map<String, dynamic> res) {

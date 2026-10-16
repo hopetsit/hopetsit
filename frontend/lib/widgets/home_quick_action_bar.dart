@@ -1879,9 +1879,15 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                     : null,
               ),
               SizedBox(height: 12.h),
+              // 617 (BOB, §B.3) — sans avis : « Nouveau · vérifié » / « Nouveau »
+              // à la place du tiret.
               _sheetRow(
                 Icons.star_rounded,
-                rating > 0 ? rating.toStringAsFixed(1) : '—',
+                rating > 0
+                    ? rating.toStringAsFixed(1)
+                    : (localApp.sitter.verified
+                        ? 'bob617_new_verified'
+                        : 'bob617_new').tr,
                 tone: const Color(0xFFFFB400),
               ),
               if (priceLbl.isNotEmpty)

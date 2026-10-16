@@ -36,6 +36,7 @@ import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:hopetsit/views/service_provider/owner_profile_view_screen.dart';
 import 'package:hopetsit/utils/home_radius_prefs.dart';
 import 'package:hopetsit/utils/search_radius.dart';
+import 'package:hopetsit/utils/apply_distance617.dart';
 import 'package:hopetsit/views/shared/widgets/around_me_search_bar.dart';
 import 'package:hopetsit/views/shared/widgets/city_picker_sheet.dart';
 import 'package:hopetsit/views/shared/widgets/home_empty_kit.dart';
@@ -1027,18 +1028,42 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     required List<PostModel> outOfRange,
   }) {
     final nearest = <({PostModel post, double km})>[];
+    bool anyTooFar617 = false;
     for (final post in outOfRange) {
       final km = _distanceKmTo(post);
       if (km == null) continue;
       // Les annonces DANS le rayon sont déjà couvertes par le feed (si elles
       // n'y sont pas, c'est un autre filtre : on ne les remonte pas ici).
       if (km <= _radiusKm) continue;
+      // 617 (BOB) — jamais au-delà de la distance de candidature du serveur
+      // (200 km) : avant, cette section montrait les demandes du monde entier
+      // et un gardien de Busan candidatait à New York (refus « trop loin »).
+      if (km > kApplyMaxKm617) {
+        anyTooFar617 = true;
+        continue;
+      }
       nearest.add((post: post, km: km));
     }
     nearest.sort((a, b) => a.km.compareTo(b.km));
     final shortlist = nearest.take(10).toList();
 
     if (shortlist.isEmpty) {
+      if (anyTooFar617) {
+        // Il existe des demandes, mais toutes trop loin : on le dit.
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            HomeTooFarCard617(accent: _accent),
+            HomeEmptyKit(
+              accent: _accent,
+              onRefresh: () => postsController.refreshPosts(),
+              onCompleteProfile: _openMyProfileEditor,
+              onInvite: shareFriendsInvite,
+              onBoost: () => Get.to(() => const CoinShopScreen()),
+            ),
+          ],
+        );
+      }
       return HomeEmptyKit(
         accent: _accent,
         onRefresh: () => postsController.refreshPosts(),
@@ -2021,7 +2046,10 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   // Lot D (25/09/2026) — mêmes bornes que l'accueil propriétaire (10–500 km,
   // pas de 10) : un gardien en ville veut aussi les annonces à moins de 50 km.
   static const double _kMinRadiusKm = 10.0;
-  static const double _kMaxRadiusKm = 500.0;
+  // 617 (BOB, 16/10) — plafond = distance maximale d'une candidature côté
+  // serveur (200 km, décision de Daniel) : au-delà, le serveur refuse, donc
+  // l'app ne propose plus (cas réel : candidatures de Busan sur New York).
+  static const double _kMaxRadiusKm = kApplyMaxKm617;
   static const double _kDefaultRadiusKm = 50.0;
 
   /// PAM 12/10/2026 — « Signaler » ne faisait qu'écrire une ligne de journal

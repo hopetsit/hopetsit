@@ -27,6 +27,12 @@ const Map<String, String> _kByCode = <String, String>{
   'OWN_POST': 'fixes576_err_forbidden',
   'ROLE_REQUIRED': 'fixes576_err_invalid',
   'MANUAL_KYC_DEPRECATED': 'fixes576_err_forbidden',
+  // 617 (BOB) — refus serveur du 16/10 (ADA) : candidature à plus de 200 km,
+  // devise différente ; doublon de publication (LEO). Avant : « pas la
+  // permission » générique à la place du vrai motif.
+  'TOO_FAR': 'bob617_err_too_far',
+  'CURRENCY_MISMATCH': 'bob617_err_currency',
+  'DUPLICATE_REQUEST': 'bob617_err_duplicate',
 };
 
 /// Fragments de messages serveur → clé i18n. Comparés sur une forme
