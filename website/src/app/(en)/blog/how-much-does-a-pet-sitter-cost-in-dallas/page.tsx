@@ -185,12 +185,22 @@ export default function ArticlePetSitterCostDallas() {
           Verified profiles, real reviews, secure in-app payment and live GPS
           tracking on every walk.
         </p>
-        <Link
-          href="/pet-sitting/dallas"
-          className="mt-5 inline-block rounded-full bg-owner px-7 py-3 text-sm font-bold text-white"
-        >
-          See sitters in Dallas
-        </Link>
+        {/* 16/10 (SAM, §B.6) — bouton principal = publier la demande (gratuit,
+            sans compte), ville pré-remplie ; voir les gardiens en second. */}
+        <div className="mt-5 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <Link
+            href="/posts/create?city=Dallas&utm_source=blog&utm_medium=article&utm_campaign=dallas_free"
+            className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-owner px-7 py-3 text-sm font-bold text-white"
+          >
+            Post your free request
+          </Link>
+          <Link
+            href="/pet-sitting/dallas"
+            className="inline-flex min-h-[48px] items-center justify-center rounded-full border-2 border-owner bg-white px-7 py-3 text-sm font-bold text-owner"
+          >
+            See sitters in Dallas
+          </Link>
+        </div>
         <p className="mt-4 text-sm text-ink-muted">
           Thinking about sitting instead?{" "}
           <Link

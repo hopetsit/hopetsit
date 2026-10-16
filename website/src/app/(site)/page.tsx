@@ -342,7 +342,10 @@ export default function HomePage() {
                 <li key={slug}><Link href={`/pet-sitting/${slug}`} className="inline-flex items-center rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:min-h-[44px]">{name}</Link></li>
               ))}
             </ul>
-            <p className="mt-3 text-sm"><Link href="/become-a-pet-sitter/dallas" className="font-semibold text-owner hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">Become a pet sitter in Dallas →</Link> · <Link href="/villes" className="text-[#6E4F48] hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">All cities</Link></p>
+            {/* 16/10 (SAM, §B.6 build 617) — Dallas gratuit : le guide des prix
+                (article déjà en ligne) relié depuis l'accueil. Aucune page créée. */}
+            <p className="mt-3 text-sm"><Link href="/blog/how-much-does-a-pet-sitter-cost-in-dallas" className="font-semibold text-owner hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">How much does a pet sitter cost in Dallas? $30-55 a day, $15-25 a walk →</Link></p>
+            <p className="mt-2 text-sm"><Link href="/become-a-pet-sitter/dallas" className="font-semibold text-owner hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">Become a pet sitter in Dallas →</Link> · <Link href="/villes" className="text-[#6E4F48] hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">All cities</Link></p>
           </div>
         </div>
       </section>
