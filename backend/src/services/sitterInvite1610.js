@@ -142,6 +142,8 @@ const runSitterInvites = async (opts = {}) => {
   const now = opts.now instanceof Date ? opts.now : new Date();
   const testOnly = opts.testOnly === true;
   const dryRun = opts.dryRun === true;
+  // Essai de nuit sur les comptes +test SEULEMENT : jamais pour une vraie personne.
+  const ignoreNight = testOnly && opts.ignoreNight === true;
   const limit = Number.isFinite(Number(opts.limit)) ? Math.max(0, Number(opts.limit)) : BATCH_PER_TICK;
   const send = typeof opts.send === 'function' ? opts.send : require('./notificationSender').sendNotification;
   const Registry = require('../models/SitterInvite1610');
@@ -154,7 +156,7 @@ const runSitterInvites = async (opts = {}) => {
     return report;
   }
   report.skipped = selection.excluded;
-  const daytime = selection.candidates.filter((c) => !c.night);
+  const daytime = selection.candidates.filter((c) => ignoreNight || !c.night);
   report.eligible = selection.candidates.length;
   report.waitingNight = selection.candidates.length - daytime.length;
   report.byCity = {};

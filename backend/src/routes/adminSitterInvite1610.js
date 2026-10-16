@@ -3,7 +3,7 @@
  *   GET  /admin/sitter-invite-1610            → registre (combien envoyés, par rôle,
  *                                               par ville, échecs) + candidats restants
  *                                               (dryRun, rien n'est envoyé). Aucun e-mail renvoyé.
- *   POST /admin/sitter-invite-1610/run        { testOnly = true, limit = 25, dryRun = false }
+ *   POST /admin/sitter-invite-1610/run        { testOnly = true, limit = 25, dryRun = false, ignoreNight = false }
  *        → un passage à la main. `testOnly` vaut TRUE par défaut : il faut écrire
  *          testOnly:false pour toucher de vrais comptes (le planificateur le fait
  *          déjà tout seul, étalé, de jour). Journalisé (auditAdmin).
@@ -49,7 +49,8 @@ router.post('/run', requireAdmin, async (req, res) => {
     const dryRun = b.dryRun === true;
     const limit = Math.min(200, Math.max(0, Number(b.limit) || 25));
     const svc = require('../services/sitterInvite1610');
-    const r = await svc.runSitterInvites({ testOnly, dryRun, limit });
+    // ignoreNight : essai immédiat sur les comptes +test, ignoré dès que testOnly est faux.
+    const r = await svc.runSitterInvites({ testOnly, dryRun, limit, ignoreNight: b.ignoreNight === true });
     res.json(r);
   } catch (e) {
     logger.error('[admin/sitter-invite-1610/run]', e);

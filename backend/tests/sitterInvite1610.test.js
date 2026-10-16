@@ -139,3 +139,11 @@ test('mode test : seuls les comptes +test reçoivent ; simulation : rien n’est
   expect((await run('2026-10-16T10:00:00')).sent).toHaveLength(3);
   expect((await run('2026-10-16T10:00:00', { testOnly: true })).sent).toHaveLength(0);
 });
+
+test('ignoreNight : de nuit, les comptes +test peuvent être essayés ; jamais les vrais', async () => {
+  const real = await run('2026-10-16T21:30:00', { ignoreNight: true, limit: 50 }); // 23 h 30 à Paris
+  expect(real.sent.map((s) => s.id)).toEqual([S.dallasEn]); // ignoreNight sans testOnly = ignoré
+  const t = await run('2026-10-16T21:30:00', { testOnly: true, ignoreNight: true });
+  expect(t.sent.map((s) => s.id)).toEqual([S.test]);
+  expect(mockMails).toHaveLength(0);
+});
