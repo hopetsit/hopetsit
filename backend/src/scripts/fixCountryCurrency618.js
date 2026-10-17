@@ -40,4 +40,30 @@ async function runFixCountryCurrency618(db, logger = console) {
   }
 }
 
-module.exports = { runFixCountryCurrency618 };
+// 17/10 (soir, SAM) — 4 erreurs du géocodeur relues après le premier passage :
+// « Bronx » → IT (×2), « Queens » → NZ, « Bronx ny » → PL. Ces comptes sont à New York :
+// pays US, devise USD. Même mécanisme, marqueur distinct, idempotent.
+const NY_FIX = {
+  owner: ['6acedf95cbef88fa5c03f8f7'],
+  sitter: ['6acabfbbdc507e21d3be0dda'],
+  walker: ['6ad0dc947ed7350dc84dee71', '6ac68aa379390a146e4c05f6'],
+};
+async function runFixNewYork618b(db, logger = console) {
+  const KEY = 'v618b_new_york_fix';
+  try {
+    const mig = db.collection('migrations');
+    if (await mig.findOne({ _id: KEY })) return;
+    const models = { owner: require('../models/Owner'), sitter: require('../models/Sitter'), walker: require('../models/Walker') };
+    const stats = {};
+    for (const [role, ids] of Object.entries(NY_FIX)) {
+      const r = await models[role].updateMany({ _id: { $in: ids } }, { $set: { country: 'US', currency: 'USD' } });
+      stats[role] = r.modifiedCount || 0;
+    }
+    await mig.insertOne({ _id: KEY, at: new Date(), stats });
+    logger.info(`[boot] migration ${KEY}: ${JSON.stringify(stats)}`);
+  } catch (e) {
+    logger.error(`[boot] migration ${KEY} failed (non-fatal)`, e);
+  }
+}
+
+module.exports = { runFixCountryCurrency618, runFixNewYork618b };

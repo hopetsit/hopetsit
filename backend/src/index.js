@@ -61,6 +61,7 @@ async function startServer() {
     require('./scripts/fixCityEmail607').runFixCityEmail607(mongoose.connection.db);
     // 618 (SAM, 17/10) — Daniel : la devise suit le pays (79 comptes sans pays, devises alignées). UNE fois, non bloquant.
     await require('./scripts/fixCountryCurrency618').runFixCountryCurrency618(mongoose.connection.db, logger);
+    await require('./scripts/fixCountryCurrency618').runFixNewYork618b(mongoose.connection.db, logger);
     // v404 — charge les mots interdits admin (BannedWord) dans le service de
     // modération texte → s'applique app + web. Non bloquant.
     try {
