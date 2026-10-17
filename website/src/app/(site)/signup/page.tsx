@@ -1,5 +1,6 @@
 "use client";
 
+import { searchCities616 } from "@/components/CityAutocomplete616";
 import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -88,6 +89,15 @@ export default function SignupPage() {
     setErr("");
     try {
       const cleanEmail = email.trim().toLowerCase();
+      // 17/10/2026 (SAM, Daniel : « respecter la devise du pays ») — le site
+      // n'envoyait ni pays ni devise : 101 comptes sans pays, 20 new-yorkais en
+      // euros. Le pays ISO-2 vient de la ville (route /geo/cities) ; si la
+      // recherche échoue, on n'invente rien (le serveur garde sa valeur par défaut).
+      let country: string | undefined;
+      try {
+        const sug = await searchCities616(city.trim(), lang);
+        country = sug[0]?.countryCode || undefined;
+      } catch { /* géocodeur injoignable : pas de pays */ }
       const res = await signup({
         name: name.trim(),
         email: cleanEmail,
@@ -95,6 +105,7 @@ export default function SignupPage() {
         role,
         city: city.trim(),
         lang,
+        ...(country ? { country } : {}),
         ...(referralCode ? { referralCode } : {}),
       });
       // v402 — l'inscription web exige désormais la vérif email (le backend

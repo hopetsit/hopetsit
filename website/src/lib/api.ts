@@ -208,6 +208,8 @@ export async function signup(input: {
   lang?: string;
   // v583 NEO — code parrain reçu par lien (/signup?ref=CODE), facultatif.
   referralCode?: string;
+  // 17/10/2026 (SAM) — pays ISO-2 déduit de la ville : la devise du compte suit le pays.
+  country?: string;
 }): Promise<{ needsVerification: boolean; email: string; token?: string; user?: AuthUser; emailVerified?: boolean }> {
   // The /auth/signup contract requires `{ role, user: {...} }` (and accepts
   // optional fields like mobile, countryCode, currency that we don't collect
@@ -220,6 +222,7 @@ export async function signup(input: {
       password: input.password,
       acceptedTerms: true,
       ...(input.city ? { city: input.city, location: { city: input.city } } : {}),
+      ...(input.country ? { country: input.country } : {}),
       ...(input.lang ? { language: input.lang, appLocale: input.lang } : {}),
       ...(input.referralCode ? { referralCode: input.referralCode } : {}),
     },

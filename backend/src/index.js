@@ -59,6 +59,8 @@ async function startServer() {
     // 607 (NEO, 02/10) — décision de Daniel : ville = e-mail de 2 gardiens
     // corrigée UNE fois (marqueur dans `migrations`, non bloquant, journalisé).
     require('./scripts/fixCityEmail607').runFixCityEmail607(mongoose.connection.db);
+    // 618 (SAM, 17/10) — Daniel : la devise suit le pays (79 comptes sans pays, devises alignées). UNE fois, non bloquant.
+    await require('./scripts/fixCountryCurrency618').runFixCountryCurrency618(mongoose.connection.db, logger);
     // v404 — charge les mots interdits admin (BannedWord) dans le service de
     // modération texte → s'applique app + web. Non bloquant.
     try {

@@ -55,12 +55,15 @@ function _cacheSet(key, data) {
   _cache.set(key, { at: Date.now(), data });
 }
 
-function _entry(name, admin, country, lat, lng) {
+function _entry(name, admin, country, lat, lng, countryCode) {
   if (!name || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   return {
     name,
     admin: admin || '',
     country: country || '',
+    // 17/10/2026 (SAM) — ISO-2 (Photon `countrycode`, Nominatim `country_code`) :
+    // le site l'envoie à l'inscription pour que la devise suive le pays.
+    countryCode: String(countryCode || '').toUpperCase().trim(),
     label: [admin, country].filter(Boolean).join(', '),
     lat,
     lng,
@@ -105,7 +108,8 @@ async function _photon(q, lang, lat, lng) {
       p.state || p.county || '',
       p.country || '',
       Number(c[1]),
-      Number(c[0])
+      Number(c[0]),
+      p.countrycode || ''
     );
     if (e) out.push(e);
   }
@@ -132,7 +136,8 @@ async function _nominatim(q, lang) {
       a.state || a.region || a.county || '',
       a.country || '',
       Number(item.lat),
-      Number(item.lon)
+      Number(item.lon),
+      a.country_code || ''
     );
     if (e) out.push(e);
   }

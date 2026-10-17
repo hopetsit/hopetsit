@@ -60,6 +60,7 @@ const verifyLang = (a, b) => {
 const { sanitizeUser } = require('../utils/sanitize');
 const firebaseAdmin = require('../config/firebaseAdmin');
 const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
+const { countryToCurrency, resolveSignupCountry } = require('../utils/countryCurrency'); // 17/10 devise du pays
 const logger = require('../utils/logger');
 
 // v532 — meme source que PATCH /users/me/accept-terms (userController)
@@ -380,8 +381,13 @@ const signup = async (req, res) => {
 
     // Determine and validate currency. If provided, it must be USD or EUR.
     // If omitted, default to DEFAULT_CURRENCY (backwards compatible).
-    let ownerCurrency = DEFAULT_CURRENCY;
-    let sitterCurrency = DEFAULT_CURRENCY;
+    // 17/10/2026 (SAM, Daniel : « il faut respecter la devise du pays ») — sans
+    // devise explicite, la devise est celle du PAYS (champ `country` ISO-2, sinon
+    // indicatif téléphonique). Avant : EUR pour tout le monde → comptes
+    // new-yorkais en euros, impossibles à réserver depuis le 16/10.
+    const signupCountry = resolveSignupCountry(user);
+    let ownerCurrency = signupCountry ? countryToCurrency(signupCountry) : DEFAULT_CURRENCY;
+    let sitterCurrency = ownerCurrency;
     if (user && Object.prototype.hasOwnProperty.call(user, 'currency')) {
       // Validate explicit currency from client
       ownerCurrency = normalizeCurrency(user.currency, { required: true });
@@ -408,7 +414,7 @@ const signup = async (req, res) => {
       mobile,
       countryCode,
       // Sprint 6.5 step 2 — ISO-2 country collecté au wizard (indicatif/devise).
-      country: (user.country || '').toString().toUpperCase().trim(),
+      country: signupCountry,
       // v565 point 1 — ville plate : conservée même sans GPS (AVANT, sans
       // coordonnées, processLocationData renvoyait undefined et la ville
       // saisie disparaissait → « ? » dans l'admin).
@@ -519,7 +525,7 @@ const signup = async (req, res) => {
     // DROPPAIT (dateOfBirth / animaux acceptés / expérience / rayon / pays /
     // préférences réapparaissaient vides dans « Modifier le profil »). ADDITIF
     // (tous présents dans Sitter.js).
-    sitterPayload.country = (user.country || '').toString().toUpperCase().trim();
+    sitterPayload.country = signupCountry;
     sitterPayload.city = (user.city || user.location?.city || '').toString().trim(); // v565 point 1
     if (typeof user.dateOfBirth === 'string' && user.dateOfBirth.trim()) {
       sitterPayload.dateOfBirth = user.dateOfBirth.trim();
@@ -655,7 +661,7 @@ const signup = async (req, res) => {
     // naissance / expérience / jours dispo / pays / préférences réapparaissaient
     // vides). acceptedPetTypes + coverageRadiusKm sont déjà gérés plus haut.
     // ADDITIF (tous présents dans Walker.js).
-    walkerPayload.country = (user.country || '').toString().toUpperCase().trim();
+    walkerPayload.country = signupCountry;
     walkerPayload.city = (user.city || user.location?.city || '').toString().trim(); // v565 point 1
     if (typeof user.dateOfBirth === 'string' && user.dateOfBirth.trim()) {
       walkerPayload.dateOfBirth = user.dateOfBirth.trim();

@@ -24,7 +24,7 @@ import { c616 } from "@/lib/i18n/cityPicker616";
 import { API_BASE } from "@/lib/api";
 
 export type CityCoords = { lat: number; lng: number };
-export type CitySuggestion616 = { city: string; label: string; lat: number; lng: number };
+export type CitySuggestion616 = { city: string; label: string; lat: number; lng: number; countryCode?: string };
 
 const PHOTON = "https://photon.komoot.io";
 /** Photon ne parle que ces langues ; ailleurs, noms locaux (« España »). */
@@ -56,7 +56,7 @@ export async function searchCities616(q: string, lang: Lang, signal?: AbortSigna
   try {
     const r = await fetch(`${API_BASE}/geo/cities?q=${encodeURIComponent(q)}&lang=${lang}`, { signal });
     if (r.ok) {
-      const d = (await r.json()) as { name?: string; admin?: string; country?: string; lat?: number; lng?: number }[];
+      const d = (await r.json()) as { name?: string; admin?: string; country?: string; countryCode?: string; lat?: number; lng?: number }[];
       if (Array.isArray(d)) {
         const out: CitySuggestion616[] = [];
         for (const e of d) {
@@ -66,7 +66,7 @@ export async function searchCities616(q: string, lang: Lang, signal?: AbortSigna
           const admin = String(e.admin || "").trim();
           const label = [city, admin.toLowerCase() === city.toLowerCase() ? "" : admin, String(e.country || "").trim()]
             .filter(Boolean).join(", ");
-          out.push({ city, label, lat, lng });
+          out.push({ city, label, lat, lng, countryCode: String(e.countryCode || "").toUpperCase().trim() || undefined });
           if (out.length >= 5) break;
         }
         return out;
