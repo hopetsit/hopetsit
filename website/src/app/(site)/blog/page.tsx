@@ -13,6 +13,21 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 2026-W42 — marketing hebdo : Paris (voyager ou faire garder) + Houston (propriétaires).
+  {
+    slug: "voyager-avec-son-animal-ou-le-faire-garder",
+    lang: "🇫🇷",
+    title: "Voyager avec son animal ou le faire garder à Paris : comment décider ?",
+    excerpt:
+      "Emmener son chien ou son chat en voyage, ou le faire garder à Paris ? Les critères concrets pour trancher, les prix réels et comment bien préparer la garde.",
+  },
+  {
+    slug: "finding-a-pet-sitter-in-houston",
+    lang: "🇺🇸",
+    title: "Finding a Pet Sitter in Houston: What It Costs and How to Choose (2026)",
+    excerpt:
+      "What pet sitting and dog walking cost in Houston, why midday heat changes the walk schedule, and how to check a sitter is trustworthy before you book.",
+  },
   // 16/10 (SAM) — saisonnier : vacances de la Toussaint à Paris (17/10 → 2/11/2026).
   {
     slug: "garde-animaux-toussaint-paris",

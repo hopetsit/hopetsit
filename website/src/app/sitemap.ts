@@ -31,6 +31,9 @@ const PUBLIC_PATHS = [
   "/remboursement",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  // 2026-W42 — marketing hebdo : Paris (voyager ou faire garder) + Houston (propriétaires).
+  "/blog/voyager-avec-son-animal-ou-le-faire-garder",
+  "/blog/finding-a-pet-sitter-in-houston",
   // 16/10 (SAM) — saisonnier Toussaint 2026 Paris (propriétaires).
   "/blog/garde-animaux-toussaint-paris",
   // 14/10 (GUS) — guide propriétaire « dog sitting » (demande USA 931 affichages / 0 clic).

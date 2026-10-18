@@ -18,6 +18,7 @@ const GUIDES = [
   { href: "/blog/faire-garder-son-chien-le-week-end-a-paris", t: "Faire garder son chien le week-end à Paris" },
   { href: "/blog/faire-garder-son-chien-pendant-les-vacances", t: "Faire garder son chien pendant les vacances" },
   { href: "/blog/combien-coute-un-pet-sitter", t: "Combien coûte un pet sitter ? Tarifs garde chien et chat" },
+  { href: "/blog/voyager-avec-son-animal-ou-le-faire-garder", t: "Voyager avec son animal ou le faire garder à Paris ?" },
 ];
 
 export default function ParisGuidesLinks({ current }: { current: string }) {
