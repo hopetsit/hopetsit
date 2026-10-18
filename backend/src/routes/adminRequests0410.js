@@ -218,12 +218,16 @@ router.get('/cities/non-canonical', requireAdmin, async (req, res) => {
       ['posts', require('../models/Post')],
       ['pawspots', require('../models/PawSpot')],
       ['mapreports', require('../models/MapReport')],
-      ['mappois', require('../models/MapPOI')],
     ];
+    // 18/10 (ADA) : `mappois` = 437 611 documents ; les charger tous en memoire (find + lean)
+    // faisait tomber le serveur (502 ~1 min). Les POI ne sont parcourus que sur demande
+    // explicite (?includePois=1), et toutes les collections sont lues par curseur.
+    const includePois = String(req.query.includePois || '') === '1';
+    if (includePois) SOURCES.push(['mappois', require('../models/MapPOI')]);
     const out = [];
     for (const [name, M] of SOURCES) {
-      const docs = await M.find({}).select('city coverageCity location address').lean().maxTimeMS(20000);
-      for (const d of docs) {
+      const cursor = M.find({}).select('city coverageCity location address').lean().maxTimeMS(20000).cursor();
+      for await (const d of cursor) {
         const coords = coordsOfLocation(d.location);
         const check = (field, v, c) => {
           if (typeof v !== 'string' || !v.trim()) return;
@@ -260,7 +264,7 @@ router.get('/cities/non-canonical', requireAdmin, async (req, res) => {
     } catch (_) { /* collection absente */ }
     const byValue = {};
     for (const r of out) byValue[`${r.value} → ${r.canonical}`] = (byValue[`${r.value} → ${r.canonical}`] || 0) + 1;
-    res.json({ total: out.length, byValue, rows: out, plush, anchors, readOnly: true });
+    res.json({ total: out.length, byValue, rows: out, plush, anchors, includePois, readOnly: true });
   } catch (e) {
     logger.error('[admin/requests0410/cities]', e);
     res.status(500).json({ error: e.message });
