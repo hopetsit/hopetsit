@@ -361,7 +361,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                   <div className="flex items-center gap-3">
                     {p.avatar ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.avatar} alt="" width={44} height={44} className="rounded-full object-cover" style={{ width: 44, height: 44, border: `2.5px solid ${color}` }} />
+                      <img src={p.avatar} alt="" width={44} height={44} className="rounded-full object-cover" style={{ width: 44, height: 44, border: `2.5px solid ${color}` }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
                     ) : (
                       <span className="grid h-11 w-11 place-items-center rounded-full text-white" style={{ background: color }}>
                         <AppIcon name={p.role === "walker" ? "walker" : "home"} size={22} color="#fff" />
@@ -505,7 +505,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                     <span className="h-10 w-10 shrink-0 overflow-hidden rounded-full" style={{ border: `2.5px solid ${color}`, background: color }}>
                       {p.avatar ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.avatar} alt="" className="h-full w-full object-cover" />
+                        <img src={p.avatar} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                       ) : (
                         <span className="grid h-full w-full place-items-center"><AppIcon name={p.role === "walker" ? "walker" : "home"} size={18} color="#fff" /></span>
                       )}

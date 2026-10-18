@@ -2666,7 +2666,7 @@ export default function MapPage() {
                           <button type="button" onClick={() => setFocusTarget({ lat: r.lat, lng: r.lng, ts: Date.now() })} title={t("map_around_show")} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
                             {r.photo ? (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={r.photo} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" style={r.color ? { border: `2px solid ${r.color}` } : undefined} />
+                              <img src={r.photo} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" style={r.color ? { border: `2px solid ${r.color}` } : undefined} onError={(e) => { e.currentTarget.style.display = "none"; }} />
                             ) : r.pin ? (
                               <span className="grid h-9 w-9 shrink-0 place-items-center" dangerouslySetInnerHTML={{ __html: r.pin }} />
                             ) : (

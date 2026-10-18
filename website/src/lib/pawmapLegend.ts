@@ -400,9 +400,16 @@ export function photoPinHtml(o: PhotoPinOptions): string {
         : o.me
           ? `box-shadow:0 3px 8px rgba(23,20,31,.35);`
           : FRIEND_GLOW;
-  const inner = o.avatar
-    ? `<img src="${escapeHtml(o.avatar)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" />`
-    : `<span style="color:#fff;font:700 ${o.me ? 18 : 16}px/1 Inter,system-ui,sans-serif;">${escapeHtml(initials(o.name))}</span>`;
+  // 18/10 (BOB, capture de Daniel) — photo introuvable (Cloudinary coupé :
+  // « cloud_name … is disabled ») : le navigateur dessinait l'icône « image
+  // cassée » dans le rond. Les initiales restent DESSOUS la photo et
+  // reprennent la place dès que l'image échoue (onerror). Une adresse qui
+  // n'est pas une URL http(s) ou un chemin du site est ignorée.
+  const avatarUrl = typeof o.avatar === "string" && /^(https?:\/\/|\/)/.test(o.avatar) ? o.avatar : "";
+  const initialsSpan = `<span style="color:#fff;font:700 ${o.me ? 18 : 16}px/1 Inter,system-ui,sans-serif;">${escapeHtml(initials(o.name))}</span>`;
+  const inner = avatarUrl
+    ? `${initialsSpan}<img src="${escapeHtml(avatarUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none'" />`
+    : initialsSpan;
   const label = o.me
     ? `<span style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);background:${INK};color:#fff;border-radius:999px;padding:1px 8px;font:700 11px/1.3 Inter,system-ui,sans-serif;white-space:nowrap;">${escapeHtml(o.meLabel || "Moi")}</span>`
     : o.caption
@@ -420,8 +427,8 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   // background-clip:padding-box, les trous laissent voir la carte.
   const grad = o.me ? ringGradient(key) : rolesRingGradient(o.roles && o.roles.length ? o.roles : [key], key);
   const disc = o.friendsOnly
-    ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};background-clip:padding-box;border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div>`
-    : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${grad};padding:3px;${glow}box-sizing:border-box;"><div style="width:100%;height:100%;border-radius:50%;border:2px solid #fff;background:${ringGradient(key)};display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;">${inner}</div></div>`;
+    ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};background-clip:padding-box;border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;position:relative;">${inner}</div>`
+    : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${grad};padding:3px;${glow}box-sizing:border-box;"><div style="width:100%;height:100%;border-radius:50%;border:2px solid #fff;background:${ringGradient(key)};display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;position:relative;">${inner}</div></div>`;
   return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}${disc}${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? (o.me ? rocketBadge(20, -1) : rocketBadge(18)) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${label}${bubble}</div>`;
 }
 
