@@ -80,6 +80,10 @@ export default function ArticleWhatIsDogSitting() {
   const CITIES = [
     { slug: "new-york", name: "New York" },
     { slug: "los-angeles", name: "Los Angeles" },
+    // 18/10 (GUS) — San Francisco (108 aff. « dog sitting », 25e) et Boston
+    // (33 aff., 23e) ajoutées : 0 clic en 28 j, pages déjà indexées.
+    { slug: "san-francisco", name: "San Francisco" },
+    { slug: "boston", name: "Boston" },
     { slug: "dallas", name: "Dallas" },
     { slug: "columbus", name: "Columbus" },
     { slug: "decatur-ga", name: "Decatur, GA" },

@@ -186,6 +186,20 @@ export default function ArticleFindingSitterAustin() {
           </Link>
           {" "}— Uptown, Lakewood, Plano and Frisco.
         </p>
+        {/* 18/10 (GUS) — Search Console 28 j : « dog sitting » = 0 clic sur
+            Los Angeles (167 aff.), San Francisco (108), New York (77), Boston
+            (33), pages classées 22e-26e. Cet article, lui, est classé ~7e sur
+            la même requête : il relie ces pages avec l'ancre exacte. */}
+        <p className="mt-3 text-sm text-ink-muted">
+          Not in Texas? HoPetSit also lists{" "}
+          <Link href="/pet-sitting/los-angeles" className="font-semibold text-owner underline">dog sitting in Los Angeles</Link>,{" "}
+          <Link href="/pet-sitting/san-francisco" className="font-semibold text-owner underline">San Francisco</Link>,{" "}
+          <Link href="/pet-sitting/new-york" className="font-semibold text-owner underline">New York</Link> and{" "}
+          <Link href="/pet-sitting/boston" className="font-semibold text-owner underline">Boston</Link>
+          {" "}— and a plain-English guide to{" "}
+          <Link href="/blog/what-is-dog-sitting" className="font-semibold text-owner underline">how dog sitting works</Link>
+          .
+        </p>
       </div>
     </div>
   );
