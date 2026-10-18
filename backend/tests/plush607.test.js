@@ -469,3 +469,79 @@ describe('API réelle', () => {
     expect(await PawPlush.findById(kept._id)).not.toBeNull();
   });
 });
+
+// 618 (BOB, 18/10/2026, demande de Daniel) — les peluches bougent chaque jour,
+// la dorée aussi : rotation des lieux, vivier élargi, dorée jamais au même endroit.
+describe('618 — les peluches changent de place chaque jour', () => {
+  const ids = (xs) => xs.map((x) => String(x.poiId)).sort();
+  const dayPlus = (n) => Date.now() + n * 86400000;
+
+  test('rotation : les lieux des 2 jours précédents sont écartés quand il reste assez de neufs', () => {
+    const pool = Array.from({ length: 12 }, (_, i) => ({ _id: `s${i}`, lat: 40 + i / 1000, lng: -3 }));
+    const used = new Map([
+      ['2026-10-17', new Set(['s0', 's1', 's2', 's3', 's4'])],
+      ['2026-10-16', new Set(['s5', 's6', 's7', 's8'])],
+    ]);
+    const c = plush.rotationCandidates(pool, used, 'rotaville', '2026-10-18');
+    expect(c.map((p) => p._id).sort()).toEqual(['s10', 's11', 's9']);
+  });
+
+  test('rotation : vivier minuscule = un lieu d\'hier se repose, et ce lieu change selon le jour', () => {
+    const pool = ['a', 'b', 'c', 'd'].map((id) => ({ _id: id, lat: 41, lng: -3 }));
+    const used = new Map([['2026-10-17', new Set(['a', 'b', 'c'])], ['2026-10-16', new Set(['d'])]]);
+    const rested = new Set();
+    for (let i = 0; i < 7; i += 1) {
+      const day = `2026-10-${18 + i}`;
+      const c = plush.rotationCandidates(pool, used, 'minuscule', day);
+      expect(c).toHaveLength(3);
+      const r = pool.find((p) => !c.includes(p));
+      expect(['a', 'b', 'c']).toContain(r._id); // le lieu au repos a servi hier
+      rested.add(r._id);
+      expect(plush.rotationCandidates(pool, used, 'minuscule', day)).toEqual(c); // déterministe
+    }
+    expect(rested.size).toBeGreaterThan(1);
+  });
+
+  test('dorée : jamais sur le lieu de la dorée précédente quand un autre lieu existe', () => {
+    const picks = [0, 1, 2].map((slot) => ({ slot, park: { _id: `g${slot}` }, type: 'teddy' }));
+    expect(plush.goldenSlotFor(picks, null)).toBe(0);
+    expect(plush.goldenSlotFor(picks, 'g0')).toBe(1);
+    expect(plush.goldenSlotFor(picks, 'g2')).toBe(0);
+    expect(plush.goldenSlotFor([picks[0]], 'g0')).toBe(0); // seul lieu : pas le choix
+    expect(plush.goldenSlotFor([], 'g0')).toBe(-1);
+  });
+
+  test('en base : 12 parcs → deux jours de suite sans aucun lieu commun', async () => {
+    const city = { key: 'rotaville', label: 'Rotaville', lat: 40.0, lng: -3.0 };
+    for (let i = 0; i < 12; i += 1) {
+      await MapPOI.create({ title: 'Dog park', category: 'park', status: 'active', source: 'seed', osmId: `way/7${i}`, location: { type: 'Point', coordinates: [-3.0 + i / 500, 40.0 + i / 700] } });
+    }
+    const d0 = await plush.ensureDraw(city, { now: dayPlus(0) });
+    const d1 = await plush.ensureDraw(city, { now: dayPlus(1) });
+    const d2 = await plush.ensureDraw(city, { now: dayPlus(2) });
+    [d0, d1, d2].forEach((d) => { expect(d.created).toBeGreaterThanOrEqual(3); expect(d.created).toBeLessThanOrEqual(5); });
+    const p0 = await PawPlush.find({ cityKey: 'rotaville', day: d0.day }).lean();
+    const p1 = await PawPlush.find({ cityKey: 'rotaville', day: d1.day }).lean();
+    const p2 = await PawPlush.find({ cityKey: 'rotaville', day: d2.day }).lean();
+    expect(ids(p0).filter((x) => ids(p1).includes(x))).toEqual([]);
+    expect(ids(p1).filter((x) => ids(p2).includes(x))).toEqual([]);
+  });
+
+  test('en base : 3 parcs seulement → le lendemain, les peluches ne sont plus aux mêmes endroits', async () => {
+    const city = { key: 'minuscule', label: 'Minuscule', lat: 41.0, lng: -3.0 };
+    for (let i = 0; i < 3; i += 1) {
+      await MapPOI.create({ title: 'Dog park', category: 'park', status: 'active', source: 'seed', osmId: `way/8${i}`, location: { type: 'Point', coordinates: [-3.0 + i / 500, 41.0] } });
+    }
+    const d0 = await plush.ensureDraw(city, { now: dayPlus(0) });
+    const d1 = await plush.ensureDraw(city, { now: dayPlus(1) });
+    const d2 = await plush.ensureDraw(city, { now: dayPlus(2) });
+    const p0 = ids(await PawPlush.find({ cityKey: 'minuscule', day: d0.day }).lean());
+    const p1 = ids(await PawPlush.find({ cityKey: 'minuscule', day: d1.day }).lean());
+    const p2 = ids(await PawPlush.find({ cityKey: 'minuscule', day: d2.day }).lean());
+    expect(p0).toHaveLength(3); // tout le vivier le 1er jour
+    expect(p1).toHaveLength(2); // un lieu d'hier se repose
+    expect(p1).not.toEqual(p0);
+    expect(p2).toHaveLength(2);
+    expect(p2).not.toEqual(p1);
+  });
+});

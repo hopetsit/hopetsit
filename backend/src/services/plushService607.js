@@ -338,15 +338,33 @@ const FALLBACK_SPOT_TYPES = ['path_walk', 'chill', 'playground', 'swimming'];
 const FALLBACK_POI_CATEGORIES = ['water', 'beach'];
 
 /** Lieux publics de repli (PawSpots plein air, puis fontaines/plages OSM). */
-async function fallbackSites(city, day, taken) {
-  const within = { $geoWithin: { $centerSphere: [[city.lng, city.lat], PARK_RADIUS_KM / 6371] } };
+// 618 (BOB, 18/10, demande de Daniel) — les peluches doivent BOUGER chaque
+// jour. Mesuré en prod : dans une petite ville (Alhama de Murcia) le tirage
+// n'a que 2 à 4 lieux possibles, donc les mêmes points revenaient tous les
+// jours, dorée comprise. Trois remèdes, serveur seul :
+//   1. un vivier plus large : les lieux publics de repli complètent dès qu'il
+//      y a moins de POOL_MIN parcs, puis on élargit à PARK_RADIUS_WIDE_KM ;
+//   2. une rotation : on écarte d'abord les lieux des 2 jours précédents, à
+//      défaut ceux d'hier ; vivier minuscule = au moins UN lieu d'hier se
+//      repose, et ce lieu change chaque jour ;
+//   3. la dorée ne se pose jamais sur le lieu de la dorée précédente de la
+//      ville quand un autre lieu est disponible.
+const POOL_MIN = 8;            // en dessous, on complète le vivier
+const PARK_RADIUS_WIDE_KM = 10; // 2e rayon quand le vivier reste trop petit
+const ROTATION_DAYS = 2;        // lieux écartés en priorité
+
+async function fallbackSites(city, day, taken, radiusKm = PARK_RADIUS_KM, already = []) {
+  const within = { $geoWithin: { $centerSphere: [[city.lng, city.lat], radiusKm / 6371] } };
   const out = [];
+  // Deux spots à moins de 60 m = le même lieu, y compris un lieu déjà retenu
+  // par un appel précédent (rayon 5 km puis 10 km).
+  const near = (lat, lng) => out.concat(already).some((o) => metersBetween(o.lat, o.lng, lat, lng) < 60);
   const push = (id, c) => {
     const k = String(id);
     if (taken.has(k) || !Array.isArray(c) || c.length !== 2) return;
     if (!Number.isFinite(c[0]) || !Number.isFinite(c[1])) return;
     taken.add(k);
-    out.push({ _id: id, lng: c[0], lat: c[1] });
+    out.push({ _id: id, lng: c[0], lat: c[1], fallback: true });
   };
   try {
     const PawSpot = require('../models/PawSpot');
@@ -357,7 +375,7 @@ async function fallbackSites(city, day, taken) {
     for (const s of spots) {
       const c = s.location && s.location.coordinates;
       if (!Array.isArray(c)) continue;
-      if (out.some((o) => metersBetween(o.lat, o.lng, c[1], c[0]) < 60)) continue;
+      if (near(c[1], c[0])) continue;
       push(s._id, c);
     }
   } catch (e) { logger.warn(`[plush] repli PawSpots ${city.key} : ${e.message}`); }
@@ -375,35 +393,103 @@ async function fallbackSites(city, day, taken) {
   return out;
 }
 
-async function ensureDraw(city, { now = Date.now() } = {}) {
-  const day = dayKeyFor(city.lng, now, city.lat);
-  if (await PawPlush.exists({ cityKey: city.key, day })) return { day, created: 0 };
+/** Parcs à chiens OSM utilisables autour de la ville, hors lieux déjà pris. */
+async function parkSites(city, day, taken, radiusKm) {
   const pois = await MapPOI.find({
     category: 'park',
     status: 'active',
     source: 'seed',
-    location: { $geoWithin: { $centerSphere: [[city.lng, city.lat], PARK_RADIUS_KM / 6371] } },
+    location: { $geoWithin: { $centerSphere: [[city.lng, city.lat], radiusKm / 6371] } },
   }).select('title category status source osmId location').limit(500).lean();
   // Un parc ne porte qu'UNE peluche par jour, même s'il est proche de deux
   // villes actives (vu en prod le 02/10 : deux peluches au même point).
-  const taken = new Set((await PawPlush.find({ day, poiId: { $in: pois.map((p) => p._id) } })
-    .select('poiId').lean()).map((x) => String(x.poiId)));
-  let parks = pois.filter((p) => isUsablePark(p) && !taken.has(String(p._id))).map((p) => ({
-    _id: p._id, lng: p.location.coordinates[0], lat: p.location.coordinates[1],
-  }));
+  const used = await PawPlush.find({ day, poiId: { $in: pois.map((p) => p._id) } }).select('poiId').lean();
+  used.forEach((x) => taken.add(String(x.poiId)));
+  const out = [];
+  for (const p of pois) {
+    if (!isUsablePark(p) || taken.has(String(p._id))) continue;
+    taken.add(String(p._id));
+    out.push({ _id: p._id, lng: p.location.coordinates[0], lat: p.location.coordinates[1] });
+  }
+  return out;
+}
+
+/**
+ * Lieux où l'on peut poser une peluche aujourd'hui, en évitant ceux des jours
+ * précédents. [pool] = [{ _id, lat, lng }] ; [usedByDay] = Map(jour → Set(id)).
+ *  - assez de lieux neufs (jamais utilisés sur ROTATION_DAYS jours) → eux seuls ;
+ *  - sinon ceux qui n'ont pas servi hier ;
+ *  - vivier minuscule : tout le vivier moins UN lieu d'hier qui se repose,
+ *    choisi par le jour (il change donc chaque jour).
+ */
+function rotationCandidates(pool, usedByDay, cityKey, day) {
+  if (pool.length <= 1) return pool;
+  const days = [...usedByDay.keys()].sort().reverse(); // le plus récent d'abord
+  const yesterday = days.length ? usedByDay.get(days[0]) : new Set();
+  const recent = new Set();
+  days.forEach((d) => usedByDay.get(d).forEach((id) => recent.add(id)));
+  const fresh = pool.filter((p) => !recent.has(String(p._id)));
+  if (fresh.length >= 3) return fresh;
+  const notYesterday = pool.filter((p) => !yesterday.has(String(p._id)));
+  if (notYesterday.length >= 3) return notYesterday;
+  const usedYesterday = pool.filter((p) => yesterday.has(String(p._id)));
+  if (!usedYesterday.length) return pool;
+  // Un lieu d'hier se repose : celui dont le hachage (lieu + jour) est le plus petit.
+  const rest = usedYesterday
+    .map((p) => ({ p, h: hashString(`rest|${cityKey}|${day}|${String(p._id)}`) }))
+    .sort((a, b) => a.h - b.h)[0].p;
+  return pool.filter((p) => String(p._id) !== String(rest._id));
+}
+
+/**
+ * Rang (slot) de la peluche dorée parmi les tirages : jamais le lieu de la
+ * dorée précédente de la ville quand un autre lieu existe.
+ */
+function goldenSlotFor(picks, lastGoldenPoiId) {
+  if (!picks.length) return -1;
+  const last = lastGoldenPoiId ? String(lastGoldenPoiId) : null;
+  if (!last) return picks[0].slot;
+  const other = picks.find((p) => String(p.park._id) !== last);
+  return other ? other.slot : picks[0].slot;
+}
+
+async function ensureDraw(city, { now = Date.now() } = {}) {
+  const day = dayKeyFor(city.lng, now, city.lat);
+  if (await PawPlush.exists({ cityKey: city.key, day })) return { day, created: 0 };
+  const taken = new Set();
+  let parks = await parkSites(city, day, taken, PARK_RADIUS_KM);
   // 610 (PAM, 04/10) — mesuré à Alhama de Murcia (Espagne) : AUCUN parc à
   // chiens OSM à moins de 5 km → 0 peluche pour Daniel et Cam en Balade.
   // Sans assez de parcs à chiens, on complète avec des lieux PUBLICS : les
   // PawSpots de plein air de la communauté (promenade, détente, aire de jeux,
   // baignade), puis les fontaines et plages OSM. Jamais une route ni une
-  // adresse privée. Avec 3 parcs à chiens ou plus, rien ne change.
-  if (parks.length < 3) {
-    const more = await fallbackSites(city, day, new Set([...taken, ...parks.map((p) => String(p._id))]));
-    parks = parks.concat(more);
+  // adresse privée. 618 : dès que le vivier a moins de POOL_MIN lieux (pour
+  // que les peluches puissent changer de place), puis rayon élargi.
+  // Ordre : d'abord d'autres parcs à chiens (rayon élargi) — avec 3 parcs ou
+  // plus, le tirage reste 100 % parcs à chiens (règle 610) ; les lieux publics
+  // de repli n'entrent que s'il y a moins de 3 parcs.
+  if (parks.length < POOL_MIN) parks = parks.concat(await parkSites(city, day, taken, PARK_RADIUS_WIDE_KM));
+  if (parks.length < 3) parks = parks.concat(await fallbackSites(city, day, taken, PARK_RADIUS_KM, parks));
+  if (parks.length < 3 || (parks.length < POOL_MIN && parks.some((p) => p.fallback))) {
+    parks = parks.concat(await fallbackSites(city, day, taken, PARK_RADIUS_WIDE_KM, parks));
   }
   if (!parks.length) return { day, created: 0 };
-  const picks = pickPlushies(parks, city.key, day);
+  // Rotation : les lieux des jours précédents de CETTE ville.
+  const prevDays = [];
+  for (let d = day, i = 0; i < ROTATION_DAYS; i += 1) { d = prevDay(d); prevDays.push(d); }
+  const usedByDay = new Map(prevDays.map((d) => [d, new Set()]));
+  const previous = await PawPlush.find({ cityKey: city.key, day: { $in: prevDays }, copyOf: null, poiId: { $ne: null } })
+    .select('day poiId').lean();
+  previous.forEach((x) => usedByDay.get(x.day) && usedByDay.get(x.day).add(String(x.poiId)));
+  const candidates = rotationCandidates(parks, usedByDay, city.key, day);
+  const picks = pickPlushies(candidates, city.key, day);
   const golden = isGoldenDay(city.key, day);
+  let goldenSlot = -1;
+  if (golden) {
+    const lastGold = await PawPlush.findOne({ cityKey: city.key, golden: true, copyOf: null, day: { $lt: day } })
+      .sort({ day: -1 }).select('poiId').lean();
+    goldenSlot = goldenSlotFor(picks, lastGold && lastGold.poiId);
+  }
   const expireAt = new Date(now + 3 * 86400000);
   let created = 0;
   for (const p of picks) {
@@ -414,7 +500,7 @@ async function ensureDraw(city, { now = Date.now() } = {}) {
         day,
         slot: p.slot,
         type: p.type,
-        golden: golden && p.slot === 0,
+        golden: golden && p.slot === goldenSlot,
         poiId: p.park._id,
         location: { type: 'Point', coordinates: [p.park.lng, p.park.lat] },
         expireAt,
@@ -424,7 +510,7 @@ async function ensureDraw(city, { now = Date.now() } = {}) {
       if (e && e.code !== 11000) logger.warn(`[plush] tirage ${city.key} : ${e.message}`);
     }
   }
-  if (created) logger.info(`🧸 [plush] ${created} peluche(s) posée(s) à ${city.key} (${day})`);
+  if (created) logger.info(`🧸 [plush] ${created} peluche(s) posée(s) à ${city.key} (${day}) — vivier ${parks.length}, candidats ${candidates.length}`);
   return { day, created };
 }
 
@@ -828,6 +914,9 @@ module.exports = {
   normalizeCityKey,
   dayKeyFor,
   pickPlushies,
+  rotationCandidates,
+  goldenSlotFor,
+  POOL_MIN,
   isUsablePark,
   speedOk,
   isRealEmail,
