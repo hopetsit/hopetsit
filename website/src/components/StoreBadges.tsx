@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 // v576 — mesure d'audience : un clic sur un badge = un clic vers un store.
-import { trackSiteEvent } from "@/components/SiteAnalytics";
+// 18/10/2026 (SAM) — campaignReferrer : la pub (utm_*) suit jusqu'à Google Play.
+import { campaignReferrer, trackSiteEvent } from "@/components/SiteAnalytics";
 
 // v508 — Daniel : « ajoute les boutons stores et branche juste Google Play ».
 // L'app est EN LIGNE sur le Play Store (com.cardellihermanos.hopetsit).
@@ -51,8 +53,31 @@ const LABEL_AFTER = new Set(["ja"]);
 
 // v585 — `className` : l'accueil centre les badges sur téléphone (ils étaient
 // collés à gauche sous un bloc centré) et les aligne à gauche sur ordinateur.
+// 18/10/2026 (SAM) — page d'arrivée des pubs Android (/download) : (1) le lien
+// Google Play porte la campagne (`referrer=utm_…`) pour que les installations
+// venues de la pub se voient dans la Play Console ; (2) le badge du store de
+// l'appareil du visiteur passe en premier (Android → Google Play d'abord,
+// iPhone/iPad → App Store d'abord). Décidé APRÈS l'affichage (useEffect) :
+// même HTML serveur et navigateur, pas d'écart d'hydratation. Tout hook avant
+// le return.
+type Device = "android" | "ios" | "other";
+
 export default function StoreBadges({ center = false, className = "" }: { center?: boolean; className?: string }) {
   const { lang } = useT();
+  const [device, setDevice] = useState<Device>("other");
+  const [referrer, setReferrer] = useState("");
+  useEffect(() => {
+    try {
+      const ua = navigator.userAgent || "";
+      if (/android/i.test(ua)) setDevice("android");
+      else if (/iphone|ipad|ipod/i.test(ua)) setDevice("ios");
+    } catch {
+      /* UA illisible → ordre par défaut */
+    }
+    setReferrer(campaignReferrer());
+  }, []);
+  const playHref =
+    `${PLAY_URL}&hl=${lang}` + (referrer ? `&referrer=${encodeURIComponent(referrer)}` : "");
 
   const badge =
     "group inline-flex min-h-[60px] min-w-[196px] items-center gap-3 rounded-2xl border border-white/15 bg-gradient-to-b from-[#2A1B18] to-black px-4 py-2 text-white shadow-[0_8px_20px_rgba(201,42,18,0.22),inset_0_1px_0_rgba(255,255,255,0.14)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(201,42,18,0.30),inset_0_1px_0_rgba(255,255,255,0.18)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D83C28] focus-visible:ring-offset-2";
@@ -66,11 +91,12 @@ export default function StoreBadges({ center = false, className = "" }: { center
     <div
       className={`flex flex-wrap items-center gap-3 ${center ? "justify-center" : ""} ${className}`}
     >
-      {/* Google Play — EN LIGNE */}
+      {/* Google Play — EN LIGNE (en premier, sauf sur iPhone/iPad) */}
       <a
-        className={badge}
+        className={`${badge} ${device === "ios" ? "order-2" : "order-1"}`}
+        data-device={device}
         aria-label={`${playLabel} Google Play`}
-        href={`${PLAY_URL}&hl=${lang}`}
+        href={playHref}
         target="_blank"
         rel="noopener noreferrer"
         onClick={() => trackSiteEvent("store_click", { store: "android" })}
@@ -99,9 +125,9 @@ export default function StoreBadges({ center = false, className = "" }: { center
         </span>
       </a>
 
-      {/* App Store — EN LIGNE (approuvé par Apple, v518) */}
+      {/* App Store — EN LIGNE (approuvé par Apple, v518) ; en premier sur iPhone/iPad */}
       <a
-        className={badge}
+        className={`${badge} ${device === "ios" ? "order-1" : "order-2"}`}
         aria-label={`${appleLabel} App Store`}
         href={APP_STORE_URL}
         target="_blank"

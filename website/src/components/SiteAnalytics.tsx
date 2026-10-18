@@ -115,6 +115,27 @@ export function withCampaign(href: string): string {
   }
 }
 
+/**
+ * 18/10/2026 (SAM) — les pubs Android envoient sur /download (Meta refuse un
+ * lien Google Play en objectif Trafic) : sans trace, les installations
+ * Android venues de la pub sont invisibles partout. Google Play accepte un
+ * paramètre `referrer=utm_source%3D…` et montre alors les installations par
+ * campagne dans la Play Console (Performances de la fiche → canaux suivis).
+ * On renvoie la chaîne « utm_source=…&utm_medium=…&utm_campaign=…&utm_content=… »
+ * (vide hors campagne ; jamais fbclid, referrer ni identifiant).
+ */
+export function campaignReferrer(): string {
+  if (typeof window === "undefined") return "";
+  const c = readCampaign();
+  if (!c.uc) return "";
+  const p = new URLSearchParams();
+  if (c.us) p.set("utm_source", c.us);
+  if (c.um) p.set("utm_medium", c.um);
+  p.set("utm_campaign", c.uc);
+  if (c.ux) p.set("utm_content", c.ux);
+  return p.toString();
+}
+
 /** Même chose pour un <Link> : le lien est complété après l'affichage (pas d'écart serveur/navigateur). */
 export function useCampaignHref(href: string): string {
   const [h, setH] = useState(href);
