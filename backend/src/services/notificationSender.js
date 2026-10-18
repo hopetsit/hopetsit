@@ -233,6 +233,34 @@ const resolveAppLocaleAcrossRoles = async (primary, userId) => {
   }
 };
 
+// 619 (BOB, 19/10/2026, capture de Daniel) — un e-mail « partage en direct
+// depuis 22 h » est parti vers anthony@gmail.com, adresse inventée à
+// l'inscription, jamais vérifiée → retour « Address not found ». Chaque retour
+// abîme la réputation de hopetsit@gmail.com (145 comptes non vérifiés en base).
+// Règle : pour un compte créé depuis la v565 (vérification fiable, 18/09) dont
+// NI le profil NI ses frères (même e-mail) ne sont vérifiés, aucun e-mail de
+// notification ne part (in-app et push inchangés). Les e-mails de vérification
+// passent ailleurs (authController) et ne sont pas concernés. Coupe-circuit :
+// EMAIL_UNVERIFIED_GUARD=off. En cas de doute (erreur base), l'e-mail part.
+const UNVERIFIED_GUARD_SINCE = Date.parse('2026-09-18T00:00:00Z');
+const unverifiedEmailBlocked = async (user, role) => {
+  if (process.env.EMAIL_UNVERIFIED_GUARD === 'off') return false;
+  if (!user || user.verified === true) return false;
+  const created = user.createdAt ? new Date(user.createdAt).getTime() : NaN;
+  if (!Number.isFinite(created) || created < UNVERIFIED_GUARD_SINCE) return false;
+  const stored = String(user.email || '').toLowerCase().trim();
+  let plain = stored;
+  try { plain = String(decrypt(user.email || '') || '').toLowerCase().trim(); } catch (_) { plain = stored; }
+  const emails = [...new Set([stored, plain].filter(Boolean))];
+  if (!emails.length) return true;
+  const self = role === 'owner' ? Owner : role === 'walker' ? Walker : Sitter;
+  const siblings = [Owner, Sitter, Walker].filter((M) => M !== self);
+  try {
+    const found = await Promise.all(siblings.map((M) => M.exists({ email: { $in: emails }, verified: true })));
+    return !found.some(Boolean);
+  } catch (_) { return false; }
+};
+
 const resolveUser = async (role, userId) => {
   // Session v17 — walker added as first-class recipient alongside
   // owner/sitter. Notifications were silently dropped for walker before:
@@ -244,7 +272,7 @@ const resolveUser = async (role, userId) => {
     role === 'walker' ? Walker :
     null;
   if (!Model) return null;
-  const primary = await Model.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs').lean();
+  const primary = await Model.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs verified createdAt').lean();
   if (primary) return primary;
 
   // v23.1 part 49 — cross-collection fallback. The destructive switchRole
@@ -265,7 +293,7 @@ const resolveUser = async (role, userId) => {
   const fallbackModels = [Owner, Sitter, Walker].filter((m) => m !== Model);
   for (const Fb of fallbackModels) {
     try {
-      const found = await Fb.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs').lean();
+      const found = await Fb.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs verified createdAt').lean();
       if (found) {
         logger.warn(
           `[notif.fallback] user ${userId} expected in ${role} collection but ` +
@@ -641,14 +669,20 @@ const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtr
     unsubscribeUrl,
   });
   const emailText = `${body}\n\n${renderData.emailLink}`;
-  const email = decrypt(user.email || '');
+  let email = decrypt(user.email || '');
+  let emailBlocked = null;
+  if (email && await unverifiedEmailBlocked(user, role)) {
+    emailBlocked = 'unverified';
+    logger.info(`[notif.email.skip] compte jamais vérifié → aucun e-mail type=${type} role=${role} userId=${userId}`);
+    email = '';
+  }
   // v565 §2 — préférences : catégorie coupée → ni push ni e-mail (in-app gardée).
   const prefs = await resolveNotificationPrefsAcrossRoles(user, userId);
   const category = categoryForType(type);
   const categoryEnabled = prefs.categories[category] !== false;
   return {
     user, locale, data, appRoute, emailRoute, renderData, title, body, emailSubject, emailBody, emailText,
-    email, prefs, category, categoryEnabled, unsubscribeUrl,
+    email, emailBlocked, prefs, category, categoryEnabled, unsubscribeUrl,
   };
 };
 
@@ -930,7 +964,7 @@ const sendNotification = async ({
         skipped: true,
         reason: emailDeferred && emailDeferred.created
           ? 'deferred_15min'
-          : (emailRefused ? 'unsubscribed' : (categoryEnabled ? 'no_email' : `prefs_category_off:${category}`)),
+          : (emailRefused ? 'unsubscribed' : (prepared.emailBlocked ? `email_blocked:${prepared.emailBlocked}` : (categoryEnabled ? 'no_email' : `prefs_category_off:${category}`))),
       }),
   ]);
 
@@ -1087,6 +1121,7 @@ const renderNotificationContent = (type, data = {}, userLanguage) => {
 };
 
 module.exports = {
+  unverifiedEmailBlocked,
   sendNotification,
   renderNotificationContent,
   resolveAppLocaleAcrossRoles,
