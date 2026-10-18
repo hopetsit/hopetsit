@@ -20,6 +20,26 @@ const ensureConfig = () => {
   }
 };
 
+const MAX_UPLOAD_PX = 2000;   // côté le plus long, à l'envoi
+const MAX_DELIVERY_PX = 1600; // côté le plus long, à l'affichage
+
+/**
+ * Adresse de livraison d'une image : largeur plafonnée, qualité et format
+ * automatiques (WebP/AVIF selon le navigateur ou le téléphone). Pour un
+ * avatar de 56 px affiché sur une carte, ça divise le poids par 5 à 20.
+ * Les vidéos et tout autre type sont rendus tels quels.
+ */
+const deliveryUrl = (result) => {
+  if (!result || result.resource_type !== 'image' || !result.public_id) return (result && result.secure_url) || '';
+  return cloudinary.url(result.public_id, {
+    secure: true,
+    resource_type: 'image',
+    version: result.version,
+    format: result.format || undefined,
+    transformation: [{ width: MAX_DELIVERY_PX, height: MAX_DELIVERY_PX, crop: 'limit', quality: 'auto', fetch_format: 'auto' }],
+  });
+};
+
 const buildThumbnailUrl = (result) => {
   if (result.resource_type === 'video') {
     return cloudinary.url(result.public_id, {
@@ -45,17 +65,25 @@ const uploadMedia = async ({ file, folder = 'petsinsta', resourceType = 'auto', 
   //   - quality_analysis: false → idem
   //   - transformation `flags: 'strip_profile'` → strip ICC + EXIF + XMP
   //     sur le fichier servi (et stocké)
+  // 619 (BOB, 19/10) — l'ancien compte Cloudinary a été coupé (quota du forfait
+  // gratuit) : les photos étaient stockées ET servies en taille d'origine
+  // (jusqu'à 4 032 px, plusieurs Mo). Désormais : image plafonnée à 2 000 px à
+  // l'envoi (le stockage compte dans le quota), et adresse de livraison
+  // allégée (voir deliveryUrl). Les vidéos ne changent pas.
   const result = await cloudinary.uploader.upload(file, {
     folder,
     resource_type: resourceType,
     image_metadata: false,
     quality_analysis: false,
-    transformation: [{ flags: 'strip_profile' }],
+    transformation: resourceType === 'video'
+      ? [{ flags: 'strip_profile' }]
+      : [{ width: MAX_UPLOAD_PX, height: MAX_UPLOAD_PX, crop: 'limit' }, { flags: 'strip_profile' }],
     ...options,
   });
 
   return {
-    url: result.secure_url,
+    url: deliveryUrl(result),
+    originalUrl: result.secure_url,
     publicId: result.public_id,
     resourceType: result.resource_type,
     format: result.format || '',
@@ -71,5 +99,8 @@ const uploadMedia = async ({ file, folder = 'petsinsta', resourceType = 'auto', 
 
 module.exports = {
   uploadMedia,
+  deliveryUrl,
+  MAX_UPLOAD_PX,
+  MAX_DELIVERY_PX,
 };
 
