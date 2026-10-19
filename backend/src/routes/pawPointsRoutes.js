@@ -228,14 +228,18 @@ router.get('/history', requireAuth, async (req, res) => {
     // déjà journalisés dans PawPointsEvent (jamais en double dans le 611).
     const events = await PawPointsEvent.find({ personKey: pk }).sort({ at: -1 }).limit(60).lean();
     const items = [
-      ...logs.map((l) => ({ key: l.key, points: l.points, at: l.at })),
+      ...logs.map((l) => ({ key: l.key, points: l.points, at: l.at, doubled: l.doubled === true })),
       ...events.map((e) => ({ key: e.key, points: Number(e.credited || e.points || 0), at: e.at })),
     ].sort((a, b) => new Date(b.at) - new Date(a.at));
     const st = await pawPoints.getPawState(req.user.id, role);
     const traced = items.reduce((s, x) => s + (Number(x.points) || 0), 0);
     const before = Math.max(0, st.lifetime - traced);
     return res.json({
-      items: items.slice(0, 30).map((x) => ({ key: x.key, points: x.points, at: new Date(x.at).toISOString() })),
+      items: items.slice(0, 30).map((x) => ({
+        key: x.key, points: x.points, at: new Date(x.at).toISOString(),
+        // 619 — présent seulement quand le ×2 Premium a joué (forme d'avant intacte).
+        ...(x.doubled === true ? { doubled: true } : {}),
+      })),
       beforeJournal: before, // points gagnés avant le journal (sans détail)
       journalSince: '2026-10-04',
       lifetime: st.lifetime,

@@ -253,7 +253,7 @@ function logKeyFromReason(reason) {
 }
 
 /** 611 — écrit une ligne du journal (jamais bloquant). */
-async function logPoints611({ userId, role, points, reason, email }) {
+async function logPoints611({ userId, role, points, reason, email, doubled = false }) {
   try {
     // Base pas (encore) connectée : on n'attend jamais (mongoose mettrait
     // l'écriture en file 10 s et ralentirait le gain lui-même).
@@ -263,6 +263,8 @@ async function logPoints611({ userId, role, points, reason, email }) {
     await require('../models/PawPointsLog611').create({
       personKey, userId: String(userId), role: String(role || '').toLowerCase(),
       key: logKeyFromReason(reason), points, at: new Date(),
+      // 619 (BOB) — ×2 Paw Premium, affiché dans « D'où viennent mes points ».
+      doubled: doubled === true,
     });
   } catch (e) {
     logger.warn(`[pawPoints] journal 611 : ${e?.message || e}`);
@@ -303,7 +305,7 @@ async function awardPointsDetailed({ userId, role, points, reason = '', skipLog 
     if (!updated) return null;
     // 611 — journal. Les gains d'activité 607 ont déjà leur ligne
     // (PawPointsEvent, lue aussi par l'historique) : pas de doublon.
-    if (!skipLog) await logPoints611({ userId, role, points: pts, reason, email: updated.email });
+    if (!skipLog) await logPoints611({ userId, role, points: pts, reason, email: updated.email, doubled });
     // v532 — propage le nouveau solde aux autres profils du même compte.
     await syncPointsAcrossRoles(userId, role);
     // 618 (ZOE, 19/10) — pin « 1er Chef de meute » : enregistré UNE fois, au

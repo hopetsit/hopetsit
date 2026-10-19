@@ -13,6 +13,7 @@ const pawPointsLogSchema = new mongoose.Schema(
     role: { type: String, default: '' },
     key: { type: String, default: 'other' }, // clé du barème (plushCaught, spotCreated…)
     points: { type: Number, default: 0 }, // crédité (négatif pour une reprise)
+    doubled: { type: Boolean, default: false }, // 619 — ×2 Paw Premium appliqué
     at: { type: Date, default: Date.now },
   },
   { versionKey: false },

@@ -102,3 +102,20 @@ test('30 lignes au plus ; jamais les gains d\'une autre personne ; 401 sans comp
   expect(rb.body.items).toHaveLength(1);
   expect((await request(app).get('/pawpoints/history')).status).toBe(401);
 });
+
+// 619 (BOB, 19/10) — Daniel : « +1000 au lieu de 500 » = ×2 Paw Premium ;
+// l'historique le dit ligne par ligne (`doubled`).
+test('×2 Paw Premium : la ligne porte doubled, les autres non', async () => {
+  const p = await person(Owner, `prem619_${Date.now()}@example.test`);
+  await require('../src/models/UserSubscription').collection.insertOne({
+    userId: p._id, userModel: 'Owner', premiumExpiry: new Date(Date.now() + 86400000),
+  });
+  await svc.awardPointsDetailed({ userId: String(p._id), role: 'owner', points: 500, reason: 'peluches : bonus collector' });
+  const q = await person(Owner);
+  await svc.awardPointsDetailed({ userId: String(q._id), role: 'owner', points: 20, reason: 'mini-peluche fox' });
+  const rp = await request(app).get('/pawpoints/history').set(as(p));
+  expect(rp.body.items[0]).toMatchObject({ points: 1000, doubled: true });
+  const rq = await request(app).get('/pawpoints/history').set(as(q));
+  expect(rq.body.items[0].points).toBe(20);
+  expect(rq.body.items[0].doubled).toBeUndefined();
+});
