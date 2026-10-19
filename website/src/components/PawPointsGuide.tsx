@@ -15,6 +15,7 @@ import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { PlushVideo } from "@/components/PlushVideo";
 import { EarnGrid, RewardsGrid, PlushShowcase, PpTitle } from "@/components/PawPointsSections";
 import { RanksLadder611 } from "@/components/Rank611";
+import { PawNews1910, PodiumPublic1910 } from "@/components/Pins1910";
 
 const GOLD = "#B7791F";
 const GOLD_BG = "#FFF6DB";
@@ -79,6 +80,9 @@ export function PawPointsGuide({ initial }: { initial: PawCatalog607 | null }) {
         </PlushShowcase>
       </section>
 
+      {/* 19/10 (618) — collection du mois, pins, ×2 Premium (contrat PROCHAIN_BUILD_618.md). */}
+      <PawNews1910 className="mt-12" />
+
       {catalog?.notes && (
         <section className="mt-12 space-y-2 rounded-[24px] bg-[#FFF8F3] p-5 ring-1 ring-[#F3E6E1]">
           {Object.values(catalog.notes).map((n, i) => (
@@ -94,6 +98,8 @@ export function PawPointsGuide({ initial }: { initial: PawCatalog607 | null }) {
           <RanksLadder611 catalog={catalog.ranks611} mine={null} />
         </section>
       )}
+
+      <PodiumPublic1910 className="mt-12" />
 
       <section className="mt-12 rounded-[28px] bg-[#231715] p-8 text-center md:p-10">
         <h2 className="font-display text-2xl font-bold text-white md:text-3xl">{t("ppg_cta_title")}</h2>

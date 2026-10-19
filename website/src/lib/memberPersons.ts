@@ -143,6 +143,8 @@ export function mergePersons(nearby: NearbyMember[], world: NearbyMember[]): Nea
         isBoosted: cur.isBoosted ?? m.isBoosted,
         // 611 — rang de la personne : couche proches d'abord, sinon couche monde.
         rank: cur.rank ?? m.rank,
+        // 19/10 (618) — pins de la personne : couche proches d'abord, sinon couche monde.
+        pins: cur.pins ?? m.pins,
       };
       for (const x of allIds) idx.set(x, hit);
       return;

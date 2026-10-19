@@ -15,6 +15,8 @@ import { ROLE_COLOR } from "@/lib/pawmapLegend";
 import { FeedbackBox } from "@/components/FeedbackBox";
 import { SignatureButton } from "@/components/SignatureButton";
 import { RankProgress611 } from "@/components/Rank611";
+import { PinChips1910 } from "@/components/Pins1910";
+import { parsePins1910, type Pins1910 } from "@/lib/pins1910";
 import { parseRank611, type Rank611 } from "@/lib/ranks611";
 
 // v493 — barre latérale + zone principale. v562 — orange pâle au survol.
@@ -77,6 +79,8 @@ export default function DashboardPage() {
   // 04/10 (611) — « Mon rang » (Chiot → Légende), lu dans GET /pawpoints/me.
   // Ancien serveur (pas de `rank`) ou non connecté → rien d'affiché.
   const [myRank, setMyRank] = useState<Rank611 | null>(null);
+  // 19/10 (618) — mes pins (podium / « 1er Chef de meute »), même GET ; absent = rien.
+  const [myPins, setMyPins] = useState<Pins1910 | null>(null);
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -84,7 +88,7 @@ export default function DashboardPage() {
         if (!getStoredUser()) return;
         const { getMyPawPoints } = await import("@/lib/api");
         const me = await getMyPawPoints();
-        if (alive) setMyRank(parseRank611(me?.rank));
+        if (alive) { setMyRank(parseRank611(me?.rank)); setMyPins(parsePins1910(me?.pins)); }
       } catch { /* pas connecté / serveur indisponible → pas de rang */ }
     })();
     return () => { alive = false; };
@@ -449,6 +453,7 @@ export default function DashboardPage() {
           {myRank && (
             <Link href="/pawpoints" className="mt-10 block transition hover:-translate-y-px" data-dash-rank="">
               <RankProgress611 rank={myRank} showHow={false} />
+              {myPins && <PinChips1910 pins={myPins} className="mt-2" />}
             </Link>
           )}
 

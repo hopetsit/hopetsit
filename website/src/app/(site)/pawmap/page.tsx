@@ -1,6 +1,7 @@
 "use client";
 
 import { PawPointsTeaser } from "@/components/PawPointsTeaser";
+import { PawNews1910 } from "@/components/Pins1910";
 import { VerifiedPill } from "@/components/VerifiedPill";
 import dynamic from "next/dynamic";
 import Link from "@/components/SiteLink";
@@ -323,6 +324,9 @@ export default function PawMapPage() {
 
         {/* 02/10 (607) — PawPoints : récompenses du catalogue unique, vers la page publique. */}
         <PawPointsTeaser className="mt-16" href="/pawpoints-guide" />
+
+        {/* 19/10 (618) — collection du mois, pins, ×2 Premium (même contrat que l'app). */}
+        <PawNews1910 className="mt-16" withLink />
 
         {/* ── 6. PAWPREMIUM + APP ── une seule bande, pas de doublon. */}
         <section className="mt-16 flex flex-col items-center gap-6 rounded-[28px] bg-[#231715] p-8 text-center md:flex-row md:p-12 md:text-left">

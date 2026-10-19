@@ -31,6 +31,7 @@ import {
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { RankGlyph611, RankPill611 } from "@/components/Rank611";
 import { RANK_KEYS_611, RANK_MINS_611 } from "@/lib/ranks611";
+import { pinDiscHtml } from "@/lib/pins1910";
 
 // 25/09 (586) — dessins des nouveaux contrôles de la carte (poignée, Publier,
 // Direct, œil), mêmes couleurs que sur /map.
@@ -301,6 +302,8 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
       rows: [
         { html: plushHtml(), title: "", body: t("help607_plush_body") },
         { html: `<img src="/plush/teddy_gold.png" alt="" width="52" height="52" style="width:52px;height:52px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(183,121,31,.5))"/>`, title: t("help607_plush_gold"), body: t("help607_plush_bonus"), color: "#8A5A00" },
+        // 19/10 (618 §C) — collection du mois (dès le 01/11/2026, +500 et badge chaque mois).
+        { html: `<span data-legend-month="" style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 2.5px #C2410C,0 6px 14px -6px #C2410C"><img src="/plush/fox.png" alt="" width="34" height="34" style="width:34px;height:34px;object-fit:contain"/></span>`, title: `${t("p1910_month_t")} · ${t("p1910_month_soon")}`, body: t("p1910_month_b"), color: "#9A3412" },
       ],
       link: { href: "/pawpoints-guide", label: t("ppg_link") },
     },
@@ -321,6 +324,10 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
         })),
         { node: <span data-legend-ranks="" className="grid h-[46px] w-[46px] place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#E7B84A,#C9961A 55%,#8D6A12)", border: "2px solid #fff", boxShadow: "0 6px 14px -6px #8D6A12" }}><RankGlyph611 level={5} size={22} color="#FFFFFF" /></span>, title: t("help611_ranks_t"), body: t("help611_ranks_b"), color: "#8A5A00" },
         { html: `<span data-legend-earn="" style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800);border:2px solid #fff;box-shadow:0 6px 14px -6px #B07800;font-size:22px">🪙</span>`, title: t("help612_earn_t"), body: t("pp607_help_points_body"), color: "#8A5A00" },
+        // 19/10 (618 §A) — Paw Premium double tous les points gagnés.
+        { html: `<span data-legend-x2="" style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#3A3028,#0F0B08);border:2px solid #fff;box-shadow:0 6px 14px -6px #0F0B08;font:900 16px/1 Inter,system-ui,sans-serif;color:#FFD34D">×2</span>`, title: t("p1910_premium_t"), body: t("p1910_premium_b"), color: "#8A5A00" },
+        // 19/10 (618 §B) — pins : podium or/argent/bronze + « 1er Chef de meute », honorifiques.
+        { html: `<span data-legend-pins="" style="display:grid;grid-template-columns:repeat(2,20px);gap:3px;width:46px;justify-content:center">${pinDiscHtml(1, 20)}${pinDiscHtml(2, 20)}${pinDiscHtml(3, 20)}${pinDiscHtml("first", 20)}</span>`, title: t("p1910_pins_t"), body: t("p1910_pins_b"), color: "#8A5A00" },
       ],
     },
   ];

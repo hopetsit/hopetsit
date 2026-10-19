@@ -111,6 +111,8 @@ import {
 } from "@/lib/memberPersons";
 import { RankPill611 } from "@/components/Rank611";
 import { parseRank611, type Rank611 } from "@/lib/ranks611";
+import { parsePins1910, type Pins1910 } from "@/lib/pins1910";
+import { PinChips1910 } from "@/components/Pins1910";
 
 export { clusterize } from "@/lib/mapCluster";
 
@@ -199,6 +201,7 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
       verified: !!m.identityVerified,
       dark,
       size: 46,
+      pins: parsePins1910(m.pins),
     }),
     iconSize: [46, 46],
     iconAnchor: [23, 23],
@@ -210,7 +213,7 @@ function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[
   return L.divIcon({
     className: "hps-l-friend",
     // 25/09 (585, bug 11) — un ami boosté garde sa lueur turquoise + fusée.
-    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role), caption, captionAbove, priceBubble: bubble, priceDuo: duo ?? null }),
+    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role), caption, captionAbove, priceBubble: bubble, priceDuo: duo ?? null, pins: parsePins1910(m.pins) }),
     iconSize: [50, 50],
     iconAnchor: [25, 25],
     popupAnchor: [0, -28],
@@ -503,6 +506,8 @@ type Focus = {
   verified?: boolean;
   /** 04/10 (611) — rang de la personne (Chiot → Légende) ; null = rien affiché. */
   rank?: Rank611 | null;
+  /** 19/10 (618) — pins podium / « 1er Chef de meute » ; null = rien affiché. */
+  pins?: Pins1910 | null;
   open: () => void;
 };
 
@@ -1135,6 +1140,7 @@ export default function PoiMap({
       icon: k === "walker" ? "walk" : k === "sitter" ? "home" : "paw",
       verified: m.identityVerified === true,
       rank: parseRank611(m.rank),
+      pins: parsePins1910(m.pins),
       open,
     };
   };
@@ -1549,7 +1555,7 @@ function FocusCard({ f, labels, dark, top, faded, onClose, onOpen }: { f: Focus;
               {f.live && <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: "#2E9E48" }} />}
               {f.verified && labels.verified && <VerifiedPill label={labels.verified} small />}
             </span>
-            {f.rank && <span className="mt-[3px] mb-px flex"><RankPill611 rank={f.rank} mode={dark ? "dark" : "light"} compact /></span>}
+            {(f.rank || f.pins) && <span className="mt-[3px] mb-px flex items-center gap-1">{f.rank && <RankPill611 rank={f.rank} mode={dark ? "dark" : "light"} compact />}<PinChips1910 pins={f.pins} compact /></span>}
             {f.info && <span className="block truncate text-[11.5px] font-medium leading-snug" style={{ color: sub, fontFamily: POPPINS }}>{f.info}</span>}
           </span>
         </button>
@@ -1810,6 +1816,8 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
           </p>
           {/* 04/10 (611) — rang (Chiot → Légende), seulement si le serveur l'envoie. */}
           <RankPill611 rank={parseRank611(m.rank)} className="mt-1" />
+          {/* 19/10 (618) — pins, seulement si le serveur les envoie. */}
+          <PinChips1910 pins={parsePins1910(m.pins)} className="mt-1" />
           {dist && <p className="mt-0.5 text-[11px] font-semibold text-[#8A6B64]">{dist}</p>}
         </div>
         {closeBtn}

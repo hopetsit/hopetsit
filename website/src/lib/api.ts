@@ -2492,6 +2492,8 @@ export type NearbyMember = {
   positionSource?: string;
   /** 611 — rang de la personne (Chiot → Légende), absent sur un ancien serveur. Lire par parseRank611. */
   rank?: unknown;
+  /** 19/10 (618 §B) — pins { podium, firstPackLeader } ; lire par parsePins1910 (absent = rien). */
+  pins?: unknown;
 };
 
 // v548 — Daniel : « quand on dézoome, voir TOUS les utilisateurs sur la carte
@@ -2953,6 +2955,8 @@ export type MyPawPoints = {
   /** 611 — mon rang (Chiot → Légende), lire par parseRank611 ; absent sur un ancien serveur. */
   rank?: unknown;
   rankSeenLevel?: number;
+  /** 19/10 (618 §B) — mes pins ; lire par parsePins1910 (absent = rien). */
+  pins?: unknown;
 };
 
 // Public : pas besoin d'être connecté pour voir le catalogue.
@@ -3566,7 +3570,7 @@ export async function catchPlush(id: string, lat: number, lng: number): Promise<
     return { ok: false, code: String(data?.code || err?.message || "UNKNOWN"), status: Number((err as unknown as { status?: number })?.status) || 0 };
   }
 }
-export type PlushCollection = { total: number; types: string[]; counts: Record<string, number>; golden: number; badges: string[]; streak: number; items: { id: string; type: string; golden?: boolean; day: string; city: string; at: string | null }[] };
+export type PlushCollection = { total: number; types: string[]; counts: Record<string, number>; golden: number; badges: string[]; streak: number; items: { id: string; type: string; golden?: boolean; day: string; city: string; at: string | null }[]; /** 19/10 (618 §C) — collection du mois, brut : lire par parseMonthly1910 (absent sur un ancien serveur). */ monthly?: unknown };
 export async function getPlushCollection(): Promise<PlushCollection | null> {
   try {
     const r = await request<Partial<PlushCollection>>(`/plush/collection`);
@@ -3578,6 +3582,7 @@ export async function getPlushCollection(): Promise<PlushCollection | null> {
       badges: Array.isArray(r?.badges) ? r!.badges! : [],
       streak: Number(r?.streak) || 0,
       items: Array.isArray(r?.items) ? r!.items! : [],
+      monthly: (r as { monthly?: unknown } | null)?.monthly,
     };
   } catch {
     return null;
@@ -3615,6 +3620,15 @@ export async function getPawCatalog607(): Promise<PawCatalog607 | null> {
 export function ppText(texts: Pp607Texts | undefined, lang: string): string {
   if (!texts) return "";
   return texts[lang] || texts.en || texts.fr || "";
+}
+/** 19/10 (618 §B) — podium public + « 1er Chef de meute » (GET /pawpoints/pins, public, cache 60 s).
+ *  Brut : lire par parsePublicPins1910. Route absente (serveur d'avant le 618) → null. */
+export async function getPublicPins1910(): Promise<unknown | null> {
+  try {
+    return await request<unknown>("/pawpoints/pins");
+  } catch {
+    return null;
+  }
 }
 export type MyPawPoints607 = MyPawPoints & { history?: { key: string; points: number; credited?: number; at: string }[]; catalogVersion?: number };
 

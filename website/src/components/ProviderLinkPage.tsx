@@ -20,6 +20,8 @@ import { askHref, askLabel, askNote } from "@/lib/i18n/demander2809";
 import { providerCurrency, providerFrom, providerRateLines, formatMoney } from "@/lib/providerRates";
 import { RankPill611 } from "@/components/Rank611";
 import { parseRank611 } from "@/lib/ranks611";
+import { parsePins1910 } from "@/lib/pins1910";
+import { PinChips1910 } from "@/components/Pins1910";
 import { type PublicProvider607, PUBLIC_API_BASE, rateSourceOf, serviceKeys, petKeys, fill } from "@/lib/publicProvider607";
 
 const ROLE = {
@@ -85,6 +87,7 @@ export function ProviderLinkPage({ p }: { p: PublicProvider607 }) {
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs font-semibold">
             {/* 611 — rang (Chiot → Légende) seulement si le serveur l'envoie. */}
             <RankPill611 rank={parseRank611(p.rank)} />
+            <PinChips1910 pins={parsePins1910(p.pins)} />
             {p.isPioneer && (
               <span data-pioneer="" className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-white" style={{ background: "linear-gradient(165deg,#E0553F,#C92A12 55%,#A31F0C)", boxShadow: "0 6px 14px -8px #C92A12" }}>
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 21V4" /><path d="M5 4h11l-2 4 2 4H5" /></svg>

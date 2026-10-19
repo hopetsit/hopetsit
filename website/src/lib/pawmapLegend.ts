@@ -11,6 +11,8 @@
 // composants carte enveloppent dans un L.divIcon. Il est aussi utilisé par la
 // fenêtre « ? » (légende en images) — les mêmes dessins, pas des copies.
 
+import { pinsOnAvatarHtml, type Pins1910 } from "./pins1910";
+
 export const ROLE_COLOR = {
   owner: "#C92A12",
   sitter: "#2563EB",
@@ -261,6 +263,8 @@ export type MemberPinOptions = {
   dark?: boolean;
   /** 590 — coche bleue « identité vérifiée ». */
   verified?: boolean;
+  /** 19/10 (618 §B) — pins podium / « 1er Chef de meute » (null = rien). */
+  pins?: Pins1910 | null;
 };
 
 /**
@@ -332,7 +336,7 @@ export function memberPinHtml(o: MemberPinOptions): string {
     : `padding:${Math.round(size * 0.2)}px;border:2.5px solid #fff;`;
   // 27/09 — les liserés concentriques des autres rôles sont RETIRÉS : ils
   // recouvraient la lueur PawBoost. Les rôles sont dans le contour (`outer`).
-  return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${o.avatar ? outer : grad};${disc}${glow}display:flex;align-items:center;justify-content:center;box-sizing:border-box;position:relative;overflow:hidden;">${body}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : ""}${o.verified ? verifiedBadge() : ""}${o.online === true || o.online === false ? onlineDot(12, o.online, !!o.verified) : ""}${caption}${bubble}</div>`;
+  return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${o.avatar ? outer : grad};${disc}${glow}display:flex;align-items:center;justify-content:center;box-sizing:border-box;position:relative;overflow:hidden;">${body}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : ""}${o.verified ? verifiedBadge() : ""}${o.online === true || o.online === false ? onlineDot(12, o.online, !!o.verified) : ""}${pinsOnAvatarHtml(o.pins, size, { leftMiddle: !!o.verified && (o.online === true || o.online === false) })}${caption}${bubble}</div>`;
 }
 
 /** Échappe une chaîne insérée dans le HTML d'une épingle (nom, URL). */
@@ -369,6 +373,8 @@ export type PhotoPinOptions = {
   dark?: boolean;
   /** 607 — « Vu il y a … » posé AU-DESSUS du rond (la place dessous est prise). */
   captionAbove?: boolean;
+  /** 19/10 (618 §B) — pins podium / « 1er Chef de meute » (null = rien). */
+  pins?: Pins1910 | null;
 };
 
 function initials(name: string): string {
@@ -429,7 +435,7 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   const disc = o.friendsOnly
     ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};background-clip:padding-box;border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;position:relative;">${inner}</div>`
     : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${grad};padding:3px;${glow}box-sizing:border-box;"><div style="width:100%;height:100%;border-radius:50%;border:2px solid #fff;background:${ringGradient(key)};display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;position:relative;">${inner}</div></div>`;
-  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}${disc}${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? (o.me ? rocketBadge(20, -1) : rocketBadge(18)) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${label}${bubble}</div>`;
+  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}${disc}${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? (o.me ? rocketBadge(20, -1) : rocketBadge(18)) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${pinsOnAvatarHtml(o.pins, size)}${label}${bubble}</div>`;
 }
 
 /** Couleur foncée d'un rôle (bas du dégradé 160°, même valeur que l'app). */

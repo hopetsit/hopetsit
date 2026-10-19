@@ -9676,3 +9676,6 @@ for (const code of Object.keys(SITE613) as Lang[]) Object.assign(t[code], SITE61
 // Généré par ~/hopetsit-social/site_1610/build_candidats1610.py. Fusionné EN DERNIER.
 import { CANDIDATS1610 } from "./candidats1610";
 for (const code of Object.keys(CANDIDATS1610) as Lang[]) Object.assign(t[code], CANDIDATS1610[code]);
+// 19/10/2026 — LEO : build 618 sur le site (collection du mois, pins, ×2 Premium ; clés p1910_*).
+import { SITE1910 } from "./site1910";
+for (const code of Object.keys(SITE1910) as Lang[]) Object.assign(t[code], SITE1910[code]);

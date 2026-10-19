@@ -27,6 +27,8 @@ export type PublicProvider607 = {
   indexable: boolean;
   /** 611 — rang (Chiot → Légende), seulement si le serveur l'envoie. */
   rank?: unknown;
+  /** 19/10 (618) — pins podium / « 1er Chef de meute », seulement si le serveur les envoie. */
+  pins?: unknown;
 };
 
 // Même base que lib/api.ts (non importé : ce fichier sert aussi au serveur).

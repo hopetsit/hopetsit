@@ -16,6 +16,8 @@ import { PlushVideo } from "@/components/PlushVideo";
 import { EarnGrid, RewardsGrid, PlushShowcase, PpTitle } from "@/components/PawPointsSections";
 import { RankProgress611, RanksLadder611 } from "@/components/Rank611";
 import { parseRank611 } from "@/lib/ranks611";
+import { parseMonthly1910, parsePins1910 } from "@/lib/pins1910";
+import { MonthlyCollection1910, PinChips1910, PodiumPublic1910 } from "@/components/Pins1910";
 import {
   getPawCatalog607,
   getMyPawPoints,
@@ -73,6 +75,9 @@ export default function PawPointsPage() {
   // (`rank` de /pawpoints/me, `ranks611` du catalogue). L'ancien palier à
   // 7 niveaux + bonus en % n'est plus lu. Ancien serveur → rien d'affiché.
   const myRank = parseRank611(mine?.rank);
+  // 19/10 (618) — mes pins et ma collection du mois ; champ absent (ancien serveur) = rien.
+  const myPins = parsePins1910(mine?.pins);
+  const monthly = parseMonthly1910(plush?.monthly, lang);
   const claimed = new Set(mine?.claimedRewardKeys ?? []);
   const earnByKey = new Map((catalog?.earn ?? []).map((e) => [e.key, e]));
   const limitLabel = (l: string) => (["each", "once", "daily", "daily2", "streak"].includes(l) ? t(`pp607_limit_${l}`) : "");
@@ -125,6 +130,12 @@ export default function PawPointsPage() {
           </div>
           {/* Mon rang : pleine largeur sous les deux soldes (lisible à 768 px). */}
           <RankProgress611 rank={myRank} className="md:col-span-2" />
+          {myPins && (
+            <div className="flex flex-wrap items-center gap-2 rounded-[22px] bg-white p-4 ring-1 ring-[#F1D9A6] md:col-span-2" data-pp-pins="">
+              <span className="text-[13px] font-bold uppercase tracking-[0.05em]" style={{ color: GOLD }}>{t("p1910_my_pins")}</span>
+              <PinChips1910 pins={myPins} />
+            </div>
+          )}
         </section>
       )}
 
@@ -143,6 +154,11 @@ export default function PawPointsPage() {
         <section className="mt-12" data-pp-earn="">
           <PpTitle>{t("pp607_earn")}</PpTitle>
           <EarnGrid earn={catalog.earn} lang={lang} t={t} fmt={fmt} />
+          {/* 19/10 (618 §A) — Paw Premium double tous les points gagnés. */}
+          <p className="mt-4 flex items-start gap-3 rounded-[20px] p-4 text-[14px] leading-relaxed text-[#FDF8F7]" style={{ background: "linear-gradient(160deg,#2A2219,#15120D)" }} data-pp-x2="">
+            <span className="shrink-0 font-display text-2xl font-extrabold leading-none text-[#FFD34D]" aria-hidden="true">×2</span>
+            <span className="min-w-0"><strong className="text-[#FFD34D]">{t("p1910_premium_t")}</strong> · {t("p1910_premium_b")}</span>
+          </p>
         </section>
       )}
 
@@ -174,6 +190,8 @@ export default function PawPointsPage() {
               </div>
             )}
             {plush && plush.total === 0 && <p className="mt-4 text-sm font-semibold" style={{ color: "#0F5C2B" }}>{t("plush607_collection_empty")}</p>}
+            {/* 19/10 (618 §C) — collection du mois (dès le 01/11/2026). */}
+            <MonthlyCollection1910 monthly={monthly} className="mt-4" />
             <p className="mt-4 whitespace-pre-line rounded-[18px] bg-white p-4 text-[13px] font-semibold leading-relaxed" style={{ color: INK }}>{t("help607_plush_bonus")}</p>
           </PlushShowcase>
         </section>
@@ -197,6 +215,9 @@ export default function PawPointsPage() {
           <RanksLadder611 catalog={catalog.ranks611} mine={loggedIn ? myRank : null} />
         </section>
       )}
+
+      {/* 19/10 (618 §B) — podium du moment + « 1er Chef de meute » (GET /pawpoints/pins). */}
+      <PodiumPublic1910 className="mt-12" />
 
       {/* ── D'OÙ VIENNENT MES POINTS (611) — GET /pawpoints/history : 30 derniers
           gains (date + raison + points) et UNE ligne pour les points d'avant le
