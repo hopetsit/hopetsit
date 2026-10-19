@@ -54,6 +54,38 @@ function vignette(url: string): string {
   }
 }
 
+// 19/10/2026 (SAM) — l'ancien compte Cloudinary (ddllooujo) est coupé depuis
+// le 18/10 : la plupart des photos renvoient 401 et la carte montrait une
+// image cassée avec le prénom en travers. Photo introuvable → initiale dans
+// le rond (même repli que la PawMap, BOB 18/10). Hook dans son propre
+// composant, avant tout return.
+function FacePhoto({ src, name, walker }: { src: string; name: string; walker: boolean }) {
+  const [ko, setKo] = useState(false);
+  const ring = walker ? "ring-walker" : "ring-sitter";
+  if (ko || !src) {
+    return (
+      <span
+        aria-hidden="true"
+        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white ring-2 ${ring} ${walker ? "bg-walker-dark" : "bg-sitter-dark"}`}
+      >
+        {(name || "?").trim().charAt(0).toUpperCase()}
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={name}
+      width={56}
+      height={56}
+      loading="eager"
+      onError={() => setKo(true)}
+      className={`h-14 w-14 shrink-0 rounded-full object-cover ring-2 ${ring}`}
+    />
+  );
+}
+
 async function tarif(f: Face, lang: string, units: Record<string, string>, signal: AbortSignal): Promise<string | undefined> {
   try {
     const r = await fetch(`${API_BASE}/${f.role}s/${f.id}`, { signal });
@@ -269,15 +301,7 @@ export function CitySupplyProof({
               onClick={clic}
               className="flex h-full items-center gap-3 rounded-2xl bg-white p-3 shadow-[0_2px_10px_rgba(35,23,21,0.08)] ring-1 ring-owner/10 transition active:scale-[0.98] md:flex-col md:text-center"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={vignette(f.photo)}
-                alt={f.firstName}
-                width={56}
-                height={56}
-                loading="eager"
-                className={`h-14 w-14 shrink-0 rounded-full object-cover ring-2 ${walker ? "ring-walker" : "ring-sitter"}`}
-              />
+              <FacePhoto src={vignette(f.photo)} name={f.firstName} walker={walker} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-bold leading-tight text-ink">{f.firstName}</span>
                 <span className={`block text-xs font-semibold leading-tight ${walker ? "text-walker-dark" : "text-sitter-dark"}`}>
