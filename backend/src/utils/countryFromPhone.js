@@ -55,4 +55,51 @@ function countryFromPhone(countryCode) {
   return null;
 }
 
-module.exports = { countryFromPhone };
+// 619 (BOB, 19/10) — Daniel : le classement prend le pays de l'ADRESSE du
+// profil (champ ISO `country`), l'indicatif seulement en secours. Le frère de
+// Daniel avait l'indicatif +1 (Canada) et sortait « USA ».
+const BY_ISO = Object.freeze(Object.values(MAP).reduce((acc, c) => {
+  if (!acc[c.iso]) acc[c.iso] = c;
+  return acc;
+}, { US: { iso: 'US', flag: '🇺🇸', name: 'USA' }, CA: { iso: 'CA', flag: '🇨🇦', name: 'Canada' } }));
+
+/** "FR" → { iso, flag, name } ; drapeau calculé pour un pays hors liste. */
+function countryFromIso(iso) {
+  const c = String(iso || '').trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return null;
+  if (BY_ISO[c]) return BY_ISO[c];
+  const flag = String.fromCodePoint(...[...c].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65));
+  let name = c;
+  try { name = new Intl.DisplayNames(['fr'], { type: 'region' }).of(c) || c; } catch (_) { /* nom = code */ }
+  return { iso: c, flag, name };
+}
+
+/** Pays d'un profil : adresse (`country`) d'abord, sinon indicatif. */
+function countryOfProfile(doc) {
+  return countryFromIso(doc && doc.country) || countryFromPhone(doc && doc.countryCode);
+}
+
+/** Indicatifs dont le pays déduit est `iso` (ex. "ES" → ["34"]). */
+function phoneDigitsForIso(iso) {
+  const c = String(iso || '').toUpperCase();
+  return Object.keys(MAP).filter((k) => MAP[k].iso === c);
+}
+
+/**
+ * Filtre Mongo « même pays que moi » : profils dont l'adresse est dans `iso`,
+ * plus ceux SANS pays d'adresse dont l'indicatif mène à `iso`.
+ */
+function countryFilter(iso) {
+  const c = String(iso || '').toUpperCase();
+  const digits = phoneDigitsForIso(c);
+  const or = [{ country: c }];
+  if (digits.length) {
+    or.push({
+      country: { $in: ['', null] },
+      countryCode: new RegExp(`^\\s*\\+?\\s*(${digits.join('|')})\\s*$`),
+    });
+  }
+  return { $or: or };
+}
+
+module.exports = { countryFromPhone, countryFromIso, countryOfProfile, countryFilter, phoneDigitsForIso };

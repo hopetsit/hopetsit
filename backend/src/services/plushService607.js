@@ -771,6 +771,9 @@ async function catchPlush({ userId, role, plushId, lat, lng, accuracy, now = Dat
   });
   let points = award ? award.credited : 0;
   let lifetime = award ? award.lifetime : null;
+  // 619 (BOB, 19/10) — Daniel : « +1000 au lieu de 500 » = le ×2 Paw Premium.
+  // On le garde, et on le DIT : l'app pourra afficher « +500 ×2 Premium ».
+  const premiumDoubled = !!(award && award.doubled);
   // 613 — mémorisé pour une éventuelle 2e demande de la même personne.
   try {
     await PawPlush.updateOne({ _id: won._id }, { $set: { creditedPoints: points } });
@@ -809,6 +812,7 @@ async function catchPlush({ userId, role, plushId, lat, lng, accuracy, now = Dat
     lifetime,
     streak,
     bonuses,
+    premiumDoubled,
     boostUntil: boostUntil ? boostUntil.toISOString() : null,
   };
 }

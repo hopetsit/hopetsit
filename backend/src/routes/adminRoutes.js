@@ -6062,6 +6062,47 @@ router.get('/pawpoints/leaderboard', requireAdmin, async (req, res) => {
   }
 });
 
+// 619 (BOB, 19/10) — Daniel : « problème de 10 points de Cam » (PawSpot sans
+// points). LECTURE SEULE : journal des points d'UNE personne (3 profils) +
+// ses 30 derniers PawSpots avec ce qu'ils ont rapporté. Jamais tout PawSpot
+// (437 611 lieux : la route cities/non-canonical a fait tomber le serveur).
+// GET /admin/pawpoints/person?userId=<id>&role=owner
+router.get('/pawpoints/person', requireAdmin, async (req, res) => {
+  try {
+    const userId = String(req.query.userId || '');
+    if (!/^[a-f0-9]{24}$/i.test(userId)) return res.status(400).json({ error: 'userId requis.' });
+    const role = String(req.query.role || 'owner').toLowerCase();
+    const Model = role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
+    const me = await Model.findById(userId).select('email').lean();
+    if (!me) return res.status(404).json({ error: 'Introuvable.' });
+    const { personKeyFromEmail } = require('../services/pawPointsActivity607');
+    const pk = personKeyFromEmail(me.email) || `id:${userId}`;
+    const { personIds } = require('../utils/personScope');
+    let ids = [];
+    try { ids = await personIds(userId); } catch (_) { /* repli */ }
+    if (!ids.length) ids = [userId];
+    const PawPointsLog611 = require('../models/PawPointsLog611');
+    const PawSpot = require('../models/PawSpot');
+    const [logs, spots] = await Promise.all([
+      PawPointsLog611.find({ personKey: pk }).sort({ at: -1 }).limit(100).lean(),
+      PawSpot.find({ creatorId: { $in: ids } })
+        .select('name type createdAt deletedAt hidden pointsAwarded likesCount communityValidated photoUrl')
+        .sort({ createdAt: -1 }).limit(30).lean(),
+    ]);
+    return res.json({
+      logs: logs.map((l) => ({ key: l.key, role: l.role, points: l.points, at: l.at })),
+      spots: spots.map((s) => ({
+        id: String(s._id), name: s.name, type: s.type, createdAt: s.createdAt,
+        deleted: !!s.deletedAt, hidden: !!s.hidden, pointsAwarded: s.pointsAwarded || 0,
+        likes: s.likesCount || 0, validated: !!s.communityValidated, photo: !!s.photoUrl,
+      })),
+    });
+  } catch (e) {
+    logger.error('[admin/pawpoints/person]', e);
+    return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
 // ─── v414 — PAWPOINTS : gestion des RÉCOMPENSES éditables sans rebuild (Daniel :
 // "je peux aussi gérer les offres et récompenses directement de l'admin"). CRUD
 // complet sur le modèle PawReward + suivi des échanges (PawRewardRedemption).

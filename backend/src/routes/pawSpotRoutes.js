@@ -504,19 +504,22 @@ router.get('/top', requireAuth, async (req, res) => {
 // embarque { flag, name } pour l'affichage.
 router.get('/leaderboard', requireAuth, async (req, res) => {
   try {
-    const { countryFromPhone } = require('../utils/countryFromPhone');
+    const { countryOfProfile, countryFilter } = require('../utils/countryFromPhone');
     const scope = String(req.query.scope || 'europe').toLowerCase();
     // Ville/pays du demandeur (best-effort sur les champs profil existants).
     let myCity = '';
     let myCountryDigits = '';
+    let meCountryDoc = null;
     try {
       const Model = modelForRole(req.user.role);
       const meDoc = await Model.findById(req.user.id)
-        .select('location countryCode address').lean();
+        .select('location countryCode country address').lean();
       myCity = (meDoc?.location?.city || '').trim();
       myCountryDigits = String(meDoc?.countryCode || '').replace(/[^0-9]/g, '');
+      meCountryDoc = meDoc;
     } catch (_) {/* */}
-    const myCountry = countryFromPhone(myCountryDigits);
+    // 619 (BOB, 19/10) — pays = adresse du profil, indicatif en secours.
+    const myCountry = countryOfProfile(meCountryDoc);
 
     const rows = [];
     for (const [Model, role] of [[Owner, 'owner'], [Sitter, 'sitter'], [Walker, 'walker']]) {
@@ -524,20 +527,20 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
       // ligne le 02/10 : les comptes +test y apparaissaient).
       const filter = { pawPoints: { $gt: 0 }, isStaff: { $ne: true } };
       if (scope === 'city' && myCity) filter['location.city'] = myCity;
-      if (scope === 'country' && myCountryDigits) {
-        // "+34", "34", "+34 " → même pays. Regex tolérante aux formats.
-        filter.countryCode = new RegExp(`^\\s*\\+?\\s*${myCountryDigits}\\s*$`);
+      if (scope === 'country' && myCountry) {
+        // 619 — même pays d'adresse, ou sans adresse mais même indicatif.
+        Object.assign(filter, countryFilter(myCountry.iso));
       }
       const docs = await Model.find(filter)
         .sort({ pawPoints: -1 })
         .limit(50)
-        .select('name firstName lastName avatar email pawPoints pawBadgeColor pawGoldFrame location.city countryCode')
+        .select('name firstName lastName avatar email pawPoints pawBadgeColor pawGoldFrame location.city countryCode country')
         .lean();
       const { isTestAccountEmail } = require('../utils/testAccount2809');
       const { publicNameFields } = require('../utils/publicName2809');
       for (const d of docs) {
         if (isTestAccountEmail(d.email)) continue;
-        const c = countryFromPhone(d.countryCode);
+        const c = countryOfProfile(d);
         rows.push({
           userId: String(d._id),
           role,
@@ -584,7 +587,7 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
       leaderboard: rows.slice(0, 50),
       // 611 (PAM) — MA ligne, toujours (« Je suis OÙ ? », Cam 04/10).
       me: await require('../utils/leaderboardMe611').leaderboardMe611({
-        userId: req.user.id, scope, myCity, myCountryDigits,
+        userId: req.user.id, scope, myCity, myCountryDigits, myCountryIso: myCountry?.iso || '',
       }).catch(() => null),
     });
   } catch (e) {

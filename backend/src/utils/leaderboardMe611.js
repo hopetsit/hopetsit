@@ -17,7 +17,7 @@ const Walker = require('../models/Walker');
 const ranks611 = require('../services/ranks611');
 const { isTestAccountEmail } = require('./testAccount2809');
 
-async function leaderboardMe611({ userId, scope, myCity, myCountryDigits }) {
+async function leaderboardMe611({ userId, scope, myCity, myCountryDigits, myCountryIso }) {
   let ids = [String(userId)];
   try {
     const got = await require('./personScope').personIds(userId);
@@ -31,13 +31,15 @@ async function leaderboardMe611({ userId, scope, myCity, myCountryDigits }) {
   if (mine.some((d) => d.isStaff === true)) out.excludedReason = 'staff';
   else if (mine.some((d) => isTestAccountEmail(d.email))) out.excludedReason = 'test';
   else if (scope === 'city' && !myCity) out.excludedReason = 'no_city';
-  else if (scope === 'country' && !myCountryDigits) out.excludedReason = 'no_country';
+  else if (scope === 'country' && !myCountryIso && !myCountryDigits) out.excludedReason = 'no_country';
   if (out.excludedReason || points <= 0) return out;
   const ahead = new Set();
   for (const M of [Owner, Sitter, Walker]) {
     const filter = { pawPoints: { $gt: points }, isStaff: { $ne: true } };
     if (scope === 'city') filter['location.city'] = myCity;
-    if (scope === 'country') filter.countryCode = new RegExp(`^\\s*\\+?\\s*${myCountryDigits}\\s*$`);
+    // 619 (BOB) — même règle que la liste : pays d'adresse, indicatif en secours.
+    if (scope === 'country' && myCountryIso) Object.assign(filter, require('./countryFromPhone').countryFilter(myCountryIso));
+    else if (scope === 'country') filter.countryCode = new RegExp(`^\\s*\\+?\\s*${myCountryDigits}\\s*$`);
     // eslint-disable-next-line no-await-in-loop
     const docs = await M.find(filter).select('email').limit(5000).lean().catch(() => []);
     for (const d of docs) {
