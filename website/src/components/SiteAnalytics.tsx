@@ -136,6 +136,15 @@ export function campaignReferrer(): string {
   return p.toString();
 }
 
+/**
+ * 19/10/2026 (SAM) — nom de la campagne de la visite (utm_campaign), vide hors
+ * pub. Sert à /download pour reprendre la promesse de la pub qui y envoie.
+ */
+export function currentCampaign(): string {
+  if (typeof window === "undefined") return "";
+  return readCampaign().uc;
+}
+
 /** Même chose pour un <Link> : le lien est complété après l'affichage (pas d'écart serveur/navigateur). */
 export function useCampaignHref(href: string): string {
   const [h, setH] = useState(href);
