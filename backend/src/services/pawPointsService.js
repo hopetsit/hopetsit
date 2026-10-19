@@ -306,6 +306,13 @@ async function awardPointsDetailed({ userId, role, points, reason = '', skipLog 
     if (!skipLog) await logPoints611({ userId, role, points: pts, reason, email: updated.email });
     // v532 — propage le nouveau solde aux autres profils du même compte.
     await syncPointsAcrossRoles(userId, role);
+    // 618 (ZOE, 19/10) — pin « 1er Chef de meute » : enregistré UNE fois, au
+    // passage des 3 000 points (jamais staff / test). Ne bloque jamais le gain.
+    try {
+      await require('./pins618').maybeRecordFirstPackLeader({
+        userId, role, before: lifetime, after: updated.pawPoints,
+      });
+    } catch (_) { /* jamais bloquant */ }
     logger.info(
       `🐾 [pawPoints] +${pts}${doubled ? ' (×2 Premium)' : ''}${bonus ? ' (+' + bonus + '% niveau)' : ''} → ${role}:${userId} (à vie ${updated.pawPoints}) ${reason ? '— ' + reason : ''}`,
     );

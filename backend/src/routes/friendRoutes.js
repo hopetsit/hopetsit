@@ -548,7 +548,10 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
         rank: require('../services/ranks611').rankOfDocs(entries.map((e) => e.d)),
       });
     }
-    return res.json({ members, count: members.length });
+    // 618 (ZOE) — pins par membre (podium général, 1er Chef de meute).
+    let pinned = members;
+    try { pinned = await require('../services/pins618').withMemberPins(members); } catch (_) { /* sans pins */ }
+    return res.json({ members: pinned, count: pinned.length });
   } catch (e) {
     logger.error('[friends/members/nearby]', e);
     return res.status(500).json({ error: 'Unable to fetch nearby members.' });
@@ -800,13 +803,24 @@ async function _withHiddenFriends(req, payload) {
   }
 }
 
+// 618 (ZOE, 19/10) — pins posés APRÈS le cache partagé (5 min) : le podium
+// suit l'instantané de 60 s, sans jamais modifier l'objet en cache.
+async function _withPins618(payload) {
+  try {
+    const members = await require('../services/pins618').withMemberPins(payload.members || []);
+    return { ...payload, members };
+  } catch (_) {
+    return payload;
+  }
+}
+
 router.get('/members/world', requireAuth, async (req, res) => {
   try {
     // v594 — centres-villes gardés en base (floutage stable après redémarrage).
     await require('../utils/geocodeCity').ensureAnchorsLoaded();
     const now = Date.now();
     if (_worldCache.payload && now - _worldCache.at < WORLD_TTL_MS) {
-      return res.json(await _withHiddenFriends(req, _worldCache.payload));
+      return res.json(await _withPins618(await _withHiddenFriends(req, _worldCache.payload)));
     }
     const nowDate = new Date();
     const UserSubscription = require('../models/UserSubscription');
@@ -965,7 +979,7 @@ router.get('/members/world', requireAuth, async (req, res) => {
       approxKm: WORLD_APPROX_KM,
     };
     _worldCache = { at: now, payload };
-    return res.json(await _withHiddenFriends(req, payload));
+    return res.json(await _withPins618(await _withHiddenFriends(req, payload)));
   } catch (e) {
     logger.error('[friends/members/world]', e);
     return res.status(500).json({ error: 'Unable to fetch world members.' });

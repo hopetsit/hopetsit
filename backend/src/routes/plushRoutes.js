@@ -46,7 +46,10 @@ router.get('/active', requireAuth, async (req, res) => {
 
 router.get('/collection', requireAuth, async (req, res) => {
   try {
-    return res.json(await plush.collection({ userId: req.user.id }));
+    // 618 — `monthly.label` dans la langue demandée (?lang= ou Accept-Language),
+    // `monthly.labels` porte les 9 langues.
+    const lang = String(req.query.lang || req.headers['accept-language'] || 'fr').slice(0, 2);
+    return res.json(await plush.collection({ userId: req.user.id, lang }));
   } catch (e) {
     logger.error('[plush/collection]', e);
     return res.status(500).json({ error: 'Unable to read collection.' });

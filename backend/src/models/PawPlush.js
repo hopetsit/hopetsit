@@ -71,12 +71,14 @@ pawPlushSchema.index({ expireAt: 1 }, { expireAfterSeconds: 0 });
 /**
  * Bonus déjà accordés à une personne (jamais deux fois le même) :
  *   kind 'collector' (5 types réunis, key 'once'),
- *   kind 'streak7'   (7 jours de suite, key = jour qui complète la série).
+ *   kind 'streak7'   (7 jours de suite, key = jour qui complète la série),
+ *   kind 'collector_month' (618 : 5 types réunis dans le mois, key 'YYYY-MM').
  */
 const pawPlushBonusSchema = new mongoose.Schema(
   {
     personKey: { type: String, required: true },
-    kind: { type: String, enum: ['collector', 'streak7'], required: true },
+    // 618 — 'collector_month' : collection du mois (key 'YYYY-MM', fuseau Europe/Paris).
+    kind: { type: String, enum: ['collector', 'streak7', 'collector_month'], required: true },
     key: { type: String, required: true },
     points: { type: Number, default: 0 },
     at: { type: Date, default: Date.now },

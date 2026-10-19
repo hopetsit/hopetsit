@@ -514,6 +514,152 @@ async function ensureDraw(city, { now = Date.now() } = {}) {
   return { day, created };
 }
 
+// ── 618 (ZOE, 19/10/2026) — COLLECTION DU MOIS ──────────────────────────────
+// Décision de Daniel du 19/10 (PROCHAIN_BUILD_618.md §C). Chaque mois civil
+// (fuseau Europe/Paris), les 5 types attrapés PENDANT ce mois = +500 (×2 si
+// Premium, par awardPointsDetailed) + badge « Collection <mois> <année> »,
+// une fois par mois (PawPlushBonus kind 'collector_month', key 'YYYY-MM').
+// Démarre le 01/11/2026 : octobre reste la collection d'origine (bonus
+// 'collector', inchangé), aucun bonus rétroactif.
+const MONTHLY_POINTS = 500;
+const MONTHLY_START_KEY = '2026-11';
+const MONTHLY_TZ = 'Europe/Paris';
+// Thème du mois : habillage dessiné EN CODE par l'app et le site (aucune image
+// externe). Libellés en 9 langues (fr en es de it pt ko ja pl).
+const MONTH_THEMES = Object.freeze({
+  1: { theme: 'snow', color: '#5B8DEF', labels: { fr: 'Neige', en: 'Snow', es: 'Nieve', de: 'Schnee', it: 'Neve', pt: 'Neve', ko: '눈', ja: '雪', pl: 'Śnieg' } },
+  2: { theme: 'hearts', color: '#E0457B', labels: { fr: 'Cœurs', en: 'Hearts', es: 'Corazones', de: 'Herzen', it: 'Cuori', pt: 'Corações', ko: '하트', ja: 'ハート', pl: 'Serca' } },
+  3: { theme: 'spring', color: '#3FA34D', labels: { fr: 'Printemps', en: 'Spring', es: 'Primavera', de: 'Frühling', it: 'Primavera', pt: 'Primavera', ko: '봄', ja: '春', pl: 'Wiosna' } },
+  4: { theme: 'flowers', color: '#D9569E', labels: { fr: 'Fleurs', en: 'Flowers', es: 'Flores', de: 'Blumen', it: 'Fiori', pt: 'Flores', ko: '꽃', ja: '花', pl: 'Kwiaty' } },
+  5: { theme: 'picnic', color: '#E07A2E', labels: { fr: 'Pique-nique', en: 'Picnic', es: 'Pícnic', de: 'Picknick', it: 'Picnic', pt: 'Piquenique', ko: '소풍', ja: 'ピクニック', pl: 'Piknik' } },
+  6: { theme: 'beach', color: '#1E9BD7', labels: { fr: 'Plage', en: 'Beach', es: 'Playa', de: 'Strand', it: 'Spiaggia', pt: 'Praia', ko: '해변', ja: 'ビーチ', pl: 'Plaża' } },
+  7: { theme: 'summer', color: '#F2A516', labels: { fr: 'Été', en: 'Summer', es: 'Verano', de: 'Sommer', it: 'Estate', pt: 'Verão', ko: '여름', ja: '夏', pl: 'Lato' } },
+  8: { theme: 'holidays', color: '#14A39A', labels: { fr: 'Vacances', en: 'Holidays', es: 'Vacaciones', de: 'Ferien', it: 'Vacanze', pt: 'Férias', ko: '휴가', ja: '夏休み', pl: 'Wakacje' } },
+  9: { theme: 'back_to_school', color: '#7A3FB8', labels: { fr: 'Rentrée', en: 'Back to school', es: 'Vuelta al cole', de: 'Schulanfang', it: 'Ritorno a scuola', pt: 'Regresso às aulas', ko: '새 학기', ja: '新学期', pl: 'Powrót do szkoły' } },
+  10: { theme: 'halloween', color: '#E8651A', labels: { fr: 'Halloween', en: 'Halloween', es: 'Halloween', de: 'Halloween', it: 'Halloween', pt: 'Halloween', ko: '핼러윈', ja: 'ハロウィン', pl: 'Halloween' } },
+  11: { theme: 'autumn', color: '#C2571A', labels: { fr: 'Automne', en: 'Autumn', es: 'Otoño', de: 'Herbst', it: 'Autunno', pt: 'Outono', ko: '가을', ja: '秋', pl: 'Jesień' } },
+  12: { theme: 'winter', color: '#2F6FD6', labels: { fr: 'Hiver', en: 'Winter', es: 'Invierno', de: 'Winter', it: 'Inverno', pt: 'Inverno', ko: '겨울', ja: '冬', pl: 'Zima' } },
+});
+// « Collection novembre 2026 » : noms des mois, 9 langues.
+const MONTH_NAMES = Object.freeze({
+  fr: ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'],
+  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  es: ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'],
+  de: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
+  it: ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'],
+  pt: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'],
+  ko: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
+  ja: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+  pl: ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'],
+});
+const MONTHLY_LANGS = Object.freeze(Object.keys(MONTH_NAMES));
+const COLLECTION_WORD = Object.freeze({
+  fr: (m, y) => `Collection ${m} ${y}`, en: (m, y) => `${m} ${y} collection`,
+  es: (m, y) => `Colección de ${m} ${y}`, de: (m, y) => `Sammlung ${m} ${y}`,
+  it: (m, y) => `Collezione ${m} ${y}`, pt: (m, y) => `Coleção de ${m} ${y}`,
+  ko: (m, y) => `${y}년 ${m} 컬렉션`, ja: (m, y) => `${y}年${m}コレクション`,
+  pl: (m, y) => `Kolekcja ${m} ${y}`,
+});
+
+/** 'YYYY-MM' du mois civil en cours à Paris. */
+function monthKeyFor(now = Date.now()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: MONTHLY_TZ, year: 'numeric', month: '2-digit' })
+    .format(new Date(now)).slice(0, 7);
+}
+
+/** Instant UTC du 1er du mois à 00:00 heure de Paris (UTC+1 ou UTC+2). */
+function parisMonthStart(year, month) {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: MONTHLY_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  });
+  const want = `${year}-${String(month).padStart(2, '0')}-01, 00:00`;
+  for (const h of [1, 2, 0, 3]) {
+    const t = Date.UTC(year, month - 1, 1, 0, 0) - h * 3600000;
+    if (fmt.format(new Date(t)) === want) return new Date(t);
+  }
+  return new Date(Date.UTC(year, month - 1, 1, 0, 0) - 3600000);
+}
+
+/** Bornes [startsAt, endsAt) d'un mois 'YYYY-MM' (heure de Paris). */
+function monthBounds(key) {
+  const [y, m] = key.split('-').map(Number);
+  const next = m === 12 ? [y + 1, 1] : [y, m + 1];
+  return { startsAt: parisMonthStart(y, m), endsAt: parisMonthStart(next[0], next[1]) };
+}
+
+function monthlyLang(lang) {
+  const l = String(lang || '').toLowerCase().slice(0, 2);
+  return MONTHLY_LANGS.includes(l) ? l : 'fr';
+}
+
+/** Description du mois 'YYYY-MM' : thème, libellés, badge, bornes. */
+function monthInfo(key, lang = 'fr') {
+  const [y, m] = key.split('-').map(Number);
+  const t = MONTH_THEMES[m];
+  const l = monthlyLang(lang);
+  const badgeLabels = Object.fromEntries(MONTHLY_LANGS.map((x) => [x, COLLECTION_WORD[x](MONTH_NAMES[x][m - 1], y)]));
+  const { startsAt, endsAt } = monthBounds(key);
+  return {
+    key,
+    theme: t.theme,
+    label: t.labels[l],
+    labels: t.labels,
+    color: t.color,
+    badge: `collection_${key}`,
+    badgeLabel: badgeLabels[l],
+    badgeLabels,
+    startsAt: startsAt.toISOString(),
+    endsAt: endsAt.toISOString(),
+  };
+}
+
+/** Mois actif de la collection (le 1er mois tant qu'on est avant le départ). */
+function currentMonthlyKey(now = Date.now()) {
+  const k = monthKeyFor(now);
+  return k < MONTHLY_START_KEY ? MONTHLY_START_KEY : k;
+}
+
+/** La collection du mois a-t-elle commencé ? */
+function monthlyStarted(now = Date.now()) {
+  return now >= monthBounds(MONTHLY_START_KEY).startsAt.getTime();
+}
+
+/** Thème d'une capture faite à l'instant `at` (null avant le 01/11/2026). */
+function themeAt(at) {
+  const t = at ? new Date(at).getTime() : NaN;
+  if (!Number.isFinite(t) || !monthlyStarted(t)) return null;
+  return MONTH_THEMES[Number(monthKeyFor(t).slice(5, 7))].theme;
+}
+
+/** Types attrapés par la personne pendant le mois `key`. */
+async function monthlyCaughtTypes(personKey, key) {
+  const { startsAt, endsAt } = monthBounds(key);
+  const types = await PawPlush.distinct('type', {
+    caughtByPerson: personKey,
+    'caughtBy.at': { $gte: startsAt, $lt: endsAt },
+  });
+  return PLUSH_TYPES.filter((t) => types.includes(t));
+}
+
+/** Bloc `monthly` de GET /plush/collection. */
+async function monthlyFor(personKey, { now = Date.now(), lang = 'fr' } = {}) {
+  const key = currentMonthlyKey(now);
+  const info = monthInfo(key, lang);
+  const started = monthlyStarted(now);
+  const caughtTypes = started ? await monthlyCaughtTypes(personKey, key) : [];
+  const bonusGranted = started
+    ? !!(await PawPlushBonus.exists({ personKey, kind: 'collector_month', key }))
+    : false;
+  return {
+    ...info,
+    caughtTypes,
+    complete: caughtTypes.length === PLUSH_TYPES.length,
+    bonusPoints: MONTHLY_POINTS,
+    bonusGranted,
+    started,
+  };
+}
+
 // ── Balade en cours (côté serveur) ──────────────────────────────────────────
 
 async function personOf(userId) {
@@ -683,7 +829,7 @@ async function catchPlush({ userId, role, plushId, lat, lng, accuracy, now = Dat
     return {
       ok: true,
       already: true,
-      plush: { id: String(mine._id), type: mine.type, golden: !!mine.golden, day: mine.day },
+      plush: { id: String(mine._id), type: mine.type, golden: !!mine.golden, day: mine.day, theme: themeAt(mine.caughtBy && mine.caughtBy.at) },
       points: Number.isFinite(mine.creditedPoints) ? mine.creditedPoints : null,
       lifetime: null,
       streak: 0,
@@ -794,6 +940,24 @@ async function catchPlush({ userId, role, plushId, lat, lng, accuracy, now = Dat
       bonuses.push({ kind: 'collector', points: b.credited, badge: 'collector' });
     }
   }
+  // 618 — collection du mois (dès le 01/11/2026, heure de Paris) : les 5
+  // types attrapés pendant le mois → +500 une fois par mois. Le bonus
+  // 'collector' d'origine ci-dessus est inchangé.
+  if (monthlyStarted(now)) {
+    const mKey = monthKeyFor(now);
+    const mTypes = await monthlyCaughtTypes(me.key, mKey);
+    if (mTypes.length === PLUSH_TYPES.length) {
+      const b = await grantBonusOnce(me.key, 'collector_month', mKey, MONTHLY_POINTS, { userId, role });
+      if (b) {
+        points += b.credited;
+        lifetime = b.lifetime;
+        bonuses.push({
+          kind: 'collector_month', key: mKey, points: b.credited,
+          theme: MONTH_THEMES[Number(mKey.slice(5, 7))].theme, badge: `collection_${mKey}`,
+        });
+      }
+    }
+  }
   // 7 jours de suite avec une capture : +200 à chaque série complète de 7.
   const days = await PawPlush.distinct('day', { caughtByPerson: me.key });
   const streak = streakEndingAt(days, won.day);
@@ -807,7 +971,8 @@ async function catchPlush({ userId, role, plushId, lat, lng, accuracy, now = Dat
   }
   return {
     ok: true,
-    plush: { id: String(won._id), type: won.type, golden, day: won.day },
+    // 618 — thème du mois de la capture (null avant le 01/11/2026).
+    plush: { id: String(won._id), type: won.type, golden, day: won.day, theme: themeAt(now) },
     points,
     lifetime,
     streak,
@@ -852,7 +1017,7 @@ async function grantBoostHours(userId, role, hours, now = Date.now()) {
   }
 }
 
-async function collection({ userId }) {
+async function collection({ userId, now = Date.now(), lang = 'fr' }) {
   const me = await personOf(userId);
   const rows = await PawPlush.find({ caughtByPerson: me.key })
     .sort({ 'caughtBy.at': -1 }).limit(500).lean();
@@ -864,17 +1029,33 @@ async function collection({ userId }) {
   }
   const collector = !!(await PawPlushBonus.exists({ personKey: me.key, kind: 'collector' }));
   const today = rows.length ? rows[0].day : null;
+  // 618 — collections du mois déjà gagnées (badges « Collection <mois> »).
+  const monthlyWon = (await PawPlushBonus.find({ personKey: me.key, kind: 'collector_month' })
+    .sort({ key: -1 }).select('key').lean())
+    .map((b) => {
+      const info = monthInfo(b.key, lang);
+      return { key: b.key, theme: info.theme, color: info.color, badge: info.badge, badgeLabel: info.badgeLabel };
+    });
   return {
+    // 618 — collection du mois en cours (avant le 01/11 : startsAt futur, caughtTypes []).
+    monthly: await monthlyFor(me.key, { now, lang }),
+    monthlyBadges: monthlyWon,
     total: rows.length,
     counts,
     golden,
     types: PLUSH_TYPES,
     badges: collector ? ['collector'] : [],
     streak: today ? streakEndingAt(rows.map((r) => r.day), today) : 0,
-    items: rows.map((r) => ({
-      id: String(r._id), type: r.type, golden: !!r.golden, day: r.day, city: r.cityLabel || '',
-      at: r.caughtBy && r.caughtBy.at ? new Date(r.caughtBy.at).toISOString() : null,
-    })),
+    items: rows.map((r) => {
+      const at = r.caughtBy && r.caughtBy.at ? new Date(r.caughtBy.at) : null;
+      return {
+        id: String(r._id), type: r.type, golden: !!r.golden, day: r.day, city: r.cityLabel || '',
+        at: at ? at.toISOString() : null,
+        // 618 — album rangé par mois (Paris) + thème du mois (null avant le 01/11).
+        month: at ? monthKeyFor(at.getTime()) : String(r.day || '').slice(0, 7),
+        theme: themeAt(at),
+      };
+    }),
   };
 }
 
@@ -891,10 +1072,27 @@ const PLUSH_RULES = Object.freeze({
   golden: { points: GOLDEN_POINTS, boostHours: GOLDEN_BOOST_HOURS, perCityPerWeek: 1 },
   collector: { points: COLLECTOR_POINTS, badge: 'collector', types: PLUSH_TYPES.length },
   streak: { days: STREAK_DAYS, points: STREAK_POINTS },
+  // 618 — collection du mois (contrat PROCHAIN_BUILD_618.md §C).
+  monthly: {
+    points: MONTHLY_POINTS,
+    startsOn: `${MONTHLY_START_KEY}-01`,
+    timeZone: MONTHLY_TZ,
+    types: PLUSH_TYPES.length,
+    themes: Object.entries(MONTH_THEMES).map(([m, t]) => ({ month: Number(m), theme: t.theme, color: t.color, labels: t.labels })),
+  },
 });
 
 module.exports = {
   PLUSH_RULES,
+  MONTHLY_POINTS,
+  MONTHLY_START_KEY,
+  MONTH_THEMES,
+  monthKeyFor,
+  monthBounds,
+  monthInfo,
+  monthlyStarted,
+  themeAt,
+  monthlyFor,
   GOLDEN_POINTS,
   GOLDEN_BOOST_HOURS,
   COLLECTOR_POINTS,

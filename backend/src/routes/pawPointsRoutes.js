@@ -117,6 +117,19 @@ router.get('/catalog', async (req, res) => {
   }
 });
 
+// ─── 618 (ZOE, 19/10) — GET /pins (PUBLIC) ───────────────────────────────────
+// Podium général du moment (3 personnes, sans staff ni test) + 1er Chef de
+// meute (définitif). Instantané serveur de 60 s, même cache côté client/CDN.
+router.get('/pins', async (req, res) => {
+  try {
+    res.set('Cache-Control', 'public, max-age=60');
+    return res.json(await require('../services/pins618').publicPins());
+  } catch (e) {
+    logger.error('[pawpoints/pins]', e);
+    return res.status(500).json({ error: 'Erreur pins.' });
+  }
+});
+
 // ─── GET /me ─────────────────────────────────────────────────────────────────
 router.get('/me', requireAuth, async (req, res) => {
   try {
@@ -188,6 +201,9 @@ router.get('/me', requireAuth, async (req, res) => {
       // vu le message (l'app le montre une fois, puis POST /rank-seen).
       rank: ranks611.rankFor(st.lifetime),
       rankSeenLevel: await _rankSeenLevel(me.email, req.user.id),
+      // 618 (ZOE) — pins de la personne (podium général, 1er Chef de meute).
+      pins: await require('../services/pins618').pinsForUser(req.user.id)
+        .catch(() => ({ podium: null, firstPackLeader: false })),
     });
   } catch (e) {
     logger.error('[pawpoints/me]', e);

@@ -578,6 +578,19 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
     rows.length = 0;
     rows.push(...deduped);
     rows.sort((a, b) => b.points - a.points);
+    // 618 (ZOE, 19/10) — pins (podium général + 1er Chef de meute), même
+    // forme partout : { podium: 1|2|3|null, firstPackLeader: bool }.
+    const pins618 = require('../services/pins618');
+    const pinSnap = await pins618.getSnapshot().catch(() => null);
+    for (const r of rows) r.pins = pins618.pinsFromSnapshot(pinSnap, [r.userId]);
+    const me611 = await require('../utils/leaderboardMe611').leaderboardMe611({
+      userId: req.user.id, scope, myCity, myCountryDigits, myCountryIso: myCountry?.iso || '',
+    }).catch(() => null);
+    if (me611) {
+      let myIds = [String(req.user.id)];
+      try { myIds = myIds.concat(await require('../utils/personScope').personIds(req.user.id)); } catch (_) { /* id seul */ }
+      me611.pins = pins618.pinsFromSnapshot(pinSnap, myIds);
+    }
     res.json({
       scope,
       city: myCity,
@@ -586,9 +599,7 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
       countryName: myCountry?.name || '',
       leaderboard: rows.slice(0, 50),
       // 611 (PAM) — MA ligne, toujours (« Je suis OÙ ? », Cam 04/10).
-      me: await require('../utils/leaderboardMe611').leaderboardMe611({
-        userId: req.user.id, scope, myCity, myCountryDigits, myCountryIso: myCountry?.iso || '',
-      }).catch(() => null),
+      me: me611,
     });
   } catch (e) {
     logger.error('[pawspots/leaderboard]', e);
