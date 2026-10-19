@@ -26,6 +26,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../data/network/api_client.dart';
 import '../../../data/network/api_exception.dart';
 import '../../../utils/app_colors.dart';
+import 'pawmap_plush_month618.dart';
 
 /// Clé du calque dans `pawMap.layers` (même nom côté serveur et site).
 const String kPawPlushLayerKey = 'plush';
@@ -138,6 +139,8 @@ class PawPlushWin {
     this.streak = 0,
     this.type = 'teddy',
     this.already = false,
+    this.premiumDoubled = false,
+    this.monthCollector = false,
   });
   final int points;
   final bool golden;
@@ -148,6 +151,11 @@ class PawPlushWin {
   /// 613 — capture déjà enregistrée pour moi (réponse précédente perdue) :
   /// on la fête quand même, aucun point recrédité.
   final bool already;
+  /// 618 (§A) — gain doublé par Paw Premium (serveur `premiumDoubled`) :
+  /// la carte dit « +500 ×2 Premium = 1000 » au lieu de « +1000 » seul.
+  final bool premiumDoubled;
+  /// 618 (§C) — cette capture complète la collection du mois.
+  final bool monthCollector;
 }
 
 typedef PawPlushGet = Future<dynamic> Function(String path, Map<String, String> query);
@@ -358,6 +366,8 @@ class PawPlushLayer {
         golden: p.golden,
         collector: bonuses.any((b) => b is Map && b['kind'] == 'collector'),
         streak: res is Map ? ((res['streak'] as num?)?.toInt() ?? 0) : 0,
+        premiumDoubled: res is Map && res['premiumDoubled'] == true, // 618
+        monthCollector: bonuses.any((b) => b is Map && b['kind'] == 'collector_month'), // 618
       );
       return (PawPlushCatch.caught, pts);
     } on ApiException catch (e) {
@@ -741,10 +751,12 @@ class PawPlushTodayBadge extends StatelessWidget {
 }
 
 class PawPlushCollectionSection extends StatefulWidget {
-  const PawPlushCollectionSection({super.key, this.load});
+  const PawPlushCollectionSection({super.key, this.load, this.now});
 
   /// Lecture de /plush/collection (injectable pour les tests).
   final Future<dynamic> Function()? load;
+  /// 618 — horloge injectable (tests du compte à rebours).
+  final DateTime Function()? now;
 
   @override
   State<PawPlushCollectionSection> createState() => _PawPlushCollectionSectionState();
@@ -757,6 +769,10 @@ class _PawPlushCollectionSectionState extends State<PawPlushCollectionSection> {
   int _streak = 0;
   bool _collector = false;
   bool _ready = false;
+  PawMonthly618? _monthly; // 618 — collection du mois (null = ancien serveur)
+  List<Map<String, dynamic>> _monthBadges = const []; // 618 — mois déjà gagnés
+  Map<String, List<String>> _album = const {}; // 618 — 'YYYY-MM' → types (thème)
+  Map<String, String> _albumTheme = const {};
 
   @override
   void initState() {
@@ -766,8 +782,10 @@ class _PawPlushCollectionSectionState extends State<PawPlushCollectionSection> {
 
   Future<void> _read() async {
     try {
+      final lang = Get.locale?.languageCode ?? 'fr';
       final res = await (widget.load ??
-          () => Get.find<ApiClient>().get('/plush/collection', requiresAuth: true))();
+          () => Get.find<ApiClient>().get('/plush/collection',
+              queryParameters: <String, String>{'lang': lang}, requiresAuth: true))();
       if (!mounted) return;
       if (res is Map) {
         final c = res['counts'];
@@ -779,6 +797,25 @@ class _PawPlushCollectionSectionState extends State<PawPlushCollectionSection> {
           _golden = (res['golden'] as num?)?.toInt() ?? 0;
           _streak = (res['streak'] as num?)?.toInt() ?? 0;
           _collector = res['badges'] is List && (res['badges'] as List).contains('collector');
+          // 618 — collection du mois + badges des mois gagnés + album par mois.
+          _monthly = PawMonthly618.fromJson(res['monthly'], lang: Get.locale?.languageCode);
+          _monthBadges = (res['monthlyBadges'] as List? ?? const [])
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+          final album = <String, List<String>>{};
+          final albumTheme = <String, String>{};
+          for (final it in (res['items'] as List? ?? const []).whereType<Map>()) {
+            final th = (it['theme'] ?? '').toString();
+            final mk = (it['month'] ?? '').toString();
+            if (th.isEmpty || pawMonthOfKey618(mk) == null) continue; // octobre : pas de thème
+            final t = (it['type'] ?? '').toString();
+            final l = album.putIfAbsent(mk, () => <String>[]);
+            if (kPawPlushTypes.contains(t) && !l.contains(t)) l.add(t);
+            albumTheme[mk] = th;
+          }
+          _album = album;
+          _albumTheme = albumTheme;
           _ready = true;
         });
       }
@@ -853,9 +890,70 @@ class _PawPlushCollectionSectionState extends State<PawPlushCollectionSection> {
           ),
           SizedBox(height: 10.h),
           Text('plush607_rules'.tr, style: TextStyle(fontSize: 10.5.sp, color: sub, height: 1.3)),
+          ..._month618(context),
         ],
       ),
     );
+  }
+
+  /// 618 (§C) — fin de collection, collection du mois, badges, album.
+  List<Widget> _month618(BuildContext context) {
+    if (!_ready) return const <Widget>[];
+    final now = widget.now?.call() ?? DateTime.now();
+    final bool originComplete =
+        _collector || kPawPlushTypes.every((t) => (_counts[t] ?? 0) > 0);
+    final done = pawCollectionDoneMessage618(
+        originComplete: originComplete, monthly: _monthly, now: now);
+    final sub = AppColors.textSecondary(context);
+    return <Widget>[
+      if (done.isNotEmpty) ...[
+        SizedBox(height: 12.h),
+        PawCollectionDoneBanner618(text: done, color: _monthly?.color ?? _rose),
+      ],
+      if (_monthly != null) ...[
+        SizedBox(height: 12.h),
+        PawMonthlyCard618(monthly: _monthly!, now: now),
+      ],
+      if (_monthBadges.isNotEmpty) ...[
+        SizedBox(height: 10.h),
+        Wrap(spacing: 6.w, runSpacing: 6.h, children: [
+          for (final b in _monthBadges)
+            _chip('🏅 ${(b['badgeLabel'] ?? b['key'] ?? '').toString()}',
+                Color.lerp(kPawMonthThemeColors618[(b['theme'] ?? '').toString()] ?? _rose, Colors.black, 0.15)!,
+                key: ValueKey<String>('month618_badge_${b['key']}')),
+        ]),
+      ],
+      if (_album.isNotEmpty) ...[
+        SizedBox(height: 12.h),
+        Text('month618_album'.tr,
+            style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w800, color: AppColors.textPrimary(context))),
+        SizedBox(height: 6.h),
+        for (final mk in (_album.keys.toList()..sort((a, b) => b.compareTo(a))))
+          Padding(
+            key: ValueKey<String>('month618_album_$mk'),
+            padding: EdgeInsets.only(bottom: 6.h),
+            child: Row(children: [
+              SizedBox(
+                width: 92.w,
+                child: Text('${pawMonthName618(pawMonthOfKey618(mk)!)} ${mk.substring(0, 4)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.w700, color: sub)),
+              ),
+              for (final t in _album[mk]!)
+                Padding(
+                  padding: EdgeInsets.only(right: 4.w),
+                  child: PawThemedPlush618(
+                    type: t,
+                    theme: _albumTheme[mk] ?? '',
+                    color: kPawMonthThemeColors618[_albumTheme[mk]] ?? _rose,
+                    size: 30.w,
+                  ),
+                ),
+            ]),
+          ),
+      ],
+    ];
   }
 
   Widget _chip(String text, Color c, {Key? key}) => Container(

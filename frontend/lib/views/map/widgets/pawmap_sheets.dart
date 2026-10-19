@@ -32,6 +32,7 @@ import 'pawmap_buttons.dart';
 import 'pawmap_jewel.dart';
 import 'pawmap_pins.dart';
 import '../../../widgets/paw_rank611.dart';
+import '../../../widgets/paw_pins618.dart';
 
 /// Conteneur commun des feuilles de la carte : carte flottante, coins 24,
 /// ombre douce, poignée, marge système.
@@ -194,10 +195,13 @@ class PawMapMemberData {
     this.hasOpenRequest = false,
     this.distanceLabel = '',
     this.rank,
+    this.pins, // 618
   });
 
   /// 611 — rang (Chiot → Légende) sur les PawPoints gagnés ; null = inconnu.
   final PawRank611? rank;
+  /// 618 — pins podium / 1er Chef de meute (null = rien).
+  final PawPins618? pins;
   final String id;
   final String role; // owner | sitter | walker
   final String name;
@@ -378,7 +382,7 @@ class PawMapMemberSheet extends StatelessWidget {
             roleLabel: _roleLabel,
             priceLabel: priceLabel,
           ),
-          if (member.rank != null || member.verified || member.availableToday || member.boosted) ...[
+          if (member.rank != null || member.pins != null || member.verified || member.availableToday || member.boosted) ...[
             SizedBox(height: 10.h),
             Wrap(
               spacing: 6.w,
@@ -388,6 +392,9 @@ class PawMapMemberSheet extends StatelessWidget {
                 // 611 — rang façon Waze, en premier.
                 if (member.rank != null)
                   PawRankPill611(key: const ValueKey<String>('member_rank'), rank: member.rank!),
+                // 618 — pins du classement juste après le rang.
+                if (member.pins != null)
+                  PawPinsRow618(key: const ValueKey<String>('member_pins'), pins: member.pins!),
                 if (member.verified)
                   PawInfoChip(
                     label: 'pawmap_member_verified'.tr,

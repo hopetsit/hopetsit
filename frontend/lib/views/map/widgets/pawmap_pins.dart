@@ -745,6 +745,40 @@ class PawMapPinPainter {
         stroke: 3.4);
   }
 
+  /// 618 (PAM) — pin du classement sur le rond d'un membre, au MILIEU du
+  /// bord gauche (seule place libre : couronne en haut à droite, coche en bas
+  /// à droite, fusée en bas à gauche, point de statut en haut à gauche).
+  /// [code] 1..3 = podium or / argent bleuté / bronze (chiffre), 4 = 1er Chef
+  /// de meute (violet, patte dorée). Mêmes couleurs que `PawPinStyle618`.
+  static void drawPin618(Canvas canvas, Offset center, int code, [double size = 16]) {
+    if (code < 1 || code > 4) return;
+    const fills = <int, List<Color>>{
+      1: [Color(0xFFFFD86B), Color(0xFFD99A06)],
+      2: [Color(0xFFD4E2F4), Color(0xFF7E9CC4)],
+      3: [Color(0xFFF2B27A), Color(0xFFB0602A)],
+      4: [Color(0xFFB58AF0), Color(0xFF6A2FB0)],
+    };
+    const inks = <int, Color>{
+      1: Color(0xFF5A3C00),
+      2: Color(0xFF1F3654),
+      3: Color(0xFF4A2208),
+    };
+    final r = size / 2;
+    final rect = Rect.fromCircle(center: center, radius: r);
+    cssShadow(canvas, Path()..addOval(rect),
+        dy: 1, blur: 3, color: PawMapLegend.ink.withValues(alpha: 0.35));
+    canvas.drawCircle(center, r, Paint()..color = code == 4 ? const Color(0xFFFFC94A) : Colors.white);
+    canvas.drawCircle(center, r - 1.5,
+        Paint()..shader = cssLinear(rect.deflate(1.5), 135, fills[code]!));
+    if (code == 4) {
+      final g = size * 0.58;
+      drawGlyph(canvas, PawGlyphs.paw(),
+          Rect.fromCenter(center: center, width: g, height: g), const Color(0xFFFFE08A));
+    } else {
+      drawText(canvas, '$code', center, size * 0.58, inks[code]!, weight: FontWeight.w900);
+    }
+  }
+
   /// Point « en ligne » (vert) ou « hors ligne / signal perdu » (orange) :
   /// bord blanc 2 px inclus (site : `onlineDot`).
   static void drawOnlineDot(Canvas canvas, Offset center, double size,
@@ -994,6 +1028,7 @@ class PawMapPinPainter {
     // 616 (PAM) — point de statut aussi HORS LIGNE (orange foncé plein) :
     // Daniel, 10/10 : « jamais la même pour tous ».
     bool offlineDot = false,
+    int pin618 = 0, // 618 — pin du classement (0 = rien)
   }) {
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
     if (withBubble) {
@@ -1057,6 +1092,7 @@ class PawMapPinPainter {
     if (crown) {
       _crownAt(canvas, c, r, PawMapLegend.crownMember);
     }
+    if (pin618 > 0) drawPin618(canvas, Offset(c.dx - r, c.dy), pin618);
     if (priceLabel != null && priceLabel.isNotEmpty) {
       _paintNameTag(canvas, priceLabel, c.dx, c.dy + r + 4, rating: rating);
     }
@@ -1302,6 +1338,7 @@ class PawMapPinPainter {
     bool labelAbove = false,
     // 616 (PAM) — point de statut aussi hors ligne (orange foncé plein).
     bool offlineDot = false,
+    int pin618 = 0, // 618 — pin du classement (0 = rien)
   }) {
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
     if (withBubble) {
@@ -1337,6 +1374,7 @@ class PawMapPinPainter {
       margin: margin,
       labelAbove: labelAbove,
       offlineDot: offlineDot,
+      pin618: pin618,
     );
     if (withBubble) canvas.restore();
   }
@@ -1374,6 +1412,7 @@ class PawMapPinPainter {
     double margin = photoMargin,
     bool labelAbove = false,
     bool offlineDot = false,
+    int pin618 = 0,
   }) {
     final r = size / 2;
     final bool hasLabel = label != null && label.isNotEmpty;
@@ -1540,6 +1579,7 @@ class PawMapPinPainter {
     if (crown) {
       _crownAt(canvas, c, r, crownSize);
     }
+    if (pin618 > 0) drawPin618(canvas, Offset(c.dx - r, c.dy), pin618);
 
     // 6. Étiquette sous le rond (v598 : ou au-dessus, [labelAbove]).
     if (label != null && label.isNotEmpty) {

@@ -18,6 +18,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/paw_button_kit.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:hopetsit/widgets/paw_rank611.dart';
+import 'package:hopetsit/widgets/paw_pins618.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_plush607.dart' show PawPlushCollectionSection;
 
 class PawspotLeaderboardScreen extends StatefulWidget {
@@ -388,6 +389,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
   PawRank611? _rank;
   // 611 (B) — « D'où viennent mes points » (GET /pawpoints/history).
   Map<String, dynamic>? _hist611;
+  PawPins618? _pins618; // 618 — mes pins (podium / 1er Chef de meute)
 
   @override
   void initState() {
@@ -464,6 +466,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
           _claimed = ck is List ? ck.map((e) => e.toString()).toSet() : <String>{};
           _history = _list(me['history']);
           _rank = PawRank611.fromJson(me['rank']);
+          _pins618 = PawPins618.fromJson(me['pins']); // 618
         }
       });
       // 611 (B) — historique des gains : appel séparé, jamais bloquant.
@@ -606,6 +609,39 @@ class _RewardsSheetState extends State<_RewardsSheet> {
         SizedBox(height: 12.h),
         PawRankProgress611(rank: _rank!),
       ],
+      // 618 — mes pins, sous mon rang (rien si je n'en ai pas).
+      if (_pins618 != null) ...[
+        SizedBox(height: 10.h),
+        Container(
+          key: const ValueKey<String>('pp618_my_pins'),
+          width: double.infinity,
+          padding: EdgeInsets.fromLTRB(14.w, 10.h, 14.w, 10.h),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: _gold.withValues(alpha: 0.55), width: 1.2),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InterText(
+                text: 'pins618_my_pins'.tr.toUpperCase(),
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textSecondary(context),
+              ),
+              SizedBox(height: 8.h),
+              PawPinsRow618(pins: _pins618!),
+              SizedBox(height: 6.h),
+              InterText(
+                text: 'pins618_how'.tr,
+                fontSize: 11.5.sp,
+                color: AppColors.textSecondary(context),
+              ),
+            ],
+          ),
+        ),
+      ],
       if (_hist611 != null) ...[
         SizedBox(height: 22.h),
         _history611(context),
@@ -669,7 +705,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
     String two(int v) => v.toString().padLeft(2, '0');
     // chiffres seuls : aucune donnée de langue à charger (jamais d'exception)
     String fmtDate(DateTime d) => '${two(d.day)}/${two(d.month)} · ${two(d.hour)}:${two(d.minute)}';
-    Widget row(String label, String date, int pts, Key key) => Container(
+    Widget row(String label, String date, int pts, Key key, {bool doubled = false}) => Container(
           key: key,
           padding: EdgeInsets.symmetric(vertical: 8.h),
           child: Row(
@@ -685,6 +721,21 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                   ],
                 ),
               ),
+              // 618 (§A) — gain doublé par Paw Premium : on le dit.
+              if (doubled) ...[
+                Container(
+                  key: ValueKey<String>('hist618_x2_${(key as ValueKey).value}'),
+                  padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 2.h),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFF2A2018), Color(0xFF15120D)]),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0xFFF4C04A), width: 1),
+                  ),
+                  child: Text('premium618_x2'.tr,
+                      style: TextStyle(fontSize: 10.sp, fontWeight: FontWeight.w800, color: const Color(0xFFF4C04A))),
+                ),
+                SizedBox(width: 8.w),
+              ],
               PoppinsText(
                 text: pts >= 0 ? '+$pts' : '−${-pts}',
                 fontSize: 14.sp,
@@ -728,6 +779,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
               }(),
               (e.value['points'] as num?)?.toInt() ?? 0,
               ValueKey<String>('hist611_row_${e.key}'),
+              doubled: e.value['doubled'] == true, // 618 — si le serveur le donne
             ),
           if (before > 0)
             row('hist611_before'.trParams({'n': '$before'}), '', before,
@@ -1769,6 +1821,11 @@ class _LeaderboardListState extends State<_LeaderboardList>
               ],
             ),
           ),
+          // 618 — pins podium / 1er Chef de meute (champ absent = rien).
+          if (PawPins618.fromJson(row['pins']) != null) ...[
+            SizedBox(width: 6.w),
+            PawPinsRow618(pins: PawPins618.fromJson(row['pins'])!, compact: true),
+          ],
           // 611 — le RANG (Chiot → Légende) remplace les 7 anciens badges.
           if (PawRank611.fromJson(row['rank']) != null) ...[
             SizedBox(width: 6.w),

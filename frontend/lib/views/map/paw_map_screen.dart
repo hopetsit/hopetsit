@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/paw_rank611.dart';
+import 'package:hopetsit/widgets/paw_pins618.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_route611.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/scheduler.dart';
@@ -1943,6 +1944,7 @@ class _PawMapScreenState extends State<PawMapScreen>
   }) {
     _holdCamera(); // v605 — un profil ouvert garde la caméra
     final PawRank611? rank611 = _personRank611(id, personIds, roleEntries);
+    final PawPins618? pins618 = _personPins618(id, personIds, roleEntries); // 618
     final List<String> personRoleList = roleEntries.length > 1
         ? pawMapOrderedRoles(roleEntries
             .map((e) => (e['_role'] ?? e['role'] ?? '').toString()))
@@ -1998,6 +2000,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           roles: personRoleList,
           verified: verified,
           rank: rank611, // 611
+          pins: pins618, // 618
           onOpen: () => _onNearbyTap(
             id: id,
             role: role,
@@ -2072,6 +2075,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       hasOpenRequest: hasOpenRequest,
       distanceLabel: approx ? '' : _distanceLabelTo(lat, lng),
       rank: rank611, // 611
+      pins: pins618, // 618
     );
     // v605 — « dès 100 €/sem » quand seul un tarif semaine / mois existe.
     final priceLabel = pawMapRolePriceText(
@@ -4843,6 +4847,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     String? priceBubble,
     String? slot,
     bool offlineDot = false, // 616
+    int pin618 = 0, // 618 — pin du classement
   }) {
     final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
     final size = PawMapLegend.memberSize;
@@ -4853,7 +4858,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final double mm = PawMapPinPainter.memberMarginFor(
         boosted: boosted, crown: crown, selected: selected);
     final key =
-        'member:m$mm:$role:${crown ? 1 : 0}:$phase:${verified ? 1 : 0}:${online ? 1 : 0}${offlineDot ? 'o' : ''}:${selected ? 1 : 0}:${priceLabel ?? ''}:$r1:${priceBubble ?? ''}';
+        'member:m$mm:$role:${crown ? 1 : 0}:$phase:${verified ? 1 : 0}:${online ? 1 : 0}${offlineDot ? 'o' : ''}:${selected ? 1 : 0}:${priceLabel ?? ''}:$r1:${priceBubble ?? ''}:p$pin618';
     // v605 — bitmap élargi à la bulle (duo, prix longs) : plus de bulle rognée.
     final w = PawMapPinPainter.memberBitmapWidth(size,
         priceBubble: withBubble ? priceBubble : null,
@@ -4887,6 +4892,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             priceBubble: withBubble ? priceBubble : null,
             margin: mm,
             offlineDot: offlineDot,
+            pin618: pin618,
           );
             c.restore();
           },
@@ -4923,6 +4929,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     // 609 — coche « identité vérifiée » en bas à droite.
     bool verified = false,
     bool offlineDot = false, // 616
+    int pin618 = 0, // 618 — pin du classement
   }) {
     final avatar = _pins.avatarFor(avatarUrl);
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
@@ -4932,7 +4939,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
     final withLabel = label != null && label.isNotEmpty;
     final key =
-        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey:${withBubble ? '$priceBubble/$priceRole' : ''}:${labelAbove && withLabel ? 'up' : ''}:${verified ? 'v' : ''}${offlineDot ? 'o' : ''}';
+        '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey:${withBubble ? '$priceBubble/$priceRole' : ''}:${labelAbove && withLabel ? 'up' : ''}:${verified ? 'v' : ''}${offlineDot ? 'o' : ''}:p$pin618';
     // v594 — la bulle duo gardien/promeneur est plus large que le rond : le
     // bitmap s'élargit des deux côtés (le rond reste centré, ancre x = 0,5).
     // v594 — grande marge seulement pour les ronds à halo (voir photoMarginGlow).
@@ -4988,6 +4995,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             margin: m,
             labelAbove: labelAbove && withLabel,
             offlineDot: offlineDot,
+            pin618: pin618,
           );
             c.restore();
           },
@@ -5235,6 +5243,27 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
     }
     return null;
+  }
+
+  /// 618 — pins (podium / 1er Chef de meute) de la personne [id], lus sur
+  /// les couches membres déjà chargées. null = rien à afficher.
+  PawPins618? _personPins618(String id, List<String> personIds,
+      [List<Map<String, dynamic>> entries = const []]) {
+    final raws = <dynamic>[for (final e in entries) e['pins']];
+    final keys = <String>{id, ...personIds}
+        .map((x) => x.trim().toLowerCase())
+        .where((x) => x.isNotEmpty)
+        .toSet();
+    if (keys.isNotEmpty) {
+      for (final list in [_worldMembers, _nearbyProviders, _aroundMembers]) {
+        for (final p in list) {
+          final ids = <String>{(p['id'] ?? p['_id'] ?? '').toString(), ...pawMapPersonIds(p)}
+              .map((x) => x.trim().toLowerCase());
+          if (ids.any(keys.contains)) raws.add(p['pins']);
+        }
+      }
+    }
+    return PawPins618.bestOf(raws);
   }
 
   /// v594 — la personne portant l'id [id] (n'importe lequel de ses rôles)
@@ -6006,6 +6035,13 @@ class _PawMapScreenState extends State<PawMapScreen>
         final String photoLabel = focused || !showPrice
             ? streetLabel
             : (firstName.isEmpty ? name : firstName);
+        // 618 — pin du classement (podium / 1er Chef de meute) : le
+        // meilleur porté par l'un des rôles de la personne.
+        final int pin618 = PawPins618.bestOf([
+              p['pins'],
+              for (final e in personRoles) e['pins'],
+            ])?.mapCode ??
+            0;
         final BitmapDescriptor icon;
         final Offset anchor;
         if (isFriend) {
@@ -6065,6 +6101,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             fallbackIcon: PawMapLegend.roleIcon(role),
             fallbackTint: PawMapLegend.roleColor(role),
             labelAbove: friendLabelAbove,
+            pin618: pin618,
           );
           anchor = _photoAnchor(PawMapLegend.friendSize,
               withLabel: friendLabel.isNotEmpty,
@@ -6091,6 +6128,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             boosted: boosted,
             fallbackIcon: PawMapLegend.roleIcon(role),
             fallbackTint: roleRings.isNotEmpty ? roleRings.first : PawMapLegend.roleColor(role),
+            pin618: pin618,
           );
           anchor = _photoAnchor(PawMapLegend.memberSize,
               withLabel: photoLabel.isNotEmpty, withBubble: bubble != null);
@@ -6114,6 +6152,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             boosted: boosted,
             fallbackIcon: PawMapLegend.roleIcon(role),
             fallbackTint: PawMapLegend.roleColor(role),
+            pin618: pin618,
           );
           anchor = _photoAnchor(PawMapLegend.memberSize,
               withLabel: photoLabel.isNotEmpty, withBubble: bubble != null);
@@ -6130,6 +6169,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             rating: (p['rating'] as num?)?.toDouble() ?? 0,
             priceBubble: bubble,
             slot: 'nearby_$id',
+            pin618: pin618,
           );
           anchor = Offset(
               0.5,
@@ -9909,6 +9949,14 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// Les actions du rail — inchangées depuis la v561/v565 (mêmes briques).
   void _onRailTap(String id) {
+    // PAM 19/10 — mesuré au simulateur (invité, Paris) : « Chat » ouvrait la
+    // liste des messages avec l'erreur brute « Missing auth token… », et
+    // « Photo du spot » faisait prendre une photo dont l'envoi échouait.
+    // Même porte d'entrée que PawPoints / Balade / Publier.
+    if (!_viewerLoggedIn && (id == 'chat' || id == 'photo')) {
+      SignupWallSheet.show(trigger: 'pawmap');
+      return;
+    }
     switch (id) {
       case 'around':
         unawaited(_openAroundMeSheet());

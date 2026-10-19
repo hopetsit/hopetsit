@@ -17,6 +17,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/paw_icons.dart';
+import 'package:hopetsit/widgets/paw_pins618.dart';
 
 /// Seuils (miroir de backend/src/services/ranks611.js — le serveur fait foi
 /// pour le rang, l'app ne s'en sert que pour la barre de progression).
@@ -262,6 +263,8 @@ class PawRankService611 {
   static final PawRankService611 instance = PawRankService611._();
 
   final Rxn<PawRank611> mine = Rxn<PawRank611>();
+  /// 618 — mes pins (podium / 1er Chef de meute), lus dans /pawpoints/me.
+  final Rxn<PawPins618> pins618 = Rxn<PawPins618>();
   int seenLevel = 1;
   bool _celebrating = false;
 
@@ -270,6 +273,9 @@ class PawRankService611 {
     if (me is! Map) return;
     final r = PawRank611.fromJson(me['rank']);
     if (r != null) mine.value = r;
+    // 618 — champ absent = ancien serveur : on ne touche à rien ; présent et
+    // vide = plus de pin (le podium change de main).
+    if (me.containsKey('pins')) pins618.value = PawPins618.fromJson(me['pins']);
     final s = (me['rankSeenLevel'] as num?)?.toInt();
     if (s != null && s > seenLevel) seenLevel = s; // jamais en arrière
   }
@@ -312,6 +318,7 @@ class PawRankService611 {
   @visibleForTesting
   void resetForTests() {
     mine.value = null;
+    pins618.value = null;
     seenLevel = 1;
     _celebrating = false;
   }
@@ -339,8 +346,17 @@ class _PawMyRankPill611State extends State<PawMyRankPill611> {
   Widget build(BuildContext context) {
     return Obx(() {
       final r = PawRankService611.instance.mine.value;
-      if (r == null) return const SizedBox.shrink();
-      return PawRankPill611(rank: r, onDark: widget.onDark);
+      final pins = PawRankService611.instance.pins618.value; // 618
+      if (r == null && pins == null) return const SizedBox.shrink();
+      return Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          if (r != null) PawRankPill611(rank: r, onDark: widget.onDark),
+          if (pins != null) PawPinsRow618(pins: pins, onDark: widget.onDark),
+        ],
+      );
     });
   }
 }
@@ -385,6 +401,7 @@ class PawLeaderboardMeRow611 extends StatelessWidget {
     final pts = (me['pointsEarned'] as num?)?.toInt() ?? 0;
     final pos = (me['position'] as num?)?.toInt();
     final reason = (me['excludedReason'] ?? '').toString();
+    final pins = PawPins618.fromJson(me['pins']); // 618
     final bool dark = Theme.of(context).brightness == Brightness.dark;
     final st = PawRankStyle611.of(rank?.level ?? 1);
     final Color ink = dark ? st.darkInk : st.lightInk;
@@ -416,6 +433,10 @@ class PawLeaderboardMeRow611 extends StatelessWidget {
               style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w600, color: ink),
             ),
           ),
+          if (pins != null) ...[
+            const SizedBox(width: 6),
+            PawPinsRow618(pins: pins, compact: true),
+          ],
           if (rank != null) ...[
             const SizedBox(width: 6),
             PawRankPill611(rank: rank, compact: true),

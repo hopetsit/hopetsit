@@ -14,6 +14,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../utils/pawmap_theme.dart';
 import 'pawmap_jewel.dart';
 import '../../../widgets/paw_rank611.dart';
+import '../../../widgets/paw_pins618.dart';
 
 class PawFocusInfo {
   const PawFocusInfo({
@@ -29,10 +30,12 @@ class PawFocusInfo {
     this.roles = const <String>[],
     this.verified = false,
     this.rank,
+    this.pins, // 618
   });
 
   /// 611 — rang de la personne (Chiot → Légende), null = inconnu.
   final PawRank611? rank;
+  final PawPins618? pins; // 618
 
   /// 609 — identité vérifiée (KYC) : pastille « ✓ Vérifié » à côté du nom.
   final bool verified;
@@ -162,14 +165,27 @@ class PawFocusCard extends StatelessWidget {
                           ],
                         ],
                       ),
-                      if (info.rank != null)
+                      if (info.rank != null || info.pins != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 3, bottom: 1),
-                          child: PawRankPill611(
-                            key: const ValueKey<String>('pawmap_focus_rank'),
-                            rank: info.rank!,
-                            compact: true,
-                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            if (info.rank != null)
+                              Flexible(
+                                child: PawRankPill611(
+                                  key: const ValueKey<String>('pawmap_focus_rank'),
+                                  rank: info.rank!,
+                                  compact: true,
+                                ),
+                              ),
+                            // 618 — pins (disques seuls) à côté du rang.
+                            if (info.pins != null) ...[
+                              if (info.rank != null) const SizedBox(width: 5),
+                              PawPinsRow618(
+                                  key: const ValueKey<String>('pawmap_focus_pins'),
+                                  pins: info.pins!,
+                                  compact: true),
+                            ],
+                          ]),
                         ),
                       if (info.info.isNotEmpty)
                         Text(

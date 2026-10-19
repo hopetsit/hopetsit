@@ -54,12 +54,20 @@ String pawPlushName613(String type) =>
     'plush607_type_${kPawPlushTypes.contains(type) ? type : 'teddy'}'.tr;
 
 /// Titre de la carte : « +40 points » (rien si les points sont inconnus).
-String pawCatchTitle613(PawPlushWin w) =>
-    w.points > 0 ? 'catch613_points'.trParams({'points': '${w.points}'}) : '';
+String pawCatchTitle613(PawPlushWin w) {
+  if (w.points <= 0) return '';
+  // 618 (§A, Daniel 19/10 : « garder ×2, l'afficher ») — gain doublé par
+  // Paw Premium : « +500 ×2 Premium = 1000 » au lieu de « +1000 » seul.
+  if (w.premiumDoubled && w.points >= 2) {
+    return 'catch618_points_x2'.trParams({'base': '${(w.points / 2).round()}', 'points': '${w.points}'});
+  }
+  return 'catch613_points'.trParams({'points': '${w.points}'});
+}
 
 /// Sous-titre : « Chiot attrapé ! » / « Peluche dorée · Chiot ! » / collection.
 String pawCatchSubtitle613(PawPlushWin w) {
   final name = pawPlushName613(w.type);
+  if (w.monthCollector) return 'catch618_month_collector'.trParams({'name': name}); // 618
   if (w.collector) return 'catch613_collector'.trParams({'name': name});
   if (w.golden) return 'catch613_golden'.trParams({'name': name});
   return 'catch613_caught'.trParams({'name': name});
@@ -79,6 +87,8 @@ Map<String, dynamic> pawCatchToJson613(PawPlushWin w, DateTime at) => <String, d
       'collector': w.collector,
       'type': w.type,
       'already': w.already,
+      'premiumDoubled': w.premiumDoubled, // 618
+      'monthCollector': w.monthCollector, // 618
       'at': at.toIso8601String(),
     };
 
@@ -94,6 +104,8 @@ PawPlushWin? pawCatchFromJson613(dynamic j, {DateTime? now}) {
     collector: j['collector'] == true,
     type: (j['type'] ?? 'teddy').toString(),
     already: j['already'] == true,
+    premiumDoubled: j['premiumDoubled'] == true, // 618
+    monthCollector: j['monthCollector'] == true, // 618
   );
 }
 
@@ -157,6 +169,7 @@ class PawCatchCelebration {
     final ctx = context ?? Get.overlayContext;
     if (ctx == null) return;
     final last = _pending.last;
+    final wins = List<PawPlushWin>.of(_pending); // 618
     final total = _pending.fold<int>(0, (s, w) => s + w.points);
     _pending.clear();
     _clearStored();
@@ -168,6 +181,9 @@ class PawCatchCelebration {
         collector: last.collector,
         type: last.type,
         already: last.already,
+        // 618 — « ×2 Premium » seulement si TOUTES les fêtes gardées l'étaient.
+        premiumDoubled: wins.every((w) => w.premiumDoubled),
+        monthCollector: wins.any((w) => w.monthCollector),
       ),
     );
   }
@@ -392,9 +408,13 @@ class _PawCatchFx613State extends State<PawCatchFx613> with TickerProviderStateM
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   if (title.isNotEmpty)
-                                    Text(title,
+                                    // 618 — « +500 ×2 Premium = 1000 » tient
+                                    // entier : réduit plutôt que coupé.
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(title,
                                         maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 20.sp,
                                           height: 1.1,
@@ -402,6 +422,7 @@ class _PawCatchFx613State extends State<PawCatchFx613> with TickerProviderStateM
                                           color: widget.win.golden ? const Color(0xFFB7791F) : _kRaspberry,
                                           decoration: TextDecoration.none,
                                         )),
+                                    ),
                                   Text(sub,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
