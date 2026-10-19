@@ -1,10 +1,23 @@
 import type { Metadata } from "next";
 import Link from "@/components/SiteLink";
+import { TrackedLink } from "@/components/TrackedLink";
 import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
-import { PARIS_CITY } from "@/lib/recruit-cities";
+import { PARIS_CITY, RECRUIT_CITIES, RECRUIT_PATH_PREFIX, type RecruitCity } from "@/lib/recruit-cities";
 
 // v533 — SEO recrutement : page « devenir pet sitter à Paris » (stratégie
 // supply-first : remplir Paris de sitters avant de pousser les proprios).
+//
+// 19/10 (Bob, semaine 43) — cette page est la 2e plus vue du site (175
+// impressions / 28 j dans Search Console, juste derrière l'accueil) mais ne
+// liait vers AUCUNE des 20 pages d'arrondissement : son équivalent côté
+// propriétaire (/garde-animaux/paris) les lie toutes via des puces, celle-ci
+// non — contrairement au commentaire de CityLinks (« le hub Paris liste déjà
+// ses 20 arrondissements »), vrai seulement côté propriétaire. Or une page
+// n'a de chance d'être indexée que si des pages déjà indexées pointent vers
+// elle (règle SEO du 20/09) : la page la plus vue de Paris côté recrutement
+// n'envoyait donc aucun lien à ses propres sous-pages, dont les 3 encore non
+// indexées (paris-11, paris-13, paris-20). Ajout des mêmes puces que côté
+// propriétaire, adaptées au recrutement, aucune page créée.
 export const metadata: Metadata = {
   title: "Devenir pet sitter à Paris — gagnez de l'argent en gardant des animaux",
   description:
@@ -53,6 +66,31 @@ const FAQ = [
     a: "Pendant une promenade, le suivi PawFollow prouve que le service a bien été rendu, du départ au retour. Transparence pour le propriétaire, tranquillité pour vous.",
   },
 ];
+
+const ARRONDISSEMENTS = RECRUIT_CITIES.filter(
+  (c) => c.lang === "fr" && /^paris-\d+$/.test(c.slug),
+);
+const COMMUNES = RECRUIT_CITIES.filter(
+  (c) => c.lang === "fr" && c.region === "Île-de-France",
+);
+
+function Chips({ cities }: { cities: RecruitCity[] }) {
+  return (
+    <ul className="mt-4 flex flex-wrap gap-2">
+      {cities.map((c) => (
+        <li key={c.slug}>
+          <TrackedLink
+            href={`${RECRUIT_PATH_PREFIX.fr}/${c.slug}`}
+            label="maillage"
+            className="inline-block rounded-full bg-bg-soft px-3.5 py-2 text-sm font-medium text-ink transition hover:bg-sitter-light hover:text-sitter-dark max-lg:py-3"
+          >
+            {c.name}
+          </TrackedLink>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function DevenirPetsitterParisPage() {
   const jsonLd = {
@@ -122,6 +160,16 @@ export default function DevenirPetsitterParisPage() {
           </li>
         ))}
       </ol>
+
+      <h2 className="mt-14 font-display text-2xl font-extrabold text-ink">Votre arrondissement</h2>
+      <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+        Chaque arrondissement a sa page : les vétérinaires ouverts le week-end, les animaleries,
+        les espaces canins et ce qu'un pet sitter doit savoir avant une première garde sur place.
+      </p>
+      <Chips cities={ARRONDISSEMENTS} />
+
+      <h2 className="mt-10 font-display text-2xl font-extrabold text-ink">Autour de Paris</h2>
+      <Chips cities={COMMUNES} />
 
       <h2 className="mt-14 font-display text-2xl font-extrabold text-ink">
         Questions fréquentes
