@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import StoreBadges from "@/components/StoreBadges";
 import { CitySupplyProof } from "@/components/CitySupplyProof";
+import OwnerPageEngagement from "@/components/OwnerPageEngagement";
 import { currentCampaign } from "@/components/SiteAnalytics";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { screensPreviewFor, PhoneFrame } from "@/lib/screens";
@@ -22,6 +23,13 @@ import { screensPreviewFor, PhoneFrame } from "@/lib/screens";
 // ou si le serveur ne répond pas). Hors pub : page inchangée. Le choix se
 // fait après l'affichage (useEffect) : même HTML serveur, pas d'écart
 // d'hydratation. Tout hook avant le return.
+//
+// 20/10/2026 (SAM) — 60 arrivées pub Android → 0 clic store. Pour savoir si
+// ces visiteurs repartent aussitôt (problème de clic/pub) ou lisent la page
+// sans toucher les boutons (problème de page), les repères invisibles
+// « lecture_3s / lecture_15s / lecture_moitie » des pages propriétaires sont
+// posés ici, pour les visiteurs de ces 2 campagnes seulement (admin › Trafic
+// du site › par publicité : stay3s / stay15s). Rien ne change à l'affichage.
 type Promesse = { city: string; lang: string; title: string; sub: string };
 const PROMESSES: Record<string, Promesse> = {
   nyc_app: {
@@ -65,6 +73,8 @@ export default function DownloadPage() {
           </div>
         ) : null}
       </div>
+
+      {promesse ? <OwnerPageEngagement /> : null}
 
       <div className="bg-[#FAF1EC] py-16">
         <div className="mx-auto flex max-w-5xl snap-x snap-mandatory gap-6 overflow-x-auto px-4 pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
