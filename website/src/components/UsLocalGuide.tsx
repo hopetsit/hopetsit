@@ -808,6 +808,38 @@ const GUIDES: Record<string, Guide> = {
 // 08/10/2026 — même remède pour les villes françaises touchées (rattachées par
 // Google à un site étranger). Faits locaux connus et durables seulement.
 const GUIDES_FR: Record<string, Guide> = {
+  // 19/10/2026 (GUS) — Search Console 28 j : /garde-animaux/paris en 44e-50e place sur
+  // « petsitter paris » (49 affichages), « garde animaux paris » (46), « dogsitting paris » (30),
+  // « pet sitter paris » (29), « dog sitting paris » (21), 0 clic. La page phare n'avait AUCUN
+  // contenu propre à Paris (texte commun à toutes les villes FR). Faits durables et vérifiables
+  // seulement : aucun chiffre d'activité, aucune promesse, aucune règle de parc affirmée en détail.
+  paris: {
+    hoods: ["les 20 arrondissements", "le Marais et le centre", "Montmartre et le 18e", "le 11e et l'est parisien", "le 15e et le sud-ouest", "la petite couronne (Boulogne-Billancourt, Montreuil, Vincennes, Levallois…)"],
+    walks: [
+      { name: "Bois de Boulogne (16e)", note: "le grand espace vert de l'ouest parisien, pour les longues balades du week-end, en suivant la signalisation sur la laisse" },
+      { name: "Bois de Vincennes (12e)", note: "son pendant à l'est, accessible depuis le 12e et le 20e, pour les sorties longues" },
+      { name: "Quais du canal Saint-Martin et bassin de la Villette", note: "une promenade à plat, en laisse, pratique pour la sortie du soir dans le 10e et le 19e" },
+      { name: "Parcs et jardins de quartier", note: "beaucoup acceptent les chiens tenus en laisse et certains ont un espace canin : le règlement est affiché à chaque entrée" },
+    ],
+    tips: [
+      "En appartement sans jardin, la sortie du midi en semaine est souvent la plus dure à assurer : un dog sitter qui habite le même arrondissement peut passer à heure fixe pour la promenade.",
+      "Pour un chat, les visites à domicile (cat sitting) évitent le transport et la pension : il garde ses repères. Une ou deux visites par jour selon son caractère.",
+      "Pensez aux codes : digicode, interphone, étage, et un double des clés remis en main propre lors de la rencontre, jamais dans une annonce.",
+      "Toussaint, Noël, été : beaucoup de Parisiens partent aux mêmes dates. Publiez votre demande plusieurs semaines avant pour avoir le choix du petsitter.",
+      "Dans le métro, les petits animaux voyagent dans un sac ou un panier ; pour un grand chien, les conditions de la RATP sont plus strictes : un pet sitter du quartier évite le trajet.",
+    ],
+    faq: {
+      owner: [
+        { q: "Pet sitter, petsitter, dog sitter ou cat sitter à Paris : quelle différence ?", a: "Aucune sur HoPetSit : ce sont les mêmes gardiens. Le dog sitting regroupe la garde et la promenade de chien, le cat sitting les visites à domicile pour un chat. Vous précisez le service dans votre demande." },
+        { q: "Que donner au pet sitter avant une garde à Paris ?", a: "Le digicode, l'étage, un double des clés et la routine de l'animal (repas, sorties, vétérinaire habituel). Remettez les clés lors d'une rencontre avant la garde, après avoir discuté dans l'app." },
+        { q: "Où promener son chien à Paris ?", a: "Dans les bois de Boulogne et de Vincennes, le long du canal Saint-Martin, et dans les parcs et jardins qui acceptent les chiens en laisse : le règlement est affiché à chaque entrée." },
+      ],
+      recruit: [
+        { q: "Où trouver ses premiers clients à Paris ?", a: "Dans votre arrondissement : les propriétaires préfèrent quelqu'un qui habite à pied, surtout pour la promenade du midi et les visites de chat." },
+        { q: "Faut-il un jardin pour garder des animaux à Paris ?", a: "Non. La plupart des demandes sont des visites à domicile ou des promenades, chez le propriétaire." },
+      ],
+    },
+  },
   malakoff: {
     hoods: ["le centre-ville", "le Plateau de Vanves", "le quartier Étienne-Dolet", "les abords de la Coulée verte", "les rues proches de la porte de Vanves"],
     walks: [
@@ -973,7 +1005,7 @@ export default function UsLocalGuide({ slug, lang, name, mode }: { slug: string;
       </h2>
       <p className="mt-3 text-sm leading-relaxed text-ink-muted">
         {fr
-          ? mode === "owner" ? "Quartiers où les propriétaires publient des demandes : " : "Quartiers où commencer : "
+          ? mode === "owner" ? "Quartiers couverts : " : "Quartiers où commencer : "
           : mode === "owner" ? "Neighborhoods where owners post requests: " : "Neighborhoods to start in: "}
         {g.hoods.join(", ")}.
       </p>
