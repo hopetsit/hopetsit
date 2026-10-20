@@ -194,6 +194,8 @@ router.get('/', requireAdmin, async (req, res) => {
             label: { $first: '$cityLabel' },
             total: { $sum: 1 },
             golden: { $sum: { $cond: ['$golden', 1, 0] } },
+            poiIds: { $push: '$poiId' },
+            goldenPoi: { $max: { $cond: ['$golden', '$poiId', null] } },
             caught: { $sum: { $cond: [{ $eq: [{ $type: '$caughtByPerson' }, 'string'] }, 1, 0] } },
             catchers: {
               $push: {
@@ -208,9 +210,29 @@ router.get('/', requireAdmin, async (req, res) => {
       agg.forEach((a) => {
         const cur = byCity.get(a._id.city);
         if (!cur || a._id.day > cur.day) {
-          byCity.set(a._id.city, { key: a._id.city, city: a.label || a._id.city, day: a._id.day, total: a.total, golden: a.golden, caught: a.caught, catchers: a.catchers || [] });
+          byCity.set(a._id.city, { key: a._id.city, city: a.label || a._id.city, day: a._id.day, total: a.total, golden: a.golden, caught: a.caught, catchers: a.catchers || [], poiIds: (a.poiIds || []).filter(Boolean).map(String), goldenPoi: a.goldenPoi ? String(a.goldenPoi) : null });
         }
       });
+      // 618 (BOB, 20/10, demande de Daniel) — les peluches bougent-elles ?
+      // Lecture seule : lieux du tirage comparés à ceux de la veille, et
+      // lieu de la dorée comparé à la dorée précédente de la ville.
+      const prevOf = (d) => dayKey(new Date(`${d}T12:00:00Z`).getTime() - DAY);
+      const prevRows = byCity.size ? await PawPlush.find({
+        copyOf: null,
+        $or: [...byCity.values()].map((d) => ({ cityKey: d.key, day: prevOf(d.day) })),
+      }).select('cityKey poiId').lean() : [];
+      const prevByCity = new Map();
+      prevRows.forEach((r) => {
+        if (!prevByCity.has(r.cityKey)) prevByCity.set(r.cityKey, new Set());
+        if (r.poiId) prevByCity.get(r.cityKey).add(String(r.poiId));
+      });
+      const lastGold = new Map();
+      for (const d of byCity.values()) {
+        if (!d.goldenPoi) continue;
+        const g = await PawPlush.findOne({ cityKey: d.key, golden: true, copyOf: null, day: { $lt: d.day } })
+          .sort({ day: -1 }).select('poiId day').lean();
+        if (g) lastGold.set(d.key, { same: String(g.poiId) === d.goldenPoi, day: g.day });
+      }
       // Qui a attrapé les peluches du tirage (vrai compte / équipe / test).
       const cIds = { owner: [], sitter: [], walker: [] };
       byCity.forEach((d) => d.catchers.forEach((c) => c.u && cIds[normRole(c.r)].push(c.u)));
@@ -234,6 +256,14 @@ router.get('/', requireAdmin, async (req, res) => {
           if (kind === 'staff') out.caughtStaff += 1; else if (kind === 'test') out.caughtTest += 1; else out.caughtReal += 1;
         });
         out.testCopies = copyCount.get(`${d.key}|${d.day}`) || 0;
+        const prev = prevByCity.get(d.key);
+        out.rotation = {
+          places: new Set(d.poiIds).size,
+          yesterday: prev ? prev.size : null, // null : pas de tirage la veille (personne n'a ouvert la carte)
+          sameAsYesterday: prev ? d.poiIds.filter((id) => prev.has(id)).length : null,
+          goldenSameAsLast: lastGold.has(d.key) ? lastGold.get(d.key).same : null,
+          lastGoldenDay: lastGold.has(d.key) ? lastGold.get(d.key).day : null,
+        };
         return out;
       }).sort((a, b) => b.total - a.total || a.city.localeCompare(b.city));
 

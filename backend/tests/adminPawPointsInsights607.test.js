@@ -121,4 +121,27 @@ describe('GET /admin/pawpoints-insights', () => {
     expect(raw).not.toMatch(/gmail/);
     expect(raw).not.toContain(String(leak._id)); // identifiants courts seulement
   });
+
+  test('618 rotation : lieux d\'aujourd\'hui comparés à la veille et dorée comparée à la précédente', async () => {
+    await PawPlush.deleteMany({});
+    const mongoose = require('mongoose');
+    const [a, b, c, d] = [1, 2, 3, 4].map(() => new mongoose.Types.ObjectId());
+    const t = today();
+    const y = new Date(Date.parse(`${t}T12:00:00Z`) - 86400000).toISOString().slice(0, 10);
+    // Hier à Lyon : lieux a, b ; dorée sur a.
+    await plush({ cityKey: 'lyon', cityLabel: 'Lyon', day: y, poiId: a, golden: true });
+    await plush({ cityKey: 'lyon', cityLabel: 'Lyon', day: y, poiId: b });
+    // Aujourd'hui : b (même lieu), c, d ; dorée sur c (autre lieu).
+    await plush({ cityKey: 'lyon', cityLabel: 'Lyon', day: t, poiId: b });
+    await plush({ cityKey: 'lyon', cityLabel: 'Lyon', day: t, poiId: c, golden: true });
+    await plush({ cityKey: 'lyon', cityLabel: 'Lyon', day: t, poiId: d });
+    // Nice : tirage du jour seulement (personne n'a ouvert la carte hier).
+    await plush({ cityKey: 'nice', cityLabel: 'Nice', day: t, poiId: a });
+    const r = await request(app).get('/admin/pawpoints-insights').set(ADMIN);
+    expect(r.status).toBe(200);
+    const lyon = r.body.plush.draws.find((x) => x.city === 'Lyon');
+    expect(lyon.rotation).toEqual({ places: 3, yesterday: 2, sameAsYesterday: 1, goldenSameAsLast: false, lastGoldenDay: y });
+    const nice = r.body.plush.draws.find((x) => x.city === 'Nice');
+    expect(nice.rotation).toMatchObject({ places: 1, yesterday: null, sameAsYesterday: null, goldenSameAsLast: null });
+  });
 });
