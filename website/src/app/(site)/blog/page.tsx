@@ -36,6 +36,14 @@ const POSTS = [
     excerpt:
       "Du 17 octobre au 2 novembre 2026 : gardien à domicile, pension ou famille, prix réels, check-list et pourquoi réserver tôt.",
   },
+  // 21/10 (GUS) — « cat sitting / cat sitter <ville> » 717 affichages / 0 clic (USA, 28 j).
+  {
+    slug: "what-is-cat-sitting",
+    lang: "🇺🇸",
+    title: "Cat sitting explained: what a cat sitter does and how to find one near you",
+    excerpt:
+      "What happens during a visit, how many visits a day your cat needs, cat sitter or cattery, and how to choose someone you can trust with your keys.",
+  },
   // 14/10 (GUS) — « dog sitting » 931 affichages / 0 clic (USA, 28 j) : guide propriétaire général.
   {
     slug: "what-is-dog-sitting",

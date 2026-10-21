@@ -1086,6 +1086,14 @@ export default function UsLocalGuide({ slug, lang, name, mode }: { slug: string;
               </li>
             ))}
           </ul>
+          {/* 21/10 (GUS) — lien vers le guide général « cat sitting » (article du 21/10). */}
+          <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+            New to this?{" "}
+            <Link href="/blog/what-is-cat-sitting" className="font-semibold text-owner underline">
+              Cat sitting explained: what happens on each visit and how many visits your cat needs
+            </Link>
+            .
+          </p>
         </div>
       )}
     </section>

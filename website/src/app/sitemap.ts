@@ -38,6 +38,8 @@ const PUBLIC_PATHS = [
   "/blog/garde-animaux-toussaint-paris",
   // 14/10 (GUS) — guide propriétaire « dog sitting » (demande USA 931 affichages / 0 clic).
   "/blog/what-is-dog-sitting",
+  // 21/10 (GUS) — guide propriétaire « cat sitting » (demande USA 717 affichages / 0 clic).
+  "/blog/what-is-cat-sitting",
   // 2026-W41 — recrutement Paris 18e + Los Angeles (routine marketing hebdo).
   "/blog/devenir-pet-sitter-paris-18e",
   "/blog/become-a-pet-sitter-in-los-angeles",
