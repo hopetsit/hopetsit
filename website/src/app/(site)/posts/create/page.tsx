@@ -189,6 +189,27 @@ export default function CreatePostPage() {
       // Prestataire ciblé (« Demander à <prénom> »).
       const forQ = parseAskFor(q.get("for"));
       if (forQ) setTarget(forQ);
+      // 21/10 (SAM) — arrivée depuis l'e-mail de la pub à formulaire Meta :
+      // le contact a déjà choisi service, animal et date dans la pub. Mesure
+      // du 20-21/10 : 3 contacts → 3 formulaires ouverts → 1 étape 2 → 0
+      // demande ; il devait tout retaper. On pré-remplit ces choix (jamais de
+      // donnée personnelle dans l'URL) ; le brouillon, s'il existe, a priorité.
+      const pre = (q.get("pre") || "").trim();
+      const svc = ({ garde: "house_sitting", visites: "house_sitting", promenade: "dog_walking" } as Record<string, string>)[pre];
+      if (svc) {
+        setServices([svc]);
+        if (pre === "visites") setSvcLocation("at_owner");
+        const an = ({ chien: "dog", chat: "cat", autre: "other" } as Record<string, string>)[(q.get("animal") || "").trim()];
+        if (an) setAnimalTypes([an]);
+        // Langue de la phrase = celle de l'e-mail (?pl=), la langue de la page
+        // pouvant encore changer après le montage.
+        const fr = (q.get("pl") || lang) === "fr";
+        const qui = an === "dog" ? (fr ? "mon chien" : "my dog") : an === "cat" ? (fr ? "mon chat" : "my cat") : (fr ? "mon animal" : "my pet");
+        const quoi = pre === "promenade" ? (fr ? "des promenades pour" : "dog walks for") : pre === "visites" ? (fr ? "des visites à domicile pour" : "drop-in visits for") : (fr ? "une garde pour" : "a pet sitter for");
+        const quand = ({ bientot: fr ? " dans les 15 jours" : " within 2 weeks", fetes: fr ? " pendant les fêtes de fin d'année" : " over the holidays" } as Record<string, string>)[(q.get("quand") || "").trim()] || "";
+        setBody(`${fr ? "Je cherche" : "I'm looking for"} ${quoi} ${qui}${quand}.`);
+        trackSiteEvent("cta_click", { label: "pub_prerempli" });
+      }
     } catch { /* URL exotique */ }
 
     // Brouillon laissé avant l'inscription : on le remet tel quel.
