@@ -197,6 +197,26 @@ export async function login(email: string, password: string) {
   return data;
 }
 
+// 22/10/2026 (SAM, accord Daniel « bouton 1 clic ») — contact de la pub à
+// formulaire : la demande déjà décrite dans la pub est publiée en un clic,
+// le compte propriétaire est créé (ou repris) et la session ouverte.
+export type AdLeadSummary = {
+  firstName: string; city: string; lang: "fr" | "en";
+  service: "garde" | "promenade" | "visites"; animal: "chien" | "chat" | "autre";
+  quand: "bientot" | "fetes" | "plus_tard"; confirmed: boolean;
+};
+export async function getAdLead(id: string): Promise<AdLeadSummary> {
+  return request<AdLeadSummary>(`/ad-leads/${encodeURIComponent(id)}`);
+}
+export async function confirmAdLead(id: string, lieu?: "at_owner" | "at_sitter") {
+  const data = await request<{ token: string; user: AuthUser; postId: string | null; notified?: number }>(
+    `/ad-leads/${encodeURIComponent(id)}/confirm`,
+    { method: "POST", body: JSON.stringify(lieu ? { lieu } : {}) },
+  );
+  persistAuth(data.token, { ...data.user, role: "owner" });
+  return data;
+}
+
 export async function signup(input: {
   name: string;
   email: string;

@@ -1,0 +1,184 @@
+/**
+ * 22/10/2026 (SAM, accord de Daniel « bouton 1 clic ») — contacts de la pub à
+ * formulaire Meta → demande publiée en UN clic depuis l'e-mail.
+ *
+ *   POST /admin/ad-leads            (admin) enregistre un contact, renvoie { id }
+ *                                   (même metaLeadId → même id : jamais deux fois)
+ *   GET  /ad-leads/:id              (public) résumé sans e-mail pour la page /confirmer
+ *   POST /ad-leads/:id/confirm      (public) { lieu? } crée le compte propriétaire si
+ *                                   besoin (e-mail prouvé par le clic → vérifié),
+ *                                   publie la demande par createPost (mêmes règles,
+ *                                   mêmes alertes aux gardiens), renvoie une session.
+ *
+ * Idempotent : un 2e clic renvoie la même demande, sans en publier une autre.
+ * Mot de passe : aléatoire ; le propriétaire en choisit un par « Mot de passe oublié ».
+ */
+const crypto = require('crypto');
+const express = require('express');
+const mongoose = require('mongoose');
+const { requireAuth, requireRole } = require('../middleware/auth');
+const { auditAdmin } = require('../middleware/auditAdmin');
+const logger = require('../utils/logger');
+const AdLead = require('../models/AdLead2210');
+const Owner = require('../models/Owner');
+const { countryToCurrency } = require('../utils/countryCurrency');
+
+const requireAdmin = [requireAuth, requireRole('admin'), auditAdmin];
+const TERMS_VERSION = process.env.TERMS_VERSION || 'v1.0';
+
+/** Demande telle que le site la publierait (cf. website posts/create). */
+function postInputFor(lead, lieu) {
+  const fr = lead.lang === 'fr';
+  const qui = lead.animal === 'chien' ? (fr ? 'mon chien' : 'my dog')
+    : lead.animal === 'chat' ? (fr ? 'mon chat' : 'my cat') : (fr ? 'mon animal' : 'my pet');
+  const quoi = lead.service === 'promenade' ? (fr ? 'des promenades pour' : 'dog walks for')
+    : lead.service === 'visites' ? (fr ? 'des visites à domicile pour' : 'drop-in visits for')
+      : (fr ? 'une garde pour' : 'a pet sitter for');
+  const quand = { bientot: fr ? ' dans les 15 jours' : ' within 2 weeks',
+    fetes: fr ? " pendant les fêtes de fin d'année" : ' over the holidays' }[lead.quand] || '';
+  const input = {
+    body: `${fr ? 'Je cherche' : "I'm looking for"} ${quoi} ${qui}${quand}.`,
+    language: lead.lang,
+    animalCount: 1,
+    animalTypes: [{ chien: 'dog', chat: 'cat' }[lead.animal] || 'other'],
+    location: Number.isFinite(lead.lat) && Number.isFinite(lead.lng)
+      ? { city: lead.city, lat: lead.lat, lng: lead.lng } : { city: lead.city },
+  };
+  if (lead.service === 'promenade') {
+    input.serviceTypes = ['dog_walking'];
+    input.serviceLocation = 'pickup';
+  } else {
+    const chezGardien = lead.service === 'garde' && lieu === 'at_sitter';
+    input.serviceTypes = ['house_sitting'];
+    input.houseSittingVenue = chezGardien ? 'sitters_home' : 'owners_home';
+    input.serviceLocation = chezGardien ? 'at_sitter' : 'at_owner';
+  }
+  return input;
+}
+
+/** Appelle un contrôleur Express et récupère { status, body }. */
+function callController(fn, req) {
+  return new Promise((resolve, reject) => {
+    const res = {
+      statusCode: 200,
+      status(c) { this.statusCode = c; return this; },
+      json(b) { resolve({ status: this.statusCode, body: b }); return this; },
+    };
+    Promise.resolve(fn(req, res)).catch(reject);
+  });
+}
+
+// ── admin : enregistrement d'un contact ──────────────────────────────────────
+const adminRouter = express.Router();
+adminRouter.post('/', requireAdmin, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const email = String(b.email || '').trim().toLowerCase();
+    const metaLeadId = String(b.metaLeadId || '').trim();
+    const city = String(b.city || '').trim();
+    if (!metaLeadId || !city || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return res.status(400).json({ error: 'metaLeadId, email and city are required.' });
+    }
+    const pick = (v, list, d) => (list.includes(v) ? v : d);
+    const lat = Number(b.lat); const lng = Number(b.lng);
+    const lead = await AdLead.findOneAndUpdate(
+      { metaLeadId },
+      { $setOnInsert: {
+        metaLeadId, email, city,
+        firstName: String(b.firstName || '').trim().slice(0, 60),
+        ...(Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : {}),
+        country: String(b.country || '').trim().toUpperCase().slice(0, 2),
+        lang: b.lang === 'en' ? 'en' : 'fr',
+        service: pick(b.service, AdLead.SERVICES, 'garde'),
+        animal: pick(b.animal, AdLead.ANIMALS, 'autre'),
+        quand: pick(b.quand, AdLead.WHENS, 'plus_tard'),
+      } },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+    return res.status(200).json({ id: lead._id, confirmed: !!lead.confirmedAt });
+  } catch (e) {
+    logger.error('[adLeads2210] register failed', e);
+    return res.status(500).json({ error: 'Unable to register lead.' });
+  }
+});
+
+// ── public : résumé + confirmation ───────────────────────────────────────────
+const router = express.Router();
+const ID_RE = /^[a-f0-9]{32}$/;
+
+router.get('/:id', async (req, res) => {
+  if (!ID_RE.test(req.params.id)) return res.status(404).json({ error: 'not_found' });
+  const lead = await AdLead.findById(req.params.id).lean();
+  if (!lead) return res.status(404).json({ error: 'not_found' });
+  return res.json({
+    firstName: lead.firstName, city: lead.city, lang: lead.lang,
+    service: lead.service, animal: lead.animal, quand: lead.quand,
+    confirmed: !!lead.confirmedAt,
+  });
+});
+
+router.post('/:id/confirm', async (req, res) => {
+  try {
+    if (!ID_RE.test(req.params.id)) return res.status(404).json({ error: 'not_found' });
+    const lead = await AdLead.findById(req.params.id);
+    if (!lead) return res.status(404).json({ error: 'not_found' });
+    const lieu = req.body && req.body.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner';
+
+    // 1. Compte propriétaire : existant (rendu vérifié, l'e-mail est prouvé) ou créé.
+    let owner = await Owner.findOne({ email: lead.email });
+    if (!owner) {
+      const firstName = lead.firstName || (lead.lang === 'fr' ? 'Propriétaire' : 'Owner');
+      owner = await Owner.create({
+        name: firstName, firstName, lastName: '',
+        email: lead.email,
+        password: crypto.randomBytes(18).toString('hex'),
+        city: lead.city,
+        country: lead.country || '',
+        currency: countryToCurrency(lead.country),
+        appLocale: lead.lang,
+        language: lead.lang,
+        acceptedTerms: true, termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION,
+        verified: true,
+      });
+    }
+    const { markVerifiedAcrossRoles, signAuthToken } = require('../controllers/authController');
+    if (owner.verified !== true) await markVerifiedAcrossRoles(lead.email);
+
+    // 2. Demande : une seule par contact (2e clic = la même).
+    let postId = lead.postId;
+    let notified;
+    if (!postId) {
+      const { createPost } = require('../controllers/postController');
+      const out = await callController(createPost, {
+        user: { id: owner._id.toString(), role: 'owner' }, body: postInputFor(lead, lieu),
+      });
+      if (out.status === 201) {
+        postId = out.body.post && (out.body.post.id || out.body.post._id);
+        notified = out.body.notified;
+      } else if (out.status === 409) {
+        postId = out.body.existingPostId || out.body.postId || null;
+      } else {
+        logger.warn('[adLeads2210] createPost refused', out.status, out.body && out.body.error);
+        return res.status(out.status).json(out.body);
+      }
+      if (postId && mongoose.isValidObjectId(String(postId))) lead.postId = postId;
+      lead.ownerId = owner._id;
+      lead.confirmedAt = lead.confirmedAt || new Date();
+      await lead.save();
+    }
+
+    return res.status(200).json({
+      token: signAuthToken({ id: owner._id.toString(), role: 'owner' }),
+      user: { id: owner._id.toString(), name: owner.name, email: owner.email, role: 'owner' },
+      postId: postId ? String(postId) : null,
+      ...(notified === undefined || notified === null ? {} : { notified }),
+    });
+  } catch (e) {
+    logger.error('[adLeads2210] confirm failed', e);
+    return res.status(500).json({ error: 'Unable to confirm.' });
+  }
+});
+
+module.exports = router;
+module.exports.adminRouter = adminRouter;
+module.exports.postInputFor = postInputFor;
