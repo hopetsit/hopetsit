@@ -803,6 +803,159 @@ const GUIDES: Record<string, Guide> = {
       ],
     },
   },
+  // 22/10/2026 (GUS) — Search Console 28 j (USA) : les 6 pages villes à plus forts affichages
+  // SANS guide local, 0 clic : minneapolis 209 (« dog sitting minneapolis » 15e, « pet sitter » 17e),
+  // plano 188, colorado-springs 155, irving 151, buffalo 105, baltimore 86 (« pet sitter baltimore »
+  // 5e, « pet sitting baltimore » 12e). Même remède que les 32 autres villes US : contenu local vrai et
+  // durable (quartiers, parcs connus, climat), aucun chiffre d'activité, aucune promesse.
+  minneapolis: {
+    hoods: ["Uptown", "North Loop", "Northeast", "Linden Hills", "Longfellow", "Powderhorn", "Nokomis", "Loring Park"],
+    walks: [
+      { name: "Chain of Lakes", note: "the paths around Bde Maka Ska, Lake of the Isles and Lake Harriet, dogs on leash" },
+      { name: "Minnehaha Regional Park", note: "the falls, the creek trails and a large off-leash dog area near the Mississippi" },
+      { name: "Midtown Greenway", note: "a former rail corridor turned trail across south Minneapolis" },
+      { name: "Mississippi riverfront", note: "the Stone Arch Bridge and the river paths near the North Loop and Northeast" },
+      { name: "Loring Park", note: "a small downtown park next to the Walker Art Center sculpture garden" },
+    ],
+    tips: [
+      "Winters are long and very cold: walks get shorter from December to February, and owners appreciate paws wiped after salted sidewalks.",
+      "Uptown, the North Loop and Loring Park have many apartments without yards: the midday walk is the most requested service.",
+      "Houses with yards around the lakes, Longfellow and Nokomis: owners ask for drop-in visits and overnight sitting when they travel, especially over the holidays.",
+    ],
+    faq: {
+      owner: [
+        { q: "Can my dog go off-leash around the lakes in Minneapolis?", a: "No: on the Chain of Lakes paths dogs stay on leash. Off-leash play is for the designated dog parks, such as the one in Minnehaha Regional Park." },
+        { q: "Is there a sitter near me in Minneapolis?", a: "Open the map in HoPetSit to see sitters around Uptown, the North Loop, Northeast, Longfellow or Nokomis. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should I start as a pet sitter in Minneapolis?", a: "In Uptown, the North Loop or Loring Park if you live nearby, where apartments are dense and midday walks are in demand. Otherwise start in your own neighborhood and keep your area small." },
+        { q: "What do Minneapolis owners expect?", a: "Walks in all weather, including deep winter, leash rules respected around the lakes and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  plano: {
+    hoods: ["Legacy West", "Downtown Plano", "Willow Bend", "West Plano", "Deerfield", "Old Shepard Place", "Los Rios", "Preston Meadow"],
+    walks: [
+      { name: "Arbor Hills Nature Preserve", note: "paved and natural trails over rolling hills in west Plano, dogs on leash" },
+      { name: "Oak Point Park and Nature Preserve", note: "Plano's largest park, with trails along the creek on the east side" },
+      { name: "Jack Carter Dog Park", note: "a fenced off-leash dog park in Jack Carter Park" },
+      { name: "Chisholm Trail", note: "a creekside trail that crosses central Plano from north to south" },
+      { name: "Bob Woodruff Park", note: "wide lawns and trails next to Oak Point on the east side" },
+    ],
+    tips: [
+      "Summers are very hot: from June to September, walks move to early morning and evening, and pavement can burn paws in the afternoon.",
+      "Plano is mostly houses with fenced yards: owners ask for drop-in visits and overnight sitting when they travel, more than for daily walks.",
+      "Around Legacy West and the corporate campuses, many owners travel for work: short sittings of a few days during the week are common.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog go off-leash in Plano?", a: "In fenced dog parks such as Jack Carter Dog Park. On the trails of Arbor Hills, Oak Point and the Chisholm Trail dogs stay leashed." },
+        { q: "Is there a sitter near me in Plano?", a: "Open the map in HoPetSit to see sitters around Legacy West, Downtown Plano, Willow Bend or West Plano. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should I start as a pet sitter in Plano?", a: "In your own neighborhood: Plano owners like a sitter who lives close by for drop-in visits. Keep your service area small so you can chain several visits in a day." },
+        { q: "What do Plano owners expect?", a: "Visits at the agreed times, walks early or late in summer heat, and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  "colorado-springs": {
+    hoods: ["Downtown", "Old Colorado City", "Old North End", "Patty Jewett", "Broadmoor", "Briargate", "Rockrimmon", "Northgate"],
+    walks: [
+      { name: "Garden of the Gods", note: "the red rock park on the west side, dogs on leash on the trails" },
+      { name: "Bear Creek Dog Park", note: "a large fenced off-leash park with a creek, in Bear Creek Regional Park" },
+      { name: "Red Rock Canyon Open Space", note: "trails between rock formations, with a designated off-leash area for dogs" },
+      { name: "Palmer Park", note: "mesa-top trails in the middle of the city, with off-leash areas" },
+      { name: "Ute Valley Park", note: "trails on the north-west side, popular with hikers and their dogs" },
+    ],
+    tips: [
+      "The city sits at about 6,000 feet: sun and dry air are strong, so sitters carry water for the dog on every long walk.",
+      "Weather changes fast, with snow possible from fall to spring: owners appreciate a sitter who adapts the walk to the day.",
+      "Many military families live here: they often ask for longer sittings, and for a sitter who keeps the same routine while they are away.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog go off-leash in Colorado Springs?", a: "In fenced dog parks such as Bear Creek Dog Park, or in designated off-leash areas such as the one in Red Rock Canyon Open Space. In Garden of the Gods dogs stay leashed." },
+        { q: "Is there a sitter near me in Colorado Springs?", a: "Open the map in HoPetSit to see sitters around Downtown, Old Colorado City, Briargate or Patty Jewett. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should I start as a pet sitter in Colorado Springs?", a: "In your own part of town: distances are long here, so a small service area lets you chain visits. Downtown and Old North End have more apartments and midday walks." },
+        { q: "What do Colorado Springs owners expect?", a: "Water and shade on long walks, leash rules respected on the trails, and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  irving: {
+    hoods: ["Las Colinas", "Valley Ranch", "Irving Heritage District", "Hackberry Creek", "Twin Wells", "Plymouth Park", "Cottonwood Valley", "University Hills"],
+    walks: [
+      { name: "Lake Carolyn", note: "the promenade around the lake and the Mandalay Canal in Las Colinas, dogs on leash" },
+      { name: "Campión Trail", note: "a long paved trail along the Elm Fork of the Trinity River" },
+      { name: "Trinity View Park", note: "riverside lawns and a trailhead of the Campión Trail" },
+      { name: "Valley Ranch canals", note: "the walkways along the canals of Valley Ranch" },
+    ],
+    tips: [
+      "Summers are very hot: from June to September, walks move to early morning and evening, and pavement can burn paws in the afternoon.",
+      "Las Colinas and Valley Ranch have many apartments without yards: the midday walk is the most requested service.",
+      "DFW Airport is next door and many owners fly for work: short sittings and drop-in visits during the week are common.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can I walk my dog in Irving?", a: "Around Lake Carolyn in Las Colinas, along the Campión Trail by the Trinity River, or in Trinity View Park. Dogs stay leashed on these paths." },
+        { q: "Is there a sitter near me in Irving?", a: "Open the map in HoPetSit to see sitters around Las Colinas, Valley Ranch or the Heritage District. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should I start as a pet sitter in Irving?", a: "In Las Colinas or Valley Ranch if you live nearby, where apartments are dense and midday walks are in demand. Keep your service area small so you can chain visits." },
+        { q: "What do Irving owners expect?", a: "Reliable visits while they travel, walks early or late in summer heat, and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  buffalo: {
+    hoods: ["Elmwood Village", "Allentown", "North Buffalo", "Hertel", "Parkside", "Black Rock", "South Buffalo", "Downtown"],
+    walks: [
+      { name: "Delaware Park", note: "the large Olmsted park in the north of the city, with a loop path around the meadow, dogs on leash" },
+      { name: "Shoreline Trail", note: "the trail along the Niagara River and the waterfront" },
+      { name: "Canalside and the Erie Basin Marina", note: "the downtown waterfront promenade, dogs on leash" },
+      { name: "Cazenovia Park", note: "the Olmsted park of South Buffalo, with a creek and wide lawns" },
+    ],
+    tips: [
+      "Lake-effect snow can fall hard in winter: owners appreciate a sitter who comes even on snow days and wipes paws after salted sidewalks.",
+      "Elmwood Village, Allentown and North Buffalo are mostly older doubles and houses with small yards: daily walks and drop-in visits are the most common requests.",
+      "Summers are mild and many owners leave for lake weekends: overnight sitting and visits fill up in July and August.",
+    ],
+    faq: {
+      owner: [
+        { q: "Can my dog go off-leash in Delaware Park?", a: "No: dogs stay on leash in Delaware Park, on the waterfront and along the trails. Off-leash play is for fenced dog parks only." },
+        { q: "Is there a sitter near me in Buffalo?", a: "Open the map in HoPetSit to see sitters around Elmwood Village, Allentown, North Buffalo or Parkside. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should I start as a pet sitter in Buffalo?", a: "In Elmwood Village, Allentown or North Buffalo if you live nearby: dogs are everywhere and walks are close together. Keep your service area small." },
+        { q: "What do Buffalo owners expect?", a: "Walks in all weather, snow included, leash rules respected in the parks and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  baltimore: {
+    hoods: ["Fells Point", "Federal Hill", "Canton", "Patterson Park", "Hampden", "Mount Vernon", "Locust Point", "Roland Park"],
+    walks: [
+      { name: "Patterson Park", note: "the large park of east Baltimore, with a fenced dog park" },
+      { name: "Waterfront Promenade", note: "the harbor walk from the Inner Harbor to Fells Point and Canton, dogs on leash" },
+      { name: "Druid Hill Park", note: "one of the oldest city parks in the country, with a lake loop" },
+      { name: "Federal Hill Park", note: "the hilltop park above the Inner Harbor" },
+      { name: "Gwynns Falls Trail", note: "a long trail through the stream valley on the west side" },
+    ],
+    tips: [
+      "Summers are hot and humid: July and August walks move to early morning and evening.",
+      "Fells Point, Federal Hill, Canton and Mount Vernon are rowhouses and apartments without yards: midday walks are the most requested service.",
+      "Roland Park and the north of the city have more houses with yards: owners ask for drop-in visits and overnight sitting when they travel.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog go off-leash in Baltimore?", a: "In fenced dog parks such as the one in Patterson Park. On the Waterfront Promenade and in the other parks dogs stay leashed." },
+        { q: "Is there a sitter near me in Baltimore?", a: "Open the map in HoPetSit to see sitters around Fells Point, Federal Hill, Canton, Hampden or Mount Vernon. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should I start as a pet sitter in Baltimore?", a: "In the rowhouse neighborhoods: Fells Point, Federal Hill, Canton or Patterson Park. Keep your service area to a few blocks so you can chain midday walks." },
+        { q: "What do Baltimore owners expect?", a: "Punctual midday walks, leash rules respected outside dog parks and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
 };
 
 // 08/10/2026 — même remède pour les villes françaises touchées (rattachées par
