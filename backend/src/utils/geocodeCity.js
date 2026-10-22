@@ -72,10 +72,40 @@ function _canon(city, coords) {
   try { return require('./canonicalCity0410').canonicalCityName(String(city || '').trim(), coords); } catch (_) { return String(city || '').trim(); }
 }
 
+// 22/10/2026 (BOB, demande de Daniel « vérifie la position des clients aux USA »)
+// — LES QUARTIERS DE NEW YORK. Photon ne cherche que place:city/town ; un
+// « borough » n'en est pas un, il renvoie donc un homonyme. Mesuré le 22/10 :
+//   « Manhattan » → Kansas (1 929 km)   « Brooklyn » → Ohio (659 km)
+//   « Queens » → Queenstown, Nouvelle-Zélande (15 031 km)
+//   « Staten Island » → Grand Island, Nebraska (2 031 km)
+// Ces erreurs étaient en plus gardées en base (CityAnchor) et rechargées à
+// chaque démarrage. Conséquences : profil jamais placé depuis sa ville (616,
+// « ambiguous_sources »), demande sans GPS publiée à « Brooklyn » loin de tous
+// les gardiens de New York (alerte 612, refus TOO_FAR des 200 km). Ces noms
+// sont donc résolus ICI, avant le cache et avant le réseau.
+const NYC_BOROUGHS = {
+  manhattan: { lat: 40.7831, lng: -73.9712 },
+  brooklyn: { lat: 40.6782, lng: -73.9442 },
+  queens: { lat: 40.7282, lng: -73.7949 },
+  bronx: { lat: 40.8448, lng: -73.8648 },
+  'the bronx': { lat: 40.8448, lng: -73.8648 },
+  'bronx county': { lat: 40.8448, lng: -73.8648 },
+  'staten island': { lat: 40.5795, lng: -74.1502 },
+};
+
+function fixedCity(key) {
+  const k = String(key || '').toLowerCase().replace(/[.,]/g, ' ')
+    .replace(/\s+(ny|nyc|new york|new york city|usa|us)$/i, '').replace(/\s+/g, ' ').trim();
+  const v = NYC_BOROUGHS[k];
+  return v ? { lat: v.lat, lng: v.lng } : null;
+}
+
 async function geocodeCity(city) {
   const nom = _canon(city);
   if (!nom) return null;
   const key = nom.toLowerCase();
+  const fixed = fixedCity(key);
+  if (fixed) return fixed;
   const hit = _cache.get(key);
   if (hit && (hit.perm || Date.now() - hit.t < (hit.v ? TTL_MS : MISS_TTL_MS))) return hit.v;
 
@@ -136,6 +166,8 @@ function baseCityName(city, coords) {
 function peekCity(city) {
   const key = _canon(city).toLowerCase();
   if (!key) return undefined;
+  const fixed = fixedCity(key);
+  if (fixed) return fixed;
   const hit = _cache.get(key);
   if (!hit) return undefined;
   if (!hit.perm && Date.now() - hit.t >= (hit.v ? TTL_MS : MISS_TTL_MS)) return undefined;
