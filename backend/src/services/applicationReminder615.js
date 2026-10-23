@@ -274,6 +274,8 @@ const runApplicationReminders = async (opts = {}) => {
         claim = await Reminder.create({
           postId, slot, ownerId: post.ownerId, candidates: valid.length,
           applicationId: latest._id, serviceKind: kind, timeZone: tz,
+          // Même horloge que decideSlot (écart r1 → r2) : l'heure du passage, pas l'horloge du serveur.
+          createdAt: now,
         });
       } catch (e) {
         if (e && e.code === 11000) { skip('already'); continue; }

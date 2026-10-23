@@ -40,6 +40,10 @@ const request = require('supertest');
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
+// ZOE 21/10 : dates de service toujours À VENIR (en dur au 17-18/10, le test rougissait dès le 21/10 :
+// une garde passée est libérée tout de suite → ligne de séquestre + vrai crédit = 2 lignes, solde juste).
+const inDays = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+const DAY1 = inDays(30); const DAY2 = inDays(31);
 let mongo; let app; let Owner; let Sitter; let Booking; let WalletTransaction; let Invoice;
 let confirmBookingPayment; let ownerId; let sitterId;
 const resMock = () => { const r = { statusCode: 200, body: null }; r.status = (c) => { r.statusCode = c; return r; }; r.json = (b) => { r.body = b; return r; }; return r; };
@@ -62,7 +66,7 @@ afterAll(async () => { await mongoose.disconnect(); if (mongo) await mongo.stop(
 
 test('propriétaire accepte → paie 12 € (10 + 2 de commission) → réservation payée, 10 € au prestataire, commission 2 € gardée', async () => {
   const b = await Booking.create({
-    ownerId, sitterId, date: '2026-10-17', startDate: '2026-10-17', timeSlot: 'morning', serviceType: 'home_visit',
+    ownerId, sitterId, date: DAY1, startDate: DAY1, timeSlot: 'morning', serviceType: 'home_visit',
     status: 'agreed', paymentStatus: 'pending', paymentProvider: 'airwallex', airwallexPaymentIntentId: PI.id,
     pricing: { basePrice: 10, totalPrice: 12, commission: 2, netPayout: 10, commissionRate: 0.2, currency: 'EUR' },
   });
@@ -106,7 +110,7 @@ test('propriétaire accepte → paie 12 € (10 + 2 de commission) → réservat
 
 test('rejeu : confirmer deux fois ne crédite pas deux fois le prestataire', async () => {
   const b = await Booking.create({
-    ownerId, sitterId, date: '2026-10-18', startDate: '2026-10-18', timeSlot: 'morning', serviceType: 'home_visit',
+    ownerId, sitterId, date: DAY2, startDate: DAY2, timeSlot: 'morning', serviceType: 'home_visit',
     status: 'agreed', paymentStatus: 'pending', paymentProvider: 'airwallex', airwallexPaymentIntentId: 'int_flo1610_b',
     pricing: { basePrice: 10, totalPrice: 12, commission: 2, netPayout: 10, commissionRate: 0.2, currency: 'EUR' },
   });

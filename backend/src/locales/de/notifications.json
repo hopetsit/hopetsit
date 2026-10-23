@@ -123,13 +123,13 @@
     "title": "Zahlung erhalten!",
     "body": "Der Tierhalter hat die Buchung bezahlt. Der Chat ist offen, um die Details zu klären. Am Tag des Services tippe auf „Tier abgeholt“.",
     "emailSubject": "Zahlung erhalten — HoPetSit",
-    "emailBody": "<p>Gute Nachricht! Die Zahlung für die Buchung wurde gerade bestätigt. Du kannst jetzt mit dem Eigentümer chatten, um Ort und Zeit des Services zu vereinbaren.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, öffne die HoPetSit-App manuell.</p>"
+    "emailBody": "<p>Gute Nachricht! Die Zahlung für die Buchung wurde gerade bestätigt. Du kannst jetzt mit dem Eigentümer chatten, um Ort und Zeit des Services zu vereinbaren.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
   },
   "booking_paid_owner": {
     "title": "Zahlung bestätigt",
     "body": "Deine Zahlung ist registriert. Die Buchung ist aktiv — sprich mit deinem Anbieter, um die Details zu vereinbaren.",
     "emailSubject": "Deine Zahlung ist bestätigt — HoPetSit",
-    "emailBody": "<p>Deine Zahlung wurde gerade bestätigt. Deine Buchung ist jetzt <strong>aktiv</strong>. Öffne die HoPetSit-App, um mit deinem Anbieter zu chatten und die letzten Details zu vereinbaren.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, öffne die HoPetSit-App manuell.</p>"
+    "emailBody": "<p>Deine Zahlung wurde gerade bestätigt. Deine Buchung ist jetzt <strong>aktiv</strong>. Öffne die HoPetSit-App, um mit deinem Anbieter zu chatten und die letzten Details zu vereinbaren.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
   },
   "booking_cancelled_by_owner": {
     "title": "Buchung storniert",

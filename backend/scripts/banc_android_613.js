@@ -67,6 +67,18 @@ stub('../src/services/airwallexService', (a) => ({
   constructWebhookEvent: (body) => JSON.parse(Buffer.isBuffer(body) ? body.toString('utf8') : body),
   createRefund: async ({ paymentIntentId }) => ({ id: `rfd_${paymentIntentId}`, status: 'RECEIVED' }),
 }));
+// 21/10 (ZOE) — photothèque SIMULÉE : le banc ne charge pas les clés Cloudinary (photo d'animal = 502).
+// Chaque envoi rend une des photos servies par /img (aucun fichier ne quitte le Mac).
+let mediaSeq = 0;
+stub('../src/services/cloudinary', (a) => ({
+  ...a,
+  uploadMedia: async () => {
+    mediaSeq += 1;
+    const n = 110 + (mediaSeq % 20);
+    const url = `${process.env.BANC_ROOT || `http://10.0.2.2:${process.env.BANC_PORT || 5615}`}/img/${n}.jpg`;
+    return { url, originalUrl: url, publicId: `banc/${mediaSeq}`, resourceType: 'image', format: 'jpg', bytes: 1000, width: 640, height: 640, duration: null, createdAt: new Date().toISOString(), thumbnailUrl: url, originalFilename: `banc${mediaSeq}` };
+  },
+}));
 try { stub('../src/utils/geocodeCity', (a) => ({ ...a, geocodeCity: async () => null })); } catch (_) { /* facultatif */ }
 
 const PORT = Number(process.env.BANC_PORT || 5615);
@@ -245,5 +257,22 @@ const tok = (id, role) => jwt.sign({ id: String(id), role }, process.env.JWT_SEC
     const r = await require('../src/services/applicationReminder615').runApplicationReminders({ now });
     res.json({ now: now.toISOString(), ...r });
   });
+  // 21/10 (ZOE) — réservation payée et TERMINÉE (Rex) pour les parcours « avis » et « fiche animal »
+  // de integration_test/zoe0710_qualite_test.dart (POST 127.0.0.1:5617/__zoe/booking/walker|sitter).
+  const zoe = express(); zoe.use(express.json());
+  zoe.post('/__zoe/booking/:role', async (req, res) => {
+    const role = req.params.role === 'sitter' ? 'sitter' : 'walker';
+    const Booking = require('../src/models/Booking');
+    const day = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const r = await Booking.collection.insertOne({
+      ownerId: O._id, [role === 'walker' ? 'walkerId' : 'sitterId']: role === 'walker' ? W._id : S._id, petIds: [pet._id],
+      serviceType: role === 'walker' ? 'dog_walking' : 'home_visit', date: day, startDate: day, timeSlot: 'morning',
+      status: 'completed', confirmationStatus: 'confirmed', paymentStatus: 'paid', paidAt: new Date(Date.now() - 2 * 86400000),
+      pricing: { basePrice: 10, totalPrice: 12, commission: 2, netPayout: 10, commissionRate: 0.2, currency: 'EUR' },
+      createdAt: new Date(Date.now() - 3 * 86400000), updatedAt: new Date(),
+    });
+    res.json({ id: String(r.insertedId) });
+  });
+  zoe.listen(5617, '127.0.0.1');
   ctl.listen(5616, '127.0.0.1');
 })().catch((e) => { console.error('ÉCHEC', e); process.exit(1); });
