@@ -13,6 +13,7 @@ import 'package:hopetsit/utils/date_slash_formatter.dart';
 import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
+import 'package:hopetsit/utils/postal_code2310.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
@@ -175,7 +176,9 @@ class SignupWizardScreen extends StatelessWidget {
         PoppinsText(
           text: titleKey.tr.toUpperCase(),
           fontSize: 16.sp,
-          fontWeight: FontWeight.w900,
+          // 619 — Poppins w900 n'est pas embarquée (Black absent des assets,
+          // piège du 618) : w800 = Poppins-ExtraBold, rendu identique hors réseau.
+          fontWeight: FontWeight.w800,
           color: AppColors.textPrimary(context),
           textAlign: TextAlign.center,
         ),
@@ -457,6 +460,7 @@ class SignupWizardScreen extends StatelessWidget {
         // bloc localisation des prestataires (détection auto + autocomplete).
         _label('signup_step_location'.tr),
         _locationBlock(context, c),
+        _postalBlock(context, c), // 619
         SizedBox(height: 14.h),
         _label('signup_search_radius'.tr),
         _radiusDropdown(c),
@@ -652,6 +656,38 @@ class SignupWizardScreen extends StatelessWidget {
     });
   }
 
+  /// 619 (PAM, ordre de Daniel 23/10 : « code postal = position ») — champ
+  /// OBLIGATOIRE juste sous la ville, 3 rôles : le serveur place le compte au
+  /// code postal (plus jamais au centre-ville). Clavier numérique quand le
+  /// pays choisi n'a que des chiffres ; 3 à 10 caractères (validateStep).
+  Widget _postalBlock(BuildContext context, SignUpController c) {
+    return Column(
+      key: const Key('postal2310_block'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('postal2310_label'.tr),
+        Obx(() => _field(
+              c.postalCodeController,
+              'postal2310_label'.tr,
+              hint: 'postal2310_hint'.tr,
+              kb: postalKeyboardFor2310(c.selectedCountry.value),
+              formatters: [
+                LengthLimitingTextInputFormatter(12),
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z \-]')),
+              ],
+            )),
+        Padding(
+          padding: EdgeInsets.only(top: 4.h, left: 2.w),
+          child: InterText(
+            text: 'postal2310_help_signup'.tr,
+            fontSize: 12.sp,
+            color: AppColors.textSecondary(context),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _stepProviderLocation(BuildContext context, SignUpController c) {
     final animals = _isWalker
         ? const [
@@ -676,6 +712,7 @@ class SignupWizardScreen extends StatelessWidget {
         // « Détecter ma position » au-dessus du champ ville (en plus du mini
         // bouton interne de CityLocationPicker), même handler getCurrentLocation.
         _locationBlock(context, c),
+        _postalBlock(context, c), // 619
         SizedBox(height: 12.h),
         _label('signup_field_radius'.tr),
         _radiusDropdown(c),

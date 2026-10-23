@@ -227,6 +227,10 @@ void main() {
       c.userLatitude.value = -35.0;
       c.userLongitude.value = -30.0;
       c.selectedServices.add('walk');
+      // 619 — le code postal reste obligatoire, même avec la position GPS
+      // (le serveur place le compte au code postal).
+      expect(c.validateStep(1), 'postal2310_required');
+      c.postalCodeController.text = '75011';
       expect(c.validateStep(1), isNull);
     });
   });

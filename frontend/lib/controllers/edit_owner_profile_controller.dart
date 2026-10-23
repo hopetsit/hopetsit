@@ -7,6 +7,7 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
+import 'package:hopetsit/utils/postal_code2310.dart';
 import 'package:hopetsit/utils/date_slash_formatter.dart'
     show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/logger.dart';
@@ -48,6 +49,12 @@ class EditOwnerProfileController extends GetxController {
   final phoneController = TextEditingController();
   final addressController = TextEditingController();
   final locationController = TextEditingController();
+  /// 619 (PAM, ordre de Daniel 23/10) — code postal du compte : le serveur
+  /// place le compte au code postal (plus au centre-ville) et renvoie la
+  /// position ; la PawMap suit sans redémarrer.
+  final postalCodeController = TextEditingController();
+  /// Pays ISO-2 du compte (pour le clavier du code postal et le géocodage).
+  final RxString profileCountry = ''.obs;
   final bioController = TextEditingController();
   final languageController = TextEditingController();
   // v575 — « Langues parlées » : même sélecteur que gardien/promeneur (le
@@ -148,6 +155,9 @@ class EditOwnerProfileController extends GetxController {
         countryIso: profileData['country']?.toString(),
         rawMobile: rawMobile,
       );
+      // 619 — code postal + pays du compte.
+      postalCodeController.text = (profileData['postalCode'] ?? '').toString();
+      profileCountry.value = (profileData['country'] ?? '').toString().toUpperCase();
       phoneController.text =
           PhonePrefix.nationalNumber(rawMobile, selectedCountryCode.value);
 
@@ -411,7 +421,15 @@ class EditOwnerProfileController extends GetxController {
         payload['location'] = {'city': cityForLocation};
       }
 
-      await _userRepository.updateUserProfile(userId, payload);
+      // 619 — code postal : envoyé avec le profil (vide = effacé) ; le pays
+      // du compte aide le géocodage. Le serveur renvoie la position → PawMap.
+      final postal619 = cleanPostalCode2310(postalCodeController.text);
+      payload['postalCode'] = postal619;
+      if (profileCountry.value.isNotEmpty) payload['country'] = profileCountry.value;
+      final saved619 = await _userRepository.updateUserProfile(userId, payload);
+      if (postal619.isNotEmpty) {
+        applyMovedPosition2310(positionFromProfileResponse2310(saved619), postal619);
+      }
 
       // Note: Profile image is uploaded immediately when picked,
       // so we don't need to upload it again here

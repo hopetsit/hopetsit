@@ -50,7 +50,9 @@ void main() {
           final t = help587I18n[lang]!;
           expect(find.byKey(const ValueKey<String>('help_privacy')), findsOneWidget);
           for (final k in _newKeys) {
-            expect(find.text(t[k]!, skipOffstage: false), findsOneWidget, reason: k);
+            // 619 — « PawFollow » (help2709_follow_t) apparaît aussi dans la
+            // nouvelle carte « abonnements expliqués » : au moins une fois.
+            expect(find.text(t[k]!, skipOffstage: false), findsAtLeastNWidgets(1), reason: k);
           }
           expect(find.byKey(const ValueKey<String>('help_roles'), skipOffstage: false),
               findsOneWidget);

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/edit_sitter_profile_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/utils/date_slash_formatter.dart';
 import 'package:hopetsit/utils/pet_species_color.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
+import 'package:hopetsit/utils/postal_code2310.dart';
 import 'package:hopetsit/views/profile/widgets/profile_field_widgets.dart';
 import 'package:hopetsit/views/profile/widgets/email_change_field.dart';
 import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
@@ -212,6 +215,31 @@ class _EditSitterProfileScreenState extends State<EditSitterProfileScreen> {
                                 controller.userLatitude.value = latitude;
                                 controller.userLongitude.value = longitude;
                               },
+                            ),
+                          ),
+                          // 619 (PAM, ordre de Daniel) — code postal =
+                          // position du compte sur la PawMap.
+                          Obx(() => ProfileInput(
+                                key: const Key('postal2310_field'),
+                                label: 'postal2310_label'.tr,
+                                hint: 'postal2310_hint'.tr,
+                                controller: controller.postalCodeController,
+                                accent: accent,
+                                keyboardType: postalKeyboardFor2310(
+                                    controller.profileCountry.value),
+                                textInputAction: TextInputAction.next,
+                                maxLength: 12,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'[0-9A-Za-z \-]')),
+                                ],
+                              )),
+                          Padding(
+                            padding: EdgeInsets.only(top: 2.h, bottom: 6.h),
+                            child: InterText(
+                              text: 'postal2310_help_profile'.tr,
+                              fontSize: 12.sp,
+                              color: AppColors.textSecondary(context),
                             ),
                           ),
                         ],

@@ -203,3 +203,11 @@ void openMainTabOr(int index, Widget Function() fallback) {
 /// 610 — la patte verte du menu demande à la PawMap d'ouvrir la feuille
 /// « En direct maintenant » (compteur : chaque appui = une demande).
 final RxInt pawMapLiveListRequest610 = 0.obs;
+
+/// 619 (PAM, ordre de Daniel 23/10 « code postal = position ») — « Modifier
+/// le profil » a enregistré un code postal : le serveur a renvoyé la nouvelle
+/// position du compte. La PawMap, si elle est montée, y va et recharge les
+/// membres autour, sans redémarrer ; sinon elle s'y ouvrira la prochaine fois
+/// (profil local mis à jour, dernier centre oublié).
+final Rxn<LatLng> pawMapProfileMovedTo619 = Rxn<LatLng>();
+final RxInt pawMapProfileMoved619 = 0.obs;

@@ -141,6 +141,8 @@ Future<void> lotdSetUp({String role = 'owner'}) async {
     'email': 'camille@example.test',
     'role': role,
     'city': 'Paris',
+    // 619 — un compte ≥ 619 porte son code postal (pré-rempli sur la demande).
+    'postalCode': '75011',
   });
   AppColors.activeRoleOverride = role;
   Get.put<GetStorage>(storage, permanent: true);

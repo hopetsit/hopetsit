@@ -5,6 +5,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
+import 'package:hopetsit/utils/postal_code2310.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/date_slash_formatter.dart'
@@ -54,6 +55,12 @@ class EditSitterProfileController extends GetxController {
   final phoneController = TextEditingController();
   final addressController = TextEditingController();
   final locationController = TextEditingController();
+  /// 619 (PAM, ordre de Daniel 23/10) — code postal du compte : le serveur
+  /// place le compte au code postal (plus au centre-ville) et renvoie la
+  /// position ; la PawMap suit sans redémarrer.
+  final postalCodeController = TextEditingController();
+  /// Pays ISO-2 du compte (pour le clavier du code postal et le géocodage).
+  final RxString profileCountry = ''.obs;
   final bioController = TextEditingController();
   final skillsController = TextEditingController();
   final hourlyRateController = TextEditingController();
@@ -194,6 +201,9 @@ class EditSitterProfileController extends GetxController {
         countryIso: profileData['country']?.toString(),
         rawMobile: rawMobile,
       );
+      // 619 — code postal + pays du compte.
+      postalCodeController.text = (profileData['postalCode'] ?? '').toString();
+      profileCountry.value = (profileData['country'] ?? '').toString().toUpperCase();
       phoneController.text =
           PhonePrefix.nationalNumber(rawMobile, selectedCountryCode.value);
 
@@ -419,6 +429,25 @@ class EditSitterProfileController extends GetxController {
   }
 
   /// Validates and updates the profile
+  /// 619 — enregistre le code postal (vide = effacé) et applique la position
+  /// renvoyée (profil local + PawMap). Un échec ici ne fait pas échouer
+  /// l'enregistrement du reste du profil.
+  Future<void> _savePostalCode619() async {
+    final postal = cleanPostalCode2310(postalCodeController.text);
+    try {
+      final pos = await savePostalCode2310(
+        postalCode: postal,
+        country: profileCountry.value,
+        city: userCity.value.isNotEmpty
+            ? userCity.value
+            : locationController.text.trim(),
+      );
+      if (postal.isNotEmpty) applyMovedPosition2310(pos, postal);
+    } catch (e) {
+      AppLogger.logError('619 code postal non enregistré', error: e);
+    }
+  }
+
   Future<bool> validateAndUpdateProfile() async {
     if (!formKey.currentState!.validate()) {
       CustomSnackbar.showError(
@@ -599,6 +628,10 @@ class EditSitterProfileController extends GetxController {
       // v20.0.19 — Ne plus appeler setMyRates depuis l'écran Modifier profil.
       // Les tarifs sont écrits uniquement par MyRatesScreen → pas de race
       // condition et le dailyRate choisi dans "Mes tarifs" reste persistant.
+
+      // 619 — code postal : appel unique PUT /users/me/profile (3 rôles),
+      // le serveur place le compte au code postal et renvoie la position.
+      await _savePostalCode619();
 
       // Note: Profile image is uploaded immediately when picked,
       // so we don't need to upload it again here

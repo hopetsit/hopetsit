@@ -21,6 +21,7 @@ import 'package:hopetsit/widgets/city_location_picker.dart'
     show cityPickedFromList610, cityPlaceIdOf610, markCityPicked610;
 // v575 — audit P1-7 : bornes de durée de promenade partagées avec le serveur.
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/utils/postal_code2310.dart';
 import 'package:hopetsit/utils/walk_duration.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/app_dialog_kit.dart';
@@ -161,6 +162,26 @@ class PublishReservationRequestController extends GetxController {
   final RxString detectedCity = ''.obs;
   final RxnDouble userLat = RxnDouble();
   final RxnDouble userLng = RxnDouble();
+  /// 619 (PAM, ordre de Daniel 23/10 « code postal = position ») — GPS
+  /// précis obtenu par « Ma position » dans CETTE saisie. Sinon (ville
+  /// choisie dans la liste / sur la carte, brouillon, modification), la
+  /// demande est placée au code postal, plus jamais au centre-ville.
+  final RxBool gpsPrecise = false.obs;
+  final postalCodeController = TextEditingController();
+  /// Miroir réactif du code postal (barre collante, section « Lieu »).
+  final RxString postalText = ''.obs;
+  /// Le code postal est demandé dès que la ville est choisie sans GPS précis.
+  bool get needsPostal => stepCityDone && !gpsPrecise.value;
+  bool get postalDone =>
+      !needsPostal || isPostalCodeValid2310(postalText.value);
+  /// Pays ISO-2 du propriétaire (profil local) — envoyé avec le code postal.
+  String get ownerCountry {
+    try {
+      final p = GetStorage().read(StorageKeys.userProfile);
+      if (p is Map) return (p['country'] ?? '').toString().trim().toUpperCase();
+    } catch (_) {}
+    return '';
+  }
 
   final RxBool isSubmitting = false.obs;
 
@@ -314,6 +335,17 @@ class PublishReservationRequestController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // 619 — code postal : miroir réactif + préremplissage depuis le profil.
+    postalCodeController.addListener(() {
+      if (postalText.value != postalCodeController.text) {
+        postalText.value = postalCodeController.text;
+      }
+    });
+    try {
+      final p = GetStorage().read(StorageKeys.userProfile);
+      final pc = p is Map ? (p['postalCode'] ?? '').toString().trim() : '';
+      if (pc.isNotEmpty) postalCodeController.text = pc;
+    } catch (_) {}
     // v565 — le résumé / la barre collante observent la ville.
     cityController.addListener(() {
       if (cityText.value != cityController.text) {
@@ -329,6 +361,7 @@ class PublishReservationRequestController extends GetxController {
         userLat.value = null;
         userLng.value = null;
         _coordsCity = '';
+        gpsPrecise.value = false; // 619
       }
     });
     // v441 — en mode édition, on pré-remplit les champs scalaires AVANT le
@@ -431,6 +464,7 @@ class PublishReservationRequestController extends GetxController {
         'city': cityController.text.trim(),
         'lat': userLat.value,
         'lng': userLng.value,
+        'postalCode': postalCodeController.text.trim(), // 619
         'notes': notesController.text.trim(),
         'budget': budgetText.value.trim(),
         'animalTypes': animalTypes.toList(),
@@ -479,6 +513,9 @@ class PublishReservationRequestController extends GetxController {
         _coordsCity = city.toLowerCase();
       }
     }
+    // 619 — un brouillon n'a jamais de GPS « précis » : code postal demandé.
+    final pc619 = (d['postalCode'] ?? '').toString().trim();
+    if (pc619.isNotEmpty) postalCodeController.text = pc619;
     notesController.text = (d['notes'] ?? '').toString();
     final b = (d['budget'] ?? '').toString();
     budgetController.text = b;
@@ -605,6 +642,7 @@ class PublishReservationRequestController extends GetxController {
     notesController.removeListener(_scheduleDraftSave);
     notesController.dispose();
     cityController.dispose();
+    postalCodeController.dispose();
     meetingPointController.dispose();
     budgetController.dispose();
     addressController.dispose();
@@ -771,6 +809,8 @@ class PublishReservationRequestController extends GetxController {
         userLat.value = data['latitude'] as double?;
         userLng.value = data['longitude'] as double?;
       }
+      // 619 — « Ma position » = GPS précis : le code postal n'est pas demandé.
+      gpsPrecise.value = userLat.value != null && userLng.value != null;
       if (city.isNotEmpty) {
         // v610 — « Ma position » = ville validée (posée AVANT le texte, pour
         // que la barre « Il manque » se mette à jour dans la même image).
@@ -939,6 +979,11 @@ class PublishReservationRequestController extends GetxController {
     // sans choisir une ville de la liste : refusé.
     cityText.value; // lecture réactive (barre collante)
     if (!cityPickedFromList610(cityController)) return 'cityPick';
+    // 619 — sans GPS précis, le code postal place la demande dans le quartier.
+    postalText.value; // lecture réactive
+    if (needsPostal && !isPostalCodeValid2310(postalCodeController.text)) {
+      return 'postal';
+    }
     return null;
   }
 
@@ -972,6 +1017,8 @@ class PublishReservationRequestController extends GetxController {
         return 'publish_request_city_required'.tr;
       case 'cityPick':
         return 'city610_missing_label'.tr;
+      case 'postal':
+        return 'postal2310_required'.tr; // 619
       default:
         return 'publish_request_fill_required'.tr;
     }
@@ -1120,6 +1167,9 @@ class PublishReservationRequestController extends GetxController {
           lat: userLat.value,
           lng: userLng.value,
           placeId: cityPlaceIdOf610(cityController),
+          // 619 — sans GPS précis : code postal + pays → position du quartier.
+          postalCode: needsPostal ? cleanPostalCode2310(postalCodeController.text) : null,
+          country: needsPostal ? ownerCountry : null,
           notes: notes,
           houseSittingVenue: venue,
           serviceLocation: svcLocation,
@@ -1142,6 +1192,9 @@ class PublishReservationRequestController extends GetxController {
           lat: userLat.value,
           lng: userLng.value,
           placeId: cityPlaceIdOf610(cityController),
+          // 619 — sans GPS précis : code postal + pays → position du quartier.
+          postalCode: needsPostal ? cleanPostalCode2310(postalCodeController.text) : null,
+          country: needsPostal ? ownerCountry : null,
           notes: notes,
           houseSittingVenue: venue,
           serviceLocation: svcLocation,

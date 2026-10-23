@@ -52,6 +52,10 @@ void main() {
     // liste (le champ marque la ville choisie).
     expect(c.validateStep(1), 'city610_pick_from_list');
     markCityPicked610(c.cityController, 'Paris');
+    // 619 (PAM, ordre de Daniel 23/10) — le code postal est obligatoire sous
+    // la ville : sans lui, l'étape bloque AVANT le service.
+    expect(c.validateStep(1), 'postal2310_required');
+    c.postalCodeController.text = '75011';
     expect(c.validateStep(1), 'signup_error_service_required');
     c.selectedServices.add('walk');
     expect(c.validateStep(1), isNull);

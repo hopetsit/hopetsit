@@ -12,6 +12,7 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/walker_model.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
+import 'package:hopetsit/utils/postal_code2310.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/date_slash_formatter.dart'
     show parseDdMmYyyy, ageInYears;
@@ -68,6 +69,12 @@ class EditWalkerProfileController extends GetxController {
   final phoneController = TextEditingController();
   final addressController = TextEditingController();
   final locationController = TextEditingController();
+  /// 619 (PAM, ordre de Daniel 23/10) — code postal du compte : le serveur
+  /// place le compte au code postal (plus au centre-ville) et renvoie la
+  /// position ; la PawMap suit sans redémarrer.
+  final postalCodeController = TextEditingController();
+  /// Pays ISO-2 du compte (pour le clavier du code postal et le géocodage).
+  final RxString profileCountry = ''.obs;
   final bioController = TextEditingController();
   final skillsController = TextEditingController();
   final languageController = TextEditingController();
@@ -200,6 +207,9 @@ class EditWalkerProfileController extends GetxController {
         selectedLanguages.clear();
       }
       userCity.value = walker.city ?? '';
+      // 619 — code postal du compte (le pays vient du profil local).
+      postalCodeController.text = walker.postalCode;
+      profileCountry.value = (storedProfile?['country'] ?? '').toString().toUpperCase();
 
       // v426 — synchro inscription↔profil : recharge les champs du wizard.
       dobController.text = walker.dateOfBirth;
@@ -357,6 +367,25 @@ class EditWalkerProfileController extends GetxController {
   }
 
   /// Validates and updates the walker profile + the 60-min rate.
+  /// 619 — enregistre le code postal (vide = effacé) et applique la position
+  /// renvoyée (profil local + PawMap). Un échec ici ne fait pas échouer
+  /// l'enregistrement du reste du profil.
+  Future<void> _savePostalCode619() async {
+    final postal = cleanPostalCode2310(postalCodeController.text);
+    try {
+      final pos = await savePostalCode2310(
+        postalCode: postal,
+        country: profileCountry.value,
+        city: userCity.value.isNotEmpty
+            ? userCity.value
+            : locationController.text.trim(),
+      );
+      if (postal.isNotEmpty) applyMovedPosition2310(pos, postal);
+    } catch (e) {
+      AppLogger.logError('619 code postal non enregistré', error: e);
+    }
+  }
+
   Future<bool> validateAndUpdateProfile() async {
     if (!formKey.currentState!.validate()) {
       CustomSnackbar.showError(
@@ -509,6 +538,10 @@ class EditWalkerProfileController extends GetxController {
 
       // 2. Update profile fields. If this fails the rate is already safe.
       await _walkerRepository.updateMyWalkerProfile(payload);
+
+      // 619 — code postal : appel unique PUT /users/me/profile (3 rôles),
+      // le serveur place le compte au code postal et renvoie la position.
+      await _savePostalCode619();
 
       await loadProfileData();
 

@@ -13,6 +13,7 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
+import 'package:hopetsit/utils/postal_code2310.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
@@ -231,7 +232,7 @@ class _PublishReservationRequestScreenState
                 // ── 4. Lieu (ville obligatoire) ──────────────────────────
                 KeyedSubtree(key: _stepKeys[3], child: Obx(() => _buildSectionCard(
                       step: 4,
-                      done: controller.stepCityDone,
+                      done: controller.stepCityDone && controller.postalDone, // 619
                       icon: Icons.location_on_rounded,
                       title: 'publish_request_city_label'.tr,
                       child: _buildLocationSection(),
@@ -2099,23 +2100,92 @@ class _PublishReservationRequestScreenState
     // (Auto button for GPS + Carte button for map picker). The controller
     // already exposes detectLocation() / isGettingLocation / detectedCity,
     // they were just never wired to the UI until now.
-    return Obx(
-      () => CityLocationPicker(
-        cityController: controller.cityController,
-        onGetLocation: () => controller.detectLocation(),
-        isGettingLocation: controller.isGettingLocation.value,
-        detectedCity: controller.detectedCity.value,
-        // v610 NEO — « Utiliser ma position » en grand : un appui remplit la
-        // ville (Daniel, 04/10).
-        prominentAuto: true,
-        onLocationSelected: (city, lat, lng) {
-          controller.cityController.text = city;
-          controller.detectedCity.value = city;
-          controller.userLat.value = lat;
-          controller.userLng.value = lng;
-        },
-      ),
-    );
+    return Obx(() {
+      // 619 — lu dans la closure de l'Obx (règle d'or GetX).
+      final needsPostal = controller.needsPostal;
+      final postalMissing =
+          needsPostal && !isPostalCodeValid2310(controller.postalText.value);
+      final accent = AppColors.primaryColor;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CityLocationPicker(
+            cityController: controller.cityController,
+            onGetLocation: () => controller.detectLocation(),
+            isGettingLocation: controller.isGettingLocation.value,
+            detectedCity: controller.detectedCity.value,
+            // v610 NEO — « Utiliser ma position » en grand : un appui remplit la
+            // ville (Daniel, 04/10).
+            prominentAuto: true,
+            onLocationSelected: (city, lat, lng) {
+              controller.cityController.text = city;
+              controller.detectedCity.value = city;
+              controller.userLat.value = lat;
+              controller.userLng.value = lng;
+              // 619 — ville choisie (liste / carte) ≠ GPS précis.
+              controller.gpsPrecise.value = false;
+            },
+          ),
+          // 619 (PAM, ordre de Daniel) — sans GPS précis, le code postal place
+          // la demande dans le quartier, plus jamais au centre-ville.
+          if (needsPostal) ...[
+            SizedBox(height: 10.h),
+            TextField(
+              key: const Key('postal2310_request_field'),
+              controller: controller.postalCodeController,
+              keyboardType: postalKeyboardFor2310(controller.ownerCountry),
+              maxLength: 12,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z \-]')),
+              ],
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: AppColors.textPrimary(context),
+              ),
+              decoration: InputDecoration(
+                counterText: '',
+                labelText: 'postal2310_label'.tr,
+                hintText: 'postal2310_hint'.tr,
+                hintStyle: TextStyle(
+                  fontSize: 13.sp,
+                  color: AppColors.textSecondary(context),
+                ),
+                prefixIcon: Padding(
+                  padding: EdgeInsets.all(12.w),
+                  child: PawIconWidget(PawIcon.pin, size: 18.sp, color: accent),
+                ),
+                filled: true,
+                fillColor: AppColors.inputFill(context),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14.r),
+                  borderSide: BorderSide(color: AppColors.divider(context)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14.r),
+                  borderSide: BorderSide(
+                    color: postalMissing
+                        ? accent.withValues(alpha: 0.55)
+                        : AppColors.divider(context),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14.r),
+                  borderSide: BorderSide(color: accent, width: 1.6),
+                ),
+              ),
+            ),
+            SizedBox(height: 6.h),
+            InterText(
+              text: 'postal2310_help_request'.tr,
+              fontSize: 12.sp,
+              color: AppColors.textSecondary(context),
+            ),
+          ],
+        ],
+      );
+    });
   }
 
   Widget _buildImagesSection() {

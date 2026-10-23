@@ -1227,6 +1227,13 @@ class _PawMapScreenState extends State<PawMapScreen>
       WidgetsBinding.instance
           .addPostFrameCallback((_) => unawaited(_openLiveNowSheet610()));
     });
+    // 619 — « Modifier le profil » a enregistré un code postal : mon point a
+    // bougé → la carte y va et recharge les membres autour, sans redémarrer.
+    _profileMovedWorker619 = ever<int>(pawMapProfileMoved619, (_) {
+      if (!mounted) return;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => unawaited(_onProfileMoved619()));
+    });
     // v23.1.353 — refonte PawSpot : les anciens halos "map boost" (tier
     // bronze/silver/gold/platinum + self-halo) sont SUPPRIMÉS de la carte.
     // PawSpot = désormais les spots communautaires 🐾 (couche dédiée,
@@ -1660,6 +1667,19 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   Worker? _liveListWorker610;
   static int _liveListHandled610 = 0;
+  Worker? _profileMovedWorker619;
+
+  /// 619 — nouvelle position du compte (code postal) : caméra dessus, puis
+  /// rechargement des membres et des demandes autour.
+  Future<void> _onProfileMoved619() async {
+    final at = pawMapProfileMovedTo619.value;
+    if (at == null || !mounted) return;
+    _holdCamera();
+    final ctl = await _activeMapCtl();
+    await ctl?.animateCamera(CameraUpdate.newLatLngZoom(at, 14));
+    if (!mounted) return;
+    await _loadNearbyProviders();
+  }
   bool _liveNowOpen610 = false;
 
   /// Liste des amis en direct ; un appui = la carte vole sur lui au zoom
@@ -2737,6 +2757,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     _pendingFriendWorker?.dispose();
     _pendingIntentWorker?.dispose();
     _liveListWorker610?.dispose();
+    _profileMovedWorker619?.dispose();
     _reloadDebounce?.cancel();
     _snapshotTimer?.cancel();
     _cover.dispose();

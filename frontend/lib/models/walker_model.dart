@@ -17,6 +17,8 @@ class WalkerModel {
   final String language;
   final String address;
   final String? city;
+  /// 619 — code postal du compte (position = code postal).
+  final String postalCode;
   final String? bio;
   final String? skills;
   final bool acceptedTerms;
@@ -105,6 +107,7 @@ class WalkerModel {
     required this.language,
     required this.address,
     this.city,
+    this.postalCode = '',
     this.bio,
     this.skills,
     required this.acceptedTerms,
@@ -209,6 +212,7 @@ class WalkerModel {
       language: json['language'] as String? ?? '',
       address: json['address'] as String? ?? '',
       city: cityName,
+      postalCode: (json['postalCode'] ?? '').toString().trim(),
       bio: json['bio'] as String?,
       skills: json['skills'] as String?,
       acceptedTerms: json['acceptedTerms'] as bool? ?? false,

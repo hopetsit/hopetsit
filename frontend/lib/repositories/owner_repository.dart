@@ -43,6 +43,10 @@ class OwnerRepository {
     double? lat,
     double? lng,
     String? placeId,
+    // 619 — code postal + pays (sans GPS précis) : le serveur place la
+    // demande au code postal (`POST /posts` accepte postalCode + country).
+    String? postalCode,
+    String? country,
     String? notes,
     String? houseSittingVenue,
     String? serviceLocation,
@@ -80,6 +84,9 @@ class OwnerRepository {
         // 04/10 (ZOE) — identifiant stable du lieu choisi dans la liste.
         if (placeId != null && placeId.isNotEmpty) 'placeId': placeId,
       },
+      if (postalCode != null && postalCode.isNotEmpty) 'postalCode': postalCode, // 619
+      if (postalCode != null && postalCode.isNotEmpty && country != null && country.isNotEmpty)
+        'country': country,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       if (houseSittingVenue != null && houseSittingVenue.isNotEmpty)
         'houseSittingVenue': houseSittingVenue,
@@ -128,6 +135,10 @@ class OwnerRepository {
     double? lat,
     double? lng,
     String? placeId,
+    // 619 — code postal + pays (sans GPS précis) : le serveur place la
+    // demande au code postal (`POST /posts` accepte postalCode + country).
+    String? postalCode,
+    String? country,
     String? notes,
     String? houseSittingVenue,
     String? serviceLocation,
@@ -169,6 +180,9 @@ class OwnerRepository {
       // v411 — toggle « Afficher le caractère des animaux » (string multipart).
       'showAnimalCharacter': showAnimalCharacter.toString(),
       'location': jsonEncode(location),
+      if (postalCode != null && postalCode.isNotEmpty) 'postalCode': postalCode, // 619
+      if (postalCode != null && postalCode.isNotEmpty && country != null && country.isNotEmpty)
+        'country': country,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       if (houseSittingVenue != null && houseSittingVenue.isNotEmpty)
         'houseSittingVenue': houseSittingVenue,

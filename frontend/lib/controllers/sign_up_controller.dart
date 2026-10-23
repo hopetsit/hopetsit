@@ -31,6 +31,7 @@ import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/utils/ios_store_rules606.dart';
+import 'package:hopetsit/utils/postal_code2310.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart'
     show cityPickedFromList610, markCityPicked610;
 
@@ -63,6 +64,9 @@ class SignUpController extends GetxController {
   final walkerRate30Controller = TextEditingController();
   final walkerRate60Controller = TextEditingController();
   final cityController = TextEditingController();
+  /// 619 (PAM, ordre de Daniel 23/10) — code postal obligatoire sous la ville :
+  /// le serveur place le compte au code postal, plus au centre-ville.
+  final postalCodeController = TextEditingController();
   final paypalEmailController = TextEditingController();
   // v20 — Photo de profil uploadée pendant l'inscription. Assignée par
   // _SignupPhotoPicker. Uploadée en post-signup via users/me/profile-picture.
@@ -539,6 +543,7 @@ class SignUpController extends GetxController {
     ratePerHourController.clear();
     skillsController.clear();
     cityController.clear();
+    postalCodeController.clear();
     paypalEmailController.clear();
     agreeToTerms.value = false;
   }
@@ -654,6 +659,9 @@ class SignUpController extends GetxController {
     // v565 audit-inscription — ville plate `city` en plus de location.city
     // (le serveur lit les deux ; la plate survit à l'absence de GPS).
     if (cityText.isNotEmpty) data['city'] = cityText;
+    // 619 — code postal (nettoyé comme le serveur) : position du compte.
+    final postal = cleanPostalCode2310(postalCodeController.text);
+    if (postal.isNotEmpty) data['postalCode'] = postal;
     if (userLatitude.value != null && userLongitude.value != null) {
       data['location'] = {
         'lat': userLatitude.value,
@@ -928,6 +936,9 @@ class SignUpController extends GetxController {
       if (step == 1) {
         if (!hasPlace) return 'signup_error_city_required'.tr;
         if (cityNotPicked) return 'city610_pick_from_list'.tr;
+        if (!isPostalCodeValid2310(postalCodeController.text)) {
+          return 'postal2310_required'.tr; // 619
+        }
         if (selectedServices.isEmpty) return 'signup_error_service_required'.tr;
       }
       return null;
@@ -937,6 +948,9 @@ class SignUpController extends GetxController {
     if (step == 1) {
       if (!hasPlace) return 'signup_error_city_required'.tr;
       if (cityNotPicked) return 'city610_pick_from_list'.tr;
+      if (!isPostalCodeValid2310(postalCodeController.text)) {
+        return 'postal2310_required'.tr; // 619
+      }
       if (acceptedAnimals.isEmpty) return 'signup_error_animals_required'.tr;
       if (selectedServices.isEmpty && userType == 'pet_sitter') {
         return 'signup_error_service_required'.tr;

@@ -36,6 +36,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart'
+    show PawspotLeaderboardScreen;
+import 'package:hopetsit/views/guest/signup_wall_sheet.dart';
 import 'package:hopetsit/widgets/paw_rank611.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -45,6 +50,7 @@ import '../../utils/map_ui_state.dart';
 import '../../utils/pawmap_theme.dart';
 import '../profile/widgets/profile_ui_kit.dart';
 import 'widgets/paw_rail_button.dart';
+import 'widgets/pawmap_help619_sections.dart';
 import 'widgets/pawmap_buttons.dart';
 import 'widgets/pawmap_discreet.dart';
 import 'widgets/pawmap_pins.dart';
@@ -86,21 +92,33 @@ class PawMapHelpScreen extends StatefulWidget {
 
 /// v605 (30/09) — Daniel : « vu que tout est numéroté, fais un menu avec les
 /// titres pour aller directement à la section sans défiler ». Les sections
-/// du sommaire, dans l'ordre de l'écran (id, numéro, clé du titre).
-const List<(String, int?, String)> kPawHelpSections = <(String, int?, String)>[
-  ('find', 1, 'help587_sec_find'),
-  ('see', 2, 'help587_sec_see'),
-  ('live', 3, 'help587_sec_live'),
-  ('balade', 4, 'help599_sec_balade'),
+/// du sommaire, dans l'ordre de l'écran (id, numéro, clé du titre, icône).
+///
+/// 619 (PAM, 23/10) — les sections reprises de la page web /pawmap
+/// (signalements, lieux, comment ça marche, nouveautés, abonnements) suivent
+/// les 9 numérotées : elles portent leur ICÔNE dans le sommaire (4e champ)
+/// et pas de numéro, pour que « 1 à 9 » reste la numérotation connue.
+const List<(String, int?, String, IconData?)> kPawHelpSections =
+    <(String, int?, String, IconData?)>[
+  ('find', 1, 'help587_sec_find', null),
+  ('see', 2, 'help587_sec_see', null),
+  ('live', 3, 'help587_sec_live', null),
+  ('balade', 4, 'help599_sec_balade', null),
   // 607 (ZOE, 02/10) — mêmes sections et mêmes textes que l'aide du site (LEO).
-  ('plush', 5, 'help607_plush_title'),
+  ('plush', 5, 'help607_plush_title', null),
   // 612 (Daniel, 05/10) — les rangs ont LEUR section (avant : une ligne
   // perdue au bas des peluches, introuvable).
-  ('ranks', 6, 'help611_ranks_t'),
-  ('pioneer', 7, 'help607_pioneer_title'),
-  ('act', 8, 'help587_sec_act'),
-  ('set', 9, 'help587_sec_set'),
-  ('faq', null, 'help587_faq_title'),
+  ('ranks', 6, 'help611_ranks_t', null),
+  ('pioneer', 7, 'help607_pioneer_title', null),
+  ('act', 8, 'help587_sec_act', null),
+  ('set', 9, 'help587_sec_set', null),
+  // 619 — comme la page web /pawmap (mêmes textes, pack help619).
+  ('reports', null, 'help619_r610_sec', Icons.health_and_safety_rounded),
+  ('places', null, 'help619_sec_places', Icons.place_rounded),
+  ('steps', null, 'help619_how', Icons.route_rounded),
+  ('news', null, 'help619_new_t', Icons.auto_awesome_rounded),
+  ('subs', null, 'help619_sub_title', Icons.workspace_premium_rounded),
+  ('faq', null, 'help587_faq_title', null),
 ];
 
 class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
@@ -132,6 +150,23 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
       return;
     }
     openPawMap();
+  }
+
+  /// 619 — « Voir mes PawPoints » / « Tout savoir sur les PawPoints » : la
+  /// page PawPoints (onglet Récompenses), comme le bouton du rail de la
+  /// carte ; sans compte, la même porte « Crée ton compte » que la carte.
+  void _openPawPoints() {
+    if ((SecureTokenStore.currentToken() ?? '').isEmpty) {
+      unawaited(SignupWallSheet.show(trigger: 'pawmap'));
+      return;
+    }
+    unawaited(Get.to(() => const PawspotLeaderboardScreen(initialTab: 3)));
+  }
+
+  /// 619 — « Découvrir PawFollow / PawSpot / PawPremium » : la boutique,
+  /// directement sur l'onglet de l'offre (1 · 2 · 3).
+  void _openShop(int tab) {
+    unawaited(Get.to(() => CoinShopScreen(initialTab: tab)));
   }
 
   /// Rôle affiché : celui passé, sinon celui du compte (même source que la
@@ -297,6 +332,9 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
             key: const ValueKey<String>('pawmap_help_body'),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 619 — la scène du site : patte-pin animée, titre, sous-titre.
+              const _Reveal(child: PawHelpHero619()),
+              SizedBox(height: 12.h),
               const _Reveal(child: _HeroCard()),
               SizedBox(height: 12.h),
               const _Reveal(child: _PrivacyCard(key: ValueKey<String>('help_privacy'))),
@@ -524,6 +562,8 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                     title: 'help612_earn_t'.tr,
                     help: 'pp607_help_points_body'.tr,
                   ),
+                  // 619 — l'encart or du site (PawPointsTeaser) + « Voir mes PawPoints ».
+                  PawHelpPointsTeaser619(onSeePoints: _openPawPoints),
                 ],
               ),
 
@@ -604,6 +644,81 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
                   _plainRow('subs', Icons.workspace_premium_rounded, PawMapTheme.pawFollow,
                       titleKey: 'pawmap585_btn_subs'),
                 ],
+              ),
+
+              // ── 619 — Signalements : la sécurité d'abord (règle B du 610,
+              // mêmes 5 lignes et mêmes textes que la légende du site) ──────
+              _SectionCard(
+                anchorKey: _anchors['reports'],
+                id: 'reports',
+                icon: Icons.health_and_safety_rounded,
+                title: 'help619_r610_sec'.tr,
+                example: 'help619_r610_ex'.tr,
+                children: [
+                  _plainRow('r610_see', Icons.visibility_rounded, const Color(0xFFB42318),
+                      filled: true,
+                      titleKey: 'help619_r610_see_t',
+                      helpKey: 'help619_r610_see_b'),
+                  _plainRow('r610_danger', Icons.health_and_safety_rounded,
+                      const Color(0xFFD32F2F),
+                      filled: true,
+                      titleKey: 'help619_r610_danger_t',
+                      helpKey: 'help619_r610_danger_b'),
+                  _ButtonRow(
+                    key: const ValueKey<String>('help_x_r610_comfort'),
+                    icon: const _WeekBadge619(),
+                    title: 'help619_r610_comfort_t'.tr,
+                    help: 'help619_r610_comfort_b'.tr,
+                  ),
+                  _plainRow('r610_lost', Icons.pets_rounded, PawMapTheme.accent,
+                      filled: true,
+                      titleKey: 'help619_r610_lost_t',
+                      helpKey: 'help619_r610_lost_b'),
+                  _plainRow('r610_sam', Icons.favorite_rounded, const Color(0xFFE8A00A),
+                      filled: true,
+                      titleKey: 'help619_r610_sam_t',
+                      helpKey: 'help619_r610_sam_b'),
+                ],
+              ),
+
+              // ── 619 — Les lieux autour de toi : 9 catégories, glyphe + couleur ──
+              _SectionCard(
+                anchorKey: _anchors['places'],
+                id: 'places',
+                icon: Icons.place_rounded,
+                title: 'help619_sec_places'.tr,
+                dividers: false,
+                children: const [PawHelpCategories619()],
+              ),
+
+              // ── 619 — Comment ça marche : 3 étapes ────────────────────────
+              _SectionCard(
+                anchorKey: _anchors['steps'],
+                id: 'steps',
+                icon: Icons.route_rounded,
+                title: 'help619_how'.tr,
+                dividers: false,
+                children: const [PawHelpSteps619()],
+              ),
+
+              // ── 619 — Nouveau : collection du mois, pins, ×2 Premium ─────
+              _SectionCard(
+                anchorKey: _anchors['news'],
+                id: 'news',
+                icon: Icons.auto_awesome_rounded,
+                title: 'help619_new_t'.tr,
+                dividers: false,
+                children: [PawHelpNews619(onPawPoints: _openPawPoints)],
+              ),
+
+              // ── 619 — Ce qui est gratuit, ce que chaque abonnement ajoute ──
+              _SectionCard(
+                anchorKey: _anchors['subs'],
+                id: 'subs',
+                icon: Icons.workspace_premium_rounded,
+                title: 'help619_sub_title'.tr,
+                dividers: false,
+                children: [PawHelpSubscriptions619(onOpenShop: _openShop)],
               ),
 
               // ── FAQ ────────────────────────────────────────────────────
@@ -1898,6 +2013,7 @@ class _HelpToc extends StatelessWidget {
                 _TocChip(
                   key: ValueKey<String>('help_toc_${s.$1}'),
                   number: s.$2,
+                  icon: s.$4,
                   label: s.$3.tr,
                   dark: dark,
                   onTap: () => onTap(s.$1),
@@ -1917,9 +2033,13 @@ class _TocChip extends StatelessWidget {
     required this.label,
     required this.dark,
     required this.onTap,
+    this.icon,
   });
 
   final int? number;
+
+  /// 619 — section sans numéro : son icône dans la puce (FAQ = « ? »).
+  final IconData? icon;
   final String label;
   final bool dark;
   final VoidCallback onTap;
@@ -1961,7 +2081,7 @@ class _TocChip extends StatelessWidget {
                       border: Border.all(color: Colors.white, width: 1.4),
                     ),
                     child: number == null
-                        ? Icon(Icons.help_rounded, size: 14.sp, color: Colors.white)
+                        ? Icon(icon ?? Icons.help_rounded, size: 14.sp, color: Colors.white)
                         : Text('$number',
                             style: TextStyle(
                                 fontSize: 11.sp,
@@ -2054,6 +2174,39 @@ class _RankRow612 extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 619 — « 1/7 » : le signalement de confort hebdomadaire sans abonnement
+/// (même dessin que la légende du site, en brun chaud : jamais gris).
+class _WeekBadge619 extends StatelessWidget {
+  const _WeekBadge619();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44.w,
+      height: 44.w,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFA9703F), Color(0xFF6B4F3A), Color(0xFF4A2E1A)],
+        ),
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: [
+          BoxShadow(
+              color: const Color(0xFF4A2E1A).withValues(alpha: 0.4),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Text('1/7',
+          style: PawMapTheme.fontOn(context,
+              size: 12.sp, weight: FontWeight.w800, color: Colors.white, letterSpacing: -0.3)),
     );
   }
 }
