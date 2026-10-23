@@ -317,6 +317,36 @@ const updateProfile = async (req, res) => {
     if (locationUpdate) {
       update.location = locationUpdate;
     }
+    // 23/10/2026 (PAM, build 619 — ordre de Daniel « code postal = position ») — `postalCode`
+    // envoyé par l'app ≥ 619 (3 écrans « Modifier le profil ») et le site : mémorisé sur le
+    // compte, et la position du compte devient celle du code postal (geocodePostal2310, même
+    // règle qu'à l'inscription) — plus jamais le centre-ville. Vide → effacé, position
+    // inchangée. Échec du géocodage → position d'avant, jamais d'erreur visible.
+    if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'postalCode')) {
+      const { cleanCode, locationFromPostal } = require('../utils/geocodePostal2310');
+      const code = cleanCode(req.body.postalCode);
+      update.postalCode = code;
+      if (code.length >= 3) {
+        try {
+          let acc = null;
+          for (const r of roleSearchOrder(req)) {
+            acc = await ROLE_MODELS[r].findById(id).select('country appLocale language city location').lean().catch(() => null);
+            if (acc) break;
+          }
+          const fromPostal = await locationFromPostal(code, {
+            country: country || (acc && acc.country) || '',
+            lang: (acc && (acc.appLocale || acc.language)) || '',
+            city: update.city || (acc && (acc.city || (acc.location && acc.location.city))) || '',
+          });
+          const processed = fromPostal ? processLocationData(fromPostal) : null;
+          if (processed) {
+            update.location = processed;
+            unsetLocation = false;
+            if (!update.city && processed.city) update.city = processed.city;
+          }
+        } catch (_) { /* jamais bloquant */ }
+      }
+    }
     if (Object.keys(update).length === 0 && !unsetLocation) {
       return res.status(400).json({ error: 'No profile fields provided.' });
     }

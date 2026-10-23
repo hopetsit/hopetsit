@@ -436,6 +436,7 @@ const signup = async (req, res) => {
       // vide jusqu'à la synchro PATCH /users/me/app-locale après le login).
       ...(appLocaleOf(req.body) ? { appLocale: appLocaleOf(req.body) } : {}),
       address: user.address || '',
+      postalCode: require('../utils/geocodePostal2310').cleanCode(user.postalCode), // 619 (PAM)
       currency: ownerCurrency,
       acceptedTerms: !!user.acceptedTerms,
       // v532 — tracabilite du consentement : les champs existaient dans
@@ -495,6 +496,7 @@ const signup = async (req, res) => {
       language: user.language || '',
       ...(appLocaleOf(req.body) ? { appLocale: appLocaleOf(req.body) } : {}), // v565
       address: user.address || '',
+      postalCode: require('../utils/geocodePostal2310').cleanCode(user.postalCode), // 619 (PAM)
       currency: sitterCurrency,
       rate: user.rate || '',
       skills: user.skills || '',
@@ -592,6 +594,7 @@ const signup = async (req, res) => {
       language: user.language || '',
       ...(appLocaleOf(req.body) ? { appLocale: appLocaleOf(req.body) } : {}), // v565
       address: user.address || '',
+      postalCode: require('../utils/geocodePostal2310').cleanCode(user.postalCode), // 619 (PAM)
       currency: walkerCurrency,
       skills: user.skills || '',
       bio: user.bio || '',

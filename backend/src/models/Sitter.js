@@ -35,6 +35,10 @@ const sitterSchema = new mongoose.Schema(
     // sans GPS était perdue (« ? » dans l'admin). Champ plat, conservé par les
     // hooks et synchronisé sur les 3 profils de la personne.
     city: { type: String, default: '', trim: true },
+    // 23/10/2026 (PAM, build 619 — ordre de Daniel « code postal = position ») : code postal du
+    // compte (app ≥ 619 et site). La position est géocodée à partir de lui (geocodePostal2310)
+    // à l'inscription et dans « Modifier le profil » ; synchronisé sur les 3 profils.
+    postalCode: { type: String, default: '', trim: true, maxlength: 12 },
     // v565 §6 — présence : horodatage de la dernière déconnexion socket.
     lastSeenAt: { type: Date, default: null },
     // v566 — informations de facturation (NIF, NIE, CIF, SIRET, TVA, EIN,
