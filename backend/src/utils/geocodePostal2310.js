@@ -48,7 +48,10 @@ async function fetchNominatim(code, country) {
     const a = Array.isArray(d) && d[0];
     if (!a || !a.lat || !a.lon) return null;
     const ad = a.address || {};
-    const city = ad.city || ad.town || ad.village || ad.municipality || ad.suburb || ad.county || '';
+    // ville : la plus précise connue ; un code postal isolé (outre-mer, zone rurale) n'a parfois que
+    // la région ou le premier segment du libellé → on garde quand même la position.
+    const city = ad.city || ad.town || ad.village || ad.municipality || ad.suburb || ad.county
+      || ad.state || String(a.display_name || '').split(',')[0].trim() || '';
     const lat = Number(a.lat); const lng = Number(a.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || !city) return null;
     return { city, lat, lng, postalCode: code, country: country.toUpperCase() };

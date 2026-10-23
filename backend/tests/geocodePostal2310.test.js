@@ -10,6 +10,7 @@ beforeEach(() => {
     const code = u.searchParams.get('postalcode'); const country = u.searchParams.get('country');
     if (code === '78370' && country === 'fr') return { ok: true, json: async () => nominatim(48.8125, 1.9468, 'Plaisir') };
     if (code === '10454' && country === 'us') return { ok: true, json: async () => nominatim(40.8077, -73.9184, 'New York') };
+    if (code === '97500' && country === 'fr') return { ok: true, json: async () => [{ lat: '46.93', lon: '-56.31', display_name: 'Saint-Pierre, Saint-Pierre-et-Miquelon, France', address: { country: 'France' } }] };
     return { ok: true, json: async () => [] };
   });
 });
@@ -28,6 +29,10 @@ test('pays deviné de la langue : en → USA, fr → France', async () => {
   expect(util.guessCountry('', 'xx', '78370')).toBe('');
   const r = await util.geocodePostal('10454', { lang: 'en' });
   expect([r.city, r.lat, r.lng]).toEqual(['New York', 40.8077, -73.9184]);
+});
+test('code postal isolé sans ville dans la réponse : position gardée, nom = 1er segment du libellé', async () => {
+  const r = await util.geocodePostal('97500', { country: 'fr' });
+  expect([r.city, r.lat, r.lng]).toEqual(['Saint-Pierre', 46.93, -56.31]);
 });
 test('code inconnu ou trop court → null, jamais d\'exception', async () => {
   expect(await util.geocodePostal('00000', { country: 'fr' })).toBeNull();
