@@ -956,6 +956,84 @@ const GUIDES: Record<string, Guide> = {
       ],
     },
   },
+  // 23/10/2026 (GUS) — 3 villes US très vues sur Google (fort-myers 189 affichages,
+  // las-vegas 65, denton 56, 0 clic) sans guide local. Même remède, aucun chiffre inventé.
+  "fort-myers": {
+    hoods: ["the Downtown River District", "McGregor", "Whiskey Creek", "Iona", "Gateway", "San Carlos Park", "Fort Myers Beach", "Cape Coral across the river"],
+    walks: [
+      { name: "Lakes Regional Park", note: "the big county park with a fenced dog park and flat paved loops" },
+      { name: "Centennial Park", note: "the riverfront park downtown, dogs on leash" },
+      { name: "Wa-Ke Hatchee Park", note: "south Fort Myers park with its own dog park" },
+      { name: "Dog Beach at New Pass", note: "the county's off-leash dog beach between Bonita Beach and Lovers Key" },
+      { name: "John Yarbrough Linear Park", note: "a long paved trail along the Ten Mile Canal for easy morning walks" },
+    ],
+    tips: [
+      "Seasonal residents arrive from November to April: demand for overnight sitting and drop-in visits peaks in winter and drops in summer.",
+      "Summers are hot and stormy: walks move to early morning and evening, and afternoon thunderstorms cut outings short from June to September.",
+      "Hurricane season runs from June to November — share your evacuation plan and a backup contact with your sitter if you travel then.",
+      "Alligators live in ponds and canals across Lee County: dogs stay leashed and away from the water's edge, especially at dusk.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog go off-leash in Fort Myers?", a: "In the fenced dog parks of Lakes Regional Park and Wa-Ke Hatchee Park, or at the county dog beach at New Pass. Everywhere else, including the riverfront, dogs stay leashed." },
+        { q: "Is there a sitter near me in Fort Myers?", a: "Open the map in HoPetSit to see sitters around McGregor, the River District, Gateway, San Carlos Park or Cape Coral. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "When is pet sitting demand highest in Fort Myers?", a: "From November to April, when seasonal residents are here, and around the holidays. Being available in winter is a real advantage." },
+        { q: "What do Fort Myers owners expect?", a: "Walks at cool hours, dogs kept away from ponds and canals, and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  "las-vegas": {
+    hoods: ["Summerlin", "Spring Valley", "the Arts District and Downtown", "Centennial Hills", "Southern Highlands", "Green Valley", "Henderson", "North Las Vegas"],
+    walks: [
+      { name: "Desert Breeze Park", note: "a large west-side park with a popular fenced dog park" },
+      { name: "Sunset Park", note: "the big park near the airport with its own dog park and lake loop" },
+      { name: "Floyd Lamb Park at Tule Springs", note: "shady lawns and ponds in the north, dogs on leash" },
+      { name: "Red Rock Canyon", note: "desert trails west of Summerlin, dogs leashed and only in cool months" },
+      { name: "Kellogg-Zaher Dog Park", note: "a well-known neighborhood dog park in the west valley" },
+    ],
+    tips: [
+      "From May to September the heat is dangerous: walks happen at dawn or after dark, and good sitters check the pavement with a hand before heading out.",
+      "Many Las Vegas owners work night and swing shifts on the Strip: walks and visits at unusual hours are common requests, so say your schedule in the request.",
+      "The air is very dry: water comes on every walk, and short-nosed dogs stay indoors in the afternoon.",
+    ],
+    faq: {
+      owner: [
+        { q: "Can a sitter walk my dog during the day in summer?", a: "Not in the afternoon heat. Agree on dawn or evening walks, and indoor play or a short potty break at midday. Put it in your request." },
+        { q: "Is there a sitter near me in Las Vegas?", a: "Open the map in HoPetSit to see sitters around Summerlin, Spring Valley, Henderson, Green Valley or Centennial Hills. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Where should I start as a pet sitter in Las Vegas?", a: "In your own part of the valley — Summerlin, Spring Valley, Henderson or Centennial Hills. The city is spread out, so keep your service area to what you can reach in a few minutes." },
+        { q: "What do Las Vegas owners expect?", a: "Walks at safe hours, water on every outing, flexibility with shift schedules and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
+  denton: {
+    hoods: ["the Downtown Square", "around UNT", "around TWU", "the Oak-Hickory historic district", "Southridge", "Robson Ranch", "Corinth and Lake Dallas", "Argyle"],
+    walks: [
+      { name: "South Lakes Park", note: "the south-side park with Wiggly Field, Denton's fenced dog park" },
+      { name: "North Lakes Park", note: "big lawns and ponds, easy loops on leash" },
+      { name: "Clear Creek Natural Heritage Center", note: "creek-side trails north of town, dogs on leash" },
+      { name: "Ray Roberts Lake State Park", note: "lake trails for weekend hikes, dogs leashed" },
+      { name: "Denton Rail Trail", note: "the paved trail toward Lake Dallas, flat and shaded in places" },
+    ],
+    tips: [
+      "Two universities set the rhythm of the town: many sitters are students, available on weekdays during the semester and often away in summer and over the holidays.",
+      "Texas summers are hot from June to September: walks happen early in the morning or after sunset, and water comes on every outing.",
+      "Families near Lake Lewisville and in Robson Ranch travel on weekends: drop-in visits and overnight sitting are frequent requests.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog run off-leash in Denton?", a: "At Wiggly Field, the fenced dog park in South Lakes Park. On the trails and in the other parks dogs stay leashed." },
+        { q: "Is there a sitter near me in Denton?", a: "Open the map in HoPetSit to see sitters around the Square, UNT, TWU, Southridge or Corinth. You chat with them in the app before you book." },
+      ],
+      recruit: [
+        { q: "Can I pet sit as a UNT or TWU student?", a: "Yes. Set your availability around your classes and your service area to the neighborhoods you can reach on foot or by bike. Owners near campus look for midday walks on weekdays." },
+        { q: "What do Denton owners expect?", a: "Walks at cool hours in summer, punctuality, and a short update after each visit. HoPetSit shares the walk live on the map." },
+      ],
+    },
+  },
 };
 
 // 08/10/2026 — même remède pour les villes françaises touchées (rattachées par
@@ -1130,6 +1208,181 @@ const GUIDES_FR: Record<string, Guide> = {
       recruit: [
         { q: "Quelles demandes trouve-t-on au Havre ?", a: "Des promenades en semaine pour les propriétaires qui travaillent, et des gardes pendant les vacances." },
         { q: "Comment se déplacer entre la ville haute et la ville basse ?", a: "Le tram et le funiculaire relient les deux. Réglez votre zone sur ce que vous rejoignez facilement." },
+      ],
+    },
+  },
+  // 23/10/2026 (GUS) — 7 villes FR très vues sur Google sans clic ni guide local :
+  // la-rochelle 93 affichages, lille 75, grenoble 71, marseille 66, lyon 62, avignon 59, brest 46.
+  "la-rochelle": {
+    hoods: ["le Vieux-Port", "les Minimes", "La Genette", "Tasdon", "Villeneuve-les-Salines", "Port-Neuf", "Lafond", "La Pallice"],
+    walks: [
+      { name: "Parc Charruyer", note: "le grand parc le long des anciens remparts, la balade quotidienne du centre" },
+      { name: "Allées du Mail", note: "promenade en bord de mer jusqu'à la plage de la Concurrence, en laisse" },
+      { name: "Pointe de Chef de Baie", note: "sentier côtier et falaises à l'ouest de la ville" },
+      { name: "Marais de Tasdon", note: "chemins plats autour du lac et des marais, au calme" },
+    ],
+    tips: [
+      "En saison, les chiens sont interdits sur les plages surveillées (Minimes, Concurrence, Chef de Baie) : vérifiez le panneau avant d'y aller.",
+      "La Rochelle est très touristique de juin à septembre : réservez tôt pour les gardes d'été, les pet-sitters du quartier sont vite pris.",
+      "Tout se fait à vélo : un pet-sitter du quartier peut passer plusieurs fois par jour pour les visites à domicile.",
+    ],
+    faq: {
+      owner: [
+        { q: "Mon chien peut-il aller à la plage avec le pet-sitter ?", a: "Hors saison oui, sur les plages qui l'autorisent. En été, les plages surveillées lui sont interdites : prévoyez le parc Charruyer ou le sentier de Chef de Baie." },
+        { q: "Les communes autour de La Rochelle sont-elles couvertes ?", a: "Oui. Votre demande est montrée aux pet-sitters autour de votre adresse, à Aytré, Lagord, Périgny ou Puilboreau comme en ville." },
+      ],
+      recruit: [
+        { q: "Quand la demande est-elle la plus forte à La Rochelle ?", a: "L'été et pendant les vacances scolaires, quand les habitants partent et que les vacanciers arrivent avec leurs animaux." },
+        { q: "Par où commencer comme pet-sitter à La Rochelle ?", a: "Par votre quartier : le centre, les Minimes, La Genette ou Tasdon. Réglez votre zone sur ce que vous rejoignez à pied ou à vélo." },
+      ],
+    },
+  },
+  lille: {
+    hoods: ["le Vieux-Lille", "Wazemmes", "Vauban-Esquermes", "Moulins", "Fives", "Saint-Maurice Pellevoisin", "les Bois-Blancs", "Lille-Sud"],
+    walks: [
+      { name: "Parc de la Citadelle", note: "le poumon vert de Lille, grande boucle autour des remparts" },
+      { name: "Berges de la Deûle", note: "chemin plat vers Lambersart et les Bois-Blancs" },
+      { name: "Jardin Vauban", note: "le parc du quartier Vauban, pour les sorties courtes" },
+      { name: "Parc Jean-Baptiste Lebas", note: "au sud du centre, entre Moulins et Wazemmes" },
+      { name: "Parc Matisse", note: "près des gares, pratique pour les chiens d'appartement du centre" },
+    ],
+    tips: [
+      "Il pleut souvent : prévoyez une serviette à l'entrée et dites au pet-sitter si votre chien a un manteau.",
+      "Beaucoup de Lillois vivent en appartement sans jardin : la promenade de midi en semaine est le service le plus demandé.",
+      "Ville étudiante : de nombreux pet-sitters sont disponibles en semaine pendant l'année universitaire, moins l'été.",
+    ],
+    faq: {
+      owner: [
+        { q: "Où mon chien peut-il courir à Lille ?", a: "Dans les espaces de liberté pour chiens signalés dans les parcs, comme à la Citadelle. Ailleurs, dans les parcs et sur les berges, il reste en laisse." },
+        { q: "Y a-t-il un pet-sitter près de chez moi à Lille ?", a: "Ouvrez la carte dans HoPetSit pour voir les pet-sitters autour du Vieux-Lille, de Wazemmes, de Vauban, de Fives ou de Moulins. Vous discutez dans l'app avant de réserver." },
+      ],
+      recruit: [
+        { q: "Par où commencer comme pet-sitter à Lille ?", a: "Par votre quartier : Vauban, Wazemmes, le Vieux-Lille ou Fives. Gardez une zone que vous parcourez à pied ou en métro pour enchaîner les promenades de midi." },
+        { q: "Qu'attendent les propriétaires lillois ?", a: "Des promenades à l'heure, le chien en laisse hors des espaces autorisés, et un petit message après chaque visite. HoPetSit partage la balade en direct sur la carte." },
+      ],
+    },
+  },
+  grenoble: {
+    hoods: ["l'hyper-centre", "l'Île Verte", "Championnet", "Berriat et Saint-Bruno", "les Eaux-Claires", "La Tronche", "Meylan", "Saint-Martin-d'Hères"],
+    walks: [
+      { name: "Parc Paul-Mistral", note: "le grand parc du centre, la sortie quotidienne de beaucoup de chiens" },
+      { name: "La Bastille", note: "sentiers en montée depuis le quai, chiens en laisse, vue sur toute la vallée" },
+      { name: "Berges de l'Isère", note: "chemins plats le long de la rivière vers La Tronche et Meylan" },
+      { name: "Parc de l'Île d'Amour", note: "à Meylan, au bord de l'Isère, pour les grandes balades" },
+      { name: "Vercors et Chartreuse", note: "sentiers en forêt et en alpage pour les chiens sportifs, le week-end" },
+    ],
+    tips: [
+      "Les étés sont chauds dans la cuvette : en juillet-août, les promenades se font tôt le matin ou le soir, avec de l'eau.",
+      "En montagne, les troupeaux ont parfois des chiens de protection (patous) : tenir son chien en laisse et contourner le troupeau.",
+      "Beaucoup de propriétaires partent en montagne le week-end : les visites à domicile et les gardes de deux jours sont très demandées.",
+    ],
+    faq: {
+      owner: [
+        { q: "Mon pet-sitter peut-il emmener mon chien à la Bastille ou en montagne ?", a: "Oui si vous l'acceptez et si votre chien est habitué. Précisez dans la demande les sentiers qu'il connaît et sa forme physique." },
+        { q: "Y a-t-il un pet-sitter près de chez moi à Grenoble ?", a: "Ouvrez la carte dans HoPetSit pour voir les pet-sitters autour du centre, de l'Île Verte, de Berriat, de Meylan ou de Saint-Martin-d'Hères. Vous discutez dans l'app avant de réserver." },
+      ],
+      recruit: [
+        { q: "Quand la demande est-elle la plus forte à Grenoble ?", a: "Les week-ends et les vacances scolaires, quand les habitants partent en montagne. Être disponible le week-end est un vrai avantage." },
+        { q: "Que faut-il savoir pour promener en montagne ?", a: "Garder le chien en laisse près des troupeaux, contourner les chiens de protection, prévoir de l'eau et adapter l'effort à l'animal." },
+      ],
+    },
+  },
+  marseille: {
+    hoods: ["le Vieux-Port et le Panier", "Endoume et le Roucas-Blanc", "Castellane", "La Plaine et Cours Julien", "Bonneveine", "Mazargues", "Saint-Barnabé", "Sainte-Marguerite"],
+    walks: [
+      { name: "Parc Borély", note: "le grand parc du sud de la ville, à côté des plages du Prado" },
+      { name: "Corniche Kennedy", note: "promenade en bord de mer, en laisse, superbe tôt le matin" },
+      { name: "Parc du 26e Centenaire", note: "le parc du centre, entre Castellane et Saint-Pierre" },
+      { name: "Parc Longchamp", note: "le jardin historique près de Cinq-Avenues" },
+      { name: "Campagne Pastré et les Calanques", note: "chemins vers Marseilleveyre et Sormiou, chiens en laisse" },
+    ],
+    tips: [
+      "En saison, les plages sont interdites aux chiens, sauf l'espace qui leur est réservé : vérifiez le panneau avant d'y aller.",
+      "En été, l'accès aux massifs (Calanques, Marseilleveyre) est réglementé les jours de risque d'incendie : consultez l'affichage du jour avant une randonnée.",
+      "Les promenades d'été se font tôt le matin ou le soir, avec de l'eau ; par mistral, préférez les parcs abrités.",
+    ],
+    faq: {
+      owner: [
+        { q: "Mon chien peut-il aller dans les Calanques avec le pet-sitter ?", a: "Oui, en laisse, hors des jours où l'accès aux massifs est fermé pour risque d'incendie. Précisez dans la demande les chemins qu'il connaît et son endurance." },
+        { q: "Y a-t-il un pet-sitter près de chez moi à Marseille ?", a: "Ouvrez la carte dans HoPetSit pour voir les pet-sitters autour du Vieux-Port, d'Endoume, de Castellane, de Bonneveine ou de Saint-Barnabé. Vous discutez dans l'app avant de réserver." },
+      ],
+      recruit: [
+        { q: "Par où commencer comme pet-sitter à Marseille ?", a: "Par votre quartier : la ville est immense et les propriétaires préfèrent quelqu'un de proche. Réglez votre zone sur quelques arrondissements que vous rejoignez vite." },
+        { q: "Quand la demande est-elle la plus forte à Marseille ?", a: "L'été et pendant les vacances scolaires, quand les habitants partent et que les visiteurs arrivent avec leurs animaux." },
+      ],
+    },
+  },
+  lyon: {
+    hoods: ["la Presqu'île", "la Croix-Rousse", "le Vieux-Lyon", "les Brotteaux et la Part-Dieu", "Monplaisir", "Gerland", "Vaise", "Confluence", "Villeurbanne"],
+    walks: [
+      { name: "Parc de la Tête d'Or", note: "le grand parc du 6e, chiens en laisse et certains espaces interdits : respectez les panneaux" },
+      { name: "Berges du Rhône", note: "promenade plate du parc de la Tête d'Or jusqu'à Gerland" },
+      { name: "Parc de Gerland", note: "au sud, grandes pelouses et bords du Rhône" },
+      { name: "Parc de la Feyssine", note: "à Villeurbanne, chemins nature au bord du Rhône" },
+      { name: "Grand Parc de Miribel-Jonage", note: "pour les grandes balades du week-end, en laisse près des plans d'eau" },
+    ],
+    tips: [
+      "Lyon est dense et beaucoup d'animaux vivent en appartement : la promenade de midi en semaine est le service le plus demandé.",
+      "Les étés sont chauds : en juillet-août, les sorties se font tôt le matin ou le soir, avec de l'eau.",
+      "Les propriétaires partent souvent le week-end (montagne, Beaujolais) : les visites à domicile et les gardes de deux jours sont fréquentes.",
+    ],
+    faq: {
+      owner: [
+        { q: "Où mon chien peut-il courir à Lyon ?", a: "Dans les espaces de liberté signalés dans les parcs. À la Tête d'Or, sur les berges et dans les autres parcs, il reste en laisse." },
+        { q: "Y a-t-il un pet-sitter près de chez moi à Lyon ?", a: "Ouvrez la carte dans HoPetSit pour voir les pet-sitters autour de la Croix-Rousse, de la Presqu'île, de Monplaisir, de Gerland ou de Villeurbanne. Vous discutez dans l'app avant de réserver." },
+      ],
+      recruit: [
+        { q: "Par où commencer comme pet-sitter à Lyon ?", a: "Par votre arrondissement : les propriétaires préfèrent quelqu'un de proche. Gardez une zone que vous parcourez à pied ou en métro pour enchaîner les promenades de midi." },
+        { q: "Qu'attendent les propriétaires lyonnais ?", a: "Des promenades à l'heure, le chien en laisse hors des espaces autorisés, et un petit message après chaque visite. HoPetSit partage la balade en direct sur la carte." },
+      ],
+    },
+  },
+  avignon: {
+    hoods: ["l'intra-muros", "Saint-Ruf", "Monclar", "Montfavet", "la Barthelasse", "les Rotondes", "Villeneuve-lès-Avignon", "Les Angles"],
+    walks: [
+      { name: "Île de la Barthelasse", note: "chemins plats le long du Rhône, la grande balade des Avignonnais" },
+      { name: "Rocher des Doms", note: "le jardin au-dessus du Palais des Papes, en laisse" },
+      { name: "Berges du Rhône", note: "promenade au pied des remparts, face au pont" },
+      { name: "Parc Chico-Mendès", note: "le parc du quartier Monclar, pour les sorties quotidiennes" },
+    ],
+    tips: [
+      "En juillet, le Festival remplit l'intra-muros : foule, bruit et rues fermées — prévoyez des balades sur la Barthelasse ou hors des remparts.",
+      "Les étés sont chauds et le mistral souffle fort : promenades tôt le matin ou le soir, avec de l'eau.",
+      "Beaucoup d'habitants partent en été : les visites à domicile et les gardes longues sont très demandées de juin à septembre.",
+    ],
+    faq: {
+      owner: [
+        { q: "Mon chien supporte mal le Festival. Que dire au pet-sitter ?", a: "Où il se cache, s'il peut rester seul avec le bruit et les horaires calmes pour sortir. Mettez-le dans la demande et dans la discussion avant de réserver." },
+        { q: "Villeneuve ou Les Angles sont-elles couvertes ?", a: "Oui. Votre demande est montrée aux pet-sitters autour de votre adresse, des deux côtés du Rhône." },
+      ],
+      recruit: [
+        { q: "Quand la demande est-elle la plus forte à Avignon ?", a: "En juillet pendant le Festival et tout l'été, quand les habitants partent. Être disponible ces mois-là est un vrai avantage." },
+        { q: "Par où commencer comme pet-sitter à Avignon ?", a: "Par votre quartier : l'intra-muros, Saint-Ruf, Monclar ou Montfavet. Réglez votre zone sur ce que vous rejoignez à pied ou à vélo." },
+      ],
+    },
+  },
+  brest: {
+    hoods: ["Siam et le centre", "Saint-Martin", "Recouvrance", "Saint-Marc", "Bellevue", "Lambézellec", "Kerinou", "Le Relecq-Kerhuon"],
+    walks: [
+      { name: "Vallon du Stang-Alar", note: "le jardin botanique et son vallon, en laisse, la balade préférée du centre" },
+      { name: "Plage du Moulin Blanc", note: "la plage de la ville, chiens autorisés hors saison et selon l'affichage" },
+      { name: "Rives de Penfeld", note: "chemins au bord de la rivière, du centre jusqu'à Lambézellec" },
+      { name: "Bois de Keroual", note: "à Guilers, grande forêt pour les chiens sportifs" },
+      { name: "Sentier côtier GR34", note: "le long de la rade, vers Plougastel ou le Conquet, chiens en laisse" },
+    ],
+    tips: [
+      "Il pleut et il vente souvent : prévoyez une serviette à l'entrée et dites au pet-sitter si votre chien a un manteau.",
+      "Ville de marins et de militaires : les gardes longues pendant les missions et les déplacements sont fréquentes.",
+      "Sur la côte, surveillez les marées et la houle : les promenades sur les rochers se font à marée basse, en laisse.",
+    ],
+    faq: {
+      owner: [
+        { q: "Mon chien peut-il aller à la plage avec le pet-sitter ?", a: "Hors saison oui, au Moulin Blanc et sur les plages qui l'autorisent. En été, respectez l'affichage de chaque plage. Précisez dans la demande s'il aime l'eau." },
+        { q: "Y a-t-il un pet-sitter près de chez moi à Brest ?", a: "Ouvrez la carte dans HoPetSit pour voir les pet-sitters autour de Siam, de Saint-Martin, de Recouvrance, de Saint-Marc ou de Bellevue. Vous discutez dans l'app avant de réserver." },
+      ],
+      recruit: [
+        { q: "Quand la demande est-elle la plus forte à Brest ?", a: "Pendant les vacances scolaires et lors des missions et déplacements des habitants, toute l'année. Les gardes longues sont fréquentes." },
+        { q: "Par où commencer comme pet-sitter à Brest ?", a: "Par votre quartier : le centre, Saint-Martin, Saint-Marc ou Bellevue. Réglez votre zone sur ce que vous rejoignez à pied ou en tram." },
       ],
     },
   },
