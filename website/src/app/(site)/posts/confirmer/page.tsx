@@ -115,6 +115,23 @@ export default function ConfirmLeadPage() {
     }
   }
 
+  // 23/10 : /post/<id> exige une session. Depuis l'e-mail « votre demande est en ligne », le
+  // contact n'en a pas : ce bouton rejoue confirmAdLead (idempotent : même demande, session
+  // ouverte avec son e-mail) puis ouvre la demande. Pas de mot de passe à saisir.
+  async function onSeePost(postId: string | null) {
+    if (busy) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await confirmAdLead(id);
+      const target = r.postId || postId;
+      window.location.href = target ? `/post/${target}` : "/posts";
+    } catch {
+      setErr(t.err);
+      setBusy(false);
+    }
+  }
+
   const card = "mx-auto w-full max-w-md rounded-[24px] bg-white p-5 shadow-sm sm:p-7";
   const bigBtn = "flex min-h-[52px] w-full items-center justify-center rounded-full bg-owner px-6 text-base font-bold text-white transition hover:bg-owner-dark disabled:opacity-60";
 
@@ -145,8 +162,11 @@ export default function ConfirmLeadPage() {
           <h1 className="mt-2 font-display text-3xl font-extrabold text-ink">{done ? t.done : t.already}</h1>
           <p className="mt-3 text-[#6E4F48]">{done ? t.doneSub(done.notified) : t.alreadySub}</p>
           {postId && (
-            <Link href={`/post/${postId}`} className={`${bigBtn} mt-6`}>{t.see}</Link>
+            <button type="button" onClick={() => onSeePost(postId)} disabled={busy} className={`${bigBtn} mt-6`}>
+              {busy ? t.busy : t.see}
+            </button>
           )}
+          {err && <p role="alert" className="mt-3 text-sm font-semibold text-owner-dark">{err}</p>}
           <p className="mt-4 text-xs text-[#6E4F48]">{t.pwd}</p>
         </div>
       </main>
