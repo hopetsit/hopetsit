@@ -32,6 +32,8 @@ const TXT = {
       ? `${n} gardien${n > 1 ? "s" : ""} et promeneur${n > 1 ? "s" : ""} près de chez vous ${n > 1 ? "sont prévenus" : "est prévenu"}. Vous recevrez leurs réponses par e-mail et dans l'app.`
       : "Les gardiens et promeneurs près de chez vous sont prévenus. Vous recevrez leurs réponses par e-mail et dans l'app."),
     see: "Voir ma demande",
+    app: "Télécharger l'app HoPetSit",
+    appSub: "Réponses en direct, suivi de la garde et paiement sécurisé : tout se passe dans l'app.",
     pwd: "Pour vous reconnecter plus tard : « Mot de passe oublié » avec votre e-mail.",
     gone: "Ce lien n'est plus valable.",
     goneSub: "Vous pouvez publier votre demande en 1 minute ici :",
@@ -60,6 +62,8 @@ const TXT = {
       ? `${n} sitter${n > 1 ? "s and dog walkers" : " or dog walker"} near you ${n > 1 ? "were" : "was"} notified. You'll get their replies by email and in the app.`
       : "Sitters and dog walkers near you are notified. You'll get their replies by email and in the app."),
     see: "See my request",
+    app: "Get the HoPetSit app",
+    appSub: "Live replies, sitting tracking and secure payment: it all happens in the app.",
     pwd: "To sign in later: “Forgot password” with your email.",
     gone: "This link is no longer valid.",
     goneSub: "You can publish your request in 1 minute here:",
@@ -189,6 +193,11 @@ export default function ConfirmLeadPage() {
             </button>
           )}
           {err && <p role="alert" className="mt-3 text-sm font-semibold text-owner-dark">{err}</p>}
+          {/* 23/10 (BOB, demande de Daniel) — l'app mise en avant : c'est là que l'on répond, suit et paie. */}
+          <Link href="/download?utm_source=email&utm_medium=lead&utm_campaign=app" className="mt-3 flex min-h-[48px] w-full items-center justify-center rounded-full border-2 border-owner bg-white px-6 text-base font-bold text-owner-dark transition hover:bg-owner-light">
+            📲 {t.app}
+          </Link>
+          <p className="mt-2 text-xs text-[#6E4F48]">{t.appSub}</p>
           <p className="mt-4 text-xs text-[#6E4F48]">{t.pwd}</p>
         </div>
       </main>

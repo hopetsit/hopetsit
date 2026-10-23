@@ -313,6 +313,10 @@ export default function CreatePostPage() {
       setErr(t("posts_error_body"));
       return;
     }
+    if (!startDate || !endDate || endDate < startDate) { // 23/10 (BOB) — dates obligatoires
+      setErr(f2(lang, "dates_required"));
+      return;
+    }
     if (!city.trim()) {
       setErr(t("signup_city_required"));
       return;
@@ -560,6 +564,8 @@ export default function CreatePostPage() {
     setErr("");
     if (!body.trim()) return setErr(f2(lang, "body_required"));
     if (!service) return setErr(f2(lang, "service_required"));
+    // 23/10 (BOB, demande de Daniel) — dates OBLIGATOIRES : sans dates, les gardiens ne peuvent pas répondre.
+    if (!startDate || !endDate || endDate < startDate) return setErr(f2(lang, "dates_required"));
     if (!city.trim()) return setErr(t("signup_city_required"));
     if (!locationComplete(service, svcLocation, meetingPoint)) {
       return setErr(p587(lang, svcLocation === "meeting_point" ? "svc587_meeting_required" : "svc587_required"));
@@ -738,18 +744,22 @@ export default function CreatePostPage() {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-ink">{t("posts_start_label")}</label>
+            <label className="block text-sm font-medium text-ink">{t("posts_start_label")} *</label>
             <input
               type="date"
+              required
+              min={new Date().toISOString().slice(0, 10)}
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink">{t("posts_end_label")}</label>
+            <label className="block text-sm font-medium text-ink">{t("posts_end_label")} *</label>
             <input
               type="date"
+              required
+              min={startDate || new Date().toISOString().slice(0, 10)}
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"

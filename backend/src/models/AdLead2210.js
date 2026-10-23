@@ -32,6 +32,8 @@ const adLeadSchema = new mongoose.Schema(
     service: { type: String, enum: SERVICES, default: 'garde' },
     animal: { type: String, enum: ANIMALS, default: 'autre' },
     quand: { type: String, enum: WHENS, default: 'plus_tard' },
+    startText: { type: String, default: '', trim: true }, // 23/10 (BOB) — dates écrites dans le formulaire
+    endText: { type: String, default: '', trim: true },
     confirmedAt: { type: Date },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Owner' },
     postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },

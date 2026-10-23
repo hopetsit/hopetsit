@@ -47,6 +47,8 @@ function postInputFor(lead, lieu) {
     language: lead.lang,
     animalCount: 1,
     animalTypes: [{ chien: 'dog', chat: 'cat' }[lead.animal] || 'other'],
+    // 23/10 (BOB, demande de Daniel) — les dates : réponses du formulaire, sinon déduites du choix « quand ».
+    ...(() => { const d = require('../utils/adLeadDates2310').datesFor(lead); return d ? { startDate: d.startDate.toISOString(), endDate: d.endDate.toISOString() } : {}; })(),
     location: Number.isFinite(lead.lat) && Number.isFinite(lead.lng)
       ? { city: lead.city, lat: lead.lat, lng: lead.lng } : { city: lead.city },
   };
@@ -98,6 +100,8 @@ adminRouter.post('/', requireAdmin, async (req, res) => {
         service: pick(b.service, AdLead.SERVICES, 'garde'),
         animal: pick(b.animal, AdLead.ANIMALS, 'autre'),
         quand: pick(b.quand, AdLead.WHENS, 'plus_tard'),
+        startText: String(b.startText || '').trim().slice(0, 60), // 23/10 (BOB) — réponses « dates » du formulaire
+        endText: String(b.endText || '').trim().slice(0, 60),
       } },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
@@ -172,7 +176,8 @@ async function publishLead(lead, lieu) {
     lead.confirmedAt = lead.confirmedAt || new Date();
     await lead.save();
   }
-  return { owner, postId: postId ? String(postId) : null, notified, status: 200 };
+  const dates = require('../utils/adLeadDates2310').datesFor(lead);
+  return { owner, postId: postId ? String(postId) : null, notified, status: 200, dates: dates ? dates.source : null };
 }
 
 router.post('/:id/confirm', async (req, res) => {
@@ -208,7 +213,7 @@ adminRouter.post('/:id/publish', requireAdmin, async (req, res) => {
     const r = await publishLead(lead, lieu);
     if (r.status !== 200) return res.status(r.status).json(r.body);
     return res.status(200).json({
-      postId: r.postId, ownerId: r.owner._id.toString(), alreadyPublished: already,
+      postId: r.postId, ownerId: r.owner._id.toString(), alreadyPublished: already, dates: r.dates || null,
       ...(r.notified === undefined || r.notified === null ? {} : { notified: r.notified }),
     });
   } catch (e) {

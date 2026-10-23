@@ -227,6 +227,20 @@ const NOTIF_EMAIL_I18N = {
   ko: { fallback: '버튼이 작동하지 않으면 이 링크를 브라우저에 복사하세요:', footer: 'HoPetSit 계정이 있어 이 메일을 받으셨습니다. 알림은 앱의 프로필 › 환경설정 › 알림에서 선택할 수 있어요.', noreply: '자동 발송 메일입니다. 회신하지 마세요.' },
   ja: { fallback: 'ボタンが動作しない場合は、このリンクをブラウザにコピーしてください：', footer: 'HoPetSitのアカウントをお持ちのため、このメールをお送りしています。通知はアプリの「プロフィール › 設定 › 通知」で選べます。', noreply: '自動送信メールです。返信しないでください。' },
 };
+// 23/10 (BOB, demande de Daniel « l'app doit être mise en valeur ») — une ligne dans chaque e-mail de
+// notification : répondre, suivre et payer se fait dans l'app. Lien vers /download (store selon l'appareil).
+const NOTIF_EMAIL_APP_I18N = {
+  fr: 'Réponds plus vite, suis la garde et paie en sécurité dans l\'app HoPetSit :',
+  en: 'Reply faster, follow the sitting and pay securely in the HoPetSit app:',
+  es: 'Responde más rápido, sigue el cuidado y paga con seguridad en la app HoPetSit:',
+  de: 'Schneller antworten, die Betreuung verfolgen und sicher bezahlen in der HoPetSit-App:',
+  it: 'Rispondi più in fretta, segui la custodia e paga in sicurezza nell\'app HoPetSit:',
+  pt: 'Responde mais depressa, acompanha a guarda e paga em segurança na app HoPetSit:',
+  pl: 'Odpowiadaj szybciej, śledź opiekę i płać bezpiecznie w aplikacji HoPetSit:',
+  ko: 'HoPetSit 앱에서 더 빠르게 답하고, 돌봄을 확인하고, 안전하게 결제하세요:',
+  ja: 'HoPetSitアプリなら、素早く返信し、お世話を確認し、安全に支払えます：',
+};
+const NOTIF_EMAIL_APP_LINK = 'https://www.hopetsit.com/download?utm_source=email&utm_medium=notification&utm_campaign=app';
 const escapeHtml = (v) => String(v == null ? '' : v)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -271,6 +285,7 @@ const buildNotificationEmailHtml = (innerHtml, { locale = 'fr', link = '', prehe
 <p style="font-size:20px;font-weight:700;margin:0 0 14px;color:#D83C28">🐾 ${BRAND_NAME}</p>
 ${inner}
 ${fallback}
+<p style="color:#231715;font-size:13px;line-height:1.5;margin:14px 0 0">📲 ${NOTIF_EMAIL_APP_I18N[locale] || NOTIF_EMAIL_APP_I18N.en} <a href="${NOTIF_EMAIL_APP_LINK}" style="color:#D83C28;font-weight:700">hopetsit.com/download</a></p>
 <hr style="border:none;border-top:1px solid #EEEEF0;margin:22px 0 14px">
 <p style="color:#8E8E93;font-size:12px;line-height:1.5;margin:0">${t.footer}<br>${t.noreply}${unsub}</p>
 </div></div></body></html>`;

@@ -132,3 +132,33 @@ test('admin publish : compte vérifié + demande + gardiens, sans session ; 2e a
   expect(r3.body.postId).toBe(r.body.postId);
   await request(app).post('/admin/ad-leads/00000000000000000000000000000000/publish').set(ADMIN).send({}).expect(404);
 });
+
+// 23/10 (BOB, demande de Daniel « sur les annonces publiées il faut les dates »)
+test('dates : réponses du formulaire posées sur l\'annonce ; sinon déduites de « quand »', async () => {
+  const a = await request(app).post('/admin/ad-leads').set(ADMIN).send({
+    ...LEAD, metaLeadId: 'meta-dates-1', email: 'lea+test2310@example.com', firstName: 'Léa', service: 'garde',
+    quand: 'plus_tard', startText: '24/12/2026', endText: '2/1/2027',
+  }).expect(200);
+  const r = await request(app).post(`/admin/ad-leads/${a.body.id}/publish`).set(ADMIN).send({}).expect(200);
+  expect(r.body.dates).toBe('form');
+  const post = await Post.findById(r.body.postId);
+  expect(post.startDate.toISOString().slice(0, 10)).toBe('2026-12-24');
+  expect(post.endDate.toISOString().slice(0, 10)).toBe('2027-01-02');
+
+  const b = await request(app).post('/admin/ad-leads').set(ADMIN).send({
+    ...LEAD, metaLeadId: 'meta-dates-2', email: 'noe+test2310@example.com', firstName: 'Noé', service: 'garde', quand: 'fetes',
+  }).expect(200);
+  const r2 = await request(app).post(`/admin/ad-leads/${b.body.id}/publish`).set(ADMIN).send({}).expect(200);
+  expect(r2.body.dates).toBe('quand');
+  const post2 = await Post.findById(r2.body.postId);
+  expect(post2.startDate.toISOString().slice(5, 10)).toBe('12-20');
+  expect(post2.endDate.toISOString().slice(5, 10)).toBe('01-03');
+
+  const c = await request(app).post('/admin/ad-leads').set(ADMIN).send({
+    ...LEAD, metaLeadId: 'meta-dates-3', email: 'ava+test2310@example.com', firstName: 'Ava', service: 'garde', quand: 'plus_tard',
+  }).expect(200);
+  const r3 = await request(app).post(`/admin/ad-leads/${c.body.id}/publish`).set(ADMIN).send({}).expect(200);
+  expect(r3.body.dates).toBeNull();
+  const post3 = await Post.findById(r3.body.postId);
+  expect(post3.startDate == null).toBe(true);
+});
