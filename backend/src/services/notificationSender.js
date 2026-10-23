@@ -261,6 +261,25 @@ const unverifiedEmailBlocked = async (user, role) => {
   } catch (_) { return false; }
 };
 
+/** 23/10 (BOB) — lien d'e-mail via ouverture de session pour un propriétaire issu de la pub. */
+const leadOwnerEmailLink = async (role, userId, link, siteBase) => {
+  try {
+    if (role !== 'owner' || !userId || !link || typeof link !== 'string') return link;
+    if (!link.startsWith(siteBase) || link.indexOf('/posts/confirmer') >= 0) return link;
+    const AdLead = require('../models/AdLead2210');
+    // Sans connexion à la base (bancs de test à modèles simulés), Mongoose mettrait la requête
+    // en attente 10 s : on ne réécrit pas le lien. En production la connexion est ouverte.
+    if (AdLead.db && AdLead.db.readyState !== 1) return link;
+    const lead = await AdLead.findOne({ ownerId: userId, confirmedAt: { $ne: null } }).select('_id').lean();
+    if (!lead || !/^[a-f0-9]{32}$/.test(String(lead._id))) return link;
+    const next = link.slice(siteBase.length) || '/';
+    return `${siteBase}/posts/confirmer?l=${lead._id}&next=${encodeURIComponent(next)}`;
+  } catch (e) {
+    logger.warn(`[notif.email.lead] lien non réécrit : ${e?.message || e}`);
+    return link;
+  }
+};
+
 const resolveUser = async (role, userId) => {
   // Session v17 — walker added as first-class recipient alongside
   // owner/sitter. Notifications were silently dropped for walker before:
@@ -649,6 +668,11 @@ const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtr
         ? `${SITE_BASE}${emailRoute}`
         : data.emailLink,
   };
+  // 23/10 (BOB, accord de Daniel) — propriétaire créé par la pub à formulaire (AdLead
+  // confirmé, mot de passe aléatoire) : le bouton de CHAQUE e-mail passe par la page qui
+  // ouvre sa session sans mot de passe (/posts/confirmer?l=<jeton>&next=<cible>), sinon il
+  // tombe sur la page de connexion (mesuré le 23/10 : 32 candidatures → 0 réponse).
+  renderData.emailLink = await leadOwnerEmailLink(role, userId, renderData.emailLink, SITE_BASE);
   const title = render(tmpl.title, renderData);
   const body = render(tmpl.body, renderData);
   const emailSubject = render(tmpl.emailSubject, renderData);

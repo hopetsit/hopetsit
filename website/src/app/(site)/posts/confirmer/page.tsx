@@ -80,12 +80,25 @@ export default function ConfirmLeadPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState<{ postId: string | null; notified?: number } | null>(null);
+  // 23/10 (BOB, accord de Daniel) — `next` : cible interne (ex. /application/<id>) demandée par
+  // le bouton d'un e-mail (candidature, réservation, message). Si la demande est déjà en ligne,
+  // on ouvre la session sans mot de passe et on y va tout seul, sans clic.
+  const [next, setNext] = useState("");
+  const [opening, setOpening] = useState(false);
   const seen = useRef(false);
+  const auto = useRef(false);
 
   useEffect(() => {
     let l = "";
-    try { l = (new URLSearchParams(window.location.search).get("l") || "").trim(); } catch { /* URL exotique */ }
+    let n = "";
+    try {
+      const q = new URLSearchParams(window.location.search);
+      l = (q.get("l") || "").trim();
+      n = (q.get("next") || "").trim();
+    } catch { /* URL exotique */ }
     setId(l);
+    // chemin interne seulement : commence par un seul « / », jamais « // » ni « http »
+    if (/^\/(?!\/)[^\s]*$/.test(n)) setNext(n);
     if (!/^[a-f0-9]{32}$/.test(l)) { setGone(true); return; }
     getAdLead(l)
       .then((d) => {
@@ -94,6 +107,15 @@ export default function ConfirmLeadPage() {
       })
       .catch(() => setGone(true));
   }, []);
+
+  useEffect(() => {
+    if (!lead || !lead.confirmed || !next || auto.current) return;
+    auto.current = true;
+    setOpening(true);
+    confirmAdLead(id)
+      .then(() => { trackSiteEvent("cta_click", { label: "lead_next" }); window.location.href = next; })
+      .catch(() => { setOpening(false); setErr(TXT[lead.lang === "en" ? "en" : "fr"].err); });
+  }, [lead, next, id]);
 
   const t = TXT[lead?.lang === "en" ? "en" : "fr"];
   const needsLieu = lead?.service === "garde";
@@ -125,7 +147,7 @@ export default function ConfirmLeadPage() {
     try {
       const r = await confirmAdLead(id);
       const target = r.postId || postId;
-      window.location.href = target ? `/post/${target}` : "/posts";
+      window.location.href = next || (target ? `/post/${target}` : "/posts");
     } catch {
       setErr(t.err);
       setBusy(false);
@@ -147,7 +169,7 @@ export default function ConfirmLeadPage() {
     );
   }
 
-  if (!lead) {
+  if (!lead || opening) {
     return <main className="min-h-[70vh] bg-[#FFF7F4] px-4 py-10"><div className={`${card} h-64 animate-pulse`} /></main>;
   }
 
