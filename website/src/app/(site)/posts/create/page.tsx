@@ -74,6 +74,7 @@ export default function CreatePostPage() {
   })();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [postalCode, setPostalCode] = useState(""); // 23/10 (BOB, ordre de Daniel) — la demande est placée au code postal, pas au centre de la ville
   const [notes, setNotes] = useState("");
   const [animalCount, setAnimalCount] = useState(1);
   const [animalTypes, setAnimalTypes] = useState<string[]>([]);
@@ -226,6 +227,7 @@ export default function CreatePostPage() {
       if (typeof d.budget === "string") setBudget(d.budget);
       if (typeof d.startDate === "string") setStartDate(d.startDate);
       if (typeof d.endDate === "string") setEndDate(d.endDate);
+      if (typeof d.postalCode === "string") setPostalCode(d.postalCode);
       if (typeof d.notes === "string") setNotes(d.notes);
       if (typeof d.animalCount === "number") setAnimalCount(d.animalCount);
       if (Array.isArray(d.animalTypes)) setAnimalTypes(d.animalTypes as string[]);
@@ -321,6 +323,10 @@ export default function CreatePostPage() {
       setErr(t("signup_city_required"));
       return;
     }
+    if (postalCode.trim().length < 3) {
+      setErr(t("signup_postal_required"));
+      return;
+    }
     if (service && !locationComplete(service, svcLocation, meetingPoint)) {
       setErr(p587(lang, svcLocation === "meeting_point" ? "svc587_meeting_required" : "svc587_required"));
       return;
@@ -368,6 +374,7 @@ export default function CreatePostPage() {
       try {
         const res = await signup({
           name, email: em, password: accPassword, role: "owner", city: loc.city, lang,
+          ...(postalCode.trim() ? { postalCode: postalCode.trim() } : {}),
           ...(referralCode ? { referralCode } : {}),
         });
         if (!res.needsVerification && res.token) {
@@ -422,7 +429,7 @@ export default function CreatePostPage() {
     try {
       window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
         body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
-        animalCount, animalTypes, city, budget, targetProvider: target,
+        animalCount, animalTypes, city, postalCode, budget, targetProvider: target,
         ...(cityCoords ? { cityLat: cityCoords.lat, cityLng: cityCoords.lng, cityLabel } : {}),
         ...extra,
       }));
@@ -454,6 +461,8 @@ export default function CreatePostPage() {
       animalTypes: animalTypes.length ? animalTypes : undefined,
       // Sans ville, aucun gardien n'est prévenu (cf. le commentaire plus haut).
       location: loc,
+      // 23/10 (BOB, ordre de Daniel) — code postal : le serveur place la demande là, pas au centre de la ville.
+      postalCode: postalCode.trim() || undefined,
       // v587 — budget facultatif (rien envoyé sans montant).
       budget: budgetAmount > 0 ? budgetAmount : undefined,
       budgetCurrency: budgetAmount > 0 ? budgetCur : undefined,
@@ -567,6 +576,7 @@ export default function CreatePostPage() {
     // 23/10 (BOB, demande de Daniel) — dates OBLIGATOIRES : sans dates, les gardiens ne peuvent pas répondre.
     if (!startDate || !endDate || endDate < startDate) return setErr(f2(lang, "dates_required"));
     if (!city.trim()) return setErr(t("signup_city_required"));
+    if (postalCode.trim().length < 3) return setErr(t("signup_postal_required"));
     if (!locationComplete(service, svcLocation, meetingPoint)) {
       return setErr(p587(lang, svcLocation === "meeting_point" ? "svc587_meeting_required" : "svc587_required"));
     }
@@ -707,6 +717,23 @@ export default function CreatePostPage() {
             setCityLabel(co ? lb || "" : "");
           }}
         />
+        {/* 23/10 (BOB, ordre de Daniel) — code postal obligatoire : la demande est placée dans le quartier,
+            pas au centre de la ville (16 demandes au même point le 23/10). */}
+        <div>
+          <label htmlFor="postal-2310" className="block text-sm font-medium text-ink">{t("signup_postal_code")} *</label>
+          <input
+            id="postal-2310"
+            type="text"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            required
+            minLength={3}
+            maxLength={10}
+            value={postalCode}
+            onChange={(e) => setPostalCode(e.target.value)}
+            className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
+          />
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-ink">{t("posts_services_label")}</label>

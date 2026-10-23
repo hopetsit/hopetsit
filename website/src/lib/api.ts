@@ -231,6 +231,8 @@ export async function signup(input: {
   referralCode?: string;
   // 17/10/2026 (SAM) — pays ISO-2 déduit de la ville : la devise du compte suit le pays.
   country?: string;
+  // 23/10 (BOB, ordre de Daniel) — code postal : le serveur place le compte là, pas au centre de la ville.
+  postalCode?: string;
 }): Promise<{ needsVerification: boolean; email: string; token?: string; user?: AuthUser; emailVerified?: boolean }> {
   // The /auth/signup contract requires `{ role, user: {...} }` (and accepts
   // optional fields like mobile, countryCode, currency that we don't collect
@@ -244,6 +246,7 @@ export async function signup(input: {
       acceptedTerms: true,
       ...(input.city ? { city: input.city, location: { city: input.city } } : {}),
       ...(input.country ? { country: input.country } : {}),
+      ...(input.postalCode ? { postalCode: input.postalCode } : {}),
       ...(input.lang ? { language: input.lang, appLocale: input.lang } : {}),
       ...(input.referralCode ? { referralCode: input.referralCode } : {}),
     },
@@ -2005,6 +2008,9 @@ export type CreatePostInput = {
   petId?: string;
   notes?: string;
   location?: { city?: string; lat?: number; lng?: number };
+  /** 23/10 (BOB, ordre de Daniel) — code postal : la demande est placée là, pas au centre de la ville. */
+  postalCode?: string;
+  country?: string;
   animalCount?: number;
   animalTypes?: string[];
   /** v587 (option A de Daniel) — « Mon budget » facultatif (montant > 0). */
@@ -2067,6 +2073,7 @@ export async function createPostWithMediaMeta(input: CreatePostInput, files: Fil
   if (input.startDate) fd.append("startDate", input.startDate);
   if (input.endDate) fd.append("endDate", input.endDate);
   if (input.notes) fd.append("notes", input.notes);
+  if (input.postalCode) fd.append("postalCode", input.postalCode); // 23/10 (BOB) — position au code postal
   if (input.animalCount) fd.append("animalCount", String(input.animalCount));
   (input.animalTypes || []).forEach((tp) => fd.append("animalTypes", tp));
   // 22/09/2026 — la ville manquait ici aussi : une annonce avec photos publiée

@@ -377,7 +377,18 @@ const signup = async (req, res) => {
       { name: user.name, firstName: '', lastName: '' };
 
     // Process location data (optional: only when valid coordinates provided)
-    const location = processLocationData(user.location);
+    // 23/10 (BOB, ordre de Daniel) — code postal fourni (site, app ≥ prochain build) : la position
+    // du compte est celle du code postal, plus le centre de la ville. Sans code postal ou en cas
+    // d'échec du géocodage : comportement d'avant.
+    let location = processLocationData(user.location);
+    if (user.postalCode) {
+      try {
+        const fromPostal = await require('../utils/geocodePostal2310').locationFromPostal(
+          user.postalCode, { country: user.country, lang: appLocaleOf(req.body) || user.language, city: cleanCity(user.city) || cleanCity(user.location?.city) },
+        );
+        if (fromPostal) location = processLocationData(fromPostal) || location;
+      } catch (_) { /* jamais bloquant */ }
+    }
 
     // Determine and validate currency. If provided, it must be USD or EUR.
     // If omitted, default to DEFAULT_CURRENCY (backwards compatible).

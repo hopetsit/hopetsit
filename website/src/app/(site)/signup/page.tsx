@@ -19,6 +19,7 @@ export default function SignupPage() {
   // OBLIGATOIRE, téléphone/adresse facultatifs). Avant : jamais demandée sur
   // le site → comptes « ville ? » dans l'admin.
   const [city, setCity]         = useState("");
+  const [postalCode, setPostalCode] = useState(""); // 23/10 (BOB, ordre de Daniel) — position = code postal, pas le centre de la ville
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy]         = useState(false);
@@ -70,6 +71,10 @@ export default function SignupPage() {
       setErr(t("signup_city_required"));
       return;
     }
+    if (postalCode.trim().length < 3) {
+      setErr(t("signup_postal_required"));
+      return;
+    }
     // v532 — le site validait 6 caractères alors que les 3 modèles Mongoose
     // exigent minlength: 8 : un mot de passe de 6-7 caractères passait le
     // contrôle client puis faisait échouer la création en 500, avec le
@@ -104,6 +109,7 @@ export default function SignupPage() {
         password,
         role,
         city: city.trim(),
+        postalCode: postalCode.trim(),
         lang,
         ...(country ? { country } : {}),
         ...(referralCode ? { referralCode } : {}),
@@ -177,6 +183,7 @@ export default function SignupPage() {
         <Field label={t("signup_name")}     value={name}     onChange={setName}     required autoComplete="name" />
         <Field label={t("signup_email")}    value={email}    onChange={setEmail}    type="email"    required autoComplete="email" />
         <Field label={t("signup_city")}     value={city}     onChange={setCity}     required autoComplete="address-level2" />
+        <Field label={t("signup_postal_code")} value={postalCode} onChange={setPostalCode} required autoComplete="postal-code" />
         <Field label={t("signup_password")} value={password} onChange={setPassword} type="password" required autoComplete="new-password" />
 
         {/* v532 — les CGU étaient envoyées avec acceptedTerms: true CODÉ EN DUR

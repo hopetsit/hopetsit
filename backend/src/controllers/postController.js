@@ -574,6 +574,18 @@ const createPost = async (req, res) => {
         postPayload.location = parsedLocation;
       }
     }
+    // 23/10 (BOB, ordre de Daniel « les demandes sortent toutes du même endroit ») — code postal
+    // fourni (site « Publier ma demande ») : la demande est placée au code postal, pas au centre
+    // de la ville ; la ville saisie est conservée. Échec du géocodage → position d'avant.
+    if (req.body && req.body.postalCode) {
+      try {
+        const base = postPayload.location && typeof postPayload.location === 'object' ? postPayload.location : {};
+        const fromPostal = await require('../utils/geocodePostal2310').locationFromPostal(
+          req.body.postalCode, { country: req.body.country || base.country, lang: req.body.language || req.body.lang, city: base.city },
+        );
+        if (fromPostal) postPayload.location = { ...base, ...fromPostal };
+      } catch (_) { /* jamais bloquant */ }
+    }
 
     if (typeof notes === 'string' && notes.trim()) {
       // v469 — notes stockées BRUTES (censure à la lecture, cf sanitizePost).
@@ -1956,6 +1968,18 @@ const createPostWithMedia = async (req, res) => {
       if (parsedLocation && typeof parsedLocation === 'object') {
         postPayload.location = parsedLocation;
       }
+    }
+    // 23/10 (BOB, ordre de Daniel « les demandes sortent toutes du même endroit ») — code postal
+    // fourni (site « Publier ma demande ») : la demande est placée au code postal, pas au centre
+    // de la ville ; la ville saisie est conservée. Échec du géocodage → position d'avant.
+    if (req.body && req.body.postalCode) {
+      try {
+        const base = postPayload.location && typeof postPayload.location === 'object' ? postPayload.location : {};
+        const fromPostal = await require('../utils/geocodePostal2310').locationFromPostal(
+          req.body.postalCode, { country: req.body.country || base.country, lang: req.body.language || req.body.lang, city: base.city },
+        );
+        if (fromPostal) postPayload.location = { ...base, ...fromPostal };
+      } catch (_) { /* jamais bloquant */ }
     }
 
     if (typeof notes === 'string' && notes.trim()) {
