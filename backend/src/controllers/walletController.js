@@ -56,7 +56,9 @@ exports.getWallet = async (req, res) => {
     const pendingAmount = await WalletTransaction.aggregate([
       {
         $match: {
-          userId: req.user._id || req.user.id,
+          // 23/10 (BOB, relevé FLO) — `$match` ne convertit pas une chaîne en ObjectId : avec
+          // req.user.id (chaîne, cas de l'app) la somme était toujours 0.
+          userId: require('mongoose').Types.ObjectId.createFromHexString(String(req.user._id || req.user.id)),
           type: 'debit_withdrawal',
           status: 'pending',
         },
