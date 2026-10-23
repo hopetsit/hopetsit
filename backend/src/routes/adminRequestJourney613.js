@@ -363,7 +363,9 @@ router.get('/summary', requireAdmin, async (req, res) => {
 
 router.get('/live', requireAdmin, async (req, res) => {
   try {
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
+    // 23/10 (BOB, demande de Daniel « je veux voir toutes les annonces en ligne ») : plafond 50 → 500,
+    // l'accueil de l'admin demande limit=500 et montre chaque annonce avec son suivi.
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 10));
     const { Post } = M();
     const posts = await Post.find({ postType: 'request', hidden: { $ne: true } })
       .sort({ createdAt: -1 }).limit(500).select(POST_FIELDS).lean();
@@ -372,6 +374,7 @@ router.get('/live', requireAdmin, async (req, res) => {
     const excluded = map.size - real.length;
     const counters = {
       total: real.length,
+      online: real.filter((x) => x.visibility && x.visibility.state === 'online').length, // 23/10 (BOB) — visibles par les prestataires
       open: real.filter((x) => ['waiting', 'applied'].includes(x.status)).length,
       withApplications: real.filter((x) => x.stages.applications.count > 0).length,
       accepted: real.filter((x) => x.stages.decision.state === 'accepted').length,
