@@ -26,6 +26,8 @@ const TXT = {
     termsLink: "conditions d'utilisation",
     noAccount: "Pas de mot de passe à créer : votre compte est ouvert avec votre e-mail.",
     done: "C'est publié !",
+    already: "Votre demande est en ligne !",
+    alreadySub: "Les gardiens et promeneurs près de chez vous ont été prévenus. Leurs réponses arrivent par e-mail et dans l'app.",
     doneSub: (n?: number) => (n && n > 0
       ? `${n} gardien${n > 1 ? "s" : ""} et promeneur${n > 1 ? "s" : ""} près de chez vous ${n > 1 ? "sont prévenus" : "est prévenu"}. Vous recevrez leurs réponses par e-mail et dans l'app.`
       : "Les gardiens et promeneurs près de chez vous sont prévenus. Vous recevrez leurs réponses par e-mail et dans l'app."),
@@ -52,6 +54,8 @@ const TXT = {
     termsLink: "terms of use",
     noAccount: "No password to create: your account opens with your email.",
     done: "It's live!",
+    already: "Your request is live!",
+    alreadySub: "Sitters and dog walkers near you have been notified. Their replies arrive by email and in the app.",
     doneSub: (n?: number) => (n && n > 0
       ? `${n} sitter${n > 1 ? "s and dog walkers" : " or dog walker"} near you ${n > 1 ? "were" : "was"} notified. You'll get their replies by email and in the app.`
       : "Sitters and dog walkers near you are notified. You'll get their replies by email and in the app."),
@@ -131,14 +135,17 @@ export default function ConfirmLeadPage() {
   }
 
   if (done || lead.confirmed) {
+    // 23/10 (SAM, consigne de Daniel) : le suivi publie la demande dès le formulaire rempli ;
+    // le lien de l'e-mail arrive donc le plus souvent sur une demande déjà en ligne.
+    const postId = done?.postId || lead.postId || null;
     return (
       <main className="min-h-[70vh] bg-[#FFF7F4] px-4 py-10">
         <div className={`${card} text-center`}>
           <div className="text-5xl" aria-hidden>🐾</div>
-          <h1 className="mt-2 font-display text-3xl font-extrabold text-ink">{t.done}</h1>
-          <p className="mt-3 text-[#6E4F48]">{t.doneSub(done?.notified)}</p>
-          {done?.postId && (
-            <Link href={`/post/${done.postId}`} className={`${bigBtn} mt-6`}>{t.see}</Link>
+          <h1 className="mt-2 font-display text-3xl font-extrabold text-ink">{done ? t.done : t.already}</h1>
+          <p className="mt-3 text-[#6E4F48]">{done ? t.doneSub(done.notified) : t.alreadySub}</p>
+          {postId && (
+            <Link href={`/post/${postId}`} className={`${bigBtn} mt-6`}>{t.see}</Link>
           )}
           <p className="mt-4 text-xs text-[#6E4F48]">{t.pwd}</p>
         </div>

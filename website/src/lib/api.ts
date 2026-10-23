@@ -204,6 +204,7 @@ export type AdLeadSummary = {
   firstName: string; city: string; lang: "fr" | "en";
   service: "garde" | "promenade" | "visites"; animal: "chien" | "chat" | "autre";
   quand: "bientot" | "fetes" | "plus_tard"; confirmed: boolean;
+  postId?: string; // 23/10 : présent quand la demande est déjà en ligne (publiée par le suivi)
 };
 export async function getAdLead(id: string): Promise<AdLeadSummary> {
   return request<AdLeadSummary>(`/ad-leads/${encodeURIComponent(id)}`);

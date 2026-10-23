@@ -103,3 +103,32 @@ test('compte existant non vérifié : réutilisé et vérifié ; promenade en an
   expect(post.body).toBe("I'm looking for dog walks for my dog within 2 weeks.");
   expect(post.serviceTypes).toEqual(['dog_walking']);
 });
+
+// 23/10 (SAM, consigne de Daniel) — le suivi publie dès le formulaire rempli, par la route admin.
+test('admin publish : compte vérifié + demande + gardiens, sans session ; 2e appel = même demande ; GET renvoie postId', async () => {
+  const { body: { id } } = await request(app).post('/admin/ad-leads').set(ADMIN).send({
+    ...LEAD, metaLeadId: 'meta-3', email: 'ana+test2310@example.com', firstName: 'Ana', service: 'visites', quand: 'bientot',
+  });
+  await request(app).post(`/admin/ad-leads/${id}/publish`).send({}).expect(401);
+  const r = await request(app).post(`/admin/ad-leads/${id}/publish`).set(ADMIN).send({}).expect(200);
+  expect(r.body.token).toBeUndefined();
+  expect(r.body.alreadyPublished).toBe(false);
+  expect(r.body.postId).toMatch(/^[a-f0-9]{24}$/);
+  const owner = await Owner.findOne({ email: 'ana+test2310@example.com' });
+  expect(owner.verified).toBe(true);
+  expect(String(r.body.ownerId)).toBe(String(owner._id));
+  const post = await Post.findById(r.body.postId);
+  expect(post.body).toBe('Je cherche des visites à domicile pour mon chat dans les 15 jours.');
+  expect(post.serviceLocation).toBe('at_owner');
+
+  const r2 = await request(app).post(`/admin/ad-leads/${id}/publish`).set(ADMIN).send({}).expect(200);
+  expect(r2.body.postId).toBe(r.body.postId);
+  expect(r2.body.alreadyPublished).toBe(true);
+  expect(await Post.countDocuments({ ownerId: owner._id })).toBe(1);
+  const pub = await request(app).get(`/ad-leads/${id}`).expect(200);
+  expect(pub.body).toMatchObject({ confirmed: true, postId: r.body.postId });
+  // le clic depuis l'e-mail, après coup, ouvre la session sur la même demande
+  const r3 = await request(app).post(`/ad-leads/${id}/confirm`).send({}).expect(200);
+  expect(r3.body.postId).toBe(r.body.postId);
+  await request(app).post('/admin/ad-leads/00000000000000000000000000000000/publish').set(ADMIN).send({}).expect(404);
+});

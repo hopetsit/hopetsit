@@ -10,6 +10,12 @@
  *                                   publie la demande par createPost (mêmes règles,
  *                                   mêmes alertes aux gardiens), renvoie une session.
  *
+ *   POST /admin/ad-leads/:id/publish (admin) 23/10 (SAM, consigne de Daniel) : le
+ *                                   suivi des contacts publie la demande DÈS que le
+ *                                   formulaire est rempli (même chemin que le clic :
+ *                                   compte propriétaire vérifié, demande par createPost,
+ *                                   gardiens prévenus), sans renvoyer de session.
+ *
  * Idempotent : un 2e clic renvoie la même demande, sans en publier une autre.
  * Mot de passe : aléatoire ; le propriétaire en choisit un par « Mot de passe oublié ».
  */
@@ -114,8 +120,60 @@ router.get('/:id', async (req, res) => {
     firstName: lead.firstName, city: lead.city, lang: lead.lang,
     service: lead.service, animal: lead.animal, quand: lead.quand,
     confirmed: !!lead.confirmedAt,
+    ...(lead.postId ? { postId: String(lead.postId) } : {}),
   });
 });
+
+/**
+ * Publie la demande d'un contact (compte propriétaire créé ou repris et vérifié,
+ * demande par createPost = mêmes règles et mêmes alertes aux gardiens).
+ * Renvoie { owner, postId, notified, status, body } ; status ≠ 200 = createPost a refusé.
+ */
+async function publishLead(lead, lieu) {
+  // 1. Compte propriétaire : existant (rendu vérifié, l'e-mail vient de Meta / du clic) ou créé.
+  let owner = await Owner.findOne({ email: lead.email });
+  if (!owner) {
+    const firstName = lead.firstName || (lead.lang === 'fr' ? 'Propriétaire' : 'Owner');
+    owner = await Owner.create({
+      name: firstName, firstName, lastName: '',
+      email: lead.email,
+      password: crypto.randomBytes(18).toString('hex'),
+      city: lead.city,
+      country: lead.country || '',
+      currency: countryToCurrency(lead.country),
+      appLocale: lead.lang,
+      language: lead.lang,
+      acceptedTerms: true, termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION,
+      verified: true,
+    });
+  }
+  const { markVerifiedAcrossRoles } = require('../controllers/authController');
+  if (owner.verified !== true) await markVerifiedAcrossRoles(lead.email);
+
+  // 2. Demande : une seule par contact (2e appel = la même).
+  let postId = lead.postId;
+  let notified;
+  if (!postId) {
+    const { createPost } = require('../controllers/postController');
+    const out = await callController(createPost, {
+      user: { id: owner._id.toString(), role: 'owner' }, body: postInputFor(lead, lieu),
+    });
+    if (out.status === 201) {
+      postId = out.body.post && (out.body.post.id || out.body.post._id);
+      notified = out.body.notified;
+    } else if (out.status === 409) {
+      postId = out.body.existingPostId || out.body.postId || null;
+    } else {
+      logger.warn('[adLeads2210] createPost refused', out.status, out.body && out.body.error);
+      return { owner, postId: null, status: out.status, body: out.body };
+    }
+    if (postId && mongoose.isValidObjectId(String(postId))) lead.postId = postId;
+    lead.ownerId = owner._id;
+    lead.confirmedAt = lead.confirmedAt || new Date();
+    await lead.save();
+  }
+  return { owner, postId: postId ? String(postId) : null, notified, status: 200 };
+}
 
 router.post('/:id/confirm', async (req, res) => {
   try {
@@ -123,59 +181,39 @@ router.post('/:id/confirm', async (req, res) => {
     const lead = await AdLead.findById(req.params.id);
     if (!lead) return res.status(404).json({ error: 'not_found' });
     const lieu = req.body && req.body.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner';
-
-    // 1. Compte propriétaire : existant (rendu vérifié, l'e-mail est prouvé) ou créé.
-    let owner = await Owner.findOne({ email: lead.email });
-    if (!owner) {
-      const firstName = lead.firstName || (lead.lang === 'fr' ? 'Propriétaire' : 'Owner');
-      owner = await Owner.create({
-        name: firstName, firstName, lastName: '',
-        email: lead.email,
-        password: crypto.randomBytes(18).toString('hex'),
-        city: lead.city,
-        country: lead.country || '',
-        currency: countryToCurrency(lead.country),
-        appLocale: lead.lang,
-        language: lead.lang,
-        acceptedTerms: true, termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION,
-        verified: true,
-      });
-    }
-    const { markVerifiedAcrossRoles, signAuthToken } = require('../controllers/authController');
-    if (owner.verified !== true) await markVerifiedAcrossRoles(lead.email);
-
-    // 2. Demande : une seule par contact (2e clic = la même).
-    let postId = lead.postId;
-    let notified;
-    if (!postId) {
-      const { createPost } = require('../controllers/postController');
-      const out = await callController(createPost, {
-        user: { id: owner._id.toString(), role: 'owner' }, body: postInputFor(lead, lieu),
-      });
-      if (out.status === 201) {
-        postId = out.body.post && (out.body.post.id || out.body.post._id);
-        notified = out.body.notified;
-      } else if (out.status === 409) {
-        postId = out.body.existingPostId || out.body.postId || null;
-      } else {
-        logger.warn('[adLeads2210] createPost refused', out.status, out.body && out.body.error);
-        return res.status(out.status).json(out.body);
-      }
-      if (postId && mongoose.isValidObjectId(String(postId))) lead.postId = postId;
-      lead.ownerId = owner._id;
-      lead.confirmedAt = lead.confirmedAt || new Date();
-      await lead.save();
-    }
-
+    const r = await publishLead(lead, lieu);
+    if (r.status !== 200) return res.status(r.status).json(r.body);
+    const { signAuthToken } = require('../controllers/authController');
     return res.status(200).json({
-      token: signAuthToken({ id: owner._id.toString(), role: 'owner' }),
-      user: { id: owner._id.toString(), name: owner.name, email: owner.email, role: 'owner' },
-      postId: postId ? String(postId) : null,
-      ...(notified === undefined || notified === null ? {} : { notified }),
+      token: signAuthToken({ id: r.owner._id.toString(), role: 'owner' }),
+      user: { id: r.owner._id.toString(), name: r.owner.name, email: r.owner.email, role: 'owner' },
+      postId: r.postId,
+      ...(r.notified === undefined || r.notified === null ? {} : { notified: r.notified }),
     });
   } catch (e) {
     logger.error('[adLeads2210] confirm failed', e);
     return res.status(500).json({ error: 'Unable to confirm.' });
+  }
+});
+
+// 23/10 (SAM, consigne de Daniel « dès qu'un contact remplit le formulaire, le suivi
+// publie ») — même chemin que le clic, appelé par leads_suivi.py ; pas de session renvoyée.
+adminRouter.post('/:id/publish', requireAdmin, async (req, res) => {
+  try {
+    if (!ID_RE.test(req.params.id)) return res.status(404).json({ error: 'not_found' });
+    const lead = await AdLead.findById(req.params.id);
+    if (!lead) return res.status(404).json({ error: 'not_found' });
+    const already = !!lead.postId;
+    const lieu = req.body && req.body.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner';
+    const r = await publishLead(lead, lieu);
+    if (r.status !== 200) return res.status(r.status).json(r.body);
+    return res.status(200).json({
+      postId: r.postId, ownerId: r.owner._id.toString(), alreadyPublished: already,
+      ...(r.notified === undefined || r.notified === null ? {} : { notified: r.notified }),
+    });
+  } catch (e) {
+    logger.error('[adLeads2210] publish failed', e);
+    return res.status(500).json({ error: 'Unable to publish.' });
   }
 });
 
