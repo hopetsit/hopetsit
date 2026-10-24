@@ -70,6 +70,11 @@ class EditSitterProfileController extends GetxController {
   // Additif — surcharge par animal supplémentaire + temps de réponse type.
   final extraPetRateController = TextEditingController();
   final responseTimeController = TextEditingController();
+  // 620 — visite à domicile : tarif par visite (vide = non proposé) + durée
+  // d'une visite (30 | 60 min, défaut 30).
+  final visitRateController = TextEditingController();
+  final RxInt visitDurationMinutes = 30.obs;
+  void selectVisitDuration(int m) => visitDurationMinutes.value = m >= 60 ? 60 : 30;
   final languageController = TextEditingController();
   // v575 — « nom et prénom » : deux champs distincts, comme sur les 3 rôles.
   final firstNameController = TextEditingController();
@@ -145,6 +150,7 @@ class EditSitterProfileController extends GetxController {
     dailyRateController.dispose();
     extraPetRateController.dispose();
     responseTimeController.dispose();
+    visitRateController.dispose(); // 620
     languageController.dispose();
     firstNameController.dispose();
     lastNameController.dispose();
@@ -294,6 +300,10 @@ class EditSitterProfileController extends GetxController {
       monthlyRateController.text = fmtRate(profileData['monthlyRate']);
       dailyRateController.text = fmtRate(profileData['dailyRate']);
       extraPetRateController.text = fmtRate(profileData['extraPetRate']);
+      // 620 — tarif par visite + durée (profil).
+      visitRateController.text = fmtRate(profileData['visitRate']);
+      final vdm = profileData['visitDurationMinutes'];
+      if (vdm is num && vdm > 0) selectVisitDuration(vdm.toInt());
       final rtm = profileData['responseTimeMinutes'];
       responseTimeController.text =
           (rtm is num && rtm > 0) ? rtm.toInt().toString() : '';
@@ -326,6 +336,11 @@ class EditSitterProfileController extends GetxController {
         // Additif — surcharge par animal + temps de réponse depuis /me/rates.
         final fetchedExtraPet = ratesData['extraPetRate'];
         if (fetchedExtraPet != null) extraPetRateController.text = fmt(fetchedExtraPet);
+        // 620 — tarif par visite + durée depuis /me/rates (prime sur le profil).
+        final fetchedVisit = ratesData['visitRate'];
+        if (fetchedVisit != null) visitRateController.text = fmt(fetchedVisit);
+        final fetchedVdm = ratesData['visitDurationMinutes'];
+        if (fetchedVdm is num && fetchedVdm > 0) selectVisitDuration(fetchedVdm.toInt());
         final fetchedRtm = ratesData['responseTimeMinutes'];
         if (fetchedRtm is num) {
           responseTimeController.text =
@@ -810,8 +825,19 @@ class EditSitterProfileController extends GetxController {
           responseTimeController.text.trim().replaceAll(RegExp(r'[^\d]'), '');
       final extraPetRate = double.tryParse(extraPetText) ?? 0;
       final responseTimeMinutes = int.tryParse(responseText);
+      // 620 — tarif par visite (0 = non proposé) ; une grille ne vaut que si
+      // au moins UN service a un tarif.
+      final visitText = visitRateController.text
+          .trim()
+          .replaceAll(',', '.')
+          .replaceAll(RegExp(r'[^\d.]'), '');
+      final visitRate = double.tryParse(visitText) ?? 0;
 
-      if (dailyRate <= 0 && weeklyRate <= 0 && monthlyRate <= 0 && hourlyRate <= 0) {
+      if (dailyRate <= 0 &&
+          weeklyRate <= 0 &&
+          monthlyRate <= 0 &&
+          hourlyRate <= 0 &&
+          visitRate <= 0) {
         CustomSnackbar.showError(
           title: 'common_error'.tr,
           message: 'error_rate_required'.tr,
@@ -849,6 +875,8 @@ class EditSitterProfileController extends GetxController {
         monthlyRate: monthlyRate,
         extraPetRate: extraPetRate,
         responseTimeMinutes: responseTimeMinutes,
+        visitRate: visitRate, // 620
+        visitDurationMinutes: visitDurationMinutes.value, // 620
       );
 
       // v20.0.19 — publie le broadcast "rates changed" pour que sitter_homescreen

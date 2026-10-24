@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -87,7 +88,7 @@ class _ExpandablePostInputState extends State<ExpandablePostInput> {
                           width: 1.4,
                         ),
                       ),
-                      child: CircleAvatar(
+                      child: CircleAvatar(onBackgroundImageError: (avatarUrl.isNotEmpty) ? netImageOnError620 : null, 
                         radius: 17.r,
                         backgroundColor: accent.withValues(alpha: 0.12),
                         backgroundImage: avatarUrl.isNotEmpty

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -458,7 +459,7 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
                       else if (hasPhoto)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10.r),
-                          child: CachedNetworkImage(
+                          child: CachedNetworkImage(errorWidget: (_, __, ___) => const NetImageFallback620(), 
                             imageUrl: _photoUrl,
                             width: 36.w,
                             height: 36.w,

@@ -3354,7 +3354,7 @@ const Map<String, String> itITTranslations = <String, String>{
     'tracking_sheet_panel_title': 'Tracciamento in diretta',
     'tracking_sheet_phone': 'Telefono',
     'tracking_sheet_practical_info': 'Informazioni pratiche',
-    'tracking_sheet_sitter_walker': 'Sitter / Walker',
+    'tracking_sheet_sitter_walker': 'Pet sitter / Dog walker',
     'tracking_sheet_title': 'Segui il mio animale',
     'tracking_sheet_title_v2': 'Dettagli della prenotazione',
     'tracking_sheet_trust_msg':

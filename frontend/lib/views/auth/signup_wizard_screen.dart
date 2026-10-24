@@ -753,6 +753,8 @@ class SignupWizardScreen extends StatelessWidget {
             ['sit_home', 'signup_sitsvc_at_mine'],
             ['sit_owner', 'signup_sitsvc_at_owner'],
             ['daycare', 'signup_sitsvc_daycare'],
+            // 620 — visite à domicile (tarif par visite, étape Tarifs).
+            ['home_visit', 'dates620_signup_svc_visit'],
             ['meds', 'signup_sitsvc_meds'],
             ['vet_transport', 'signup_sitsvc_vet_transport'],
           ].map((s) => Obx(() {
@@ -852,17 +854,44 @@ class SignupWizardScreen extends StatelessWidget {
           }),
         ] else ...[
           // v532 — suffixe = devise réellement choisie (et non « € » en dur).
-          Obx(() => Column(
+          // 620 — MÊME grille par service qu'au profil : garde (par jour /
+          // nuit) et visite à domicile (par visite + durée), seulement pour
+          // les services cochés à l'étape 2.
+          Obx(() {
+            c.selectedServices.length; // lecture réactive
+            return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _field(c.ratePerDayController, 'signup_rate_day'.tr,
-                      kb: TextInputType.number, suffix: c.currencySymbol),
-                  _field(c.ratePerWeekController, 'signup_rate_week'.tr,
-                      kb: TextInputType.number, suffix: c.currencySymbol),
-                  _field(c.ratePerMonthController, 'signup_rate_month'.tr,
-                      kb: TextInputType.number, suffix: c.currencySymbol),
+                  if (c.sitterOffersSitting) ...[
+                    _label('dates620_rates_sitting_title'.tr),
+                    _field(c.ratePerDayController, 'signup_rate_day'.tr,
+                        kb: TextInputType.number, suffix: c.currencySymbol),
+                    _field(c.ratePerWeekController, 'signup_rate_week'.tr,
+                        kb: TextInputType.number, suffix: c.currencySymbol),
+                    _field(c.ratePerMonthController, 'signup_rate_month'.tr,
+                        kb: TextInputType.number, suffix: c.currencySymbol),
+                  ],
+                  if (c.sitterOffersVisit) ...[
+                    _label('dates620_rates_visit_title'.tr),
+                    KeyedSubtree(
+                      key: const Key('dates620_signup_visit_field'),
+                      child: _field(c.visitRateController, 'dates620_rates_visit_label'.tr,
+                          kb: TextInputType.number, suffix: c.currencySymbol),
+                    ),
+                    _label('dates620_rates_visit_duration'.tr),
+                    Obx(() => Wrap(
+                          spacing: 8.w,
+                          children: [
+                            _chip('30 min', c.visitDurationMinutes.value == 30,
+                                () => c.selectVisitDuration(30)),
+                            _chip('1 h', c.visitDurationMinutes.value == 60,
+                                () => c.selectVisitDuration(60)),
+                          ],
+                        )),
+                  ],
                 ],
-              )),
+              );
+          }),
         ],
         _field(c.extraAnimalController, 'signup_rate_extra_animal'.tr,
             kb: TextInputType.number, suffix: c.currencySymbol),
@@ -1043,9 +1072,17 @@ class SignupWizardScreen extends StatelessWidget {
             ['${v(c.walkerRate120Controller)} $sym', '/ 2 h'],
           ]
         : [
-            ['${v(c.ratePerDayController)} $sym', '/ ${'unit_day'.tr}'],
-            ['${v(c.ratePerWeekController)} $sym', '/ ${'unit_week'.tr}'],
-            ['${v(c.ratePerMonthController)} $sym', '/ ${'unit_month'.tr}'],
+            // 620 — seulement les cartes de la grille cochée.
+            if (c.sitterOffersSitting) ...[
+              ['${v(c.ratePerDayController)} $sym', '/ ${'unit_day'.tr}'],
+              ['${v(c.ratePerWeekController)} $sym', '/ ${'unit_week'.tr}'],
+              ['${v(c.ratePerMonthController)} $sym', '/ ${'unit_month'.tr}'],
+            ],
+            if (c.sitterOffersVisit)
+              [
+                '${v(c.visitRateController)} $sym',
+                '/ ${'dates620_unit_visit'.tr} (${c.visitDurationMinutes.value >= 60 ? '1 h' : '30 min'})',
+              ],
           ];
 
     return Container(

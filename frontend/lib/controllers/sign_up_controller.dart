@@ -26,6 +26,8 @@ import 'package:hopetsit/utils/date_slash_formatter.dart'
     show parseDdMmYyyy, ageInYears;
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/pending_signup_photo.dart';
+import 'package:hopetsit/utils/rate_grid620.dart';
+import 'package:hopetsit/utils/services620.dart';
 import 'package:hopetsit/controllers/my_pets_controller.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
@@ -63,6 +65,19 @@ class SignUpController extends GetxController {
   // v20.0.6 — Walker rates at signup.
   final walkerRate30Controller = TextEditingController();
   final walkerRate60Controller = TextEditingController();
+  // 620 — grille par service (gardien) : visite à domicile par visite + durée.
+  final visitRateController = TextEditingController();
+  final RxInt visitDurationMinutes = 30.obs;
+  void selectVisitDuration(int m) => visitDurationMinutes.value = m >= 60 ? 60 : 30;
+  /// 620 — services cochés → cartes de tarifs affichées (que les services
+  /// cochés). Sans aucun service de garde ni de visite, la garde reste
+  /// proposée (comportement historique).
+  bool get sitterOffersVisit => selectedServices.contains('home_visit');
+  bool get sitterOffersSitting =>
+      selectedServices.any((s) => s == 'sit_home' || s == 'sit_owner' || s == 'daycare') ||
+      !sitterOffersVisit;
+  double? get visitRateValue => double.tryParse(
+      visitRateController.text.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''));
   final cityController = TextEditingController();
   /// 619 (PAM, ordre de Daniel 23/10) — code postal obligatoire sous la ville :
   /// le serveur place le compte au code postal, plus au centre-ville.
@@ -541,6 +556,7 @@ class SignUpController extends GetxController {
     passwordController.clear();
     addressController.clear();
     ratePerHourController.clear();
+    visitRateController.clear(); // 620
     skillsController.clear();
     cityController.clear();
     postalCodeController.clear();
@@ -569,6 +585,10 @@ class SignUpController extends GetxController {
 
     try {
       await _authRepository.signup(role: _apiRole, user: _buildUserPayload());
+      // 620 — grille de tarifs du gardien, retentée dès l'entrée dans l'app.
+      if (userType == 'pet_sitter' && pendingRateGrid620 != null) {
+        await savePendingRateGrid620(pendingRateGrid620!);
+      }
 
       // v20.2.1 — bug fix : la photo profil sélectionnée pendant l'inscription
       // n'était jamais uploadée car aucun token d'auth n'existe encore à ce
@@ -617,6 +637,10 @@ class SignUpController extends GetxController {
       isLoading.value = false;
     }
   }
+
+  /// 620 — données d'inscription telles qu'envoyées à `POST /auth/signup`
+  /// (exposé pour les tests, sans navigation ni réseau).
+  Map<String, dynamic> buildSignupPayload620() => _buildUserPayload();
 
   Map<String, dynamic> _buildUserPayload() {
     // Mobile: send number only; countryCode as separate field (API format).
@@ -806,6 +830,27 @@ class SignUpController extends GetxController {
         ratePerDayController.text.trim().replaceAll(',', '.'),
       );
       if (daily != null && daily > 0) data['dailyRate'] = daily;
+      // 620 — grille par service : visite à domicile (par visite + durée) et
+      // type de tarif par défaut ; les cartes non cochées ne partent pas.
+      final visit = sitterOffersVisit ? visitRateValue : null;
+      final weeklyG = double.tryParse(ratePerWeekController.text.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''));
+      final monthlyG = double.tryParse(ratePerMonthController.text.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''));
+      final grid620 = rateGridPayload620(
+        daily: sitterOffersSitting ? daily : null,
+        weekly: sitterOffersSitting ? weeklyG : null,
+        monthly: sitterOffersSitting ? monthlyG : null,
+        visit: visit,
+        visitDurationMinutes: visitDurationMinutes.value,
+      );
+      data['visitRate'] = grid620['visitRate'];
+      data['visitDurationMinutes'] = grid620['visitDurationMinutes'];
+      data['defaultRateType'] = grid620['defaultRateType'];
+      if (!sitterOffersSitting) {
+        data.remove('dailyRate');
+        data.remove('weeklyRate');
+        data.remove('monthlyRate');
+      }
+      pendingRateGrid620 = grid620;
       // v444 — on envoie l'animal suppl. sous les DEUX clés : `extraPetRate`
       // (lue/sauvegardée par my_rates_screen via Sitter.extraPetRate) ET
       // `additionalAnimalFee` (legacy) pour un round-trip propre vers le profil.
@@ -962,11 +1007,19 @@ class SignUpController extends GetxController {
     return null;
   }
 
-  /// Au moins un tarif renseigné et strictement positif.
+  /// 620 — grille construite avec les données d'inscription, envoyée aussi
+  /// par `PUT /users/me/profile` dès qu'un jeton existe.
+  Map<String, dynamic>? pendingRateGrid620;
+
+  /// Au moins un tarif renseigné et strictement positif (620 : parmi les
+  /// cartes AFFICHÉES — garde et/ou visite selon les services cochés).
   bool _hasAtLeastOneRate() {
     final fields = userType == 'pet_walker'
         ? [walkerRate30Controller, walkerRate60Controller, walkerRate120Controller]
-        : [ratePerDayController, ratePerWeekController, ratePerMonthController];
+        : [
+            if (sitterOffersSitting) ...[ratePerDayController, ratePerWeekController, ratePerMonthController],
+            if (sitterOffersVisit) visitRateController,
+          ];
     for (final f in fields) {
       final v = double.tryParse(
         f.text.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''),
@@ -996,6 +1049,10 @@ class SignUpController extends GetxController {
     isLoading.value = true;
     try {
       await _authRepository.signup(role: _apiRole, user: _buildUserPayload());
+      // 620 — grille de tarifs du gardien, retentée dès l'entrée dans l'app.
+      if (userType == 'pet_sitter' && pendingRateGrid620 != null) {
+        await savePendingRateGrid620(pendingRateGrid620!);
+      }
       try {
         final pending = profileImageFile;
         if (pending != null && pending.existsSync()) {
@@ -1056,6 +1113,7 @@ class SignUpController extends GetxController {
             // avant) : l'accueil s'affiche sans attendre le réseau, et la
             // question « notifications » ne tombe plus sur l'assistant.
             unawaited(uploadPendingSignupPhotoIfAny());
+            unawaited(pushPendingRateGrid620()); // 620 — grille de tarifs
             if (role != 'sitter' && role != 'walker') {
               unawaited(_openOwnerFirstSteps());
             }
@@ -1158,8 +1216,10 @@ class SignUpController extends GetxController {
         case 'daycare':
           return 'day_care';
         case 'boarding':
-        case 'visit':
           return 'pet_sitting';
+        case 'visit':
+          // 620 — « visites » = visite à domicile quand le serveur la propose.
+          return ServiceCatalog620.hasHomeVisit ? 'home_visit' : 'pet_sitting';
       }
     }
     return null;

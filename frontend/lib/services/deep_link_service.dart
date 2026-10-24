@@ -610,6 +610,11 @@ class DeepLinkService {
     // Candidature reçue par le propriétaire : la candidature elle-même.
     // 617 (ADA) — « ta demande expire dans 2 jours, N candidats » : même
     // destination que la candidature reçue (Choisir → Payer).
+    // 620 — « Tes dates sont posées, voici le prix de chaque candidat » :
+    // la liste des candidats de la demande (l'annonce, bandeau Candidats).
+    if (t == 'application_pricing_updated') {
+      return postId.isNotEmpty ? postPath : '/bookings';
+    }
     if (t == 'application_new' || t == 'request_expiry_617') {
       if (applicationId.isNotEmpty && !isProvider) {
         return '/application/$applicationId';

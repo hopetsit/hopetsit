@@ -14,6 +14,7 @@
 // `j/m/aaaa h:mm` construit à la main → date et heure dans la langue de
 // l'app (`Get.locale`), heure sur 2 chiffres.
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -132,7 +133,10 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         actions: [
           Padding(
             padding: EdgeInsets.only(right: 16.w),
-            child: CircleAvatar(
+            child: CircleAvatar(onBackgroundImageError: (widget.sitterProfileImage != null &&
+                        widget.sitterProfileImage!.isNotEmpty &&
+                        (widget.sitterProfileImage!.startsWith('http://') ||
+                            widget.sitterProfileImage!.startsWith('https://'))) ? netImageOnError620 : null, 
               radius: 16.r,
               backgroundColor: AppColors.primaryColor,
               child: CircleAvatar(

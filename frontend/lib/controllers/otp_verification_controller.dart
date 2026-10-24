@@ -9,6 +9,7 @@ import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/pending_signup_photo.dart';
+import 'package:hopetsit/utils/rate_grid620.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
@@ -103,6 +104,7 @@ class OtpVerificationController extends GetxController
       if (ok && auth.lastLoginEmailVerified) {
         resetVerificationState();
         await uploadPendingSignupPhotoIfAny();
+        await pushPendingRateGrid620(); // 620 — grille de tarifs du wizard
         final role = auth.userRole.value;
         if (role == 'owner') {
           Get.offAll(() => const BottomNavWrapper());
@@ -338,6 +340,7 @@ class OtpVerificationController extends GetxController
       // photo soit bien sur le serveur ET dans le profil mis en cache AVANT
       // d'arriver sur l'accueil/profil. Best-effort : ne throw jamais.
       await _uploadPendingSignupPhotoIfAny();
+      await pushPendingRateGrid620(); // 620
 
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,

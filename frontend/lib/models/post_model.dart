@@ -14,6 +14,12 @@ class PostModel {
   /// prestataire retombe alors sur la déduction fin − début.
   final int? walkDurationMinutes;
   final List<String> serviceTypes;
+  /// 620 — mode de dates : `exact` | `approx` | `tbd` (« dates à prévoir » :
+  /// aucune date, les candidats donnent leur tarif à l'unité). Une ancienne
+  /// annonce sans le champ vaut `exact` si elle a ses deux dates, sinon `tbd`.
+  final String dateMode;
+  /// 620 — visite à domicile : 1 ou 2 visites par jour (null sinon).
+  final int? visitsPerDay;
   final String? houseSittingVenue;
   /// Sprint 5 / v435 — lieu de garde choisi par l'owner :
   /// 'at_owner' | 'at_sitter' | 'both'. Affiché sur la carte d'annonce.
@@ -85,6 +91,8 @@ class PostModel {
     this.endDate,
     this.walkDurationMinutes,
     required this.serviceTypes,
+    String? dateMode,
+    this.visitsPerDay,
     this.houseSittingVenue,
     this.serviceLocation,
     this.meetingPoint,
@@ -113,7 +121,18 @@ class PostModel {
     this.isOwnerBoosted = false,
     this.ownerBoostTier,
     this.isPaidLocked = false,
-  });
+  }) : dateMode = _normalizeDateMode(dateMode, startDate, endDate);
+
+  static String _normalizeDateMode(String? raw, DateTime? s, DateTime? e) {
+    final v = (raw ?? '').trim().toLowerCase();
+    if (v == 'exact' || v == 'approx' || v == 'tbd') return v;
+    return (s != null && e != null) ? 'exact' : 'tbd';
+  }
+
+  /// 620 — « dates à prévoir » : pas de dates, candidatures indicatives.
+  bool get isDatesTbd => dateMode == 'tbd';
+  /// 620 — période approximative (les deux dates existent, à confirmer).
+  bool get isDatesApprox => dateMode == 'approx';
 
   /// True if the post has an active reservation (owner accepted a sitter
   /// or walker application and the booking has not been cancelled).
@@ -179,6 +198,8 @@ class PostModel {
       endDate: parseDate(json['endDate']),
       walkDurationMinutes: (json['walkDurationMinutes'] as num?)?.toInt(),
       serviceTypes: parseServiceTypes(json['serviceTypes']),
+      dateMode: json['dateMode']?.toString(),
+      visitsPerDay: (json['visitsPerDay'] as num?)?.toInt(),
       houseSittingVenue: json['houseSittingVenue'] as String?,
       serviceLocation: json['serviceLocation'] as String?,
       meetingPoint: json['meetingPoint'] as String?,
@@ -277,6 +298,8 @@ class PostModel {
       endDate: endDate,
       walkDurationMinutes: walkDurationMinutes,
       serviceTypes: serviceTypes,
+      dateMode: dateMode,
+      visitsPerDay: visitsPerDay,
       houseSittingVenue: houseSittingVenue,
       serviceLocation: serviceLocation,
       meetingPoint: meetingPoint,

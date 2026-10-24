@@ -999,6 +999,10 @@ class SitterRepository {
     required double monthlyRate,
     double? extraPetRate,
     int? responseTimeMinutes,
+    // 620 — visite à domicile : tarif par visite (0 = non proposé) + durée
+    // (30 | 60 min). Un ancien serveur ignore ces champs sans erreur.
+    double? visitRate,
+    int? visitDurationMinutes,
   }) async {
     final response = await _apiClient.put(
       '${ApiEndpoints.sitters}/me/rates',
@@ -1009,6 +1013,8 @@ class SitterRepository {
         'monthlyRate': monthlyRate,
         if (extraPetRate != null) 'extraPetRate': extraPetRate,
         if (responseTimeMinutes != null) 'responseTimeMinutes': responseTimeMinutes,
+        if (visitRate != null) 'visitRate': visitRate,
+        if (visitDurationMinutes != null) 'visitDurationMinutes': visitDurationMinutes,
       },
       requiresAuth: true,
     );

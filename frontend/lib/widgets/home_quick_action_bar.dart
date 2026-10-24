@@ -65,6 +65,7 @@ import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/my_posts_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_sheet.dart';
+import 'package:hopetsit/views/pet_owner/posts/widgets/dates620_candidates.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/widgets/action_banner_kit.dart';
@@ -2183,6 +2184,13 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
 
   Future<void> _ownerAcceptCandidate(ApplicationModel app) async {
     if (!Get.isRegistered<ApplicationsController>()) return;
+    // 620 — candidature indicative (demande « dates à prévoir ») : on pose
+    // d'abord les dates (ouvre l'édition de la demande), jamais un 409 brut.
+    if (applicationIsIndicative620(app)) {
+      warnDatesRequired620();
+      await openPostDatesEditor620(app.postId);
+      return;
+    }
     final ctrl = Get.find<ApplicationsController>();
     final ok = await ctrl.respondToApplication(applicationId: app.id, action: 'accept');
     // 613 §9 (ZOE, émulateur Android) — juste après « Accepter », le bandeau

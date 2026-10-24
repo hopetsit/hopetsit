@@ -6,6 +6,9 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/home_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
+import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/utils/dates620.dart';
+import 'package:hopetsit/utils/services620.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/models/post_model.dart';
@@ -37,6 +40,9 @@ class PublishReservationRequestController extends GetxController {
     OwnerRepository? ownerRepository,
     PostRepository? postRepository,
     PostModel? editPost,
+    // 620 — demande lancée depuis la PawMap : prestataire visé (même
+    // formulaire que « Publier ma demande »).
+    this.targetProvider,
   }) : _petRepository = petRepository ?? Get.find<PetRepository>(),
        _locationService = locationService ?? LocationService(),
        _imagePicker = imagePicker ?? ImagePicker(),
@@ -106,6 +112,114 @@ class PublishReservationRequestController extends GetxController {
 
   final RxnString selectedServiceType = RxnString();
   final RxnString selectedDuration = RxnString(); // for dog_walking
+
+  // ── 620 — dates à prévoir, visites par jour, estimation, prestataire visé ──
+  /// Mode de dates (contrat §C.1) : précises / approximatives / à prévoir.
+  final Rx<DateMode620> dateMode = DateMode620.exact.obs;
+  /// Visite à domicile : 1 | 2 visites par jour.
+  final RxInt visitsPerDay = 1.obs;
+  /// Estimation renvoyée par `POST /pricing/estimate` (null = rien à montrer).
+  final Rxn<PricingEstimate620> estimate = Rxn<PricingEstimate620>();
+  final RxBool estimateLoading = false.obs;
+  /// Prestataire visé (PawMap → « Demander à … »), sinon null.
+  final TargetProvider620? targetProvider;
+  Timer? _estimateTimer;
+  int _estimateSeq = 0;
+
+  bool get isHomeVisit => selectedServiceType.value == 'home_visit';
+  bool get isDatesTbd => dateMode.value == DateMode620.tbd;
+  bool get isDatesApprox => dateMode.value == DateMode620.approx;
+
+  /// Choix du mode de dates. « À prévoir » n'efface pas les dates déjà
+  /// choisies (elles ne partent simplement pas) ; « approximative » pose les
+  /// heures par défaut si elles manquent.
+  void selectDateMode(DateMode620 m) {
+    dateMode.value = m;
+    if (m != DateMode620.tbd && !isEditMode && selectedServiceType.value != 'dog_walking') {
+      startTime.value ??= const TimeOfDay(hour: kDefaultStartHour600, minute: 0);
+      endTime.value ??= const TimeOfDay(hour: kDefaultEndHour600, minute: 0);
+    }
+  }
+
+  void selectVisitsPerDay(int n) => visitsPerDay.value = clampVisitsPerDay620(n);
+
+  /// Un service est proposable : sans prestataire visé, toujours ; avec, s'il
+  /// a un tarif pour ce service (« un gardien sans tarif pour le service
+  /// demandé n'est pas proposé pour ce service »).
+  bool serviceOffered(String value) =>
+      targetProvider == null || targetProvider!.offers(value);
+
+  /// Tarif unitaire connu pour l'estimation (prestataire visé seulement).
+  double? get knownRate => targetProvider?.rateFor(selectedServiceType.value);
+
+  /// Dates envoyées au serveur : nulles en « à prévoir ».
+  DateTime? get startToSend {
+    if (isDatesTbd || startDate.value == null) return null;
+    final t = startTime.value ?? const TimeOfDay(hour: kDefaultStartHour600, minute: 0);
+    final d = startDate.value!;
+    return DateTime(d.year, d.month, d.day, t.hour, t.minute);
+  }
+
+  DateTime? get endToSend {
+    if (isDatesTbd || endDate.value == null) return null;
+    final t = endTime.value ?? const TimeOfDay(hour: kDefaultEndHour600, minute: 0);
+    final d = endDate.value!;
+    return DateTime(d.year, d.month, d.day, t.hour, t.minute);
+  }
+
+  /// Relance l'estimation (débounce 400 ms). Sans service : rien.
+  void _scheduleEstimate() {
+    _estimateTimer?.cancel();
+    _estimateTimer = Timer(const Duration(milliseconds: 400), refreshEstimate);
+  }
+
+  Future<void> refreshEstimate() async {
+    final st = selectedServiceType.value;
+    if (st == null || st.isEmpty) {
+      estimate.value = null;
+      return;
+    }
+    if (!isDatesTbd && (startDate.value == null || endDate.value == null)) {
+      estimate.value = null;
+      return;
+    }
+    if (!Get.isRegistered<ApiClient>()) return;
+    final seq = ++_estimateSeq;
+    estimateLoading.value = true;
+    final body = estimateBody620(
+      serviceType: st,
+      dateMode: dateMode.value,
+      startDate: startToSend,
+      endDate: endToSend,
+      visitsPerDay: visitsPerDay.value,
+      visitDurationMinutes: targetProvider?.visitDurationMinutes,
+      walkDurationMinutes: st == 'dog_walking'
+          ? roundToWalkDuration(int.tryParse(selectedDuration.value ?? ''))
+          : null,
+      houseSittingVenue: serviceLocation.value == 'at_sitter' ? 'sitters_home' : null,
+      rate: knownRate,
+      currency: targetProvider?.currency,
+      providerId: targetProvider?.id,
+      providerRole: targetProvider?.role,
+    );
+    final res = await fetchEstimate620(Get.find<ApiClient>(), body);
+    if (seq != _estimateSeq) return; // une demande plus récente est partie
+    estimate.value = res;
+    estimateLoading.value = false;
+  }
+
+  /// Corps JSON d'estimation (exposé pour les tests).
+  Map<String, dynamic> estimateBodyForTest() => estimateBody620(
+        serviceType: selectedServiceType.value ?? '',
+        dateMode: dateMode.value,
+        startDate: startToSend,
+        endDate: endToSend,
+        visitsPerDay: visitsPerDay.value,
+        rate: knownRate,
+        currency: targetProvider?.currency,
+        providerId: targetProvider?.id,
+        providerRole: targetProvider?.role,
+      );
   final RxnString houseSittingVenue = RxnString();
   /// Sprint 5 UI step 1 — service location ('at_owner' | 'at_sitter' | 'both').
   final RxnString serviceLocation = RxnString();
@@ -200,25 +314,26 @@ class PublishReservationRequestController extends GetxController {
   /// general `serviceLocation` radio (Chez moi / Chez le sitter / Les deux)
   /// which is shown for daycare + pet_sitting but hidden for promenades
   /// (always outdoors).
+  /// 620 — la liste vient du CATALOGUE serveur (4 services dont la visite à
+  /// domicile) ; sans serveur, les 3 services d'aujourd'hui. Les libellés du
+  /// serveur priment, sinon les clés de l'app. Lecture réactive
+  /// (`ServiceCatalog620.services`) : l'écran se met à jour quand le
+  /// catalogue arrive.
   List<Map<String, String>> get serviceTypes => <Map<String, String>>[
-    {
-      'value': 'dog_walking',
-      'label': 'publish_request_service_walking'.tr,
-      'description': 'publish_request_service_walking_desc'.tr,
-      'icon': '🐾',
-    },
-    {
-      'value': 'day_care',
-      'label': 'publish_request_service_daycare'.tr,
-      'description': 'publish_request_service_daycare_desc'.tr,
-      'icon': '☀️',
-    },
-    {
-      'value': 'pet_sitting',
-      'label': 'publish_request_service_pet_sitting'.tr,
-      'description': 'publish_request_service_pet_sitting_desc'.tr,
-      'icon': '🏡',
-    },
+    for (final def in ServiceCatalog620.services)
+      <String, String>{
+        'value': def.appValue,
+        'label': ServiceCatalog620.label(def.key),
+        'description': ServiceCatalog620.description(def.key),
+        'unit': serviceUnit620Wire(def.unit),
+        'icon': def.key == 'dog_walking'
+            ? '🐾'
+            : def.key == 'day_care'
+                ? '☀️'
+                : def.key == 'home_visit'
+                    ? '🏠'
+                    : '🏡',
+      },
   ];
 
   /// Duration presets for Promenade — short walks, 30-min steps up to 2h.
@@ -391,6 +506,13 @@ class PublishReservationRequestController extends GetxController {
     }
     _watchDraft();
     loadMyPets();
+    // 620 — catalogue des services (repli sur les 3 d'aujourd'hui) et
+    // estimation recalculée à chaque changement utile.
+    unawaited(ServiceCatalog620.load());
+    _draftWorkers.add(everAll(<RxInterface>[
+      startDate, endDate, startTime, endTime, selectedServiceType,
+      selectedDuration, serviceLocation, dateMode, visitsPerDay,
+    ], (_) => _scheduleEstimate()));
   }
 
   // ── v600 NEO — brouillon local ────────────────────────────────────────────
@@ -408,7 +530,7 @@ class PublishReservationRequestController extends GetxController {
       startDate, endDate, startTime, endTime, selectedServiceType,
       selectedDuration, serviceLocation, animalTypes, animalCount,
       selectedPetIds, showAnimalCharacter, meetingPointText, budgetText,
-      cityText,
+      cityText, dateMode, visitsPerDay,
     ], (_) => _scheduleDraftSave()));
     notesController.addListener(_scheduleDraftSave);
   }
@@ -454,6 +576,8 @@ class PublishReservationRequestController extends GetxController {
   /// temporaire ne survit pas à la fermeture de l'app).
   Map<String, dynamic> toDraft() => <String, dynamic>{
         'serviceType': selectedServiceType.value,
+        'dateMode': dateMode620Wire(dateMode.value), // 620
+        'visitsPerDay': visitsPerDay.value, // 620
         'duration': selectedDuration.value,
         'serviceLocation': serviceLocation.value,
         'meetingPoint': meetingPointText.value.trim(),
@@ -491,6 +615,11 @@ class PublishReservationRequestController extends GetxController {
   void applyDraft(Map<String, dynamic> d) {
     final st = (d['serviceType'] ?? '').toString();
     if (st.isNotEmpty) selectedServiceType.value = st;
+    // 620 — mode de dates et visites par jour du brouillon.
+    final dm = d['dateMode'];
+    if (dm != null) dateMode.value = dateMode620Parse(dm, start: DateTime.now(), end: DateTime.now());
+    final vpd = d['visitsPerDay'];
+    if (vpd is num) visitsPerDay.value = clampVisitsPerDay620(vpd.toInt());
     final du = (d['duration'] ?? '').toString();
     selectedDuration.value = du.isNotEmpty ? du : null;
     final sl = (d['serviceLocation'] ?? '').toString();
@@ -555,6 +684,9 @@ class PublishReservationRequestController extends GetxController {
     if (p.serviceTypes.isNotEmpty) {
       selectedServiceType.value = p.serviceTypes.first.trim();
     }
+    // 620 — mode de dates et visites par jour de l'annonce.
+    dateMode.value = dateMode620Parse(p.dateMode, start: p.startDate, end: p.endDate);
+    if (p.visitsPerDay != null) visitsPerDay.value = clampVisitsPerDay620(p.visitsPerDay);
 
     // Dates + heures (start/end). On extrait le TimeOfDay de chaque DateTime.
     if (p.startDate != null) {
@@ -635,6 +767,7 @@ class PublishReservationRequestController extends GetxController {
     // v600 NEO — retour arrière ou fermeture : le brouillon est écrit une
     // dernière fois (le débounce n'a peut-être pas encore tiré).
     _draftTimer?.cancel();
+    _estimateTimer?.cancel();
     if (_draftReady && !isEditMode) saveDraftNow();
     for (final w in _draftWorkers) {
       w.dispose();
@@ -713,7 +846,7 @@ class PublishReservationRequestController extends GetxController {
     // Promenade : l'heure compte, aucune valeur par défaut ; si les heures
     // sont encore celles posées par défaut, on les retire.
     if (!isEditMode) {
-      if (value == 'pet_sitting' || value == 'day_care') {
+      if (value == 'pet_sitting' || value == 'day_care' || value == 'home_visit') {
         startTime.value ??= const TimeOfDay(hour: kDefaultStartHour600, minute: 0);
         endTime.value ??= const TimeOfDay(hour: kDefaultEndHour600, minute: 0);
       } else if (value == 'dog_walking' && hasDefaultHours) {
@@ -757,6 +890,14 @@ class PublishReservationRequestController extends GetxController {
         startDate.value != null &&
         endDate.value == null) {
       endDate.value = startDate.value!.add(const Duration(days: 1));
+    }
+    // 620 — visite à domicile : souvent un seul jour ; la fin suit le début
+    // tant qu'elle n'est pas choisie.
+    if (!isEditMode &&
+        selectedServiceType.value == 'home_visit' &&
+        startDate.value != null &&
+        endDate.value == null) {
+      endDate.value = startDate.value;
     }
     _recomputeEndForService();
   }
@@ -898,11 +1039,16 @@ class PublishReservationRequestController extends GetxController {
     if (!serviceLocationDone) return false;
     return true;
   }
-  bool get stepDatesDone =>
-      startDate.value != null &&
-      endDate.value != null &&
-      startTime.value != null &&
-      endTime.value != null;
+  bool get stepDatesDone {
+    // 620 — « à prévoir » : l'étape est faite sans date ; « approximative » :
+    // les deux dates suffisent (les heures sont posées par défaut).
+    if (isDatesTbd) return true;
+    if (isDatesApprox) return startDate.value != null && endDate.value != null;
+    return startDate.value != null &&
+        endDate.value != null &&
+        startTime.value != null &&
+        endTime.value != null;
+  }
   /// Miroir réactif du champ ville (TextEditingController n'est pas Rx).
   final RxString cityText = ''.obs;
   // v610 — la ville doit être CHOISIE (liste, position, carte), pas tapée.
@@ -925,6 +1071,19 @@ class PublishReservationRequestController extends GetxController {
     return st;
   }
 
+  /// 620 — ligne « Dates » du récapitulatif selon le mode.
+  String get datesSummaryLabel {
+    if (isDatesTbd) return 'dates620_summary_tbd'.tr;
+    if (!stepDatesDone) return '';
+    if (isDatesApprox) {
+      return 'dates620_summary_approx'.tr
+          .replaceAll('@a', formattedStartDate)
+          .replaceAll('@b', formattedEndDate);
+    }
+    return '$formattedStartDate $formattedStartTime'
+        ' → $formattedEndDate $formattedEndTime';
+  }
+
   /// Noms des animaux sélectionnés (résumé).
   String get selectedPetNames => myPets
       .where((p) => selectedPetIds.contains(p.id))
@@ -942,22 +1101,28 @@ class PublishReservationRequestController extends GetxController {
       if (!usesSpeciesPills) return 'pet';
       if (animalTypes.isEmpty) return 'species';
     }
-    if (startDate.value == null) {
-      // 613 §9 (ZOE) — « la date de début de la garde » pour une promenade.
-      return selectedServiceType.value == 'dog_walking' ? 'walkDate' : 'startDate';
+    // 620 — « dates à prévoir » : aucune date exigée ; « approximative » :
+    // les deux dates, sans heure.
+    if (!isDatesTbd) {
+      if (startDate.value == null) {
+        // 613 §9 (ZOE) — « la date de début de la garde » pour une promenade.
+        return selectedServiceType.value == 'dog_walking' ? 'walkDate' : 'startDate';
+      }
+      // 613 §9 (ZOE, émulateur Android) — promenade : la fin se CALCULE
+      // (début + durée), il n'y a aucun champ « date de fin » à l'écran. La
+      // barre collante disait pourtant « Choisis la date de fin de la garde »
+      // tant que l'heure ou la durée manquait : on nomme le vrai champ.
+      if (selectedServiceType.value == 'dog_walking' && !isDatesApprox) {
+        if (startTime.value == null) return 'startTime';
+        final d = selectedDuration.value;
+        if (d == null || d.trim().isEmpty) return 'duration';
+      }
+      if (endDate.value == null) return 'endDate';
+      if (!isDatesApprox) {
+        if (startTime.value == null) return 'startTime';
+        if (endTime.value == null) return 'endTime';
+      }
     }
-    // 613 §9 (ZOE, émulateur Android) — promenade : la fin se CALCULE
-    // (début + durée), il n'y a aucun champ « date de fin » à l'écran. La
-    // barre collante disait pourtant « Choisis la date de fin de la garde »
-    // tant que l'heure ou la durée manquait : on nomme le vrai champ.
-    if (selectedServiceType.value == 'dog_walking') {
-      if (startTime.value == null) return 'startTime';
-      final d = selectedDuration.value;
-      if (d == null || d.trim().isEmpty) return 'duration';
-    }
-    if (endDate.value == null) return 'endDate';
-    if (startTime.value == null) return 'startTime';
-    if (endTime.value == null) return 'endTime';
     final st = selectedServiceType.value;
     if (st == null || st.trim().isEmpty) return 'serviceType';
     if (st == 'dog_walking') {
@@ -1019,6 +1184,8 @@ class PublishReservationRequestController extends GetxController {
         return 'city610_missing_label'.tr;
       case 'postal':
         return 'postal2310_required'.tr; // 619
+      case 'dateMode':
+        return 'dates620_mode_required'.tr; // 620
       default:
         return 'publish_request_fill_required'.tr;
     }
@@ -1053,8 +1220,19 @@ class PublishReservationRequestController extends GetxController {
       return DateTime(date.year, date.month, date.day, time.hour, time.minute);
     }
 
-    final start = combine(startDate.value!, startTime.value!);
-    final end = combine(endDate.value!, endTime.value!);
+    // 620 — « à prévoir » : aucune date ne part ; « approximative » : les deux
+    // dates avec les heures par défaut si elles manquent.
+    final DateTime? start = isDatesTbd
+        ? null
+        : combine(startDate.value!,
+            startTime.value ?? const TimeOfDay(hour: kDefaultStartHour600, minute: 0));
+    final DateTime? end = isDatesTbd
+        ? null
+        : combine(endDate.value!,
+            endTime.value ?? const TimeOfDay(hour: kDefaultEndHour600, minute: 0));
+    final String dateModeWire = dateMode620Wire(dateMode.value);
+    final int? visitsToSend = isHomeVisit ? visitsPerDay.value : null;
+    final int? visitMinutesToSend = isHomeVisit ? targetProvider?.visitDurationMinutes : null;
 
     final services = <String>[
       if (selectedServiceType.value != null &&
@@ -1107,6 +1285,9 @@ class PublishReservationRequestController extends GetxController {
           body: body,
           startDate: start,
           endDate: end,
+          dateMode: dateModeWire,
+          visitsPerDay: visitsToSend,
+          visitDurationMinutes: visitMinutesToSend,
           serviceTypes: services,
           petIds: petIdsList,
           location: location,
@@ -1161,6 +1342,10 @@ class PublishReservationRequestController extends GetxController {
           body: body,
           startDate: start,
           endDate: end,
+          dateMode: dateModeWire,
+          visitsPerDay: visitsToSend,
+          visitDurationMinutes: visitMinutesToSend,
+          targetProvider: targetProvider?.wire,
           serviceTypes: services,
           petIds: petIdsList,
           city: city,
@@ -1186,6 +1371,10 @@ class PublishReservationRequestController extends GetxController {
           body: body,
           startDate: start,
           endDate: end,
+          dateMode: dateModeWire,
+          visitsPerDay: visitsToSend,
+          visitDurationMinutes: visitMinutesToSend,
+          targetProvider: targetProvider?.wire,
           serviceTypes: services,
           petIds: petIdsList,
           city: city,

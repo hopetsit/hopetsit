@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hopetsit/widgets/net_image620.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -354,7 +355,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                                           ),
                                           child: Row(
                                             children: [
-                                              CircleAvatar(
+                                              CircleAvatar(onBackgroundImageError: (sitter.avatar.url.isNotEmpty) ? netImageOnError620 : null, 
                                                 radius: 28.r,
                                                 backgroundColor:
                                                     AppColors.card(context),

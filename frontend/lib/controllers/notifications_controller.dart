@@ -316,7 +316,10 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
           // 612 (ZOE) — une candidature arrive : la liste des candidats du
           // propriétaire se recharge tout de suite (bandeau « N candidats »),
           // même si l'événement `application:new` s'est perdu.
-          if (lower == 'application_new' && Get.isRegistered<ApplicationsController>()) {
+          if ((lower == 'application_new' || lower == 'application_pricing_updated') &&
+              Get.isRegistered<ApplicationsController>()) {
+            // 620 — dates posées : les candidatures sont recalculées
+            // (totaux réels) et la liste des candidats se recharge.
             unawaited(Get.find<ApplicationsController>().loadApplications());
           }
 
@@ -396,6 +399,7 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
             _storage.write(_kUnreadBookings, unreadBookings.value);
           } else if (lower == 'booking_new' ||
               lower == 'application_new' ||
+              lower == 'application_pricing_updated' || // 620
               lower == 'booking_accepted') {
             unreadHome.value = unreadHome.value + 1;
             _storage.write(_kUnreadHome, unreadHome.value);

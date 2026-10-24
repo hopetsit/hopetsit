@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -172,7 +173,7 @@ class SitterCard extends StatelessWidget {
         // Avatar with green online dot.
         Stack(
           children: [
-            CircleAvatar(
+            CircleAvatar(onBackgroundImageError: (avatarUrl.isNotEmpty) ? netImageOnError620 : null, 
               radius: 30.r,
               backgroundColor: AppColors.grey300Color,
               backgroundImage: avatarUrl.isNotEmpty

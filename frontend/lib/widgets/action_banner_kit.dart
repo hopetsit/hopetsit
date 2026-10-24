@@ -30,6 +30,7 @@
 // qui neutralise le double tap.
 
 import 'dart:async';
+import 'package:hopetsit/widgets/net_image620.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -662,7 +663,7 @@ class ActionSheetHeader extends StatelessWidget {
     final dark = _isDark(context);
     return Row(
       children: [
-        CircleAvatar(
+        CircleAvatar(onBackgroundImageError: (avatarUrl.isNotEmpty) ? netImageOnError620 : null, 
           radius: 27.r,
           backgroundColor: tone.withValues(alpha: dark ? 0.28 : 0.14),
           backgroundImage: avatarUrl.isNotEmpty

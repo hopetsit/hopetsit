@@ -1,4 +1,5 @@
 import 'package:hopetsit/widgets/role_chip.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -7,11 +8,11 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/applications_controller.dart';
 import 'package:hopetsit/models/application_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/service_location587.dart';
+import 'package:hopetsit/views/pet_owner/posts/widgets/dates620_candidates.dart';
 
 /// v23.1 — B5 : bottom sheet listing every pending candidate for one of the
 /// owner's posts. The owner can choose one (auto-rejects the others on the
@@ -176,6 +177,12 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
 
   Future<void> _accept(ApplicationModel app) async {
     if (_busy.value) return;
+    // 620 — candidature indicative (demande sans dates) : on ne choisit pas,
+    // on pose d'abord les dates.
+    if (applicationIsIndicative620(app)) {
+      warnDatesRequired620();
+      return;
+    }
     final confirmed = await _showModernConfirm(
       context: context,
       icon: Icons.verified_rounded,
@@ -309,14 +316,23 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
                   .map((a) => serviceLocationDisplay(a.serviceLocation,
                       meetingPoint: a.meetingPoint))
                   .firstWhere((t) => t.isNotEmpty, orElse: () => '');
-              final int offset = place.isEmpty ? 0 : 1;
+              // 620 — au moins une candidature indicative : bandeau « Pose
+              // tes dates pour valider » en tête de liste.
+              final bool tbd620 = list.any(applicationIsIndicative620);
+              final int offset = (place.isEmpty ? 0 : 1) + (tbd620 ? 1 : 0);
               return ListView.separated(
                 shrinkWrap: true,
                 padding: EdgeInsets.zero,
                 itemCount: list.length + offset,
                 separatorBuilder: (_, __) => SizedBox(height: 10.h),
                 itemBuilder: (_, i) {
-                  if (offset == 1 && i == 0) {
+                  if (tbd620 && i == 0) {
+                    return SetDatesBanner620(
+                      postId: widget.postId,
+                      onOpened: () => Navigator.of(context).maybePop(),
+                    );
+                  }
+                  if (place.isNotEmpty && i == (tbd620 ? 1 : 0)) {
                     return Row(
                       key: const Key('candidates_service_location'),
                       children: [
@@ -545,13 +561,9 @@ class _CandidateCard extends StatelessWidget {
   final VoidCallback onAccept;
   final VoidCallback onReject;
 
-  String _priceLabel() {
-    final price = app.pricing?.totalPrice;
-    if (price == null) return '';
-    final currency = app.pricing?.currency ?? 'EUR';
-    final symbol = CurrencyHelper.symbol(currency);
-    return '$symbol${price.toStringAsFixed(0)}';
-  }
+  // 620 — total réel, sinon tarif unitaire « 12 €/visite · indicatif ».
+  String _priceLabel() => candidatePriceLabel620(app);
+  bool get _indicative => applicationIsIndicative620(app);
 
   @override
   Widget build(BuildContext context) {
@@ -577,7 +589,7 @@ class _CandidateCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              CircleAvatar(
+              CircleAvatar(onBackgroundImageError: (avatarUrl.isNotEmpty) ? netImageOnError620 : null, 
                 radius: 22.r,
                 backgroundColor:
                     AppColors.primaryColor.withValues(alpha: 0.1),
@@ -669,19 +681,29 @@ class _CandidateCard extends StatelessWidget {
                 ),
               ),
               if (_priceLabel().isNotEmpty)
-                Container(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(10.r),
-                  ),
-                  child: PoppinsText(
-                    text: _priceLabel(),
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w700,
-                    color:
-                        AppColors.accentOn(context, AppColors.primaryColor),
+                // 620 — « 12 €/visite · indicatif » est plus large qu'un
+                // total : la pastille partage la ligne (flex) et se réduit
+                // au lieu de pousser le nom hors de la carte (débordement
+                // de 4,5 px vu au simulateur).
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryColor.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                      child: PoppinsText(
+                        text: _priceLabel(),
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w700,
+                        color:
+                            AppColors.accentOn(context, AppColors.primaryColor),
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -718,14 +740,24 @@ class _CandidateCard extends StatelessWidget {
                 SizedBox(width: 8.w),
                 Expanded(
                   flex: 2,
-                  child: ActionPillButton(
-                    label: 'candidates_choose_button'.tr,
-                    icon: Icons.check_circle_rounded,
-                    tone: AppColors.primaryColor,
-                    expand: true,
-                    haptic: true,
-                    busy: busy.value,
-                    onPressed: onAccept,
+                  child: Opacity(
+                    // 620 — Choisir désactivé tant que les dates ne sont
+                    // pas posées (le tap explique pourquoi).
+                    opacity: _indicative ? 0.55 : 1,
+                    child: ActionPillButton(
+                      key: Key('dates620_choose_${app.id}'),
+                      label: _indicative
+                          ? 'dates620_choose_locked'.tr
+                          : 'candidates_choose_button'.tr,
+                      icon: _indicative
+                          ? Icons.lock_clock_rounded
+                          : Icons.check_circle_rounded,
+                      tone: AppColors.primaryColor,
+                      expand: true,
+                      haptic: true,
+                      busy: busy.value,
+                      onPressed: onAccept,
+                    ),
                   ),
                 ),
               ],

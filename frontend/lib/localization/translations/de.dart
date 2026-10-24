@@ -3369,7 +3369,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'tracking_sheet_panel_title': 'Live-Tracking',
     'tracking_sheet_phone': 'Telefon',
     'tracking_sheet_practical_info': 'Praktische Informationen',
-    'tracking_sheet_sitter_walker': 'Sitter / Walker',
+    'tracking_sheet_sitter_walker': 'Tiersitter / Gassigeher',
     'tracking_sheet_title': 'Mein Tier verfolgen',
     'tracking_sheet_title_v2': 'Buchungsdetails',
     'tracking_sheet_trust_msg':

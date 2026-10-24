@@ -14,6 +14,7 @@
 //  - textes fournis par l'appelant via `.tr` (rien en dur, rien qui déborde :
 //    `maxLines` + `FittedBox`/`ellipsis` partout où le texte peut grandir).
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -362,7 +363,7 @@ class _PayRecapCardState extends State<PayRecapCard> {
         shape: BoxShape.circle,
         color: widget.accent.withValues(alpha: 0.12),
         image: (url != null && url.isNotEmpty)
-            ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover)
+            ? DecorationImage(onError: netImageOnError620, image: NetworkImage(url), fit: BoxFit.cover)
             : null,
       ),
       alignment: Alignment.center,

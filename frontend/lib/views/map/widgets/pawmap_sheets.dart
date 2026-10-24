@@ -20,6 +20,7 @@
 //     seulement » (noir encre, chevron or) : un appui = redevenir visible.
 
 import 'dart:typed_data';
+import 'package:hopetsit/widgets/net_image620.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -1898,7 +1899,7 @@ class PawMapAroundList extends StatelessWidget {
                                   shape: BoxShape.circle,
                                   color: color,
                                   image: it.avatar.startsWith('http')
-                                      ? DecorationImage(
+                                      ? DecorationImage(onError: netImageOnError620, 
                                           image: NetworkImage(it.avatar),
                                           fit: BoxFit.cover)
                                       : null,

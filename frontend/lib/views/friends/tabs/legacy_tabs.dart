@@ -6,6 +6,7 @@
 //     (doublon de l'onglet Chat principal).
 // Ils ne sont plus câblés dans FriendsScreen mais restent disponibles.
 import 'dart:async';
+import 'package:hopetsit/widgets/net_image620.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -482,7 +483,7 @@ class _FriendsMessagesTabState extends State<FriendsMessagesTab> {
       ),
       child: Row(
         children: [
-          CircleAvatar(
+          CircleAvatar(onBackgroundImageError: ((avatar.isNotEmpty && avatar.startsWith('http'))) ? netImageOnError620 : null, 
             radius: 22.r,
             backgroundColor: AppColors.primaryColor.withValues(alpha: 0.15),
             // v23.1 part 231 — perf : CachedNetworkImageProvider 150px.

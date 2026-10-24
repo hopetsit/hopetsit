@@ -692,6 +692,14 @@ class BookingPricing {
   final double? appliedRate;
   final double? totalHours;
   final double? totalDays;
+  /// 620 — candidature INDICATIVE (demande « dates à prévoir ») : seul le
+  /// tarif unitaire est connu, totalPrice / commission / netPayout sont nuls.
+  final bool indicative;
+  /// 620 — quantité facturée (jours, nuits, visites, balades) si connue.
+  final int? quantity;
+  /// 620 — unité du tarif renvoyée par le serveur (`day` | `night` | `visit`
+  /// | `walk` | `hour` | `week` | `month`), sinon vide.
+  final String unit;
 
   BookingPricing({
     this.platformFeePercentage,
@@ -704,7 +712,16 @@ class BookingPricing {
     this.appliedRate,
     this.totalHours,
     this.totalDays,
+    this.indicative = false,
+    this.quantity,
+    this.unit = '',
   });
+
+  /// 620 — tarif unitaire affichable (indicatif ou non).
+  double? get unitRate {
+    final r = appliedRate ?? (indicative ? basePrice : null);
+    return r != null && r > 0 ? r : null;
+  }
 
   factory BookingPricing.fromJson(Map<String, dynamic> json) {
     final baseFromApi =
@@ -743,13 +760,20 @@ class BookingPricing {
       pricingTier: json['pricingTier'] as String? ?? json['pricing_tier'] as String?,
       appliedRate:
           (json['appliedRate'] as num?)?.toDouble() ??
-          (json['applied_rate'] as num?)?.toDouble(),
+          (json['applied_rate'] as num?)?.toDouble() ??
+          // 620 — tarif unitaire du moteur de prix (`unitRate`).
+          (json['unitRate'] as num?)?.toDouble(),
       totalHours:
           (json['totalHours'] as num?)?.toDouble() ??
           (json['total_hours'] as num?)?.toDouble(),
       totalDays:
           (json['totalDays'] as num?)?.toDouble() ??
           (json['total_days'] as num?)?.toDouble(),
+      // 620 — indicatif : drapeau explicite, ou palier `indicative`.
+      indicative: json['indicative'] == true ||
+          (json['pricingTier'] ?? json['pricing_tier']) == 'indicative',
+      quantity: (json['quantity'] as num?)?.toInt(),
+      unit: (json['unit'] ?? json['priceUnit'] ?? json['rateUnit'] ?? '').toString(),
     );
   }
 

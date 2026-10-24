@@ -225,8 +225,24 @@ class PostRepository {
     // (envoyés tels quels ; le serveur ne les relit pas encore en édition).
     List<String> animalTypes = const <String>[],
     int? animalCount,
+    // 620 — mode de dates : `tbd` envoie des dates NULLES (le serveur les
+    // interdit en « à prévoir »), `exact` / `approx` les deux dates.
+    String? dateMode,
+    int? visitsPerDay,
+    int? visitDurationMinutes,
   }) async {
     final payload = <String, dynamic>{};
+    if (dateMode != null && dateMode.isNotEmpty) {
+      payload['dateMode'] = dateMode;
+      if (dateMode == 'tbd') {
+        payload['startDate'] = null;
+        payload['endDate'] = null;
+      }
+    }
+    if (visitsPerDay != null) payload['visitsPerDay'] = visitsPerDay;
+    if (visitDurationMinutes != null) {
+      payload['visitDurationMinutes'] = visitDurationMinutes;
+    }
     if (animalTypes.isNotEmpty) payload['animalTypes'] = animalTypes;
     if (animalCount != null && animalCount > 0) {
       payload['animalCount'] = animalCount;

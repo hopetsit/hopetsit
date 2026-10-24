@@ -1,3 +1,4 @@
+import 'package:get/get.dart';
 import 'package:hopetsit/models/post_model.dart';
 
 /// v440 — libellé de période d'une annonce, INCLUANT l'heure (HH:mm) quand
@@ -24,9 +25,29 @@ class PostDateLabel {
 
   /// Construit le label depuis un [PostModel] (null si aucune date).
   static String? forPost(PostModel post) {
+    // 620 — « dates à prévoir » / période approximative.
+    final m = mode620(post);
+    if (m != null) return m;
     final s = post.startDate?.toLocal();
     final e = post.endDate?.toLocal();
     return build(s, e);
+  }
+
+  /// 620 — libellé imposé par le mode de dates : « Dates à prévoir » (tbd),
+  /// « Environ du 03/11/2026 au 05/11/2026 » (approx) ; null en mode exact.
+  static String? mode620(PostModel post) {
+    if (post.isDatesTbd) return 'dates620_tbd_badge'.tr;
+    if (post.isDatesApprox) {
+      final s = post.startDate?.toLocal();
+      final e = post.endDate?.toLocal();
+      if (s != null && e != null) {
+        return 'dates620_approx_range'.tr
+            .replaceAll('@a', _date(s))
+            .replaceAll('@b', _date(e));
+      }
+      return 'dates620_approx_badge'.tr;
+    }
+    return null;
   }
 
   /// v443 — Daniel : l'heure quitte la cellule « Dates » pour une petite
@@ -35,6 +56,8 @@ class PostDateLabel {
   ///
   /// Libellé de période SANS heure (null si aucune date).
   static String? dateOnly(PostModel post) {
+    final m = mode620(post); // 620
+    if (m != null) return m;
     final s = post.startDate?.toLocal();
     final e = post.endDate?.toLocal();
     if (s != null && e != null) {
@@ -51,6 +74,7 @@ class PostDateLabel {
   /// '' si aucune heure réelle (minuit = « pas d'heure »). Même jour avec
   /// heure de fin → « 14:00 → 15:00 », sinon « 14:00 ».
   static String timeLabel(PostModel post) {
+    if (post.isDatesTbd || post.isDatesApprox) return ''; // 620 — pas d'heure
     final s = post.startDate?.toLocal();
     final e = post.endDate?.toLocal();
     final st = s == null ? '' : _time(s);

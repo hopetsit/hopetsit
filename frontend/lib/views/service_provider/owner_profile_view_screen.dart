@@ -9,6 +9,7 @@
 // catalogue grise) : sans photo on affiche l'initiale du prénom sur un aplat à
 // la couleur du rôle.
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -445,7 +446,7 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
         ),
         child: Row(
           children: [
-            CircleAvatar(
+            CircleAvatar(onBackgroundImageError: (avatar.isNotEmpty) ? netImageOnError620 : null, 
               radius: 26.r,
               backgroundColor: _palette.accent.withValues(alpha: 0.12),
               backgroundImage: avatar.isNotEmpty

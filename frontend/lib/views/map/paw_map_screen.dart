@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -59,6 +60,8 @@ import 'package:hopetsit/views/map/widgets/pawmap_placeholder.dart';
 import 'package:hopetsit/views/map/pawmap_snapshot.dart';
 import 'package:hopetsit/views/map/pawmap_help_screen.dart';
 import 'package:hopetsit/views/map/pawmap_member_profile_route.dart';
+import 'package:hopetsit/utils/dates620.dart';
+import 'package:hopetsit/utils/services620.dart';
 import 'package:hopetsit/views/map/pawmap_rates.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheets.dart';
 import 'package:hopetsit/widgets/app_dialog_kit.dart';
@@ -98,7 +101,6 @@ import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/views/guest/signup_wall_sheet.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
-import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/pawmap_header_badge.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -1581,6 +1583,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               reviewsCount: (p['reviewsCount'] as num?)?.toInt() ?? 0,
               priceFrom: (p['priceFrom'] as num?)?.toDouble() ?? 0,
               priceAlt: p['priceAlt'] is Map ? p['priceAlt'] as Map : null,
+              priceUnit: (p['priceUnit'] ?? '').toString(), // 620
               currency: (p['currency'] ?? 'EUR').toString(),
               verified: pawIdentityVerified(p),
               boosted: p['isBoosted'] == true,
@@ -1944,6 +1947,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     double priceFrom = 0,
     // v605 — tarif semaine / mois quand il n'y a pas de tarif jour.
     Map? priceAlt,
+    // 620 — unité du tarif d'entrée (day | night | visit | walk | hour).
+    String priceUnit = '',
     String currency = 'EUR',
     bool verified = false,
     bool boosted = false,
@@ -1994,7 +1999,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           : ((role == 'sitter' || role == 'walker') &&
                   pawMapShowsPriceBubble(_role, role)
               ? pawMapRolePriceText(
-                  {'priceFrom': priceFrom, 'priceAlt': priceAlt, 'currency': currency},
+                  {'priceFrom': priceFrom, 'priceAlt': priceAlt, 'priceUnit': priceUnit, 'currency': currency},
                   format: CurrencyHelper.formatCompact,
                   unitSuffix: _priceUnitSuffix)
               : '');
@@ -2099,7 +2104,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
     // v605 — « dès 100 €/sem » quand seul un tarif semaine / mois existe.
     final priceLabel = pawMapRolePriceText(
-        {'priceFrom': priceFrom, 'priceAlt': priceAlt, 'currency': currency},
+        {'priceFrom': priceFrom, 'priceAlt': priceAlt, 'priceUnit': priceUnit, 'currency': currency},
         format: CurrencyHelper.formatCompact,
         unitSuffix: _priceUnitSuffix);
     PawFriendState reqState =
@@ -2319,22 +2324,37 @@ class _PawMapScreenState extends State<PawMapScreen>
     // dialogue et même bascule que la fiche complète (`runAsOwner`).
     final r = await _loadProviderRates(id: id, role: role, currency: currency);
     if (!mounted) return;
+    // 620 (Daniel, 24/10 : « que ça marche en publication directe mais aussi
+    // dans la PawMap ») — « Demander à … » passe par le MÊME formulaire que
+    // « Publier ma demande » : 4 services (visite à domicile comprise),
+    // 3 modes de dates, visites par jour, estimation avec SON tarif, demande
+    // adressée (`targetProvider`) et synchronisée (PawMap, Mes annonces,
+    // cloche). Un service sans tarif chez lui n'est pas proposé.
+    final target = TargetProvider620(
+      id: id,
+      role: role == 'walker' ? 'walker' : 'sitter',
+      name: name,
+      currency: r.currency,
+      rateDay: r.daily ?? r.hourly ?? r.weekly ?? r.monthly,
+      rateVisit: r.visit,
+      rateWalk: r.halfHour ?? r.hourly ?? r.twoHours,
+      visitDurationMinutes: r.visitDurationMinutes,
+    );
+    final String initial = role == 'walker'
+        ? 'dog_walking'
+        : (target.offers('pet_sitting') ? 'pet_sitting' : 'home_visit');
     await runAsOwner(context,
         providerName: name,
         forMessage: false,
-        then: () => Get.to(() => SendRequestScreen(
-          serviceProviderName: name,
-          serviceProviderId: id,
-          serviceProviderRole: role == 'walker' ? 'walker' : 'sitter',
-          sitterDailyRate: r.daily,
-          sitterWeeklyRate: r.weekly,
-          sitterMonthlyRate: r.monthly,
-          walkerHalfHourRate: r.halfHour,
-          walkerHourlyRate: r.hourly,
-          currencyCode: r.currency,
-          initialServiceType: role == 'walker' ? 'dog_walking' : 'pet_sitting',
-          preselectFirstPet: true,
-        )));
+        then: () async {
+          await Get.to(() => PublishReservationRequestScreen(
+                targetProvider: target,
+                initialServiceType: initial,
+              ));
+          // La demande partie depuis la carte apparaît tout de suite
+          // (« Ma demande », épingle), comme depuis le rail.
+          if (mounted) unawaited(_loadMyRequests());
+        });
   }
 
   /// v584 (25/09, point 8) — tarifs COMPLETS d'un prestataire, dans SA
@@ -2347,7 +2367,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     required String role,
     required String currency,
   }) async {
-    double? daily, weekly, monthly, hourly, halfHour, twoHours, extraPet;
+    double? daily, weekly, monthly, hourly, halfHour, twoHours, extraPet, visit;
+    int? visitMinutes;
     String cur = currency;
     try {
       if (role == 'walker' && Get.isRegistered<WalkerRepository>()) {
@@ -2373,6 +2394,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         weekly = pos(data['weeklyRate']);
         monthly = pos(data['monthlyRate']);
         extraPet = pos(data['extraPetRate']);
+        // 620 — visite à domicile : tarif par visite + durée.
+        visit = pos(data['visitRate']);
+        final vdm = (data['visitDurationMinutes'] as num?)?.toInt();
+        if (vdm != null && vdm > 0) visitMinutes = vdm;
         final c = (data['currency'] ?? '').toString();
         if (c.isNotEmpty) cur = c;
       }
@@ -2389,6 +2414,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       extraPet: extraPet,
       halfHour: halfHour,
       twoHours: twoHours,
+      visit: visit,
+      visitDurationMinutes: visitMinutes,
     );
   }
 
@@ -2648,6 +2675,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             reviewsCount: (p['reviewsCount'] as num?)?.toInt() ?? 0,
             priceFrom: (p['priceFrom'] as num?)?.toDouble() ?? 0,
             priceAlt: p['priceAlt'] is Map ? p['priceAlt'] as Map : null,
+            priceUnit: (p['priceUnit'] ?? '').toString(), // 620
             currency: (p['currency'] ?? 'EUR').toString(),
             verified: item.verified,
             boosted: p['isBoosted'] == true,
@@ -4551,7 +4579,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     width: 2,
                   ),
                   image: avatar.startsWith('http')
-                      ? DecorationImage(
+                      ? DecorationImage(onError: netImageOnError620, 
                           image: NetworkImage(avatar), fit: BoxFit.cover)
                       : null,
                 ),
@@ -5214,6 +5242,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       reviewsCount: (e['reviewsCount'] as num?)?.toInt() ?? 0,
       priceFrom: (e['priceFrom'] as num?)?.toDouble() ?? 0,
       priceAlt: e['priceAlt'] is Map ? e['priceAlt'] as Map : null,
+      priceUnit: (e['priceUnit'] ?? '').toString(), // 620
       currency: (e['currency'] ?? 'EUR').toString(),
       verified: pawIdentityVerified(e),
       boosted: e['isBoosted'] == true,
@@ -5302,8 +5331,13 @@ class _PawMapScreenState extends State<PawMapScreen>
       format: CurrencyHelper.formatCompact, unitSuffix: _priceUnitSuffix);
 
   /// v605 — « /sem » / « /mois » (9 langues).
-  static String _priceUnitSuffix(String unit) =>
-      unit == 'month' ? 'pm605_per_month'.tr : 'pm605_per_week'.tr;
+  /// 620 — suffixe de l'unité : semaine / mois (605) + jour / nuit / visite /
+  /// balade / heure (contrat §C.4 : « à partir de X €/visite »).
+  static String _priceUnitSuffix(String unit) {
+    if (unit == 'month') return 'pm605_per_month'.tr;
+    if (unit == 'week') return 'pm605_per_week'.tr;
+    return priceUnitSuffix620(unit);
+  }
 
 
   /// 607 — peluches posées PAR-DESSUS les marqueurs mémoïsés (la liste en
@@ -6240,6 +6274,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               reviewsCount: (p['reviewsCount'] as num?)?.toInt() ?? 0,
               priceFrom: (p['priceFrom'] as num?)?.toDouble() ?? 0,
               priceAlt: p['priceAlt'] is Map ? p['priceAlt'] as Map : null,
+              priceUnit: (p['priceUnit'] ?? '').toString(), // 620
               currency: (p['currency'] ?? 'EUR').toString(),
               verified: verified,
               boosted: boosted,

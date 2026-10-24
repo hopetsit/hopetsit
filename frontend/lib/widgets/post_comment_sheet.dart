@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:get/get.dart';
@@ -284,7 +285,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Avatar
-          CircleAvatar(
+          CircleAvatar(onBackgroundImageError: (comment.authorAvatar.isNotEmpty) ? netImageOnError620 : null, 
             radius: 20.r,
             backgroundColor: AppColors.primaryColor,
             child: CircleAvatar(

@@ -13,10 +13,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/edit_sitter_profile_controller.dart';
 import 'package:hopetsit/controllers/edit_walker_profile_controller.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/app_text.dart';
 
 class MyRatesScreen extends StatelessWidget {
   final String role; // 'sitter' | 'walker'
@@ -138,6 +140,12 @@ class _WalkerRates extends StatelessWidget {
           text: 'my_rates_walker_hint'.tr,
           accent: accent,
         ),
+        // 620 — grille par service : un tarif par balade.
+        ProfileInfoBanner(
+          icon: Icons.grid_view_rounded,
+          text: 'dates620_rates_grid_hint'.tr,
+          accent: accent,
+        ),
         // v540 — sélecteur de devise pour le PROMENEUR aussi (won, yen…).
         _CurrencyCard(
           accent: accent,
@@ -148,7 +156,7 @@ class _WalkerRates extends StatelessWidget {
         // v23.1.153 / v445 — 30 min / 1 h / 2 h (le 90 min est retiré ; le
         // contrôleur garde le champ pour compat données).
         ProfileFormCard(
-          title: 'my_rates_section_amounts'.tr,
+          title: 'dates620_rates_walk_title'.tr, // 620 — par balade
           icon: Icons.directions_walk_rounded,
           accent: accent,
           children: [
@@ -224,6 +232,14 @@ class _SitterRates extends StatelessWidget {
           text: 'my_rates_sitter_hint'.tr,
           accent: accent,
         ),
+        // 620 — GRILLE PAR SERVICE (contrat §C.2) : garde par jour / nuit,
+        // visite à domicile par visite + durée. Ce qui reste vide n'est pas
+        // proposé.
+        ProfileInfoBanner(
+          icon: Icons.grid_view_rounded,
+          text: 'dates620_rates_grid_hint'.tr,
+          accent: accent,
+        ),
         // v20 — devise AVANT les montants.
         _CurrencyCard(
           accent: accent,
@@ -231,10 +247,41 @@ class _SitterRates extends StatelessWidget {
           onChanged: controller.updateCurrency,
         ),
         ProfileFormCard(
-          title: 'my_rates_section_amounts'.tr,
+          key: const Key('dates620_rates_visit_card'),
+          title: 'dates620_rates_visit_title'.tr,
+          icon: Icons.meeting_room_rounded,
+          accent: accent,
+          children: [
+            Obx(() => _RateField(
+                  label: 'dates620_rates_visit_label'.tr,
+                  hint: '0.00',
+                  controller: controller.visitRateController,
+                  accent: accent,
+                  suffix: CurrencyHelper.symbol(controller.selectedCurrency.value),
+                  errorText: 'walker_rate_invalid'.tr,
+                )),
+            _VisitDurationRow(
+              accent: accent,
+              value: controller.visitDurationMinutes,
+              onChanged: controller.selectVisitDuration,
+            ),
+            ProfileInfoBanner(
+              icon: Icons.info_outline_rounded,
+              text: 'dates620_rates_visit_hint'.tr,
+              accent: accent,
+            ),
+          ],
+        ),
+        ProfileFormCard(
+          title: 'dates620_rates_sitting_title'.tr,
           icon: Icons.home_rounded,
           accent: accent,
           children: [
+            ProfileInfoBanner(
+              icon: Icons.info_outline_rounded,
+              text: 'dates620_rates_sitting_hint'.tr,
+              accent: accent,
+            ),
             Obx(() => _RateField(
                   label: 'sitter_detail_daily_rate_label'.tr,
                   hint: '0.00',
@@ -423,6 +470,64 @@ class _ResponseTimeField extends StatelessWidget {
             color: accent,
           ),
         ),
+      ),
+    );
+  }
+}
+
+
+/// 620 — durée d'une visite à domicile : 30 min | 1 h (puces).
+class _VisitDurationRow extends StatelessWidget {
+  final Color accent;
+  final RxInt value;
+  final ValueChanged<int> onChanged;
+  const _VisitDurationRow({
+    required this.accent,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget chip(int m, String label) => Obx(() {
+          final selected = value.value == m;
+          return GestureDetector(
+            key: Key('dates620_visit_duration_$m'),
+            onTap: () => onChanged(m),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 9.h),
+              decoration: BoxDecoration(
+                color: selected ? accent : accent.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(20.r),
+                border: Border.all(
+                    color: selected ? accent : accent.withValues(alpha: 0.3)),
+              ),
+              child: InterText(
+                text: label,
+                fontSize: 12.5.sp,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : AppColors.accentOn(context, accent),
+              ),
+            ),
+          );
+        });
+    return Padding(
+      padding: EdgeInsets.only(top: 4.h, bottom: 6.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InterText(
+            text: 'dates620_rates_visit_duration'.tr,
+            fontSize: 12.5.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondaryStrong(context),
+          ),
+          SizedBox(height: 8.h),
+          Wrap(
+            spacing: 10.w,
+            children: [chip(30, '30 min'), chip(60, '1 h')],
+          ),
+        ],
       ),
     );
   }

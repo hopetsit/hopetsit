@@ -13,6 +13,7 @@ import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/models/booking_model.dart';
+import 'package:hopetsit/models/application_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -20,6 +21,7 @@ import 'package:hopetsit/widgets/chat_access_upsell_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/views/pet_owner/posts/widgets/dates620_candidates.dart';
 
 /// Represents a unified item that can be either an application or a booking.
 class _UnifiedItem {
@@ -423,6 +425,46 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
   }
 
   Widget _buildApplicationCard(dynamic application) {
+    // 620 — candidature indicative : tarif unitaire, Choisir désactivé et
+    // bandeau « Pose tes dates pour valider » au-dessus de la carte.
+    final bool indicative620 =
+        application is ApplicationModel && applicationIsIndicative620(application);
+    if (indicative620) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SetDatesBanner620(postId: application.postId),
+          SizedBox(height: 8.h),
+          ServiceProviderCard(
+            name: application.sitter.name,
+            phoneNumber: application.sitter.mobile,
+            email: application.sitter.email,
+            rating: application.sitter.rating,
+            status: application.status,
+            reviewsCount: application.sitter.reviewsCount,
+            location: application.sitter.city ?? '',
+            pricePerHour: PricingDisplayHelper.serviceProviderCardPriceTail(
+              pricing: application.pricing,
+              hourlyRate: application.sitter.hourlyRate,
+            ),
+            currencyCode: application.sitter.currency,
+            profileImagePath: application.sitter.avatar.url.isNotEmpty
+                ? application.sitter.avatar.url
+                : null,
+            sitterId: application.sitter.id,
+            isBlurred: true,
+            cardType: ServiceProviderCardType.application,
+            onAccept: null,
+            onReject: () async {
+              await _applicationsController.respondToApplication(
+                applicationId: application.id,
+                action: 'reject',
+              );
+            },
+          ),
+        ],
+      );
+    }
     return ServiceProviderCard(
       name: application.sitter.name,
       phoneNumber: application.sitter.mobile,

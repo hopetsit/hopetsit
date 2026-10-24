@@ -103,6 +103,17 @@ class ApplicationsController extends GetxController {
       await loadApplications();
       return response;
     } on ApiException catch (error) {
+      // 620 — 409 DATES_REQUIRED (demande « dates à prévoir ») : message
+      // clair, jamais le code brut.
+      if (error.statusCode == 409 &&
+          (error.message.contains('DATES_REQUIRED') ||
+              error.details.toString().contains('DATES_REQUIRED'))) {
+        CustomSnackbar.showWarning(
+          title: 'dates620_set_dates_banner'.tr,
+          message: 'dates620_dates_required_error'.tr,
+        );
+        return null;
+      }
       CustomSnackbar.showError(title: 'common_error'.tr, message: error.message);
       return null;
     } catch (error) {

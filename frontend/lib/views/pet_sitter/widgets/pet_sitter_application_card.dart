@@ -18,6 +18,7 @@
 //   • les boîtes d'attributs défilaient horizontalement dans une carte déjà
 //     dans une liste verticale (et débordaient en allemand) → `Wrap`.
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -330,7 +331,7 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        CircleAvatar(
+        CircleAvatar(onBackgroundImageError: (avatarUrl.isNotEmpty) ? netImageOnError620 : null, 
           radius: 24.r,
           backgroundColor: _roleAccent.withValues(alpha: 0.12),
           backgroundImage: avatarUrl.isNotEmpty

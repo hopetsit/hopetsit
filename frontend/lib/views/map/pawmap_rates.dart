@@ -20,7 +20,13 @@ class PawProviderRates {
     this.extraPet,
     this.halfHour,
     this.twoHours,
+    this.visit,
+    this.visitDurationMinutes,
   });
+
+  /// 620 — visite à domicile : tarif par visite + durée (30 | 60 min).
+  final double? visit;
+  final int? visitDurationMinutes;
 
   final String currency;
   final String role; // sitter | walker
@@ -46,7 +52,13 @@ class PawProviderRates {
       return '${CurrencyHelper.formatCompact(currency, v)}/$unit';
     }
     final v = daily ?? hourly ?? weekly ?? monthly;
-    if (v == null) return null;
+    if (v == null) {
+      // 620 — gardien qui ne fait QUE des visites : « dès 12 €/visite ».
+      if ((visit ?? 0) > 0) {
+        return '${CurrencyHelper.formatCompact(currency, visit!)}/${'dates620_unit_visit'.tr}';
+      }
+      return null;
+    }
     final unit = daily != null
         ? 'pawmap_rate_unit_day'.tr
         : (hourly != null
@@ -69,6 +81,13 @@ class PawProviderRates {
     if ((daily ?? 0) > 0) out.add(PawMapRateLine(label: 'price_per_day'.tr, value: f(daily!)));
     if ((weekly ?? 0) > 0) out.add(PawMapRateLine(label: 'price_per_week'.tr, value: f(weekly!)));
     if ((monthly ?? 0) > 0) out.add(PawMapRateLine(label: 'price_per_month'.tr, value: f(monthly!)));
+    // 620 — « Visite à domicile (30 min) : 12 € ».
+    if ((visit ?? 0) > 0) {
+      final d = visitDurationMinutes ?? 30;
+      out.add(PawMapRateLine(
+          label: '${'dates620_service_home_visit'.tr} (${d >= 60 ? '1 h' : '$d min'})',
+          value: f(visit!)));
+    }
     if ((extraPet ?? 0) > 0) out.add(PawMapRateLine(label: 'pawmap_rate_extra_pet'.tr, value: f(extraPet!)));
     return out;
   }

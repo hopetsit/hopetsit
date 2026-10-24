@@ -13,6 +13,7 @@
 //   3. badges d'abonnement redessinés (ActiveBenefitsRow en mode hero)
 //   4. rangée de 3 statistiques en tuiles de verre, toutes cliquables.
 import 'package:hopetsit/widgets/role_chip.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -698,6 +699,7 @@ class _OwnerPetPill extends StatelessWidget {
       return _HeroPill(
         leading: p.avatar.url.isNotEmpty
             ? CircleAvatar(
+                onBackgroundImageError: netImageOnError620, // 620
                 radius: 9.r,
                 backgroundColor: const Color(0xFFFCE4DC),
                 backgroundImage: CachedNetworkImageProvider(p.avatar.url),

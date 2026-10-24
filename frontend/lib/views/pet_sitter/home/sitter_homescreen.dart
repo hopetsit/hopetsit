@@ -29,6 +29,7 @@ import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
 import 'package:hopetsit/models/post_model.dart';
+import 'package:hopetsit/utils/post_date_label.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_detail_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/reservation_request_filter_dialog.dart';
@@ -502,6 +503,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   // v443 — Daniel : la cellule « Dates » n'affiche plus que la DATE ; l'heure
   // part dans une horloge sous « Service » (cf _postTimeLabel + serviceTime).
   static String? _postDateRangeLabel(PostModel post) {
+    // 620 — « Dates à prévoir » / « Environ du … au … ».
+    final m620 = PostDateLabel.mode620(post);
+    if (m620 != null) return m620;
     final s = post.startDate;
     final e = post.endDate;
     if (s != null && e != null) {
@@ -520,6 +524,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   // v443 — heure SEULE pour l'horloge sous « Service » (« 14h → 15h », « 14h »).
   // '' si aucune heure réelle (minuit). Réutilise _formatTimeShort (style « 14h »).
   static String _postTimeLabel(PostModel post) {
+    if (post.isDatesTbd || post.isDatesApprox) return ''; // 620
     final s = post.startDate;
     final e = post.endDate;
     final sl = s?.toLocal();

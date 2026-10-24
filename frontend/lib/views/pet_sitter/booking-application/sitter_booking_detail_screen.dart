@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/utils/service_location587.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
@@ -312,7 +313,7 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
+                    CircleAvatar(onBackgroundImageError: (owner.avatar.url.isNotEmpty) ? netImageOnError620 : null, 
                       radius: 28.r,
                       backgroundColor: AppColors.grey300Color,
                       backgroundImage: owner.avatar.url.isNotEmpty
@@ -717,7 +718,7 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
+          CircleAvatar(onBackgroundImageError: (imageUrl.isNotEmpty) ? netImageOnError620 : null, 
             radius: 32.r,
             backgroundColor: AppColors.grey300Color,
             backgroundImage: imageUrl.isNotEmpty

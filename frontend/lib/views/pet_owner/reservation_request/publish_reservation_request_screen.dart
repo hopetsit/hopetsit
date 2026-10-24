@@ -1,5 +1,6 @@
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hopetsit/widgets/paw_icons.dart';
@@ -10,6 +11,8 @@ import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/dates620.dart';
+import 'package:hopetsit/views/pet_owner/reservation_request/widgets/dates620_widgets.dart';
 import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
@@ -32,7 +35,13 @@ class PublishReservationRequestScreen extends StatefulWidget {
     super.key,
     this.editPost,
     this.initialServiceType,
+    this.targetProvider,
   });
+
+  /// 620 — demande lancée depuis la PawMap (fiche d'un membre → « Demander à
+  /// … ») : même formulaire, prestataire visé en bandeau, services
+  /// limités à ceux qu'il propose, estimation avec SON tarif.
+  final TargetProvider620? targetProvider;
 
   /// v571 — type de service pré-sélectionné (grandes cartes de l'accueil).
   /// Ignoré en mode « Modifier ».
@@ -74,6 +83,7 @@ class _PublishReservationRequestScreenState
       case 'endDate':
       case 'startTime':
       case 'endTime':
+      case 'dateMode': // 620
         return 2;
       case 'city':
       case 'cityPick':
@@ -97,7 +107,10 @@ class _PublishReservationRequestScreenState
   void initState() {
     super.initState();
     controller = Get.put(
-      PublishReservationRequestController(editPost: widget.editPost),
+      PublishReservationRequestController(
+        editPost: widget.editPost,
+        targetProvider: widget.targetProvider,
+      ),
     );
     final preset = widget.initialServiceType;
     if (preset != null && widget.editPost == null) {
@@ -176,6 +189,11 @@ class _PublishReservationRequestScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildIntro(),
+                // 620 — prestataire visé depuis la PawMap.
+                if (widget.targetProvider != null) ...[
+                  SizedBox(height: 14.h),
+                  TargetProviderBanner620(provider: widget.targetProvider!),
+                ],
                 SizedBox(height: 14.h),
                 // ── 1. Animaux (+ caractère) ─────────────────────────────
                 KeyedSubtree(key: _stepKeys[0], child: Obx(() => _buildSectionCard(
@@ -211,6 +229,15 @@ class _PublishReservationRequestScreenState
                           if (controller.shouldShowDuration) ...[
                             SizedBox(height: 16.h),
                             _buildDurationSection(),
+                          ],
+                          // 620 — visite à domicile : 1 | 2 visites par jour.
+                          if (controller.isHomeVisit) ...[
+                            SizedBox(height: 16.h),
+                            VisitsPerDayPicker620(
+                              value: controller.visitsPerDay.value,
+                              accent: _sitterAccent,
+                              onChanged: controller.selectVisitsPerDay,
+                            ),
                           ],
                           if (controller.shouldShowServiceLocation) ...[
                             SizedBox(height: 16.h),
@@ -447,10 +474,12 @@ class _PublishReservationRequestScreenState
       // v600 NEO — noms des fiches cochées, sinon « 2 · Chien, Chat ».
       final pets = controller.animalSummary;
       final service = controller.selectedServiceLabel;
-      final dates = controller.stepDatesDone
-          ? '${controller.formattedStartDate} ${controller.formattedStartTime}'
-              ' → ${controller.formattedEndDate} ${controller.formattedEndTime}'
-          : '';
+      controller.dateMode.value; // 620 — lecture réactive
+      final dates = controller.datesSummaryLabel; // 620
+      final est620 = controller.estimate.value;
+      final estText620 = est620 == null
+          ? ''
+          : estimateText620(est620, tbd: controller.isDatesTbd);
       final city = controller.cityText.value.trim();
       final photos = controller.imageFiles.length;
       final location = controller.serviceLocationDone
@@ -473,6 +502,9 @@ class _PublishReservationRequestScreenState
                 duration.isNotEmpty ? '$service · $duration min' : service),
             _summaryRow(Icons.calendar_today_rounded,
                 'send_request_dates_label'.tr, dates),
+            if (estText620.isNotEmpty)
+              _summaryRow(Icons.calculate_rounded, 'dates620_estimate_title'.tr,
+                  estText620),
             // v587 (point 8) — lieu du service dans le récapitulatif.
             _summaryRow(Icons.home_rounded, 'svc587_field'.tr, location),
             _summaryRow(Icons.location_on_rounded,
@@ -1002,7 +1034,7 @@ class _PublishReservationRequestScreenState
                       : AppColors.greyColor.withValues(alpha: 0.6),
                 ),
                 SizedBox(width: 10.w),
-                CircleAvatar(
+                CircleAvatar(onBackgroundImageError: (avatarUrl.isNotEmpty) ? netImageOnError620 : null, 
                   radius: 22.r,
                   backgroundColor:
                       AppColors.primaryColor.withValues(alpha: 0.12),
@@ -1195,10 +1227,82 @@ class _PublishReservationRequestScreenState
       final svc = controller.selectedServiceType.value;
       final isWalking = svc == 'dog_walking';
       final isDayCare = svc == 'day_care';
+      // 620 — mode de dates : 3 cartes, puis le contenu selon le mode.
+      final mode = controller.dateMode.value;
+      controller.estimate.value;
+      controller.estimateLoading.value;
+      controller.visitsPerDay.value;
+      final Widget modeCards = DateModeCards620(
+        value: mode,
+        accent: AppColors.primaryColor,
+        onChanged: controller.selectDateMode,
+      );
+      final Widget estimateLine = EstimateLine620(
+        estimate: controller.estimate.value,
+        loading: controller.estimateLoading.value,
+        tbd: controller.isDatesTbd,
+        accent: _accentForService(svc ?? ''),
+      );
+      if (mode == DateMode620.tbd) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            modeCards,
+            SizedBox(height: 12.h),
+            TbdHint620(accent: AppColors.primaryColor),
+            SizedBox(height: 10.h),
+            estimateLine,
+          ],
+        );
+      }
+      if (mode == DateMode620.approx) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            modeCards,
+            SizedBox(height: 12.h),
+            InterText(
+              text: 'dates620_approx_from'.tr,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondaryStrong(context),
+            ),
+            SizedBox(height: 8.h),
+            _dateOnlyRow(
+              key: const Key('dates620_approx_start'),
+              dateText: controller.formattedStartDate.isEmpty
+                  ? 'send_request_select_date'.tr
+                  : controller.formattedStartDate,
+              onTap: () => _pickDate(isStart: true),
+              placeholder: controller.formattedStartDate.isEmpty,
+            ),
+            SizedBox(height: 12.h),
+            InterText(
+              text: 'dates620_approx_to'.tr,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondaryStrong(context),
+            ),
+            SizedBox(height: 8.h),
+            _dateOnlyRow(
+              key: const Key('dates620_approx_end'),
+              dateText: controller.formattedEndDate.isEmpty
+                  ? 'send_request_select_date'.tr
+                  : controller.formattedEndDate,
+              onTap: () => _pickDate(isStart: false),
+              placeholder: controller.formattedEndDate.isEmpty,
+            ),
+            SizedBox(height: 10.h),
+            estimateLine,
+          ],
+        );
+      }
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          modeCards,
+          SizedBox(height: 12.h),
           // Start
           InterText(
             text: isWalking
@@ -1306,9 +1410,57 @@ class _PublishReservationRequestScreenState
               ),
             ],
           ],
+          SizedBox(height: 10.h),
+          estimateLine,
         ],
       );
     });
+  }
+
+  /// 620 — ligne « date seule » (période approximative : pas d'heure).
+  Widget _dateOnlyRow({
+    Key? key,
+    required String dateText,
+    required VoidCallback onTap,
+    required bool placeholder,
+  }) {
+    return GestureDetector(
+      key: key,
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 48.h,
+        padding: EdgeInsets.symmetric(horizontal: 14.w),
+        decoration: BoxDecoration(
+          color: AppColors.inputFill(context),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: AppColors.primaryColor.withValues(alpha: placeholder ? 0.18 : 0.45),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_today_rounded,
+                size: 16.sp, color: AppColors.primaryColor),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: InterText(
+                text: dateText,
+                fontSize: 13.5.sp,
+                fontWeight: placeholder ? FontWeight.w500 : FontWeight.w700,
+                color: placeholder
+                    ? AppColors.textSecondary(context)
+                    : AppColors.textPrimary(context),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(Icons.expand_more_rounded,
+                size: 18.sp, color: AppColors.textSecondary(context)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _dateTimeRow({
@@ -1575,11 +1727,21 @@ class _PublishReservationRequestScreenState
               final selected =
                   controller.selectedServiceType.value == value;
               final accent = _accentForService(value);
+              // 620 — prestataire visé sans tarif pour ce service : carte
+              // grisée (opacité), non sélectionnable, « non proposé ».
+              final offered = controller.serviceOffered(value);
+              final String description620 = offered
+                  ? description
+                  : 'dates620_target_no_rate'.tr.replaceAll(
+                      '@name', widget.targetProvider?.firstName ?? '');
 
               return Padding(
                 padding: EdgeInsets.only(bottom: i == types.length - 1 ? 0 : 10.h),
-                child: GestureDetector(
-                  onTap: () => controller.selectServiceType(value),
+                child: Opacity(
+                  opacity: offered ? 1 : 0.45,
+                  child: GestureDetector(
+                  key: Key('dates620_service_$value'),
+                  onTap: offered ? () => controller.selectServiceType(value) : null,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     padding: EdgeInsets.symmetric(
@@ -1623,10 +1785,10 @@ class _PublishReservationRequestScreenState
                                     ? accent
                                     : AppColors.textPrimary(context),
                               ),
-                              if (description.isNotEmpty) ...[
+                              if (description620.isNotEmpty) ...[
                                 SizedBox(height: 2.h),
                                 InterText(
-                                  text: description,
+                                  text: description620,
                                   fontSize: 11.sp,
                                   color: AppColors.textSecondary(context),
                                   maxLines: 2,
@@ -1657,6 +1819,7 @@ class _PublishReservationRequestScreenState
                       ],
                     ),
                   ),
+                ),
                 ),
               );
             }),

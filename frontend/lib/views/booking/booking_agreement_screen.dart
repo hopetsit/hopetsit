@@ -36,6 +36,7 @@
 //    avec un handler NOMMÉ (un `off(event)` global casserait les listeners de
 //    BookingsController / PostsController).
 import 'package:hopetsit/widgets/role_chip.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -790,7 +791,7 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen>
                   shape: BoxShape.circle,
                   color: accent.withValues(alpha: 0.12),
                   image: avatarUrl.isNotEmpty
-                      ? DecorationImage(
+                      ? DecorationImage(onError: netImageOnError620, 
                           image: CachedNetworkImageProvider(avatarUrl,
                               maxWidth: 200),
                           fit: BoxFit.cover,

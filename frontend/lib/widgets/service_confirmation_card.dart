@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:hopetsit/widgets/net_image620.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -451,7 +452,7 @@ class _ServiceConfirmationCardState extends State<ServiceConfirmationCard> {
           onTap: () => Navigator.of(ctx).pop(),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16.r),
-            child: CachedNetworkImage(imageUrl: url, fit: BoxFit.contain),
+            child: CachedNetworkImage(errorWidget: (_, __, ___) => const NetImageFallback620(), imageUrl: url, fit: BoxFit.contain),
           ),
         ),
       ),

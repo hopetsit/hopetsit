@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/paw_icons.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
@@ -403,6 +404,7 @@ class PetPostCard extends StatelessWidget {
                       radius: 20.r,
                       backgroundColor: _accent.withValues(alpha: 0.22),
                       child: CircleAvatar(
+                        onBackgroundImageError: netImageOnError620, // 620
                         radius: 18.r,
                         // v23.1 part 243 round 3 — perf : NetworkImage brut
                         // decode le bitmap pleine resolution serveur (~5-10 MB
@@ -883,7 +885,7 @@ class PetPostCard extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircleAvatar(
+                CircleAvatar(onBackgroundImageError: (p.avatar.isNotEmpty) ? netImageOnError620 : null, 
                   radius: 18.r,
                   backgroundColor: _accent.withValues(alpha: 0.12),
                   backgroundImage: p.avatar.isNotEmpty
@@ -967,7 +969,7 @@ class PetPostCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              CircleAvatar(
+              CircleAvatar(onBackgroundImageError: (p.avatar.isNotEmpty) ? netImageOnError620 : null, 
                 radius: 20.r,
                 backgroundColor: _accent.withValues(alpha: 0.12),
                 backgroundImage: p.avatar.isNotEmpty
@@ -2424,6 +2426,8 @@ class _AssetPhotoViewerState extends State<_AssetPhotoViewer> {
                   initialScale: PhotoViewComputedScale.contained,
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: PhotoViewComputedScale.covered * 2,
+                  // 620 — photo morte (401/404) : patte, jamais une erreur.
+                  errorBuilder: (_, __, ___) => const NetImageFallback620(),
                 );
               },
               itemCount: widget.images.length,

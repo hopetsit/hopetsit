@@ -10,6 +10,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kReleaseMode, FlutterError;
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
@@ -58,6 +59,11 @@ FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 // erreurs restent visibles dans Crashlytics mais en NON-FATAL ; tout le
 // reste demeure fatal.
 bool _isNetworkError(Object error) {
+  // 620 — image réseau qui répond 401/404 (photo manquante, ancien hôte) :
+  // 73 plantages Crashlytics le 23/10 (mail Firebase du 24/10) pour une
+  // FlutterError « NetworkImage… HTTP request failed ». L'écran montre un
+  // repli (net_image620.dart) ; ce n'est pas un plantage → non fatal.
+  if (isNetworkImageError620(error)) return true;
   if (error is SocketException ||
       error is HttpException ||
       error is TlsException ||

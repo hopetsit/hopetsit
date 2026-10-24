@@ -12,6 +12,12 @@ class PetsitterOnboardingController extends GetxController {
   final bioController = TextEditingController();
   final skillsController = TextEditingController();
   final hourlyRateController = TextEditingController();
+  // 620 — visite à domicile : tarif par visite (vide = non proposé) + durée.
+  final visitRateController = TextEditingController();
+  final RxInt visitDurationMinutes = 30.obs;
+  void selectVisitDuration(int m) => visitDurationMinutes.value = m >= 60 ? 60 : 30;
+  double get visitRateValue =>
+      double.tryParse(visitRateController.text.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
 
   final RxBool isLoading = false.obs;
   final RxBool acceptTerms = false.obs;
@@ -67,6 +73,7 @@ class PetsitterOnboardingController extends GetxController {
     bioController.dispose();
     skillsController.dispose();
     hourlyRateController.dispose();
+    visitRateController.dispose(); // 620
     super.onClose();
   }
 
@@ -148,6 +155,8 @@ class PetsitterOnboardingController extends GetxController {
           dailyRate: daily,
           weeklyRate: weekly,
           monthlyRate: monthly,
+          visitRate: visitRateValue, // 620 — 0 = non proposé
+          visitDurationMinutes: visitDurationMinutes.value,
         );
       } catch (e) {
         AppLogger.logError('Onboarding: rates save failed (non-blocking)', error: e);

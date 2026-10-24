@@ -230,6 +230,77 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
                     return null;
                   },
                 )),
+            // 620 — même grille qu'au profil : visite à domicile par visite
+            // + durée (30 | 60 min). Vide = non proposé.
+            Obx(() => ProfileInput(
+                  key: const Key('dates620_onb_visit_field'),
+                  label: 'dates620_rates_visit_label'.tr,
+                  hint: '0.00',
+                  controller: _controller.visitRateController,
+                  accent: _accent,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9\.,]')),
+                  ],
+                  textInputAction: TextInputAction.done,
+                  suffix: Padding(
+                    padding: EdgeInsets.only(right: 14.w, top: 14.h),
+                    child: Text(
+                      CurrencyHelper.symbol(_controller.selectedCurrency.value),
+                      style: TextStyle(
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w700,
+                        color: _accent,
+                      ),
+                    ),
+                  ),
+                )),
+            Padding(
+              padding: EdgeInsets.only(top: 4.h, bottom: 6.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('dates620_rates_visit_duration'.tr,
+                      style: TextStyle(
+                          fontSize: 12.5.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondaryStrong(context))),
+                  SizedBox(height: 8.h),
+                  Obx(() => Wrap(
+                        spacing: 10.w,
+                        children: [
+                          for (final m in const <int>[30, 60])
+                            GestureDetector(
+                              onTap: () => _controller.selectVisitDuration(m),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 9.h),
+                                decoration: BoxDecoration(
+                                  color: _controller.visitDurationMinutes.value == m
+                                      ? _accent
+                                      : _accent.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(20.r),
+                                  border: Border.all(
+                                      color: _controller.visitDurationMinutes.value == m
+                                          ? _accent
+                                          : _accent.withValues(alpha: 0.3)),
+                                ),
+                                child: Text(m >= 60 ? '1 h' : '30 min',
+                                    style: TextStyle(
+                                        fontSize: 12.5.sp,
+                                        fontWeight: FontWeight.w700,
+                                        color: _controller.visitDurationMinutes.value == m
+                                            ? Colors.white
+                                            : AppColors.accentOn(context, _accent))),
+                              ),
+                            ),
+                        ],
+                      )),
+                  SizedBox(height: 4.h),
+                  Text('dates620_rates_visit_hint'.tr,
+                      style: TextStyle(fontSize: 11.5.sp, color: AppColors.textSecondary(context))),
+                ],
+              ),
+            ),
             Obx(() {
               final label = CurrencyHelper.label(_controller.selectedCurrency.value);
               return ProfileDropdownField<String>(

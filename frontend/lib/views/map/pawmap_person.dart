@@ -57,6 +57,8 @@ List<Map<String, dynamic>> pawMapExpandRoles(Map p) {
         if (r['priceFrom'] is num) 'priceFrom': r['priceFrom'],
         // v605 — tarif à la semaine / au mois (gardien sans tarif jour).
         if (r['priceAlt'] is Map) 'priceAlt': r['priceAlt'],
+        // 620 — unité du tarif (jour / visite / balade) selon le service.
+        if (r['priceUnit'] is String) 'priceUnit': r['priceUnit'],
         if (r['rating'] is num) 'rating': r['rating'],
         if (r['reviewsCount'] is num) 'reviewsCount': r['reviewsCount'],
         if (r['currency'] != null) 'currency': r['currency'],
@@ -170,7 +172,16 @@ String pawMapRolePriceText(
 }) {
   final cur = (r['currency'] ?? 'EUR').toString();
   final price = (r['priceFrom'] as num?)?.toDouble() ?? 0;
-  if (price > 0) return format(cur, price);
+  if (price > 0) {
+    // 620 — « 12 €/visite », « 18 €/jour », « 10 €/balade » quand le serveur
+    // dit l'unité (`priceUnit`) ; sans unité, le montant seul comme avant.
+    final unit = (r['priceUnit'] ?? '').toString();
+    if (unit.isNotEmpty && unitSuffix != null) {
+      final suf = unitSuffix(unit);
+      if (suf.isNotEmpty) return '${format(cur, price)}$suf';
+    }
+    return format(cur, price);
+  }
   if (unitSuffix == null) return '';
   final alt = r['priceAlt'];
   if (alt is! Map) return '';
@@ -275,6 +286,8 @@ Map<String, dynamic> pawMapWithWorldPrices(
               'priceFrom': src['priceFrom'],
               if (r['priceAlt'] is! Map && src['priceAlt'] is Map)
                 'priceAlt': src['priceAlt'],
+              if (r['priceUnit'] == null && src['priceUnit'] != null)
+                'priceUnit': src['priceUnit'],
               if (r['currency'] == null && src['currency'] != null)
                 'currency': src['currency'],
             };
@@ -291,6 +304,9 @@ Map<String, dynamic> pawMapWithWorldPrices(
       out['currency'] ??= src['currency'];
       if (p['priceAlt'] is! Map && src['priceAlt'] is Map) {
         out['priceAlt'] = src['priceAlt'];
+      }
+      if (p['priceUnit'] == null && src['priceUnit'] != null) {
+        out['priceUnit'] = src['priceUnit'];
       }
     }
   }

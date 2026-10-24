@@ -34,9 +34,16 @@ class OwnerRepository {
   /// the single `petId` arg if `petIds` is empty.
   Future<Map<String, dynamic>> createReservationRequest({
     required String body,
-    required DateTime startDate,
-    required DateTime endDate,
+    // 620 — nulles quand `dateMode == 'tbd'` (dates à prévoir).
+    DateTime? startDate,
+    DateTime? endDate,
     required List<String> serviceTypes,
+    // 620 — mode de dates, visites par jour (visite à domicile), prestataire
+    // ciblé depuis la PawMap (`{role, id}`), durée d'une visite.
+    String? dateMode,
+    int? visitsPerDay,
+    int? visitDurationMinutes,
+    Map<String, String>? targetProvider,
     String? petId,
     List<String> petIds = const <String>[],
     required String city,
@@ -69,8 +76,15 @@ class OwnerRepository {
       if (animalTypes.isNotEmpty) 'animalTypes': animalTypes,
       if (animalCount != null && animalCount > 0) 'animalCount': animalCount,
       'body': body,
-      'startDate': startDate.toUtc().toIso8601String(),
-      'endDate': endDate.toUtc().toIso8601String(),
+      if (startDate != null) 'startDate': startDate.toUtc().toIso8601String(),
+      if (endDate != null) 'endDate': endDate.toUtc().toIso8601String(),
+      // 620 — mode de dates (`tbd` = sans dates) ; une ancienne app n'envoie
+      // rien et le serveur déduit `exact`.
+      if (dateMode != null && dateMode.isNotEmpty) 'dateMode': dateMode,
+      if (visitsPerDay != null) 'visitsPerDay': visitsPerDay,
+      if (visitDurationMinutes != null) 'visitDurationMinutes': visitDurationMinutes,
+      if (targetProvider != null && (targetProvider['id'] ?? '').isNotEmpty)
+        'targetProvider': targetProvider,
       'serviceTypes': serviceTypes,
       'petIds': effectiveIds,
       // v411 — toggle « Afficher le caractère des animaux » (maquette).
@@ -126,8 +140,13 @@ class OwnerRepository {
   /// v23.1 — accepts a list `petIds` for multi-pet bookings.
   Future<Map<String, dynamic>> createReservationRequestWithMedia({
     required String body,
-    required DateTime startDate,
-    required DateTime endDate,
+    // 620 — nulles quand `dateMode == 'tbd'`.
+    DateTime? startDate,
+    DateTime? endDate,
+    String? dateMode,
+    int? visitsPerDay,
+    int? visitDurationMinutes,
+    Map<String, String>? targetProvider,
     required List<String> serviceTypes,
     String? petId,
     List<String> petIds = const <String>[],
@@ -171,8 +190,14 @@ class OwnerRepository {
       if (animalCount != null && animalCount > 0)
         'animalCount': animalCount.toString(),
       'body': body,
-      'startDate': startDate.toUtc().toIso8601String(),
-      'endDate': endDate.toUtc().toIso8601String(),
+      if (startDate != null) 'startDate': startDate.toUtc().toIso8601String(),
+      if (endDate != null) 'endDate': endDate.toUtc().toIso8601String(),
+      // 620 — multipart : chaînes (targetProvider en JSON, comme le site).
+      if (dateMode != null && dateMode.isNotEmpty) 'dateMode': dateMode,
+      if (visitsPerDay != null) 'visitsPerDay': '$visitsPerDay',
+      if (visitDurationMinutes != null) 'visitDurationMinutes': '$visitDurationMinutes',
+      if (targetProvider != null && (targetProvider['id'] ?? '').isNotEmpty)
+        'targetProvider': jsonEncode(targetProvider),
       if (serviceTypes.isNotEmpty) 'serviceTypes': serviceTypes.first,
       // Multipart : petIds passed as a JSON-stringified array.
       'petIds': jsonEncode(effectiveIds),
