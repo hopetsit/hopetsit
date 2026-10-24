@@ -56,6 +56,23 @@ async function startServer() {
     } catch (e) {
       logger.error('[boot] migration v555 failed (non-fatal)', e);
     }
+    // 24/10 (BOB, mail Firebase « 73 plantages, NetworkImage HTTP request failed ») — migration UNE FOIS :
+    // les références vers l'ancien cloud Cloudinary ddllooujo (401 depuis le 18/10) sont effacées
+    // (utils/purgeDeadCloudinary620.js) : silhouette par défaut au lieu d'un plantage. Non bloquante.
+    try {
+      const mig = mongoose.connection.db.collection('migrations');
+      const KEY = 'v620_purge_dead_cloudinary';
+      if (!(await mig.findOne({ _id: KEY }))) {
+        const { purgeDeadCloudinary } = require('./utils/purgeDeadCloudinary620');
+        const r = await purgeDeadCloudinary({
+          Owner: require('./models/Owner'), Sitter: require('./models/Sitter'), Walker: require('./models/Walker'), Pet: require('./models/Pet'),
+        });
+        await mig.insertOne({ _id: KEY, at: new Date(), ...r });
+        logger.info(`[boot] migration ${KEY}: comptes=${r.accounts} avatars animaux=${r.petAvatars} photos animaux=${r.petPhotos}`);
+      }
+    } catch (e) {
+      logger.error('[boot] migration v620 failed (non-fatal)', e);
+    }
     // 607 (NEO, 02/10) — décision de Daniel : ville = e-mail de 2 gardiens
     // corrigée UNE fois (marqueur dans `migrations`, non bloquant, journalisé).
     require('./scripts/fixCityEmail607').runFixCityEmail607(mongoose.connection.db);
