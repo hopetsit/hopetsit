@@ -19,7 +19,10 @@ const valid = (dt) => dt instanceof Date && !Number.isNaN(dt.getTime());
 
 /** Une date dans un texte, ou null. `after` : si l'année manque, la prochaine occurrence ≥ after. */
 function parseOne(text, lang, after) {
-  const t = strip(text).trim();
+  // 24/10 (BOB, saisies réelles du formulaire : « 01/11/ 2026 », « 05  07 ») — espaces autour des
+  // séparateurs retirés, et des nombres séparés par des espaces seuls deviennent « 05/07 ».
+  let t = strip(text).trim().replace(/\s*([\/.\-])\s*/g, '$1');
+  if (/^\d{1,2}\s+\d{1,2}(\s+\d{2,4})?$/.test(t)) t = t.replace(/\s+/g, '/');
   if (!t) return null;
   const ref = after || new Date();
   let y = null; let m = null; let d = null;
@@ -50,6 +53,7 @@ function parseOne(text, lang, after) {
   return dt;
 }
 
+const DAY = 86400000;
 /** « du 24/12 au 2/1 » ou « 24/12 - 2/1 » dans UN champ → [début, fin]. */
 function splitRange(text) {
   const t = String(text || '');
@@ -57,13 +61,18 @@ function splitRange(text) {
   return m ? [m[1], m[2]] : [t, ''];
 }
 
-const DAY = 86400000;
 function datesFor(lead, now = new Date()) {
   const lang = lead && lead.lang === 'en' ? 'en' : 'fr';
   let a = lead && lead.startText; let b = lead && lead.endText;
   if (a && !b) [a, b] = splitRange(a);
   const start = parseOne(a, lang, now);
-  const end = parseOne(b, lang, start || now);
+  let end = parseOne(b, lang, start || now);
+  // fin avant début avec une année écrite (« 01/11/2026 → 30/06/2026 ») : l'année de fin est un lapsus → +1 an
+  if (start && end && end < start && /\d{4}/.test(String(b || ''))) {
+    const e2 = new Date(Date.UTC(end.getUTCFullYear() + 1, end.getUTCMonth(), end.getUTCDate()));
+    // seulement si la garde ainsi corrigée reste courte (≤ 92 jours) ; au-delà c'est ambigu → pas de dates
+    if (e2 >= start && (e2 - start) / DAY <= 92) end = e2;
+  }
   if (start && end && end >= start) return { startDate: start, endDate: end, source: 'form' };
   if (start && !b) return { startDate: start, endDate: start, source: 'form' };
   const q = lead && lead.quand;
