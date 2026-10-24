@@ -189,6 +189,14 @@ export type Estimate620 = {
   indicative: boolean;
   /** true = calcul du serveur (POST /pricing/estimate), false = calcul local de secours. */
   fromServer: boolean;
+  /**
+   * 620b (24/10, serveur de ZOE) — demande OUVERTE (aucun prestataire visé) : « à partir de »
+   * = minimum des prestataires du rayon d'alerte. `basedOn` 0 → rien à afficher.
+   */
+  market?: boolean;
+  fromRate?: number | null;
+  ownerTotalFrom?: number | null;
+  basedOn?: number;
 };
 
 /** Estimation LOCALE de secours (invité sans compte, serveur ancien ou injoignable). Même règle que le serveur : commission 20 %. */
@@ -222,9 +230,22 @@ export function parseEstimate620(raw: unknown, fallback: Quantity620, currency: 
   const indicative = e.indicative === true || (quantity == null && ownerTotal == null);
   // Rien de reconnaissable (page d'erreur, autre route) → null ; une réponse du moteur
   // (même sans tarif : NO_RATE) est gardée telle quelle.
-  const known = ["quantity", "ownerTotal", "unitTotal", "unitRate", "rate", "indicative"].some((k) => k in e);
+  const known = ["quantity", "ownerTotal", "unitTotal", "unitRate", "rate", "indicative", "fromRate"].some((k) => k in e);
   if (!known) return null;
-  return { quantity, unit, rate, currency: String(e.currency || currency || "EUR").toUpperCase(), unitTotal, commission, ownerTotal, indicative, fromServer: true };
+  const cur = String(e.currency || currency || "EUR").toUpperCase();
+  // 620b — réponse « market » (demande ouverte) : fromRate / ownerTotalFrom / basedOn ; le tarif
+  // unitaire n'est pas celui d'un prestataire → `rate` reste null (jamais pris pour un prix ferme).
+  if (e.rateSource === "market" || "fromRate" in e || "basedOn" in e) {
+    const fromRate0 = num(e.fromRate);
+    const basedOn = Math.max(0, Math.trunc(num(e.basedOn) ?? 0));
+    const fromRate = fromRate0 != null && fromRate0 > 0 && basedOn > 0 ? fromRate0 : null;
+    const ownerTotalFrom0 = num(e.ownerTotalFrom);
+    return {
+      quantity, unit, rate: null, currency: cur, unitTotal: null, commission: null, ownerTotal: null, indicative: true, fromServer: true,
+      market: true, fromRate, ownerTotalFrom: fromRate != null && ownerTotalFrom0 != null && ownerTotalFrom0 > 0 ? ownerTotalFrom0 : null, basedOn: fromRate != null ? basedOn : 0,
+    };
+  }
+  return { quantity, unit, rate, currency: cur, unitTotal, commission, ownerTotal, indicative, fromServer: true };
 }
 
 export type ProviderRates620 = {

@@ -10,6 +10,7 @@ import {
   clearAllNotifications,
   deleteNotification,
   getMyNotifications,
+  getStoredUser,
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/lib/api";
@@ -32,6 +33,18 @@ function routeForNotification(n: AppNotification): string | null {
   const d = (n.data || {}) as Record<string, unknown>;
   const conversationId = typeof d.conversationId === "string" ? d.conversationId : "";
   const bookingId = typeof d.bookingId === "string" ? d.bookingId : "";
+  const applicationId = typeof d.applicationId === "string" ? d.applicationId : "";
+  const role = getStoredUser()?.role || "";
+
+  // 620b (24/10) — candidature recalculée (dates posées, ou demande passée à un autre service) :
+  // le propriétaire arrive sur la LISTE DES CANDIDATS de sa demande (même écran que l'app 620) ;
+  // un gardien / promeneur arrive sur ses tarifs (« ajoute ton tarif par visite pour rester candidat »)
+  // ou sur ses candidatures.
+  if (ty === "application_pricing_updated" || ty === "application_service_changed" || ty === "post_dates_required" || d.pricing620 === "1" || d.serviceChanged === "1") {
+    if (role === "owner" || ty === "post_dates_required") return applicationId ? `/posts?application=${encodeURIComponent(applicationId)}` : "/posts";
+    if (ty === "application_service_changed") return "/dashboard#rates-620";
+    return "/bookings";
+  }
 
   // Suivi en direct (PawFollow) — carte dans le chat, sinon page de balade.
   if (ty.includes("tracking") || ty.includes("pawfollow") || ty.includes("follow")) {
@@ -75,6 +88,7 @@ function iconForType(type: string): AppIconName {
   if (t.includes("refus") || t.includes("declin") || t.includes("reject")) return "lock";
   if (t.includes("tracking") || t.includes("follow")) return "pin";
   if (t.includes("message") || t.includes("chat")) return "chat";
+  if (t.includes("pricing") || t.includes("service_changed") || t.includes("dates_required")) return "wallet";
   if (t.includes("application") || t.includes("request") || t.includes("friend")) return "friends";
   if (t.includes("review") || t.includes("rating")) return "star";
   return "bell";

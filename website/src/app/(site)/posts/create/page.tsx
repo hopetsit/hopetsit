@@ -868,6 +868,7 @@ export default function CreatePostPage() {
             provider={target}
             providerRates={targetRates}
             currency={budgetCur}
+            location={cityCoords ? { city: city.trim(), lat: cityCoords.lat, lng: cityCoords.lng } : city.trim() ? { city: city.trim() } : null}
           />
         )}
 

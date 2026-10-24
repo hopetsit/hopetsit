@@ -139,7 +139,7 @@ export function RatesGrid620({ role, lang }: { role: "sitter" | "walker"; lang: 
   }
 
   return (
-    <form onSubmit={save} data-testid="rates-grid-620" className="mt-10 rounded-[24px] p-5" style={{ background: "#FAF1EC" }}>
+    <form onSubmit={save} id="rates-620" data-testid="rates-grid-620" className="mt-10 rounded-[24px] p-5" style={{ background: "#FAF1EC" }}>
       <h2 className="flex items-center gap-2 font-display text-2xl font-bold tracking-[-0.02em]" style={{ color: INK }}>
         <AppIcon name="wallet" size={24} color={tone.mid} />
         {d620(lang, "rates_title")}

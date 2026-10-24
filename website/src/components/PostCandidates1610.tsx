@@ -288,10 +288,13 @@ export function PostCandidates1610({
           const currency = (a.pricing?.currency || cur.budgetCurrency || cur.currency || "EUR").toUpperCase();
           // 620 — indicatif (dates à prévoir) : « 12 €/visite » au lieu d'un total.
           const indicative = a.pricing?.indicative === true || (tbd && !(total != null && total > 0));
-          const unitRate = a.pricing?.appliedRate ?? a.pricing?.basePrice ?? null;
+          // 620b — la demande a changé de service et ce candidat n'a pas de tarif pour le nouveau :
+          // « tarif à venir », aucun montant, Choisir bloqué avec l'explication.
+          const stale = a.pricing?.stale === true;
+          const unitRate = stale ? null : (a.pricing?.appliedRate ?? a.pricing?.basePrice ?? null);
           // Tarif unitaire compact (« 12 €/visite », jamais « 12,00 € ») ; les centimes restent s'il y en a.
           const rateLabel = indicative && unitRate != null && unitRate > 0 ? `${moneyCompact(unitRate, currency, lang)}/${unitShort620(lang, unitOf(a))}` : "";
-          const priceLabel = !indicative && total != null && total > 0 ? money(total, currency, lang) : "";
+          const priceLabel = !stale && !indicative && total != null && total > 0 ? money(total, currency, lang) : "";
           const accepted = a.status === "accepted";
           const bk = accepted ? linkedBooking(a) : null;
           const isFocus = !!focusId && focusId === id;
@@ -364,7 +367,18 @@ export function PostCandidates1610({
                     <p className="text-[17px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }}>{rateLabel}</p>
                   </div>
                 )}
+                {stale && (
+                  <div className="shrink-0 text-right" data-stale-620="">
+                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#8A6B64" }}>{d620(lang, "cand_rate_label")}</p>
+                    <p className="text-[14px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }}>{d620(lang, "cand_stale")}</p>
+                  </div>
+                )}
               </div>
+              {stale && a.status === "pending" && (
+                <p className="mt-2 rounded-xl px-3 py-2 text-[12px] font-semibold leading-snug" style={{ background: "#FBE9E5", color: "#9E1F0B" }} data-stale-hint-620="">
+                  {d620(lang, "cand_stale_hint")}
+                </p>
+              )}
 
               {a.status === "pending" && (
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -375,12 +389,12 @@ export function PostCandidates1610({
                       label={t("c1610_choose")}
                       price={priceLabel || rateLabel || undefined}
                       loading={busyId === id}
-                      disabled={(busyId !== null && busyId !== id) || tbd}
-                      disabledReason={tbd ? d620(lang, "cand_choose_blocked") : undefined}
-                      onClick={() => { if (tbd) { setEditingDates(true); return; } void respond(a, "accept"); }}
+                      disabled={(busyId !== null && busyId !== id) || tbd || stale}
+                      disabledReason={stale ? d620(lang, "cand_stale_hint") : tbd ? d620(lang, "cand_choose_blocked") : undefined}
+                      onClick={() => { if (stale) return; if (tbd) { setEditingDates(true); return; } void respond(a, "accept"); }}
                       ariaLabel={`${t("c1610_choose")} ${firstName}`}
                     />
-                    {tbd && <p className="mt-1 text-center text-[11px] font-semibold" style={{ color: "#8A6B64" }} data-choose-blocked-620="">{d620(lang, "cand_choose_blocked")}</p>}
+                    {tbd && !stale && <p className="mt-1 text-center text-[11px] font-semibold" style={{ color: "#8A6B64" }} data-choose-blocked-620="">{d620(lang, "cand_choose_blocked")}</p>}
                   </div>
                   <div className="sm:w-[150px]">
                     <SignatureButton

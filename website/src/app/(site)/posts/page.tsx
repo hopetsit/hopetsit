@@ -14,6 +14,7 @@ import { PostCandidates1610 } from "@/components/PostCandidates1610";
 // 620 (LEO, 24/10) — « Dates à prévoir » / « Période approximative » / visites par jour
 // sur la carte, et l'éditeur de dates pour le propriétaire sans candidat.
 import { PostDatesEditor620 } from "@/components/PostDatesEditor620";
+import { FromRateLine620 } from "@/components/DateMode620";
 import { d620 } from "@/lib/i18n/dates620";
 import { dateModeOf620 } from "@/lib/services620";
 import {
@@ -203,6 +204,8 @@ function PostCard({
   const [showDates, setShowDates] = useState(false);
   const post620 = datesNow ? { ...post, ...datesNow } : post;
   const mode620 = dateModeOf620(post620);
+  // 620b — demande « ouverte » = pas encore de candidat choisi, et pas clôturée.
+  const openForFromRate = !applications.some((a) => a.status === "accepted") && !["closed", "completed", "cancelled", "canceled", "expired", "filled", "booked"].includes(String(post.status || "").toLowerCase());
 
   async function onContact() {
     if (!ownerId) return;
@@ -380,6 +383,12 @@ function PostCard({
           {post.notes && <ResCell icon="📝" label={t("posts_field_details")} value={post.notes} />}
         </div>
       </div>
+
+      {/* 620b — propriétaire, demande encore ouverte : « à partir de 12 €/visite · estimation ~86 € (d'après N gardiens
+          près de chez toi) », calculé par le serveur (même source que l'app). Rien sans prestataire autour. */}
+      {isOwner && openForFromRate && (
+        <FromRateLine620 lang={lang} postId={id} service={(post.serviceTypes || [])[0] || null} currency={post.budgetCurrency || post.currency || null} dateMode={mode620} />
+      )}
 
       {/* 620 — propriétaire, « dates à prévoir » sans candidat : poser les dates ici. */}
       {isOwner && mode620 === "tbd" && applications.length === 0 && (

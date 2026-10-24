@@ -13,8 +13,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppIcon } from "@/components/AppIcon";
 import type { Lang } from "@/lib/i18n/langs";
-import { d620, qtyLabel620, unitLong620 } from "@/lib/i18n/dates620";
-import { estimatePricing620 } from "@/lib/api";
+import { d620, qtyLabel620, unitLong620, unitShort620 } from "@/lib/i18n/dates620";
+import { estimatePostOpen620, estimatePricing620 } from "@/lib/api";
 import {
   estimateLocal620,
   quantityFor620,
@@ -122,11 +122,67 @@ export type EstimateLineProps = {
   providerRates?: ProviderRates620 | null;
   /** Devise d'affichage quand aucun tarif n'est connu. */
   currency?: string;
+  /** 620b — position de la demande (ville + lat/lng) : sans prestataire visé, le serveur cherche le « à partir de » autour. */
+  location?: { city?: string; lat?: number; lng?: number } | null;
 };
+
+/**
+ * 620b (24/10, serveur de ZOE) — « à partir de 12 €/visite · estimation ~86 € (d'après 3 gardiens
+ * près de chez toi) ». Rien quand `basedOn` vaut 0. Promenade → « promeneurs ».
+ */
+function marketLines(lang: Lang, est: Estimate620, service: string, qtyFallback: number | null): { from: string; total: string; based: string } | null {
+  if (!est.market || est.fromRate == null || !(est.basedOn && est.basedOn > 0)) return null;
+  const cur = est.currency || "EUR";
+  const from = d620(lang, "est_from").replace("{price}", money(est.fromRate, cur, lang)).replace("{unit}", unitShort620(lang, est.unit));
+  const total = est.ownerTotalFrom != null && (est.quantity ?? qtyFallback) != null
+    ? d620(lang, "est_from_total").replace("{total}", money(est.ownerTotalFrom, cur, lang))
+    : "";
+  const walk = service === "dog_walking";
+  const key = est.basedOn === 1 ? (walk ? "est_from_based_walk_1" : "est_from_based_1") : (walk ? "est_from_based_walk_n" : "est_from_based_n");
+  return { from, total, based: d620(lang, key).replace("{n}", String(est.basedOn)) };
+}
+
+function MarketBlock({ lang, lines, hint, testId = "estimate-620", qty }: { lang: Lang; lines: { from: string; total: string; based: string }; hint: string; testId?: string; qty?: string }) {
+  void lang;
+  return (
+    <div data-testid={testId} data-estimate-kind="market" className="flex items-start gap-2.5 rounded-2xl px-3.5 py-3" style={{ background: ORANGE_PALE }}>
+      <AppIcon name="wallet" size={18} color={ORANGE_DARK} />
+      <div className="min-w-0 text-sm leading-snug" style={{ color: INK }}>
+        <p className="font-extrabold" style={{ color: ORANGE_DARK }} data-market-from="">
+          {lines.from}{lines.total ? ` · ${lines.total}` : ""}
+        </p>
+        <p className="text-xs" style={{ color: INK_SOFT }}>
+          {[qty, lines.based, hint].filter(Boolean).join(" · ")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 620b — ligne « à partir de » sur la carte d'une demande OUVERTE (page de mes demandes) :
+ * POST /pricing/estimate avec `postId`. Rien sans prestataire autour (`basedOn` 0), rien sans compte.
+ */
+export function FromRateLine620({ lang, postId, service, currency, dateMode }: { lang: Lang; postId: string; service: string | null | undefined; currency?: string | null; dateMode: DateMode620 }) {
+  const [est, setEst] = useState<Estimate620 | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setEst(null);
+    if (!postId || !service) return () => { alive = false; };
+    void estimatePostOpen620(postId, service, currency || null).then((e) => { if (alive) setEst(e); });
+    return () => { alive = false; };
+  }, [postId, service, currency]);
+  if (!service || !est) return null;
+  const lines = marketLines(lang, est, service, est.quantity);
+  if (!lines) return null;
+  const qty = est.quantity != null && dateMode !== "tbd" ? qtyLabel620(lang, est.quantity, est.unit) : "";
+  const hint = dateMode === "tbd" ? d620(lang, "est_tbd").replace("{unit}", unitLong620(lang, est.unit)) : d620(lang, "est_fees");
+  return <div className="mt-3"><MarketBlock lang={lang} lines={lines} hint={hint} testId="from-rate-620" qty={qty} /></div>;
+}
 
 /** Ligne d'estimation sous les dates. Rien tant que service + dates ne sont pas connus (sauf « à prévoir »). */
 export function EstimateLine620(p: EstimateLineProps) {
-  const { lang, service, dateMode, startDate, endDate, visitsPerDay, venue, services, provider, providerRates } = p;
+  const { lang, service, dateMode, startDate, endDate, visitsPerDay, venue, services, provider, providerRates, location } = p;
   const q = useMemo(
     () => quantityFor620({ service, dateMode, startDate, endDate, visitsPerDay, venue, services }),
     [service, dateMode, startDate, endDate, visitsPerDay, venue, services],
@@ -137,7 +193,8 @@ export function EstimateLine620(p: EstimateLineProps) {
   }, [q, providerRates, service, p.currency]);
   const [server, setServer] = useState<Estimate620 | null>(null);
   const [serverKey, setServerKey] = useState("");
-  const key = `${service}|${dateMode}|${startDate}|${endDate}|${visitsPerDay}|${venue || ""}|${provider ? `${provider.role}:${provider.id}` : ""}`;
+  const locKey = location ? `${location.city || ""}@${location.lat ?? ""},${location.lng ?? ""}` : "";
+  const key = `${service}|${dateMode}|${startDate}|${endDate}|${visitsPerDay}|${venue || ""}|${provider ? `${provider.role}:${provider.id}` : ""}|${locKey}`;
   useEffect(() => {
     if (!service) { setServer(null); setServerKey(""); return; }
     const ready = dateMode === "tbd" || q.quantity != null;
@@ -149,7 +206,9 @@ export function EstimateLine620(p: EstimateLineProps) {
         {
           serviceType: service, dateMode, startDate: dateMode === "tbd" ? null : startDate, endDate: dateMode === "tbd" ? null : endDate,
           visitsPerDay: service === "home_visit" ? visitsPerDay : null, houseSittingVenue: venue || null,
-          providerRole: provider?.role, providerId: provider?.id, rate: r?.rate ?? null, unit: r?.unit ?? null, currency: providerRates?.currency || null,
+          providerRole: provider?.role, providerId: provider?.id, rate: r?.rate ?? null, unit: r?.unit ?? null, currency: providerRates?.currency || p.currency || null,
+          // 620b — demande ouverte : la position sert au « à partir de » (prestataires du rayon d'alerte).
+          location: provider ? null : location || null,
         },
         q,
       ).then((e) => { if (alive) { setServer(e); setServerKey(key); } });
@@ -162,6 +221,14 @@ export function EstimateLine620(p: EstimateLineProps) {
   const est = server && serverKey === key ? server : local;
   const unitLong = unitLong620(lang, est.unit || q.unit);
   const cur = est.currency || "EUR";
+
+  // 620b — demande ouverte (aucun prestataire visé) : « à partir de … (d'après N gardiens près de chez toi) ».
+  const market = !provider ? marketLines(lang, est, service, q.quantity) : null;
+  if (market) {
+    const qty = dateMode !== "tbd" && (est.quantity ?? q.quantity) != null ? qtyLabel620(lang, (est.quantity ?? q.quantity) as number, est.unit || q.unit) : "";
+    const hint = dateMode === "tbd" ? d620(lang, "est_tbd").replace("{unit}", unitLong) : d620(lang, "est_fees");
+    return <MarketBlock lang={lang} lines={market} hint={hint} qty={qty} />;
+  }
 
   if (dateMode === "tbd") {
     return (

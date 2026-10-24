@@ -1359,6 +1359,8 @@ export type ApplicationItem = {
     quantity?: number | null;
     appliedRate?: number | null;
     unit?: string;
+    /** 24/10 (620b) — la demande a changé de service et ce candidat n'a pas de tarif pour le nouveau : « tarif à venir ». */
+    stale?: boolean;
   } | null;
 };
 
@@ -3758,6 +3760,8 @@ export type EstimateInput620 = {
   rate?: number | null;
   unit?: string | null;
   currency?: string | null;
+  /** 620b — position de la demande (ville + lat/lng) : sans prestataire visé, le serveur cherche le « à partir de » autour. */
+  location?: { city?: string; lat?: number; lng?: number } | null;
 };
 
 /** POST /pricing/estimate (auth) — même calcul que l'app. null = non connecté, route absente ou refus. */
@@ -3771,6 +3775,7 @@ export async function estimatePricing620(input: EstimateInput620, fallback: Quan
     houseSittingVenue: input.houseSittingVenue || null,
     walkDurationMinutes: input.walkDurationMinutes ?? null,
     serviceTypes: [input.serviceType],
+    ...(input.location && (input.location.city || input.location.lat != null) ? { location: input.location } : {}),
   };
   try {
     const raw = await request<unknown>("/pricing/estimate", {
@@ -3786,6 +3791,25 @@ export async function estimatePricing620(input: EstimateInput620, fallback: Quan
       }),
     });
     return parseEstimate620(raw, fallback, String(input.currency || "EUR"));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 620b — « à partir de » d'une demande DÉJÀ enregistrée (page de mes demandes) : POST /pricing/estimate
+ * avec `postId` seul (ni tarif ni prestataire) → le serveur répond `fromRate / ownerTotalFrom / basedOn`
+ * d'après les prestataires du rayon d'alerte. null = non connecté, route absente ou refus.
+ */
+export async function estimatePostOpen620(postId: string, serviceType: string | null, currency?: string | null): Promise<Estimate620 | null> {
+  if (!getStoredToken() || !postId) return null;
+  try {
+    const raw = await request<unknown>("/pricing/estimate", {
+      method: "POST",
+      body: JSON.stringify({ postId, ...(serviceType ? { serviceType } : {}), ...(currency ? { currency } : {}) }),
+    });
+    const e = parseEstimate620(raw, { quantity: null, unit: serviceType === "home_visit" ? "visit" : serviceType === "dog_walking" ? "walk" : "day" }, String(currency || "EUR"));
+    return e && e.market ? e : null;
   } catch {
     return null;
   }

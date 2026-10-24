@@ -117,4 +117,20 @@ ok("tarifs d'un profil : visitRate, durée 30|60, balades, devise", () => {
   assert.deepEqual(rateForService620(hourOnly, "house_sitting"), { rate: 24, unit: "day" });
 });
 
+// 620b (24/10, serveur de ZOE) — réponse « market » d'une demande ouverte, forme RÉELLE de pricingController.openEstimate620.
+ok("estimation « à partir de » (market) : fromRate 12, 3 visites → ownerTotalFrom 43.2, basedOn 1, jamais pris pour un tarif ferme", () => {
+  const m = parseEstimate620({ serviceType: "home_visit", dateMode: "exact", indicative: true, fromRate: 12, unit: "visit", quantity: 3, ownerTotalFrom: 43.2, basedOn: 1, currency: "EUR", durationMinutes: 30, radiusKm: 100, rateSource: "market", unitRate: 12, unitTotal: null, commission: null, ownerTotal: null, commissionRate: 0.2 }, { quantity: 3, unit: "visit" }, "EUR");
+  assert.equal(m.market, true); assert.equal(m.fromRate, 12); assert.equal(m.ownerTotalFrom, 43.2); assert.equal(m.basedOn, 1); assert.equal(m.quantity, 3);
+  assert.equal(m.rate, null); assert.equal(m.ownerTotal, null); assert.equal(m.indicative, true); assert.equal(m.fromServer, true);
+  // personne autour → fromRate null, basedOn 0 : rien à afficher (mais une réponse reconnue, pas null)
+  const z = parseEstimate620({ serviceType: "home_visit", dateMode: "tbd", indicative: true, fromRate: null, unit: "visit", quantity: null, ownerTotalFrom: null, basedOn: 0, currency: "EUR", rateSource: "market", unitRate: 0, unitTotal: null, commission: null, ownerTotal: null }, { quantity: null, unit: "visit" }, "EUR");
+  assert.equal(z.market, true); assert.equal(z.fromRate, null); assert.equal(z.basedOn, 0); assert.equal(z.ownerTotalFrom, null); assert.equal(z.rate, null);
+  // tbd avec prestataires : « à partir de » seul (quantité et total null)
+  const t = parseEstimate620({ dateMode: "tbd", indicative: true, fromRate: 12, unit: "visit", quantity: null, ownerTotalFrom: null, basedOn: 4, currency: "EUR", rateSource: "market", unitRate: 12 }, { quantity: null, unit: "visit" }, "EUR");
+  assert.equal(t.fromRate, 12); assert.equal(t.basedOn, 4); assert.equal(t.quantity, null); assert.equal(t.ownerTotalFrom, null);
+  // une réponse avec PRESTATAIRE (rateSource provider) n'est pas « market »
+  const p = parseEstimate620({ indicative: false, quantity: 10, unit: "visit", unitRate: 12, ownerTotal: 144, rateSource: "provider", currency: "EUR" }, { quantity: 10, unit: "visit" }, "EUR");
+  assert.equal(p.market, undefined); assert.equal(p.rate, 12); assert.equal(p.ownerTotal, 144);
+});
+
 console.log(`\n${n}/${n} tests verts (services620)`);
