@@ -637,6 +637,11 @@ const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtr
   // (champ `route`). Un `data.emailLink` fourni par l'appelant n'est gardé
   // que si le type n'a pas de route dédiée.
   const data = await ensureSenderName(type, rawData && typeof rawData === 'object' ? rawData : {});
+  // 620c (ZOE, 24/10) — le gabarit « autre que le type » est MÉMORISÉ dans `data.templateKey` :
+  // la cloche re-rend titre/corps à la lecture (getMyNotifications → renderNotificationContent)
+  // et, sans cette clé, affichait le texte du type de base (mesuré en prod le 24/10 : « Tes dates
+  // sont posées » à la place de « <Prénom> a ajouté son tarif »). Push et e-mail étaient justes.
+  if (templateType && tmplKey === templateType && !data.templateKey) data.templateKey = String(templateType);
   const {
     buildAppRoute, buildEmailRoute, buildPreciseRoute, routeNeedsRecentApp, BASE_URL: SITE_BASE,
   } = require('../utils/emailLinkBuilder');
@@ -1134,6 +1139,9 @@ const renderNotificationContent = (type, data = {}, userLanguage) => {
       // 617 (ADA, §D.3) — « <Prénom> a répondu · N candidat(s) » (type application_new).
       tmplKey = require('../utils/applicationNewText617').TEMPLATE;
       safeData = require('../utils/applicationNewText617').enrichPrice620(safeData, locale); // 620 — prix
+    } else if (safeData.templateKey && pickTemplate(locale, String(safeData.templateKey))) {
+      // 620c (ZOE) — gabarit mémorisé à l'envoi (templateType) : même texte à la lecture.
+      tmplKey = String(safeData.templateKey);
     } else {
       const { REQUEST_ALERT_TYPES, enrichRequestAlertData } = require('../utils/requestAlertText612');
       if (REQUEST_ALERT_TYPES.has(String(type))) safeData = enrichRequestAlertData(safeData, locale);

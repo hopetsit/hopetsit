@@ -100,6 +100,7 @@ beforeAll(async () => {
   app.use('/users', require('../src/routes/userRoutes'));
   app.use('/sitters', require('../src/routes/sitterRoutes'));
   app.use('/walkers', require('../src/routes/walkerRoutes'));
+  app.use('/notifications', require('../src/routes/notificationRoutes'));
 }, 180000);
 afterAll(async () => { await mongoose.disconnect(); if (mongo) await mongo.stop(); }, 60000);
 
@@ -174,6 +175,17 @@ describe('1. candidature stale + le gardien ajoute son tarif → recalcul + 2 no
     expect(ns).toHaveLength(2);
     expect(ns[0].title).toBe('Your rate is saved');
     expect(ns.map((x) => x.body).sort()).toEqual(['Your application (Home visit) was recalculated: €15.00 per visit', 'Your application (Home visit) was recalculated: €54.00'].sort());
+    // la CLOCHE (GET /notifications/my re-rend le texte à la lecture) montre le bon gabarit, pas « Tes dates sont posées »
+    const cl = await request(app).get('/notifications/my?limit=10').set(hdr(S.owner._id, 'owner'));
+    expect(cl.status).toBe(200);
+    const mine = (cl.body.notifications || []).filter((x) => x.type === TYPE);
+    expect(mine).toHaveLength(2);
+    expect(mine.map((x) => x.title)).toEqual(['Sohane a ajouté son tarif', 'Sohane a ajouté son tarif']);
+    expect(mine.some((x) => /54,00.€/.test(x.body))).toBe(true);
+    const clEs = await request(app).get('/notifications/my?limit=10&lang=es').set(hdr(S.owner._id, 'owner'));
+    expect((clEs.body.notifications || []).filter((x) => x.type === TYPE)[0].title).toBe('Sohane añadió su tarifa');
+    const clS = await request(app).get('/notifications/my?limit=10').set(hdr(S.sohane._id, 'sitter'));
+    expect((clS.body.notifications || []).filter((x) => x.type === TYPE).map((x) => x.title)).toEqual(['Your rate is saved', 'Your rate is saved']);
     expect(await Notification.countDocuments({ recipientId: S.hanene._id })).toBe(0);
     expect(await Notification.countDocuments({ recipientId: S.nadia._id })).toBe(0);
     expect(await Notification.countDocuments({ recipientId: S.sohane._id, type: 'application_service_changed' })).toBe(0);
