@@ -233,7 +233,7 @@ const ADMIN_BUILD = 'v620'; // 620 (PAM, 24/10) : dates à prévoir + prix par v
 const _ADMIN_BUILD_612 = 'v612'; // 612 (PAM, 04/10) : admin — rangs Chiot → Légende à la place des anciens badges
 // 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à
 // redéployer quand seul admin_dashboard.html a bougé (ADMIN_BUILD reste celui de l'app).
-const ADMIN_DEPLOYED_AT = '2026-10-24T19:55'; // 24/10 soir (ADA) : tableau de bord plus joli et moderne (couche CSS ada-2410-design, Nunito)
+const ADMIN_DEPLOYED_AT = '2026-10-24T21:30'; // 24/10, 21 h 30 (ADA) : design étendu aux 39 onglets, modale Parcours (tarif à venir / à partir de), synthèse du jour (couche CSS ada-2410-design2)
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
