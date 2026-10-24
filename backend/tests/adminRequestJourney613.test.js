@@ -122,8 +122,23 @@ describe('cas de BOB : 3 prévenus dont 1 lu, 1 candidature', () => {
     const leo = r.body.notified.find((n) => n.name === 'Leo');
     expect(leo).toMatchObject({ city: 'Boulogne', read: false });
     expect(r.body.notified.find((n) => n.role === 'sitter').kind).toBe('test');
-    expect(r.body.applications).toEqual([expect.objectContaining({ name: 'Sarah', role: 'walker', status: 'pending' })]);
+    // 2410 (ZOE, relevé ADA) — applications[] porte stale / indicative / total comme who[].
+    expect(r.body.applications).toEqual([expect.objectContaining({ name: 'Sarah', role: 'walker', status: 'pending', stale: false, indicative: false, total: null })]);
     expect(JSON.stringify(r.body)).not.toMatch(/@/);
+  });
+
+  test('2410 — candidature « tarif à venir » (pricing.stale) et indicative : visibles dans applications[] du détail', async () => {
+    const pid2 = await mkPost(ids.owner, { serviceTypes: ['home_visit'], dateMode: 'tbd', startDate: null, endDate: null });
+    await appl(pid2, ids.owner, 'walker', ids.w1, 'pending', { pricing: { stale: true, indicative: true, totalPrice: null, currency: 'EUR' } });
+    await appl(pid2, ids.owner, 'walker', ids.w2, 'pending', { pricing: { indicative: true, appliedRate: 12, unit: 'visit', totalPrice: null, currency: 'EUR' } });
+    const r = await get(`/admin/requests613/${pid2}/journey`);
+    expect(r.status).toBe(200);
+    const sarah = r.body.applications.find((a) => a.name === 'Sarah');
+    const leo = r.body.applications.find((a) => a.name === 'Leo');
+    expect(sarah).toMatchObject({ stale: true, indicative: true, total: null, rate: null });
+    expect(leo).toMatchObject({ stale: false, indicative: true, total: null, rate: { amount: 12, unit: 'visit' } });
+    const who = (await get(`/admin/requests613/summary?ids=${pid2}`)).body.items[pid2].stages.applications.who;
+    expect(who.find((w) => w.name === 'Sarah')).toMatchObject({ stale: true, rate: null });
   });
 });
 

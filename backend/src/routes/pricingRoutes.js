@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 
 const {
   getRecommendedPriceRanges,
@@ -7,6 +8,7 @@ const {
   validatePrice,
   getProviderCommissionRate,
   estimatePricing620,
+  estimatePublic620,
 } = require('../controllers/pricingController');
 const { requireAuth } = require('../middleware/auth');
 
@@ -15,6 +17,18 @@ const router = express.Router();
 // 620 (ZOE) — estimation unique (site + app) : quantité × tarif unitaire + commission,
 // indicative quand la demande est « dates à prévoir ». Auth requise.
 router.post('/estimate', requireAuth, estimatePricing620);
+
+// 2410 (ZOE, demande de BOB / LEO) — estimation PUBLIQUE « à partir de » pour les visiteurs de la
+// pub (/posts/create sans compte) : sans session, 30 appels / min / IP (PUBLIC_ESTIMATE_RPM),
+// réponse mise en cache 5 min dans le contrôleur. Aucune donnée personnelle dans la réponse.
+const publicEstimateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: () => Number(process.env.PUBLIC_ESTIMATE_RPM) || 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => res.status(429).json({ error: 'Too many requests', code: 'RATE_LIMITED', retryAfter: res.getHeader('Retry-After') }),
+});
+router.post('/estimate/public', publicEstimateLimiter, estimatePublic620);
 
 /**
  * @swagger

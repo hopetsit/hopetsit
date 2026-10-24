@@ -332,8 +332,12 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
         return {
           name: pr.name, role, city: pr.city, kind: pr.kind, km: kmTo(p, pr), tooFar: (() => { const k = kmTo(p, pr); const m = DIST.maxKm(); return m > 0 && typeof k === 'number' && k > m; })(),
           status: x.status, at: x.createdAt, updatedAt: x.updatedAt,
-          currency: pr.currency || null, currencyStored: pr.currencyStored || null, currencyInferred: !!pr.currencyInferred, ownerCurrency, currencyMismatch: !!pr.currency && pr.currency !== ownerCurrency, rate: pr.rate || null,
+          currency: pr.currency || null, currencyStored: pr.currencyStored || null, currencyInferred: !!pr.currencyInferred, ownerCurrency, currencyMismatch: !!pr.currency && pr.currency !== ownerCurrency,
+          // 2410 (ZOE, relevé ADA) — même lecture que who[] : tarif indicatif appliqué, « tarif à venir » (stale → rate null).
+          rate: pricing.stale === true ? null : (pricing.indicative === true && Number(pricing.appliedRate) > 0
+            ? { amount: Number(pricing.appliedRate), unit: pricing.unit || '' } : (pr.rate || null)),
           total: typeof pricing.totalPrice === 'number' ? pricing.totalPrice : null, totalCurrency: pricing.currency || ownerCurrency,
+          indicative: pricing.indicative === true, stale: pricing.stale === true,
         };
       });
       item.contacts = await Promise.all(contactConvs.map(async (c) => {

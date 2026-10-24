@@ -121,6 +121,59 @@ adminRouter.post('/', requireAdmin, async (req, res) => {
   }
 });
 
+// ── admin : chiffres des contacts pub (2410, ZOE — demande de BOB / ADA) ──────
+// GET /admin/ad-leads/stats?days=7&tz=Europe/Paris → { today, yesterday, d7, byCity: { paris, nyc, other },
+// published, withDates, confirmed, total } pour la ligne « Aujourd'hui » de l'admin. Jours au fuseau
+// de Paris (comme le board 613). byCity / published / withDates / confirmed portent sur la fenêtre
+// `days` (1 à 90, 7 par défaut). JAMAIS d'e-mail ni de téléphone : uniquement des compteurs.
+function dayStartIn2410(tz, now) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+      .formatToParts(now).reduce((o, x) => { o[x.type] = x.value; return o; }, {});
+    const asUtc = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+    return new Date(Date.UTC(+parts.year, +parts.month - 1, +parts.day) - (asUtc - now.getTime()));
+  } catch (_) {
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  }
+}
+const PARIS_RE = /\bparis\b/i;
+const NYC_RE = /new\s*york|\bnyc\b|brooklyn|queens|bronx|manhattan|staten/i;
+adminRouter.get('/stats', requireAdmin, async (req, res) => {
+  try {
+    const DAY = 86400000;
+    const now = new Date();
+    const days = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 7));
+    const tz = String(req.query.tz || 'Europe/Paris').slice(0, 40);
+    const t0 = dayStartIn2410(tz, now);
+    const since = new Date(now.getTime() - days * DAY);
+    const from = new Date(Math.min(since.getTime(), t0.getTime() - DAY));
+    const rows = await AdLead.find({ createdAt: { $gte: from } }).select('createdAt city country postId startText endText confirmedAt').lean();
+    const { datesFor } = require('../utils/adLeadDates2310');
+    const out = { days, timeZone: tz, generatedAt: now, today: 0, yesterday: 0, d7: 0, byCity: { paris: 0, nyc: 0, other: 0 }, published: 0, withDates: 0, confirmed: 0, total: 0 };
+    for (const l of rows) {
+      const t = l.createdAt ? new Date(l.createdAt).getTime() : 0;
+      if (t >= t0.getTime()) out.today += 1;
+      else if (t >= t0.getTime() - DAY) out.yesterday += 1;
+      if (t < since.getTime()) continue;
+      out.d7 += 1;
+      const city = String(l.city || '');
+      if (PARIS_RE.test(city)) out.byCity.paris += 1;
+      else if (NYC_RE.test(city)) out.byCity.nyc += 1;
+      else out.byCity.other += 1;
+      if (l.postId) out.published += 1;
+      if (l.confirmedAt) out.confirmed += 1;
+      let dd = null;
+      try { dd = datesFor(l, now); } catch (_) { dd = null; }
+      if (dd && dd.source === 'form') out.withDates += 1;
+    }
+    out.total = await AdLead.countDocuments({});
+    return res.json(out);
+  } catch (e) {
+    logger.error('[adLeads2210] stats failed', e);
+    return res.status(500).json({ error: 'Unable to read stats.' });
+  }
+});
+
 // ── public : résumé + confirmation ───────────────────────────────────────────
 const router = express.Router();
 const ID_RE = /^[a-f0-9]{32}$/;

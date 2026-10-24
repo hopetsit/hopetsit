@@ -371,8 +371,87 @@ const estimatePricing620 = async (req, res) => {
   }
 };
 
+/**
+ * 2410 (ZOE, 24/10/2026 — demande de BOB, point relevé par LEO) — ESTIMATION PUBLIQUE « à partir de ».
+ * POST /pricing/estimate/public — SANS session : les visiteurs de la pub sur /posts/create voient
+ * « à partir de 12 €/visite » AVANT de créer leur compte. Limité en débit (routeur) et mis en cache
+ * 5 min par (service, pays, devise, position, dates).
+ *   corps : { serviceType, city?, postalCode?, country?, lang?, lat?, lng?, startDate?, endDate?,
+ *            visitsPerDay?, walkDurationMinutes? }
+ *   position : lat/lng, sinon code postal (geocodePostal2310), sinon ville (geocodeCity via le rayon
+ *              d'alerte), sinon aucune → basedOn 0 ;
+ *   devise : déduite du pays (countryToCurrency), sinon `currency` connue, sinon EUR ;
+ *   réponse : la même que la route authentifiée (fromRate, unit, quantity, ownerTotalFrom, basedOn,
+ *             indicative…) + positionSource ; JAMAIS de donnée personnelle (ni nom, ni id, ni e-mail) :
+ *             seuls des minimums et des compteurs sortent. Visiteur = « vrai » monde (comptes de test exclus).
+ */
+const PUBLIC_CACHE_TTL_MS = 5 * 60 * 1000;
+const PUBLIC_CACHE_MAX = 1000;
+const publicCache = new Map(); // clé → { at, value }
+const _resetPublicCacheForTest = () => publicCache.clear();
+
+const estimatePublic620 = async (req, res) => {
+  try {
+    const engine = require('../utils/pricingEngine620');
+    const { countryToCurrency, COUNTRY_CURRENCY } = require('../utils/countryCurrency');
+    const postal = require('../utils/geocodePostal2310');
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const serviceType = engine.serviceKey(body.serviceType);
+    if (!serviceType) return res.status(400).json({ error: 'serviceType is required.', code: 'SERVICE_REQUIRED' });
+
+    const str = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+    const city = str(body.city, 80);
+    const postalCode = postal.cleanCode(body.postalCode);
+    const lang = str(body.lang, 2).toLowerCase();
+    let country = str(body.country, 2).toUpperCase();
+    if (!/^[A-Z]{2}$/.test(country)) country = (postal.guessCountry('', lang, postalCode) || '').toUpperCase();
+    let lat = Number(body.lat); let lng = Number(body.lng);
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0);
+    if (!hasCoords) { lat = undefined; lng = undefined; }
+    const bodyCurrency = str(body.currency, 3).toUpperCase();
+    const currency = country ? countryToCurrency(country)
+      : (Object.values(COUNTRY_CURRENCY).includes(bodyCurrency) ? bodyCurrency : DEFAULT_CURRENCY);
+    const dates = engine.resolveDates({ startDate: body.startDate, endDate: body.endDate, visitsPerDay: body.visitsPerDay });
+    const d = dates.ok ? dates : { dateMode: 'tbd', startDate: null, endDate: null, visitsPerDay: null };
+    const durationRaw = Number(body.walkDurationMinutes != null ? body.walkDurationMinutes : body.durationMinutes);
+    const duration = durationRaw > 0 ? durationRaw : undefined;
+
+    const key = [serviceType, country, currency, postalCode, city.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''),
+      hasCoords ? `${lat.toFixed(2)},${lng.toFixed(2)}` : '', d.dateMode,
+      d.startDate ? d.startDate.toISOString().slice(0, 10) : '', d.endDate ? d.endDate.toISOString().slice(0, 10) : '',
+      d.visitsPerDay || '', duration || ''].join('|');
+    const now = Date.now();
+    const hit = publicCache.get(key);
+    if (hit && now - hit.at < PUBLIC_CACHE_TTL_MS) return res.json({ ...hit.value, cached: true });
+
+    // Position : coordonnées, sinon code postal, sinon ville (géocodée par le rayon d'alerte).
+    let location = null; let positionSource = 'none';
+    if (hasCoords) { location = { lat, lng, city }; positionSource = 'coords'; }
+    else if (postalCode.length >= 3) {
+      let g = null;
+      try { g = await postal.locationFromPostal(postalCode, { country, lang, city }); } catch (_) { g = null; }
+      if (g) { location = { lat: g.lat, lng: g.lng, city: g.city || city }; positionSource = 'postal'; }
+    }
+    if (!location && city) { location = { city }; positionSource = 'city'; }
+
+    const post = { dateMode: d.dateMode, startDate: d.startDate, endDate: d.endDate, visitsPerDay: d.visitsPerDay, walkDurationMinutes: duration, location };
+    const out = await openEstimate620({
+      req: {}, body: {}, post, serviceType, unit: undefined, duration, currency, commissionRate: PLATFORM_COMMISSION_RATE,
+    });
+    const value = { ...out, positionSource, country: country || null, public: true };
+    if (publicCache.size >= PUBLIC_CACHE_MAX) publicCache.delete(publicCache.keys().next().value);
+    publicCache.set(key, { at: now, value });
+    return res.json({ ...value, cached: false });
+  } catch (error) {
+    logger.error('[pricingController.estimatePublic620]', error);
+    return res.status(500).json({ error: 'Unable to estimate.' });
+  }
+};
+
 module.exports = {
   estimatePricing620,
+  estimatePublic620,
+  _resetPublicCacheForTest,
   getProviderCommissionRate,
   getRecommendedPriceRanges,
   getServiceRecommendedPrice,
