@@ -483,6 +483,24 @@
     "emailSubject": "날짜가 정해졌어요 — 각 후보의 가격 — HoPetSit",
     "emailBody": "<p>날짜가 정해졌어요. {{candidates}}명의 후보 각각의 실제 가격을 확인하세요. 2분 안에 선택하고 결제하세요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">후보 보기</a></p>"
   },
+  "application_service_changed": {
+    "title": "요청 서비스가 변경되었습니다",
+    "body": "요청이 {{service}}(으)로 변경되었습니다: 후보로 남으려면 {{unitLabel}} 요금을 추가하세요",
+    "emailSubject": "요청이 {{service}}(으)로 변경되었습니다 — 요금을 추가하세요 — HoPetSit",
+    "emailBody": "<p>지원하신 요청이 <strong>{{service}}</strong>(으)로 변경되었습니다. 후보로 남으려면 프로필 › 요금에서 {{unitLabel}} 요금을 추가하세요. 지원 내용은 자동으로 다시 계산됩니다.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">요금 추가하기</a></p>"
+  },
+  "application_service_repriced": {
+    "title": "요청 서비스가 변경되었습니다",
+    "body": "요청이 {{service}}(으)로 변경되었습니다: 지원 금액이 {{total}}(으)로 다시 계산되었습니다",
+    "emailSubject": "요청이 {{service}}(으)로 변경되었습니다 — 지원 금액 재계산 — HoPetSit",
+    "emailBody": "<p>지원하신 요청이 <strong>{{service}}</strong>(으)로 변경되었습니다. 회원님의 요금으로 지원 금액이 다시 계산되었습니다: <strong>{{total}}</strong>.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">요청 보기</a></p>"
+  },
+  "application_service_repriced_owner": {
+    "title": "요청이 {{service}}(으)로 변경되었습니다",
+    "body": "후보 {{candidates}}명의 가격이 다시 계산되었습니다 · 2분 안에 선택하고 결제하세요",
+    "emailSubject": "요청이 {{service}}(으)로 변경되었습니다 — 새 가격 — HoPetSit",
+    "emailBody": "<p>요청이 <strong>{{service}}</strong>(으)로 변경되었습니다. 후보 {{candidates}}명의 가격이 다시 계산되었습니다. 2분 안에 선택하고 결제하세요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">후보 보기</a></p>"
+  },
   "post_dates_required": {
     "title": "날짜를 정해 확정하세요",
     "body": "{{candidates}}명의 후보가 기다리고 있어요. 요청 날짜를 정하면 가격을 보고 선택할 수 있어요",

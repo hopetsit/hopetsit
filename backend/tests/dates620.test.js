@@ -131,7 +131,9 @@ describe('1. Catalogue et estimation', () => {
     expect(me.body).toMatchObject({ quantity: 3, unit: 'day', unitRate: 18, unitTotal: 54 });
     const none = await request(app).post('/pricing/estimate').set(hdr(S.sitterNoVisit._id, 'sitter')).send({ serviceType: 'home_visit', post: { startDate: day(10), endDate: day(12) } }).expect(200);
     expect(none.body.code).toBe('NO_RATE');
-    await request(app).post('/pricing/estimate').set(hdr(S.owner._id, 'owner')).send({ serviceType: 'home_visit', post: { dateMode: 'tbd' } }).expect(400);
+    // 620b : sans tarif ni prestataire visé → « à partir de » du marché (gardien Inès, 12 €/visite), plus jamais 400
+    const open = await request(app).post('/pricing/estimate').set(hdr(S.owner._id, 'owner')).send({ serviceType: 'home_visit', post: { dateMode: 'tbd' } }).expect(200);
+    expect(open.body).toMatchObject({ indicative: true, fromRate: 12, basedOn: 1, quantity: null, rateSource: 'market' });
   });
 });
 

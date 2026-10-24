@@ -483,6 +483,24 @@
     "emailSubject": "Tes dates sont posées — le prix de chaque candidat — HoPetSit",
     "emailBody": "<p>Tes dates sont posées : voici le prix réel de chacun de tes {{candidates}} candidat(s). Choisis et paie en 2 minutes.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir les candidats</a></p>"
   },
+  "application_service_changed": {
+    "title": "La demande a changé de service",
+    "body": "La demande est passée en {{service}} : ajoute ton tarif {{unitLabel}} pour rester candidat",
+    "emailSubject": "La demande est passée en {{service}} — ajoute ton tarif — HoPetSit",
+    "emailBody": "<p>La demande à laquelle tu as candidaté est passée en <strong>{{service}}</strong>. Ajoute ton tarif {{unitLabel}} dans Profil › Tarifs pour rester candidat : ta candidature sera recalculée automatiquement.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ajouter mon tarif</a></p>"
+  },
+  "application_service_repriced": {
+    "title": "La demande a changé de service",
+    "body": "La demande est passée en {{service}} : ta candidature est recalculée à {{total}}",
+    "emailSubject": "La demande est passée en {{service}} — ta candidature recalculée — HoPetSit",
+    "emailBody": "<p>La demande à laquelle tu as candidaté est passée en <strong>{{service}}</strong>. Ta candidature a été recalculée avec ton tarif : <strong>{{total}}</strong>.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la demande</a></p>"
+  },
+  "application_service_repriced_owner": {
+    "title": "Ta demande est passée en {{service}}",
+    "body": "Le prix de chaque candidat ({{candidates}}) a été recalculé · choisis et paie en 2 minutes",
+    "emailSubject": "Ta demande est passée en {{service}} — nouveaux prix — HoPetSit",
+    "emailBody": "<p>Ta demande est passée en <strong>{{service}}</strong> : le prix de chacun de tes {{candidates}} candidat(s) a été recalculé. Choisis et paie en 2 minutes.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir les candidats</a></p>"
+  },
   "post_dates_required": {
     "title": "Pose tes dates pour valider",
     "body": "{{candidates}} candidat(s) attendent : pose les dates de ta demande pour voir leur prix et choisir",

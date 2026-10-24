@@ -2159,6 +2159,9 @@ const updatePost = async (req, res) => {
     // un champ absent garde sa valeur. On note le mode AVANT pour recalculer les
     // candidatures quand une demande « dates à prévoir » reçoit ses dates.
     const wasTbd620 = require('../utils/pricingEngine620').effectiveDateMode(post) === 'tbd';
+    // 620b (ZOE, 24/10 — Svitlana : garde → visites) — empreinte « service » AVANT la
+    // modification ; si elle change, les candidatures en attente sont recalculées.
+    const serviceBefore620b = require('../services/applicationRepricing620').serviceFingerprint(post);
     if (startDate !== undefined || endDate !== undefined
         || req.body?.dateMode !== undefined || req.body?.visitsPerDay !== undefined) {
       const err620 = applyDates620(post, req.body, post);
@@ -2256,10 +2259,16 @@ const updatePost = async (req, res) => {
     // candidatures en attente passent de « tarif unitaire » à « prix réel » et le
     // propriétaire est prévenu (application_pricing_updated). Jamais bloquant.
     let repriced620 = null;
+    let serviceChanged620b = null;
     try {
       const engine620 = require('../utils/pricingEngine620');
-      if (engine620.effectiveDateMode(post) !== 'tbd') {
-        const svc = require('../services/applicationRepricing620');
+      const svc = require('../services/applicationRepricing620');
+      if (svc.serviceFingerprint(post) !== serviceBefore620b) {
+        // 620b — le service, les visites/jour ou le lieu de garde ont changé : chaque
+        // candidature en attente est recalculée pour le NOUVEAU service (ou marquée
+        // « tarif à venir » si le prestataire n'a pas de tarif), les deux côtés prévenus.
+        serviceChanged620b = await svc.repriceAfterServiceChange(post);
+      } else if (engine620.effectiveDateMode(post) !== 'tbd') {
         repriced620 = await svc.repriceApplicationsForPost(post, { onlyIndicative: !wasTbd620 });
       }
     } catch (e) {
@@ -2271,6 +2280,7 @@ const updatePost = async (req, res) => {
       message: 'Post updated successfully.',
       post: sanitizePost(post),
       ...(repriced620 && repriced620.repriced.length ? { repricedApplications: repriced620.repriced.length } : {}),
+      ...(serviceChanged620b ? { serviceChanged: { repriced: serviceChanged620b.repriced.length, stale: serviceChanged620b.stale.length, aligned: serviceChanged620b.aligned.length } } : {}),
     });
   } catch (error) {
     logger.error('Update post error', error);

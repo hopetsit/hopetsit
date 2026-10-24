@@ -483,6 +483,24 @@
     "emailSubject": "日程が確定しました — 各候補者の料金 — HoPetSit",
     "emailBody": "<p>日程が確定しました。{{candidates}}名の候補者それぞれの実際の料金をご確認ください。2分で選んで支払いできます。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">候補者を見る</a></p>"
   },
+  "application_service_changed": {
+    "title": "リクエストのサービスが変わりました",
+    "body": "リクエストが{{service}}に変わりました：候補に残るには{{unitLabel}}の料金を追加してください",
+    "emailSubject": "リクエストが{{service}}に変わりました — 料金を追加 — HoPetSit",
+    "emailBody": "<p>応募したリクエストが<strong>{{service}}</strong>に変わりました。候補に残るには、プロフィール › 料金で{{unitLabel}}の料金を追加してください。応募は自動的に再計算されます。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">料金を追加する</a></p>"
+  },
+  "application_service_repriced": {
+    "title": "リクエストのサービスが変わりました",
+    "body": "リクエストが{{service}}に変わりました：応募は{{total}}に再計算されました",
+    "emailSubject": "リクエストが{{service}}に変わりました — 応募を再計算 — HoPetSit",
+    "emailBody": "<p>応募したリクエストが<strong>{{service}}</strong>に変わりました。あなたの料金で応募が再計算されました：<strong>{{total}}</strong>。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">リクエストを見る</a></p>"
+  },
+  "application_service_repriced_owner": {
+    "title": "リクエストが{{service}}に変わりました",
+    "body": "候補者{{candidates}}名の料金が再計算されました · 2分で選んで支払い",
+    "emailSubject": "リクエストが{{service}}に変わりました — 新しい料金 — HoPetSit",
+    "emailBody": "<p>リクエストが<strong>{{service}}</strong>に変わりました。候補者{{candidates}}名それぞれの料金が再計算されました。2分で選んで支払いましょう。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">候補者を見る</a></p>"
+  },
   "post_dates_required": {
     "title": "日程を設定して確定しましょう",
     "body": "{{candidates}}名の候補者が待っています。リクエストの日程を設定すると料金が表示され、選べます",

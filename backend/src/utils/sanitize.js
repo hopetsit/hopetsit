@@ -470,6 +470,7 @@ const sanitizeApplication = (applicationDoc) => {
     application.pricing.indicative = application.pricing.indicative === true;
     application.pricing.quantity = typeof application.pricing.quantity === 'number' ? application.pricing.quantity : null;
     application.pricing.unit = application.pricing.unit || '';
+    application.pricing.stale = application.pricing.stale === true; // 620b — « tarif à venir »
   }
   return application;
 };

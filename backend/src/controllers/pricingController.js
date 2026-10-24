@@ -243,6 +243,72 @@ const getProviderCommissionRate = async (req, res) => {
  *             commission, ownerTotal, commissionRate, currency, durationMinutes, rateSource }
  *   indicative = true (demande « dates à prévoir ») → quantity / totaux = null.
  */
+/**
+ * 620b — estimation « à partir de » d'une demande ouverte (sans tarif ni prestataire visé).
+ * Position : `post.location` (formulaire ou demande enregistrée), sinon `body.location` /
+ * `body.lat,lng,city`, sinon la position / ville du profil de l'appelant. Devise : `body.currency`,
+ * sinon celle du profil de l'appelant, sinon EUR. Un compte de test ne regarde que des comptes de test.
+ * Réponse (200) : { serviceType, dateMode, indicative:true, fromRate, unit, quantity, ownerTotalFrom,
+ *   basedOn, currency, durationMinutes, radiusKm, rateSource:'market', unitRate, unitTotal:null,
+ *   commission:null, ownerTotal:null, commissionRate }
+ */
+const openEstimate620 = async ({ req, body, post, serviceType, unit, duration, currency, commissionRate }) => {
+  const engine = require('../utils/pricingEngine620');
+  const fromRate620 = require('../services/fromRate620');
+  const { normalizeCurrency } = require('../utils/currency');
+  const uid = req.user && req.user.id ? String(req.user.id) : '';
+  const role = req.user && req.user.role;
+  let me = null;
+  if (/^[0-9a-fA-F]{24}$/.test(uid)) {
+    const Model = role === 'walker' ? require('../models/Walker') : role === 'sitter' ? require('../models/Sitter') : require('../models/Owner');
+    try { me = await Model.findById(uid).select('email currency city location').lean(); } catch (_) { me = null; }
+  }
+  const loc = (post && post.location) || (body.location && typeof body.location === 'object' ? body.location : null)
+    || ((body.lat != null || body.lng != null || body.city) ? { lat: body.lat, lng: body.lng, city: body.city } : null);
+  let center = fromRate620.centerOf(loc);
+  let city = String((loc && loc.city) || '').trim();
+  if (!center && !city && me) {
+    center = fromRate620.centerOf(me.location);
+    city = String(me.city || (me.location && me.location.city) || '').trim();
+  }
+  const cur = normalizeCurrency(currency || (me && me.currency) || 'EUR');
+  const ownerIsTest = !!(me && require('../utils/testAccount2809').isTestAccountEmail(me.email));
+  const selfIds = new Set(uid ? [uid] : []);
+  try {
+    const { identityGroup } = require('../utils/identityGroup');
+    if (uid) for (const gid of (await identityGroup(uid)).ids) selfIds.add(String(gid));
+  } catch (_) { /* non bloquant */ }
+  const market = await fromRate620.fromRateFor({
+    serviceType, center, city, currency: cur, ownerIsTest, selfIds, durationMinutes: duration,
+  });
+  const q = engine.quantityFor(post || {}, serviceType);
+  const mode = engine.effectiveDateMode(post || {});
+  const outUnit = unit || q.unit;
+  const quantity = mode === 'tbd' ? null : q.quantity;
+  const ownerTotalFrom = market.fromRate && quantity
+    ? engine.round2(engine.round2(market.fromRate * quantity) * (1 + commissionRate))
+    : null;
+  return {
+    serviceType,
+    dateMode: mode,
+    indicative: true,
+    fromRate: market.fromRate,
+    unit: outUnit,
+    quantity,
+    ownerTotalFrom,
+    basedOn: market.basedOn,
+    currency: cur,
+    durationMinutes: market.durationMinutes,
+    radiusKm: market.radiusKm,
+    rateSource: 'market',
+    unitRate: market.fromRate || 0,
+    unitTotal: null,
+    commission: null,
+    ownerTotal: null,
+    commissionRate,
+  };
+};
+
 const estimatePricing620 = async (req, res) => {
   try {
     const engine = require('../utils/pricingEngine620');
@@ -250,7 +316,7 @@ const estimatePricing620 = async (req, res) => {
     let post = body.post && typeof body.post === 'object' ? body.post : null;
     if (!post && typeof body.postId === 'string' && /^[0-9a-fA-F]{24}$/.test(body.postId)) {
       post = await require('../models/Post').findById(body.postId)
-        .select('dateMode startDate endDate visitsPerDay houseSittingVenue serviceLocation serviceTypes walkDurationMinutes').lean();
+        .select('dateMode startDate endDate visitsPerDay houseSittingVenue serviceLocation serviceTypes walkDurationMinutes location').lean();
       if (!post) return res.status(404).json({ error: 'Post not found.' });
     }
     post = post || {};
@@ -290,7 +356,13 @@ const estimatePricing620 = async (req, res) => {
       currency = provider.currency || currency;
       commissionRate = commissionRateForProvider(providerRole === 'walker' ? provider.isTopWalker === true : provider.isTopSitter === true);
     }
-    if (!(rate > 0)) return res.status(400).json({ error: 'rate (or providerId) is required.', code: 'RATE_REQUIRED' });
+    if (!(rate > 0)) {
+      // 620b (ZOE, 24/10 — point relevé par PAM) : demande OUVERTE (aucun prestataire visé)
+      // → tarif « à partir de » = minimum des prestataires du rayon d'alerte, devise du
+      // propriétaire (services/fromRate620). Toujours 200 : { fromRate: null, basedOn: 0 }
+      // quand personne ne propose le service autour de la demande.
+      return res.json(await openEstimate620({ req, body, post, serviceType, unit, duration, currency: body.currency, commissionRate }));
+    }
     const out = engine.estimate({ serviceType, unit, rate, post, commissionRate, currency });
     return res.json({ serviceType, ...out, durationMinutes, rateSource });
   } catch (error) {

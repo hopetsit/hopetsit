@@ -483,6 +483,24 @@
     "emailSubject": "Deine Daten stehen fest — der Preis jedes Kandidaten — HoPetSit",
     "emailBody": "<p>Deine Daten stehen fest: hier ist der tatsächliche Preis jedes deiner {{candidates}} Kandidaten. Wähle und bezahle in 2 Minuten.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Kandidaten ansehen</a></p>"
   },
+  "application_service_changed": {
+    "title": "Die Anfrage hat den Service gewechselt",
+    "body": "Die Anfrage ist jetzt {{service}}: füge deinen Tarif {{unitLabel}} hinzu, um Kandidat zu bleiben",
+    "emailSubject": "Die Anfrage ist jetzt {{service}} — füge deinen Tarif hinzu — HoPetSit",
+    "emailBody": "<p>Die Anfrage, auf die du dich beworben hast, ist jetzt <strong>{{service}}</strong>. Füge deinen Tarif {{unitLabel}} unter Profil › Tarife hinzu, um Kandidat zu bleiben: deine Bewerbung wird automatisch neu berechnet.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Meinen Tarif hinzufügen</a></p>"
+  },
+  "application_service_repriced": {
+    "title": "Die Anfrage hat den Service gewechselt",
+    "body": "Die Anfrage ist jetzt {{service}}: deine Bewerbung wurde auf {{total}} neu berechnet",
+    "emailSubject": "Die Anfrage ist jetzt {{service}} — deine Bewerbung neu berechnet — HoPetSit",
+    "emailBody": "<p>Die Anfrage, auf die du dich beworben hast, ist jetzt <strong>{{service}}</strong>. Deine Bewerbung wurde mit deinem Tarif neu berechnet: <strong>{{total}}</strong>.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Anfrage ansehen</a></p>"
+  },
+  "application_service_repriced_owner": {
+    "title": "Deine Anfrage ist jetzt {{service}}",
+    "body": "Der Preis jedes Kandidaten ({{candidates}}) wurde neu berechnet · wähle und bezahle in 2 Minuten",
+    "emailSubject": "Deine Anfrage ist jetzt {{service}} — neue Preise — HoPetSit",
+    "emailBody": "<p>Deine Anfrage ist jetzt <strong>{{service}}</strong>: der Preis jedes deiner {{candidates}} Kandidaten wurde neu berechnet. Wähle und bezahle in 2 Minuten.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Kandidaten ansehen</a></p>"
+  },
   "post_dates_required": {
     "title": "Lege deine Daten fest, um zu bestätigen",
     "body": "{{candidates}} Kandidat(en) warten: lege die Daten deiner Anfrage fest, um ihren Preis zu sehen und zu wählen",

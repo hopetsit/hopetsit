@@ -256,7 +256,7 @@ const buildPreciseRoute = (notifType, data = {}, role = '') => {
     if (!bookingId) return '/bookings';
     return isOwner ? bookingPath : `/request/${bookingId}`;
   }
-  if (t === 'application_new' || t === 'application_pricing_updated') { // 620 — prix recalculés
+  if (t === 'application_new' || t === 'application_pricing_updated' || t === 'application_service_changed') { // 620 / 620b
     if (applicationId && !isProvider) return `/application/${applicationId}`;
     return postId ? postPath : '/bookings';
   }

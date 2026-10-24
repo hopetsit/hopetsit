@@ -161,8 +161,188 @@ function indicativePricing({ post, provider, providerRole, serviceType, duration
   };
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * 620b (ZOE, 24/10/2026 — ordre de Daniel « requalifie la demande de Svitlana en visites à
+ * domicile, 1 par jour, et préviens les gardiens ») — LA DEMANDE CHANGE DE SERVICE.
+ *
+ * Quand `updatePost` change le service (`serviceTypes`), les visites par jour ou le lieu de
+ * garde d'une demande qui a des candidatures EN ATTENTE, chacune est recalculée par le
+ * moteur unique pour le NOUVEAU service :
+ *   · le prestataire a un tarif pour ce service (ex. visitRate > 0) → nouveaux totaux
+ *     (ou tarif unitaire indicatif si la demande est « dates à prévoir ») ; notification
+ *     `application_pricing_updated` au prestataire (gabarit application_service_repriced)
+ *     et UNE au propriétaire (gabarit application_service_repriced_owner) ;
+ *   · sinon → `pricing.indicative = true`, `pricing.stale = true`, totaux null (« tarif à
+ *     venir » côté propriétaire) ; notification `application_service_changed` au prestataire
+ *     (« ajoute ton tarif par visite pour rester candidat »).
+ * Idempotent : une candidature déjà alignée sur le nouveau service (même service, même
+ * unité, ou déjà marquée stale) n'est ni réécrite ni re-notifiée → aucun double envoi.
+ * ───────────────────────────────────────────────────────────────────────────── */
+const TYPE_SERVICE_CHANGED = 'application_service_changed';
+const TEMPLATE_SERVICE_REPRICED = 'application_service_repriced';
+const TEMPLATE_SERVICE_REPRICED_OWNER = 'application_service_repriced_owner';
+
+const UNIT_LABEL = {
+  visit: { fr: 'par visite', en: 'per visit', es: 'por visita', de: 'pro Besuch', it: 'a visita', pt: 'por visita', ko: '방문당', ja: '訪問ごと', pl: 'za wizytę' },
+  day: { fr: 'par jour', en: 'per day', es: 'por día', de: 'pro Tag', it: 'al giorno', pt: 'por dia', ko: '일당', ja: '1日ごと', pl: 'za dzień' },
+  night: { fr: 'par nuit', en: 'per night', es: 'por noche', de: 'pro Nacht', it: 'a notte', pt: 'por noite', ko: '1박당', ja: '1泊ごと', pl: 'za noc' },
+  walk: { fr: 'par balade', en: 'per walk', es: 'por paseo', de: 'pro Spaziergang', it: 'a passeggiata', pt: 'por passeio', ko: '산책당', ja: '散歩ごと', pl: 'za spacer' },
+};
+
+/** Libellé du service dans la langue du lecteur (catalogue 620), repli sur la clé. */
+function serviceLabel(serviceType, lang) {
+  const key = engine.serviceKey(serviceType);
+  const l = String(lang || 'fr').slice(0, 2);
+  try {
+    const cat = require('./serviceCatalogService').getServices620();
+    const list = Array.isArray(cat) ? cat : (cat && Array.isArray(cat.all) ? cat.all : []);
+    const entry = list.find((x) => x && x.key === key);
+    if (entry && entry.label) return entry.label[l] || entry.label.en || entry.label.fr || key;
+  } catch (_) { /* catalogue indisponible : clé brute */ }
+  return key;
+}
+const unitLabel = (unit, lang) => (UNIT_LABEL[unit] || UNIT_LABEL.day)[String(lang || 'fr').slice(0, 2)] || UNIT_LABEL[unit].fr;
+
+/** Empreinte « service » d'une demande : service principal, visites/jour, lieu de garde. */
+function serviceFingerprint(post) {
+  const key = engine.mainService(post || {});
+  return [key, engine.visitsPerDayOf(post || {}), (post && post.houseSittingVenue) || '', (post && post.serviceLocation) || ''].join('|');
+}
+
+/**
+ * Une candidature déjà alignée sur le service actuel de la demande n'est pas retouchée.
+ * `hasRate` : le prestataire a maintenant un tarif pour ce service → une candidature
+ * « tarif à venir » (stale) n'est plus alignée, on la recalcule.
+ */
+function isAligned(app, post, hasRate = false) {
+  const key = engine.mainService(post);
+  const q = engine.quantityFor(post, key);
+  const sameService = engine.serviceKey(app.serviceType) === key;
+  const p = app.pricing || {};
+  if (!sameService) return false;
+  if (p.stale === true) return !hasRate;
+  if (engine.effectiveDateMode(post) === 'tbd') return p.indicative === true && p.unit === q.unit;
+  return p.indicative !== true && p.unit === q.unit && Number(p.quantity) === Number(q.quantity);
+}
+
+const fmtMoney = (n, currency, lang) => {
+  try { return new Intl.NumberFormat(String(lang || 'fr').slice(0, 2), { style: 'currency', currency: currency || 'EUR' }).format(Number(n) || 0); }
+  catch (_) { return `${Number(n) || 0} ${currency || 'EUR'}`; }
+};
+
+/**
+ * Recalcule / marque les candidatures en attente après un changement de service de la demande.
+ * @param {object} post   document Post (après enregistrement)
+ * @param {{notify?:boolean, send?:Function, force?:boolean, dryRun?:boolean}} [opts]
+ * @returns {Promise<{repriced:string[], stale:string[], skipped:string[], aligned:string[], notified:{owner:boolean, providers:number}}>}
+ */
+async function repriceAfterServiceChange(post, opts = {}) {
+  const Application = require('../models/Application');
+  const out = { repriced: [], stale: [], skipped: [], aligned: [], notified: { owner: false, providers: 0 }, details: [] };
+  if (!post) return out;
+  const pending = await Application.find({ postId: post._id, status: 'pending' });
+  if (!pending.length) return out;
+  const Sitter = require('../models/Sitter');
+  const Walker = require('../models/Walker');
+  const Owner = require('../models/Owner');
+  const key = engine.mainService(post);
+  const isTbd = engine.effectiveDateMode(post) === 'tbd';
+  const send = opts.notify === false ? null : (typeof opts.send === 'function' ? opts.send : require('./notificationSender').sendNotification);
+  const ownerId = String(post.ownerId && post.ownerId._id ? post.ownerId._id : post.ownerId);
+  let ownerLang = 'fr';
+  try { const o = await Owner.findById(ownerId).select('appLocale language').lean(); ownerLang = (o && (o.appLocale || o.language)) || 'fr'; } catch (_) { /* fr */ }
+  const changed = [];
+  for (const app of pending) {
+    try {
+      const providerRole = app.walkerId ? 'walker' : 'sitter';
+      const Model = providerRole === 'walker' ? Walker : Sitter;
+      // eslint-disable-next-line no-await-in-loop
+      const provider = await Model.findById(providerRole === 'walker' ? app.walkerId : app.sitterId)
+        .select('hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker appLocale language').lean();
+      if (!provider) { out.skipped.push(String(app._id)); continue; }
+      const r = engine.rateFor(provider, key, { durationMinutes: Number(post.walkDurationMinutes || app.duration) || undefined });
+      if (!opts.force && isAligned(app, post, !!r)) { out.aligned.push(String(app._id)); continue; }
+      const providerId = String(providerRole === 'walker' ? app.walkerId : app.sitterId);
+      const lang = provider.appLocale || provider.language || 'fr';
+      const before = app.serviceType;
+      app.serviceType = key;
+      app.houseSittingVenue = key === 'house_sitting' ? (post.houseSittingVenue || app.houseSittingVenue || null) : null;
+      let pricing = null;
+      if (r) {
+        pricing = isTbd
+          ? indicativePricing({ post, provider, providerRole, serviceType: key, duration: post.walkDurationMinutes, addOns: Array.isArray(app.pricing && app.pricing.addOns) ? app.pricing.addOns : [] })
+          : priceApplication({ application: app, post, provider, providerRole });
+      }
+      if (pricing) {
+        pricing.stale = false;
+        app.pricing = pricing;
+        if (!isTbd) {
+          if (!app.timeSlot) app.timeSlot = 'flexible';
+          app.serviceDate = post.startDate || app.serviceDate;
+          app.startDate = post.startDate || app.startDate;
+          app.endDate = post.endDate || app.endDate;
+        }
+        out.repriced.push(String(app._id));
+        changed.push({ app, providerId, providerRole, lang, kind: 'repriced', pricing });
+      } else {
+        const unit = engine.quantityFor(post, key).unit;
+        app.pricing = {
+          ...indicativePricing({ post, provider, providerRole, serviceType: key, duration: post.walkDurationMinutes, addOns: Array.isArray(app.pricing && app.pricing.addOns) ? app.pricing.addOns : [] }),
+          appliedRate: 0, unit, indicative: true, stale: true, totalPrice: null, commission: null, netPayout: null, basePrice: null, quantity: null,
+        };
+        out.stale.push(String(app._id));
+        changed.push({ app, providerId, providerRole, lang, kind: 'stale', unit });
+      }
+      out.details.push({ id: String(app._id), providerId, role: providerRole, from: before, to: key, kind: pricing ? 'repriced' : 'stale', total: pricing ? pricing.totalPrice : null, rate: pricing ? pricing.appliedRate : 0 });
+      // eslint-disable-next-line no-await-in-loop
+      if (!opts.dryRun) await app.save();
+    } catch (e) {
+      out.skipped.push(String(app._id));
+      logger.warn(`[reprice620b] candidature ${app._id} : ${e && e.message ? e.message : e}`);
+    }
+  }
+  if (opts.dryRun || !send || !changed.length) return out;
+  for (const c of changed) {
+    try {
+      const data = { postId: String(post._id), applicationId: String(c.app._id), service: serviceLabel(key, c.lang), serviceKey: key, serviceChanged: '1' };
+      if (c.kind === 'repriced') {
+        const p = c.pricing;
+        const total = p.indicative ? `${fmtMoney(p.appliedRate, p.currency, c.lang)} ${unitLabel(p.unit, c.lang)}` : fmtMoney(p.totalPrice, p.currency, c.lang);
+        // eslint-disable-next-line no-await-in-loop
+        await send({ userId: c.providerId, role: c.providerRole, type: TYPE_PRICING_UPDATED, templateType: TEMPLATE_SERVICE_REPRICED, data: { ...data, total, candidates: '1', pricing620: '1' } });
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        await send({ userId: c.providerId, role: c.providerRole, type: TYPE_SERVICE_CHANGED, data: { ...data, unitLabel: unitLabel(c.unit, c.lang) } });
+      }
+      out.notified.providers += 1;
+    } catch (e) {
+      logger.warn(`[reprice620b] notification prestataire ${c.providerId} : ${e && e.message ? e.message : e}`);
+    }
+  }
+  if (out.repriced.length) {
+    try {
+      await send({
+        userId: ownerId, role: 'owner', type: TYPE_PRICING_UPDATED, templateType: TEMPLATE_SERVICE_REPRICED_OWNER,
+        data: { postId: String(post._id), applicationId: out.repriced[0], candidates: String(out.repriced.length), service: serviceLabel(key, ownerLang), serviceKey: key, serviceChanged: '1', pricing620: '1' },
+      });
+      out.notified.owner = true;
+    } catch (e) {
+      logger.warn(`[reprice620b] notification propriétaire : ${e && e.message ? e.message : e}`);
+    }
+  }
+  return out;
+}
+
 module.exports = {
   TYPE_PRICING_UPDATED,
+  TYPE_SERVICE_CHANGED,
+  TEMPLATE_SERVICE_REPRICED,
+  TEMPLATE_SERVICE_REPRICED_OWNER,
+  serviceFingerprint,
+  serviceLabel,
+  unitLabel,
+  isAligned,
+  repriceAfterServiceChange,
   datesRequiredMessage,
   priceApplication,
   indicativePricing,

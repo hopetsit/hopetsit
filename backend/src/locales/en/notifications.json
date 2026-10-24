@@ -483,6 +483,24 @@
     "emailSubject": "Your dates are set — each candidate’s price — HoPetSit",
     "emailBody": "<p>Your dates are set: here is the real price of each of your {{candidates}} candidate(s). Choose and pay in 2 minutes.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">See the candidates</a></p>"
   },
+  "application_service_changed": {
+    "title": "The request changed service",
+    "body": "The request is now {{service}}: add your rate {{unitLabel}} to stay a candidate",
+    "emailSubject": "The request is now {{service}} — add your rate — HoPetSit",
+    "emailBody": "<p>The request you applied to is now <strong>{{service}}</strong>. Add your rate {{unitLabel}} in Profile › Rates to stay a candidate: your application will be recalculated automatically.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Add my rate</a></p>"
+  },
+  "application_service_repriced": {
+    "title": "The request changed service",
+    "body": "The request is now {{service}}: your application was recalculated to {{total}}",
+    "emailSubject": "The request is now {{service}} — your application recalculated — HoPetSit",
+    "emailBody": "<p>The request you applied to is now <strong>{{service}}</strong>. Your application was recalculated with your rate: <strong>{{total}}</strong>.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View the request</a></p>"
+  },
+  "application_service_repriced_owner": {
+    "title": "Your request is now {{service}}",
+    "body": "Each candidate’s price ({{candidates}}) was recalculated · choose and pay in 2 minutes",
+    "emailSubject": "Your request is now {{service}} — new prices — HoPetSit",
+    "emailBody": "<p>Your request is now <strong>{{service}}</strong>: the price of each of your {{candidates}} candidate(s) was recalculated. Choose and pay in 2 minutes.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View candidates</a></p>"
+  },
   "post_dates_required": {
     "title": "Set your dates to confirm",
     "body": "{{candidates}} candidate(s) are waiting: set the dates of your request to see their price and choose",

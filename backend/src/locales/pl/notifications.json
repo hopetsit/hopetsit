@@ -483,6 +483,24 @@
     "emailSubject": "Twoje daty są ustawione — cena każdego kandydata — HoPetSit",
     "emailBody": "<p>Twoje daty są ustawione: oto rzeczywista cena każdego z {{candidates}} kandydatów. Wybierz i zapłać w 2 minuty.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz kandydatów</a></p>"
   },
+  "application_service_changed": {
+    "title": "Zgłoszenie zmieniło usługę",
+    "body": "Zgłoszenie zmieniło się na {{service}}: dodaj swoją stawkę {{unitLabel}}, aby pozostać kandydatem",
+    "emailSubject": "Zgłoszenie zmieniło się na {{service}} — dodaj swoją stawkę — HoPetSit",
+    "emailBody": "<p>Zgłoszenie, na które aplikowałeś, zmieniło się na <strong>{{service}}</strong>. Dodaj swoją stawkę {{unitLabel}} w Profil › Stawki, aby pozostać kandydatem: Twoja aplikacja zostanie przeliczona automatycznie.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Dodaj moją stawkę</a></p>"
+  },
+  "application_service_repriced": {
+    "title": "Zgłoszenie zmieniło usługę",
+    "body": "Zgłoszenie zmieniło się na {{service}}: Twoja aplikacja została przeliczona na {{total}}",
+    "emailSubject": "Zgłoszenie zmieniło się na {{service}} — aplikacja przeliczona — HoPetSit",
+    "emailBody": "<p>Zgłoszenie, na które aplikowałeś, zmieniło się na <strong>{{service}}</strong>. Twoja aplikacja została przeliczona według Twojej stawki: <strong>{{total}}</strong>.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz zgłoszenie</a></p>"
+  },
+  "application_service_repriced_owner": {
+    "title": "Twoje zgłoszenie zmieniło się na {{service}}",
+    "body": "Cena każdego kandydata ({{candidates}}) została przeliczona · wybierz i zapłać w 2 minuty",
+    "emailSubject": "Twoje zgłoszenie zmieniło się na {{service}} — nowe ceny — HoPetSit",
+    "emailBody": "<p>Twoje zgłoszenie zmieniło się na <strong>{{service}}</strong>: cena każdego z Twoich {{candidates}} kandydatów została przeliczona. Wybierz i zapłać w 2 minuty.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz kandydatów</a></p>"
+  },
   "post_dates_required": {
     "title": "Ustaw daty, aby potwierdzić",
     "body": "{{candidates}} kandydat(ów) czeka: ustaw daty zgłoszenia, aby zobaczyć ich cenę i wybrać",

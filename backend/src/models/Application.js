@@ -68,6 +68,10 @@ const applicationSchema = new mongoose.Schema(
       quantity: { type: Number, default: null },
       unit: { type: String, default: '' },
       indicative: { type: Boolean, default: false },
+      // 620b (ZOE, 24/10) — la demande a changé de service (ex. garde → visites) et le
+      // prestataire n'a pas de tarif pour le nouveau : totaux inconnus, « tarif à venir »
+      // (services/applicationRepricing620.repriceAfterServiceChange).
+      stale: { type: Boolean, default: false },
       totalHours: { type: Number, default: 0 },
       totalDays: { type: Number, default: 0 },
       addOns: [
