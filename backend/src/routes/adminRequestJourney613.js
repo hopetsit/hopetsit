@@ -144,7 +144,7 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
     Notification.find({ 'data.postId': { $in: ids }, type: { $in: NOTIF_TYPES } })
       .select('data.postId type recipientRole recipientId createdAt readAt').sort({ createdAt: 1 }).lean(),
     Application.find({ postId: { $in: ids.map(oid) } })
-      .select('postId sitterId walkerId status bookingId createdAt updatedAt pricing.totalPrice pricing.currency pricing.indicative pricing.appliedRate pricing.unit pricing.quantity').sort({ createdAt: 1 }).lean(),
+      .select('postId sitterId walkerId status bookingId createdAt updatedAt pricing.totalPrice pricing.currency pricing.indicative pricing.appliedRate pricing.unit pricing.quantity pricing.stale').sort({ createdAt: 1 }).lean(),
   ]);
 
   const bookingIds = new Set();
