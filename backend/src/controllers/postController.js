@@ -590,6 +590,11 @@ const createPost = async (req, res) => {
           req.body.postalCode, { country: req.body.country || base.country, lang: req.body.language || req.body.lang, city: base.city },
         );
         if (fromPostal) postPayload.location = { ...base, ...fromPostal };
+        // 620 (ZOE, relevé ADA) — le code postal reste sur la demande même si le géocodage échoue.
+        else {
+          const code = require('../utils/geocodePostal2310').cleanCode(req.body.postalCode);
+          if (code) postPayload.location = { ...base, postalCode: code };
+        }
       } catch (_) { /* jamais bloquant */ }
     }
 

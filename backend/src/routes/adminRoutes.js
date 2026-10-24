@@ -3164,6 +3164,10 @@ router.get('/posts', requireAdmin, async (req, res) => {
       serviceLocation: p.serviceLocation,
       startDate: p.startDate,
       endDate: p.endDate,
+      // 620 (ZOE, relevé ADA) — mode de dates, visites/jour, code postal.
+      dateMode: require('../utils/pricingEngine620').effectiveDateMode(p),
+      visitsPerDay: [1, 2].includes(Number(p.visitsPerDay)) ? Number(p.visitsPerDay) : null,
+      postalCode: p.location?.postalCode || '',
       city: p.location?.city || '',
       owner: {
         id: p.ownerId?._id?.toString() || '',

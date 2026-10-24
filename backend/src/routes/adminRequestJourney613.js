@@ -101,7 +101,7 @@ async function people(byRole) {
     const list = [...new Set(ids.filter(isId).map(String))];
     if (!list.length || !MOD[role]) return;
     const docs = await MOD[role].find({ _id: { $in: list } })
-      .select('name email isStaff city coverageCity location.city location.coordinates currency country countryCode hourlyRate dailyRate weeklyRate monthlyRate walkRates').lean();
+      .select('name email isStaff city coverageCity location.city location.coordinates currency country countryCode hourlyRate dailyRate weeklyRate monthlyRate walkRates visitRate visitDurationMinutes').lean();
     for (const d of docs) {
       out.set(`${role}:${d._id}`, { name: firstName(d.name), city: cityOf(d), country: String(d.country || '').toUpperCase(), kind: kindOf(d), coords: DIST.profileCoords(d), currency: CUR.resolveCurrency(d).currency, currencyStored: CUR.currencyOf(d), currencyInferred: CUR.resolveCurrency(d).inferred, rate: rateOf(d) });
     }
@@ -144,7 +144,7 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
     Notification.find({ 'data.postId': { $in: ids }, type: { $in: NOTIF_TYPES } })
       .select('data.postId type recipientRole recipientId createdAt readAt').sort({ createdAt: 1 }).lean(),
     Application.find({ postId: { $in: ids.map(oid) } })
-      .select('postId sitterId walkerId status bookingId createdAt updatedAt pricing.totalPrice pricing.currency').sort({ createdAt: 1 }).lean(),
+      .select('postId sitterId walkerId status bookingId createdAt updatedAt pricing.totalPrice pricing.currency pricing.indicative pricing.appliedRate pricing.unit pricing.quantity').sort({ createdAt: 1 }).lean(),
   ]);
 
   const bookingIds = new Set();
@@ -260,6 +260,13 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
       serviceDate: serviceDateOf(p),
       serviceEnd: p.endDate || null,
       walkDurationMinutes: typeof p.walkDurationMinutes === 'number' ? p.walkDurationMinutes : null,
+      // 620 (ZOE, relevé ADA) — mode de dates, visites/jour, animaux, code postal, budget.
+      dateMode: require('../utils/pricingEngine620').effectiveDateMode(p),
+      visitsPerDay: [1, 2].includes(Number(p.visitsPerDay)) ? Number(p.visitsPerDay) : null,
+      animalTypes: Array.isArray(p.animalTypes) ? p.animalTypes : [],
+      animalCount: typeof p.animalCount === 'number' ? p.animalCount : 0,
+      postalCode: (p.location && p.location.postalCode) || '',
+      price: Number(p.budget) > 0 ? { amount: Number(p.budget), currency: p.budgetCurrency || '' } : null,
       serviceTimeZone: center ? timeZoneFor(center.lat, center.lng) : null,
       hasPosition: !!center,
       applyMaxKm: DIST.maxKm(), // 16/10 (Daniel) : 200 km
@@ -280,7 +287,17 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
           who: a.slice(0, 5).map((x) => {
             const role = x.walkerId ? 'walker' : 'sitter';
             const pr = person(role, x.walkerId || x.sitterId);
-            return { name: pr.name, role, kind: pr.kind, km: kmTo(p, pr) };
+            // 620 (ZOE, relevé ADA) — tarif, total (null = indicatif, en attente des dates) et statut.
+            const pricing = x.pricing || {};
+            return {
+              name: pr.name, role, kind: pr.kind, km: kmTo(p, pr),
+              rate: pricing.indicative === true && Number(pricing.appliedRate) > 0
+                ? { amount: Number(pricing.appliedRate), unit: pricing.unit || '' } : (pr.rate || null),
+              total: typeof pricing.totalPrice === 'number' ? pricing.totalPrice : null,
+              currency: pricing.currency || pr.currency || 'EUR',
+              indicative: pricing.indicative === true,
+              status: x.status,
+            };
           }),
         },
         decision,
@@ -329,7 +346,8 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
   return out;
 }
 
-const POST_FIELDS = 'ownerId postType location serviceTypes startDate endDate walkDurationMinutes createdAt hidden bannedAt status closedAt reservedBy';
+const POST_FIELDS = 'ownerId postType location serviceTypes startDate endDate walkDurationMinutes createdAt hidden bannedAt status closedAt reservedBy'
+  + ' dateMode visitsPerDay animalTypes animalCount budget budgetCurrency'; // 620 (ZOE, relevé ADA)
 
 /**
  * 16/10 — ce que voient les prestataires (feed /posts/requests et PawMap), et

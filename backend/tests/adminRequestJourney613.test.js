@@ -100,10 +100,13 @@ describe('cas de BOB : 3 prévenus dont 1 lu, 1 candidature', () => {
     expect(it.stages.notified.count).toBe(3);
     expect(it.stages.opened.count).toBe(1);
     expect(it.stages.applications.count).toBe(1);
-    expect(it.stages.applications.who).toEqual([{ name: 'Sarah', role: 'walker', kind: 'real', km: null }]);
+    // 620 (ZOE, relevé ADA) : + rate / total / currency / indicative / status par candidature.
+    expect(it.stages.applications.who).toMatchObject([{ name: 'Sarah', role: 'walker', kind: 'real', km: null, status: 'pending', indicative: false, total: null }]);
     expect(it.color).toBe('green');
     expect(it.status).toBe('applied');
     expect(it.stages.decision.state).toBe('none');
+    // 620 — champs lus par l'admin : mode de dates (déduit des dates : exact), visites/jour, animaux, budget.
+    expect(it).toMatchObject({ dateMode: 'exact', visitsPerDay: null, animalTypes: expect.any(Array), animalCount: expect.any(Number), price: null, postalCode: '' });
     expect(it.stages.payment.state).toBe('none');
     expect(it.stages.end.state).toBe('none');
     expect(it.owner).toEqual({ id: ids.owner, name: 'Nina', kind: 'real' });
