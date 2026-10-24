@@ -291,11 +291,14 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
             const pricing = x.pricing || {};
             return {
               name: pr.name, role, kind: pr.kind, km: kmTo(p, pr),
-              rate: pricing.indicative === true && Number(pricing.appliedRate) > 0
-                ? { amount: Number(pricing.appliedRate), unit: pricing.unit || '' } : (pr.rate || null),
+              // 620b (ZOE, 24/10) — `stale` : la demande a changé de service et le prestataire n'a pas de
+              // tarif pour le nouveau → « tarif à venir » (pas de tarif à afficher, total null).
+              rate: pricing.stale === true ? null : (pricing.indicative === true && Number(pricing.appliedRate) > 0
+                ? { amount: Number(pricing.appliedRate), unit: pricing.unit || '' } : (pr.rate || null)),
               total: typeof pricing.totalPrice === 'number' ? pricing.totalPrice : null,
               currency: pricing.currency || pr.currency || 'EUR',
               indicative: pricing.indicative === true,
+              stale: pricing.stale === true,
               status: x.status,
             };
           }),
