@@ -17,6 +17,14 @@
  *   · cache 5 min par (service, zone, devise, test) — la zone est la position arrondie
  *     à ~5 km, ou le nom de ville plié.
  * Les appels AVEC `rate` ou `providerId` ne passent pas ici : inchangés.
+ *
+ * 2410b (ZOE, 24/10/2026 23 h 20 — DÉCISION DE DANIEL transmise par BOB) — TARIFS ABERRANTS :
+ *   un tarif strictement inférieur à la MOITIÉ du tarif MÉDIAN des prestataires retenus (après
+ *   les exclusions ci-dessus) est écarté du « à partir de » (mesuré en prod : Paris garde
+ *   5 €/jour = un seul profil, médiane bien plus haute). Avec 1 ou 2 prestataires la médiane
+ *   n'est pas fiable : le minimum est gardé tel quel. La réponse porte en plus
+ *   `excludedOutliers` (nombre écarté) et `median` (médiane des tarifs retenus, avant écart) ;
+ *   `basedOn` = nombre de prestataires qui restent après l'écart.
  */
 const logger = require('../utils/logger');
 const engine = require('../utils/pricingEngine620');
@@ -54,6 +62,33 @@ const cacheSet = (key, value, now) => {
   cache.set(key, { at: now, value });
 };
 
+/** Médiane (arrondie au centime) d'une liste de nombres ; null si vide. */
+const medianOf = (values) => {
+  const v = (values || []).filter((x) => typeof x === 'number' && Number.isFinite(x)).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const mid = Math.floor(v.length / 2);
+  const m = v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+  return Math.round(m * 100) / 100;
+};
+
+/** Nombre minimal de prestataires pour qu'une médiane soit jugée fiable (règle Daniel 24/10). */
+const MIN_FOR_OUTLIER_RULE = 3;
+
+/**
+ * Règle des tarifs aberrants (Daniel, 24/10/2026) : parmi des tarifs { rate } déjà filtrés
+ * (test, staff, suspendus, bloqués, 0 exclus), écarte tout tarif STRICTEMENT inférieur à la
+ * moitié de la médiane. Avec moins de 3 tarifs, rien n'est écarté.
+ * @returns {{ kept: Array, excludedOutliers: number, median: number|null }}
+ */
+const applyOutlierRule = (rates) => {
+  const list = Array.isArray(rates) ? rates.filter((r) => r && typeof r.rate === 'number' && Number.isFinite(r.rate)) : [];
+  const median = medianOf(list.map((r) => r.rate));
+  if (list.length < MIN_FOR_OUTLIER_RULE || median == null) return { kept: list, excludedOutliers: 0, median };
+  const floor = median / 2;
+  const kept = list.filter((r) => Number(r.rate) >= floor);
+  return { kept, excludedOutliers: list.length - kept.length, median };
+};
+
 /** Position d'une demande : { lat, lng } ou null (0,0 = inconnue). */
 const centerOf = (loc) => {
   if (!loc || typeof loc !== 'object') return null;
@@ -81,7 +116,7 @@ const centerOf = (loc) => {
  * @param {Set<string>} [p.selfIds]    profils de l'auteur (jamais lui-même)
  * @param {number} [p.durationMinutes] durée de balade demandée
  * @param {number} [p.now]
- * @returns {Promise<{fromRate:number|null, unit:string, durationMinutes:number|null, basedOn:number, currency:string, radiusKm:number, cached:boolean}>}
+ * @returns {Promise<{fromRate:number|null, unit:string, durationMinutes:number|null, basedOn:number, excludedOutliers:number, median:number|null, currency:string, radiusKm:number, cached:boolean}>}
  */
 const fromRateFor = async ({
   serviceType, center = null, city = '', currency = 'EUR', ownerIsTest = false, selfIds = null,
@@ -95,7 +130,7 @@ const fromRateFor = async ({
   if (hit) return { ...hit, cached: true };
 
   const alert612 = require('../services/requestAlert612');
-  const empty = { fromRate: null, unit, durationMinutes: null, basedOn: 0, currency: cur, radiusKm: alert612.ALERT_RADIUS_KM };
+  const empty = { fromRate: null, unit, durationMinutes: null, basedOn: 0, excludedOutliers: 0, median: null, currency: cur, radiusKm: alert612.ALERT_RADIUS_KM };
   const hasCenter = !!(center && Number.isFinite(center.lat) && Number.isFinite(center.lng));
   if (!hasCenter && !String(city || '').trim()) return { ...empty, cached: false };
 
@@ -141,12 +176,16 @@ const fromRateFor = async ({
     }
   }
   rates.sort((a, b) => a.rate - b.rate);
-  const best = rates[0] || null;
+  // 2410b : les tarifs aberrants (< moitié de la médiane) ne font pas le « à partir de ».
+  const { kept, excludedOutliers, median } = applyOutlierRule(rates);
+  const best = kept[0] || null;
   const value = {
     fromRate: best ? best.rate : null,
     unit: best ? best.unit : unit,
     durationMinutes: best ? (best.durationMinutes || null) : null,
-    basedOn: rates.length,
+    basedOn: kept.length,
+    excludedOutliers,
+    median,
     currency: cur,
     radiusKm: picked.radiusKm || alert612.ALERT_RADIUS_KM,
   };
@@ -156,4 +195,7 @@ const fromRateFor = async ({
 
 const _resetForTest = () => cache.clear();
 
-module.exports = { fromRateFor, centerOf, zoneKey, cacheKeyOf, CACHE_TTL_MS, _resetForTest };
+module.exports = {
+  fromRateFor, centerOf, zoneKey, cacheKeyOf, CACHE_TTL_MS, _resetForTest,
+  applyOutlierRule, medianOf, MIN_FOR_OUTLIER_RULE,
+};

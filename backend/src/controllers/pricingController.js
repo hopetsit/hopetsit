@@ -249,8 +249,11 @@ const getProviderCommissionRate = async (req, res) => {
  * `body.lat,lng,city`, sinon la position / ville du profil de l'appelant. Devise : `body.currency`,
  * sinon celle du profil de l'appelant, sinon EUR. Un compte de test ne regarde que des comptes de test.
  * Réponse (200) : { serviceType, dateMode, indicative:true, fromRate, unit, quantity, ownerTotalFrom,
- *   basedOn, currency, durationMinutes, radiusKm, rateSource:'market', unitRate, unitTotal:null,
- *   commission:null, ownerTotal:null, commissionRate }
+ *   basedOn, excludedOutliers, median, currency, durationMinutes, radiusKm, rateSource:'market',
+ *   unitRate, unitTotal:null, commission:null, ownerTotal:null, commissionRate }
+ *   2410b (décision de Daniel, 24/10) : les tarifs < moitié de la médiane du secteur sont écartés
+ *   du minimum (services/fromRate620.applyOutlierRule) ; `excludedOutliers` les compte, `median`
+ *   donne la médiane des tarifs retenus ; avec 1 ou 2 prestataires, minimum tel quel.
  */
 const openEstimate620 = async ({ req, body, post, serviceType, unit, duration, currency, commissionRate }) => {
   const engine = require('../utils/pricingEngine620');
@@ -297,6 +300,8 @@ const openEstimate620 = async ({ req, body, post, serviceType, unit, duration, c
     quantity,
     ownerTotalFrom,
     basedOn: market.basedOn,
+    excludedOutliers: market.excludedOutliers || 0,
+    median: market.median == null ? null : market.median,
     currency: cur,
     durationMinutes: market.durationMinutes,
     radiusKm: market.radiusKm,
