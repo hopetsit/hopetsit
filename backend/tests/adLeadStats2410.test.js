@@ -42,6 +42,9 @@ beforeAll(async () => {
   await lead({ city: 'Paris 11e', postId: new mongoose.Types.ObjectId(), confirmedAt: new Date(NOW) });
   await lead({ city: 'Paris', startText: '24/12/2026', endText: '28/12/2026' });
   await lead({ city: 'New York', country: 'US', lang: 'en' });
+  // agglomérations : Clamart (position à 9 km de Paris) → paris ; Yonkers (25 km de NYC) → nyc ; Lyon → other
+  await lead({ city: 'Clamart', lat: 48.8004, lng: 2.2634 });
+  await lead({ city: 'City of Yonkers', country: 'US', lang: 'en', lat: 40.9312, lng: -73.8988 });
   // hier : 1 Brooklyn publiée
   await lead({ city: 'Brooklyn', country: 'US', lang: 'en', createdAt: new Date(NOW - DAY), postId: new mongoose.Types.ObjectId(), confirmedAt: new Date(NOW - DAY) });
   // il y a 5 jours : 1 Lyon (autre), dates du formulaire
@@ -68,16 +71,16 @@ test('admin seulement : 401 sans session, 403 pour un propriétaire', async () =
 test('days=7 : aujourd hui / hier / 7 j, par ville, publiées, avec dates, confirmées, total — sans e-mail', async () => {
   const r = await request(app).get('/admin/ad-leads/stats?days=7').set(ADMIN).expect(200);
   expect(r.body).toMatchObject({
-    days: 7, timeZone: 'Europe/Paris', today: 3, yesterday: 1, d7: 5,
-    byCity: { paris: 2, nyc: 2, other: 1 }, published: 2, withDates: 2, confirmed: 2, total: 6,
+    days: 7, timeZone: 'Europe/Paris', today: 5, yesterday: 1, d7: 7,
+    byCity: { paris: 3, nyc: 3, other: 1 }, published: 2, withDates: 2, confirmed: 2, total: 8,
   });
   const txt = JSON.stringify(r.body);
-  expect(txt).not.toMatch(/@|Prénom|meta-|lead\d/);
+  expect(txt).not.toMatch(/@|Prénom|meta-|lead\d|Clamart|Yonkers/);
 });
 
 test('days=30 englobe le contact de 20 jours ; days absurde ramené entre 1 et 90', async () => {
   const r = await request(app).get('/admin/ad-leads/stats?days=30').set(ADMIN).expect(200);
-  expect(r.body).toMatchObject({ days: 30, d7: 6, byCity: { paris: 3, nyc: 2, other: 1 }, published: 3, today: 3 });
+  expect(r.body).toMatchObject({ days: 30, d7: 8, byCity: { paris: 4, nyc: 3, other: 1 }, published: 3, today: 5 });
   const big = await request(app).get('/admin/ad-leads/stats?days=5000').set(ADMIN).expect(200);
   expect(big.body.days).toBe(90);
   const none = await request(app).get('/admin/ad-leads/stats').set(ADMIN).expect(200);

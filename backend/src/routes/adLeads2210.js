@@ -122,7 +122,7 @@ adminRouter.post('/', requireAdmin, async (req, res) => {
 });
 
 // ── admin : chiffres des contacts pub (2410, ZOE — demande de BOB / ADA) ──────
-// GET /admin/ad-leads/stats?days=7&tz=Europe/Paris → { today, yesterday, d7, byCity: { paris, nyc, other },
+// GET /admin/ad-leads/stats?days=7&tz=Europe/Paris → { today, yesterday, d7, byCity: { paris, nyc, other } (agglomérations),
 // published, withDates, confirmed, total } pour la ligne « Aujourd'hui » de l'admin. Jours au fuseau
 // de Paris (comme le board 613). byCity / published / withDates / confirmed portent sur la fenêtre
 // `days` (1 à 90, 7 par défaut). JAMAIS d'e-mail ni de téléphone : uniquement des compteurs.
@@ -138,6 +138,24 @@ function dayStartIn2410(tz, now) {
 }
 const PARIS_RE = /\bparis\b/i;
 const NYC_RE = /new\s*york|\bnyc\b|brooklyn|queens|bronx|manhattan|staten/i;
+// « Paris » = la commune ET l'agglomération (règle de l'équipe) : un contact à Clamart, Saint-Denis ou
+// Levallois compte pour Paris → position du contact (lat/lng) à ≤ 40 km du centre (48.8566, 2.3522) ;
+// New York : ≤ 50 km de (40.7128, −74.006) (Yonkers compris). Sans position : le nom de la ville.
+const kmBetween = (a, b) => {
+  const R = 6371; const r = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * r; const dLng = (b.lng - a.lng) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+};
+const HUBS = [['paris', { lat: 48.8566, lng: 2.3522 }, 40, PARIS_RE], ['nyc', { lat: 40.7128, lng: -74.006 }, 50, NYC_RE]];
+const cityBucket = (l) => {
+  const pos = Number.isFinite(l.lat) && Number.isFinite(l.lng) && !(l.lat === 0 && l.lng === 0) ? { lat: l.lat, lng: l.lng } : null;
+  for (const [key, center, km, re] of HUBS) {
+    if (re.test(String(l.city || ''))) return key;
+    if (pos && kmBetween(pos, center) <= km) return key;
+  }
+  return 'other';
+};
 adminRouter.get('/stats', requireAdmin, async (req, res) => {
   try {
     const DAY = 86400000;
@@ -147,7 +165,7 @@ adminRouter.get('/stats', requireAdmin, async (req, res) => {
     const t0 = dayStartIn2410(tz, now);
     const since = new Date(now.getTime() - days * DAY);
     const from = new Date(Math.min(since.getTime(), t0.getTime() - DAY));
-    const rows = await AdLead.find({ createdAt: { $gte: from } }).select('createdAt city country postId startText endText confirmedAt').lean();
+    const rows = await AdLead.find({ createdAt: { $gte: from } }).select('createdAt city country lat lng postId startText endText confirmedAt').lean();
     const { datesFor } = require('../utils/adLeadDates2310');
     const out = { days, timeZone: tz, generatedAt: now, today: 0, yesterday: 0, d7: 0, byCity: { paris: 0, nyc: 0, other: 0 }, published: 0, withDates: 0, confirmed: 0, total: 0 };
     for (const l of rows) {
@@ -156,10 +174,7 @@ adminRouter.get('/stats', requireAdmin, async (req, res) => {
       else if (t >= t0.getTime() - DAY) out.yesterday += 1;
       if (t < since.getTime()) continue;
       out.d7 += 1;
-      const city = String(l.city || '');
-      if (PARIS_RE.test(city)) out.byCity.paris += 1;
-      else if (NYC_RE.test(city)) out.byCity.nyc += 1;
-      else out.byCity.other += 1;
+      out.byCity[cityBucket(l)] += 1;
       if (l.postId) out.published += 1;
       if (l.confirmedAt) out.confirmed += 1;
       let dd = null;
