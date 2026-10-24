@@ -20,6 +20,13 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { AppIcon } from "@/components/AppIcon";
 import { SignatureButton } from "@/components/SignatureButton";
+// 620 (LEO, 24/10 — §B.2) : demande « dates à prévoir » → tarif unitaire +
+// bandeau « Pose tes dates pour valider » (éditeur de dates), Choisir désactivé ;
+// après les dates : totaux réels. + « Ouvrir dans l'app » (le site ramène dans l'app).
+import { AppBridge620 } from "@/components/AppBridge620";
+import { PostDatesEditor620 } from "@/components/PostDatesEditor620";
+import { d620, unitShort620 } from "@/lib/i18n/dates620";
+import { dateModeOf620 } from "@/lib/services620";
 import {
   ApiError,
   type ApplicationItem,
@@ -29,6 +36,7 @@ import {
   applicationId,
   applicationProvider,
   createBookingPaymentIntent,
+  getMyApplications,
   respondToApplication,
 } from "@/lib/api";
 
@@ -58,6 +66,14 @@ function money(v: number, currency: string, lang: string): string {
     return new Intl.NumberFormat(lang, { style: "currency", currency, maximumFractionDigits: 2 }).format(v);
   } catch {
     return `${v.toFixed(2)} ${currency}`;
+  }
+}
+
+function moneyCompact(v: number, currency: string, lang: string): string {
+  try {
+    return new Intl.NumberFormat(lang, { style: "currency", currency, maximumFractionDigits: Number.isInteger(v) ? 0 : 2 }).format(v);
+  } catch {
+    return `${v} ${currency}`;
   }
 }
 
@@ -101,6 +117,10 @@ export function PostCandidates1610({
   const [brokenAvatars, setBrokenAvatars] = useState<Record<string, boolean>>({});
   const [rejectedNow, setRejectedNow] = useState<Record<string, boolean>>({});
   const focusRef = useRef<HTMLLIElement | null>(null);
+  // 620 — la demande telle qu'elle est (ses dates peuvent être posées ici même).
+  const [cur, setCur] = useState<RequestPost>(post);
+  const [editingDates, setEditingDates] = useState(false);
+  useEffect(() => setCur(post), [post]);
 
   useEffect(() => setItems(applications), [applications]);
   useEffect(() => {
@@ -114,8 +134,31 @@ export function PostCandidates1610({
   const visible = items.filter((a) => a.status === "pending" || a.status === "accepted" || rejectedNow[applicationId(a)]);
   if (visible.length === 0) return null;
 
-  const postPoint = point(post.location);
+  const postPoint = point(cur.location);
   const pending = visible.filter((a) => a.status === "pending").length;
+  // 620 — « dates à prévoir » : tarif unitaire seul, Choisir bloqué jusqu'aux dates.
+  const tbd = dateModeOf620(cur) === "tbd";
+  const unitOf = (a: ApplicationItem): string => {
+    const u = String(a.pricing?.unit || "");
+    if (u) return u;
+    const svc = String(a.serviceType || cur.serviceTypes?.[0] || "");
+    return svc === "home_visit" ? "visit" : svc === "dog_walking" ? "walk" : "day";
+  };
+
+  /** Dates posées : le serveur a recalculé les candidatures → on les relit. */
+  async function onDatesSaved(updated: RequestPost) {
+    setCur(updated);
+    setEditingDates(false);
+    try {
+      const all = await getMyApplications();
+      const mine = all.filter((x) => String(x.postId || "") === String(updated.id || updated._id || cur.id || cur._id || ""));
+      if (mine.length) {
+        const next = items.map((x) => mine.find((m) => applicationId(m) === applicationId(x)) || x);
+        setItems(next);
+        onChanged?.(next);
+      }
+    } catch { /* la page se rechargera avec les totaux */ }
+  }
 
   async function respond(a: ApplicationItem, action: "accept" | "reject") {
     const id = applicationId(a);
@@ -146,6 +189,10 @@ export function PostCandidates1610({
           a: String(d.providerCurrency || "?"),
           b: String(d.ownerCurrency || a.pricing?.currency || "EUR"),
         });
+      } else if (code === "DATES_REQUIRED") {
+        // 620 — le serveur refuse d'accepter tant que la demande est « à prévoir ».
+        msg = d620(lang, "cand_choose_blocked");
+        setEditingDates(true);
       } else if (code === "TOO_FAR") {
         msg = fill(t("c1610_too_far"), { km: String(d.limitKm || 200) });
       } else if (e instanceof ApiError && e.status === 409) {
@@ -206,6 +253,25 @@ export function PostCandidates1610({
         </span>
       </h3>
 
+      {/* 620 — « Pose tes dates pour valider » + éditeur de dates (PATCH /posts/:id). */}
+      {tbd && (
+        <div className="mt-2 rounded-xl p-3" style={{ background: "#FBE9E5" }} data-testid="tbd-banner-620">
+          <p className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: "#9E1F0B" }}>
+            <AppIcon name="calendar" size={15} color="#9E1F0B" />
+            {d620(lang, "cand_banner")}
+          </p>
+          <p className="mt-0.5 text-[12px] leading-snug" style={{ color: "#6E4F48" }}>{d620(lang, "cand_banner_sub")}</p>
+          {!editingDates && (
+            <div className="mt-2">
+              <SignatureButton tone="owner" icon="calendar" label={d620(lang, "cand_set_dates")} onClick={() => setEditingDates(true)} />
+            </div>
+          )}
+        </div>
+      )}
+      {tbd && editingDates && (
+        <PostDatesEditor620 post={cur} lang={lang} onSaved={(u) => void onDatesSaved(u)} onCancel={() => setEditingDates(false)} startLabel={t("posts_start_label")} endLabel={t("posts_end_label")} />
+      )}
+
       <ul className="mt-2 space-y-2">
         {visible.map((a) => {
           const id = applicationId(a);
@@ -219,8 +285,13 @@ export function PostCandidates1610({
           const pp = point(who?.location);
           const km = postPoint && pp ? Math.max(1, Math.round(haversineKm(postPoint, pp))) : null;
           const total = a.pricing?.totalPrice ?? null;
-          const currency = (a.pricing?.currency || post.budgetCurrency || post.currency || "EUR").toUpperCase();
-          const priceLabel = total != null && total > 0 ? money(total, currency, lang) : "";
+          const currency = (a.pricing?.currency || cur.budgetCurrency || cur.currency || "EUR").toUpperCase();
+          // 620 — indicatif (dates à prévoir) : « 12 €/visite » au lieu d'un total.
+          const indicative = a.pricing?.indicative === true || (tbd && !(total != null && total > 0));
+          const unitRate = a.pricing?.appliedRate ?? a.pricing?.basePrice ?? null;
+          // Tarif unitaire compact (« 12 €/visite », jamais « 12,00 € ») ; les centimes restent s'il y en a.
+          const rateLabel = indicative && unitRate != null && unitRate > 0 ? `${moneyCompact(unitRate, currency, lang)}/${unitShort620(lang, unitOf(a))}` : "";
+          const priceLabel = !indicative && total != null && total > 0 ? money(total, currency, lang) : "";
           const accepted = a.status === "accepted";
           const bk = accepted ? linkedBooking(a) : null;
           const isFocus = !!focusId && focusId === id;
@@ -287,6 +358,12 @@ export function PostCandidates1610({
                     <p className="text-[17px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }}>{priceLabel}</p>
                   </div>
                 )}
+                {!priceLabel && rateLabel && (
+                  <div className="shrink-0 text-right" data-rate-620={unitRate ?? ""}>
+                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#8A6B64" }}>{d620(lang, "cand_rate_label")}</p>
+                    <p className="text-[17px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }}>{rateLabel}</p>
+                  </div>
+                )}
               </div>
 
               {a.status === "pending" && (
@@ -296,12 +373,14 @@ export function PostCandidates1610({
                       tone="owner"
                       icon="check"
                       label={t("c1610_choose")}
-                      price={priceLabel || undefined}
+                      price={priceLabel || rateLabel || undefined}
                       loading={busyId === id}
-                      disabled={busyId !== null && busyId !== id}
-                      onClick={() => respond(a, "accept")}
+                      disabled={(busyId !== null && busyId !== id) || tbd}
+                      disabledReason={tbd ? d620(lang, "cand_choose_blocked") : undefined}
+                      onClick={() => { if (tbd) { setEditingDates(true); return; } void respond(a, "accept"); }}
                       ariaLabel={`${t("c1610_choose")} ${firstName}`}
                     />
+                    {tbd && <p className="mt-1 text-center text-[11px] font-semibold" style={{ color: "#8A6B64" }} data-choose-blocked-620="">{d620(lang, "cand_choose_blocked")}</p>}
                   </div>
                   <div className="sm:w-[150px]">
                     <SignatureButton
@@ -359,6 +438,10 @@ export function PostCandidates1610({
           );
         })}
       </ul>
+      {/* 620 (§B.5) — le site ramène dans l'app. */}
+      <div className="mt-3">
+        <AppBridge620 lang={lang} loggedIn compact />
+      </div>
     </section>
   );
 }

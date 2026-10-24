@@ -19,6 +19,8 @@ import { AppIcon } from "@/components/AppIcon";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import type { Lang } from "@/lib/i18n/langs";
 import { notifiedSentence, p1617 } from "@/lib/i18n/publier1617";
+// 620 (§B.5) — le site ramène dans l'app : « Ouvrir dans l'app » + « Télécharger l'app ».
+import { AppBridge620 } from "@/components/AppBridge620";
 
 export type PublishedInfo = {
   postId: string;
@@ -102,6 +104,9 @@ export default function PublishedConfirmation1617({ info, lang }: { info: Publis
             <AppIcon name="arrow-right" size={16} color={none ? "#A3220E" : "#fff"} />
           </Link>
         </div>
+      </div>
+      <div className="mt-4">
+        <AppBridge620 lang={lang} loggedIn />
       </div>
     </div>
   );

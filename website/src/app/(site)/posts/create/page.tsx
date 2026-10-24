@@ -19,15 +19,20 @@ import { locationComplete, locationOptions, locationToSend, p587, type ServiceLo
 // 1617 (LEO, 16/10) — « N gardiens prévenus » / « aucun : partage » + refus de doublon.
 import PublishedConfirmation1617, { type PublishedInfo } from "@/components/PublishedConfirmation1617";
 import { p1617 } from "@/lib/i18n/publier1617";
+// 620 (LEO, 24/10, ordre de Daniel) — 4 services depuis le catalogue serveur, « Quand ? »
+// en 3 cartes (précises / approximative / à prévoir), visites par jour, estimation.
+import { DateModeCards620, EstimateLine620, VisitsPerDay620 } from "@/components/DateMode620";
+import { d620, serviceLabel620 } from "@/lib/i18n/dates620";
+import { LEGACY_SERVICES_620, readProviderRates620, type DateMode620, type ProviderRates620, type ServiceDef620 } from "@/lib/services620";
 import {
   API_BASE,
   ApiError,
   createPostWithMeta,
   createPostWithMediaMeta,
   getMyProfile,
+  getServiceCatalog620,
   getStoredUser,
   login,
-  POST_SERVICE_TYPES,
   resendVerificationCode,
   signup,
   verifyEmail,
@@ -74,6 +79,14 @@ export default function CreatePostPage() {
   })();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  // 620 — catalogue des services (null = serveur d'avant le 620 : 3 services,
+  // dates obligatoires, aucune estimation = comportement d'avant), mode de
+  // dates, visites par jour (visite à domicile), tarifs du prestataire ciblé.
+  const [catalog, setCatalog] = useState<ServiceDef620[] | null>(null);
+  const [dateMode, setDateMode] = useState<DateMode620>("exact");
+  const [visitsPerDay, setVisitsPerDay] = useState(1);
+  const [targetRates, setTargetRates] = useState<ProviderRates620 | null>(null);
+  const preRef = useRef("");
   const [postalCode, setPostalCode] = useState(""); // 23/10 (BOB, ordre de Daniel) — la demande est placée au code postal, pas au centre de la ville
   const [notes, setNotes] = useState("");
   const [animalCount, setAnimalCount] = useState(1);
@@ -153,6 +166,22 @@ export default function CreatePostPage() {
     setPhotos((prev) => prev.filter((_, i) => i !== idx));
   }
 
+  // 620 — catalogue des services (GET /app-config/services). `pre=visites`
+  // (e-mail de la pub) devient une vraie visite à domicile dès que le serveur
+  // la connaît.
+  useEffect(() => {
+    let alive = true;
+    getServiceCatalog620().then((c) => {
+      if (!alive) return;
+      setCatalog(c);
+      if (c && preRef.current === "visites" && c.some((x) => x.key === "home_visit")) {
+        setServices((cur) => (cur.length === 0 || cur[0] === "house_sitting" ? ["home_visit"] : cur));
+        setSvcLocation("at_owner");
+      }
+    });
+    return () => { alive = false; };
+  }, []);
+
   useEffect(() => {
     const u = getStoredUser();
     setInvite(!u);
@@ -196,6 +225,7 @@ export default function CreatePostPage() {
       // demande ; il devait tout retaper. On pré-remplit ces choix (jamais de
       // donnée personnelle dans l'URL) ; le brouillon, s'il existe, a priorité.
       const pre = (q.get("pre") || "").trim();
+      preRef.current = pre;
       const svc = ({ garde: "house_sitting", visites: "house_sitting", promenade: "dog_walking" } as Record<string, string>)[pre];
       if (svc) {
         setServices([svc]);
@@ -227,6 +257,8 @@ export default function CreatePostPage() {
       if (typeof d.budget === "string") setBudget(d.budget);
       if (typeof d.startDate === "string") setStartDate(d.startDate);
       if (typeof d.endDate === "string") setEndDate(d.endDate);
+      if (d.dateMode === "exact" || d.dateMode === "approx" || d.dateMode === "tbd") setDateMode(d.dateMode);
+      if (d.visitsPerDay === 2) setVisitsPerDay(2);
       if (typeof d.postalCode === "string") setPostalCode(d.postalCode);
       if (typeof d.notes === "string") setNotes(d.notes);
       if (typeof d.animalCount === "number") setAnimalCount(d.animalCount);
@@ -269,7 +301,7 @@ export default function CreatePostPage() {
 
   // Prénom du prestataire ciblé, lu sur sa fiche publique (jamais stocké).
   useEffect(() => {
-    if (!target) { setTargetName(""); return; }
+    if (!target) { setTargetName(""); setTargetRates(null); return; }
     let vivant = true;
     fetch(`${API_BASE}/${target.role}s/${target.id}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -279,6 +311,10 @@ export default function CreatePostPage() {
         const first = ((f && (f.firstName || f.name)) || "").trim().split(/\s+/)[0];
         if (first) setTargetName(first);
         else setTarget(null);
+        // 620 — ses tarifs servent à l'estimation ; son métier pré-remplit le
+        // service si rien n'est encore choisi (« Réserver » depuis la PawMap).
+        setTargetRates(f ? readProviderRates620(f) : null);
+        if (first) setServices((cur) => (cur.length ? cur : [target.role === "walker" ? "dog_walking" : "house_sitting"]));
       })
       .catch(() => { /* hors ligne : on garde le ciblage, le prénom viendra ou pas */ });
     return () => { vivant = false; };
@@ -289,7 +325,12 @@ export default function CreatePostPage() {
       ? t("posts_svc_house_sitting")
       : s === "day_care"
         ? t("posts_svc_day_care")
-        : t("posts_svc_dog_walking");
+        : s === "home_visit"
+          ? d620(lang, "svc_home_visit")
+          : t("posts_svc_dog_walking");
+  // 620 — les services à proposer : le catalogue du serveur (4), sinon les 3 d'avant.
+  const serviceDefs: ServiceDef620[] = catalog ?? LEGACY_SERVICES_620;
+  const mode620: DateMode620 = catalog ? dateMode : "exact";
 
   function toggleService(s: string) {
     // v404 — Daniel : UN SEUL service par annonce (avant on pouvait cocher les
@@ -315,8 +356,12 @@ export default function CreatePostPage() {
       setErr(t("posts_error_body"));
       return;
     }
-    if (!startDate || !endDate || endDate < startDate) { // 23/10 (BOB) — dates obligatoires
+    if (mode620 !== "tbd" && (!startDate || !endDate)) { // 23/10 (BOB) — dates obligatoires (620 : sauf « à prévoir »)
       setErr(f2(lang, "dates_required"));
+      return;
+    }
+    if (mode620 !== "tbd" && endDate < startDate) {
+      setErr(d620(lang, "dates_order"));
       return;
     }
     if (!city.trim()) {
@@ -429,6 +474,7 @@ export default function CreatePostPage() {
     try {
       window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
         body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
+        dateMode, visitsPerDay,
         animalCount, animalTypes, city, postalCode, budget, targetProvider: target,
         ...(cityCoords ? { cityLat: cityCoords.lat, cityLng: cityCoords.lng, cityLabel } : {}),
         ...extra,
@@ -454,8 +500,11 @@ export default function CreatePostPage() {
       houseSittingVenue: needsVenue ? venue : undefined,
       serviceLocation: service ? locationToSend(service, svcLocation) : undefined,
       meetingPoint: svcLocation === "meeting_point" ? meetingPoint.trim() : undefined,
-      startDate: startDate ? new Date(startDate).toISOString() : undefined,
-      endDate: endDate ? new Date(endDate).toISOString() : undefined,
+      startDate: mode620 !== "tbd" && startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: mode620 !== "tbd" && endDate ? new Date(endDate).toISOString() : undefined,
+      // 620 — mode de dates + visites par jour (rien envoyé sur un serveur d'avant le 620).
+      dateMode: catalog ? mode620 : undefined,
+      visitsPerDay: catalog && service === "home_visit" ? visitsPerDay : undefined,
       notes: notes.trim() || undefined,
       animalCount: animalCount > 0 ? animalCount : undefined,
       animalTypes: animalTypes.length ? animalTypes : undefined,
@@ -574,7 +623,9 @@ export default function CreatePostPage() {
     if (!body.trim()) return setErr(f2(lang, "body_required"));
     if (!service) return setErr(f2(lang, "service_required"));
     // 23/10 (BOB, demande de Daniel) — dates OBLIGATOIRES : sans dates, les gardiens ne peuvent pas répondre.
-    if (!startDate || !endDate || endDate < startDate) return setErr(f2(lang, "dates_required"));
+    // 620 — « Dates à prévoir » : aucune date exigée ; sinon début ≤ fin.
+    if (mode620 !== "tbd" && (!startDate || !endDate)) return setErr(f2(lang, "dates_required"));
+    if (mode620 !== "tbd" && endDate < startDate) return setErr(d620(lang, "dates_order"));
     if (!city.trim()) return setErr(t("signup_city_required"));
     if (postalCode.trim().length < 3) return setErr(t("signup_postal_required"));
     if (!locationComplete(service, svcLocation, meetingPoint)) {
@@ -738,18 +789,19 @@ export default function CreatePostPage() {
         <div>
           <label className="block text-sm font-medium text-ink">{t("posts_services_label")}</label>
           <div className="mt-2 flex flex-wrap gap-2">
-            {POST_SERVICE_TYPES.map((s) => (
+            {serviceDefs.map((sd) => (
               <button
-                key={s}
+                key={sd.key}
                 type="button"
-                onClick={() => toggleService(s)}
+                data-service={sd.key}
+                onClick={() => toggleService(sd.key)}
                 className={`rounded-full border px-4 py-2 text-sm font-semibold transition max-lg:min-h-[44px] ${
-                  services.includes(s)
+                  services.includes(sd.key)
                     ? "border-owner bg-owner-light text-owner-dark"
                     : "border-ink/15 bg-white text-ink hover:border-ink/30"
                 }`}
               >
-                {svcLabel(s)}
+                {catalog ? serviceLabel620(lang, sd.key, sd.labels) : svcLabel(sd.key)}
               </button>
             ))}
           </div>
@@ -769,9 +821,13 @@ export default function CreatePostPage() {
           />
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        {/* 620 — « Quand ? » : 3 cartes (serveur 620 seulement). */}
+        {catalog && <DateModeCards620 lang={lang} value={dateMode} onChange={setDateMode} />}
+
+        {mode620 !== "tbd" && (
+        <div className="grid grid-cols-2 gap-3" data-testid="dates-620">
           <div>
-            <label className="block text-sm font-medium text-ink">{t("posts_start_label")} *</label>
+            <label className="block text-sm font-medium text-ink">{mode620 === "approx" ? d620(lang, "approx_from") : t("posts_start_label")} *</label>
             <input
               type="date"
               required
@@ -782,7 +838,7 @@ export default function CreatePostPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink">{t("posts_end_label")} *</label>
+            <label className="block text-sm font-medium text-ink">{mode620 === "approx" ? d620(lang, "approx_to") : t("posts_end_label")} *</label>
             <input
               type="date"
               required
@@ -793,6 +849,27 @@ export default function CreatePostPage() {
             />
           </div>
         </div>
+        )}
+
+        {/* 620 — visites par jour (visite à domicile) + estimation (même calcul que l'app). */}
+        {catalog && service === "home_visit" && (
+          <VisitsPerDay620 lang={lang} value={visitsPerDay} options={serviceDefs.find((x) => x.key === "home_visit")?.visitsPerDay} onChange={setVisitsPerDay} />
+        )}
+        {catalog && service && (
+          <EstimateLine620
+            lang={lang}
+            service={service}
+            dateMode={dateMode}
+            startDate={startDate}
+            endDate={endDate}
+            visitsPerDay={visitsPerDay}
+            venue={needsVenue ? venue : null}
+            services={catalog}
+            provider={target}
+            providerRates={targetRates}
+            currency={budgetCur}
+          />
+        )}
 
         {/* 11/10 (SAM) — une phrase, pas un pavé : le texte libre obligatoire en
             4 lignes était le 1er champ et bloquait l'écran. */}

@@ -16,6 +16,7 @@ import { FeedbackBox } from "@/components/FeedbackBox";
 import { SignatureButton } from "@/components/SignatureButton";
 import { RankProgress611 } from "@/components/Rank611";
 import { PinChips1910 } from "@/components/Pins1910";
+import { RatesGrid620 } from "@/components/RatesGrid620";
 import { parsePins1910, type Pins1910 } from "@/lib/pins1910";
 import { parseRank611, type Rank611 } from "@/lib/ranks611";
 
@@ -449,6 +450,9 @@ export default function DashboardPage() {
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white transition group-hover:translate-x-1"><AppIcon name="arrow-right" size={18} color="#9D174D" /></span>
             </Link>
           </div>
+
+          {/* 620 (LEO, 24/10 — §B.3) — gardien / promeneur : grille de tarifs par service. */}
+          {(role === "sitter" || role === "walker") && <RatesGrid620 role={role} lang={lang} />}
 
           {myRank && (
             <Link href="/pawpoints" className="mt-10 block transition hover:-translate-y-px" data-dash-rank="">

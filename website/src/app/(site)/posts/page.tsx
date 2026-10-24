@@ -11,6 +11,11 @@ import { formatPrice } from "@/lib/pawmapLegend";
 import { localizedTimeSlot } from "@/lib/timeSlot";
 // 16/10/2026 (LEO) — les candidats de chaque demande, « Choisir » puis « Payer » sur le site.
 import { PostCandidates1610 } from "@/components/PostCandidates1610";
+// 620 (LEO, 24/10) — « Dates à prévoir » / « Période approximative » / visites par jour
+// sur la carte, et l'éditeur de dates pour le propriétaire sans candidat.
+import { PostDatesEditor620 } from "@/components/PostDatesEditor620";
+import { d620 } from "@/lib/i18n/dates620";
+import { dateModeOf620 } from "@/lib/services620";
 import {
   ApiError,
   type ApplicationItem,
@@ -181,7 +186,9 @@ function PostCard({
         ? t("posts_svc_day_care")
         : s === "dog_walking"
           ? t("posts_svc_dog_walking")
-          : s;
+          : s === "home_visit"
+            ? d620(lang, "svc_home_visit")
+            : s;
 
   const [contacting, setContacting] = useState(false);
   const [contactMsg, setContactMsg] = useState<string | null>(null);
@@ -191,6 +198,11 @@ function PostCard({
   const [comment, setComment] = useState("");
   const [commentSent, setCommentSent] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // 620 — dates posées depuis la carte (propriétaire, demande « à prévoir »).
+  const [datesNow, setDatesNow] = useState<{ dateMode?: string | null; startDate?: string; endDate?: string } | null>(null);
+  const [showDates, setShowDates] = useState(false);
+  const post620 = datesNow ? { ...post, ...datesNow } : post;
+  const mode620 = dateModeOf620(post620);
 
   async function onContact() {
     if (!ownerId) return;
@@ -248,10 +260,13 @@ function PostCard({
     } catch { setDeleting(false); }
   }
 
-  const dateRange = [post.startDate, post.endDate]
+  const dateRangeRaw = [post620.startDate, post620.endDate]
     .filter(Boolean)
     .map((d) => new Date(d as string).toLocaleDateString(dtLocale))
     .join(" → ");
+  // 620 — « Dates à prévoir » quand il n'y en a pas ; « Période approximative · 2/11 → 6/11 ».
+  const dateRange = mode620 === "tbd" ? d620(lang, "card_tbd") : mode620 === "approx" && dateRangeRaw ? `${d620(lang, "card_approx")} · ${dateRangeRaw}` : dateRangeRaw;
+  const visitsLabel = post620.visitsPerDay && (post620.serviceTypes || []).includes("home_visit") ? d620(lang, "card_visits").replace("{n}", String(post620.visitsPerDay)) : "";
 
   // v450 — Daniel : « il manque l'heure ». Le backend ne renvoie pas de champ
   // `timeSlot` (le Post n'a pas de champ heure dédié) : l'horaire est porté par
@@ -355,6 +370,7 @@ function PostCard({
         </p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {dateRange && <ResCell icon="📅" label={t("posts_field_dates")} value={dateRange} />}
+          {visitsLabel && <ResCell icon="🔁" label={d620(lang, "visits_title")} value={visitsLabel} />}
           {locationLabel && <ResCell icon="📍" label={t("posts_field_location")} value={locationLabel} />}
           {animalsSummary && <ResCell icon="🐾" label={t("posts_field_animals")} value={animalsSummary} />}
           {serviceLabels && <ResCell icon="🛎️" label={t("posts_field_service")} value={serviceLabels} />}
@@ -365,9 +381,20 @@ function PostCard({
         </div>
       </div>
 
+      {/* 620 — propriétaire, « dates à prévoir » sans candidat : poser les dates ici. */}
+      {isOwner && mode620 === "tbd" && applications.length === 0 && (
+        showDates ? (
+          <PostDatesEditor620 post={post620} lang={lang} onSaved={(u) => { setDatesNow({ dateMode: u.dateMode, startDate: u.startDate, endDate: u.endDate }); setShowDates(false); }} onCancel={() => setShowDates(false)} startLabel={t("posts_start_label")} endLabel={t("posts_end_label")} />
+        ) : (
+          <button type="button" onClick={() => setShowDates(true)} data-testid="set-dates-620" className="mt-3 inline-flex min-h-[44px] items-center gap-2 rounded-full border-2 border-owner bg-white px-4 text-sm font-bold text-owner-dark transition hover:bg-owner-light">
+            📅 {d620(lang, "cand_set_dates")}
+          </button>
+        )
+      )}
+
       {/* 16/10 — propriétaire : les candidats de cette demande → Choisir → Payer. */}
       {isOwner && applications.length > 0 && (
-        <PostCandidates1610 post={post} applications={applications} focusId={focusId} />
+        <PostCandidates1610 post={post620} applications={applications} focusId={focusId} />
       )}
 
       {/* Bande animaux : nom · race · âge · sexe + nombre de photos. */}

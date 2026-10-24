@@ -2633,8 +2633,8 @@ export default function MapPage() {
                   const x = byId.get(m.id)!;
                   const key = roleKey(r.role);
                   // 590 (§1) — tarifs visibles seulement de l'autre côté du marché.
-                  const price = key !== "owner" && showsPriceBubble(myRole, key) ? formatPriceUnit(r.priceFrom, r.currency, r.priceAlt, priceUnitLabels(t)) : null;
-                  return { id: `${m.id}-${r.id}`, lat: x.lat, lng: x.lng, km: x.shownKm, pin: "", title: m.name || t("common_member"), sub: `${t(`role_${key}`)}${price ? ` · ${t("map_member_price_from")} ${price}` : ""}${(r.rating ?? 0) > 0 ? ` · ★ ${(r.rating ?? 0).toFixed(1)}` : ""}`, photo: m.avatar || "", meta: m.approx ? t("map_member_approx").replace("{km}", String(m.approxKm ?? 1)) : "", color: ROLE_COLOR[key], book: key !== "owner" ? `/book/${key}/${r.id}` : undefined, friend, friendId: friend ? r.id : undefined, approx: m.approx === true, verified: m.identityVerified === true, price: typeof r.priceFrom === "number" && r.priceFrom > 0 ? r.priceFrom : null };
+                  const price = key !== "owner" && showsPriceBubble(myRole, key) ? formatPriceUnit(r.priceFrom, r.currency, r.priceAlt, priceUnitLabels(t, lang), r.priceUnit) : null;
+                  return { id: `${m.id}-${r.id}`, lat: x.lat, lng: x.lng, km: x.shownKm, pin: "", title: m.name || t("common_member"), sub: `${t(`role_${key}`)}${price ? ` · ${t("map_member_price_from")} ${price}` : ""}${(r.rating ?? 0) > 0 ? ` · ★ ${(r.rating ?? 0).toFixed(1)}` : ""}`, photo: m.avatar || "", meta: m.approx ? t("map_member_approx").replace("{km}", String(m.approxKm ?? 1)) : "", color: ROLE_COLOR[key], book: key !== "owner" ? `/posts/create?for=${key}:${r.id}` /* 620 — demande pré-remplie */ : undefined, friend, friendId: friend ? r.id : undefined, approx: m.approx === true, verified: m.identityVerified === true, price: typeof r.priceFrom === "number" && r.priceFrom > 0 ? r.priceFrom : null };
                 });
               }
               // 02/10 (609, CONTRAT) — à prix égal (> 0) et à moins de 500 m l'un de l'autre,

@@ -468,6 +468,12 @@ export type UserProfile = {
   hourlyRate?: number;
   weeklyRate?: number;
   monthlyRate?: number;
+  dailyRate?: number;
+  /** 24/10 (620) — visite à domicile : tarif par visite (0 = non proposé) + durée 30 | 60. */
+  visitRate?: number;
+  visitDurationMinutes?: number;
+  defaultRateType?: string;
+  walkRates?: WalkRate[];
   skills?: string;
   service?: string;
   rating?: number;
@@ -1348,6 +1354,11 @@ export type ApplicationItem = {
     netPayout?: number | null;
     currency?: string;
     pricingTier?: string;
+    /** 24/10 (620) — demande « dates à prévoir » : tarif unitaire seul, totaux null. */
+    indicative?: boolean;
+    quantity?: number | null;
+    appliedRate?: number | null;
+    unit?: string;
   } | null;
 };
 
@@ -1993,6 +2004,10 @@ export type RequestPost = {
   currency?: string;
   /** v587 — devise du budget saisi par le propriétaire ('' sans budget). */
   budgetCurrency?: string;
+  /** 24/10 (620) — exact | approx | tbd ; absent sur une ancienne demande (lire par dateModeOf620). */
+  dateMode?: string | null;
+  /** 24/10 (620) — visites par jour (home_visit) : 1 | 2 | null. */
+  visitsPerDay?: number | null;
 };
 
 export type CreatePostInput = {
@@ -2018,10 +2033,16 @@ export type CreatePostInput = {
   budgetCurrency?: string;
   /** 28/09 (NEO) — « Demander à <prénom> » : ce prestataire est prévenu en premier. */
   targetProvider?: { role: "sitter" | "walker"; id: string };
+  /** 24/10 (620, LEO) — mode de dates : exact | approx | tbd (absent = comportement d'avant). */
+  dateMode?: "exact" | "approx" | "tbd";
+  /** 24/10 (620) — visites par jour (home_visit seulement) : 1 | 2. */
+  visitsPerDay?: number;
 };
 
 // Canonical service keys (match the app + backend filtering: dog_walking is
 // walker-exclusive, sitters see house_sitting / day_care).
+// 24/10 (620) — `home_visit` existe aussi dès que GET /app-config/services le
+// renvoie (lib/services620.ts) ; cette liste reste celle de l'ancien serveur.
 export const POST_SERVICE_TYPES = ["house_sitting", "day_care", "dog_walking"] as const;
 
 function postId(p: RequestPost): string {
@@ -2072,6 +2093,8 @@ export async function createPostWithMediaMeta(input: CreatePostInput, files: Fil
   if (input.budget && input.budget > 0 && input.budgetCurrency) fd.append("budgetCurrency", input.budgetCurrency);
   if (input.startDate) fd.append("startDate", input.startDate);
   if (input.endDate) fd.append("endDate", input.endDate);
+  if (input.dateMode) fd.append("dateMode", input.dateMode); // 620 — dates à prévoir
+  if (input.visitsPerDay) fd.append("visitsPerDay", String(input.visitsPerDay)); // 620 — visites par jour
   if (input.notes) fd.append("notes", input.notes);
   if (input.postalCode) fd.append("postalCode", input.postalCode); // 23/10 (BOB) — position au code postal
   if (input.animalCount) fd.append("animalCount", String(input.animalCount));
@@ -2482,6 +2505,9 @@ export async function syncAppLocale(locale: string): Promise<void> {
 
 // v497 — Daniel : « je vois les utilisateurs en rose sur le web ? ». Membres
 // PawMap proches (TOUS rôles, abonnés actifs) — même endpoint que l'app.
+/** 620 — prix par service d'un prestataire (clé = service). */
+export type ServicePrices620 = Record<string, { amount?: number; unit?: string; durationMinutes?: number } | null | undefined>;
+
 export type NearbyMember = {
   id: string;
   role: string;
@@ -2506,13 +2532,17 @@ export type NearbyMember = {
   currency?: string;
   /** 30/09 (605) — tarif semaine / mois quand `priceFrom` = 0 (serveur a3d3a01a). */
   priceAlt?: { amount: number; unit: "week" | "month" } | null;
+  /** 24/10 (620) — unité de `priceFrom` selon le service : day | night | visit | walk | hour (absent = jour implicite). */
+  priceUnit?: string | null;
+  /** 24/10 (620) — prix PAR SERVICE (serveur prices620.pricesFor) : { house_sitting: { amount, unit }, home_visit: {…}, … }. */
+  prices?: ServicePrices620 | null;
   /** 24/09/2026 — légende : PawBoost (lueur turquoise) et « Identité vérifiée ». */
   isBoosted?: boolean;
   identityVerified?: boolean;
   /** v585 (serveur) — une PERSONNE = UN point : tous ses profils. Couche
    *  monde : note/prix par rôle ; couche proches : {id, role} seulement.
    *  Absents sur un ancien serveur (lib/memberPersons.ts gère le repli). */
-  roles?: { id: string; role: string; rating?: number; reviewsCount?: number; priceFrom?: number; currency?: string; isPremium?: boolean; priceAlt?: { amount: number; unit: "week" | "month" } | null }[];
+  roles?: { id: string; role: string; rating?: number; reviewsCount?: number; priceFrom?: number; currency?: string; isPremium?: boolean; priceAlt?: { amount: number; unit: "week" | "month" } | null; priceUnit?: string | null; prices?: ServicePrices620 | null }[];
   personIds?: string[];
   /** v585 — l'un de ses profils est ami de l'un des miens (à lire en priorité). */
   isFriend?: boolean;
@@ -2596,6 +2626,8 @@ export type PublicProvider = {
   priceFrom: number | null;
   /** 30/09 (605) — gardien sans tarif jour / heure : semaine, sinon mois. */
   priceAlt: { amount: number; unit: "week" | "month" } | null;
+  /** 24/10 (620) — unité de `priceFrom` (day | visit | walk…), telle que le serveur l'envoie ; null = jour implicite. */
+  priceUnit: string | null;
   currency: string;
   identityVerified: boolean;
   /** PawBoost (profil ou carte) → lueur turquoise. */
@@ -2623,6 +2655,10 @@ type RawProvider = {
   isBoosted?: boolean;
   isMapBoosted?: boolean;
   availableDates?: string[];
+  /** 24/10 (620) — le serveur renvoie priceFrom + priceUnit selon le service demandé. */
+  priceFrom?: number | null;
+  priceUnit?: string | null;
+  visitRate?: number;
 };
 
 function normalizeProvider(r: RawProvider, role: "sitter" | "walker"): PublicProvider | null {
@@ -2637,10 +2673,16 @@ function normalizeProvider(r: RawProvider, role: "sitter" | "walker"): PublicPro
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return null;
   const [blat, blng] = blurLatLng(lat, lng, id);
   const rates = (r.walkRates || []).filter((w) => w.enabled !== false && (w.basePrice || 0) > 0).map((w) => Number(w.basePrice));
+  // 620 — serveur nouveau : `priceFrom` + `priceUnit` selon le service demandé
+  // (« 12 €/visite ») ; ancien serveur : calcul d'avant (jour, sinon heure).
+  const serverFrom = Number(r.priceFrom);
   const priceFrom =
-    role === "walker"
-      ? rates.length ? Math.min(...rates) : null
-      : (r.dailyRate || 0) > 0 ? Number(r.dailyRate) : (r.hourlyRate || 0) > 0 ? Number(r.hourlyRate) : null;
+    Number.isFinite(serverFrom) && serverFrom > 0
+      ? serverFrom
+      : role === "walker"
+        ? rates.length ? Math.min(...rates) : null
+        : (r.dailyRate || 0) > 0 ? Number(r.dailyRate) : (r.hourlyRate || 0) > 0 ? Number(r.hourlyRate) : null;
+  const priceUnit = Number.isFinite(serverFrom) && serverFrom > 0 && r.priceUnit ? String(r.priceUnit) : null;
   const today = new Date().toISOString().slice(0, 10);
   const avatar = typeof r.avatar === "string" ? r.avatar : r.avatar?.url || "";
   return {
@@ -2656,6 +2698,7 @@ function normalizeProvider(r: RawProvider, role: "sitter" | "walker"): PublicPro
     reviewsCount: Number(r.reviewsCount || 0),
     priceFrom,
     priceAlt: role === "sitter" && priceFrom == null ? priceAltFromRates(r) : null,
+    priceUnit,
     currency: (r.currency || (r.walkRates || [])[0]?.currency || "EUR").toUpperCase(),
     identityVerified: r.identityVerified === true,
     boosted: r.isBoosted === true || r.isMapBoosted === true,
@@ -3669,4 +3712,123 @@ export async function getProviderBadge607(role: "sitter" | "walker", id: string)
   } catch {
     return null;
   }
+}
+
+// ─── 24/10/2026 (620, LEO — CONTRAT_620_dates_visites.md §B) ─────────────────
+// Catalogue des services, estimation de prix, dates d'une demande, tarifs d'un
+// prestataire. Formes lues par lib/services620.ts (tolérant : un serveur
+// d'avant le 620 → null, le site garde son comportement d'avant).
+import {
+  parseCatalog620,
+  parseEstimate620,
+  readProviderRates620,
+  type DateMode620,
+  type Estimate620,
+  type ProviderRates620,
+  type Quantity620,
+  type ServiceDef620,
+} from "@/lib/services620";
+
+let catalog620Cache: { at: number; value: ServiceDef620[] | null } | null = null;
+/** GET /app-config/services (public, cache 60 s). null = ancien serveur (pas de `home_visit`). */
+export async function getServiceCatalog620(force = false): Promise<ServiceDef620[] | null> {
+  if (!force && catalog620Cache && Date.now() - catalog620Cache.at < 60_000) return catalog620Cache.value;
+  let value: ServiceDef620[] | null = null;
+  try {
+    const r = await fetch(`${API_BASE}/app-config/services`, { headers: { Accept: "application/json", "X-App-Version": "web" } });
+    if (r.ok) value = parseCatalog620(await r.json());
+  } catch {
+    value = null;
+  }
+  catalog620Cache = { at: Date.now(), value };
+  return value;
+}
+
+export type EstimateInput620 = {
+  serviceType: string;
+  dateMode: DateMode620;
+  startDate?: string | null;
+  endDate?: string | null;
+  visitsPerDay?: number | null;
+  houseSittingVenue?: string | null;
+  walkDurationMinutes?: number | null;
+  providerRole?: "sitter" | "walker";
+  providerId?: string;
+  /** Tarif unitaire déjà connu (fiche du prestataire) : le serveur peut s'en servir. */
+  rate?: number | null;
+  unit?: string | null;
+  currency?: string | null;
+};
+
+/** POST /pricing/estimate (auth) — même calcul que l'app. null = non connecté, route absente ou refus. */
+export async function estimatePricing620(input: EstimateInput620, fallback: Quantity620): Promise<Estimate620 | null> {
+  if (!getStoredToken()) return null;
+  const post = {
+    dateMode: input.dateMode,
+    startDate: input.startDate || null,
+    endDate: input.endDate || null,
+    visitsPerDay: input.visitsPerDay ?? null,
+    houseSittingVenue: input.houseSittingVenue || null,
+    walkDurationMinutes: input.walkDurationMinutes ?? null,
+    serviceTypes: [input.serviceType],
+  };
+  try {
+    const raw = await request<unknown>("/pricing/estimate", {
+      method: "POST",
+      body: JSON.stringify({
+        serviceType: input.serviceType,
+        ...post,
+        post,
+        ...(input.providerRole && input.providerId ? { providerRole: input.providerRole, providerId: input.providerId, [`${input.providerRole}Id`]: input.providerId } : {}),
+        ...(input.rate ? { rate: input.rate } : {}),
+        ...(input.unit ? { unit: input.unit } : {}),
+        ...(input.currency ? { currency: input.currency } : {}),
+      }),
+    });
+    return parseEstimate620(raw, fallback, String(input.currency || "EUR"));
+  } catch {
+    return null;
+  }
+}
+
+/** PATCH /posts/:id — poser (ou changer) les dates d'une demande : le serveur recalcule les candidatures. */
+export async function updatePostDates620(
+  id: string,
+  dates: { dateMode: "exact" | "approx"; startDate: string; endDate: string },
+): Promise<RequestPost> {
+  const raw = await request<{ post?: RequestPost } & RequestPost>(`/posts/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      dateMode: dates.dateMode,
+      startDate: new Date(dates.startDate).toISOString(),
+      endDate: new Date(dates.endDate).toISOString(),
+    }),
+  });
+  return (raw.post as RequestPost) || (raw as RequestPost);
+}
+
+/** Tarifs d'un gardien / promeneur (GET /sitters/:id ou /walkers/:id) — null si introuvable. */
+export async function getProviderRates620(role: "sitter" | "walker", id: string): Promise<ProviderRates620 | null> {
+  try {
+    const d = await request<Record<string, unknown>>(`/${role}s/${encodeURIComponent(id)}`);
+    const p = (d[role] as Record<string, unknown>) || d;
+    return readProviderRates620(p);
+  } catch {
+    return null;
+  }
+}
+
+/** Mes tarifs (GET /users/me/profile) et enregistrement (PUT /users/me/profile). */
+export async function getMyRates620(): Promise<{ rates: ProviderRates620; raw: UserProfile }> {
+  const p = await getMyProfile();
+  return { rates: readProviderRates620(p), raw: p };
+}
+export async function saveMyRates620(patch: {
+  hourlyRate?: number;
+  dailyRate?: number;
+  visitRate?: number;
+  visitDurationMinutes?: 30 | 60;
+  walkRates?: { durationMinutes: number; basePrice: number; currency?: string; enabled: boolean }[];
+}): Promise<UserProfile> {
+  return updateMyProfile(patch as Partial<UserProfile>);
 }

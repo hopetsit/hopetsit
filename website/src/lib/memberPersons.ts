@@ -26,6 +26,10 @@ export type PersonRole = {
   isPremium?: boolean;
   /** 30/09 (605) — tarif semaine / mois quand `priceFrom` = 0. */
   priceAlt?: { amount: number; unit: "week" | "month" } | null;
+  /** 24/10 (620) — unité de `priceFrom` selon le service (day | visit | walk…). */
+  priceUnit?: string | null;
+  /** 24/10 (620) — prix par service (serveur). */
+  prices?: NearbyMember["prices"];
 };
 
 export function normRole(r: string | undefined | null): RoleName {
@@ -66,6 +70,8 @@ export function rolesOf(m: NearbyMember): PersonRole[] {
     currency: m.currency,
     isPremium: m.isPremium,
     priceAlt: m.priceAlt ?? undefined,
+    priceUnit: m.priceUnit ?? undefined,
+    prices: m.prices ?? undefined,
   };
   const raw = Array.isArray(m.roles) ? m.roles : [];
   const first = raw.find((r) => r && String(r.id) === String(m.id));
@@ -85,6 +91,8 @@ function cleanRole(r: NonNullable<NearbyMember["roles"]>[number]): Partial<Perso
   if (r.currency) o.currency = r.currency;
   if (typeof r.isPremium === "boolean") o.isPremium = r.isPremium;
   if (r.priceAlt && typeof r.priceAlt === "object") o.priceAlt = r.priceAlt;
+  if (typeof r.priceUnit === "string" && r.priceUnit) o.priceUnit = r.priceUnit;
+  if (r.prices && typeof r.prices === "object") o.prices = r.prices;
   return o;
 }
 
@@ -137,6 +145,8 @@ export function mergePersons(nearby: NearbyMember[], world: NearbyMember[]): Nea
         reviewsCount: cur.reviewsCount ?? m.reviewsCount,
         priceFrom: cur.priceFrom ?? m.priceFrom,
         priceAlt: cur.priceAlt ?? m.priceAlt,
+        priceUnit: cur.priceUnit ?? m.priceUnit,
+        prices: cur.prices ?? m.prices,
         currency: cur.currency ?? m.currency,
         avatar: cur.avatar || m.avatar,
         identityVerified: cur.identityVerified ?? m.identityVerified,

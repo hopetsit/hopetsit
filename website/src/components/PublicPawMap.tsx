@@ -261,7 +261,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   // avant, il n'apparaissait qu'au zoom de rue (14) et le visiteur ne voyait
   // que des ronds. Prix public déjà servi par /sitters|walkers/nearby.
   // 30/09 (605) — gardien sans tarif jour / heure : « 100 €/sem », « 350 €/mois ».
-  const priceOf = (p: PublicProvider) => formatPriceUnit(p.priceFrom, p.currency, p.priceAlt, priceUnitLabels(t));
+  const priceOf = (p: PublicProvider) => formatPriceUnit(p.priceFrom, p.currency, p.priceAlt, priceUnitLabels(t, lang), p.priceUnit);
   // Ce qui est posé à l'écran (px) : une bulle de zoom ville n'apparaît que
   // si elle ne touche aucun autre rond, pastille ou bulle déjà posée.
   const placedBubbles: Rect[] = [];
@@ -352,7 +352,8 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         )}
         {clusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((p) => {
           const color = ROLE_COLOR[p.role];
-          const bookHref = `/book/${p.role}/${p.id}`;
+          // 620 (Daniel 24/10) — connecté : le formulaire de demande pré-rempli pour ce prestataire.
+          const bookHref = `/posts/create?for=${p.role}:${p.id}`;
           const href = ready && user ? bookHref : `/signup?next=${encodeURIComponent(bookHref)}`;
           return (
             <Marker key={`p-${p.id}`} position={[p.lat, p.lng]} icon={memberIcon(p, captionOf(p), bubbleOf(p))} zIndexOffset={p.boosted ? PIN_Z.memberBoosted : PIN_Z.member}>
@@ -496,7 +497,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
           <ul className="space-y-1.5">
             {clusterList.map((p) => {
               const color = ROLE_COLOR[p.role];
-              const bookHref = `/book/${p.role}/${p.id}`;
+              const bookHref = `/posts/create?for=${p.role}:${p.id}`; // 620 — demande pré-remplie
               // 28/09 (LEO) — sans compte : le profil public, qui porte « Demander à <prénom> ».
               const href = ready && user ? bookHref : `/p/${p.role}/${p.id}`;
               return (

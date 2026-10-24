@@ -246,7 +246,7 @@ export default function PawMapPage() {
           <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {nearest.map((p) => {
               const color = ROLE_COLOR[p.role];
-              const price = formatPriceUnit(p.priceFrom, p.currency, p.priceAlt, priceUnitLabels(t));
+              const price = formatPriceUnit(p.priceFrom, p.currency, p.priceAlt, priceUnitLabels(t, lang), p.priceUnit);
               // 28/09 (LEO) — « Demander à <prénom> » : la demande de NEO, ville du
               // prestataire pré-remplie, compte créé sur le même écran.
               const ville = cityLabel || p.city;

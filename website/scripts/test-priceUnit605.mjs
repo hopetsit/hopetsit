@@ -15,7 +15,15 @@ const legend = readFileSync(join(lib, "pawmapLegend.ts"), "utf8");
 const fp = legend.match(/export function formatPrice\([\s\S]*?\n\}\n/);
 if (!fp) throw new Error("formatPrice introuvable dans pawmapLegend.ts");
 writeFileSync(join(dir, "legendPrice.ts"), fp[0]);
-writeFileSync(join(dir, "priceUnit.ts"), readFileSync(join(lib, "priceUnit.ts"), "utf8").replace(/from "@\/lib\/pawmapLegend"/, 'from "./legendPrice.ts"'));
+// 620 — priceUnit.ts lit aussi les unités de lib/i18n/dates620.ts (copié tel quel).
+writeFileSync(join(dir, "dates620.ts"), readFileSync(join(lib, "i18n", "dates620.ts"), "utf8").replace(/import type \{ Lang \} from "\.\/langs";\n/, "type Lang = string;\n"));
+writeFileSync(
+  join(dir, "priceUnit.ts"),
+  readFileSync(join(lib, "priceUnit.ts"), "utf8")
+    .replace(/from "@\/lib\/pawmapLegend"/, 'from "./legendPrice.ts"')
+    .replace(/from "@\/lib\/i18n\/dates620"/, 'from "./dates620.ts"')
+    .replace(/import type \{ Lang \} from "@\/lib\/i18n\/langs";\n/, "type Lang = string;\n"),
+);
 writeFileSync(join(dir, "mapCluster.ts"), readFileSync(join(lib, "mapCluster.ts"), "utf8"));
 writeFileSync(
   join(dir, "memberPersons.ts"),
@@ -71,5 +79,25 @@ ok("mergePersons (proches + monde) garde priceAlt", () => {
   assert.equal(out.length, 1);
   assert.deepEqual(out[0].priceAlt, { amount: 100, unit: "week" });
   assert.deepEqual(M.rolesOf(out[0])[0].priceAlt, { amount: 100, unit: "week" });
+});
+ok("620 : priceUnit du serveur → « 12 €/visite », « 22 €/jour », « $10/walk » ; inconnu → inchangé", () => {
+  const FR620 = { week: "sem", month: "mois", day: "jour", visit: "visite", walk: "balade", night: "nuit", hour: "h" };
+  assert.equal(P.formatPriceUnit(12, "EUR", null, FR620, "visit"), "12 €/visite");
+  assert.equal(P.formatPriceUnit(22, "EUR", null, FR620, "day"), "22 €/jour");
+  assert.equal(P.formatPriceUnit(10, "USD", null, { week: "wk", month: "mo", walk: "walk" }, "walk"), "$10/walk");
+  assert.equal(P.formatPriceUnit(22, "EUR", null, FR620, "year"), "22 €");
+  assert.equal(P.formatPriceUnit(22, "EUR", null, FR620, undefined), "22 €");
+  assert.equal(P.formatPriceUnit(22, "EUR", null, FR, "visit"), "22 €"); // libellés 605 seuls : pas d'unité inventée
+  assert.equal(P.formatPriceUnit(0, "EUR", { amount: 100, unit: "week" }, FR620, "visit"), "100 €/sem");
+  const labels = P.priceUnitLabels((k) => ({ pu605_week: "sem", pu605_month: "mois" })[k], "fr");
+  assert.equal(labels.visit, "visite"); assert.equal(labels.day, "jour");
+  assert.equal(P.priceUnitLabels((k) => k, "en").visit, "visit");
+});
+ok("620 : rolesOf / mergePersons gardent priceUnit", () => {
+  const g = { id: "s-v", role: "sitter", priceFrom: 12, priceUnit: "visit", location: { coordinates: [2.24, 48.835] }, roles: [{ id: "s-v", role: "sitter", priceFrom: 12, priceUnit: "visit" }] };
+  assert.equal(M.rolesOf(g)[0].priceUnit, "visit");
+  const near = { id: "s-v", role: "sitter", location: { coordinates: [2.24, 48.835] }, roles: [{ id: "s-v", role: "sitter" }] };
+  const out = M.mergePersons([near], [g]);
+  assert.equal(out[0].priceUnit, "visit"); assert.equal(M.rolesOf(out[0])[0].priceUnit, "visit");
 });
 console.log(`\n${n} tests OK`);

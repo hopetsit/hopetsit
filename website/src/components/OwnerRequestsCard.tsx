@@ -10,6 +10,8 @@ import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { getOwnerActiveRequests, getStoredUser, myBasePrice, proposeMyServices, type OwnerActiveRequest } from "@/lib/api";
 import { AppIcon } from "@/components/AppIcon";
+import { d620 } from "@/lib/i18n/dates620";
+import { dateModeOf620 } from "@/lib/services620";
 
 const GRAD = { sitter: "linear-gradient(90deg,#2F6FD6,#1E4FB0)", walker: "linear-gradient(90deg,#2FAE4E,#15803D)" } as const;
 const DARK = { sitter: "#1E4FB0", walker: "#15803D" } as const;
@@ -43,7 +45,7 @@ export function OwnerRequestsCard({ ownerId, from, onLoaded }: { ownerId: string
 
   if (!role || !posts || posts.length === 0) return null;
 
-  const svc = (s: string) => t(s === "dog_walking" ? "posts_svc_dog_walking" : s === "day_care" ? "posts_svc_day_care" : "posts_svc_house_sitting");
+  const svc = (s: string) => (s === "home_visit" ? d620(lang, "svc_home_visit") : t(s === "dog_walking" ? "posts_svc_dog_walking" : s === "day_care" ? "posts_svc_day_care" : "posts_svc_house_sitting"));
   const day = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(lang, { day: "numeric", month: "short" }) : "");
   const money = (v: number, c?: string) => { try { return new Intl.NumberFormat(lang, { style: "currency", currency: c || "EUR", maximumFractionDigits: 0 }).format(v); } catch { return `${v} ${c || "€"}`; } };
 
@@ -71,7 +73,10 @@ export function OwnerRequestsCard({ ownerId, from, onLoaded }: { ownerId: string
       <ul className="mt-2 space-y-2">
         {posts.map((p) => {
           const s = st[p.id] || "idle";
-          const dates = [day(p.startDate), day(p.endDate)].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(" → ");
+          // 620 — « Dates à prévoir » / « Période approximative » selon le mode de dates.
+          const mode = dateModeOf620(p as { dateMode?: string | null; startDate?: string | null; endDate?: string | null });
+          const range = [day(p.startDate), day(p.endDate)].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(" → ");
+          const dates = mode === "tbd" ? d620(lang, "card_tbd") : mode === "approx" && range ? `${d620(lang, "card_approx")} · ${range}` : range;
           const where = p.distanceKm ? t("m586_km").replace("{km}", String(p.distanceKm)) : p.city || "";
           const done = s === "sent" || s === "already" || s === "accepted";
           return (

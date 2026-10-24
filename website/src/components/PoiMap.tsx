@@ -97,6 +97,7 @@ import { ensureOwnerProfile, isMyProfile, needsOwnerSwitch } from "@/lib/bookAsO
 import { OwnerRequestsCard } from "@/components/OwnerRequestsCard";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { formatPriceUnit, priceUnitLabels, type PriceAlt } from "@/lib/priceUnit";
+import { serviceLabel620 } from "@/lib/i18n/dates620";
 import {
   expandRows,
   formatKm,
@@ -809,8 +810,8 @@ export default function PoiMap({
   uiFade?: boolean;
 }) {
   // 30/09 (605) — unités « /sem », « /mois » de la bulle de prix (9 langues).
-  const { t: tUnits } = useT();
-  const priceUnits = priceUnitLabels(tUnits);
+  const { t: tUnits, lang: langUnits } = useT();
+  const priceUnits = priceUnitLabels(tUnits, langUnits);
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
   const friendSet = useMemo(() => new Set(friendIds), [friendIds]);
   const liveIdSet = useMemo(() => new Set([...friendPositions.map((p) => p.userId), ...liveIdsAll]), [friendPositions, liveIdsAll]);
@@ -840,22 +841,23 @@ export default function PoiMap({
     const first = (m.name || "").trim().split(/\s+/)[0];
     return first || memberRoleLabels?.[m.role] || null;
   };
-  const priceFor = (role: string, amount?: number | null, currency?: string | null, alt?: PriceAlt | null): string | null => {
+  // 620 — `unit` (day | visit | walk…) envoyé par le serveur selon le service : « 12 €/visite ».
+  const priceFor = (role: string, amount?: number | null, currency?: string | null, alt?: PriceAlt | null, unit?: string | null): string | null => {
     const k = roleKey(role);
     if (k === "owner" || !showsPriceBubble(userRole, k)) return null;
     // 605 — sans tarif jour / heure : « 100 €/sem » ou « 350 €/mois ».
-    return formatPriceUnit(amount, currency, alt, priceUnits);
+    return formatPriceUnit(amount, currency, alt, priceUnits, unit);
   };
-  const memberBubble = (role: string, amount?: number | null, currency?: string | null, alt?: PriceAlt | null): string | null =>
-    showPrice || cityZoom ? priceFor(role, amount, currency, alt) : null;
+  const memberBubble = (role: string, amount?: number | null, currency?: string | null, alt?: PriceAlt | null, unit?: string | null): string | null =>
+    showPrice || cityZoom ? priceFor(role, amount, currency, alt, unit) : null;
   // 27/09 — gardien ET promeneur parmi les rôles montrés (filtre compris) :
   // les deux prix, gardien d'abord. Sinon null → bulle simple habituelle.
   const duoPrices = (roles: PersonRole[]): [string, string] | null => {
     const s = roles.find((r) => roleKey(r.role) === "sitter");
     const w = roles.find((r) => roleKey(r.role) === "walker");
     if (!s || !w) return null;
-    const ps = priceFor("sitter", s.priceFrom, s.currency, s.priceAlt);
-    const pw = priceFor("walker", w.priceFrom, w.currency, w.priceAlt);
+    const ps = priceFor("sitter", s.priceFrom, s.currency, s.priceAlt, s.priceUnit);
+    const pw = priceFor("walker", w.priceFrom, w.currency, w.priceAlt, w.priceUnit);
     return ps && pw ? [ps, pw] : null;
   };
   const memberDuo = (roles: PersonRole[]): [string, string] | null => (showPrice || cityZoom ? duoPrices(roles) : null);
@@ -951,7 +953,7 @@ export default function PoiMap({
       let bw = 0;
       if (showPrice || cityZoom) {
         const duo = memberDuo(shown);
-        const bubble = memberBubble(r0.role, r0.priceFrom ?? m.priceFrom, r0.currency ?? m.currency, r0.priceAlt ?? m.priceAlt);
+        const bubble = memberBubble(r0.role, r0.priceFrom ?? m.priceFrom, r0.currency ?? m.currency, r0.priceAlt ?? m.priceAlt, r0.priceUnit ?? m.priceUnit);
         if (duo || bubble) bw = bubbleW0(bubble, duo) + 4;
       }
       return pinBox(46 / 2 + 1, { labelW: lw, bubbleW: bw });
@@ -1119,13 +1121,13 @@ export default function PoiMap({
     return formatKm(2 * R * Math.asin(Math.min(1, Math.sqrt(a))), cardLabels?.lang) || "";
   };
   const firstOf = (name: string) => (name || "").trim().split(/\s+/)[0] || name;
-  const personFocus = (m: NearbyMember, role: string, price: number | null | undefined, currency: string | null | undefined, open: () => void, friend: boolean, shown?: PersonRole[], alt?: PriceAlt | null): Focus | null => {
+  const personFocus = (m: NearbyMember, role: string, price: number | null | undefined, currency: string | null | undefined, open: () => void, friend: boolean, shown?: PersonRole[], alt?: PriceAlt | null, unit?: string | null): Focus | null => {
     const at = pointOf(m);
     if (!at) return null;
     const k = roleKey(role);
     // 27/09 — gardien + promeneur montrés : les deux prix (« 🏠 20 € · 🐾 12 € »).
     const duo = shown ? duoPrices(shown) : null;
-    const pr = duo ? `🏠 ${duo[0]} · 🐾 ${duo[1]}` : priceFor(k, price, currency, alt);
+    const pr = duo ? `🏠 ${duo[0]} · 🐾 ${duo[1]}` : priceFor(k, price, currency, alt, unit);
     const km = kmFrom(at);
     return {
       key: `p:${m.id}`,
@@ -1382,20 +1384,22 @@ export default function PoiMap({
               ? (now - seenMs < 60000 ? liveLabels.seenNow : liveLabels.seenAgo.replace("{ago}", liveLabels.ago(now - seenMs)))
               : null;
             const fAlt = roles[0].priceAlt ?? m.priceAlt;
-            const fFit = lay.priceFit(m, memberBubble(roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fAlt), memberDuo(shown));
+            const fUnit = roles[0].priceUnit ?? m.priceUnit;
+            const fFit = lay.priceFit(m, memberBubble(roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fAlt, fUnit), memberDuo(shown));
             // 607 — dessous si libre, sinon dessus (sans bulle), sinon rien.
             const side = lay.friendSide(m, rawCaption, !!(fFit.bubble || fFit.duo));
             const caption = side === "none" ? null : rawCaption;
             const fOpen = () => flyToFriend(m);
-            return <Marker key={`friend-${m.id}`} position={lay.movedPos(m) ?? pt} icon={friendProfileIcon(m, prem, roles, caption, fFit.bubble, fFit.duo, side === "above")} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => { const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true, shown, fAlt); if (f) tapFocus(f); else fOpen(); } }} />;
+            return <Marker key={`friend-${m.id}`} position={lay.movedPos(m) ?? pt} icon={friendProfileIcon(m, prem, roles, caption, fFit.bubble, fFit.duo, side === "above")} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => { const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true, shown, fAlt, fUnit); if (f) tapFocus(f); else fOpen(); } }} />;
           }
           const r0 = roles[0];
           const pFrom = r0.priceFrom ?? m.priceFrom;
           const pCur = r0.currency ?? m.currency;
           const pAlt = r0.priceAlt ?? m.priceAlt;
-          const fit = lay.priceFit(m, memberBubble(r0.role, pFrom, pCur, pAlt), memberDuo(shown));
+          const pUnit = r0.priceUnit ?? m.priceUnit;
+          const fit = lay.priceFit(m, memberBubble(r0.role, pFrom, pCur, pAlt, pUnit), memberDuo(shown));
           return (
-            <Marker key={`member-${m.id}`} position={lay.movedPos(m) ?? pt} icon={memberIcon(m, memberCaption({ ...m, role: r0.role }), roles, fit.bubble, dark, fit.duo)} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: () => { const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt); if (f) tapFocus(f); else open(); } }} />
+            <Marker key={`member-${m.id}`} position={lay.movedPos(m) ?? pt} icon={memberIcon(m, memberCaption({ ...m, role: r0.role }), roles, fit.bubble, dark, fit.duo)} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: () => { const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt, pUnit); if (f) tapFocus(f); else open(); } }} />
           );
         })}
 
@@ -1631,8 +1635,8 @@ function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanc
   /** 590 (§1) — prix de l'autre côté du marché seulement dans les listes. */
   viewerRole?: string;
 }) {
-  const { t: tUnits } = useT();
-  const priceUnits = priceUnitLabels(tUnits);
+  const { t: tUnits, lang: langUnits } = useT();
+  const priceUnits = priceUnitLabels(tUnits, langUnits);
   const dist = (m: NearbyMember) => {
     const d = formatKm(distanceKmTo(m, distanceFrom), labels.lang);
     return d ? labels.distance.replace("{d}", d) : "";
@@ -1652,7 +1656,7 @@ function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanc
   // Une ligne « photo · prénom · rôle coloré · distance · Voir ».
   const RoleRow = ({ m, r, friend, onSee }: { m: NearbyMember; r: PersonRole; friend: boolean; onSee: () => void }) => {
     const k = roleKey(r.role);
-    const price = k !== "owner" && showsPriceBubble(viewerRole, k) ? formatPriceUnit(r.priceFrom, r.currency, r.priceAlt, priceUnits) : null;
+    const price = k !== "owner" && showsPriceBubble(viewerRole, k) ? formatPriceUnit(r.priceFrom, r.currency, r.priceAlt, priceUnits, r.priceUnit) : null;
     return (
       <li>
         <button type="button" onClick={onSee} className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl bg-[#FDF8F7] px-2.5 py-2 text-left transition hover:bg-[#FAF1EC]">
@@ -1774,8 +1778,8 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
   onMessage?: (who: { id: string; role: string; name: string }) => void;
   onMessageMember?: (m: NearbyMember) => (() => void) | null;
 }) {
-  const { t: tUnits } = useT();
-  const priceUnits = priceUnitLabels(tUnits);
+  const { t: tUnits, lang: langUnits } = useT();
+  const priceUnits = priceUnitLabels(tUnits, langUnits);
   const [state, setState] = useState<"idle" | "busy" | "sent" | "already" | "error">("idle");
   const [bookState, setBookState] = useState<"idle" | "busy" | "error">("idle");
   const [asOwner, setAsOwner] = useState(false);
@@ -1794,10 +1798,21 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
     void getProviderBadge607(k as "sitter" | "walker", String(r.id)).then((b) => { if (alive && b?.slug) setSLink(`/s/${b.slug}`); });
     return () => { alive = false; };
   }, [provider, k, r.id]);
-  const price = provider ? formatPriceUnit(r.priceFrom, r.currency, r.priceAlt, priceUnits) : null;
+  const price = provider ? formatPriceUnit(r.priceFrom, r.currency, r.priceAlt, priceUnits, r.priceUnit) : null;
+  // 620 (Daniel 24/10 : « le prix sur la fiche membre suit le service ») — prix PAR
+  // SERVICE envoyés par le serveur : « Garde 22 €/jour · Visite 12 €/visite ».
+  const servicePrices: { key: string; text: string }[] = [];
+  if (provider) {
+    const pl = r.prices ?? m.prices;
+    for (const key of ["house_sitting", "home_visit", "day_care", "dog_walking"]) {
+      const p0 = pl && pl[key];
+      const txt = p0 ? formatPriceUnit(p0.amount, r.currency ?? m.currency, null, priceUnits, p0.unit) : null;
+      if (txt) servicePrices.push({ key, text: `${serviceLabel620(langUnits, key)} ${txt}` });
+    }
+  }
   // Le membre « vu sous ce rôle » : id et rôle du profil choisi (fiche,
   // réservation, demande d'ami, conversation prestataire).
-  const asRole: NearbyMember = { ...m, id: r.id, role: k, priceFrom: r.priceFrom, priceAlt: r.priceAlt, currency: r.currency, rating: r.rating, reviewsCount: r.reviewsCount };
+  const asRole: NearbyMember = { ...m, id: r.id, role: k, priceFrom: r.priceFrom, priceAlt: r.priceAlt, priceUnit: r.priceUnit, currency: r.currency, rating: r.rating, reviewsCount: r.reviewsCount };
   const pt = pointOf(m);
   const seenIso = personIdsOf(m).map((x) => friendSeen[x]).find(Boolean) || null;
   const age = seenIso ? Math.max(0, now - new Date(seenIso).getTime()) : null;
@@ -1829,6 +1844,13 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
           {m.identityVerified && <VerifiedPill label={labels.verified} />}
         </div>
       )}
+      {servicePrices.length > 0 && (
+        <ul data-prices-620="" className="mt-2 flex flex-wrap gap-1.5">
+          {servicePrices.map((sp) => (
+            <li key={sp.key} className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: k === "walker" ? "#DEF7E5" : "#E3EFFE", color: ROLE_DARK[k] }}>{sp.text}</li>
+          ))}
+        </ul>
+      )}
       {friend && liveLabels && (
         <div className="mt-2 text-[12px] leading-snug text-[#6E4F48]">
           {age !== null && <span className="block font-semibold text-[#231715]">{age < 60_000 ? liveLabels.seenNow : liveLabels.seenAgo.replace("{ago}", liveLabels.ago(age))}</span>}
@@ -1842,15 +1864,19 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
             {/* 25/09 (586, point 8) — Réserver TOUJOURS en premier (sauf ma
                 propre fiche), « Message » en second, quel que soit mon rôle ;
                 un gardien / promeneur réserve avec son profil propriétaire. */}
+            {/* 24/10 (620, Daniel : « aussi dans la PawMap ») — « Réserver » ouvre le
+                formulaire /posts/create pré-rempli pour ce prestataire (4 services,
+                3 modes de dates, visites par jour, estimation), plus la page /book. */}
             {!mine && (
               <a
-                href={`/book/${k}/${r.id}`}
+                href={`/posts/create?for=${k}:${r.id}`}
+                data-book-620={`${k}:${r.id}`}
                 onClick={async (e) => {
                   if (!asOwner) return;
                   e.preventDefault();
                   if (bookState === "busy") return;
                   setBookState("busy");
-                  if (await ensureOwnerProfile()) window.location.href = `/book/${k}/${r.id}`;
+                  if (await ensureOwnerProfile()) window.location.href = `/posts/create?for=${k}:${r.id}`;
                   else setBookState("error");
                 }}
                 className="relative flex min-h-[50px] items-center justify-center gap-2 overflow-hidden rounded-[16px] px-4 text-center text-[14px] font-bold leading-tight text-white shadow-[0_10px_22px_-10px_rgba(23,20,31,0.55)]"
