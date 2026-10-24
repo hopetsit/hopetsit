@@ -299,6 +299,9 @@ async function _friendIdsOf(userId) {
   return mapVisibility.friendIdsOf(userId);
 }
 
+// 620 (ZOE) — prix PAR SERVICE (« 18 €/jour », « 12 €/visite », « 10 €/balade »).
+const prices620 = require('../utils/prices620');
+
 // v604 (PAM) — tarif le plus bas d'un rôle (même règle que la couche monde).
 function rolePriceFrom604(d, role) {
   const nums = [];
@@ -368,6 +371,7 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       // PRIME sur la couche monde et ne renvoyait AUCUN tarif : un gardien +
       // promeneur abonné n'avait ni bulle duo ni bulle simple.
       + 'hourlyRate dailyRate weeklyRate monthlyRate walkRates currency rating reviewsCount '
+      + 'visitRate visitDurationMinutes ' // 620 — prix par visite
       // 611 (PAM) — rang : PawPoints gagnés depuis toujours.
       + 'pawPoints';
     // v565 §6 — présence RÉELLE (sockets connectés, identité complète), plus
@@ -505,10 +509,12 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
           reviewsCount: Number(e.d.reviewsCount) > 0 ? Number(e.d.reviewsCount) : 0,
           priceFrom: e.role === 'owner' ? 0 : rolePriceFrom604(e.d, e.role),
           priceAlt: rolePriceAlt605(e.d, e.role, rolePriceFrom604(e.d, e.role)),
+          ...prices620.priceFields(e.d, e.role), // 620 — prices par service + priceUnit
           currency: e.d.currency || 'EUR',
         })),
         priceFrom: role === 'owner' ? 0 : rolePriceFrom604(d, role),
         priceAlt: rolePriceAlt605(d, role, rolePriceFrom604(d, role)),
+        ...prices620.priceFields(d, role), // 620
         currency: d.currency || 'EUR',
         personIds: ids,
         // 28/09/2026 — prénom + initiale sauf pour mes amis (règle de Daniel).
@@ -836,6 +842,7 @@ router.get('/members/world', requireAuth, async (req, res) => {
       // v586 — visibilité à 3 états (relue aussi en JS, voir plus bas).
       + 'preferences.hideFromMap preferences.mapVisibility '
       + 'email oldId rating reviewsCount hourlyRate dailyRate weeklyRate monthlyRate walkRates currency '
+      + 'visitRate visitDurationMinutes ' // 620 — prix par visite
       // v585 — position de profil, ville, fraîcheur (personMapPosition).
       + '+homeLocation city updatedAt createdAt '
       // v584 — drapeaux d'épingle.
@@ -935,6 +942,7 @@ router.get('/members/world', requireAuth, async (req, res) => {
         reviewsCount: Number(rd.reviewsCount) > 0 ? Number(rd.reviewsCount) : 0,
         priceFrom: rr === 'owner' ? 0 : priceFrom(rd, rr),
         priceAlt: rolePriceAlt605(rd, rr, priceFrom(rd, rr)),
+        ...prices620.priceFields(rd, rr), // 620 — prices par service + priceUnit
         currency: rd.currency || 'EUR',
         isPremium: subSet.has(String(rd._id)) || rd.isStaff === true,
       }));
@@ -958,6 +966,7 @@ router.get('/members/world', requireAuth, async (req, res) => {
         reviewsCount: Number(d.reviewsCount) > 0 ? Number(d.reviewsCount) : 0,
         priceFrom: role === 'owner' ? 0 : priceFrom(d, role),
         priceAlt: rolePriceAlt605(d, role, priceFrom(d, role)),
+        ...prices620.priceFields(d, role), // 620
         currency: d.currency || 'EUR',
         ...mapVisibility.pinFlags(d, nowDate),
         // v585 (bug 11) — PawBoost acheté sous un autre rôle : vaut pour la personne.

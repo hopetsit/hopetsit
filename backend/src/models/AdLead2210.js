@@ -34,6 +34,8 @@ const adLeadSchema = new mongoose.Schema(
     quand: { type: String, enum: WHENS, default: 'plus_tard' },
     startText: { type: String, default: '', trim: true }, // 23/10 (BOB) — dates écrites dans le formulaire
     endText: { type: String, default: '', trim: true },
+    // 620 (ZOE) — service « visites » : visites par jour lues dans le formulaire (1 | 2), sinon 1.
+    visitsPerDay: { type: Number, enum: [1, 2, null], default: null },
     confirmedAt: { type: Date },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Owner' },
     postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },

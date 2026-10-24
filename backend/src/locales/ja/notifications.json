@@ -473,8 +473,20 @@
   },
   "application_new_617": {
     "title": "{{candidateName}}さんが応募しました",
-    "body": "リクエストに{{candidates}}人の応募 · 2分で選んで支払い",
+    "body": "リクエストに{{candidates}}人の応募{{priceText}} · 2分で選んで支払い",
     "emailSubject": "{{candidateName}}さんが応募しました — HoPetSit",
-    "emailBody": "<p>リクエストに{{candidates}}人の応募 · 2分で選んで支払い</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">応募を見る</a></p>"
+    "emailBody": "<p>リクエストに{{candidates}}人の応募{{priceText}} · 2分で選んで支払い</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">応募を見る</a></p>"
+  },
+  "application_pricing_updated": {
+    "title": "日程が確定しました",
+    "body": "各候補者の料金はこちら（{{candidates}}名）· 2分で選んで支払い",
+    "emailSubject": "日程が確定しました — 各候補者の料金 — HoPetSit",
+    "emailBody": "<p>日程が確定しました。{{candidates}}名の候補者それぞれの実際の料金をご確認ください。2分で選んで支払いできます。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">候補者を見る</a></p>"
+  },
+  "post_dates_required": {
+    "title": "日程を設定して確定しましょう",
+    "body": "{{candidates}}名の候補者が待っています。リクエストの日程を設定すると料金が表示され、選べます",
+    "emailSubject": "日程を設定してリクエストを確定 — HoPetSit",
+    "emailBody": "<p>{{candidates}}名の候補者があなたの返事を待っています。リクエストの日程を設定してください。各候補者の料金が計算され、選べるようになります。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">日程を設定</a></p>"
   }
 }

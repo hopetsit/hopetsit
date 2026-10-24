@@ -466,6 +466,10 @@ const sanitizeApplication = (applicationDoc) => {
     application.pricing.appliedRate = application.pricing.appliedRate || 0;
     application.pricing.totalHours = application.pricing.totalHours || 0;
     application.pricing.totalDays = application.pricing.totalDays || 0;
+    // 620 (ZOE) — quantité / unité / indicatif toujours présents (anciennes candidatures : non indicatives).
+    application.pricing.indicative = application.pricing.indicative === true;
+    application.pricing.quantity = typeof application.pricing.quantity === 'number' ? application.pricing.quantity : null;
+    application.pricing.unit = application.pricing.unit || '';
   }
   return application;
 };
@@ -514,6 +518,10 @@ const sanitizePost = (postDoc) => {
   // par le propriétaire au lieu de la deviner.
   post.walkDurationMinutes =
     typeof postDoc.walkDurationMinutes === 'number' ? postDoc.walkDurationMinutes : null;
+  // 620 (ZOE) — mode de dates toujours renseigné (ancienne demande : déduit des dates)
+  // et visites par jour (null = 1).
+  post.dateMode = require('./pricingEngine620').effectiveDateMode(postDoc);
+  post.visitsPerDay = [1, 2].includes(Number(postDoc.visitsPerDay)) ? Number(postDoc.visitsPerDay) : null;
   // v587 — budget facultatif du propriétaire (0 / '' sans budget).
   {
     const n = Number(postDoc.budget);

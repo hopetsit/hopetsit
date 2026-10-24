@@ -473,8 +473,20 @@
   },
   "application_new_617": {
     "title": "{{candidateName}} hat geantwortet",
-    "body": "{{candidates}} Bewerbung(en) auf deine Anfrage · auswählen und in 2 Minuten bezahlen",
+    "body": "{{candidates}} Bewerbung(en) auf deine Anfrage{{priceText}} · auswählen und in 2 Minuten bezahlen",
     "emailSubject": "{{candidateName}} hat geantwortet — HoPetSit",
-    "emailBody": "<p>{{candidates}} Bewerbung(en) auf deine Anfrage · auswählen und in 2 Minuten bezahlen</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Bewerbung ansehen</a></p>"
+    "emailBody": "<p>{{candidates}} Bewerbung(en) auf deine Anfrage{{priceText}} · auswählen und in 2 Minuten bezahlen</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Bewerbung ansehen</a></p>"
+  },
+  "application_pricing_updated": {
+    "title": "Deine Daten stehen fest",
+    "body": "Hier ist der Preis jedes Kandidaten ({{candidates}}) · wähle und bezahle in 2 Minuten",
+    "emailSubject": "Deine Daten stehen fest — der Preis jedes Kandidaten — HoPetSit",
+    "emailBody": "<p>Deine Daten stehen fest: hier ist der tatsächliche Preis jedes deiner {{candidates}} Kandidaten. Wähle und bezahle in 2 Minuten.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Kandidaten ansehen</a></p>"
+  },
+  "post_dates_required": {
+    "title": "Lege deine Daten fest, um zu bestätigen",
+    "body": "{{candidates}} Kandidat(en) warten: lege die Daten deiner Anfrage fest, um ihren Preis zu sehen und zu wählen",
+    "emailSubject": "Lege deine Daten fest, um deine Anfrage zu bestätigen — HoPetSit",
+    "emailBody": "<p>{{candidates}} Kandidat(en) warten auf dich. Lege die Daten deiner Anfrage fest: jeder Preis wird berechnet und du kannst wählen.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Meine Daten festlegen</a></p>"
   }
 }

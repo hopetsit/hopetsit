@@ -473,8 +473,20 @@
   },
   "application_new_617": {
     "title": "{{candidateName}} respondeu",
-    "body": "{{candidates}} candidato(s) ao teu pedido · escolhe e paga em 2 minutos",
+    "body": "{{candidates}} candidato(s) ao teu pedido{{priceText}} · escolhe e paga em 2 minutos",
     "emailSubject": "{{candidateName}} respondeu — HoPetSit",
-    "emailBody": "<p>{{candidates}} candidato(s) ao teu pedido · escolhe e paga em 2 minutos</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver a candidatura</a></p>"
+    "emailBody": "<p>{{candidates}} candidato(s) ao teu pedido{{priceText}} · escolhe e paga em 2 minutos</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver a candidatura</a></p>"
+  },
+  "application_pricing_updated": {
+    "title": "As tuas datas estão definidas",
+    "body": "Aqui está o preço de cada candidato ({{candidates}}) · escolhe e paga em 2 minutos",
+    "emailSubject": "As tuas datas estão definidas — o preço de cada candidato — HoPetSit",
+    "emailBody": "<p>As tuas datas estão definidas: aqui está o preço real de cada um dos teus {{candidates}} candidato(s). Escolhe e paga em 2 minutos.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver os candidatos</a></p>"
+  },
+  "post_dates_required": {
+    "title": "Define as datas para confirmar",
+    "body": "{{candidates}} candidato(s) à espera: define as datas do teu pedido para ver o preço e escolher",
+    "emailSubject": "Define as datas para confirmar o teu pedido — HoPetSit",
+    "emailBody": "<p>{{candidates}} candidato(s) esperam a tua resposta. Define as datas do teu pedido: o preço de cada um será calculado e poderás escolher.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Definir as datas</a></p>"
   }
 }

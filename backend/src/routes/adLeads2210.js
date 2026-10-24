@@ -52,9 +52,17 @@ function postInputFor(lead, lieu) {
     location: Number.isFinite(lead.lat) && Number.isFinite(lead.lng)
       ? { city: lead.city, lat: lead.lat, lng: lead.lng } : { city: lead.city },
   };
+  // 620 (ZOE) — sans dates lisibles, la demande est « dates à prévoir » (tbd) : les
+  // gardiens candidatent au tarif unitaire, le propriétaire pose ses dates ensuite.
+  if (!input.startDate) input.dateMode = 'tbd';
   if (lead.service === 'promenade') {
     input.serviceTypes = ['dog_walking'];
     input.serviceLocation = 'pickup';
+  } else if (lead.service === 'visites') {
+    // 620 — visites à domicile : service `home_visit`, 1 ou 2 visites/jour (formulaire, sinon 1).
+    input.serviceTypes = ['home_visit'];
+    input.serviceLocation = 'at_owner';
+    input.visitsPerDay = [1, 2].includes(Number(lead.visitsPerDay)) ? Number(lead.visitsPerDay) : 1;
   } else {
     const chezGardien = lead.service === 'garde' && lieu === 'at_sitter';
     input.serviceTypes = ['house_sitting'];
@@ -102,6 +110,7 @@ adminRouter.post('/', requireAdmin, async (req, res) => {
         quand: pick(b.quand, AdLead.WHENS, 'plus_tard'),
         startText: String(b.startText || '').trim().slice(0, 60), // 23/10 (BOB) — réponses « dates » du formulaire
         endText: String(b.endText || '').trim().slice(0, 60),
+        ...([1, 2].includes(Number(b.visitsPerDay)) ? { visitsPerDay: Number(b.visitsPerDay) } : {}), // 620
       } },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );

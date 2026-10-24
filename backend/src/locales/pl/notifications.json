@@ -473,8 +473,20 @@
   },
   "application_new_617": {
     "title": "{{candidateName}} odpowiedział(a)",
-    "body": "Kandydaci na Twoje ogłoszenie: {{candidates}} · wybierz i zapłać w 2 minuty",
+    "body": "Kandydaci na Twoje ogłoszenie: {{candidates}}{{priceText}} · wybierz i zapłać w 2 minuty",
     "emailSubject": "{{candidateName}} odpowiedział(a) — HoPetSit",
-    "emailBody": "<p>Kandydaci na Twoje ogłoszenie: {{candidates}} · wybierz i zapłać w 2 minuty</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz zgłoszenie</a></p>"
+    "emailBody": "<p>Kandydaci na Twoje ogłoszenie: {{candidates}}{{priceText}} · wybierz i zapłać w 2 minuty</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz zgłoszenie</a></p>"
+  },
+  "application_pricing_updated": {
+    "title": "Twoje daty są ustawione",
+    "body": "Oto cena każdego kandydata ({{candidates}}) · wybierz i zapłać w 2 minuty",
+    "emailSubject": "Twoje daty są ustawione — cena każdego kandydata — HoPetSit",
+    "emailBody": "<p>Twoje daty są ustawione: oto rzeczywista cena każdego z {{candidates}} kandydatów. Wybierz i zapłać w 2 minuty.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz kandydatów</a></p>"
+  },
+  "post_dates_required": {
+    "title": "Ustaw daty, aby potwierdzić",
+    "body": "{{candidates}} kandydat(ów) czeka: ustaw daty zgłoszenia, aby zobaczyć ich cenę i wybrać",
+    "emailSubject": "Ustaw daty, aby potwierdzić zgłoszenie — HoPetSit",
+    "emailBody": "<p>{{candidates}} kandydat(ów) czeka na twoją odpowiedź. Ustaw daty zgłoszenia: cena każdego zostanie obliczona i będziesz mógł wybrać.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ustaw daty</a></p>"
   }
 }

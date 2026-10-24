@@ -121,6 +121,18 @@ const includesHouseSittingService = (serviceTypes = []) => {
   return normalizedServices.includes('house_sitting') || normalizedServices.includes('house sitting');
 };
 
+// 620 (ZOE) — lit dateMode / startDate / endDate / visitsPerDay du corps et les pose sur
+// la demande (création ou modification). Renvoie { error, code } à refuser en 400, sinon null.
+const applyDates620 = (target, body, current = null) => {
+  const r = require('../utils/pricingEngine620').resolveDates(body || {}, current);
+  if (!r.ok) return { error: r.error, code: r.code };
+  target.dateMode = r.dateMode;
+  target.startDate = r.startDate;
+  target.endDate = r.endDate;
+  target.visitsPerDay = r.visitsPerDay;
+  return null;
+};
+
 // v23.1 part 122 — Daniel : "Dans lapp publication mail et tel interdit ds
 // description". Détecte les emails ET numéros de téléphone dans un texte
 // libre (anti-leak vers WhatsApp / SMS / contact direct). Couvre :
@@ -495,18 +507,12 @@ const createPost = async (req, res) => {
       postType: 'request',
     };
 
-    // Optional dates (store as Date objects)
-    if (startDate) {
-      const parsedStart = new Date(startDate);
-      if (!Number.isNaN(parsedStart.getTime())) {
-        postPayload.startDate = parsedStart;
-      }
-    }
-    if (endDate) {
-      const parsedEnd = new Date(endDate);
-      if (!Number.isNaN(parsedEnd.getTime())) {
-        postPayload.endDate = parsedEnd;
-      }
+    // 620 (ZOE, 24/10 — ordre de Daniel « dates à prévoir ») — dates + mode de dates +
+    // visites/jour en un seul endroit (utils/pricingEngine620.resolveDates). Sans
+    // `dateMode` (apps ≤ 619, site actuel) : 'exact' dès qu'une date est posée, 'tbd' sinon.
+    {
+      const err620 = applyDates620(postPayload, req.body);
+      if (err620) return res.status(400).json(err620);
     }
 
     const rawServices =
@@ -988,6 +994,9 @@ const getPublicRequestPosts = async (req, res) => {
         startDate: p.startDate,
         endDate: p.endDate,
         serviceTypes: p.serviceTypes || [],
+        // 620 — mode de dates (exact | approx | tbd) et visites par jour.
+        dateMode: require('../utils/pricingEngine620').effectiveDateMode(p),
+        visitsPerDay: p.visitsPerDay || null,
         // v575 — audit P1-7 : durée de promenade voulue par le propriétaire.
         walkDurationMinutes:
           typeof p.walkDurationMinutes === 'number' ? p.walkDurationMinutes : null,
@@ -1411,6 +1420,9 @@ const getNearbyRequestPosts = async (req, res) => {
       meetingPoint: post.meetingPoint || '',
       startDate: post.startDate,
       endDate: post.endDate,
+      // 620 — mode de dates (exact | approx | tbd) et visites par jour.
+      dateMode: require('../utils/pricingEngine620').effectiveDateMode(post),
+      visitsPerDay: post.visitsPerDay || null,
       // v575 — audit P1-7 : durée de promenade voulue par le propriétaire.
       walkDurationMinutes:
         typeof post.walkDurationMinutes === 'number' ? post.walkDurationMinutes : null,
@@ -1889,18 +1901,12 @@ const createPostWithMedia = async (req, res) => {
       postType: resolvedPostType,
     };
 
-    // Optional dates (store as Date objects)
-    if (startDate) {
-      const parsedStart = new Date(startDate);
-      if (!Number.isNaN(parsedStart.getTime())) {
-        postPayload.startDate = parsedStart;
-      }
-    }
-    if (endDate) {
-      const parsedEnd = new Date(endDate);
-      if (!Number.isNaN(parsedEnd.getTime())) {
-        postPayload.endDate = parsedEnd;
-      }
+    // 620 (ZOE, 24/10 — ordre de Daniel « dates à prévoir ») — dates + mode de dates +
+    // visites/jour en un seul endroit (utils/pricingEngine620.resolveDates). Sans
+    // `dateMode` (apps ≤ 619, site actuel) : 'exact' dès qu'une date est posée, 'tbd' sinon.
+    {
+      const err620 = applyDates620(postPayload, req.body);
+      if (err620) return res.status(400).json(err620);
     }
 
     const rawServices =
@@ -2144,11 +2150,14 @@ const updatePost = async (req, res) => {
       post.body = trimmed;
     }
 
-    if (startDate !== undefined) {
-      post.startDate = startDate ? new Date(startDate) : null;
-    }
-    if (endDate !== undefined) {
-      post.endDate = endDate ? new Date(endDate) : null;
+    // 620 (ZOE) — dates / mode de dates / visites par jour : mêmes règles qu'à la création ;
+    // un champ absent garde sa valeur. On note le mode AVANT pour recalculer les
+    // candidatures quand une demande « dates à prévoir » reçoit ses dates.
+    const wasTbd620 = require('../utils/pricingEngine620').effectiveDateMode(post) === 'tbd';
+    if (startDate !== undefined || endDate !== undefined
+        || req.body?.dateMode !== undefined || req.body?.visitsPerDay !== undefined) {
+      const err620 = applyDates620(post, req.body, post);
+      if (err620) return res.status(400).json(err620);
     }
 
     if (serviceTypes !== undefined) {
@@ -2238,11 +2247,25 @@ const updatePost = async (req, res) => {
     }
 
     await post.save();
+    // 620 — la demande vient de recevoir ses dates (tbd → exact | approx) : les
+    // candidatures en attente passent de « tarif unitaire » à « prix réel » et le
+    // propriétaire est prévenu (application_pricing_updated). Jamais bloquant.
+    let repriced620 = null;
+    try {
+      const engine620 = require('../utils/pricingEngine620');
+      if (engine620.effectiveDateMode(post) !== 'tbd') {
+        const svc = require('../services/applicationRepricing620');
+        repriced620 = await svc.repriceApplicationsForPost(post, { onlyIndicative: !wasTbd620 });
+      }
+    } catch (e) {
+      logger.warn(`[updatePost] recalcul 620 : ${e && e.message ? e.message : e}`);
+    }
     await post.populate('ownerId');
 
     return res.json({
       message: 'Post updated successfully.',
       post: sanitizePost(post),
+      ...(repriced620 && repriced620.repriced.length ? { repricedApplications: repriced620.repriced.length } : {}),
     });
   } catch (error) {
     logger.error('Update post error', error);

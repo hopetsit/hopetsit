@@ -473,8 +473,20 @@
   },
   "application_new_617": {
     "title": "{{candidateName}} ha respondido",
-    "body": "{{candidates}} candidato(s) en tu solicitud · elige y paga en 2 minutos",
+    "body": "{{candidates}} candidato(s) en tu solicitud{{priceText}} · elige y paga en 2 minutos",
     "emailSubject": "{{candidateName}} ha respondido — HoPetSit",
-    "emailBody": "<p>{{candidates}} candidato(s) en tu solicitud · elige y paga en 2 minutos</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la candidatura</a></p>"
+    "emailBody": "<p>{{candidates}} candidato(s) en tu solicitud{{priceText}} · elige y paga en 2 minutos</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la candidatura</a></p>"
+  },
+  "application_pricing_updated": {
+    "title": "Tus fechas están puestas",
+    "body": "Aquí tienes el precio de cada candidato ({{candidates}}) · elige y paga en 2 minutos",
+    "emailSubject": "Tus fechas están puestas — el precio de cada candidato — HoPetSit",
+    "emailBody": "<p>Tus fechas están puestas: aquí tienes el precio real de cada uno de tus {{candidates}} candidato(s). Elige y paga en 2 minutos.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver los candidatos</a></p>"
+  },
+  "post_dates_required": {
+    "title": "Pon tus fechas para validar",
+    "body": "{{candidates}} candidato(s) esperan: pon las fechas de tu solicitud para ver su precio y elegir",
+    "emailSubject": "Pon tus fechas para validar tu solicitud — HoPetSit",
+    "emailBody": "<p>{{candidates}} candidato(s) esperan tu respuesta. Pon las fechas de tu solicitud: se calculará el precio de cada uno y podrás elegir.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Poner mis fechas</a></p>"
   }
 }

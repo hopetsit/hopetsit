@@ -473,8 +473,20 @@
   },
   "application_new_617": {
     "title": "{{candidateName}}님이 답했어요",
-    "body": "요청에 지원자 {{candidates}}명 · 2분 안에 선택하고 결제하세요",
+    "body": "요청에 지원자 {{candidates}}명{{priceText}} · 2분 안에 선택하고 결제하세요",
     "emailSubject": "{{candidateName}}님이 답했어요 — HoPetSit",
-    "emailBody": "<p>요청에 지원자 {{candidates}}명 · 2분 안에 선택하고 결제하세요</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">지원 보기</a></p>"
+    "emailBody": "<p>요청에 지원자 {{candidates}}명{{priceText}} · 2분 안에 선택하고 결제하세요</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">지원 보기</a></p>"
+  },
+  "application_pricing_updated": {
+    "title": "날짜가 정해졌어요",
+    "body": "각 후보의 가격을 확인하세요 ({{candidates}}명) · 2분 안에 선택하고 결제하세요",
+    "emailSubject": "날짜가 정해졌어요 — 각 후보의 가격 — HoPetSit",
+    "emailBody": "<p>날짜가 정해졌어요. {{candidates}}명의 후보 각각의 실제 가격을 확인하세요. 2분 안에 선택하고 결제하세요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">후보 보기</a></p>"
+  },
+  "post_dates_required": {
+    "title": "날짜를 정해 확정하세요",
+    "body": "{{candidates}}명의 후보가 기다리고 있어요. 요청 날짜를 정하면 가격을 보고 선택할 수 있어요",
+    "emailSubject": "날짜를 정해 요청을 확정하세요 — HoPetSit",
+    "emailBody": "<p>{{candidates}}명의 후보가 답을 기다리고 있어요. 요청 날짜를 정하세요. 각 후보의 가격이 계산되고 선택할 수 있어요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">날짜 정하기</a></p>"
   }
 }

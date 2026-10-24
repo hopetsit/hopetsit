@@ -25,6 +25,23 @@ const postSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // 620 (ZOE, 24/10/2026 — ordre de Daniel « dates à prévoir ») — mode de dates :
+    //   'exact'  : dates précises (début ≤ fin) ;
+    //   'approx' : période approximative (les deux dates aussi) ;
+    //   'tbd'    : dates à prévoir (startDate / endDate = null ; candidatures
+    //              INDICATIVES, acceptation bloquée tant que les dates manquent).
+    // null = ancienne demande (avant le 620) : utils/pricingEngine620.effectiveDateMode.
+    dateMode: {
+      type: String,
+      enum: ['exact', 'approx', 'tbd', null],
+      default: null,
+    },
+    // 620 — visites à domicile (`home_visit`) : 1 ou 2 visites par jour ; null = 1.
+    visitsPerDay: {
+      type: Number,
+      enum: [1, 2, null],
+      default: null,
+    },
     serviceTypes: [
       {
         type: String,

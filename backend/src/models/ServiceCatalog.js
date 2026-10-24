@@ -26,6 +26,10 @@ const LocalizedStringSchema = new mongoose.Schema(
     es: { type: String, default: '' },
     it: { type: String, default: '' },
     pt: { type: String, default: '' },
+    // 620 (ZOE) — les 9 langues de l'app.
+    ko: { type: String, default: '' },
+    ja: { type: String, default: '' },
+    pl: { type: String, default: '' },
   },
   { _id: false },
 );
@@ -52,6 +56,12 @@ const ServiceCatalogSchema = new mongoose.Schema(
     dog_walking: { type: ServiceEntrySchema, default: () => ({}) },
     day_care: { type: ServiceEntrySchema, default: () => ({}) },
     pet_sitting: { type: ServiceEntrySchema, default: () => ({}) },
+    // 620 (ZOE, 24/10/2026) — garde à domicile (unité jour / nuit) et VISITE À
+    // DOMICILE (unité visite, 30|60 min, 1|2 visites par jour). Les unités et
+    // options sont figées dans serviceCatalogService.SERVICE_META ; l'admin ne
+    // règle ici que active / icon / libellés.
+    house_sitting: { type: ServiceEntrySchema, default: () => ({}) },
+    home_visit: { type: ServiceEntrySchema, default: () => ({}) },
 
     // Duration presets for Promenade (short walks) and Sortie longue
     // (half-day outings). Stored as arrays of minutes.

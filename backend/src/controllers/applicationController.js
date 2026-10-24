@@ -242,7 +242,8 @@ const createApplication = async (req, res) => {
         (provider.hourlyRate && provider.hourlyRate > 0) ||
         (provider.dailyRate && provider.dailyRate > 0) ||
         (provider.weeklyRate && provider.weeklyRate > 0) ||
-        (provider.monthlyRate && provider.monthlyRate > 0);
+        (provider.monthlyRate && provider.monthlyRate > 0) ||
+        (provider.visitRate && provider.visitRate > 0); // 620 — tarif par visite
       if (!hasAnyRate) {
         return res.status(400).json({
           error: 'You must set at least one rate (hourly, daily, weekly or monthly) before sending requests to owners.',
@@ -262,6 +263,29 @@ const createApplication = async (req, res) => {
     }
     // Alias so the existing code below reading `sitter.*` keeps working.
     const sitter = provider;
+
+    // 620 (ZOE, 24/10 — ordre de Daniel « dates à prévoir, prix par visite ») — la
+    // demande visée décide du calcul : « dates à prévoir » → candidature INDICATIVE
+    // (tarif unitaire seul, totaux null, acceptation bloquée) ; visite à domicile →
+    // visites × tarif par visite ; sinon le calcul historique (tierPricing) inchangé.
+    const engine620 = require('../utils/pricingEngine620');
+    const repricing620 = require('../services/applicationRepricing620');
+    let post620 = null;
+    if (typeof postId === 'string' && /^[a-fA-F0-9]{24}$/.test(postId.trim())) {
+      try {
+        post620 = await require('../models/Post').findById(postId.trim())
+          .select('dateMode startDate endDate visitsPerDay houseSittingVenue serviceLocation serviceTypes walkDurationMinutes')
+          .lean();
+      } catch (_) { post620 = null; }
+    }
+    const tbd620 = !!post620 && engine620.effectiveDateMode(post620) === 'tbd';
+    const visit620 = !!post620 && providerRole !== 'walker' && engine620.mainService(post620) === 'home_visit';
+    if (visit620 && !(Number(provider.visitRate) > 0)) {
+      return res.status(400).json({
+        error: 'Set your price per home visit before applying to a home-visit request.',
+        code: 'VISIT_RATE_REQUIRED',
+      });
+    }
 
     const isBlocked = await isOwnerSitterInteractionBlocked(ownerId, sitterId);
     if (isBlocked) {
@@ -334,11 +358,12 @@ const createApplication = async (req, res) => {
     }
 
     const normalizedTimeSlot = typeof timeSlot === 'string' ? timeSlot.trim() : '';
-    if (!normalizedTimeSlot) {
+    // 620 — sur une demande « dates à prévoir », ni créneau ni date ne sont exigés.
+    if (!normalizedTimeSlot && !tbd620) {
       return res.status(400).json({ error: 'timeSlot is required.' });
     }
 
-    if (!serviceDate) {
+    if (!serviceDate && !tbd620) {
       return res.status(400).json({ error: 'serviceDate is required.' });
     }
 
@@ -351,7 +376,9 @@ const createApplication = async (req, res) => {
     // refusées en 400 alors que le promeneur pouvait les tarifer.
     let durationNum = null;
     if (normalizedForInternalChecks === SERVICE_TYPES.DOG_WALKING) {
-      const parsedDuration = Number(duration);
+      let parsedDuration = Number(duration);
+      // 620 — demande « dates à prévoir » sans durée envoyée : celle de la demande, sinon 30 min.
+      if (tbd620 && !(parsedDuration > 0)) parsedDuration = Number(post620.walkDurationMinutes) || 30;
       if (!isValidWalkDuration(parsedDuration)) {
         return res.status(400).json({
           error: WALK_DURATION_ERROR,
@@ -431,29 +458,54 @@ const createApplication = async (req, res) => {
       }
     }
 
-    const tierPricing = calculateTierBasePrice({
-      hourlyRate: sitter.hourlyRate,
-      // v18.9.5 — pass dailyRate.
-      dailyRate: sitter.dailyRate,
-      weeklyRate: sitter.weeklyRate,
-      monthlyRate: sitter.monthlyRate,
-      startDate: parsedStartDate,
-      endDate: parsedEndDate,
-      serviceDate: parsedDate || serviceDate,
-      durationMinutes: effectiveDuration || duration,
-    });
     // v23.1.302 — commission Top (#69) : un Top Sitter / Top Walker est facturé
     // 15% au lieu de 20%, comme promis sur le site. Le tarif net du presta est
     // inchangé (= basePrice) ; seul le supplément payé par l'owner baisse.
     const isTopProvider = providerRole === 'walker'
         ? provider?.isTopWalker === true
         : provider?.isTopSitter === true;
-    const pricingBreakdown = calculateTotalWithAddOns(
-      tierPricing.basePrice,
-      normalizedAddOns,
-      bookingCurrency,
-      commissionRateForProvider(isTopProvider),
-    );
+    let tierPricing;
+    let pricingBreakdown;
+    let pricing620 = null; // 620 — bloc `pricing` complet quand le moteur unique s'applique
+    if (tbd620) {
+      pricing620 = {
+        ...repricing620.indicativePricing({
+          post: post620, provider, providerRole, serviceType, duration: effectiveDuration, addOns: normalizedAddOns,
+        }),
+        currency: bookingCurrency,
+      };
+      tierPricing = { basePrice: null, pricingTier: 'indicative', appliedRate: pricing620.appliedRate, totalHours: 0, totalDays: 0 };
+      pricingBreakdown = { basePrice: null, addOns: pricing620.addOns, addOnsTotal: pricing620.addOnsTotal, totalPrice: null, commission: null, netPayout: null, commissionRate: pricing620.commissionRate, currency: bookingCurrency };
+    } else if (visit620) {
+      const r = engine620.rateFor(provider, 'home_visit');
+      const est = engine620.estimate({ serviceType: 'home_visit', rate: r.rate, post: post620, commissionRate: commissionRateForProvider(isTopProvider), currency: bookingCurrency });
+      pricingBreakdown = calculateTotalWithAddOns(est.unitTotal, normalizedAddOns, bookingCurrency, commissionRateForProvider(isTopProvider));
+      tierPricing = { basePrice: pricingBreakdown.basePrice, pricingTier: 'visit', appliedRate: r.rate, totalHours: 0, totalDays: engine620.dayCount(post620) || 0 };
+      pricing620 = { quantity: est.quantity, unit: 'visit', indicative: false };
+    } else {
+      tierPricing = calculateTierBasePrice({
+        hourlyRate: sitter.hourlyRate,
+        // v18.9.5 — pass dailyRate.
+        dailyRate: sitter.dailyRate,
+        weeklyRate: sitter.weeklyRate,
+        monthlyRate: sitter.monthlyRate,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
+        serviceDate: parsedDate || serviceDate,
+        durationMinutes: effectiveDuration || duration,
+      });
+      pricingBreakdown = calculateTotalWithAddOns(
+        tierPricing.basePrice,
+        normalizedAddOns,
+        bookingCurrency,
+        commissionRateForProvider(isTopProvider),
+      );
+      // 620 — quantité (jours / nuits / balades) ajoutée à titre d'information ; prix inchangé.
+      if (post620) {
+        const q = engine620.quantityFor(post620, engine620.mainService(post620));
+        pricing620 = { quantity: q.quantity, unit: q.unit, indicative: false };
+      }
+    }
 
     const requestFingerprint = buildRequestFingerprint({
       ownerId,
@@ -610,6 +662,7 @@ const createApplication = async (req, res) => {
         netPayout: pricingBreakdown.netPayout,
         commissionRate: pricingBreakdown.commissionRate,
         currency: pricingBreakdown.currency,
+        ...(pricing620 ? { quantity: pricing620.quantity, unit: pricing620.unit, indicative: pricing620.indicative === true } : {}),
       },
     });
     await application.populate(['ownerId', 'sitterId', 'walkerId']);
@@ -646,6 +699,8 @@ const createApplication = async (req, res) => {
         // v602 (ZOE) — la demande concernée : l'app ouvre ses candidats.
         ...(application.postId ? { postId: String(application.postId._id || application.postId) } : {}),
         ...text617.applicationNewData617({ provider: providerDoc617, pendingCount: pendingCount617 }),
+        // 620 — « 12 €/visite » (indicatif) ou « 72 € au total » (demande datée).
+        ...text617.priceData620(application.pricing),
       },
       actor: {
         role: providerRole === 'walker' ? 'walker' : 'sitter',
@@ -777,6 +832,32 @@ const respondToApplication = async (req, res) => {
     }
 
     if (normalizedAction === 'accept') {
+      // 620 (ZOE, 24/10 — ordre de Daniel) — pas d'acceptation tant que la demande n'a
+      // pas ses dates : la candidature est indicative (tarif unitaire seul), le prix
+      // réel n'existe pas encore. Le propriétaire pose ses dates (PATCH /posts/:id),
+      // les candidatures sont recalculées, puis il choisit.
+      try {
+        const engine620 = require('../utils/pricingEngine620');
+        let tbd = !!(application.pricing && application.pricing.indicative === true);
+        if (!tbd && application.postId) {
+          const p = await require('../models/Post').findById(application.postId)
+            .select('dateMode startDate endDate').lean();
+          tbd = !!p && engine620.normalizeDateMode(p.dateMode) === 'tbd';
+        }
+        if (tbd) {
+          const rp = require('../services/applicationRepricing620');
+          const loc = require('../utils/applicationCurrency1610').localeOf(application.ownerId);
+          logger.info(`[respondToApplication] acceptation refusée : dates à prévoir (candidature ${id})`);
+          return res.status(409).json({
+            error: rp.datesRequiredMessage(loc),
+            code: 'DATES_REQUIRED',
+            postId: application.postId ? String(application.postId) : null,
+          });
+        }
+      } catch (e) {
+        if (e && e.status === 409) throw e;
+        logger.warn(`[respondToApplication] contrôle dates 620 : ${e?.message || e}`);
+      }
       // 16/10/2026 (ADA, décision BOB, mesure FLO) — couvre les candidatures
       // déjà en attente : devise du prestataire ≠ devise du propriétaire → le
       // prix stocké est faux (aucune conversion), on refuse l'acceptation.

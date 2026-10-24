@@ -473,8 +473,20 @@
   },
   "application_new_617": {
     "title": "{{candidateName}} ha risposto",
-    "body": "{{candidates}} candidato/i alla tua richiesta · scegli e paga in 2 minuti",
+    "body": "{{candidates}} candidato/i alla tua richiesta{{priceText}} · scegli e paga in 2 minuti",
     "emailSubject": "{{candidateName}} ha risposto — HoPetSit",
-    "emailBody": "<p>{{candidates}} candidato/i alla tua richiesta · scegli e paga in 2 minuti</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi la candidatura</a></p>"
+    "emailBody": "<p>{{candidates}} candidato/i alla tua richiesta{{priceText}} · scegli e paga in 2 minuti</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi la candidatura</a></p>"
+  },
+  "application_pricing_updated": {
+    "title": "Le tue date sono impostate",
+    "body": "Ecco il prezzo di ogni candidato ({{candidates}}) · scegli e paga in 2 minuti",
+    "emailSubject": "Le tue date sono impostate — il prezzo di ogni candidato — HoPetSit",
+    "emailBody": "<p>Le tue date sono impostate: ecco il prezzo reale di ciascuno dei tuoi {{candidates}} candidati. Scegli e paga in 2 minuti.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi i candidati</a></p>"
+  },
+  "post_dates_required": {
+    "title": "Imposta le date per confermare",
+    "body": "{{candidates}} candidato/i aspettano: imposta le date della tua richiesta per vedere il prezzo e scegliere",
+    "emailSubject": "Imposta le date per confermare la tua richiesta — HoPetSit",
+    "emailBody": "<p>{{candidates}} candidato/i aspettano la tua risposta. Imposta le date della tua richiesta: il prezzo di ciascuno verrà calcolato e potrai scegliere.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Imposta le date</a></p>"
   }
 }

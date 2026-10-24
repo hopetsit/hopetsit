@@ -661,6 +661,10 @@ const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtr
   if (tmplKey === 'application_reminder_615') {
     dataForRender = require('../utils/applicationReminderText615').enrichReminderData(data, locale);
   }
+  // 620 (ZOE) — « candidature reçue » : prix dans la langue du propriétaire (« 12 €/visite »).
+  if (tmplKey === require('../utils/applicationNewText617').TEMPLATE) {
+    dataForRender = require('../utils/applicationNewText617').enrichPrice620(dataForRender, locale);
+  }
   const renderData = {
     ...dataForRender,
     emailLink:
@@ -1129,6 +1133,7 @@ const renderNotificationContent = (type, data = {}, userLanguage) => {
     } else if (safeData.appNew617) {
       // 617 (ADA, §D.3) — « <Prénom> a répondu · N candidat(s) » (type application_new).
       tmplKey = require('../utils/applicationNewText617').TEMPLATE;
+      safeData = require('../utils/applicationNewText617').enrichPrice620(safeData, locale); // 620 — prix
     } else {
       const { REQUEST_ALERT_TYPES, enrichRequestAlertData } = require('../utils/requestAlertText612');
       if (REQUEST_ALERT_TYPES.has(String(type))) safeData = enrichRequestAlertData(safeData, locale);

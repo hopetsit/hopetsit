@@ -473,8 +473,20 @@
   },
   "application_new_617": {
     "title": "{{candidateName}} replied",
-    "body": "{{candidates}} candidate(s) on your request · choose and pay in 2 minutes",
+    "body": "{{candidates}} candidate(s) on your request{{priceText}} · choose and pay in 2 minutes",
     "emailSubject": "{{candidateName}} replied — HoPetSit",
-    "emailBody": "<p>{{candidates}} candidate(s) on your request · choose and pay in 2 minutes</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">See the application</a></p>"
+    "emailBody": "<p>{{candidates}} candidate(s) on your request{{priceText}} · choose and pay in 2 minutes</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">See the application</a></p>"
+  },
+  "application_pricing_updated": {
+    "title": "Your dates are set",
+    "body": "Here is each candidate’s price ({{candidates}}) · choose and pay in 2 minutes",
+    "emailSubject": "Your dates are set — each candidate’s price — HoPetSit",
+    "emailBody": "<p>Your dates are set: here is the real price of each of your {{candidates}} candidate(s). Choose and pay in 2 minutes.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">See the candidates</a></p>"
+  },
+  "post_dates_required": {
+    "title": "Set your dates to confirm",
+    "body": "{{candidates}} candidate(s) are waiting: set the dates of your request to see their price and choose",
+    "emailSubject": "Set your dates to confirm your request — HoPetSit",
+    "emailBody": "<p>{{candidates}} candidate(s) are waiting for you. Set the dates of your request: each price will be calculated and you can choose.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Set my dates</a></p>"
   }
 }

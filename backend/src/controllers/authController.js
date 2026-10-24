@@ -505,9 +505,12 @@ const signup = async (req, res) => {
       dailyRate: Number(user.dailyRate) || 0,
       weeklyRate: weeklyRate ?? 0,
       monthlyRate: monthlyRate ?? 0,
-      defaultRateType: ['hour', 'day', 'week', 'month'].includes(user.defaultRateType)
+      defaultRateType: ['hour', 'day', 'week', 'month', 'visit'].includes(user.defaultRateType) // 620 — + visit
         ? user.defaultRateType
         : 'hour',
+      // 620 (ZOE) — tarif par visite à domicile.
+      visitRate: Number(user.visitRate) || 0,
+      visitDurationMinutes: [30, 60].includes(Number(user.visitDurationMinutes)) ? Number(user.visitDurationMinutes) : 30,
       acceptedTerms: !!user.acceptedTerms,
       // v532 — tracabilite du consentement : les champs existaient dans
       // les 3 schemas mais n etaient JAMAIS renseignes a l inscription.

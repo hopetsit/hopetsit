@@ -161,6 +161,8 @@ async function startServer() {
     require('./services/applicationReminder615').startApplicationReminderScheduler();
     // 617 (ADA, 16/10) — rappels des deux côtés : gardien sans réponse après 24 h, propriétaire 48 h avant l'expiration. Push + cloche, jamais d'e-mail.
     require('./services/applicationReminder617').startReminder617Scheduler();
+    // 620 (ZOE, 24/10) — « pose tes dates pour valider » J+1 / J+3 aux demandes sans dates qui ont des candidats. Push + cloche, jamais d'e-mail.
+    require('./services/postDatesReminder620').startPostDatesReminderScheduler();
     // 1610 (SAM, 16/10) — « Partagez votre fiche » aux gardiens/promeneurs, une fois par personne, étalé, de jour, jamais d'e-mail.
     require('./services/sitterInvite1610').startSitterInviteScheduler();
   } catch (error) {

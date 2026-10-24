@@ -16,6 +16,22 @@ const logger = require('../utils/logger');
 const router = express.Router();
 const requireAdmin = [requireAuth, requireRole('admin')];
 
+// 620 (ZOE, 24/10/2026 — ordre de Daniel « dates à prévoir, prix par visite ») —
+// CATALOGUE PUBLIC des 4 services réservables : clé, unité (day | visit | walk),
+// options (lieux de garde, durées 30|60, visites/jour 1|2, durées de balade) et
+// libellés dans les 9 langues. Public (le site le lit avant toute session),
+// cache HTTP 60 s. Le site, l'app 620 et l'admin partent tous de cette liste.
+//   GET /app-config/services → { services: [...], all: [...], dateModes, languages, … }
+router.get('/services', (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.json(require('../services/serviceCatalogService').getServices620());
+  } catch (e) {
+    logger.error('[app-config/services]', e);
+    res.status(500).json({ error: 'Unable to load services.' });
+  }
+});
+
 router.get('/chat-features', requireAuth, async (req, res) => {
   try {
     res.json(await AppConfig.getChatFeatures());

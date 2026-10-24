@@ -245,6 +245,19 @@ const updateProfile = async (req, res) => {
       if (nameUpdate) Object.assign(update, nameUpdate);
     }
 
+    // 620 (ZOE, 24/10 — ordre de Daniel « grille de tarifs ») — le site enregistre la
+    // grille par service ici (PUT /users/me/profile, sans rôle dans l'URL) : gardien =
+    // hourly/daily/weekly/monthly/visitRate/visitDurationMinutes/defaultRateType/extraPetRate,
+    // promeneur = walkRates/extraPetRate. Mêmes règles que les routes sitter/walker (utils/rates620).
+    {
+      const role620 = req.user && req.user.role;
+      if (role620 === 'sitter' || role620 === 'walker') {
+        const r620 = require('../utils/rates620').applyRateFields(req.body || {}, role620);
+        if (!r620.ok) return res.status(400).json({ error: r620.error });
+        Object.assign(update, r620.update);
+      }
+    }
+
     // Sprint 5 step 2 — accept owner service preferences.
     if (servicePreferences && typeof servicePreferences === 'object') {
       update.servicePreferences = {

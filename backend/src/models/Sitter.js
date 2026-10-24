@@ -255,9 +255,14 @@ const sitterSchema = new mongoose.Schema(
     // Premium card — surcharge per extra animal (0 = not configured / hidden).
     // Additif : alimente SitterCard "+X€ / animal" et le détail public.
     extraPetRate: { type: Number, default: 0, min: 0 },
+    // 620 (ZOE, 24/10/2026) — tarif PAR VISITE à domicile (`home_visit`) : 0 = non
+    // proposé. `visitDurationMinutes` = durée d'une visite (30 ou 60 min).
+    // Les tarifs existants (hourly/daily/weekly/monthly) ne bougent pas.
+    visitRate: { type: Number, default: 0, min: 0 },
+    visitDurationMinutes: { type: Number, enum: [30, 60], default: 30 },
     defaultRateType: {
       type: String,
-      enum: ['hour', 'day', 'week', 'month'],
+      enum: ['hour', 'day', 'week', 'month', 'visit'], // 620 — + 'visit'
       default: 'hour',
     },
     // Location for geospatial queries (GeoJSON Point format). Optional.

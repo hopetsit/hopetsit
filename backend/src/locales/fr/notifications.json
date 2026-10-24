@@ -473,8 +473,20 @@
   },
   "application_new_617": {
     "title": "{{candidateName}} a répondu",
-    "body": "{{candidates}} candidat(s) sur ta demande · choisis et paie en 2 minutes",
+    "body": "{{candidates}} candidat(s) sur ta demande{{priceText}} · choisis et paie en 2 minutes",
     "emailSubject": "{{candidateName}} a répondu — HoPetSit",
-    "emailBody": "<p>{{candidates}} candidat(s) sur ta demande · choisis et paie en 2 minutes</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la candidature</a></p>"
+    "emailBody": "<p>{{candidates}} candidat(s) sur ta demande{{priceText}} · choisis et paie en 2 minutes</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la candidature</a></p>"
+  },
+  "application_pricing_updated": {
+    "title": "Tes dates sont posées",
+    "body": "Voici le prix de chaque candidat ({{candidates}}) · choisis et paie en 2 minutes",
+    "emailSubject": "Tes dates sont posées — le prix de chaque candidat — HoPetSit",
+    "emailBody": "<p>Tes dates sont posées : voici le prix réel de chacun de tes {{candidates}} candidat(s). Choisis et paie en 2 minutes.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir les candidats</a></p>"
+  },
+  "post_dates_required": {
+    "title": "Pose tes dates pour valider",
+    "body": "{{candidates}} candidat(s) attendent : pose les dates de ta demande pour voir leur prix et choisir",
+    "emailSubject": "Pose tes dates pour valider ta demande — HoPetSit",
+    "emailBody": "<p>{{candidates}} candidat(s) attendent ta réponse. Pose les dates de ta demande : le prix de chacun sera calculé et tu pourras choisir.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Poser mes dates</a></p>"
   }
 }

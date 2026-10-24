@@ -344,6 +344,13 @@ const findNearbySitters = async (req, res) => {
         dailyRate: sitter.dailyRate || 0,
         weeklyRate: sitter.weeklyRate || 0,
         monthlyRate: sitter.monthlyRate || 0,
+        // 620 (ZOE) — tarif par visite + prix PAR SERVICE (« 18 €/jour », « 12 €/visite ») ;
+        // `priceFrom`/`priceUnit` selon `?service=` (sans : le plus bas, comme avant).
+        visitRate: sitter.visitRate || 0,
+        visitDurationMinutes: sitter.visitDurationMinutes || 30,
+        defaultRateType: sitter.defaultRateType || 'hour',
+        ...require('../utils/prices620').priceFromFor(sitter, 'sitter', req.query.priceService || req.query.service),
+        prices: require('../utils/prices620').pricesFor(sitter, 'sitter'),
         // Additif — la SitterCard premium lit ces champs (tarif/animal,
         // temps de réponse, disponibilité, prestations, note, badge vérifié).
         // Réponse hand-built → ils doivent être ajoutés explicitement ici.
@@ -676,6 +683,10 @@ const updateSitterPricing = async (req, res) => {
       // tous deux édités depuis "Mes tarifs" (MyRatesScreen).
       extraPetRate,
       responseTimeMinutes,
+      // 620 (ZOE) — tarif par visite à domicile (0 = non proposé), durée 30 | 60, unité par défaut.
+      visitRate,
+      visitDurationMinutes,
+      defaultRateType,
     } = req.body || {};
 
     const sitter = await Sitter.findById(sitterId);
@@ -807,6 +818,12 @@ const updateSitterPricing = async (req, res) => {
         return res.status(400).json({ error: 'extraPetRate must be a non-negative number.' });
       }
       sitter.extraPetRate = value;
+    }
+    // 620 — visite à domicile : tarif, durée, unité par défaut (utils/rates620).
+    {
+      const r620 = require('../utils/rates620').applyRateFields({ visitRate, visitDurationMinutes, defaultRateType }, 'sitter');
+      if (!r620.ok) return res.status(400).json({ error: r620.error });
+      Object.assign(sitter, r620.update);
     }
 
     // Additif — temps de réponse type (minutes). null/0 = inconnu.
@@ -942,6 +959,11 @@ const getSitterPricing = async (req, res) => {
       weeklyRate: sitter.weeklyRate || 0,
       monthlyRate: sitter.monthlyRate || 0,
       extraPetRate: sitter.extraPetRate || 0,
+      // 620 (ZOE) — grille : tarif par visite, durée, unité par défaut, prix par service.
+      visitRate: sitter.visitRate || 0,
+      visitDurationMinutes: sitter.visitDurationMinutes || 30,
+      defaultRateType: sitter.defaultRateType || 'hour',
+      prices: require('../utils/prices620').pricesFor(sitter, 'sitter'),
       responseTimeMinutes: sitter.responseTimeMinutes ?? null,
       servicePricing: sitter.servicePricing,
       recommendedRanges,
@@ -1254,6 +1276,19 @@ const updateSitterProfile = async (req, res) => {
         return res.status(400).json({ error: 'monthlyRate must be a non-negative number.' });
       }
       updateData.monthlyRate = rateNum;
+    }
+    // 620 (ZOE) — grille de tarifs : dailyRate, visitRate, visitDurationMinutes, defaultRateType
+    // acceptés aussi par « Modifier le profil » (utils/rates620, mêmes règles partout).
+    {
+      const b = req.body || {};
+      const r620 = require('../utils/rates620').applyRateFields({
+        ...(b.dailyRate !== undefined ? { dailyRate: b.dailyRate } : {}),
+        ...(b.visitRate !== undefined ? { visitRate: b.visitRate } : {}),
+        ...(b.visitDurationMinutes !== undefined ? { visitDurationMinutes: b.visitDurationMinutes } : {}),
+        ...(b.defaultRateType !== undefined ? { defaultRateType: b.defaultRateType } : {}),
+      }, 'sitter');
+      if (!r620.ok) return res.status(400).json({ error: r620.error });
+      Object.assign(updateData, r620.update);
     }
 
     // Update location: only persist when valid coordinates exist (2dsphere index)

@@ -40,6 +40,10 @@ function ratesOf(d, role) {
   for (const [unit, field] of [['hour', 'hourlyRate'], ['day', 'dailyRate'], ['week', 'weeklyRate'], ['month', 'monthlyRate']]) {
     if (num(d[field]) > 0) out.push({ unit, amount: num(d[field]), currency: cur });
   }
+  // 620 (ZOE) — tarif par visite à domicile (« 12 €/visite · 30 min »).
+  if (num(d.visitRate) > 0) {
+    out.push({ unit: 'visit', amount: num(d.visitRate), currency: cur, durationMinutes: [30, 60].includes(num(d.visitDurationMinutes)) ? num(d.visitDurationMinutes) : 30 });
+  }
   return out;
 }
 

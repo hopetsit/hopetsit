@@ -57,8 +57,17 @@ const applicationSchema = new mongoose.Schema(
     },
     pricing: {
       basePrice: { type: Number, default: null },
-      pricingTier: { type: String, enum: ['hourly', 'daily', 'weekly', 'monthly'], default: 'hourly' },
+      // 620 (ZOE) — + 'visit' (à la visite), 'walk' (à la balade), 'indicative'
+      // (demande « dates à prévoir » : seul le tarif unitaire est connu).
+      pricingTier: { type: String, enum: ['hourly', 'daily', 'weekly', 'monthly', 'visit', 'walk', 'indicative'], default: 'hourly' },
       appliedRate: { type: Number, default: 0 },
+      // 620 — quantité facturée (jours, nuits, visites, balades) et son unité ;
+      // null tant que la demande n'a pas ses dates. `indicative` = totaux inconnus
+      // (totalPrice / commission / netPayout = null), recalculés quand le
+      // propriétaire pose ses dates (services/applicationRepricing620.js).
+      quantity: { type: Number, default: null },
+      unit: { type: String, default: '' },
+      indicative: { type: Boolean, default: false },
       totalHours: { type: Number, default: 0 },
       totalDays: { type: Number, default: 0 },
       addOns: [

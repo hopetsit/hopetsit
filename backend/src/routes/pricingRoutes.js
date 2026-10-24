@@ -6,9 +6,15 @@ const {
   calculatePricing,
   validatePrice,
   getProviderCommissionRate,
+  estimatePricing620,
 } = require('../controllers/pricingController');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
+
+// 620 (ZOE) — estimation unique (site + app) : quantité × tarif unitaire + commission,
+// indicative quand la demande est « dates à prévoir ». Auth requise.
+router.post('/estimate', requireAuth, estimatePricing620);
 
 /**
  * @swagger

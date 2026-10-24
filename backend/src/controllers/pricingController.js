@@ -228,7 +228,79 @@ const getProviderCommissionRate = async (req, res) => {
   }
 };
 
+/**
+ * 620 (ZOE, 24/10/2026 — ordre de Daniel « prix par visite, dates à prévoir ») —
+ * ESTIMATION UNIQUE pour le site et l'app (plus de copie du calcul côté client).
+ * POST /pricing/estimate (auth)
+ * Body : { serviceType?, post? | postId?, rate?, unit?, providerId?, providerRole?,
+ *          durationMinutes?, currency? }
+ *   · `post` = { dateMode, startDate, endDate, visitsPerDay, houseSittingVenue,
+ *     serviceLocation, walkDurationMinutes } (formulaire en cours) ou `postId` (demande
+ *     enregistrée) ;
+ *   · tarif : `rate` explicite, sinon celui du prestataire `providerId`/`providerRole`
+ *     (commission 15 % Top / 20 %), sinon celui de l'appelant s'il est gardien/promeneur.
+ * Réponse : { serviceType, dateMode, indicative, quantity, unit, unitRate, unitTotal,
+ *             commission, ownerTotal, commissionRate, currency, durationMinutes, rateSource }
+ *   indicative = true (demande « dates à prévoir ») → quantity / totaux = null.
+ */
+const estimatePricing620 = async (req, res) => {
+  try {
+    const engine = require('../utils/pricingEngine620');
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    let post = body.post && typeof body.post === 'object' ? body.post : null;
+    if (!post && typeof body.postId === 'string' && /^[0-9a-fA-F]{24}$/.test(body.postId)) {
+      post = await require('../models/Post').findById(body.postId)
+        .select('dateMode startDate endDate visitsPerDay houseSittingVenue serviceLocation serviceTypes walkDurationMinutes').lean();
+      if (!post) return res.status(404).json({ error: 'Post not found.' });
+    }
+    post = post || {};
+    const serviceType = engine.serviceKey(body.serviceType) || engine.mainService(post);
+    if (!serviceType) return res.status(400).json({ error: 'serviceType is required.', code: 'SERVICE_REQUIRED' });
+    const unit = body.unit ? String(body.unit) : undefined;
+    const duration = Number(body.durationMinutes || post.walkDurationMinutes) || undefined;
+
+    let rate = Number(body.rate);
+    let commissionRate = PLATFORM_COMMISSION_RATE;
+    let currency = String(body.currency || '').toUpperCase() || DEFAULT_CURRENCY;
+    let rateSource = 'body';
+    let durationMinutes = duration || null;
+    let providerRole = body.providerRole === 'walker' ? 'walker' : body.providerRole === 'sitter' ? 'sitter' : null;
+    let providerId = typeof body.providerId === 'string' && /^[0-9a-fA-F]{24}$/.test(body.providerId) ? body.providerId : null;
+    if (!providerId && !(rate > 0) && req.user && (req.user.role === 'sitter' || req.user.role === 'walker')) {
+      providerId = String(req.user.id);
+      providerRole = req.user.role;
+    }
+    if (!(rate > 0) && providerId) {
+      const Model = providerRole === 'walker' ? require('../models/Walker') : require('../models/Sitter');
+      const provider = await Model.findById(providerId)
+        .select('hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker').lean();
+      if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+      const r = engine.rateFor(provider, serviceType, { durationMinutes: duration, unit });
+      if (!r) {
+        return res.status(200).json({
+          serviceType, dateMode: engine.effectiveDateMode(post), indicative: true, quantity: null,
+          unit: unit || engine.unitFor(serviceType), unitRate: 0, unitTotal: null, commission: null,
+          ownerTotal: null, commissionRate, currency: provider.currency || currency, durationMinutes: null,
+          rateSource: 'none', code: 'NO_RATE',
+        });
+      }
+      rate = r.rate;
+      durationMinutes = r.durationMinutes || durationMinutes;
+      rateSource = r.source;
+      currency = provider.currency || currency;
+      commissionRate = commissionRateForProvider(providerRole === 'walker' ? provider.isTopWalker === true : provider.isTopSitter === true);
+    }
+    if (!(rate > 0)) return res.status(400).json({ error: 'rate (or providerId) is required.', code: 'RATE_REQUIRED' });
+    const out = engine.estimate({ serviceType, unit, rate, post, commissionRate, currency });
+    return res.json({ serviceType, ...out, durationMinutes, rateSource });
+  } catch (error) {
+    logger.error('[pricingController.estimatePricing620]', error);
+    return res.status(500).json({ error: 'Unable to estimate.' });
+  }
+};
+
 module.exports = {
+  estimatePricing620,
   getProviderCommissionRate,
   getRecommendedPriceRanges,
   getServiceRecommendedPrice,

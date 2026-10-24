@@ -315,6 +315,9 @@ const findNearbyWalkers = async (req, res) => {
       return {
         ...safe,
         location: displayLocation,
+        // 620 (ZOE) — prix par service (« 10 €/balade ») + priceFrom/priceUnit selon `?service=`.
+        ...require('../utils/prices620').priceFromFor(w, 'walker', req.query.priceService || req.query.service),
+        prices: require('../utils/prices620').pricesFor(w, 'walker'),
         isBoosted: Boolean(isBoosted),
         boostTier: isBoosted ? (w.boostTier || null) : null,
         isMapBoosted: Boolean(isMapBoosted),
