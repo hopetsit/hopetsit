@@ -907,12 +907,18 @@ const updateSitterPricing = async (req, res) => {
       }
     }
 
+    // 620c (ZOE, 24/10 — décision de Daniel) — tarif posé ou changé : les candidatures
+    // « tarif à venir » du gardien sont recalculées, propriétaire et gardien prévenus.
+    const repriced620c = await require('../services/applicationRepricing620')
+      .repriceAfterRateChangeSafe(req.body, { providerId: String(sitter._id), providerRole: 'sitter' });
+
     res.json({
       message: 'Pricing updated successfully.',
       sitter: sanitizeUser(sitter, { includeEmail: true }),
       location: sitter.location,
       servicePricing: sitter.servicePricing,
       validationResults,
+      ...(repriced620c ? { repricedApplications: repriced620c.repriced } : {}),
     });
   } catch (error) {
     logger.error('Update sitter pricing error', error);
@@ -1413,9 +1419,14 @@ const updateSitterProfile = async (req, res) => {
     // chemin « ville sans GPS » (cityOnly) n'était sinon jamais propagée.
     await propagateSharedIdentity(updatedSitter, 'sitter', updateOps.$set || {});
 
+    // 620c (ZOE, 24/10) — « Modifier le profil » peut aussi poser un tarif : même recalcul.
+    const repriced620c = await require('../services/applicationRepricing620')
+      .repriceAfterRateChangeSafe(req.body, { providerId: String(updatedSitter._id), providerRole: 'sitter' });
+
     res.json({
       message: 'Profile updated successfully.',
       sitter: sanitizeUser(updatedSitter, { includeEmail: true }),
+      ...(repriced620c ? { repricedApplications: repriced620c.repriced } : {}),
     });
   } catch (error) {
     logger.error('Update sitter profile error', error);

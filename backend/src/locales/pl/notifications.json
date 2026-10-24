@@ -506,5 +506,17 @@
     "body": "{{candidates}} kandydat(ów) czeka: ustaw daty zgłoszenia, aby zobaczyć ich cenę i wybrać",
     "emailSubject": "Ustaw daty, aby potwierdzić zgłoszenie — HoPetSit",
     "emailBody": "<p>{{candidates}} kandydat(ów) czeka na twoją odpowiedź. Ustaw daty zgłoszenia: cena każdego zostanie obliczona i będziesz mógł wybrać.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ustaw daty</a></p>"
+  },
+  "application_rate_added_owner": {
+    "title": "{{providerName}} dodał(a) swoją stawkę",
+    "body": "{{providerName}} dodał(a) swoją stawkę: {{total}} · wybierz i zapłać w 2 minuty",
+    "emailSubject": "{{providerName}} dodał(a) swoją stawkę: {{total}} — HoPetSit",
+    "emailBody": "<p><strong>{{providerName}}</strong> dodał(a) swoją stawkę do Twojego zgłoszenia ({{service}}): kandydatura wynosi teraz <strong>{{total}}</strong>. Wybierz i zapłać w 2 minuty.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz kandydaturę</a></p>"
+  },
+  "application_rate_added": {
+    "title": "Twoja stawka jest zapisana",
+    "body": "Twoja kandydatura ({{service}}) została przeliczona: {{total}}",
+    "emailSubject": "Twoja stawka jest zapisana — kandydatura przeliczona — HoPetSit",
+    "emailBody": "<p>Twoja stawka jest zapisana: Twoja kandydatura do zgłoszenia <strong>{{service}}</strong> została przeliczona na <strong>{{total}}</strong>. Właściciel został powiadomiony.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz zgłoszenie</a></p>"
   }
 }

@@ -506,5 +506,17 @@
     "body": "{{candidates}} Kandidat(en) warten: lege die Daten deiner Anfrage fest, um ihren Preis zu sehen und zu wählen",
     "emailSubject": "Lege deine Daten fest, um deine Anfrage zu bestätigen — HoPetSit",
     "emailBody": "<p>{{candidates}} Kandidat(en) warten auf dich. Lege die Daten deiner Anfrage fest: jeder Preis wird berechnet und du kannst wählen.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Meine Daten festlegen</a></p>"
+  },
+  "application_rate_added_owner": {
+    "title": "{{providerName}} hat seinen Tarif hinzugefügt",
+    "body": "{{providerName}} hat seinen Tarif hinzugefügt: {{total}} · wähle und bezahle in 2 Minuten",
+    "emailSubject": "{{providerName}} hat seinen Tarif hinzugefügt: {{total}} — HoPetSit",
+    "emailBody": "<p><strong>{{providerName}}</strong> hat seinen Tarif für deine Anfrage ({{service}}) hinzugefügt: die Bewerbung liegt jetzt bei <strong>{{total}}</strong>. Wähle und bezahle in 2 Minuten.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Bewerbung ansehen</a></p>"
+  },
+  "application_rate_added": {
+    "title": "Dein Tarif ist gespeichert",
+    "body": "Deine Bewerbung ({{service}}) wurde neu berechnet: {{total}}",
+    "emailSubject": "Dein Tarif ist gespeichert — deine Bewerbung neu berechnet — HoPetSit",
+    "emailBody": "<p>Dein Tarif ist gespeichert: deine Bewerbung für die Anfrage <strong>{{service}}</strong> wurde auf <strong>{{total}}</strong> neu berechnet. Der Besitzer wurde benachrichtigt.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Anfrage ansehen</a></p>"
   }
 }

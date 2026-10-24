@@ -621,7 +621,12 @@ const updateMyWalkerRates = async (req, res) => {
       .select('walkRates currency')
       .lean();
 
-    res.json({ walkRates: walker.walkRates, currency: walker.currency });
+    // 620c (ZOE, 24/10 — décision de Daniel) — tarif de balade posé ou changé : les
+    // candidatures « tarif à venir » du promeneur sont recalculées, les deux côtés prévenus.
+    const repriced620c = await require('../services/applicationRepricing620')
+      .repriceAfterRateChangeSafe(req.body, { providerId: String(req.user.id), providerRole: 'walker' });
+
+    res.json({ walkRates: walker.walkRates, currency: walker.currency, ...(repriced620c ? { repricedApplications: repriced620c.repriced } : {}) });
   } catch (error) {
     logger.error('updateMyWalkerRates error', error);
     if (error.name === 'ValidationError') {

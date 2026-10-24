@@ -436,9 +436,18 @@ const updateProfile = async (req, res) => {
       }
     }
 
+    // 620c (ZOE, 24/10 — décision de Daniel) — un gardien / promeneur qui pose ou change un
+    // tarif : ses candidatures « tarif à venir » (stale) sont recalculées, les deux côtés
+    // prévenus. Jamais bloquant ; une candidature non stale n'est jamais retouchée.
+    let repriced620c = null;
+    if (role === 'sitter' || role === 'walker') {
+      repriced620c = await require('../services/applicationRepricing620')
+        .repriceAfterRateChangeSafe(req.body, { providerId: String(account._id), providerRole: role });
+    }
+
     const out = sanitizeUser(account, { includeEmail: true });
     out.city = out.city || (out.location && out.location.city) || '';
-    res.json({ role, user: out });
+    res.json({ role, user: out, ...(repriced620c ? { repricedApplications: repriced620c.repriced } : {}) });
   } catch (error) {
     logger.error('Update profile error', error);
     if (error.name === 'CastError') {

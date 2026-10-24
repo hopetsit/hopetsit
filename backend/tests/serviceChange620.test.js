@@ -192,17 +192,23 @@ describe('A. demande DATÉE : garde à domicile (3 jours) → visites à domicil
     await request(app).post(`/admin/reprice-620/posts/${S.post.id}`).set(hdr(S.owner._id, 'owner')).send({}).expect(403);
   });
 
-  test('Sohane ajoute son tarif par visite (15 €) → le rejeu admin la recalcule : 3 × 15 = 45 + 9 = 54, une notification, stale = false', async () => {
+  test('Sohane ajoute son tarif par visite (15 €) → recalcul AUTOMATIQUE dès le PUT (620c) : 3 × 15 = 45 + 9 = 54, une notification de chaque côté, stale = false ; le rejeu admin ne trouve plus rien à faire', async () => {
     const p = await request(app).put('/sitters/me/pricing').set(hdr(S.sohane._id, 'sitter')).send({ visitRate: 15, visitDurationMinutes: 30 });
     if (p.status !== 200) console.log('pricing →', p.status, JSON.stringify(p.body)); // eslint-disable-line no-console
     expect(p.status).toBe(200);
-    const replay = await request(app).post(`/admin/reprice-620/posts/${S.post.id}`).set(ADMIN).send({});
-    expect(replay.status).toBe(200);
-    expect(replay.body.repriced).toEqual([String(S.appSohane)]);
-    expect(replay.body.aligned).toEqual([String(S.appHanene)]);
+    expect(p.body.repricedApplications).toBe(1);
     const s = await Application.findById(S.appSohane).lean();
     expect(s.pricing).toMatchObject({ indicative: false, stale: false, pricingTier: 'visit', appliedRate: 15, quantity: 3, totalPrice: 54 });
     await wait(400);
+    expect(await Notification.countDocuments({ recipientId: S.sohane._id, type: 'application_pricing_updated' })).toBe(1);
+    expect(await Notification.countDocuments({ recipientId: S.owner._id, type: 'application_pricing_updated' })).toBe(2);
+    // rejeu admin : les deux candidatures sont alignées, 0 envoi (idempotent)
+    const replay = await request(app).post(`/admin/reprice-620/posts/${S.post.id}`).set(ADMIN).send({});
+    expect(replay.status).toBe(200);
+    expect(replay.body.repriced).toEqual([]);
+    expect(replay.body.aligned.sort()).toEqual([String(S.appHanene), String(S.appSohane)].sort());
+    expect(replay.body.notified).toEqual({ owner: false, providers: 0 });
+    await wait(300);
     expect(await Notification.countDocuments({ recipientId: S.sohane._id, type: 'application_pricing_updated' })).toBe(1);
     expect(await Notification.countDocuments({ recipientId: S.owner._id, type: 'application_pricing_updated' })).toBe(2);
   });

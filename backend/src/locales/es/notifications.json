@@ -506,5 +506,17 @@
     "body": "{{candidates}} candidato(s) esperan: pon las fechas de tu solicitud para ver su precio y elegir",
     "emailSubject": "Pon tus fechas para validar tu solicitud — HoPetSit",
     "emailBody": "<p>{{candidates}} candidato(s) esperan tu respuesta. Pon las fechas de tu solicitud: se calculará el precio de cada uno y podrás elegir.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Poner mis fechas</a></p>"
+  },
+  "application_rate_added_owner": {
+    "title": "{{providerName}} añadió su tarifa",
+    "body": "{{providerName}} añadió su tarifa: {{total}} · elige y paga en 2 minutos",
+    "emailSubject": "{{providerName}} añadió su tarifa: {{total}} — HoPetSit",
+    "emailBody": "<p><strong>{{providerName}}</strong> añadió su tarifa para tu solicitud ({{service}}): su candidatura ahora es de <strong>{{total}}</strong>. Elige y paga en 2 minutos.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la candidatura</a></p>"
+  },
+  "application_rate_added": {
+    "title": "Tu tarifa está guardada",
+    "body": "Tu candidatura ({{service}}) se recalculó: {{total}}",
+    "emailSubject": "Tu tarifa está guardada — tu candidatura recalculada — HoPetSit",
+    "emailBody": "<p>Tu tarifa está guardada: tu candidatura para la solicitud de <strong>{{service}}</strong> se recalculó a <strong>{{total}}</strong>. El propietario ha sido avisado.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la solicitud</a></p>"
   }
 }

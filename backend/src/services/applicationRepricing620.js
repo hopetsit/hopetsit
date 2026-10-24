@@ -333,11 +333,159 @@ async function repriceAfterServiceChange(post, opts = {}) {
   return out;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * 620c (ZOE, 24/10/2026 — décision de Daniel, 21 h, via BOB) — LE PRESTATAIRE AJOUTE OU
+ * CHANGE SON TARIF.
+ *
+ * À chaque PUT qui pose ou change un tarif (PUT /users/me/profile, /sitters/me/pricing|rates,
+ * /sitters/me/profile, /walkers/me/rates), ses candidatures EN ATTENTE marquées « tarif à
+ * venir » (`pricing.stale = true`) sur une demande dont il tarife désormais le service sont
+ * recalculées par le moteur unique (totaux réels, ou tarif unitaire indicatif si la demande
+ * est « dates à prévoir »), `stale = false`, puis :
+ *   · le propriétaire reçoit `application_pricing_updated` (gabarit application_rate_added_owner :
+ *     « <Prénom> a ajouté son tarif : <total> ») ;
+ *   · le prestataire reçoit `application_pricing_updated` (gabarit application_rate_added).
+ * Une candidature qui n'était PAS stale n'est jamais retouchée : une offre faite reste une
+ * offre, et rien n'est envoyé. Idempotent : `stale` passe à false, un second PUT identique ne
+ * trouve plus rien (0 envoi). Comptes de test : aucun e-mail (règle +test du notificationSender).
+ * ───────────────────────────────────────────────────────────────────────────── */
+const TEMPLATE_RATE_ADDED = 'application_rate_added';
+const TEMPLATE_RATE_ADDED_OWNER = 'application_rate_added_owner';
+const RATE_FIELDS = ['hourlyRate', 'dailyRate', 'weeklyRate', 'monthlyRate', 'visitRate', 'visitDurationMinutes', 'walkRates'];
+
+/** Le corps d'une requête pose ou change un tarif (champs de la grille 620). */
+function touchesRates(body) {
+  const b = body && typeof body === 'object' ? body : {};
+  return RATE_FIELDS.some((k) => Object.prototype.hasOwnProperty.call(b, k) && b[k] !== undefined);
+}
+
+const firstNameOf = (p) => {
+  const f = String((p && p.firstName) || '').trim();
+  if (f) return f;
+  return String((p && p.name) || '').trim().split(/\s+/)[0] || 'HoPetSit';
+};
+
+/**
+ * Recalcule les candidatures « tarif à venir » d'un prestataire qui vient de poser un tarif.
+ * @param {{providerId:string, providerRole:'sitter'|'walker'}} who
+ * @param {{notify?:boolean, send?:Function, dryRun?:boolean}} [opts]
+ * @returns {Promise<{repriced:string[], kept:string[], skipped:string[], notified:{owners:number, provider:number}, details:object[]}>}
+ */
+async function repriceAfterRateChange({ providerId, providerRole } = {}, opts = {}) {
+  const out = { repriced: [], kept: [], skipped: [], notified: { owners: 0, provider: 0 }, details: [] };
+  if (!providerId) return out;
+  const role = providerRole === 'walker' ? 'walker' : 'sitter';
+  const Application = require('../models/Application');
+  const Post = require('../models/Post');
+  const Model = role === 'walker' ? require('../models/Walker') : require('../models/Sitter');
+  const provider = await Model.findById(providerId)
+    .select('name firstName hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker appLocale language').lean();
+  if (!provider) return out;
+  const filter = { status: 'pending', 'pricing.stale': true };
+  filter[role === 'walker' ? 'walkerId' : 'sitterId'] = provider._id;
+  const stale = await Application.find(filter);
+  if (!stale.length) return out;
+  const send = opts.notify === false ? null : (typeof opts.send === 'function' ? opts.send : require('./notificationSender').sendNotification);
+  const lang = provider.appLocale || provider.language || 'fr';
+  const changed = [];
+  for (const app of stale) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const post = await Post.findById(app.postId).lean();
+      if (!post || post.status === 'closed') { out.skipped.push(String(app._id)); continue; }
+      const key = engine.mainService(post);
+      const r = engine.rateFor(provider, key, { durationMinutes: Number(post.walkDurationMinutes || app.duration) || undefined });
+      if (!r) { out.kept.push(String(app._id)); continue; } // toujours pas de tarif pour ce service
+      const isTbd = engine.effectiveDateMode(post) === 'tbd';
+      const addOns = Array.isArray(app.pricing && app.pricing.addOns) ? app.pricing.addOns : [];
+      const pricing = isTbd
+        ? indicativePricing({ post, provider, providerRole: role, serviceType: key, duration: post.walkDurationMinutes, addOns })
+        : priceApplication({ application: app, post, provider, providerRole: role });
+      if (!pricing) { out.skipped.push(String(app._id)); continue; }
+      pricing.stale = false;
+      app.serviceType = key;
+      app.pricing = pricing;
+      if (!isTbd) {
+        if (!app.timeSlot) app.timeSlot = 'flexible';
+        app.serviceDate = post.startDate || app.serviceDate;
+        app.startDate = post.startDate || app.startDate;
+        app.endDate = post.endDate || app.endDate;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      if (!opts.dryRun) await app.save();
+      out.repriced.push(String(app._id));
+      out.details.push({ id: String(app._id), postId: String(post._id), service: key, total: pricing.totalPrice, rate: pricing.appliedRate, unit: pricing.unit, indicative: !!pricing.indicative });
+      changed.push({ app, post, pricing, key });
+    } catch (e) {
+      out.skipped.push(String(app._id));
+      logger.warn(`[reprice620c] candidature ${app._id} : ${e && e.message ? e.message : e}`);
+    }
+  }
+  if (opts.dryRun || !send || !changed.length) return out;
+  const Owner = require('../models/Owner');
+  const providerName = firstNameOf(provider);
+  for (const c of changed) {
+    const ownerId = String(c.post.ownerId && c.post.ownerId._id ? c.post.ownerId._id : c.post.ownerId);
+    let ownerLang = 'fr';
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const o = await Owner.findById(ownerId).select('appLocale language').lean();
+      ownerLang = (o && (o.appLocale || o.language)) || 'fr';
+    } catch (_) { /* fr */ }
+    const totalIn = (l) => (c.pricing.indicative
+      ? `${fmtMoney(c.pricing.appliedRate, c.pricing.currency, l)} ${unitLabel(c.pricing.unit, l)}`
+      : fmtMoney(c.pricing.totalPrice, c.pricing.currency, l));
+    const base = { postId: String(c.post._id), applicationId: String(c.app._id), serviceKey: c.key, rateAdded: '1', pricing620: '1', candidates: '1' };
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await send({
+        userId: ownerId, role: 'owner', type: TYPE_PRICING_UPDATED, templateType: TEMPLATE_RATE_ADDED_OWNER,
+        data: { ...base, providerName, total: totalIn(ownerLang), service: serviceLabel(c.key, ownerLang) },
+      });
+      out.notified.owners += 1;
+    } catch (e) {
+      logger.warn(`[reprice620c] notification propriétaire ${ownerId} : ${e && e.message ? e.message : e}`);
+    }
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await send({
+        userId: String(provider._id), role, type: TYPE_PRICING_UPDATED, templateType: TEMPLATE_RATE_ADDED,
+        data: { ...base, total: totalIn(lang), service: serviceLabel(c.key, lang) },
+      });
+      out.notified.provider += 1;
+    } catch (e) {
+      logger.warn(`[reprice620c] notification prestataire ${provider._id} : ${e && e.message ? e.message : e}`);
+    }
+  }
+  return out;
+}
+
+/**
+ * Appel « jamais bloquant » depuis les contrôleurs de profil / tarifs : ne lève pas, renvoie
+ * `{ repriced: n }` quand au moins une candidature a été recalculée, sinon null.
+ */
+async function repriceAfterRateChangeSafe(body, who) {
+  try {
+    if (!touchesRates(body)) return null;
+    const r = await repriceAfterRateChange(who);
+    return r.repriced.length ? { repriced: r.repriced.length, notified: r.notified } : null;
+  } catch (e) {
+    logger.warn(`[reprice620c] ${e && e.message ? e.message : e}`);
+    return null;
+  }
+}
+
 module.exports = {
   TYPE_PRICING_UPDATED,
   TYPE_SERVICE_CHANGED,
   TEMPLATE_SERVICE_REPRICED,
   TEMPLATE_SERVICE_REPRICED_OWNER,
+  TEMPLATE_RATE_ADDED,
+  TEMPLATE_RATE_ADDED_OWNER,
+  RATE_FIELDS,
+  touchesRates,
+  repriceAfterRateChange,
+  repriceAfterRateChangeSafe,
   serviceFingerprint,
   serviceLabel,
   unitLabel,

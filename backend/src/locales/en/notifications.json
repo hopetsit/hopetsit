@@ -506,5 +506,17 @@
     "body": "{{candidates}} candidate(s) are waiting: set the dates of your request to see their price and choose",
     "emailSubject": "Set your dates to confirm your request — HoPetSit",
     "emailBody": "<p>{{candidates}} candidate(s) are waiting for you. Set the dates of your request: each price will be calculated and you can choose.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Set my dates</a></p>"
+  },
+  "application_rate_added_owner": {
+    "title": "{{providerName}} added their rate",
+    "body": "{{providerName}} added their rate: {{total}} · choose and pay in 2 minutes",
+    "emailSubject": "{{providerName}} added their rate: {{total}} — HoPetSit",
+    "emailBody": "<p><strong>{{providerName}}</strong> added their rate for your request ({{service}}): their application is now <strong>{{total}}</strong>. Choose and pay in 2 minutes.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View the application</a></p>"
+  },
+  "application_rate_added": {
+    "title": "Your rate is saved",
+    "body": "Your application ({{service}}) was recalculated: {{total}}",
+    "emailSubject": "Your rate is saved — your application recalculated — HoPetSit",
+    "emailBody": "<p>Your rate is saved: your application for the <strong>{{service}}</strong> request was recalculated to <strong>{{total}}</strong>. The owner has been notified.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View the request</a></p>"
   }
 }

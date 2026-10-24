@@ -506,5 +506,17 @@
     "body": "{{candidates}}명의 후보가 기다리고 있어요. 요청 날짜를 정하면 가격을 보고 선택할 수 있어요",
     "emailSubject": "날짜를 정해 요청을 확정하세요 — HoPetSit",
     "emailBody": "<p>{{candidates}}명의 후보가 답을 기다리고 있어요. 요청 날짜를 정하세요. 각 후보의 가격이 계산되고 선택할 수 있어요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">날짜 정하기</a></p>"
+  },
+  "application_rate_added_owner": {
+    "title": "{{providerName}} 님이 요금을 추가했습니다",
+    "body": "{{providerName}} 님이 요금을 추가했습니다: {{total}} · 2분 안에 선택하고 결제하세요",
+    "emailSubject": "{{providerName}} 님이 요금을 추가했습니다: {{total}} — HoPetSit",
+    "emailBody": "<p><strong>{{providerName}}</strong> 님이 회원님의 요청({{service}})에 요금을 추가했습니다. 지원서 금액은 이제 <strong>{{total}}</strong>입니다. 2분 안에 선택하고 결제하세요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">지원서 보기</a></p>"
+  },
+  "application_rate_added": {
+    "title": "요금이 저장되었습니다",
+    "body": "지원서({{service}})가 다시 계산되었습니다: {{total}}",
+    "emailSubject": "요금이 저장되었습니다 — 지원서가 다시 계산됨 — HoPetSit",
+    "emailBody": "<p>요금이 저장되었습니다. <strong>{{service}}</strong> 요청에 대한 지원서가 <strong>{{total}}</strong>(으)로 다시 계산되었습니다. 보호자에게 알림이 전송되었습니다.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">요청 보기</a></p>"
   }
 }
