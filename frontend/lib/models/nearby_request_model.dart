@@ -34,6 +34,11 @@ class NearbyRequestPost {
   final List<String> petIds;
   /// v584 — position approximative (~1 km) renvoyée par le serveur.
   final bool approx;
+  /// 621 — mode de dates de la demande (`exact` | `approx` | `tbd`) et visites
+  /// par jour (visite à domicile) : « Dates à prévoir » sur la bulle et
+  /// « à partir de » calculé par le serveur pour « Ma demande ».
+  final String dateMode;
+  final int? visitsPerDay;
 
   const NearbyRequestPost({
     required this.id,
@@ -55,7 +60,12 @@ class NearbyRequestPost {
     this.currency = 'EUR',
     this.petIds = const <String>[],
     this.approx = false,
+    this.dateMode = '',
+    this.visitsPerDay,
   });
+
+  /// 621 — « dates à prévoir » : aucune date, candidatures indicatives.
+  bool get isDatesTbd => dateMode == 'tbd' || (startDate == null && endDate == null && dateMode.isEmpty);
 
   /// « 25 € » (ou « $25 » en anglais) ou vide sans budget — lot D : même
   /// helper que partout ailleurs (`CurrencyHelper.formatCompact`).
@@ -100,6 +110,8 @@ class NearbyRequestPost {
           .where((e) => e.isNotEmpty)
           .toList(),
       approx: j['approx'] == true || loc['approx'] == true,
+      dateMode: (j['dateMode'] ?? '').toString(),
+      visitsPerDay: (j['visitsPerDay'] as num?)?.toInt(),
     );
   }
 }

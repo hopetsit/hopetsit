@@ -61,6 +61,7 @@ import 'package:hopetsit/views/map/pawmap_snapshot.dart';
 import 'package:hopetsit/views/map/pawmap_help_screen.dart';
 import 'package:hopetsit/views/map/pawmap_member_profile_route.dart';
 import 'package:hopetsit/utils/dates620.dart';
+import 'package:hopetsit/utils/from_rate620.dart';
 import 'package:hopetsit/utils/services620.dart';
 import 'package:hopetsit/views/map/pawmap_rates.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheets.dart';
@@ -6681,9 +6682,14 @@ class _PawMapScreenState extends State<PawMapScreen>
     String fmt(DateTime d) => DateFormat.MMMd(locale).format(d.toLocal());
     final s = r.startDate;
     final e = r.endDate;
+    // 621 — « Dates à prévoir » (demande sans dates, serveur 620).
+    if (r.isDatesTbd) return 'dates620_tbd_badge'.tr;
     if (s == null && e == null) return '';
     if (s != null && e != null && !s.isAtSameMomentAs(e)) {
-      return 'pawmap_request_dates'.trParams({'from': fmt(s), 'to': fmt(e)});
+      final range = 'pawmap_request_dates'.trParams({'from': fmt(s), 'to': fmt(e)});
+      return r.dateMode == 'approx'
+          ? 'dates620_approx_range'.tr.replaceAll('@a', fmt(s)).replaceAll('@b', fmt(e))
+          : range;
     }
     return fmt(s ?? e!);
   }
@@ -6710,6 +6716,15 @@ class _PawMapScreenState extends State<PawMapScreen>
           locationLabel: serviceLocationDisplay(r.serviceLocation,
               meetingPoint: r.meetingPoint),
           budgetLabel: r.budgetLabel,
+          // 621 — « à partir de 12 €/visite · estimation ~86 € » sur MA
+          // demande ouverte (serveur 620b) ; rien pour la demande d'un autre.
+          estimateLine: mine
+              ? FromRateLine620(
+                  future: FromRateCache620.forNearby(r),
+                  tone: PawMapLegend.owner,
+                  compact: true,
+                )
+              : null,
           body: r.body,
           mine: mine,
           approx: r.approx,

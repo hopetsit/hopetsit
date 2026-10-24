@@ -1161,7 +1161,12 @@ class PawMapRequestSheet extends StatelessWidget {
     required this.onOpenMine,
     required this.onOwnerProfile,
     this.locationLabel = '',
+    this.estimateLine,
   });
+
+  /// 621 — « à partir de 12 €/visite · estimation ~86 € » sous le budget
+  /// de MA demande (serveur 620b) ; null = rien.
+  final Widget? estimateLine;
 
   final String ownerName;
   final String ownerAvatar;
@@ -1261,6 +1266,8 @@ class PawMapRequestSheet extends StatelessWidget {
                 ),
             ],
           ),
+          // 621 — « à partir de … » de MA demande ouverte (serveur 620b).
+          if (estimateLine != null) estimateLine!,
           if (dateLabel.isNotEmpty) ...[
             SizedBox(height: 10.h),
             Row(

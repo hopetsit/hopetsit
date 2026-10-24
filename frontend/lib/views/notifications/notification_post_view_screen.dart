@@ -26,6 +26,8 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/post_comment_sheet.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
+import 'package:hopetsit/utils/dates620.dart';
+import 'package:hopetsit/utils/from_rate620.dart';
 
 /// Shows a single post as the same [PetPostCard] used on the home feed (e.g. from a like notification).
 class NotificationPostViewScreen extends StatefulWidget {
@@ -428,7 +430,12 @@ class _NotificationPostViewScreenState
 
             final viewerRole = _viewerRole;
             final isProvider = viewerRole == 'walker' || viewerRole == 'sitter';
-            return PetPostCard(
+            // 621 — « à partir de » (propriétaire, demande ouverte).
+            return FromRate620Builder(
+              future: isProvider
+                  ? Future<PricingEstimate620?>.value(null)
+                  : FromRateCache620.forPost(post),
+              builder: (ctx, fromRate621) => PetPostCard(
               userName: post.owner.name,
               userEmail: '',
               userAvatar: post.owner.avatar.isNotEmpty
@@ -441,6 +448,9 @@ class _NotificationPostViewScreenState
               serviceLocation: post.serviceLocation,
               meetingPoint: post.meetingPoint,
               budgetLabel: post.budgetLabel,
+              // 621 — le propriétaire voit « à partir de … » sur SA demande
+              // ouverte (jamais le prestataire : il a son propre gain estimé).
+              fromRateLabel: isProvider ? '' : fromRate621,
               postBody: post.body,
               petName: petName,
               serviceTypes: serviceTypesLabel.isEmpty
@@ -502,7 +512,7 @@ class _NotificationPostViewScreenState
                   // Silently ignore — share failures shouldn't crash the app.
                 }
               },
-            );
+            ));
           }),
         ),
       ),

@@ -700,6 +700,10 @@ class BookingPricing {
   /// 620 — unité du tarif renvoyée par le serveur (`day` | `night` | `visit`
   /// | `walk` | `hour` | `week` | `month`), sinon vide.
   final String unit;
+  /// 621 (serveur 620b) — « tarif à venir » : la demande a changé de service
+  /// et ce prestataire n'a pas encore de tarif pour le nouveau ; aucun total,
+  /// aucun tarif unitaire. Le serveur recalcule dès qu'il l'ajoute.
+  final bool stale;
 
   BookingPricing({
     this.platformFeePercentage,
@@ -715,6 +719,7 @@ class BookingPricing {
     this.indicative = false,
     this.quantity,
     this.unit = '',
+    this.stale = false,
   });
 
   /// 620 — tarif unitaire affichable (indicatif ou non).
@@ -774,6 +779,7 @@ class BookingPricing {
           (json['pricingTier'] ?? json['pricing_tier']) == 'indicative',
       quantity: (json['quantity'] as num?)?.toInt(),
       unit: (json['unit'] ?? json['priceUnit'] ?? json['rateUnit'] ?? '').toString(),
+      stale: json['stale'] == true,
     );
   }
 

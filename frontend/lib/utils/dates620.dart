@@ -70,6 +70,10 @@ class PricingEstimate620 {
     this.currency = '',
     this.unit = ServiceUnit620.day,
     this.night = false,
+    this.fromRate,
+    this.ownerTotalFrom,
+    this.basedOn = 0,
+    this.market = false,
   });
 
   /// `true` quand `dateMode = tbd` : seule la quantité est inconnue, le
@@ -85,9 +89,23 @@ class PricingEstimate620 {
   final ServiceUnit620 unit;
   /// Garde chez le gardien : quantité en nuits.
   final bool night;
+  /// 621 (serveur 620b) — demande OUVERTE (sans prestataire visé) : tarif
+  /// « à partir de » = minimum des prestataires du rayon d'alerte.
+  final double? fromRate;
+  /// 621 — total propriétaire « à partir de » (quantité × fromRate + commission),
+  /// null en « dates à prévoir ».
+  final double? ownerTotalFrom;
+  /// 621 — nombre de prestataires sur lesquels repose le « à partir de »
+  /// (0 = aucun : on n'affiche rien).
+  final int basedOn;
+  /// 621 — réponse de marché (`rateSource: 'market'`, `fromRate` présent).
+  final bool market;
 
   bool get hasTotal => !indicative && ownerTotal != null && ownerTotal! > 0;
   bool get hasQuantity => !indicative && quantity != null && quantity! > 0;
+  /// 621 — un « à partir de » exploitable : au moins un prestataire.
+  bool get hasFromRate => market && basedOn > 0 && (fromRate ?? 0) > 0;
+  bool get hasFromTotal => hasFromRate && (ownerTotalFrom ?? 0) > 0;
 
   static PricingEstimate620? tryParse(dynamic response) {
     dynamic m = response;
@@ -99,8 +117,18 @@ class PricingEstimate620 {
     final unitRaw = (m['unit'] ?? m['priceUnit'] ?? '').toString().toLowerCase();
     final indicative = m['indicative'] == true ||
         (m['quantity'] == null && m['ownerTotal'] == null && m['dateMode'] == 'tbd');
+    // 621 — réponse « market » (serveur 620b) : `fromRate`, `ownerTotalFrom`,
+    // `basedOn`. Un ancien serveur n'envoie aucun de ces champs.
+    final market = m['rateSource'] == 'market' ||
+        m.containsKey('fromRate') ||
+        m.containsKey('basedOn');
+    final basedOn = i(m['basedOn']) ?? ((d(m['fromRate']) ?? 0) > 0 ? 1 : 0);
     return PricingEstimate620(
       indicative: indicative,
+      market: market,
+      fromRate: d(m['fromRate']),
+      ownerTotalFrom: d(m['ownerTotalFrom']),
+      basedOn: market ? basedOn : 0,
       quantity: i(m['quantity']),
       unitTotal: d(m['unitTotal'] ?? m['basePrice']),
       commission: d(m['commission']),
@@ -130,12 +158,24 @@ Map<String, dynamic> estimateBody620({
   String? currency,
   String? providerId,
   String? providerRole,
+  double? lat,
+  double? lng,
+  String? city,
 }) {
   final key = ServiceCatalog620.catalogKeyFor(serviceType);
   final unit = ServiceCatalog620.unitFor(serviceType);
   final bool withDates = dateMode != DateMode620.tbd;
+  // 621 — position de la demande (serveur 620b : le « à partir de » d'une
+  // demande ouverte se calcule autour d'elle, sinon autour du profil).
+  final bool hasPos = lat != null && lng != null && (lat != 0 || lng != 0);
   final post = <String, dynamic>{
     'serviceTypes': <String>[key],
+    if (hasPos || (city ?? '').trim().isNotEmpty)
+      'location': <String, dynamic>{
+        if (hasPos) 'lat': lat,
+        if (hasPos) 'lng': lng,
+        if ((city ?? '').trim().isNotEmpty) 'city': city!.trim(),
+      },
     'dateMode': dateMode620Wire(dateMode),
     'startDate': withDates && startDate != null ? startDate.toUtc().toIso8601String() : null,
     'endDate': withDates && endDate != null ? endDate.toUtc().toIso8601String() : null,

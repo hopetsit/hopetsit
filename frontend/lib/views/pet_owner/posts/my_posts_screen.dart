@@ -12,6 +12,7 @@ import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/utils/from_rate620.dart';
 import 'package:hopetsit/utils/post_date_label.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 // v441 — « Modifier » ouvre désormais le formulaire de publication complet en
@@ -329,6 +330,21 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     PostModel post,
     PostsController postsController,
   ) {
+    // 621 — « à partir de 12 €/visite · estimation ~86 € » sur une demande
+    // ouverte (serveur 620b, une requête par demande, cache 5 min).
+    return FromRate620Builder(
+      key: ValueKey<String>('from_rate_card_${post.id}'),
+      future: FromRateCache620.forPost(post),
+      builder: (ctx, label) => _buildPostCardWith(ctx, post, postsController, label),
+    );
+  }
+
+  Widget _buildPostCardWith(
+    BuildContext context,
+    PostModel post,
+    PostsController postsController,
+    String fromRate621,
+  ) {
     final hasMedia = _postHasDisplayableMedia(post);
     final imageUrls = post.images
         .map((img) => img.url)
@@ -361,6 +377,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           serviceLocation: post.serviceLocation,
           meetingPoint: post.meetingPoint,
           budgetLabel: post.budgetLabel,
+          fromRateLabel: fromRate621,
           postBody: post.body,
           petName: petName,
           serviceTypes: serviceTypesLabel.isEmpty ? null : serviceTypesLabel,
@@ -444,6 +461,7 @@ isOwnerBoosted: post.isOwnerBoosted ||
         serviceLocation: post.serviceLocation,
         meetingPoint: post.meetingPoint,
         budgetLabel: post.budgetLabel,
+        fromRateLabel: fromRate621,
         postBody: post.body,
         petName: post.pets.isNotEmpty ? post.pets.first.petName : null,
         serviceTypes: _serviceTypesDisplay(post.serviceTypes).isEmpty

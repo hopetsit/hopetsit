@@ -430,10 +430,15 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
     final bool indicative620 =
         application is ApplicationModel && applicationIsIndicative620(application);
     if (indicative620) {
+      // 621 — « tarif à venir » (changement de service) : bandeau dédié.
+      final bool stale620 = applicationIsStale620(application);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SetDatesBanner620(postId: application.postId),
+          if (stale620)
+            const StaleBanner620(count: 1)
+          else
+            SetDatesBanner620(postId: application.postId),
           SizedBox(height: 8.h),
           ServiceProviderCard(
             name: application.sitter.name,

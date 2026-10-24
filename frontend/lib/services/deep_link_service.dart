@@ -44,6 +44,7 @@ import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
+import 'package:hopetsit/views/profile/my_rates_screen.dart';
 import 'package:hopetsit/views/pet_owner/booking/owner_bookings_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/booking/sitter_bookings_screen.dart';
@@ -347,6 +348,25 @@ class DeepLinkService {
       // v561 — mails du cycle de vie « publie une annonce » → accueil, onglet
       // « Mes annonces » (premier onglet de l'accueil propriétaire).
       _goToTab(0);
+    } else if (first == 'rates' || first == 'tarifs') {
+      // 621 — Profil › Tarifs du gardien / promeneur (notification « ajoute
+      // ton tarif … pour rester candidat »). Un propriétaire n'a pas de
+      // tarifs : il va sur son profil.
+      String role = '';
+      try {
+        role = (Get.find<AuthController>().userRole.value ?? '').toLowerCase();
+      } catch (_) {}
+      if (role == 'sitter' || role == 'walker') {
+        Get.to(() => MyRatesScreen(role: role));
+        try {
+          CustomSnackbar.showInfo(
+            title: 'dates620_stale_label'.tr,
+            message: 'dates620_rates_from_notif'.tr,
+          );
+        } catch (_) {}
+      } else {
+        _openProfileScreen();
+      }
     } else if (first == 'wallet') {
       // v561 — écran Portefeuille (solde, versements, retraits).
       // v569 — le portefeuille n'existe que pour gardien / promeneur : un
@@ -614,6 +634,13 @@ class DeepLinkService {
     // la liste des candidats de la demande (l'annonce, bandeau Candidats).
     if (t == 'application_pricing_updated') {
       return postId.isNotEmpty ? postPath : '/bookings';
+    }
+    // 621 (serveur 620b) — « la demande est passée en Visite à domicile :
+    // ajoute ton tarif par visite pour rester candidat » → l'écran Tarifs du
+    // gardien / promeneur, directement (sa candidature est recalculée par le
+    // serveur dès que le tarif existe).
+    if (t == 'application_service_changed') {
+      return isProvider || !isOwner ? '/rates' : postPath;
     }
     if (t == 'application_new' || t == 'request_expiry_617') {
       if (applicationId.isNotEmpty && !isProvider) {

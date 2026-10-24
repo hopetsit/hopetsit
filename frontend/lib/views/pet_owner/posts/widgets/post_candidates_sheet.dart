@@ -179,6 +179,10 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
     if (_busy.value) return;
     // 620 — candidature indicative (demande sans dates) : on ne choisit pas,
     // on pose d'abord les dates.
+    if (applicationIsStale620(app)) {
+      warnStale620(); // 621 — tarif à venir : rien à choisir encore
+      return;
+    }
     if (applicationIsIndicative620(app)) {
       warnDatesRequired620();
       return;
@@ -318,21 +322,32 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
                   .firstWhere((t) => t.isNotEmpty, orElse: () => '');
               // 620 — au moins une candidature indicative : bandeau « Pose
               // tes dates pour valider » en tête de liste.
-              final bool tbd620 = list.any(applicationIsIndicative620);
-              final int offset = (place.isEmpty ? 0 : 1) + (tbd620 ? 1 : 0);
+              // 621 — « tarif à venir » (la demande a changé de service) :
+              // bandeau d'explication, jamais « Pose tes dates » pour ça.
+              final bool tbd620 = list.any(applicationNeedsDates620);
+              final int stale620 = list.where(applicationIsStale620).length;
+              final int offset =
+                  (place.isEmpty ? 0 : 1) + (tbd620 ? 1 : 0) + (stale620 > 0 ? 1 : 0);
+              int row = 0;
+              final int tbdRow = tbd620 ? row++ : -1;
+              final int staleRow = stale620 > 0 ? row++ : -1;
+              final int placeRow = place.isNotEmpty ? row++ : -1;
               return ListView.separated(
                 shrinkWrap: true,
                 padding: EdgeInsets.zero,
                 itemCount: list.length + offset,
                 separatorBuilder: (_, __) => SizedBox(height: 10.h),
                 itemBuilder: (_, i) {
-                  if (tbd620 && i == 0) {
+                  if (i == tbdRow) {
                     return SetDatesBanner620(
                       postId: widget.postId,
                       onOpened: () => Navigator.of(context).maybePop(),
                     );
                   }
-                  if (place.isNotEmpty && i == (tbd620 ? 1 : 0)) {
+                  if (i == staleRow) {
+                    return StaleBanner620(count: stale620);
+                  }
+                  if (i == placeRow) {
                     return Row(
                       key: const Key('candidates_service_location'),
                       children: [
@@ -564,6 +579,8 @@ class _CandidateCard extends StatelessWidget {
   // 620 — total réel, sinon tarif unitaire « 12 €/visite · indicatif ».
   String _priceLabel() => candidatePriceLabel620(app);
   bool get _indicative => applicationIsIndicative620(app);
+  // 621 — « tarif à venir » : Choisir verrouillé avec SON explication.
+  bool get _stale => applicationIsStale620(app);
 
   @override
   Widget build(BuildContext context) {
@@ -746,12 +763,16 @@ class _CandidateCard extends StatelessWidget {
                     opacity: _indicative ? 0.55 : 1,
                     child: ActionPillButton(
                       key: Key('dates620_choose_${app.id}'),
-                      label: _indicative
-                          ? 'dates620_choose_locked'.tr
-                          : 'candidates_choose_button'.tr,
-                      icon: _indicative
-                          ? Icons.lock_clock_rounded
-                          : Icons.check_circle_rounded,
+                      label: _stale
+                          ? 'dates620_stale_label'.tr
+                          : _indicative
+                              ? 'dates620_choose_locked'.tr
+                              : 'candidates_choose_button'.tr,
+                      icon: _stale
+                          ? Icons.hourglass_top_rounded
+                          : _indicative
+                              ? Icons.lock_clock_rounded
+                              : Icons.check_circle_rounded,
                       tone: AppColors.primaryColor,
                       expand: true,
                       haptic: true,

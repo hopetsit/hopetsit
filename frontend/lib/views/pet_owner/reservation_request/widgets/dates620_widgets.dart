@@ -15,12 +15,28 @@ import 'package:get/get.dart';
 import '../../../../utils/app_colors.dart';
 import '../../../../utils/currency_helper.dart';
 import '../../../../utils/dates620.dart';
+import '../../../../utils/from_rate620.dart';
 import '../../../../utils/services620.dart';
 import '../../../../widgets/app_text.dart';
 
 /// Texte de l'estimation (pur, testable) : total + quantité, quantité seule,
 /// ou phrase « à l'unité » en tbd. Vide si rien d'exploitable.
 String estimateText620(PricingEstimate620? e, {required bool tbd}) {
+  // 621 — demande ouverte (serveur 620b) : « à partir de 12 €/visite ·
+  // estimation ~86 € » ; en « à prévoir » le « à partir de » seul ; aucun
+  // prestataire (`basedOn 0`) → les textes d'avant.
+  if (e != null && e.market) {
+    final from = fromRateText620(e);
+    if (from.isNotEmpty) return from;
+    if (tbd) return 'dates620_estimate_tbd'.tr;
+    // Une réponse de marché est toujours « indicative » : avec des dates, la
+    // quantité est connue → « 3 visites · le total dépend du tarif du candidat ».
+    if (e.quantity != null && e.quantity! > 0) {
+      return 'dates620_estimate_qty_only'.tr
+          .replaceAll('@qty', quantityLabel620(e.quantity!, e.unit, night: e.night));
+    }
+    return 'dates620_estimate_tbd'.tr;
+  }
   if (tbd) return 'dates620_estimate_tbd'.tr;
   if (e == null) return '';
   if (e.indicative) return 'dates620_estimate_tbd'.tr;

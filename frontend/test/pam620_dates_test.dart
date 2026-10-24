@@ -97,7 +97,7 @@ void main() {
     test('58 clés, 9 langues, jamais vides, mêmes jetons', () {
       const langs = ['en', 'fr', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl'];
       final keys = dates620I18n['en']!.keys.toSet();
-      expect(keys.length, 58);
+      expect(keys.length, 67); // 621 : + 9 clés « à partir de » / « tarif à venir »
       final ph = RegExp(r'@\w+');
       for (final l in langs) {
         expect(dates620I18n[l]?.keys.toSet(), keys, reason: l);

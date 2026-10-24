@@ -88,6 +88,9 @@ class PetPostCard extends StatelessWidget {
   final String? meetingPoint;
   /// v587 (budget, option A de Daniel) — « 35 € » ou vide (jamais « 0 € »).
   final String budgetLabel;
+  /// 621 — « à partir de 12 €/visite · estimation ~86 € » d'une demande
+  /// OUVERTE (propriétaire, serveur 620b) ; vide = case absente.
+  final String fromRateLabel;
 
   /// v442 — détail annonce prestataire (maquettes walker/sitter) : libellé
   /// « Publié il y a 2 h » affiché sous le nom du propriétaire. Null/vide ⇒
@@ -162,6 +165,7 @@ class PetPostCard extends StatelessWidget {
     this.serviceLocation,
     this.meetingPoint,
     this.budgetLabel = '',
+    this.fromRateLabel = '',
     this.publishedLabel,
     this.distanceLabel,
     this.walkDurationMinutes,
@@ -1592,6 +1596,8 @@ class PetPostCard extends StatelessWidget {
 
     // v587 — budget du propriétaire (case absente sans budget).
     add(Icons.payments_rounded, 'budget587_field'.tr, budgetLabel);
+    // 621 — « à partir de » (demande ouverte, tarif minimum du rayon).
+    add(Icons.sell_rounded, 'dates620_from_rate_field'.tr, fromRateLabel);
     return _gridWithTime(context, cells);
   }
 
