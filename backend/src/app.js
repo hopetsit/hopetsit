@@ -233,7 +233,7 @@ const ADMIN_BUILD = 'v619'; // 613 (ADA, 04/10) : parcours de chaque demande (An
 const _ADMIN_BUILD_612 = 'v612'; // 612 (PAM, 04/10) : admin — rangs Chiot → Légende à la place des anciens badges
 // 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à
 // redéployer quand seul admin_dashboard.html a bougé (ADMIN_BUILD reste celui de l'app).
-const ADMIN_DEPLOYED_AT = '2026-10-10T12:20'; // 10/10 (BOB) : nouvelle couche de design de l'admin (design-1010)
+const ADMIN_DEPLOYED_AT = '2026-10-24T16:45'; // 24/10 (ADA) : contrat 620 — dates à prévoir, visites, grille de tarifs, annonces lisibles
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
