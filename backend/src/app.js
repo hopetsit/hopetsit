@@ -233,7 +233,7 @@ const ADMIN_BUILD = 'v620'; // 620 (PAM, 24/10) : dates à prévoir + prix par v
 const _ADMIN_BUILD_612 = 'v612'; // 612 (PAM, 04/10) : admin — rangs Chiot → Légende à la place des anciens badges
 // 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à
 // redéployer quand seul admin_dashboard.html a bougé (ADMIN_BUILD reste celui de l'app).
-const ADMIN_DEPLOYED_AT = '2026-10-24T16:45'; // 24/10 (ADA) : contrat 620 — dates à prévoir, visites, grille de tarifs, annonces lisibles
+const ADMIN_DEPLOYED_AT = '2026-10-24T19:55'; // 24/10 soir (ADA) : tableau de bord plus joli et moderne (couche CSS ada-2410-design, Nunito)
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -356,6 +356,8 @@ const versionedRoutes = [
   // 616 (ZOE, 08/10) — rattrapage : centre de la ville pour les profils sans position
   // (simulation ?dryRun=1, aucun e-mail, aucune notification). requireAdmin dans le routeur.
   { path: '/admin/positions-from-city', mw: [], router: require('./routes/adminPositionsFromCity616') },
+  // 620b (ZOE, 24/10) — rejouer le recalcul des candidatures d'une demande requalifiée (garde → visites). requireAdmin dans le routeur.
+  { path: '/admin/reprice-620', mw: [], router: require('./routes/adminReprice620') },
   // 1610 (SAM, 16/10) — « Partagez votre fiche » : registre + passage à la main (testOnly par défaut). requireAdmin dans le routeur.
   { path: '/admin/sitter-invite-1610', mw: [], router: require('./routes/adminSitterInvite1610') },
   // 607 (ADA, 02/10) — renvoi groupé de l'e-mail de vérification (garde-fous, simulation, journal).
