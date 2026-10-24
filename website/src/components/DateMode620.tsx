@@ -14,7 +14,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AppIcon } from "@/components/AppIcon";
 import type { Lang } from "@/lib/i18n/langs";
 import { d620, qtyLabel620, unitLong620, unitShort620 } from "@/lib/i18n/dates620";
-import { estimatePostOpen620, estimatePricing620 } from "@/lib/api";
+import { estimatePostOpen620, estimatePricing620, estimatePublic2410, getStoredToken } from "@/lib/api";
+import { PUBLIC_ESTIMATE_DEBOUNCE_MS, publicEstimateBody2410 } from "@/lib/publicEstimate2410";
 import {
   estimateLocal620,
   quantityFor620,
@@ -122,8 +123,12 @@ export type EstimateLineProps = {
   providerRates?: ProviderRates620 | null;
   /** Devise d'affichage quand aucun tarif n'est connu. */
   currency?: string;
-  /** 620b — position de la demande (ville + lat/lng) : sans prestataire visé, le serveur cherche le « à partir de » autour. */
-  location?: { city?: string; lat?: number; lng?: number } | null;
+  /**
+   * 620b — position de la demande (ville + lat/lng) : sans prestataire visé, le serveur cherche le « à partir de » autour.
+   * 24/10 (LEO) — `postalCode` : pour un VISITEUR SANS COMPTE, la route publique place la demande au code postal
+   * (sinon à la ville), 600 ms après la dernière saisie, un seul appel par changement.
+   */
+  location?: { city?: string; lat?: number; lng?: number; postalCode?: string } | null;
 };
 
 /**
@@ -193,13 +198,30 @@ export function EstimateLine620(p: EstimateLineProps) {
   }, [q, providerRates, service, p.currency]);
   const [server, setServer] = useState<Estimate620 | null>(null);
   const [serverKey, setServerKey] = useState("");
-  const locKey = location ? `${location.city || ""}@${location.lat ?? ""},${location.lng ?? ""}` : "";
+  const locKey = location ? `${location.city || ""}@${location.lat ?? ""},${location.lng ?? ""}#${location.postalCode || ""}` : "";
   const key = `${service}|${dateMode}|${startDate}|${endDate}|${visitsPerDay}|${venue || ""}|${provider ? `${provider.role}:${provider.id}` : ""}|${locKey}`;
   useEffect(() => {
     if (!service) { setServer(null); setServerKey(""); return; }
     const ready = dateMode === "tbd" || q.quantity != null;
     if (!ready) { setServer(null); setServerKey(""); return; }
     let alive = true;
+    // 24/10 (LEO, complément BOB 23 h 10) — VISITEUR SANS COMPTE (arrivée de la pub), demande ouverte :
+    // POST /pricing/estimate/public avec ville + code postal + service + dates (dès qu'ils sont saisis),
+    // debounce 600 ms, jamais plus d'un appel par changement ; rien si basedOn vaut 0 (marketLines).
+    if (!getStoredToken()) {
+      if (provider) { setServer(null); setServerKey(""); return; }
+      const body = publicEstimateBody2410({
+        serviceType: service, city: location?.city, postalCode: location?.postalCode, lang, dateMode,
+        startDate: dateMode === "tbd" ? null : startDate, endDate: dateMode === "tbd" ? null : endDate,
+        visitsPerDay: service === "home_visit" ? visitsPerDay : null,
+      });
+      if (!body) { setServer(null); setServerKey(""); return; }
+      const ctrl = new AbortController();
+      const hp = window.setTimeout(() => {
+        void estimatePublic2410(body, q.unit, ctrl.signal).then((e) => { if (alive) { setServer(e); setServerKey(key); } });
+      }, PUBLIC_ESTIMATE_DEBOUNCE_MS);
+      return () => { alive = false; window.clearTimeout(hp); ctrl.abort(); };
+    }
     const h = window.setTimeout(() => {
       const r = providerRates ? rateForService620(providerRates, service) : null;
       void estimatePricing620(
@@ -215,7 +237,7 @@ export function EstimateLine620(p: EstimateLineProps) {
     }, 300);
     return () => { alive = false; window.clearTimeout(h); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, providerRates]);
+  }, [key, providerRates, lang]);
 
   if (!service) return null;
   const est = server && serverKey === key ? server : local;

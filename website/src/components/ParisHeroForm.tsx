@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { trackSiteEvent, useCampaignHref } from "@/components/SiteAnalytics";
+import { EstimateLine620 } from "@/components/DateMode620";
 
 // 12/10/2026 (SAM) — CHANGEMENT D'APPROCHE sur la page où arrive la pub Paris.
 // Mesure du 12/10 (admin « Trafic du site », 7 jours, visiteurs de la pub
@@ -132,6 +133,25 @@ export function ParisHeroForm({ city, lead, note }: { city: string; lead: string
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={field} />
         </label>
       </div>
+
+      {/* 24/10/2026 (LEO, ordre de BOB 23 h 10) — « à partir de X €/jour · estimation ~Y € · d'après N
+          gardiens » dès qu'un service est choisi (dates → total), via la route publique de ZOE pour le
+          visiteur sans compte (route authentifiée si connecté). Rien quand personne n'est inscrit autour. */}
+      {service && (
+        <div className="mt-3">
+          <EstimateLine620
+            lang="fr"
+            service={service}
+            dateMode={startDate && endDate ? "exact" : "tbd"}
+            startDate={startDate}
+            endDate={endDate}
+            visitsPerDay={1}
+            venue={service === "house_sitting" ? "owners_home" : null}
+            currency="EUR"
+            location={{ city }}
+          />
+        </div>
+      )}
 
       <label className="mt-3 block text-xs font-semibold text-ink">
         Votre besoin, en une phrase

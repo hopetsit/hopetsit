@@ -3,6 +3,7 @@ import { GetAppButton } from "@/components/GetAppButton";
 import { OwnerSignupCta } from "@/components/OwnerSignupCta";
 import { OwnerStickyCta } from "@/components/OwnerStickyCta";
 import { CitySupplyProof } from "@/components/CitySupplyProof";
+import { FromRateCity2410 } from "@/components/FromRateCity2410";
 import { TrackedLink } from "@/components/TrackedLink";
 import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
 import OwnerPageEngagement from "@/components/OwnerPageEngagement";
@@ -542,6 +543,10 @@ export default function OwnerCityPage({
         city={city.name.replace(/\s+\d+\s*(er|e|ème|eme|th|st|nd|rd)?$/i, "").trim() || city.name}
         lang={city.lang}
       />
+      {/* 24/10/2026 (LEO, ordre de BOB 23 h 10) — « Combien ça coûte à <ville> ? » : « à partir de
+          X €/jour · d'après N gardiens » via la route publique de ZOE, puis « Vos dates ? » →
+          estimation. Rien quand personne n'est inscrit autour (le bloc ne s'affiche pas). */}
+      <FromRateCity2410 name={city.name} slug={city.slug} region={city.region} lang={city.lang} />
 
       {/* 28/09/2026 (SAM) — les vraies personnes et leur prix passent AVANT
           l'explication : le visiteur froid de la pub voit d'abord « qui, à

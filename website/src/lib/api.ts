@@ -4,6 +4,7 @@
 // work seamlessly inside the app and vice-versa.
 
 import { priceAltFromRates } from "@/lib/priceUnit";
+import type { PublicEstimateBody2410 } from "@/lib/publicEstimate2410";
 import { blurLatLng } from "@/lib/pawmapLegend";
 import { parseRanksCatalog611, type RanksCatalog611 } from "@/lib/ranks611";
 
@@ -3726,6 +3727,7 @@ import {
   readProviderRates620,
   type DateMode620,
   type Estimate620,
+  type PriceUnit620,
   type ProviderRates620,
   type Quantity620,
   type ServiceDef620,
@@ -3809,6 +3811,30 @@ export async function estimatePostOpen620(postId: string, serviceType: string | 
       body: JSON.stringify({ postId, ...(serviceType ? { serviceType } : {}), ...(currency ? { currency } : {}) }),
     });
     const e = parseEstimate620(raw, { quantity: null, unit: serviceType === "home_visit" ? "visit" : serviceType === "dog_walking" ? "walk" : "day" }, String(currency || "EUR"));
+    return e && e.market ? e : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 24/10 (LEO, serveur de ZOE 23 h) — « à partir de » pour un VISITEUR SANS COMPTE :
+ * POST /pricing/estimate/public (sans jeton, 30 appels/min/IP, cache serveur 5 min). Même réponse que la
+ * route authentifiée (`fromRate / unit / quantity / ownerTotalFrom / basedOn`) → même lecture
+ * `parseEstimate620`. null = route absente, refus, limite atteinte (429) ou réponse inconnue.
+ * Aucune donnée personnelle n'est envoyée (ville, code postal, pays, langue, service, dates).
+ */
+export async function estimatePublic2410(body: PublicEstimateBody2410, fallbackUnit: PriceUnit620, signal?: AbortSignal): Promise<Estimate620 | null> {
+  try {
+    const r = await fetch(`${API_BASE}/pricing/estimate/public`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json", "X-App-Version": "web" },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (!r.ok) return null;
+    const raw: unknown = await r.json();
+    const e = parseEstimate620(raw, { quantity: null, unit: fallbackUnit }, String((raw as { currency?: string })?.currency || "EUR"));
     return e && e.market ? e : null;
   } catch {
     return null;

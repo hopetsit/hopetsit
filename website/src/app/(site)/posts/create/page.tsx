@@ -868,7 +868,8 @@ export default function CreatePostPage() {
             provider={target}
             providerRates={targetRates}
             currency={budgetCur}
-            location={cityCoords ? { city: city.trim(), lat: cityCoords.lat, lng: cityCoords.lng } : city.trim() ? { city: city.trim() } : null}
+            // 24/10 (LEO) — code postal transmis : un visiteur sans compte obtient le « à partir de » public au code postal.
+            location={cityCoords ? { city: city.trim(), lat: cityCoords.lat, lng: cityCoords.lng, postalCode: postalCode.trim() } : city.trim() || postalCode.trim().length >= 3 ? { city: city.trim(), postalCode: postalCode.trim() } : null}
           />
         )}
 
