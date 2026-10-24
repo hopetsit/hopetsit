@@ -30,11 +30,16 @@ const PARIS: RecruitCity = PARIS_CITY;
 const CANONICAL = "https://www.hopetsit.com/garde-animaux/paris";
 // Le layout ajoute déjà « · HoPetSit » (metadata.title.template) : ne pas
 // remettre « | HoPetSit » à la main, sinon la marque sort deux fois.
-const TITLE = "Garde d'animaux à Paris — pet sitter, visites chats & promenades";
+// 24/10 (GUS) — Search Console 28 j : « pet sitter paris » / « petsitter paris »
+// 264 affichages, « garde animaux paris » 88, « dogsitting / dog sitting / dog
+// sitter paris » 94 → 0 clic, cette page 20e-42e, et ce sont les arrondissements
+// (H1 « Pet sitter Paris 15e ») qui sortent 60e-90e sur « petsitter paris ».
+// Titre, description et H1 reprennent les mots tapés, « pet sitter » en tête.
+const TITLE = "Pet sitter à Paris : garde d'animaux, dog sitting et promenades";
 // 02/10 (SAM) — « vérifié » retiré : 1 seul profil parisien avec photo a
 // l'identité vérifiée (/supply/city/faces) ; tutoiement aligné sur « vous ».
 const DESCRIPTION =
-  "Garde d'animaux à Paris : des gardiens et promeneurs près de chez vous, arrondissement par arrondissement. Paiement sécurisé, chat avant de réserver, annulation gratuite 72 h.";
+  "Trouvez un pet sitter à Paris, arrondissement par arrondissement : garde de chien et de chat à domicile, dog sitting, visites et promenades. Paiement sécurisé, annulation gratuite 72 h.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -75,7 +80,7 @@ export default function GardeAnimauxParisPage() {
   return (
     <OwnerCityPage
       city={PARIS}
-      h1="Garde d'animaux à Paris : pet-sitter, chat et promenade de chien"
+      h1="Pet sitter à Paris : garde de chien et de chat, dog sitting, promenades"
       // 08/10 (SAM) — le menu « Vous habitez où ? » (06-07/10) : 17 visiteurs
       // de la pub restés 3 s le 07/10 → 0 choix, 0 « Publier ». Remplacé par
       // une phrase + UN bouton qui ouvre directement le formulaire (le quartier

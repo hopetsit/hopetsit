@@ -197,6 +197,13 @@ export function CityLinks({ city, mode }: { city: RecruitCity; mode: Mode }) {
   const t = T[city.lang];
   const p = prefix(mode, city.lang);
   const anchor = mode === "owner" ? t.ownerAnchor : t.recruitAnchor;
+  // 24/10 (GUS) — les 20 arrondissements et la petite couronne relient la page
+  // Paris avec les mots que les propriétaires tapent (« pet sitter paris »,
+  // 264 affichages / 0 clic en 28 j, page principale 28e-36e) : une seule
+  // ancre, identique au titre de /garde-animaux/paris. Les autres villes gardent
+  // l'ancre générique de leur langue.
+  const label = (c: RecruitCity) =>
+    mode === "owner" && c.lang === "fr" && c.slug === "paris" ? "Pet sitter à Paris : garde d'animaux et promenades" : anchor(c.name);
   const cities = linkedCities(city);
   const twin = mode === "owner"
     ? { href: `${RECRUIT_PATH_PREFIX[city.lang]}/${city.slug}`, text: t.toRecruit(city.name), cls: "text-sitter-dark" }
@@ -215,7 +222,7 @@ export function CityLinks({ city, mode }: { city: RecruitCity; mode: Mode }) {
                   label="maillage"
                   className={`inline-block rounded-full bg-bg-soft px-3.5 py-2 text-sm font-medium text-ink transition max-lg:py-3 ${hover}`}
                 >
-                  {anchor(c.name)}
+                  {label(c)}
                 </TrackedLink>
               </li>
             ))}
