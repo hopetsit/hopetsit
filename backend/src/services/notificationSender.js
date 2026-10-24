@@ -243,6 +243,7 @@ const resolveAppLocaleAcrossRoles = async (primary, userId) => {
 // passent ailleurs (authController) et ne sont pas concernés. Coupe-circuit :
 // EMAIL_UNVERIFIED_GUARD=off. En cas de doute (erreur base), l'e-mail part.
 const UNVERIFIED_GUARD_SINCE = Date.parse('2026-09-18T00:00:00Z');
+const UNVERIFIED_BYPASS_TYPES = new Set(['new_request_nearby', 'new_request_for_you']);
 const unverifiedEmailBlocked = async (user, role) => {
   if (process.env.EMAIL_UNVERIFIED_GUARD === 'off') return false;
   if (!user || user.verified === true) return false;
@@ -704,7 +705,14 @@ const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtr
   const emailText = `${body}\n\n${renderData.emailLink}`;
   let email = decrypt(user.email || '');
   let emailBlocked = null;
-  if (email && await unverifiedEmailBlocked(user, role)) {
+  // 25/10/2026 (BOB, décision écrite de Daniel « oui : envoie aussi l'alerte nouvelle
+  // demande par e-mail aux prestataires dont l'e-mail n'est pas vérifié ») : les alertes
+  // de demande (près de chez vous / adressée) passent le garde-fou 619 ; 19 prestataires
+  // sur 104 ne recevaient rien hors de l'app. Les autres types restent bloqués.
+  // Coupe-circuit : REQUEST_ALERT_EMAIL_UNVERIFIED=off.
+  const requestAlertBypass = UNVERIFIED_BYPASS_TYPES.has(type)
+    && process.env.REQUEST_ALERT_EMAIL_UNVERIFIED !== 'off';
+  if (email && !requestAlertBypass && await unverifiedEmailBlocked(user, role)) {
     emailBlocked = 'unverified';
     logger.info(`[notif.email.skip] compte jamais vérifié → aucun e-mail type=${type} role=${role} userId=${userId}`);
     email = '';

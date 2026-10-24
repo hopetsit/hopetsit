@@ -89,4 +89,18 @@ describe('619 — e-mails de notification et comptes jamais vérifiés', () => {
     mockExists.mockImplementation(async () => { throw new Error('mongo down'); });
     expect(await unverifiedEmailBlocked(mockUser, 'owner')).toBe(false);
   });
+
+  test('25/10 — alerte « nouvelle demande près de chez vous » : e-mail envoyé même non vérifié', async () => {
+    await sendNotification({ userId: mockUser._id, role: 'sitter', type: 'new_request_nearby', data: { postId: '64b0000000000000000000bb' } });
+    expect(mockSendMulticast).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  test('25/10 — coupe-circuit REQUEST_ALERT_EMAIL_UNVERIFIED=off : alerte bloquée comme avant', async () => {
+    process.env.REQUEST_ALERT_EMAIL_UNVERIFIED = 'off';
+    try {
+      await sendNotification({ userId: mockUser._id, role: 'sitter', type: 'new_request_nearby', data: { postId: '64b0000000000000000000bb' } });
+      expect(sendEmail).not.toHaveBeenCalled();
+    } finally { delete process.env.REQUEST_ALERT_EMAIL_UNVERIFIED; }
+  });
 });
