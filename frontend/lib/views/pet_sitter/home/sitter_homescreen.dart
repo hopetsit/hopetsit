@@ -1,3 +1,4 @@
+import 'package:hopetsit/widgets/notif_nudge622.dart';
 import 'dart:async';
 import 'package:hopetsit/widgets/bring_clients607.dart';
 import 'package:hopetsit/models/pet_model.dart';
@@ -850,6 +851,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                       return 'sitter';
                     }(),
                   ),
+                  // 622 (PAM) — notifications non autorisées : rappel pour
+                  // être prévenu des demandes autour, app fermée.
+                  NotifNudge622(role: _isWalkerViewer ? 'walker' : 'sitter'),
                   // 607 NEO — « Ramène tes clients » (0 réservation) ou carte
                   // « Pionnier » honnête. Rien pour un propriétaire.
                   const BringClientsHomeCard607(),

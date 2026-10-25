@@ -171,11 +171,12 @@ String pawMapRolePriceText(
   String Function(String unit)? unitSuffix,
 }) {
   final cur = (r['currency'] ?? 'EUR').toString();
-  final price = (r['priceFrom'] as num?)?.toDouble() ?? 0;
+  final eff = pawMapEffectivePrice622(r);
+  final price = eff?.amount ?? 0;
   if (price > 0) {
     // 620 — « 12 €/visite », « 18 €/jour », « 10 €/balade » quand le serveur
     // dit l'unité (`priceUnit`) ; sans unité, le montant seul comme avant.
-    final unit = (r['priceUnit'] ?? '').toString();
+    final unit = eff?.unit ?? '';
     if (unit.isNotEmpty && unitSuffix != null) {
       final suf = unitSuffix(unit);
       if (suf.isNotEmpty) return '${format(cur, price)}$suf';
@@ -311,4 +312,73 @@ Map<String, dynamic> pawMapWithWorldPrices(
     }
   }
   return out;
+}
+
+
+/// 622 (PAM, parité avec le site de LEO, `mapPrice622.ts`) — tarif EFFECTIF
+/// d'un rôle : `priceFrom`, sinon le plus petit tarif > 0 de `prices`
+/// (`{ house_sitting: { amount, unit } … }` — cas réel du 25/10 : priceFrom 0
+/// mais 14,29 €/jour en garde). Jamais de prix inventé : null sinon.
+({double amount, String unit})? pawMapEffectivePrice622(Map r) {
+  final pf = (r['priceFrom'] as num?)?.toDouble() ?? 0;
+  if (pf > 0) return (amount: pf, unit: (r['priceUnit'] ?? '').toString());
+  final prices = r['prices'];
+  if (prices is! Map) return null;
+  double? best;
+  String unit = '';
+  for (final v in prices.values) {
+    if (v is! Map) continue;
+    final a = (v['amount'] is num)
+        ? (v['amount'] as num).toDouble()
+        : double.tryParse('${v['amount'] ?? ''}') ?? 0;
+    if (a <= 0) continue;
+    if (best == null || a < best) {
+      best = (a * 100).roundToDouble() / 100;
+      final u = (v['unit'] ?? '').toString().toLowerCase();
+      unit = const {'day', 'night', 'visit', 'walk', 'hour'}.contains(u) ? u : '';
+    }
+  }
+  return best == null ? null : (amount: best, unit: unit);
+}
+
+/// 622 — « dès X » sous un rond de GROUPE (parité site) : plus petit tarif
+/// réel des GARDIENS du groupe (sinon des promeneurs), une seule devise
+/// (jamais de mélange), seulement les rôles dont le prix est montrable
+/// ([shows], règle du marché) et filtrés ([shownRoles]). Null sinon.
+({String price, String role})? pawMapClusterFromPrice622(
+  List<Map<String, dynamic>> members, {
+  required bool Function(String targetRole) shows,
+  required Set<String> shownRoles,
+  required String Function(String currency, double price) format,
+  String Function(String unit)? unitSuffix,
+}) {
+  for (final want in const ['sitter', 'walker']) {
+    if (!shows(want)) continue;
+    if (shownRoles.isNotEmpty && !shownRoles.contains(want)) continue;
+    double? best;
+    String bestUnit = '';
+    String bestCur = 'EUR';
+    final currencies = <String>{};
+    for (final m in members) {
+      for (final r in pawMapExpandRoles(m)) {
+        final role = (r['_role'] ?? r['role'] ?? '').toString().toLowerCase();
+        if (role != want) continue;
+        final e = pawMapEffectivePrice622(r);
+        if (e == null || e.amount <= 0) continue;
+        final cur = (r['currency'] ?? 'EUR').toString().toUpperCase();
+        currencies.add(cur);
+        if (best == null || e.amount < best) {
+          best = e.amount;
+          bestUnit = e.unit;
+          bestCur = cur;
+        }
+      }
+    }
+    if (best != null) {
+      if (currencies.length != 1) return null;
+      final suf = (bestUnit.isNotEmpty && unitSuffix != null) ? unitSuffix(bestUnit) : '';
+      return (price: '${format(bestCur, best)}$suf', role: want);
+    }
+  }
+  return null;
 }

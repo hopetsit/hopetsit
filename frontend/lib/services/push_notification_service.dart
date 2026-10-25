@@ -194,6 +194,13 @@ class PushNotificationService extends GetxService {
       // (vu sur l'émulateur). `isUndecided` combine le statut et un drapeau
       // « déjà demandé » mémorisé sur l'appareil.
       final undecided = isUndecided(current.authorizationStatus);
+      // 622 (PAM, mesuré au simulateur le 25/10) — le jeton n'était demandé
+      // QU'APRÈS la réponse à la fenêtre système : un compte connecté qui
+      // laissait la question ouverte (ou fermait l'app dessus) n'enregistrait
+      // AUCUN jeton au lancement (aucun appareil daté du lancement côté
+      // serveur). Le jeton FCM ne dépend pas de l'autorisation : on le
+      // demande tout de suite, en parallèle de la question.
+      if (_hasSession()) unawaited(_fetchAndRegisterToken());
       if (undecided && !_hasSession()) {
         _systemBannersAuthorized = false;
       } else {
@@ -307,7 +314,8 @@ class PushNotificationService extends GetxService {
       // `apns-token-not-set` (jeton APNs pas encore prêt : premier lancement, réseau
       // lent) sautait TOUT le reste de init() : ni affichage au premier plan, ni
       // ouverture du bon écran au tap, ni onTokenRefresh pour cette session.
-      unawaited(_fetchAndRegisterToken());
+      // Sans session au lancement : jeton obtenu (enregistré à la connexion).
+      if (!_hasSession()) unawaited(_fetchAndRegisterToken());
     } catch (e, st) {
       // Never crash the app because of notifications.
       debugPrint('Push notification init failed: $e\n$st');
@@ -916,6 +924,79 @@ class PushNotificationService extends GetxService {
       }
     } catch (e) {
       debugPrint('FCM re-register after login failed: $e');
+    }
+  }
+
+  /// 622 (PAM, 25/10 — Daniel : « quand un propriétaire publie, les gens
+  /// autour reçoivent la notif ») — retour au PREMIER PLAN : le jeton est
+  /// ré-enregistré (au plus toutes les 30 min). Couvre : autorisation donnée
+  /// dans Réglages pendant que l'app dormait (la bannière système s'affiche
+  /// désormais au premier plan), jeton obtenu après un échec réseau au
+  /// lancement, profil changé sur un autre appareil. Idempotent côté serveur.
+  DateTime? _lastResumeSync622;
+  Future<void> syncOnResume({DateTime? now}) async {
+    if (skipInitForIntegrationTests || kIsWeb) return;
+    final t = now ?? DateTime.now();
+    if (!resumeSyncDue622(_lastResumeSync622, t)) return;
+    if (!_hasSession()) return;
+    _lastResumeSync622 = t;
+    try {
+      final st = await _messaging.getNotificationSettings();
+      _systemBannersAuthorized =
+          st.authorizationStatus == AuthorizationStatus.authorized ||
+              st.authorizationStatus == AuthorizationStatus.provisional;
+      final token = fcmToken.value;
+      if (token != null && token.isNotEmpty) {
+        await _registerTokenOnBackend(token);
+      } else {
+        await _fetchAndRegisterToken();
+      }
+    } catch (e) {
+      debugPrint('FCM resume sync failed: $e');
+    }
+  }
+
+  /// 622 — règle pure (testée) : un ré-enregistrement au retour au premier
+  /// plan au plus toutes les 30 minutes.
+  static bool resumeSyncDue622(DateTime? last, DateTime now) =>
+      last == null || now.difference(last) >= const Duration(minutes: 30);
+
+  /// 622 — état de l'autorisation (null si illisible).
+  Future<AuthorizationStatus?> authorizationStatus() async {
+    try {
+      return (await _messaging.getNotificationSettings()).authorizationStatus;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 622 — vrai quand l'utilisateur doit encore activer les notifications
+  /// (jamais répondu, refusé). Règle pure, testée.
+  static bool needsNudge622(AuthorizationStatus? status) =>
+      status != null &&
+      status != AuthorizationStatus.authorized &&
+      status != AuthorizationStatus.provisional;
+
+  /// 622 — bouton « Activer » du rappel : fenêtre système si l'utilisateur
+  /// n'a jamais répondu, sinon (refus) les Réglages de l'app. Le jeton est
+  /// enregistré dès que c'est accordé. Renvoie vrai si c'est accordé.
+  Future<bool> requestFromNudge622() async {
+    try {
+      final st = await _messaging.getNotificationSettings();
+      if (isUndecided(st.authorizationStatus)) {
+        systemPromptRequestedThisSession = true;
+        _markPromptAsked();
+        final settings = await _messaging.requestPermission(
+            alert: true, badge: true, sound: true, provisional: false);
+        _systemBannersAuthorized =
+            settings.authorizationStatus == AuthorizationStatus.authorized ||
+                settings.authorizationStatus == AuthorizationStatus.provisional;
+        if (_systemBannersAuthorized) unawaited(_fetchAndRegisterToken());
+        return _systemBannersAuthorized;
+      }
+      return false; // refusé : l'appelant ouvre les Réglages
+    } catch (_) {
+      return false;
     }
   }
 

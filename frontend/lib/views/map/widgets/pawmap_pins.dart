@@ -1718,8 +1718,22 @@ class PawMapPinPainter {
   /// (proportionnelles aux effectifs, `memberClusterSlices`) ; un seul rôle
   /// = rond uni au dégradé 160° du rôle. Le nombre est posé sur une pastille
   /// blanche au centre, à la couleur foncée du rôle dominant.
+  /// 622 (parité site) — étiquette « dès X » sous un rond de groupe : hauteur
+  /// et largeur de la pastille, et taille de l'image qui la contient.
+  static const double clusterPriceH622 = 18;
+  static double clusterPriceW622(String text) => _estTextW(text, 10) + 16;
+  static Size memberClusterBitmap622(int count, String? priceLabel) {
+    final base = memberClusterWidth(count) + 12;
+    if (priceLabel == null || priceLabel.isEmpty) return Size(base, base);
+    return Size(math.max(base, clusterPriceW622(priceLabel) + 8),
+        base + clusterPriceH622 + 2);
+  }
+
   static void paintMemberCluster(Canvas canvas, int count,
-      {Map<String, int>? roleCounts, bool hasFriend = false}) {
+      {Map<String, int>? roleCounts,
+      bool hasFriend = false,
+      String? priceLabel,
+      String priceRole = 'sitter'}) {
     final label = count > 99 ? '99+' : '$count';
     final slices = memberClusterSlices(roleCounts, count);
     String dom = slices.first.role;
@@ -1732,7 +1746,8 @@ class PawMapPinPainter {
     }
     final double size = count >= 10 ? 44 : 40;
     final box = memberClusterWidth(count);
-    final c = Offset(6 + box / 2, 6 + box / 2);
+    final bmp = memberClusterBitmap622(count, priceLabel);
+    final c = Offset(bmp.width / 2, 6 + box / 2);
     final r = size / 2;
     final circle = Path()..addOval(Rect.fromCircle(center: c, radius: r));
     cssShadow(canvas, circle,
@@ -1779,6 +1794,21 @@ class PawMapPinPainter {
     canvas.drawCircle(c, br, Paint()..color = Colors.white);
     drawText(canvas, label, c, label.length > 2 ? 10 : 12,
         PawMapLegend.roleDark(dom));
+    // 622 — « dès 12 €/jour » sous le rond, pastille PLEINE à la couleur du
+    // rôle (bleu gardien / vert promeneur), texte blanc : jamais de gris.
+    if (priceLabel != null && priceLabel.isNotEmpty) {
+      _paintPill(canvas,
+          text: priceLabel,
+          cx: c.dx,
+          top: 6 + box + 2,
+          style: _pinStyle(10, FontWeight.w800, Colors.white),
+          height: clusterPriceH622,
+          padX: 8,
+          bg: PawMapLegend.roleColor(priceRole),
+          border: Colors.white,
+          borderW: 1.5,
+          shadowAlpha: 0.25);
+    }
   }
 
   /// Côté du bitmap d'un groupe de membres, marge de 6 px déduite (le rond
@@ -1957,9 +1987,25 @@ class PawMapPinPainter {
   // ── DEMANDES (bulles orange) ──────────────────────────────────────────
 
   static double _estTextW(String t, double fs) => t.runes.length * fs * 0.64 + 2;
+  // 622 — largeur MESURÉE du prix (TextPainter, même style que le dessin) :
+  // l'estimation surévaluait « dès 10 €/jour » de ~25 px, la bulle prenait
+  // de la place pour rien dans le placement.
+  static final Map<String, double> _reqTextW622 = <String, double>{};
+  static double _reqPriceW(String price) => _reqTextW622.putIfAbsent(price, () {
+        try {
+          final tp = TextPainter(
+            text: TextSpan(text: price, style: _pinStyle(12, FontWeight.w700, Colors.white)),
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+          )..layout();
+          return tp.width.ceilToDouble();
+        } catch (_) {
+          return _estTextW(price, 12);
+        }
+      });
   static double _reqBodyW(String? price) => (price == null || price.isEmpty)
       ? 28
-      : 9 + 14 + 4 + _estTextW(price, 12) + 9;
+      : 9 + 14 + 4 + _reqPriceW(price) + 9;
   static double _reqPillW(String? mine) =>
       (mine == null || mine.isEmpty) ? 0 : 14 + _estTextW(mine, 10);
 
@@ -1972,7 +2018,8 @@ class PawMapPinPainter {
       {String? priceLabel,
       required bool walking,
       double? boostPhase,
-      String? mineLabel}) {
+      String? mineLabel,
+      int count = 1}) {
     const m = 8.0;
     const H = PawMapLegend.requestBubbleHeight;
     const double h = 26;
@@ -2042,6 +2089,24 @@ class PawMapPinPainter {
     }
     if (boostPhase != null) {
       drawRocketBadge(canvas, Offset(cx - w / 2 - 1, bodyBottom - 2), 16);
+    }
+    // 622 (PAM, 25/10 — Daniel : « plusieurs pins maison au même endroit
+    // s'empilent en paquet illisible ») — un GROUPE de demandes = une seule
+    // bulle + pastille ENCRE au chiffre, posée DANS la marge de l'image (rien
+    // ne dépasse sur la bulle voisine).
+    if (count > 1) {
+      final c = Offset(bodyRect.right - 2, top + 2);
+      const r = 8.5;
+      canvas.drawCircle(c, r + 1.5, Paint()..color = Colors.white);
+      canvas.drawCircle(c, r, Paint()..color = PawMapLegend.ink);
+      final ctp = TextPainter(
+        text: TextSpan(
+            text: count > 99 ? '99+' : '$count',
+            style: _pinStyle(count > 9 ? 8.5 : 10, FontWeight.w800, Colors.white)),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout();
+      ctp.paint(canvas, c - Offset(ctp.width / 2, ctp.height / 2));
     }
   }
 

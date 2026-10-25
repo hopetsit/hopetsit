@@ -84,6 +84,7 @@ import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_discreet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_overlap607.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_layout622.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_follow612.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_friends610.dart';
 import 'package:hopetsit/views/service_provider/widgets/book_as_owner.dart';
@@ -139,6 +140,14 @@ class PawMapScreen extends StatefulWidget {
   static GoogleMapController? debugMapController616;
   static void Function(Set<Marker> markers)? debugMarkersTap616;
   static int debugLastBuildUs616 = 0;
+  /// 622 — ids des épingles qui portent un prix (bulle ou étiquette), et
+  /// ouverture de la fiche courte (false) / feuille (true) de la 1re demande
+  /// visible. Mesure seulement (`kDebugMode`).
+  static final Set<String> debugPricedIds622 = <String>{};
+  static Future<String?> Function(bool sheet)? debugRequestTap622;
+  static LatLng? Function()? debugFirstRequestPos622;
+  /// 622 — boîtes posées par la simulation (px relatifs au centre), par id.
+  static final Map<String, Rect> debugLayout622 = <String, Rect>{};
 
   const PawMapScreen({
     super.key,
@@ -889,6 +898,32 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   @override
   void initState() {
+    if (kDebugMode) {
+      PawMapScreen.debugRequestTap622 = (sheet) async {
+        if (!mounted) return null;
+        final list = _isSitterOrWalker ? _requests : _myRequests;
+        if (list.isEmpty) return null;
+        // 622 — de préférence une demande dont le prix est connu.
+        final req = list.firstWhereOrNull((r) =>
+                _reqGroupPrice622([r], mine: !_isSitterOrWalker).isNotEmpty) ??
+            list.first;
+        if (sheet) {
+          _clearFocus();
+          _showRequestBottomSheet(req, mine: !_isSitterOrWalker);
+        } else {
+          _onRequestMarkerTap(req);
+        }
+        return req.ownerName;
+      };
+      PawMapScreen.debugFirstRequestPos622 = () {
+        final list = _isSitterOrWalker ? _requests : _myRequests;
+        if (list.isEmpty) return null;
+        final r = list.firstWhereOrNull((r) =>
+                _reqGroupPrice622([r], mine: !_isSitterOrWalker).isNotEmpty) ??
+            list.first;
+        return LatLng(r.lat, r.lng);
+      };
+    }
     super.initState();
     // 614 — la carte de fête « +N points » se pose SOUS l'en-tête et la
     // pilule « En balade », entre les rails (jamais par-dessus une info).
@@ -4715,6 +4750,15 @@ class _PawMapScreenState extends State<PawMapScreen>
       _requests.length,
       _myRequests.length,
       _showRequests.value ? 1 : 0,
+      // 622 — prix des demandes arrivés ; centre de la caméra à 40 px près
+      // (une bulle au bord est rentrée dans l'écran après chaque arrêt).
+      _reqFromRev622,
+      () {
+        final c = pawMercatorPx(_currentCenter.latitude, _currentCenter.longitude, _pinZoom);
+        return '${(c.dx / 40).round()},${(c.dy / 40).round()}';
+      }(),
+      _topChromeBottom.round(),
+      '${_railRect622.top.round()},${_railRect622.width.round()},${_capsuleRect622.top.round()},${_capsuleRect622.width.round()}',
       _showFriends.value ? 1 : 0,
       _showEveryone.value ? 1 : 0, // v607
       // v584 — épingles / photos prêtes, mode amis seulement, ma photo.
@@ -4880,7 +4924,7 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// 607 — zoom « ville » à partir duquel une épingle isolée montre déjà sa
   /// bulle de prix (Dallas–Fort Worth en entier ≈ 9,5).
-  static const double _cityPriceZoom = 9;
+  static const double _cityPriceZoom = 5; // 622 — « pas beaucoup les prix » : dès la vue France d'un téléphone (zoom ~5,3 ; site : 6 sur grand écran), si la place est libre
 
   // ── fabriques d'épingles (cache PawMapPinCache) ──────────────────────────
 
@@ -5082,21 +5126,26 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   BitmapDescriptor _memberClusterIcon(int count, Map<String, int> roleCounts,
-      {bool hasFriend = false}) {
+      {bool hasFriend = false, String? priceLabel, String priceRole = 'sitter'}) {
     final sig = ['owner', 'sitter', 'walker']
         .map((k) => '${k[0]}${roleCounts[k] ?? 0}')
         .join();
-    final w = PawMapPinPainter.memberClusterWidth(count > 99 ? 100 : count) + 12;
-    final h = PawMapLegend.memberClusterHeight + 12;
+    final n = count > 99 ? 100 : count;
+    // 622 — « dès X » sous le rond (parité site) : image plus haute.
+    final bmp = PawMapPinPainter.memberClusterBitmap622(n, priceLabel);
     return _pins.getOrBuild(
-          'mcluster:${count > 99 ? 100 : count}:$sig:${hasFriend ? 1 : 0}',
-          w,
-          h,
+          'mcluster:$n:$sig:${hasFriend ? 1 : 0}:${priceLabel ?? ''}:$priceRole',
+          bmp.width,
+          bmp.height,
           (c) => PawMapPinPainter.paintMemberCluster(c, count,
-              roleCounts: roleCounts, hasFriend: hasFriend),
+              roleCounts: roleCounts,
+              hasFriend: hasFriend,
+              priceLabel: priceLabel,
+              priceRole: priceRole),
         ) ??
-        PawMapPinCache.transparent; // 607 — pas d'épingle Google qui clignote
+        PawMapPinCache.transparent;
   }
+
 
   BitmapDescriptor _placeIcon(String category) {
     final w = PawMapPinPainter.dropBitmapWidth(PawMapLegend.placeSize);
@@ -5183,16 +5232,20 @@ class _PawMapScreenState extends State<PawMapScreen>
     String? priceLabel,
     required bool walking,
     String? mineLabel,
+    int count = 1,
   }) {
     final w = PawMapPinPainter.requestBubbleBitmapWidth(
         priceLabel: priceLabel, mineLabel: mineLabel);
     final h = PawMapPinPainter.requestBubbleBitmapHeight();
     return _pins.getOrBuild(
-          'request:${priceLabel ?? ''}:${walking ? 1 : 0}:${mineLabel ?? ''}',
+          'request:${priceLabel ?? ''}:${walking ? 1 : 0}:${mineLabel ?? ''}:$count',
           w,
           h,
           (c) => PawMapPinPainter.paintRequestBubble(c,
-              priceLabel: priceLabel, walking: walking, mineLabel: mineLabel),
+              priceLabel: priceLabel,
+              walking: walking,
+              mineLabel: mineLabel,
+              count: count),
         ) ??
         PawMapPinCache.transparent; // 607 — pas d'épingle Google qui clignote
   }
@@ -5548,6 +5601,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   Set<Marker> _buildMarkers() {
     if (kPawMap603Probe) PawProbe607.instance.onBuildMarkers();
     final Set<Marker> markers = {};
+    if (kDebugMode) PawMapScreen.debugPricedIds622.clear(); // 622
+    // 622 — demandes regroupées AVANT les membres (même passe d'écartement).
+    var reqGroups622 = _requestGroups622();
+    Map<String, Offset>? reqShifts622;
     _anyBoosted = false;
     _meShift612 = Offset.zero; // 612 — recalculé plus bas (membres)
     _liveFan607.clear();
@@ -5779,7 +5836,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       // faut surzoomer ». Un ami était absorbé dans un groupe « 12 » avec des
       // inconnus. Les amis ne sont plus JAMAIS regroupés : chacun garde son
       // rond photo + anneau rose, à tous les zooms, au-dessus des autres.
-      final groups = pawGroupKeepingFriends<Map<String, dynamic>>(
+      final groups0 = pawGroupKeepingFriends<Map<String, dynamic>>(
         placeable,
         isFriendMember,
         // 607 (PAM, captures de Daniel du 01/10) — les cases de 44 px
@@ -5798,6 +5855,150 @@ class _PawMapScreenState extends State<PawMapScreen>
         ),
       );
       final showPrice = _pinZoom >= _priceZoom;
+      // 622 (PAM, captures de Daniel du 25/10) — boîte VISIBLE d'un groupe
+      // (rond 52 px ; personne seule : rond + couronne / halo + prénom +
+      // bulle de prix ; ami : rond rose), partagée par la simulation et la
+      // passe d'écartement.
+      Rect boxForGroup622(List<Map<String, dynamic>> g, {bool compact = false}) {
+        if (g.length > 1) {
+          final cp = compact ? null : _clusterPrice622(g);
+          return pawPinBox(PawMapLegend.memberClusterHeight / 2 + 1,
+              labelW: cp == null ? 0 : PawMapPinPainter.clusterPriceW622(cp.text),
+              labelH: PawMapPinPainter.clusterPriceH622,
+              labelGap: 1);
+        }
+        final p = g.first;
+        if (isFriendMember(p)) return pawPinBox(PawMapLegend.friendSize / 2 + 2.5);
+        final name = (p['name'] ?? '').toString();
+        final bool crown622 = p['isPremium'] == true && _showPremiumLayer.value;
+        final bool boost622 = p['isBoosted'] == true ||
+            pawMapPersonIds(p).any(_personBoosted);
+        final double extra622 = boost622 ? 7 : (crown622 ? 6 : 0);
+        final first = pawMapShortName(name);
+        final double lw = showPrice && first.isNotEmpty
+            ? PawMapPinPainter.nameTagWidth(first)
+            : 0;
+        double bw = 0;
+        if (!compact && (showPrice || _pinZoom >= _cityPriceZoom)) {
+          final b = pawMapPersonPriceBubble(
+            pawMapExpandRoles(p),
+            shows: (r) => pawMapShowsPriceBubble(_role, r),
+            shownRoles: _memberRoles.toSet(),
+            format: CurrencyHelper.formatCompact,
+            unitSuffix: _priceUnitSuffix,
+          );
+          if (b != null) bw = PawMapPinPainter.priceBubbleWidth(b.text) + 4;
+        }
+        return pawPinBox(PawMapLegend.memberSize / 2 + 1 + extra622,
+            labelW: lw, bubbleW: bw);
+      }
+      // 622 — tant que deux bulles visibles se toucheraient (zone dense :
+      // Benelux, Paris + demandes), on les FUSIONNE en un groupe et on
+      // recommence ; Moi, les amis en direct et les demandes sont des
+      // obstacles. Avant : la bulle restait posée sur sa voisine.
+      // 622 — UNE simulation pour les membres ET les demandes : tant que deux
+      // bulles visibles se toucheraient (zone dense : Benelux, Paris +
+      // demandes) ou qu'une bulle ne tiendrait pas à l'écran, elle se FOND
+      // avec sa voisine de même nature (le chiffre augmente). Moi, les amis
+      // en direct et les deux barres sont des obstacles ; un ami ne bouge ni
+      // ne se fond. Les décalages posés sont ceux de la simulation.
+      final List<List<Map<String, dynamic>>> groups;
+      final List<Offset> memberShift622;
+      {
+        final Offset cam622 = pawMercatorPx(
+            _currentCenter.latitude, _currentCenter.longitude, _zoomLevel);
+        Offset px622(LatLng p) => pawScreenDelta(
+            pawMercatorPx(p.latitude, p.longitude, _zoomLevel) - cam622,
+            bearingDeg: _camBearing612,
+            tiltDeg: _camTilt612);
+        final bool reqMine = reqGroups622.isNotEmpty && reqGroups622.first.mine;
+        bool isReq(List<Object> g) => g.first is NearbyRequestPost;
+        bool isFriendGroup(List<Object> g) =>
+            !isReq(g) && g.length == 1 && isFriendMember(g.first as Map<String, dynamic>);
+        final placement = pawPlace622<Object>(
+          <List<Object>>[
+            for (final g in groups0) <Object>[...g],
+            for (final g in reqGroups622) <Object>[...g.reqs],
+          ],
+          (o) => o is NearbyRequestPost
+              ? px622(LatLng(o.lat, o.lng))
+              : px622(posOfMember(o as Map<String, dynamic>)!),
+          boxOf: (g) => isReq(g)
+              ? _reqGroupOf622(g.cast<NearbyRequestPost>(), mine: reqMine).box
+              : boxForGroup622(g.cast<Map<String, dynamic>>()),
+          // 622 (règle du site) — sans place : la bulle replie son prix
+          // avant de se fondre dans un groupe.
+          compactBoxOf: (g) => isReq(g)
+              ? _reqGroupOf622(g.cast<NearbyRequestPost>(), mine: reqMine, compact: true).box
+              : boxForGroup622(g.cast<Map<String, dynamic>>(), compact: true),
+          fixed: <PawPlacedBox>[
+            if (myPos != null && _showLiveLayer.value)
+              PawPlacedBox(px622(myPos), pawPinBox(PawMapLegend.meSize / 2 + 2)),
+            for (final fp in _liveMap.friendPositions.values)
+              if (fp.liveState != FriendLiveState.seen)
+                PawPlacedBox(px622(LatLng(fp.latitude, fp.longitude)),
+                    pawPinBox(PawMapLegend.friendSize / 2 + 2.5)),
+            ..._railObstacles622(),
+          ],
+          movable: (g) => !isFriendGroup(g),
+          canMerge: (a, b) => isReq(a) == isReq(b) && !isFriendGroup(a) && !isFriendGroup(b),
+          bounds: _viewBounds622(),
+          screen: _screenRect622(),
+        );
+        final mg = <List<Map<String, dynamic>>>[];
+        final ms = <Offset>[];
+        final rg = <_ReqGroup622>[];
+        _compact622.clear();
+        for (var i = 0; i < placement.groups.length; i++) {
+          final g = placement.groups[i];
+          if (isReq(g)) {
+            rg.add(_reqGroupOf622(g.cast<NearbyRequestPost>(),
+                mine: reqMine,
+                shift: placement.shifts[i],
+                compact: placement.isCompact(i)));
+          } else {
+            final mgi = g.cast<Map<String, dynamic>>();
+            mg.add(mgi);
+            ms.add(placement.shifts[i]);
+            if (placement.isCompact(i)) {
+              _compact622.add(mgi.length > 1
+                  ? 'mcluster_${pawClusterKey616(mgi.map((m) => (m['id'] ?? m['_id'] ?? '').toString()))}'
+                  : 'nearby_${mgi.first['id'] ?? mgi.first['_id'] ?? ''}');
+            }
+          }
+        }
+        if (kDebugMode) {
+          PawMapScreen.debugLayout622.clear();
+          for (var i = 0; i < placement.groups.length; i++) {
+            final g = placement.groups[i];
+            var x = 0.0, y = 0.0;
+            for (final o in g) {
+              final q = o is NearbyRequestPost
+                  ? px622(LatLng(o.lat, o.lng))
+                  : px622(posOfMember(o as Map<String, dynamic>)!);
+              x += q.dx;
+              y += q.dy;
+            }
+            final c = Offset(x / g.length, y / g.length) + placement.shifts[i];
+            final String id = isReq(g)
+                ? _reqGroupOf622(g.cast<NearbyRequestPost>(), mine: reqMine).key
+                : (g.length > 1
+                    ? 'mcluster_${pawClusterKey616(g.map((m) => ((m as Map)['id'] ?? m['_id'] ?? '').toString()))}'
+                    : 'nearby_${((g.first as Map)['id'] ?? (g.first as Map)['_id'] ?? '')}');
+            final b = isReq(g)
+                ? _reqGroupOf622(g.cast<NearbyRequestPost>(),
+                        mine: reqMine, compact: placement.isCompact(i))
+                    .box
+                : boxForGroup622(g.cast<Map<String, dynamic>>(),
+                    compact: placement.isCompact(i));
+            PawMapScreen.debugLayout622[id] = b.shift(c);
+          }
+        }
+        groups = mg;
+        memberShift622 = ms;
+        reqGroups622 = rg;
+        reqShifts622 = <String, Offset>{for (final g in rg) g.key: g.shift};
+      }
       // 607 — ce qui est posé à l'écran (px), pour que les pastilles s'écartent
       // de Moi / des amis et que les étiquettes « Vu il y a » ne se posent sur
       // rien. Rayons = ronds dessinés (+ anneau).
@@ -5911,42 +6112,10 @@ class _PawMapScreenState extends State<PawMapScreen>
       for (var k = 0; k < friendIdx.length; k++) {
         groupShift[friendIdx[k]] = fanShift[liveFriends.length + k];
       }
-      final fixedBoxes = <PawPlacedBox>[
-        if (meAt != null) PawPlacedBox(meAt + _meShift612, meBox),
-        for (var k = 0; k < fanAt.length; k++) PawPlacedBox(fanAt[k] + fanShift[k], friendBox),
-      ];
-      // Boîte réelle de chaque pastille / membre seul.
-      Rect boxOf(int i) {
-        final g = groups[i];
-        if (g.length > 1) return pawPinBox(24.5);
-        final p = g.first;
-        final name = (p['name'] ?? '').toString();
-        final first = pawMapShortName(name);
-        final double lw = showPrice && first.isNotEmpty
-            ? PawMapPinPainter.nameTagWidth(first)
-            : 0;
-        double bw = 0;
-        if (showPrice || _pinZoom >= _cityPriceZoom) {
-          final b = pawMapPersonPriceBubble(
-            pawMapExpandRoles(p),
-            shows: (r) => pawMapShowsPriceBubble(_role, r),
-            shownRoles: _memberRoles.toSet(),
-            format: CurrencyHelper.formatCompact,
-            unitSuffix: _priceUnitSuffix,
-          );
-          if (b != null) bw = PawMapPinPainter.priceBubbleWidth(b.text) + 4;
-        }
-        return pawPinBox(PawMapLegend.memberSize / 2 + 1, labelW: lw, bubbleW: bw);
-      }
       final movable = [for (var i = 0; i < groups.length; i++) !groupIsFriend[i]];
-      final moved = pawRepelBoxes(
-        groupPx,
-        [for (var i = 0; i < groups.length; i++) groupIsFriend[i] ? friendBox : boxOf(i)],
-        fixedBoxes,
-        movable: movable,
-      );
+      // 622 — décalages de la simulation commune (membres + demandes).
       for (var i = 0; i < groups.length; i++) {
-        if (movable[i]) groupShift[i] = moved[i];
+        if (movable[i]) groupShift[i] = memberShift622[i];
         if (groupShift[i] != Offset.zero) groupPx[i] = groupPx[i] + groupShift[i];
       }
       // 612 — plus AUCUN trait rose « vraie position → rond décalé »
@@ -5971,6 +6140,15 @@ class _PawMapScreenState extends State<PawMapScreen>
             final rr = (m['_role'] ?? '').toString().toLowerCase();
             if (roleCounts.containsKey(rr)) roleCounts[rr] = roleCounts[rr]! + 1;
           }
+          final String ck622 = 'mcluster_${pawClusterKey616(
+              group.map((m) => (m['id'] ?? m['_id'] ?? '').toString()))}';
+          final cp622 = _compact622.contains(ck622) ? null : _clusterPrice622(group);
+          final bmp622 = PawMapPinPainter.memberClusterBitmap622(
+              group.length > 99 ? 100 : group.length, cp622?.text);
+          if (kDebugMode && cp622 != null) {
+            PawMapScreen.debugPricedIds622.add('mcluster_${pawClusterKey616(
+                group.map((m) => (m['id'] ?? m['_id'] ?? '').toString()))}');
+          }
           markers.add(
             Marker(
               // 616 — id STABLE (plus petit id du groupe) : à chaque
@@ -5984,14 +6162,19 @@ class _PawMapScreenState extends State<PawMapScreen>
               icon: _memberClusterIcon(group.length, roleCounts,
                   hasFriend: group.any((m) =>
                       m['isFriend'] == true ||
-                      _friendController.isFriendWithAny(pawMapPersonIds(m)))),
+                      _friendController.isFriendWithAny(pawMapPersonIds(m))),
+                  priceLabel: cp622?.text,
+                  priceRole: cp622?.role ?? 'sitter'),
               // 607 (02/10) — écarté (au plus 60 px) de Moi / d'un ami par sa
-              // POSITION : l'ancre reste au centre de l'image.
-              anchor: pawShiftedAnchor612(const Offset(0.5, 0.5), sh,
-                  width: PawMapPinPainter.memberClusterWidth(
-                          group.length > 99 ? 100 : group.length) +
-                      12,
-                  height: PawMapLegend.memberClusterHeight + 12),
+              // POSITION : l'ancre reste au centre du ROND (622 : l'étiquette
+              // « dès X » pend dessous).
+              anchor: pawShiftedAnchor612(
+                  Offset(0.5,
+                      (6 + PawMapPinPainter.memberClusterWidth(group.length) / 2) /
+                          bmp622.height),
+                  sh,
+                  width: bmp622.width,
+                  height: bmp622.height),
               zIndexInt: 7,
               consumeTapEvents: true,
               onTap: () => _zoomToCluster(target, members: group),
@@ -6046,7 +6229,8 @@ class _PawMapScreenState extends State<PawMapScreen>
         // dès le zoom ville (≥ [_cityPriceZoom]) si la place est libre
         // au-dessus d'elle ; le prénom reste réservé au zoom rue.
         final bool cityZoom = !showPrice && _pinZoom >= _cityPriceZoom;
-        final priceBubAny = (!showPrice && !cityZoom)
+        final priceBubAny = ((!showPrice && !cityZoom) ||
+                _compact622.contains('nearby_$id')) // 622 — prix replié
             ? null
             : pawMapPersonPriceBubble(
                 personRoles,
@@ -6239,6 +6423,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                       selected: selected)));
         }
         final Offset singleShift = groupShift[groupIdx];
+        if (kDebugMode && (bubble != null || priceLabel.isNotEmpty)) {
+          PawMapScreen.debugPricedIds622.add('nearby_$id'); // 622
+        }
         markers.add(
           Marker(
             markerId: MarkerId('nearby_$id'),
@@ -6600,44 +6787,50 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
 
     // ── DEMANDES DES PROPRIÉTAIRES : bulle orange foncé, ~1 km ──
-    if (_showRequests.value) {
-      if (_isSitterOrWalker) {
-        for (final req in _requests) {
-          final walking = req.serviceTypes.contains('dog_walking');
-          markers.add(
-            Marker(
-              markerId: MarkerId('req_${req.id}'),
-              position: LatLng(req.lat, req.lng),
-              icon: _requestIcon(
-                priceLabel: req.budgetLabel,
-                walking: walking,
-              ),
-              anchor: _requestAnchor,
-              zIndexInt: 7,
-              // v590 — handoff : 1er appui = zoom + carte focus
-              // (« 2 nuits · 30 € »), 2e appui = la fiche de la demande.
-              consumeTapEvents: true,
-              onTap: () => _onRequestMarkerTap(req),
+    // 622 (PAM, captures de Daniel du 25/10) — regroupées (une bulle + son
+    // chiffre), écartées des membres et des bords, et leur PRIX dessus :
+    // budget du propriétaire, sinon « dès 40 $ » (minimum du marché calculé
+    // par le serveur, rien quand personne ne propose le service autour).
+    if (reqGroups622.isNotEmpty) {
+      // Couche des membres éteinte : décalages de la simulation des demandes.
+      reqShifts622 ??= <String, Offset>{for (final g in reqGroups622) g.key: g.shift};
+      final String mineLabel = 'pawmap_request_mine'.tr;
+      for (final g in reqGroups622) {
+        final Offset sh = reqShifts622[g.key] ?? Offset.zero;
+        final String? ml = g.mine ? mineLabel : null;
+        final String? price = g.label.isEmpty ? null : g.label;
+        markers.add(
+          Marker(
+            markerId: MarkerId(g.key),
+            position: g.at,
+            icon: _requestIcon(
+              priceLabel: price,
+              walking: g.walking,
+              mineLabel: ml,
+              count: g.reqs.length,
             ),
-          );
-        }
-      } else {
-        // Le propriétaire voit les SIENNES, marquées « Ma demande ».
-        for (final req in _myRequests) {
-          final walking = req.serviceTypes.contains('dog_walking');
-          markers.add(
-            Marker(
-              markerId: MarkerId('myreq_${req.id}'),
-              position: LatLng(req.lat, req.lng),
-              icon: _requestIcon(
-                walking: walking,
-                mineLabel: 'pawmap_request_mine'.tr,
-              ),
-              anchor: _requestAnchor,
-              zIndexInt: 7,
-              onTap: () => _showRequestBottomSheet(req, mine: true),
-            ),
-          );
+            anchor: pawShiftedAnchor612(_requestAnchor, sh,
+                width: PawMapPinPainter.requestBubbleBitmapWidth(
+                    priceLabel: price, mineLabel: ml),
+                height: PawMapPinPainter.requestBubbleBitmapHeight()),
+            // 622 — parité site : les demandes sont posées SOUS les membres.
+            zIndexInt: 5,
+            // v590 — handoff : 1er appui = zoom + carte focus
+            // (« 2 nuits · 30 € »), 2e appui = la fiche de la demande.
+            consumeTapEvents: true,
+            onTap: () {
+              if (g.reqs.length > 1) {
+                unawaited(_onRequestGroupTap622(g));
+              } else if (g.mine) {
+                _showRequestBottomSheet(g.reqs.first, mine: true);
+              } else {
+                _onRequestMarkerTap(g.reqs.first);
+              }
+            },
+          ),
+        );
+        if (kDebugMode && g.label.isNotEmpty) {
+          PawMapScreen.debugPricedIds622.add(g.key);
         }
       }
     }
@@ -6652,25 +6845,349 @@ class _PawMapScreenState extends State<PawMapScreen>
       return;
     }
     final String dates = _requestDateLabel(req);
-    final String budget = req.budgetLabel;
-    _focusFirstTap(
-      LatLng(req.lat, req.lng),
-      PawFocusInfo(
-        key: key,
-        name: '${pawMapShortName(req.ownerName)} · ${'pawmap590_request'.tr}',
-        role: 'owner',
-        info: [
-          if (dates.isNotEmpty) dates,
-          if (budget.isNotEmpty) budget,
-        ].join(' · '),
-        avatar: req.ownerAvatar,
-        icon: PawSymbols.home,
-        onOpen: () {
-          _clearFocus();
-          _showRequestBottomSheet(req);
+    // 622 (captures de Daniel : « Abraham · Demande », aucun prix) — budget
+    // du propriétaire, sinon « à partir de 40 $/jour · estimation ~Y $ »
+    // (serveur). Connu tout de suite s'il est en cache, sinon la carte se
+    // complète dès la réponse.
+    PawFocusInfo info(String price) => PawFocusInfo(
+          key: key,
+          name: '${pawMapShortName(req.ownerName)} · ${'pawmap590_request'.tr}',
+          role: 'owner',
+          info: [
+            if (dates.isNotEmpty) dates,
+            if (price.isNotEmpty) price,
+          ].join(' · '),
+          avatar: req.ownerAvatar,
+          icon: PawSymbols.home,
+          onOpen: () {
+            _clearFocus();
+            _showRequestBottomSheet(req);
+          },
+        );
+    final String budget = req.budgetLabel.isNotEmpty
+        ? 'pawmap622_budget'.tr.replaceAll('@price', req.budgetLabel)
+        : '';
+    _focusFirstTap(LatLng(req.lat, req.lng), info(budget));
+    if (budget.isEmpty) {
+      final pin = _reqPinEstimate622(req, mine: false);
+      if (pin != null && pin.hasFromRate) {
+        // Déjà connu par l'épingle : affiché tout de suite.
+        _focusCard.value = info(fromRateText620(pin));
+      }
+      unawaited(FromRateCache620.forNearbyPublic(req, withDates: true).then((e) {
+        final t = fromRateText620(e);
+        if (!mounted || t.isEmpty) return;
+        if (_focusCard.value?.key != key) return; // carte fermée / autre épingle
+        _focusCard.value = info(t);
+      }));
+    }
+  }
+
+  /// 622 (parité site) — « dès X » sous un rond de groupe, dès le zoom
+  /// France, selon la règle du marché (propriétaire : tarifs des gardiens /
+  /// promeneurs ; gardien / promeneur : rien sur les autres prestataires).
+  ({String text, String role})? _clusterPrice622(List<Map<String, dynamic>> group) {
+    if (_pinZoom < _cityPriceZoom) return null;
+    final r = pawMapClusterFromPrice622(
+      group,
+      shows: (role) => pawMapShowsPriceBubble(_role, role),
+      shownRoles: _memberRoles.toSet(),
+      format: CurrencyHelper.formatCompact,
+      unitSuffix: _priceUnitSuffix,
+    );
+    if (r == null) return null;
+    return (text: 'pawmap622_from_pin'.tr.replaceAll('@price', r.price), role: r.role);
+  }
+
+  /// 622 — groupes de demandes posés sur la carte (une bulle + chiffre par
+  /// groupe), au zoom courant. Les points à moins de 44 px fusionnent.
+  List<_ReqGroup622> _requestGroups622() {
+    if (!_showRequests.value) return const <_ReqGroup622>[];
+    final bool mine = !_isSitterOrWalker;
+    final List<NearbyRequestPost> list = (mine ? _myRequests : _requests)
+        .where((r) => !(r.lat == 0 && r.lng == 0))
+        .toList();
+    if (list.isEmpty) return const <_ReqGroup622>[];
+    _prefetchReqFrom622(list, mine: mine);
+    Rect boxOf(List<NearbyRequestPost> g) => _reqGroupOf622(g, mine: mine).box;
+    final Offset cam = pawMercatorPx(
+        _currentCenter.latitude, _currentCenter.longitude, _zoomLevel);
+    Offset px(NearbyRequestPost r) => pawScreenDelta(
+        pawMercatorPx(r.lat, r.lng, _zoomLevel) - cam,
+        bearingDeg: _camBearing612,
+        tiltDeg: _camTilt612);
+    final myPos = _userPosition;
+    // Cases de 44 px + fusion < 44 px, puis fusion tant que deux bulles se
+    // toucheraient encore à l'écran (pile de maisons au même endroit).
+    final placement = pawPlace622<NearbyRequestPost>(
+      pawMergeCloseGroups<NearbyRequestPost>(
+        _clusterize<NearbyRequestPost>(list, (r) => LatLng(r.lat, r.lng), cellPx: 44),
+        (r) => pawMercatorPx(r.lat, r.lng, _zoomLevel),
+        minPx: 44,
+      ),
+      px,
+      boxOf: boxOf,
+      fixed: <PawPlacedBox>[
+        if (myPos != null && _showLiveLayer.value)
+          PawPlacedBox(
+              pawScreenDelta(
+                  pawMercatorPx(myPos.latitude, myPos.longitude, _zoomLevel) - cam,
+                  bearingDeg: _camBearing612,
+                  tiltDeg: _camTilt612),
+              pawPinBox(PawMapLegend.meSize / 2 + 2)),
+        ..._railObstacles622(),
+      ],
+      bounds: _viewBounds622(),
+      screen: _screenRect622(),
+    );
+    return <_ReqGroup622>[
+      for (var i = 0; i < placement.groups.length; i++)
+        _reqGroupOf622(placement.groups[i], mine: mine, shift: placement.shifts[i]),
+    ];
+  }
+
+  /// 622 — bulle d'un groupe de demandes (prix, boîte, clé stable).
+  _ReqGroup622 _reqGroupOf622(List<NearbyRequestPost> g,
+      {required bool mine, Offset shift = Offset.zero, bool compact = false}) {
+    // 622 — `compact` : place trop juste, la bulle replie son prix (icône seule).
+    final String label = compact ? '' : _reqGroupPrice622(g, mine: mine);
+    final double w = PawMapPinPainter.requestBubbleWidth(
+        priceLabel: label.isEmpty ? null : label,
+        mineLabel: mine ? 'pawmap_request_mine'.tr : null);
+    final bool many = g.length > 1;
+    return _ReqGroup622(
+      reqs: g,
+      mine: mine,
+      at: many
+          ? _centroid<NearbyRequestPost>(g, (r) => LatLng(r.lat, r.lng))
+          : LatLng(g.first.lat, g.first.lng),
+      label: label,
+      walking: g.every((r) => r.serviceTypes.contains('dog_walking')),
+      key: '${mine ? 'myreq_' : 'req_'}${many ? 'g_${pawClusterKey616(g.map((r) => r.id))}' : g.first.id}',
+      // Pointe = point d'ancrage : corps 26 + liseré 2 + pointe 7 au-dessus,
+      // « Ma demande » 17 de plus, pastille du chiffre 8 en haut à droite.
+      box: Rect.fromLTRB(-w / 2, -35 - (mine ? 17 : 0) - (many ? 8 : 0),
+          w / 2 + (many ? 8 : 0), 1),
+      shift: shift,
+    );
+  }
+
+  /// 622 — prix d'une bulle de demande : budget, sinon « dès 40 $ » (minimum
+  /// du marché). Groupe : le plus bas des prix connus s'ils sont dans la même
+  /// devise, sinon rien (jamais de prix inventé).
+  String _reqGroupPrice622(List<NearbyRequestPost> g, {required bool mine}) {
+    if (g.length == 1) {
+      final r = g.first;
+      if (r.budgetLabel.isNotEmpty) return r.budgetLabel;
+      return fromRatePinText622(_reqPinEstimate622(r, mine: mine));
+    }
+    String? cur;
+    double? best;
+    PricingEstimate620? bestEst;
+    for (final r in g) {
+      double? v;
+      String c;
+      PricingEstimate620? est;
+      if (r.budget > 0) {
+        v = r.budget;
+        c = r.currency.toUpperCase();
+      } else {
+        est = _reqPinEstimate622(r, mine: mine);
+        if (est == null || !est.hasFromRate) continue;
+        v = est.fromRate;
+        c = (est.currency.isNotEmpty ? est.currency : 'EUR').toUpperCase();
+      }
+      if (v == null || v <= 0) continue;
+      if (cur != null && cur != c) return '';
+      cur = c;
+      if (best == null || v < best) {
+        best = v;
+        bestEst = est;
+      }
+    }
+    if (cur == null || best == null) return '';
+    // Le plus bas vient du marché : « dès 10 €/jour » (avec l'unité, comme
+    // une demande seule) ; d'un budget : « dès 30 € ».
+    if (bestEst != null) return fromRatePinText622(bestEst);
+    return 'pawmap622_from_pin'.tr.replaceAll('@price', CurrencyHelper.formatCompact(cur, best));
+  }
+
+  /// 622 — estimation déjà connue (cache) pour l'épingle d'une demande.
+  PricingEstimate620? _reqPinEstimate622(NearbyRequestPost r, {required bool mine}) {
+    if (mine) {
+      final body = fromRateBodyForNearby620(r);
+      return body == null ? null : FromRateCache620.peek(fromRateKey620(r.id, body));
+    }
+    return FromRateCache620.peek(publicKey622(r));
+  }
+
+  /// 622 — va chercher les « à partir de » manquants (au plus 10 nouvelles
+  /// zones par passage ; la route publique est limitée à 30 appels / min),
+  /// puis repose les épingles quand une réponse arrive.
+  final Set<String> _reqFromAsked622 = <String>{};
+  int _reqFromRev622 = 0;
+  void _prefetchReqFrom622(List<NearbyRequestPost> list, {required bool mine}) {
+    var started = 0;
+    // Les plus proches du centre de la carte d'abord (ce que l'œil regarde).
+    final c = _currentCenter;
+    final sorted = [...list]..sort((a, b) {
+        double d(NearbyRequestPost r) =>
+            (r.lat - c.latitude) * (r.lat - c.latitude) +
+            (r.lng - c.longitude) * (r.lng - c.longitude);
+        return d(a).compareTo(d(b));
+      });
+    for (final r in sorted) {
+      if (r.budget > 0) continue;
+      final String k;
+      if (mine) {
+        final body = fromRateBodyForNearby620(r);
+        if (body == null) continue;
+        k = fromRateKey620(r.id, body);
+      } else {
+        if (publicBodyForNearby622(r) == null) continue;
+        k = publicKey622(r);
+      }
+      if (FromRateCache620.peek(k) != null || _reqFromAsked622.contains(k)) continue;
+      if (started >= 10) break;
+      started++;
+      _reqFromAsked622.add(k);
+      final Future<PricingEstimate620?> f =
+          mine ? FromRateCache620.forNearby(r) : FromRateCache620.forNearbyPublic(r);
+      unawaited(f.then((e) {
+        // Réponse : redemandée après expiration du cache (5 min). Échec
+        // (quota, réseau) : retentée 20 s plus tard.
+        Future<void>.delayed(
+            e == null ? const Duration(seconds: 20) : FromRateCache620.ttl,
+            () => _reqFromAsked622.remove(k));
+        if (e == null) {
+          Future<void>.delayed(const Duration(seconds: 21), () {
+            if (mounted) _camIdleRev.value++; // nouveau passage → réessai
+          });
+          return;
+        }
+        if (!mounted || !e.hasFromRate) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _reqFromRev622++;
+          _camIdleRev.value++;
+        });
+      }));
+    }
+  }
+
+  /// 622 — appui sur un GROUPE de demandes : la carte cadre le groupe (un
+  /// toucher suffit à le séparer) ; points superposés ou zoom max → la liste.
+  Future<void> _onRequestGroupTap622(_ReqGroup622 g) async {
+    final pts = [for (final r in g.reqs) LatLng(r.lat, r.lng)];
+    double s0 = pts.first.latitude, n0 = s0, w0 = pts.first.longitude, e0 = w0;
+    for (final p in pts) {
+      s0 = math.min(s0, p.latitude);
+      n0 = math.max(n0, p.latitude);
+      w0 = math.min(w0, p.longitude);
+      e0 = math.max(e0, p.longitude);
+    }
+    final bool stacked = (n0 - s0).abs() < 0.0003 && (e0 - w0).abs() < 0.0003;
+    if (_zoomLevel < 17.5 && !stacked) {
+      final ctl = await _activeMapCtl();
+      if (ctl == null) return;
+      try {
+        await ctl.animateCamera(CameraUpdate.newLatLngBounds(
+            LatLngBounds(southwest: LatLng(s0, w0), northeast: LatLng(n0, e0)), 90));
+        return;
+      } catch (_) {
+        await ctl.animateCamera(
+            CameraUpdate.newLatLngZoom(g.at, math.min(_zoomLevel + 2.2, 19.0)));
+        return;
+      }
+    }
+    if (!mounted) return;
+    final items = <PawMapClusterItem>[
+      for (final r in g.reqs)
+        PawMapClusterItem(
+          id: r.id,
+          title: r.ownerName,
+          subtitle: [
+            _requestDateLabel(r),
+            if (r.budgetLabel.isNotEmpty) r.budgetLabel
+            else fromRatePinText622(_reqPinEstimate622(r, mine: g.mine)),
+          ].where((t) => t.isNotEmpty).join(' · '),
+          color: PawMapLegend.owner,
+          avatar: r.ownerAvatar,
+          icon: r.serviceTypes.contains('dog_walking')
+              ? Icons.directions_walk_rounded
+              : Icons.home_rounded,
+        ),
+    ];
+    showPawMapSheet<void>(
+      context,
+      PawMapClusterList(
+        title: 'pawmap622_requests_here'.trParams({'n': '${g.reqs.length}'}),
+        items: items,
+        onOpen: (it) {
+          Navigator.of(context).pop();
+          final r = g.reqs.firstWhereOrNull((x) => x.id == it.id);
+          if (r != null) _showRequestBottomSheet(r, mine: g.mine);
         },
       ),
     );
+  }
+
+  /// 622 — zone de l'écran où une bulle doit tenir ENTIÈRE (px relatifs au
+  /// centre de la carte, comme `pawScreenDelta`) : sous l'en-tête + pilule
+  /// Direct, au-dessus du menu, 6 px des bords.
+  Rect? _viewBounds622() {
+    final Size? size = MediaQuery.maybeSizeOf(context);
+    if (size == null || size.isEmpty) return null;
+    final mq = MediaQuery.of(context);
+    final double top = _topChromeBottom > 0
+        ? _topChromeBottom
+        : math.max(mq.viewPadding.top, 28.0) + 48.h + _directPillH622();
+    final double bottom = _menuInset(context);
+    final r = Rect.fromLTRB(
+      -size.width / 2 + 6,
+      -size.height / 2 + top + 6,
+      size.width / 2 - 6,
+      size.height / 2 - bottom - 6,
+    );
+    return (r.width > 120 && r.height > 120) ? r : null;
+  }
+
+  /// 622 — bulles qui ont replié leur prix (ids de marqueurs), dernière passe.
+  final Set<String> _compact622 = <String>{};
+  final GlobalKey _railKey622 = GlobalKey();
+  final GlobalKey _capsuleKey622 = GlobalKey();
+  Rect _railRect622 = Rect.zero;
+  Rect _capsuleRect622 = Rect.zero;
+
+  Rect _globalRect622(GlobalKey k) {
+    final ro = k.currentContext?.findRenderObject();
+    if (ro is RenderBox && ro.attached && ro.hasSize) {
+      return ro.localToGlobal(Offset.zero) & ro.size;
+    }
+    return Rect.zero;
+  }
+
+  /// 622 — rail et capsule en obstacles (px relatifs au centre de la carte).
+  List<PawPlacedBox> _railObstacles622() {
+    final Size? size = MediaQuery.maybeSizeOf(context);
+    if (size == null || size.isEmpty) return const <PawPlacedBox>[];
+    final half = Offset(size.width / 2, size.height / 2);
+    return <PawPlacedBox>[
+      for (final r in [_railRect622, _capsuleRect622])
+        if (r.width > 4 && r.height > 4)
+          PawPlacedBox(r.center - half,
+              Rect.fromCenter(center: Offset.zero, width: r.width, height: r.height)),
+    ];
+  }
+
+  /// 622 — hauteur de la pilule Direct (repli avant la 1re mesure).
+  double _directPillH622() => pawMapShowsDirectPill(_role) ? 42.h : 0.0;
+
+  /// 622 — l'écran entier (px relatifs au centre de la carte).
+  Rect? _screenRect622() {
+    final Size? size = MediaQuery.maybeSizeOf(context);
+    if (size == null || size.isEmpty) return null;
+    return Rect.fromCenter(center: Offset.zero, width: size.width, height: size.height);
   }
 
   /// Candidatures déjà envoyées depuis la carte (postId → état), pour ne pas
@@ -6718,13 +7235,25 @@ class _PawMapScreenState extends State<PawMapScreen>
           budgetLabel: r.budgetLabel,
           // 621 — « à partir de 12 €/visite · estimation ~86 € » sur MA
           // demande ouverte (serveur 620b) ; rien pour la demande d'un autre.
+          // 622 — et pour la demande d'un AUTRE (gardien / promeneur) :
+          // budget s'il existe (ligne du dessus), sinon « à partir de … »
+          // du marché autour de la demande (route publique, comme le site).
           estimateLine: mine
               ? FromRateLine620(
                   future: FromRateCache620.forNearby(r),
                   tone: PawMapLegend.owner,
                   compact: true,
                 )
-              : null,
+              : (r.budgetLabel.isNotEmpty
+                  ? null
+                  : FromRateLine620(
+                      // Avec les dates (estimation du total) ; à défaut, le
+                      // « à partir de » déjà connu par l'épingle.
+                      future: FromRateCache620.forNearbyPublic(r, withDates: true)
+                          .then((e) => e ?? _reqPinEstimate622(r, mine: false)),
+                      tone: PawMapLegend.owner,
+                      compact: true,
+                    )),
           body: r.body,
           mine: mine,
           approx: r.approx,
@@ -7177,6 +7706,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   children: [
                     if (!picking)
                       PawCollapsibleBar(
+                        key: _railKey622, // 622 — mesuré : les bulles l'évitent
                         left: true,
                         collapsed: _prefs.railCollapsed,
                         tint: PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
@@ -7189,6 +7719,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       ),
                     const Spacer(),
                     PawCollapsibleBar(
+                      key: _capsuleKey622, // 622
                       left: false,
                       collapsed: _prefs.capsuleCollapsed,
                       tint: PawMapLegend.roleColor(_role.isEmpty ? 'owner' : _role),
@@ -11441,6 +11972,20 @@ class _PawMapScreenState extends State<PawMapScreen>
       if (b > 0 && (b - _topChromeBottom).abs() > 1) {
         setState(() => _topChromeBottom = b);
       }
+      // 622 — les deux barres (rail gauche, capsule droite) couvrent la
+      // carte : une bulle posée dessous était « coupée ». Mesurées ici,
+      // elles deviennent des obstacles du placement des bulles.
+      final r = _globalRect622(_railKey622);
+      final c = _globalRect622(_capsuleKey622);
+      bool moved(Rect a, Rect b) =>
+          (a.left - b.left).abs() > 2 || (a.top - b.top).abs() > 2 ||
+          (a.width - b.width).abs() > 2 || (a.height - b.height).abs() > 2;
+      if (moved(r, _railRect622) || moved(c, _capsuleRect622)) {
+        setState(() {
+          _railRect622 = r;
+          _capsuleRect622 = c;
+        });
+      }
     });
     // Repli avant la 1re mesure : barre d'état (28 dp au moins) + en-tête
     // (≈ 48) + pilule Direct (≈ 42).
@@ -13809,4 +14354,29 @@ bool pawVerifiedFilterKeeps(Map p, {required bool on, required bool friend}) {
   if (!on || pawIdentityVerified(p) || friend) return true;
   final r = (p['_role'] ?? p['role'] ?? '').toString().toLowerCase();
   return r != 'sitter' && r != 'walker';
+}
+
+
+/// 622 (PAM) — un groupe de demandes de propriétaires posé sur la carte.
+class _ReqGroup622 {
+  const _ReqGroup622({
+    required this.reqs,
+    required this.mine,
+    required this.at,
+    required this.label,
+    required this.walking,
+    required this.key,
+    required this.box,
+    this.shift = Offset.zero,
+  });
+  final List<NearbyRequestPost> reqs;
+  final bool mine;
+  final LatLng at;
+  final String label;
+  final bool walking;
+  final String key;
+  /// Boîte visible relative à la pointe (px).
+  final Rect box;
+  /// Décalage écran (px) vérifié par la simulation de placement.
+  final Offset shift;
 }

@@ -111,6 +111,13 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
           Get.find<AuthController>().refreshAvailableRoles();
         }
       } catch (_) {/* defensive */}
+      // 622 — jeton push ré-enregistré au retour (autorisation donnée dans
+      // Réglages, échec réseau au lancement…), au plus toutes les 30 min.
+      try {
+        if (Get.isRegistered<PushNotificationService>()) {
+          unawaited(Get.find<PushNotificationService>().syncOnResume());
+        }
+      } catch (_) {/* defensive */}
       // App returned to foreground — pull latest notifs so the bell badge
       // is up to date (covers both push-arrived-while-bg and missed pushes).
       refreshAll();

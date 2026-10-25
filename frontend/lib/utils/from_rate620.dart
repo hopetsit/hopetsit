@@ -164,6 +164,7 @@ class FromRateCache620 {
       <String, Future<PricingEstimate620?>>{};
 
   static void reset() {
+    _publicCalls.clear();
     _values.clear();
     _at.clear();
     _inFlight.clear();
@@ -207,6 +208,124 @@ class FromRateCache620 {
     if (body == null) return Future<PricingEstimate620?>.value(null);
     return fetch(fromRateKey620(r.id, body), body);
   }
+
+  /// 622 (PAM, 25/10 — Daniel : « il n'y a pas beaucoup les prix ») — « à
+  /// partir de » d'une demande d'un AUTRE propriétaire, vue par un gardien ou
+  /// un promeneur. La route authentifiée calcule, pour un prestataire, SON
+  /// propre tarif ; la route publique `POST /pricing/estimate/public` donne
+  /// le minimum du marché autour de la demande — le même chiffre que le site
+  /// (/map, LEO). Devise = celle de la demande (budget ou propriétaire).
+  /// [withDates] faux : clé arrondie à 0,1° (≈ 10 km, le serveur cherche dans
+  /// 100 km) → une requête pour toutes les épingles d'un quartier.
+  static Future<PricingEstimate620?> forNearbyPublic(NearbyRequestPost r,
+      {bool withDates = false}) {
+    final body = publicBodyForNearby622(r, withDates: withDates);
+    if (body == null) return Future<PricingEstimate620?>.value(null);
+    return fetchPublic(publicKey622(r, withDates: withDates), body);
+  }
+
+  /// 622 — la route publique est limitée à 30 appels / min / adresse IP
+  /// (serveur) : l'app s'en tient à [publicPerMinute] et ne garde JAMAIS un
+  /// échec en cache (un 429 ou une coupure réseau est retenté plus tard ;
+  /// mesuré au simulateur le 25/10 : la vue Europe consommait le quota et les
+  /// demandes de Paris restaient sans prix 5 minutes).
+  static const int publicPerMinute = 20;
+  static final List<DateTime> _publicCalls = <DateTime>[];
+  static bool publicBudgetLeft([DateTime? now]) {
+    final t = now ?? DateTime.now();
+    _publicCalls.removeWhere((c) => t.difference(c) > const Duration(minutes: 1));
+    return _publicCalls.length < publicPerMinute;
+  }
+
+  static Future<PricingEstimate620?> fetchPublic(String key, Map<String, dynamic> body) {
+    final at = _at[key];
+    if (at != null && DateTime.now().difference(at) <= ttl) {
+      return Future<PricingEstimate620?>.value(_values[key]);
+    }
+    final running = _inFlight[key];
+    if (running != null) return running;
+    if (!Get.isRegistered<ApiClient>()) return Future<PricingEstimate620?>.value(null);
+    if (!publicBudgetLeft()) return Future<PricingEstimate620?>.value(null);
+    _publicCalls.add(DateTime.now());
+    final f = fetchPublicEstimate622(Get.find<ApiClient>(), body).then((e) {
+      _inFlight.remove(key);
+      if (e == null) return null; // échec : rien en cache, retenté plus tard
+      final v = e.market ? e : null;
+      _values[key] = v;
+      _at[key] = DateTime.now();
+      return v;
+    });
+    _inFlight[key] = f;
+    return f;
+  }
+}
+
+/// 622 — corps PLAT de la route publique (service, position, devise, dates).
+/// Null sans service ni position.
+Map<String, dynamic>? publicBodyForNearby622(NearbyRequestPost r, {bool withDates = false}) {
+  if (r.serviceTypes.isEmpty) return null;
+  if (r.lat == 0 && r.lng == 0) return null;
+  final bool dated = withDates && !r.isDatesTbd && r.startDate != null && r.endDate != null;
+  return <String, dynamic>{
+    'serviceType': r.serviceTypes.first,
+    'lat': withDates ? r.lat : double.parse(r.lat.toStringAsFixed(1)),
+    'lng': withDates ? r.lng : double.parse(r.lng.toStringAsFixed(1)),
+    if (r.currencyKnown && r.currency.isNotEmpty) 'currency': r.currency.toUpperCase(),
+    // Parité site (LEO, `mapPrice622.ts`) : demande sans devise dans les
+    // États-Unis continentaux → pays US (dollars) ; ailleurs rien (euro par
+    // défaut côté serveur, une autre devise = basedOn 0, jamais un faux prix).
+    if (!r.currencyKnown && inContinentalUS622(r.lat, r.lng)) 'country': 'US',
+    if (dated) 'startDate': r.startDate!.toIso8601String(),
+    if (dated) 'endDate': r.endDate!.toIso8601String(),
+    if (dated && r.visitsPerDay != null) 'visitsPerDay': r.visitsPerDay,
+  };
+}
+
+/// 622 — clé de cache de la route publique.
+String publicKey622(NearbyRequestPost r, {bool withDates = false}) {
+  final b = publicBodyForNearby622(r, withDates: withDates) ?? const <String, dynamic>{};
+  return [
+    'pub',
+    if (withDates) r.id,
+    b['serviceType'],
+    b['lat'],
+    b['lng'],
+    b['currency'],
+    b['country'],
+    b['startDate'],
+    b['endDate'],
+    b['visitsPerDay'],
+  ].join('|');
+}
+
+/// 622 — `POST /pricing/estimate/public` (sans session). Null en cas d'échec
+/// (jamais d'exception, jamais de prix inventé).
+Future<PricingEstimate620?> fetchPublicEstimate622(
+  ApiClient client,
+  Map<String, dynamic> body,
+) async {
+  try {
+    final res = await client
+        .post('/pricing/estimate/public', body: body, requiresAuth: false)
+        .timeout(const Duration(seconds: 8));
+    return PricingEstimate620.tryParse(res);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 622 — États-Unis continentaux (même rectangle que le site).
+bool inContinentalUS622(double lat, double lng) =>
+    lat >= 24.4 && lat <= 49.4 && lng >= -125 && lng <= -66.8;
+
+/// 622 — texte court d'une ÉPINGLE de demande : « dès 40 $/jour » (comme le
+/// site) ; vide sans prestataire autour (`basedOn 0`).
+String fromRatePinText622(PricingEstimate620? e) {
+  if (e == null || !e.hasFromRate) return '';
+  final cur = e.currency.isNotEmpty ? e.currency : 'EUR';
+  final suffix = priceUnitSuffix620(fromRateUnitWire620(e));
+  return 'pawmap622_from_pin'.tr.replaceAll(
+      '@price', '${CurrencyHelper.formatCompact(cur, e.fromRate!)}$suffix');
 }
 
 /// Fournit le texte « à partir de … » d'une demande à un constructeur

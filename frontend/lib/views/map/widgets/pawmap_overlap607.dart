@@ -393,8 +393,12 @@ class PawPlacedBox {
 /// par la direction opposée à l'obstacle le plus proche. Null si rien de
 /// libre (le rond reste en place).
 Offset? pawFreeSpot(Offset at, Rect box, List<PawPlacedBox> obstacles,
-    {double maxShift = 90, double air = kPawAirPx}) {
+    {double maxShift = 90, double air = kPawAirPx, Rect? bounds}) {
+  // 622 — [bounds] (px écran) : la boîte doit y tenir ENTIÈRE (rien de
+  // coupé par le bord de la carte, l'en-tête ou le menu du bas).
+  bool inside(Offset p) => bounds == null || pawBoxInside(p, box, bounds);
   bool free(Offset p) {
+    if (!inside(p)) return false;
     for (final o in obstacles) {
       if (pawBoxesTouch(p, box, o.at, o.box, air: air)) return false;
     }
@@ -405,6 +409,21 @@ Offset? pawFreeSpot(Offset at, Rect box, List<PawPlacedBox> obstacles,
   // Direction préférée : à l'opposé du plus proche obstacle qui touche.
   var away = const Offset(0.7071, 0.7071);
   var best = double.infinity;
+  if (!inside(at) && bounds != null) {
+    // 622 — coupée par un bord : vers l'intérieur de la carte d'abord.
+    final r = box.shift(at);
+    final dx = r.left < bounds.left
+        ? 1.0
+        : (r.right > bounds.right ? -1.0 : 0.0);
+    final dy = r.top < bounds.top
+        ? 1.0
+        : (r.bottom > bounds.bottom ? -1.0 : 0.0);
+    final d = Offset(dx, dy);
+    if (d.distance > 0) {
+      away = d / d.distance;
+      best = 0;
+    }
+  }
   for (final o in obstacles) {
     if (!pawBoxesTouch(at, box, o.at, o.box, air: air)) continue;
     final d = (at - o.at).distance;
@@ -435,6 +454,8 @@ List<Offset> pawRepelBoxes(
   List<PawPlacedBox> fixed, {
   List<bool>? movable,
   double maxShift = 90,
+  Rect? bounds,
+  Rect? screen,
 }) {
   final n = at.length;
   final shift = List<Offset>.filled(n, Offset.zero);
@@ -454,12 +475,40 @@ List<Offset> pawRepelBoxes(
       return near(a).compareTo(near(b));
     });
   for (final i in order) {
+    // 622 — loin de l'écran (au-delà de 200 px) : ni cherché ni obstacle
+    // (la passe reste rapide avec les centaines de points de la couche monde).
+    if (screen != null && !boxes[i].shift(at[i]).overlaps(screen.inflate(200))) {
+      continue;
+    }
     // Plus loin seulement si rien n'est libre tout près (zone très chargée).
-    final s = pawFreeSpot(at[i], boxes[i], placed, maxShift: maxShift) ??
-        pawFreeSpot(at[i], boxes[i], placed, maxShift: maxShift * 2) ??
+    // 622 — le bord ne s'impose qu'aux bulles visibles (ou presque) : un
+    // point loin hors de l'écran reste où il est.
+    final Rect? b = (bounds != null && pawNearBounds(at[i], boxes[i], screen ?? bounds))
+        ? bounds
+        : null;
+    final s = pawFreeSpot(at[i], boxes[i], placed, maxShift: maxShift, bounds: b) ??
+        pawFreeSpot(at[i], boxes[i], placed, maxShift: maxShift * 2, bounds: b) ??
+        // Zone saturée : au moins rentrer dans l'écran, sans autre contrainte.
+        (b == null ? null : pawFreeSpot(at[i], boxes[i], placed, maxShift: maxShift * 5, bounds: b)) ??
         Offset.zero;
     shift[i] = s;
     placed.add(PawPlacedBox(at[i] + s, boxes[i]));
   }
   return shift;
 }
+
+
+/// 622 — la boîte [box] posée en [at] tient-elle entière dans [bounds] ?
+bool pawBoxInside(Offset at, Rect box, Rect bounds) {
+  final r = box.shift(at);
+  return r.left >= bounds.left &&
+      r.top >= bounds.top &&
+      r.right <= bounds.right &&
+      r.bottom <= bounds.bottom;
+}
+
+/// 622 — la bulle est-elle visible, même en partie, sur l'écran [screen]
+/// (carte entière, en-tête et menu compris) ? Sinon le bord ne la concerne
+/// pas : un point hors de l'écran ne vient pas se coller au bord.
+bool pawNearBounds(Offset at, Rect box, Rect screen) =>
+    box.shift(at).overlaps(screen);

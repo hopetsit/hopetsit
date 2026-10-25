@@ -29,6 +29,11 @@ class NearbyRequestPost {
   /// n'affiche alors que l'icône du service) et sa devise.
   final double budget;
   final String currency;
+  /// 622 — vrai quand le serveur a donné une devise (budget ou propriétaire).
+  /// Faux : `currency` vaut 'EUR' par défaut (mesuré le 25/10 : aucune des 22
+  /// demandes ouvertes n'en porte) — l'estimation publique ne doit pas alors
+  /// chercher des gardiens new-yorkais en euros.
+  final bool currencyKnown;
   /// v584 — animaux de l'annonce (nécessaires pour « Proposer mes services »
   /// en un appui : une candidature porte toujours au moins un animal).
   final List<String> petIds;
@@ -58,6 +63,7 @@ class NearbyRequestPost {
     required this.createdAt,
     this.budget = 0,
     this.currency = 'EUR',
+    this.currencyKnown = false,
     this.petIds = const <String>[],
     this.approx = false,
     this.dateMode = '',
@@ -105,6 +111,8 @@ class NearbyRequestPost {
               ? j['budgetCurrency']
               : (j['currency'] ?? 'EUR'))
           .toString(),
+      currencyKnown: (j['budgetCurrency'] ?? '').toString().isNotEmpty ||
+          (j['currency'] ?? '').toString().isNotEmpty,
       petIds: ((j['petIds'] as List?) ?? const [])
           .map((e) => e is Map ? (e['_id'] ?? e['id'] ?? '').toString() : e.toString())
           .where((e) => e.isNotEmpty)
