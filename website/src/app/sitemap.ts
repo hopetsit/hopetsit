@@ -31,6 +31,9 @@ const PUBLIC_PATHS = [
   "/remboursement",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  // 2026-W43 — marketing hebdo : recrutement Paris 2e + Miami (recrutement).
+  "/blog/devenir-pet-sitter-paris-2e",
+  "/blog/become-a-pet-sitter-in-miami",
   // 2026-W42 — marketing hebdo : Paris (voyager ou faire garder) + Houston (propriétaires).
   "/blog/voyager-avec-son-animal-ou-le-faire-garder",
   "/blog/finding-a-pet-sitter-in-houston",

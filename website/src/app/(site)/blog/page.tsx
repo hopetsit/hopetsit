@@ -13,6 +13,22 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 2026-W43 — marketing hebdo : recrutement Paris 2e + Miami (recrutement,
+  // seule ville de la rotation US encore jamais couverte).
+  {
+    slug: "devenir-pet-sitter-paris-2e",
+    lang: "🇫🇷",
+    title: "Devenir pet sitter dans le 2e arrondissement de Paris : le guide",
+    excerpt:
+      "Sentier, Bourse, les passages couverts : un quartier de bureaux où les chiens attendent toute la journée — comment y trouver ses premiers clients.",
+  },
+  {
+    slug: "become-a-pet-sitter-in-miami",
+    lang: "🇺🇸",
+    title: "How to become a pet sitter in Miami (and what you can earn)",
+    excerpt:
+      "Brickell, Wynwood, Coral Gables: realistic Miami rates ($35-60/day, $18-30/walk) and how to land your first regular clients.",
+  },
   // 2026-W42 — marketing hebdo : Paris (voyager ou faire garder) + Houston (propriétaires).
   {
     slug: "voyager-avec-son-animal-ou-le-faire-garder",
