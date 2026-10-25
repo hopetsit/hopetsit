@@ -115,6 +115,7 @@ import { haversineKm } from "@/lib/mapCluster";
 import { alertFresh613, alertPinHtml613, emojiDraws613, reportEmoji613 } from "@/lib/alerts613";
 import { joinLabel613, joinLine613, meters613, shouldRecomputeJoin613 } from "@/lib/join613";
 import { formatPriceUnit, priceUnitLabels } from "@/lib/priceUnit";
+import { requestServiceType622 } from "@/lib/mapPrice622";
 import { ROLE_COLOR, blurLatLng, formatPrice, placePinHtml, spotPinHtml, roleKey, showsPriceBubble } from "@/lib/pawmapLegend";
 import { expandRows, formatKm, friendIdSetFrom, isFriendMember, locateFriend, mergePersons, personIdsOf, placeFriendsFromList, rolesMatching, rolesOf } from "@/lib/memberPersons";
 import type { Map as LeafletMap } from "leaflet";
@@ -904,6 +905,19 @@ export default function MapPage() {
             // 590 — carte focus : « Léo · Demande » + sa photo.
             ownerName: p.owner?.name || "",
             ownerAvatar: p.owner?.avatar || "",
+            // 622 (25/10) — « à partir de » quand il n'y a pas de budget : service, devise, dates de la
+            // demande, position FLOUTÉE (jamais l'adresse). Lu par PoiMap → POST /pricing/estimate/public.
+            pricing: {
+              serviceType: requestServiceType622(p.serviceTypes, types.some((s) => s.includes("walk")) ? "walk" : "sitting"),
+              lat: blat,
+              lng: blng,
+              currency: p.budgetCurrency || p.currency || null,
+              country: (p.location as { country?: string } | undefined)?.country || null,
+              dateMode: p.dateMode ?? null,
+              startDate: p.startDate ?? null,
+              endDate: p.endDate ?? null,
+              visitsPerDay: p.visitsPerDay ?? null,
+            },
           });
         }
         setRequests(out);
@@ -1826,7 +1840,7 @@ export default function MapPage() {
       {/* ── 2 COLONNES sur ordinateur : carte | panneau ── */}
       <div className="mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5">
         {/* ── COLONNE CARTE ── */}
-        <div ref={mapColRef} className="relative -mx-4 overflow-x-clip h-[64vh] min-h-[420px] lg:mx-0 lg:h-[calc(100vh-230px)] lg:min-h-[340px]" style={fitH ? { height: fitH } : undefined}>
+        <div ref={mapColRef} data-map-shell="" className="relative -mx-4 overflow-x-clip h-[64vh] min-h-[420px] lg:mx-0 lg:h-[calc(100vh-230px)] lg:min-h-[340px]" style={fitH ? { height: fitH } : undefined}>
           {/* 25/09 (585, lot 2 — bug 15) — bouton « Amis » bien visible : amis,
               demandes, en direct et PawFamily (page /friends). */}
           {/* 25/09 (587, point 1a) — coin haut-gauche, juste sous le titre
@@ -1837,7 +1851,7 @@ export default function MapPage() {
                 RETIRÉE, comme dans l'app : pendant une balade, un drapeau vert
                 compact (durée · qui me suit) se pose au-dessus du bouton
                 Balade de la barre de droite. */}
-            <Link href="/friends" onPointerDown={revealControls} title={t("map_friends_btn")} aria-label={t("map_friends_btn")} className={`pointer-events-auto inline-flex min-h-[44px] items-center gap-2 whitespace-nowrap rounded-full py-1 text-sm font-bold hover:scale-[1.03] ${compactTop ? "px-1.5" : "pl-1.5 pr-4"}`} style={{ ...glassStyle(dark), color: dark ? "#FBEFE6" : "#231715" }}>
+            <Link href="/friends" data-map-overlay="" onPointerDown={revealControls} title={t("map_friends_btn")} aria-label={t("map_friends_btn")} className={`pointer-events-auto inline-flex min-h-[44px] items-center gap-2 whitespace-nowrap rounded-full py-1 text-sm font-bold hover:scale-[1.03] ${compactTop ? "px-1.5" : "pl-1.5 pr-4"}`} style={{ ...glassStyle(dark), color: dark ? "#FBEFE6" : "#231715" }}>
               <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: "linear-gradient(165deg,#F48AB4,#E0568B)", border: "1.5px solid #fff" }}><AppIcon name="friends" size={17} color="#fff" /></span>
               {!compactTop && t("map_friends_btn")}
             </Link>
@@ -1850,7 +1864,7 @@ export default function MapPage() {
           {/* 590 (§3.1, §3.2) — les 4 boutons « bijou » ROUGES du haut à droite
               (mêmes pour les 3 rôles, comme l'app) : ? (légende), loupe
               (recherche de ville), Actualiser, Options. */}
-          <div onPointerDown={revealControls} className={`absolute right-2 top-2 z-[1000] flex items-center gap-1 ${fadeCls}`}>
+          <div data-map-overlay="" onPointerDown={revealControls} className={`absolute right-2 top-2 z-[1000] flex items-center gap-1 ${fadeCls}`}>
             <PawJewel palette={JEWEL_MENU[roleKey(myRole)]} icon="question_mark" size={40} label={t("legend_btn")} onClick={() => setLegendOpen(true)} />
             <PawJewel
               palette={JEWEL_MENU[roleKey(myRole)]}
@@ -2030,7 +2044,7 @@ export default function MapPage() {
               symétrique de la barre de droite ; 9 boutons « bijou » à la
               couleur de l'app (même ordre) + icônes Material Symbols pleines.
               Aucune fonction retirée : mêmes actions qu'avant. */}
-          <div className="absolute bottom-4 left-3 z-[1000]" style={{ transform: railCollapsed ? "translateX(calc(-100% - 12px))" : "translateX(0)", transition: "transform 350ms cubic-bezier(.3,.7,.2,1)" }}>
+          <div data-map-overlay="" className="absolute bottom-4 left-3 z-[1000]" style={{ transform: railCollapsed ? "translateX(calc(-100% - 12px))" : "translateX(0)", transition: "transform 350ms cubic-bezier(.3,.7,.2,1)" }}>
           {/* 29/09 (LEO) — l'effacement (opacité 0) ne touche QUE la barre :
               avant, il était posé sur le bloc qui contient aussi la languette,
               qui disparaissait avec elle une fois la barre rangée. */}
@@ -2095,7 +2109,7 @@ export default function MapPage() {
               la barre de gauche. Viseur (bijou du rôle), +, −, satellite, tout
               le monde (rose), qui me voit, puis le bouton principal du rôle :
               « Publier » (propriétaire) ou « Demandes » (gardien, promeneur). */}
-          <div className="absolute bottom-4 right-3 z-[1000]" style={{ transform: capsuleCollapsed ? "translateX(calc(100% + 12px))" : "translateX(0)", transition: "transform 350ms cubic-bezier(.3,.7,.2,1)" }}>
+          <div data-map-overlay="" className="absolute bottom-4 right-3 z-[1000]" style={{ transform: capsuleCollapsed ? "translateX(calc(100% + 12px))" : "translateX(0)", transition: "transform 350ms cubic-bezier(.3,.7,.2,1)" }}>
           <div onPointerDown={revealControls} className={fadeCls} style={{ ...(capsuleScale < 1 ? { transform: `scale(${capsuleScale})`, transformOrigin: "bottom right" } : {}), ...(capsuleCollapsed ? { opacity: 0 } : {}) }} {...inertIf(capsuleCollapsed)}>
             <div ref={capsuleRef} className="flex w-[50px] flex-col items-center rounded-[25px] px-[3px] py-2" style={barGlass(dark)}>
               <PawJewel palette={JEWEL_ROLE[roleKey(myRole)]} icon="my_location" label={t("map_locate_btn")} onClick={locateMe}>
@@ -3246,6 +3260,7 @@ function BarTab({ side, collapsed, label, onClick, menu, className = "" }: { sid
       title={label}
       aria-expanded={!collapsed}
       data-bar-tab={side}
+      data-map-overlay=""
       className={`absolute bottom-1 z-[70] grid h-12 w-11 ${side === "left" ? "left-full justify-items-start" : "right-full justify-items-end"} ${collapsed ? "" : side === "left" ? "pl-1" : "pr-1"} items-center ${className}`}
     >
       <span

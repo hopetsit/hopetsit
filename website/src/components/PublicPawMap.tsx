@@ -28,11 +28,10 @@ import {
   MEMBER_CELL_PX_607,
   mercatorPx,
   mergeCloseGroups,
-  bubbleHasRoom,
-  circleRect,
-  textWidth,
-  type Rect,
 } from "@/lib/pawmapOverlap607";
+import { clusterFromPrice622, requestServiceType622, type MapRequestPricing622 } from "@/lib/mapPrice622";
+import { RequestFromLine622, useFromText622, useRequestFromLabels622 } from "@/components/RequestFrom622";
+import type { PriceAlt } from "@/lib/priceUnit";
 import {
   memberPinHtml,
   memberClusterHtml,
@@ -75,9 +74,9 @@ function memberIcon(p: PublicProvider, caption: string | null, bubble: string | 
 // pointe sur la position FLOUTÉE (~1 km, floutage serveur). Aucun nom, aucune adresse.
 const MS_WALK_1617 = "M13.5 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.2 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7z";
 const MS_HOME_1617 = "M12 3 2 12h3v8h5v-6h4v6h5v-8h3L12 3z";
-function requestBubbleIcon(b: PublicRequestBubble, serviceLabel: string, daysLabel: string | null): L.DivIcon {
+function requestBubbleIcon(b: PublicRequestBubble, serviceLabel: string, daysLabel: string | null, fromLabel?: string | null): L.DivIcon {
   const icon = `<svg viewBox="0 0 24 24" width="13" height="13" fill="#fff" aria-hidden="true"><path d="${b.service === "walk" ? MS_WALK_1617 : MS_HOME_1617}"/></svg>`;
-  const text = daysLabel ? `${serviceLabel} · ${daysLabel}` : serviceLabel;
+  const text = [serviceLabel, daysLabel, fromLabel].filter(Boolean).join(" · ");
   const html = `<div style="position:relative;display:flex;flex-direction:column;align-items:center;">
     <div style="height:26px;background:rgba(201,42,18,.82);color:#fff;border-radius:9px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;font:700 11.5px/1 Poppins,Inter,system-ui,sans-serif;white-space:nowrap;box-shadow:0 0 0 2px #fff,0 6px 12px -4px rgba(23,20,31,.5);backdrop-filter:blur(2px);">${icon}<span>${text.replace(/</g, "&lt;")}</span></div>
     <svg viewBox="0 0 12 7" width="12" height="7" style="display:block;margin-top:1px;" aria-hidden="true"><path d="M0 0h12L6 7z" fill="rgba(201,42,18,.82)"/></svg>
@@ -85,9 +84,10 @@ function requestBubbleIcon(b: PublicRequestBubble, serviceLabel: string, daysLab
   return L.divIcon({ className: "hps-l-request-public", html, iconSize: [110, 34], iconAnchor: [55, 34], popupAnchor: [0, -32] });
 }
 
-function clusterIcon(items: PublicProvider[]): L.DivIcon {
+function clusterIcon(items: PublicProvider[], price?: { label: string; role: "sitter" | "walker" } | null): L.DivIcon {
   const sz = items.length >= 10 ? 44 : 40;
-  return L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(items.length, dominantRole(items.map((p) => p.role)), false, roleCounts(items.map((p) => p.role))), iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
+  // 622 — « dès X » sous le rond : le plus petit tarif réel du groupe (gardiens d'abord).
+  return L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(items.length, dominantRole(items.map((p) => p.role)), false, roleCounts(items.map((p) => p.role)), price?.label ?? null, price?.role ?? "sitter"), iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
 }
 
 // 04/10 (610, ajout de Daniel) — PawSpots en LECTURE SEULE sur la carte
@@ -140,12 +140,12 @@ function Watcher({ onChange }: { onChange: (v: View) => void }) {
  * aussi promeneur, deux voisins) = la LISTE tout de suite, zoomer ne les
  * séparerait pas (PawMap 585) ; sinon on cadre le groupe ; zoom rue = liste.
  */
-function ClusterMarker({ center, items, onList }: { center: [number, number]; items: PublicProvider[]; onList: (l: PublicProvider[]) => void }) {
+function ClusterMarker({ center, items, onList, price }: { center: [number, number]; items: PublicProvider[]; onList: (l: PublicProvider[]) => void; price?: { label: string; role: "sitter" | "walker" } | null }) {
   const map = useMap();
   return (
     <Marker
       position={center}
-      icon={clusterIcon(items)}
+      icon={clusterIcon(items, price)}
       zIndexOffset={PIN_Z.member}
       eventHandlers={{
         click: () => {
@@ -196,6 +196,10 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   const [reqStats, setReqStats] = useState<{ count: number; city: string; bubbles: PublicRequestBubble[] }>({ count: 0, city: "", bubbles: [] });
   const lastFetch = useRef<{ lat: number; lng: number } | null>(null);
   const reqSeq = useRef(0);
+  // 622 (25/10) — bulles des demandes : « dès 10 €/jour » (estimation publique, jamais inventée).
+  const fromText622 = useFromText622();
+  const reqPricing = useMemo<MapRequestPricing622[]>(() => reqStats.bubbles.map((b) => ({ serviceType: requestServiceType622([], b.service), lat: b.lat, lng: b.lng })), [reqStats.bubbles]);
+  const reqFromLabel = useRequestFromLabels622(reqPricing);
 
   // Chargement des prestataires autour du centre courant (recharge quand on a
   // bougé d'au moins ~5 km, pour ne pas marteler l'API). Le compteur de
@@ -262,26 +266,18 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   // que des ronds. Prix public déjà servi par /sitters|walkers/nearby.
   // 30/09 (605) — gardien sans tarif jour / heure : « 100 €/sem », « 350 €/mois ».
   const priceOf = (p: PublicProvider) => formatPriceUnit(p.priceFrom, p.currency, p.priceAlt, priceUnitLabels(t, lang), p.priceUnit);
-  // Ce qui est posé à l'écran (px) : une bulle de zoom ville n'apparaît que
-  // si elle ne touche aucun autre rond, pastille ou bulle déjà posée.
-  const placedBubbles: Rect[] = [];
-  const pinRects: { p: PublicProvider | null; c: { x: number; y: number }; r: number }[] = clusters.map((g) => ({
-    p: g.items.length === 1 ? g.items[0] : null,
-    c: mercatorPx(g.center[0], g.center[1], view.zoom),
-    r: g.items.length > 1 ? 24.5 : 46 / 2 + 1,
-  }));
+  // 622 (25/10, Daniel : « il n'y a pas beaucoup les prix ») — la bulle de prix se montre dès le zoom
+  // pays (6) ; plus de calcul de place ici : la passe 622 (CollisionPass607) replie la bulle d'elle-même
+  // quand il n'y a vraiment pas la place, et aucune bulle n'en chevauche une autre.
   const bubbleOf = (p: PublicProvider) => {
     const label = priceOf(p);
-    if (!label || view.zoom < CITY_PRICE_ZOOM_607) return null;
-    if (view.zoom >= PRICE_ZOOM_607) return label;
-    const me = pinRects.find((x) => x.p === p);
-    if (!me) return label;
-    const w = textWidth(label, "700 11.5px Poppins, Inter, system-ui, sans-serif", 11.5) + 16 + 15 + 8;
-    const others: Rect[] = [...placedBubbles];
-    for (const o of pinRects) if (o !== me && Math.abs(o.c.x - me.c.x) < 260 && Math.abs(o.c.y - me.c.y) < 260) others.push(circleRect(o.c, o.r));
-    if (!bubbleHasRoom(me.c, me.r, w, others)) return null;
-    placedBubbles.push({ l: me.c.x - w / 2, t: me.c.y - me.r - 32, r: me.c.x + w / 2, b: me.c.y - me.r - 2 });
-    return label;
+    return label && view.zoom >= Math.min(CITY_PRICE_ZOOM_607, 6) ? label : null;
+  };
+  /** 622 — « dès X » d'un rond de groupe (plus petit tarif réel, gardiens d'abord). */
+  const clusterPrice = (items: PublicProvider[]) => {
+    if (view.zoom < 6) return null;
+    const cp = clusterFromPrice622(items, (p) => [p], (r) => formatPriceUnit(r.priceFrom, r.currency, (r.priceAlt as PriceAlt | null) ?? null, priceUnitLabels(t, lang), r.priceUnit));
+    return cp ? { label: fromText622(cp.label), role: cp.role } : null;
   };
 
   return (
@@ -330,11 +326,12 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         ))}
         {/* 1617 — bulles des demandes (sous les personnes : PIN_Z.request). Clic = note « position approximative ». */}
         {reqStats.bubbles.map((b, i) => (
-          <Marker key={`rq-${i}-${b.lat}-${b.lng}`} position={[b.lat, b.lng]} icon={requestBubbleIcon(b, p1617(lang, b.service === "walk" ? "bubble_walk" : "bubble_sitting"), b.days ? p1617(lang, "bubble_days").replace("{n}", String(b.days)) : null)} zIndexOffset={PIN_Z.request}>
+          <Marker key={`rq-${i}-${b.lat}-${b.lng}`} position={[b.lat, b.lng]} icon={requestBubbleIcon(b, p1617(lang, b.service === "walk" ? "bubble_walk" : "bubble_sitting"), b.days ? p1617(lang, "bubble_days").replace("{n}", String(b.days)) : null, reqFromLabel(reqPricing[i]))} zIndexOffset={PIN_Z.request}>
             {/* Marge haute 112 px : la fiche passe sous la rangée de boutons ET sous la phrase « N propriétaires… ». */}
             <Popup autoPan autoPanPaddingTopLeft={[12, 112]} autoPanPaddingBottomRight={[12, 12]}>
               <div style={{ minWidth: 180, maxWidth: 230 }} data-public-request="">
                 <div className="text-[13px] font-bold text-[#231715]">{p1617(lang, b.service === "walk" ? "bubble_walk" : "bubble_sitting")}{b.days ? ` · ${p1617(lang, "bubble_days").replace("{n}", String(b.days))}` : ""}</div>
+                {reqPricing[i] && <RequestFromLine622 pricing={reqPricing[i]} />}
                 <div className="mt-1 text-xs leading-snug text-[#6E4F48]">{p1617(lang, "bubble_note")}</div>
                 {!(ready && user) && (
                   <Link href="/signup" onClick={() => trackSiteEvent("cta_click", { label: "inscription_demande_carte_1617" })} className="mt-2 flex min-h-[40px] items-center justify-center rounded-[14px] bg-[#2563EB] px-4 text-sm font-bold" style={{ color: "#fff" }}>
@@ -347,7 +344,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         ))}
         {clusters.map((g, i) =>
           g.items.length > 1 ? (
-            <ClusterMarker key={`c-${i}-${g.items.length}-${g.center[0].toFixed(3)}`} center={g.center} items={g.items} onList={setClusterList} />
+            <ClusterMarker key={`c-${i}-${g.items.length}-${g.center[0].toFixed(3)}-${clusterPrice(g.items)?.label ?? ""}`} center={g.center} items={g.items} onList={setClusterList} price={clusterPrice(g.items)} />
           ) : null,
         )}
         {clusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((p) => {
@@ -418,7 +415,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
       </MapContainer>
 
       {/* Bouton « ? » (légende) + mode sombre + compteur : au-dessus des panneaux Leaflet. */}
-      <div className="absolute left-3 top-3 z-[1000] flex items-center gap-2">
+      <div data-map-overlay="" className="absolute left-3 top-3 z-[1000] flex items-center gap-2">
         <button
           type="button"
           onClick={() => setLegendOpen(true)}
@@ -455,7 +452,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
       </div>
       {/* 1617 — « N propriétaires cherchent un gardien à <ville> cette semaine » : seulement si N ≥ 1. */}
       {reqStats.count >= 1 && reqStats.city && (
-        <div data-testid="requests-stats-1617" className="pointer-events-none absolute left-3 top-[60px] z-[1000] max-w-[calc(100%-24px)] rounded-full px-3.5 py-2 text-xs font-bold text-white shadow-lg" style={{ background: "rgba(201,42,18,.92)" }}>
+        <div data-testid="requests-stats-1617" data-map-overlay="" className="pointer-events-none absolute left-3 top-[60px] z-[1000] max-w-[calc(100%-24px)] rounded-full px-3.5 py-2 text-xs font-bold text-white shadow-lg" style={{ background: "rgba(201,42,18,.92)" }}>
           {statsSentence(lang, reqStats.count, reqStats.city)}
         </div>
       )}
@@ -478,6 +475,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
       {compact && (
         <Link
           href="/pawmap"
+          data-map-overlay=""
           className="absolute bottom-3 right-3 z-[1000] inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#C92A12] px-5 text-sm font-bold text-white shadow-lg transition hover:bg-[#9E1F0B]"
         >
           {t("cta_open_pawmap")}

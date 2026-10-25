@@ -114,6 +114,8 @@ import { RankPill611 } from "@/components/Rank611";
 import { parseRank611, type Rank611 } from "@/lib/ranks611";
 import { parsePins1910, type Pins1910 } from "@/lib/pins1910";
 import { PinChips1910 } from "@/components/Pins1910";
+import { clusterFromPrice622, normalizeMemberPrices622, type MapRequestPricing622 } from "@/lib/mapPrice622";
+import { RequestFromLine622, useFromText622, useRequestFromLabels622 } from "@/components/RequestFrom622";
 
 export { clusterize } from "@/lib/mapCluster";
 
@@ -157,6 +159,8 @@ export type MapRequest = {
   locationLabel?: string;
   /** 590 — photo du propriétaire (carte focus). */
   ownerAvatar?: string;
+  /** 622 — de quoi demander « à partir de » (POST /pricing/estimate/public) : service, devise, dates. */
+  pricing?: MapRequestPricing622 | null;
 };
 
 // ── Icônes (un dessin par famille, dans lib/pawmapLegend) ────────────────────
@@ -229,10 +233,13 @@ function meIcon(o: { role: string; name: string; avatar?: string | null; premium
     popupAnchor: [0, -32],
   });
 }
-function requestIcon(r: MapRequest, mineLabel: string): L.DivIcon {
+/** 622 — zoom à partir duquel les prix se montrent (pays). */
+const PRICE_ZOOM_COUNTRY_622 = 6;
+function requestIcon(r: MapRequest, mineLabel: string, fromLabel?: string | null): L.DivIcon {
   return L.divIcon({
     className: "hps-l-request",
-    html: requestBubbleHtml({ service: r.service, priceLabel: r.priceLabel, boosted: r.boosted, mine: r.mine, mineLabel }),
+    // 622 — budget du propriétaire ; sans budget, « dès 10 €/jour » (estimation publique, jamais inventée).
+    html: requestBubbleHtml({ service: r.service, priceLabel: r.priceLabel || (r.mine ? null : fromLabel || null), boosted: r.boosted, mine: r.mine, mineLabel }),
     // 590 — bulle 26 + pointe 7 : la pointe touche la position (floutée).
     iconSize: [96, 34],
     iconAnchor: [48, 34],
@@ -367,7 +374,7 @@ function PlaceCluster({ center, count, category }: { center: [number, number]; c
  * liste — zoomer ne les séparerait jamais. Sinon on cadre le groupe pour que
  * ses points se séparent vraiment ; déjà au zoom rue = liste.
  */
-function MemberCluster({ center, items, onList, friendSet, shift }: { center: [number, number]; items: NearbyMember[]; onList: (l: NearbyMember[]) => void; friendSet: Set<string>; shift?: Px }) {
+function MemberCluster({ center, items, onList, friendSet, shift, price }: { center: [number, number]; items: NearbyMember[]; onList: (l: NearbyMember[]) => void; friendSet: Set<string>; shift?: Px; price?: { label: string; role: "sitter" | "walker" } | null }) {
   const map = useMap();
   const count = items.length;
   const dom = dominantRole(items.map((m) => m.role));
@@ -380,7 +387,7 @@ function MemberCluster({ center, items, onList, friendSet, shift }: { center: [n
   // le DESSIN bouge, la position du groupe reste la même (comme l'app).
   const sx = Math.round(shift?.x ?? 0);
   const sy = Math.round(shift?.y ?? 0);
-  const icon = useMemo(() => L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(count, dom, hasFriend, counts), iconSize: [sz, sz], iconAnchor: [sz / 2 - sx, sz / 2 - sy] }), [count, dom, hasFriend, countsKey, sz, sx, sy]);
+  const icon = useMemo(() => L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(count, dom, hasFriend, counts, price?.label ?? null, price?.role ?? "sitter"), iconSize: [sz, sz], iconAnchor: [sz / 2 - sx, sz / 2 - sy] }), [count, dom, hasFriend, countsKey, sz, sx, sy, price?.label, price?.role]);
   const onClick = () => {
     if (isStackedGroup(items) || map.getZoom() >= 17) { onList(items); return; }
     const pts = items.map(pointOf).filter((p): p is [number, number] => !!p);
@@ -646,7 +653,7 @@ export default function PoiMap({
   spotTypeLabels,
   reports = [],
   reportTypeLabels,
-  members = [],
+  members: membersRaw = [],
   memberRoleLabels,
   cardLabels,
   wantedRoles = ["sitter", "walker", "owner"],
@@ -812,6 +819,16 @@ export default function PoiMap({
   // 30/09 (605) — unités « /sem », « /mois » de la bulle de prix (9 langues).
   const { t: tUnits, lang: langUnits } = useT();
   const priceUnits = priceUnitLabels(tUnits, langUnits);
+  // 622 (25/10, Daniel : « il n'y a pas beaucoup les prix ») — tarif effectif de chaque membre :
+  // `priceFrom`, sinon le plus petit tarif réel de `prices` (jamais inventé).
+  const members = useMemo(() => membersRaw.map((m) => normalizeMemberPrices622(m)), [membersRaw]);
+  /** « dès 10 €/jour » ; en japonais le « から » suit le prix (« 10 €/日～ »). */
+  const fromText622 = useFromText622();
+  // 622 — demandes SANS budget : « dès 10 €/jour » lu sur POST /pricing/estimate/public, UN appel par
+  // service / devise / zone d'~50 km, au plus BUBBLE_ESTIMATE_MAX_622 par carte (route limitée à 30/min).
+  const reqFromItems = useMemo(() => requests.map((r) => (r.priceLabel || r.mine ? null : r.pricing ?? null)), [requests]);
+  const reqFromLabel = useRequestFromLabels622(reqFromItems);
+  const reqFromOf = (r: MapRequest): string | null => (r.priceLabel || r.mine ? null : reqFromLabel(r.pricing));
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
   const friendSet = useMemo(() => new Set(friendIds), [friendIds]);
   const liveIdSet = useMemo(() => new Set([...friendPositions.map((p) => p.userId), ...liveIdsAll]), [friendPositions, liveIdsAll]);
@@ -832,7 +849,9 @@ export default function PoiMap({
   // bulle si la place est libre au-dessus d'elle (décision de BOB, réversible
   // dans lib/pawmapOverlap607.ts).
   const showPrice = zoomLevel >= PRICE_ZOOM_607;
-  const cityZoom = !showPrice && zoomLevel >= CITY_PRICE_ZOOM_607;
+  // 622 (25/10, Daniel : « il n'y a pas beaucoup les prix ») — bulles et « dès X » des groupes dès le zoom
+  // PAYS (6) au lieu du zoom ville (9) ; la passe 622 garantit qu'aucune bulle n'en chevauche une autre.
+  const cityZoom = !showPrice && zoomLevel >= Math.min(CITY_PRICE_ZOOM_607, PRICE_ZOOM_COUNTRY_622);
   // 590 (§1, §4) — au zoom rue : le PRÉNOM sous le rond ; le prix part dans
   // une bulle à la couleur du service AU-DESSUS du rond, seulement s'il est
   // de l'autre côté du marché (propriétaire → tarifs ; prestataire → rien).
@@ -861,6 +880,12 @@ export default function PoiMap({
     return ps && pw ? [ps, pw] : null;
   };
   const memberDuo = (roles: PersonRole[]): [string, string] | null => (showPrice || cityZoom ? duoPrices(roles) : null);
+  /** 622 — « dès X » d'un rond de groupe (plus petit tarif réel, gardiens d'abord) ; null sans prix montrable. */
+  const clusterPrice = (items: NearbyMember[]): { label: string; role: "sitter" | "walker" } | null => {
+    if (!(showPrice || cityZoom)) return null;
+    const cp = clusterFromPrice622(items, (m) => rolesOf(m), (r) => priceFor(String(r.role || ""), r.priceFrom, r.currency, (r.priceAlt as PriceAlt | null) ?? null, r.priceUnit));
+    return cp ? { label: fromText622(cp.label), role: cp.role } : null;
+  };
 
   const poiClusters = useMemo(
     () => clusterize(pois, zoomLevel, (poi) => (Array.isArray(poi.location?.coordinates) && poi.location.coordinates.length >= 2 ? [poi.location.coordinates[1], poi.location.coordinates[0]] : null)),
@@ -942,7 +967,11 @@ export default function PoiMap({
     const fixedBoxes: PlacedBox[] = [...(meAt ? [{ at: meAt, box: meBox }] : []), ...fanAt.map((p, k) => ({ at: { x: p.x + fanShift[k].x, y: p.y + fanShift[k].y }, box: friendBox }))];
     // B. Pastilles et membres seuls (jamais un ami) : place libre la plus proche (prénom et bulle compris).
     const boxOf = (e: { items: NearbyMember[] }): Rect => {
-      if (e.items.length > 1) return pinBox(24.5);
+      if (e.items.length > 1) {
+        // 622 — « dès X » sous le rond du groupe : sa place compte dans la boîte.
+        const cp = clusterPrice(e.items);
+        return cp ? pinBox(24.5, { labelW: textWidth(cp.label, "700 10.5px Poppins, Inter, system-ui, sans-serif", 10.5) + 14, labelH: 18, labelGap: 3 }) : pinBox(24.5);
+      }
       const m = e.items[0];
       const wanted = rolesMatching(m, wantedRoles);
       const roles = wanted.length ? [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => w.id === r.id))] : rolesOf(m);
@@ -1319,7 +1348,7 @@ export default function PoiMap({
           <Marker
             key={`req-${r.id}`}
             position={[r.lat, r.lng]}
-            icon={requestIcon(r, requestMineLabel)}
+            icon={requestIcon(r, requestMineLabel, reqFromOf(r))}
             zIndexOffset={PIN_Z.request + (r.mine ? 200 : 0)}
             eventHandlers={{
               click: () => {
@@ -1331,7 +1360,7 @@ export default function PoiMap({
                   name: r.ownerName ? `${firstOf(r.ownerName)} · ${focusLabels.request}` : requestLabels?.title || focusLabels.request,
                   role: "owner",
                   avatar: r.ownerAvatar || null,
-                  info: [r.service === "walk" ? focusLabels.walk : focusLabels.sitting, r.priceLabel].filter(Boolean).join(" · "),
+                  info: [r.service === "walk" ? focusLabels.walk : focusLabels.sitting, r.priceLabel || reqFromOf(r)].filter(Boolean).join(" · "),
                   icon: r.service === "walk" ? "walk" : "home",
                   open: () => setOpenReq(r),
                 });
@@ -1348,6 +1377,7 @@ export default function PoiMap({
                 {openReq.priceLabel ? ` · ${openReq.priceLabel}` : ""}
                 {openReq.city ? ` · ${openReq.city}` : ""}
               </div>
+              {!openReq.priceLabel && openReq.pricing && <RequestFromLine622 pricing={openReq.pricing} />}
               {openReq.locationLabel && <div className="mt-0.5 text-xs font-semibold text-ink">📍 {openReq.locationLabel}</div>}
               {openReq.body && <div className="mt-1 line-clamp-3 text-xs text-ink-muted">{openReq.body}</div>}
               {!openReq.mine && onOfferService && requestLabels && (
@@ -1362,7 +1392,7 @@ export default function PoiMap({
         {/* MEMBRES : UNE personne = UN rond (liseré de chacun de ses rôles),
             rond de groupe à la couleur dominante. Clic = fiche du bas. */}
         {memberClusters.map((g, i) =>
-          g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} items={g.items} onList={(items) => openSheet({ kind: "list", items }, g.center)} friendSet={friendSet} shift={lay.shifts[i]} /> : null,
+          g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} items={g.items} onList={(items) => openSheet({ kind: "list", items }, g.center)} friendSet={friendSet} shift={lay.shifts[i]} price={clusterPrice(g.items)} /> : null,
         )}
         {[...memberClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]), ...friendMembers].map((m) => {
           const pt = pointOf(m);

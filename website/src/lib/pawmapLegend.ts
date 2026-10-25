@@ -78,11 +78,11 @@ export const POPPINS = "Poppins,Inter,system-ui,sans-serif";
  * service (gardien bleu + maison, promeneur vert + marcheur, demande orange +
  * maison), 22 px de haut, contour blanc 2 px, pointe 10 × 6 foncée.
  */
-export function priceBubbleHtml(text: string, service: string, discSize: number): string {
+export function priceBubbleHtml(text: string, service: string, discSize: number, lift = 0): string {
   const k = roleKey(service);
   const [a, b] = RING_GRAD[k];
   const icon = k === "walker" ? MS_WALK : MS_HOME;
-  return `<span style="position:absolute;bottom:${discSize + 3}px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;">`
+  return `<span data-pin-extra="" style="position:absolute;bottom:${discSize + 3 + lift}px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;">`
     + `<span style="height:22px;padding:0 8px;border-radius:8px;background:linear-gradient(170deg,${a},${b});color:#fff;display:inline-flex;align-items:center;gap:4px;font:700 11.5px/1 ${POPPINS};white-space:nowrap;box-shadow:0 0 0 2px #fff,0 5px 10px -4px rgba(23,20,31,.45);">`
     + `<svg viewBox="0 0 24 24" width="11" height="11" fill="#fff" aria-hidden="true">${icon}</svg>${escapeHtml(text)}</span>`
     + `<svg viewBox="0 0 10 6" width="10" height="6" style="display:block;margin-top:1px;" aria-hidden="true"><path d="M0 0h10L5 6z" fill="${b}"/></svg></span>`;
@@ -93,11 +93,11 @@ export function priceBubbleHtml(text: string, service: string, discSize: number)
  * bicolore bleu → vert « 🏠 20 € · 🐾 12 € », comme l'app 594. Même gabarit
  * que priceBubbleHtml (22 px, contour blanc, pointe foncée).
  */
-export function priceDuoBubbleHtml(sitterText: string, walkerText: string, discSize: number): string {
+export function priceDuoBubbleHtml(sitterText: string, walkerText: string, discSize: number, lift = 0): string {
   const [sa] = RING_GRAD.sitter;
   const [, wb] = RING_GRAD.walker;
   const ic = (d: string) => `<svg viewBox="0 0 24 24" width="11" height="11" fill="#fff" aria-hidden="true">${d}</svg>`;
-  return `<span style="position:absolute;bottom:${discSize + 3}px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;">`
+  return `<span data-pin-extra="" style="position:absolute;bottom:${discSize + 3 + lift}px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;">`
     + `<span style="height:22px;padding:0 8px;border-radius:8px;background:linear-gradient(90deg,${sa},${RING_GRAD.sitter[1]} 45%,${RING_GRAD.walker[0]} 55%,${wb});color:#fff;display:inline-flex;align-items:center;gap:4px;font:700 11.5px/1 ${POPPINS};white-space:nowrap;box-shadow:0 0 0 2px #fff,0 5px 10px -4px rgba(23,20,31,.45);">`
     + `${ic(MS_HOME)}${escapeHtml(sitterText)}<span style="opacity:.8;">·</span>${ic(MS_WALK)}${escapeHtml(walkerText)}</span>`
     + `<svg viewBox="0 0 10 6" width="10" height="6" style="display:block;margin-top:1px;" aria-hidden="true"><path d="M0 0h10L5 6z" fill="${RING_GRAD.sitter[1]}"/></svg></span>`;
@@ -105,7 +105,7 @@ export function priceDuoBubbleHtml(sitterText: string, walkerText: string, discS
 
 /** Étiquette du prénom sous un rond (§4) : 20 px, fond blanc (sombre : encre chaude). */
 function nameTagHtml(text: string, top: number, dark?: boolean): string {
-  return `<span style="position:absolute;top:${top}px;left:50%;transform:translateX(-50%);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:10px;white-space:nowrap;max-width:160px;overflow:hidden;background:${dark ? "rgba(32,29,35,.95)" : "#fff"};color:${dark ? "#F6F1EE" : "#1B1616"};font:600 10.5px/1 ${POPPINS};box-shadow:0 2px 6px -1px rgba(23,20,31,.35);">${escapeHtml(text)}</span>`;
+  return `<span data-pin-extra="" style="position:absolute;top:${top}px;left:50%;transform:translateX(-50%);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:10px;white-space:nowrap;max-width:160px;overflow:hidden;background:${dark ? "rgba(32,29,35,.95)" : "#fff"};color:${dark ? "#F6F1EE" : "#1B1616"};font:600 10.5px/1 ${POPPINS};box-shadow:0 2px 6px -1px rgba(23,20,31,.35);">${escapeHtml(text)}</span>`;
 }
 
 /** Coche bleue « identité vérifiée » (15 px, en bas à gauche). */
@@ -322,7 +322,10 @@ export function memberPinHtml(o: MemberPinOptions): string {
   // 590 — sous le rond : le PRÉNOM seul (le prix part dans la bulle au-dessus).
   const captionText = o.caption || (o.priceBubble || o.priceDuo ? "" : o.priceLabel || "");
   const caption = captionText ? nameTagHtml(captionText, size + 4, o.dark) : "";
-  const bubble = o.priceDuo ? priceDuoBubbleHtml(o.priceDuo[0], o.priceDuo[1], size) : o.priceBubble ? priceBubbleHtml(o.priceBubble, key, size) : "";
+  // 25/10 (622, Daniel : « bulles coupées ») — la couronne (en haut à droite) et les pins (en haut à
+  // gauche) dépassent du rond : la bulle de prix monte d'autant, elle ne passe plus jamais dessous.
+  const lift = bubbleLift622(o.premium, o.pins);
+  const bubble = o.priceDuo ? priceDuoBubbleHtml(o.priceDuo[0], o.priceDuo[1], size, lift) : o.priceBubble ? priceBubbleHtml(o.priceBubble, key, size, lift) : "";
   // L'icône du rôle reste DESSOUS la photo : si la photo tarde ou échoue,
   // on voit l'icône, jamais un disque vide.
   const glyphBox = `<span style="position:absolute;inset:${Math.round(size * 0.18)}px;display:block;">${ROLE_GLYPH[key]}</span>`;
@@ -337,6 +340,11 @@ export function memberPinHtml(o: MemberPinOptions): string {
   // 27/09 — les liserés concentriques des autres rôles sont RETIRÉS : ils
   // recouvraient la lueur PawBoost. Les rôles sont dans le contour (`outer`).
   return `<div style="position:relative;width:${size}px;height:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${o.avatar ? outer : grad};${disc}${glow}display:flex;align-items:center;justify-content:center;box-sizing:border-box;position:relative;overflow:hidden;">${body}</div>${o.premium ? crownBadge(20) : ""}${o.boosted ? rocketBadge(18) : ""}${o.verified ? verifiedBadge() : ""}${o.online === true || o.online === false ? onlineDot(12, o.online, !!o.verified) : ""}${pinsOnAvatarHtml(o.pins, size, { leftMiddle: !!o.verified && (o.online === true || o.online === false) })}${caption}${bubble}</div>`;
+}
+
+/** 25/10 (622) — hauteur dont la bulle de prix monte au-dessus d'une couronne (≈ 35 % de 22 px) ou des pins. */
+export function bubbleLift622(premium?: boolean | null, pins?: unknown): number {
+  return premium ? 9 : pins ? 7 : 0;
 }
 
 /** Échappe une chaîne insérée dans le HTML d'une épingle (nom, URL). */
@@ -424,7 +432,8 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   // 27/09 — plus d'anneaux de rôle empilés autour d'un ami : son contour
   // porte ses rôles, le rose passe dans le halo (FRIEND_GLOW).
   const ringLayer = "";
-  const bubble = o.priceDuo ? priceDuoBubbleHtml(o.priceDuo[0], o.priceDuo[1], size) : o.priceBubble ? priceBubbleHtml(o.priceBubble, key, size) : "";
+  const lift = bubbleLift622(o.premium, o.pins);
+  const bubble = o.priceDuo ? priceDuoBubbleHtml(o.priceDuo[0], o.priceDuo[1], size, lift) : o.priceBubble ? priceBubbleHtml(o.priceBubble, key, size, lift) : "";
   // 590 (§4) — anneau 3 px en DÉGRADÉ (rose pour un ami, rôle pour moi),
   // liseré blanc 2 px, puis la photo. Mode « amis seulement » : anneau
   // pointillé plein, comme avant (il doit se lire d'un coup d'œil).
@@ -477,7 +486,16 @@ export function memberClusterSlices(counts?: Partial<Record<RoleKey, number>> | 
  * = rond uni au dégradé du rôle. Le nombre est posé sur une pastille blanche
  * au centre, à la couleur foncée du rôle dominant.
  */
-export function memberClusterHtml(count: number, dominantRole?: string | null, hasFriend = false, counts?: Partial<Record<RoleKey, number>> | null): string {
+export function memberClusterHtml(count: number, dominantRole?: string | null, hasFriend = false, counts?: Partial<Record<RoleKey, number>> | null, priceLabel?: string | null, priceRole: RoleKey = "sitter"): string {
+  const inner = memberClusterDiscHtml(count, dominantRole, hasFriend, counts);
+  if (!priceLabel) return inner;
+  // 25/10 (622, Daniel : « il n'y a pas beaucoup les prix ») — « dès 10 €/jour » sous le rond du
+  // groupe : le plus petit tarif RÉEL de ses gardiens (sinon promeneurs), calculé par l'appelant.
+  const size = count >= 10 ? 44 : 40;
+  return `<div style="position:relative;width:${size}px;height:${size}px;">${inner}<span data-cluster-price="" data-pin-extra="" style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);height:18px;display:inline-flex;align-items:center;padding:0 7px;border-radius:9px;white-space:nowrap;background:#fff;color:${INK};font:700 10.5px/1 ${POPPINS};box-shadow:0 0 0 1.5px ${ROLE_COLOR[priceRole]},0 2px 6px -1px rgba(23,20,31,.35);">${escapeHtml(priceLabel)}</span></div>`;
+}
+
+function memberClusterDiscHtml(count: number, dominantRole?: string | null, hasFriend = false, counts?: Partial<Record<RoleKey, number>> | null): string {
   const label = count > 99 ? "99+" : String(count);
   const slices = memberClusterSlices(counts);
   const dom: RoleKey = counts ? slices.reduce((b, s) => (s.share > b.share ? s : b), slices[0]).role : roleKey(dominantRole || "sitter");
