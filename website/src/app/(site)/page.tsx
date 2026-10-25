@@ -345,6 +345,15 @@ export default function HomePage() {
             {/* 16/10 (SAM, §B.6 build 617) — Dallas gratuit : le guide des prix
                 (article déjà en ligne) relié depuis l'accueil. Aucune page créée. */}
             <p className="mt-3 text-sm"><Link href="/blog/how-much-does-a-pet-sitter-cost-in-dallas" className="font-semibold text-owner hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">How much does a pet sitter cost in Dallas? $30-55 a day, $15-25 a walk →</Link></p>
+            {/* 25/10 (GUS) — Search Console 28 j USA : « cat sitting » 574 affichages,
+                0 clic, 20e place sur /blog/what-is-cat-sitting ; « dog sitter » 20e-30e sur les
+                pages villes ; Austin 561 affichages. Les 3 guides propriétaires déjà en ligne,
+                reliés depuis l'accueil (page la plus forte). Aucune page créée. */}
+            <p className="mt-2 text-sm text-[#6E4F48]">Owner guides:{" "}
+              <Link href="/blog/what-is-cat-sitting" className="font-semibold text-owner hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">Cat sitting explained</Link> ·{" "}
+              <Link href="/blog/what-is-dog-sitting" className="font-semibold text-owner hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">Dog sitting explained</Link> ·{" "}
+              <Link href="/blog/finding-a-pet-sitter-in-austin" className="font-semibold text-owner hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">Finding a pet sitter in Austin</Link>
+            </p>
             <p className="mt-2 text-sm"><Link href="/become-a-pet-sitter/dallas" className="font-semibold text-owner hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">Become a pet sitter in Dallas →</Link> · <Link href="/villes" className="text-[#6E4F48] hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">All cities</Link></p>
           </div>
         </div>
