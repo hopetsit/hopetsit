@@ -11,7 +11,7 @@
 // `window` et ne se rend pas côté serveur.
 
 import Link from "@/components/SiteLink";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer, ZoomControl, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -47,27 +47,22 @@ import {
 import { safeFly } from "@/lib/safeFly";
 import { AppIcon } from "@/components/AppIcon";
 import { CollisionPass607 } from "@/components/CollisionPass607";
+import { PAWMAP_2610_CSS, SPIDER_MAX_2610, clusterHtml2610, profilePinHtml2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
 import { VerifiedPill } from "@/components/VerifiedPill";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { askHref, askLabel, askNote, dm } from "@/lib/i18n/demander2809";
 
-function memberIcon(p: PublicProvider, caption: string | null, bubble: string | null): L.DivIcon {
+// 26/10 (2610, maquette de l'app « A · Anneau ») — rond 50 px ; prix SEULEMENT sur le rond touché.
+function memberIcon(p: PublicProvider, caption: string | null, o: { selected?: boolean; dim?: boolean; prices?: Price2610[]; off?: { x: number; y: number } | null; dark?: boolean } = {}): L.DivIcon {
+  const ox = Math.round(o.off?.x ?? 0);
+  const oy = Math.round(o.off?.y ?? 0);
   return L.divIcon({
-    className: "hps-l-member",
-    html: memberPinHtml({
-      role: p.role,
-      boosted: p.boosted,
-      verified: p.identityVerified === true,
-      avatar: p.avatar || null,
-      caption,
-      // 590 (§1) — visiteur = côté propriétaire : tarif dans une bulle au-dessus.
-      priceBubble: bubble,
-      size: 46,
-    }),
-    iconSize: [46, 46],
-    iconAnchor: [23, 23],
-    popupAnchor: [0, -26],
+    className: `hps-l-member${o.dim ? " hps2610-dim" : ""}`,
+    html: profilePinHtml2610({ roles: [p.role], selected: !!o.selected, prices: o.prices, caption, dark: !!o.dark }),
+    iconSize: [50, 50],
+    iconAnchor: [25 - ox, 25 - oy],
+    popupAnchor: [ox, oy - 28],
   });
 }
 // 1617 — bulle orange #C92A12 translucide + pastille du service (garde / promenade),
@@ -76,7 +71,9 @@ const MS_WALK_1617 = "M13.5 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9.8 8.9 7 23h2.1l1.
 const MS_HOME_1617 = "M12 3 2 12h3v8h5v-6h4v6h5v-8h3L12 3z";
 function requestBubbleIcon(b: PublicRequestBubble, serviceLabel: string, daysLabel: string | null, fromLabel?: string | null): L.DivIcon {
   const icon = `<svg viewBox="0 0 24 24" width="13" height="13" fill="#fff" aria-hidden="true"><path d="${b.service === "walk" ? MS_WALK_1617 : MS_HOME_1617}"/></svg>`;
-  const text = [serviceLabel, daysLabel, fromLabel].filter(Boolean).join(" · ");
+  // 26/10 (2610) — aucun prix sur la carte par défaut : le « dès X » reste dans la fiche de la demande.
+  void fromLabel;
+  const text = [serviceLabel, daysLabel].filter(Boolean).join(" · ");
   const html = `<div style="position:relative;display:flex;flex-direction:column;align-items:center;">
     <div style="height:26px;background:rgba(201,42,18,.82);color:#fff;border-radius:9px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;font:700 11.5px/1 Poppins,Inter,system-ui,sans-serif;white-space:nowrap;box-shadow:0 0 0 2px #fff,0 6px 12px -4px rgba(23,20,31,.5);backdrop-filter:blur(2px);">${icon}<span>${text.replace(/</g, "&lt;")}</span></div>
     <svg viewBox="0 0 12 7" width="12" height="7" style="display:block;margin-top:1px;" aria-hidden="true"><path d="M0 0h12L6 7z" fill="rgba(201,42,18,.82)"/></svg>
@@ -84,10 +81,9 @@ function requestBubbleIcon(b: PublicRequestBubble, serviceLabel: string, daysLab
   return L.divIcon({ className: "hps-l-request-public", html, iconSize: [110, 34], iconAnchor: [55, 34], popupAnchor: [0, -32] });
 }
 
-function clusterIcon(items: PublicProvider[], price?: { label: string; role: "sitter" | "walker" } | null): L.DivIcon {
-  const sz = items.length >= 10 ? 44 : 40;
-  // 622 — « dès X » sous le rond : le plus petit tarif réel du groupe (gardiens d'abord).
-  return L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(items.length, dominantRole(items.map((p) => p.role)), false, roleCounts(items.map((p) => p.role)), price?.label ?? null, price?.role ?? "sitter"), iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
+function clusterIcon(items: PublicProvider[], dark: boolean, price?: { from: string; amount: string; role: Role2610 } | null): L.DivIcon {
+  // 2610 — rond 48, anneau segmenté par rôle ; « dès X » seulement quand le groupe est touché.
+  return L.divIcon({ className: "hps-l-mgroup", html: clusterHtml2610({ counts: roleCounts(items.map((p) => p.role)), total: items.length, dark, fromLabel: price ?? null }), iconSize: [48, 48], iconAnchor: [24, 24] });
 }
 
 // 04/10 (610, ajout de Daniel) — PawSpots en LECTURE SEULE sur la carte
@@ -136,23 +132,21 @@ function Watcher({ onChange }: { onChange: (v: View) => void }) {
 }
 
 /**
- * Groupe : points superposés (même position à ~25 m près — un gardien qui est
- * aussi promeneur, deux voisins) = la LISTE tout de suite, zoomer ne les
- * séparerait pas (PawMap 585) ; sinon on cadre le groupe ; zoom rue = liste.
+ * Groupe (2610) : toucher = zoom +1,5 et éclatement autour de lui (6 sur 72 px, le reste sur
+ * 132 px, sans trait). Au-delà de SPIDER_MAX_2610 profils : comportement d'avant (liste ou zoom).
  */
-function ClusterMarker({ center, items, onList, price }: { center: [number, number]; items: PublicProvider[]; onList: (l: PublicProvider[]) => void; price?: { label: string; role: "sitter" | "walker" } | null }) {
+function ClusterMarker({ center, items, onList, onSpider, dark, price, open = false }: { center: [number, number]; items: PublicProvider[]; onList: (l: PublicProvider[]) => void; onSpider: (items: PublicProvider[], center: [number, number]) => void; dark: boolean; price?: { from: string; amount: string; role: Role2610 } | null; open?: boolean }) {
   const map = useMap();
   return (
     <Marker
       position={center}
-      icon={clusterIcon(items, price)}
-      zIndexOffset={PIN_Z.member}
+      icon={clusterIcon(items, dark, open ? price : null)}
+      zIndexOffset={PIN_Z.member + (open ? 500 : 0)}
       eventHandlers={{
         click: () => {
+          if (open || items.length <= SPIDER_MAX_2610) { onSpider(items, center); return; }
           let far = 0;
           for (let i = 0; i < items.length; i += 1) for (let j = i + 1; j < items.length; j += 1) far = Math.max(far, haversineKm(items[i].lat, items[i].lng, items[j].lat, items[j].lng) * 1000);
-          // Même personne (gardien ET promeneur) : même prénom et même photo —
-          // la route publique n'envoie pas d'identifiant de personne.
           const samePerson = items.every((p) => p.avatar && p.avatar === items[0].avatar && p.name === items[0].name);
           if (far <= 25 || samePerson || map.getZoom() >= 16) { onList(items); return; }
           try {
@@ -165,6 +159,23 @@ function ClusterMarker({ center, items, onList, price }: { center: [number, numb
       }}
     />
   );
+}
+
+/** 2610 — caméra de la sélection : vol +2 (profil) / +1,5 (groupe), clic dans le vide = tout remis. */
+function SelectCamera2610({ target, onEmpty }: { target: { lat: number; lng: number; dz: number; ts: number } | null; onEmpty: () => void }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!target) return;
+    safeFly(map, [target.lat, target.lng], Math.min(18, map.getZoom() + target.dz), 0.45);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.ts]);
+  useMapEvents({ click: onEmpty });
+  return null;
+}
+function MapRef2610({ onMap }: { onMap: (m: L.Map) => void }) {
+  const map = useMap();
+  useEffect(() => { onMap(map); }, [map, onMap]);
+  return null;
 }
 
 export type PublicPawMapProps = {
@@ -200,6 +211,40 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   const fromText622 = useFromText622();
   const reqPricing = useMemo<MapRequestPricing622[]>(() => reqStats.bubbles.map((b) => ({ serviceType: requestServiceType622([], b.service), lat: b.lat, lng: b.lng })), [reqStats.bubbles]);
   const reqFromLabel = useRequestFromLabels622(reqPricing);
+  // 26/10 (2610, maquette de l'app) — sélection d'un profil, groupe éclaté, fiche ouverte, caméra.
+  const [sel, setSel] = useState<string | null>(null);
+  const [spider, setSpider] = useState<{ ids: string[]; center: [number, number]; key: string } | null>(null);
+  const [fiche, setFiche] = useState<string | null>(null);
+  const [cam, setCam] = useState<{ lat: number; lng: number; dz: number; ts: number } | null>(null);
+  const prevView = useRef<{ c: [number, number]; z: number } | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRefs = useRef<Map<string, L.Marker>>(new Map());
+  const onMap2610 = useCallback((m: L.Map) => { mapRef.current = m; }, []);
+  // Visiteur non connecté = vue PROPRIÉTAIRE (le public visé par le site) ; connecté = son rôle actif.
+  const viewerRole = useMemo(() => {
+    if (!(ready && user)) return "owner";
+    try { return window.localStorage.getItem("hopetsit_role") || "owner"; } catch { return "owner"; }
+  }, [ready, user]);
+  const savePrev = () => {
+    const m = mapRef.current;
+    if (!m || prevView.current) return;
+    const c = m.getCenter();
+    prevView.current = { c: [c.lat, c.lng], z: m.getZoom() };
+  };
+  const resetAll = () => {
+    if (!sel && !spider) return;
+    setSel(null);
+    setSpider(null);
+    setFiche(null);
+    const pv = prevView.current;
+    prevView.current = null;
+    if (pv && mapRef.current) safeFly(mapRef.current, pv.c, pv.z, 0.45);
+  };
+  useEffect(() => {
+    if (!fiche) return;
+    const mk = markerRefs.current.get(fiche);
+    try { mk?.openPopup(); } catch { /* marqueur pas prêt */ }
+  }, [fiche]);
 
   // Chargement des prestataires autour du centre courant (recharge quand on a
   // bougé d'au moins ~5 km, pour ne pas marteler l'API). Le compteur de
@@ -232,7 +277,9 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   // 44 px PUIS fusion de tout groupe à moins de 50 px d'un autre. Avant :
   // cases de 36 px seules → pastilles « 5 », « 3 », « 2 » collées au zoom pays.
   const clusters = useMemo(() => {
-    const list = verifiedOnly ? providers.filter((p) => p.identityVerified === true) : providers;
+    const list0 = verifiedOnly ? providers.filter((p) => p.identityVerified === true) : providers;
+    const out = new Set(spider?.ids ?? []);
+    const list = list0.filter((p) => !out.has(p.id));
     const cells = clusterize(list, view.zoom, (p) => [p.lat, p.lng], MEMBER_CELL_PX_607).map((g) => g.items);
     const merged = mergeCloseGroups(cells, (p) => mercatorPx(p.lat, p.lng, view.zoom));
     return merged.map((items) => {
@@ -241,7 +288,20 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
       for (const p of items) { la += p.lat; ln += p.lng; }
       return { items, center: [la / items.length, ln / items.length] as [number, number] };
     });
-  }, [providers, view.zoom, verifiedOnly]);
+  }, [providers, view.zoom, verifiedOnly, spider]);
+  const spiderItems = useMemo(() => {
+    if (!spider) return [] as PublicProvider[];
+    const byId = new Map(providers.map((p) => [p.id, p] as const));
+    return spider.ids.map((id) => byId.get(id)).filter((p): p is PublicProvider => !!p);
+  }, [spider, providers]);
+  const openSpider = (items: PublicProvider[], c: [number, number]) => {
+    if (spider && spider.key === items.map((p) => p.id).join(",")) { resetAll(); return; }
+    savePrev();
+    setSel(null);
+    setFiche(null);
+    setSpider({ ids: items.map((p) => p.id), center: c, key: items.map((p) => p.id).join(",") });
+    setCam({ lat: c[0], lng: c[1], dz: 1.5, ts: Date.now() });
+  };
   const spotClusters = useMemo(() => clusterize(spots, view.zoom, (s) => [s.lat, s.lng]), [spots, view.zoom]);
   const spotTypeLabel = (ty: string) => t(`map_spot_type_${ty}`) || ty;
   // 607 — mêmes seuils que l'app : prénom + prix au zoom rue (13) ; dès le
@@ -269,21 +329,25 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   // 622 (25/10, Daniel : « il n'y a pas beaucoup les prix ») — la bulle de prix se montre dès le zoom
   // pays (6) ; plus de calcul de place ici : la passe 622 (CollisionPass607) replie la bulle d'elle-même
   // quand il n'y a vraiment pas la place, et aucune bulle n'en chevauche une autre.
-  const bubbleOf = (p: PublicProvider) => {
+  // 2610 — prix (règle visiblePrices) du profil TOUCHÉ seulement ; plus aucun prix permanent.
+  const pricesOf = (p: PublicProvider): Price2610[] => {
     const label = priceOf(p);
-    return label && view.zoom >= Math.min(CITY_PRICE_ZOOM_607, 6) ? label : null;
+    return label && visibleRoles2610(viewerRole).includes(p.role) ? [{ role: p.role, ...splitPrice2610(label) }] : [];
   };
   /** 622 — « dès X » d'un rond de groupe (plus petit tarif réel, gardiens d'abord). */
-  const clusterPrice = (items: PublicProvider[]) => {
-    if (view.zoom < 6) return null;
-    const cp = clusterFromPrice622(items, (p) => [p], (r) => formatPriceUnit(r.priceFrom, r.currency, (r.priceAlt as PriceAlt | null) ?? null, priceUnitLabels(t, lang), r.priceUnit));
-    return cp ? { label: fromText622(cp.label), role: cp.role } : null;
+  const clusterPrice = (items: PublicProvider[]): { from: string; amount: string; role: Role2610 } | null => {
+    const allowed = visibleRoles2610(viewerRole);
+    const cp = clusterFromPrice622(items, (p) => [p], (r) => (allowed.includes(r.role as Role2610) ? formatPriceUnit(r.priceFrom, r.currency, (r.priceAlt as PriceAlt | null) ?? null, priceUnitLabels(t, lang), r.priceUnit) : null));
+    if (!cp) return null;
+    const full = fromText622(cp.label);
+    const i = full.lastIndexOf(cp.label);
+    return { from: i > 0 ? full.slice(0, i).trim() : "", amount: i > 0 ? cp.label : full, role: cp.role };
   };
 
   return (
     <div className="relative w-full overflow-hidden rounded-[28px]" style={{ height }}>
-      <style dangerouslySetInnerHTML={{ __html: PAWMAP_KEYFRAMES }} />
-      <MapContainer center={center} zoom={zoom} minZoom={3} maxZoom={18} style={{ height: "100%", width: "100%" }} scrollWheelZoom={!compact} zoomControl={false}>
+      <style dangerouslySetInnerHTML={{ __html: PAWMAP_KEYFRAMES + PAWMAP_2610_CSS }} />
+      <MapContainer center={center} zoom={zoom} minZoom={3} maxZoom={18} zoomSnap={0.5} style={{ height: "100%", width: "100%" }} scrollWheelZoom={!compact} zoomControl={false}>
         {!compact && <ZoomControl position="bottomright" />}
         {dark ? (
           <TileLayer key="dark" className="hps-dark-tiles" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
@@ -292,6 +356,8 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         )}
         <Recenter center={center} zoom={zoom} focusKey={focusKey} />
         <Watcher onChange={setView} />
+        <MapRef2610 onMap={onMap2610} />
+        <SelectCamera2610 target={cam} onEmpty={resetAll} />
         {/* 02/10 (607) — même passe de mise en page que /map (CONTRAT_607_bulles §2). */}
         <CollisionPass607 />
         {/* 04/10 (610) — PawSpots, lecture seule : petite fiche + lien /spot/<id> + inscription. */}
@@ -344,17 +410,47 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         ))}
         {clusters.map((g, i) =>
           g.items.length > 1 ? (
-            <ClusterMarker key={`c-${i}-${g.items.length}-${g.center[0].toFixed(3)}-${clusterPrice(g.items)?.label ?? ""}`} center={g.center} items={g.items} onList={setClusterList} price={clusterPrice(g.items)} />
+            <ClusterMarker key={`c-${i}-${g.items.length}-${g.center[0].toFixed(3)}`} center={g.center} items={g.items} onList={setClusterList} onSpider={openSpider} dark={dark} />
           ) : null,
         )}
-        {clusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((p) => {
+        {spider && spiderItems.length > 0 && (
+          <ClusterMarker key={`spider-${spider.key}`} center={spider.center} items={spiderItems} onList={() => resetAll()} onSpider={() => resetAll()} dark={dark} price={clusterPrice(spiderItems)} open />
+        )}
+        {[...clusters.filter((g) => g.items.length === 1).map((g) => g.items[0]), ...spiderItems].map((p) => {
+          const si = spider ? spiderItems.indexOf(p) : -1;
+          const off = si >= 0 ? spiderfy2610(spiderItems.length)[si] : null;
+          const isSel = sel === p.id;
+          const prices = isSel ? pricesOf(p) : [];
           const color = ROLE_COLOR[p.role];
           // 620 (Daniel 24/10) — connecté : le formulaire de demande pré-rempli pour ce prestataire.
           const bookHref = `/posts/create?for=${p.role}:${p.id}`;
           const href = ready && user ? bookHref : `/signup?next=${encodeURIComponent(bookHref)}`;
           return (
-            <Marker key={`p-${p.id}`} position={[p.lat, p.lng]} icon={memberIcon(p, captionOf(p), bubbleOf(p))} zIndexOffset={p.boosted ? PIN_Z.memberBoosted : PIN_Z.member}>
-              <Popup autoPan>
+            <Marker
+              key={`p-${p.id}${off ? "-sp" : ""}`}
+              ref={(mk) => { if (mk) markerRefs.current.set(p.id, mk); else markerRefs.current.delete(p.id); }}
+              position={off && spider ? spider.center : [p.lat, p.lng]}
+              icon={memberIcon(p, off ? null : captionOf(p), { selected: isSel, dim: !!sel && !isSel, prices, off, dark })}
+              zIndexOffset={isSel ? PIN_Z.me + 500 : off ? PIN_Z.member + 800 : p.boosted ? PIN_Z.memberBoosted : PIN_Z.member}
+              eventHandlers={{
+                click: (e) => {
+                  const onBubble = !!(e.originalEvent?.target as Element | null)?.closest?.("[data-price-bubble-2610]");
+                  if (isSel && onBubble) { setFiche(p.id); return; }
+                  if (isSel) {
+                    // Re-clic sur le même profil : bulle masquée, caméra remise (dans un groupe éclaté : pas de vol).
+                    setSel(null);
+                    setFiche(null);
+                    if (!spider) { const pv = prevView.current; prevView.current = null; if (pv && mapRef.current) safeFly(mapRef.current, pv.c, pv.z, 0.45); }
+                    return;
+                  }
+                  setSel(p.id);
+                  // Sans prix montrable, pas de bulle à toucher : la fiche s'ouvre tout de suite.
+                  setFiche(prices.length || pricesOf(p).length ? null : p.id);
+                  if (!spider) { savePrev(); setCam({ lat: p.lat, lng: p.lng, dz: 2, ts: Date.now() }); }
+                },
+              }}
+            >
+              {fiche === p.id && <Popup autoPan autoPanPaddingTopLeft={[12, 112]} autoPanPaddingBottomRight={[12, 12]} eventHandlers={{ remove: () => setFiche((f) => (f === p.id ? null : f)) }}>
                 <div style={{ minWidth: 200 }}>
                   <div className="flex items-center gap-3">
                     {p.avatar ? (
@@ -408,7 +504,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                     </>
                   )}
                 </div>
-              </Popup>
+              </Popup>}
             </Marker>
           );
         })}

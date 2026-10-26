@@ -13,7 +13,7 @@
 
 import { LAYER_PRIORITY_607, DROPPABLE_607, type Layer607, type Rect607 } from "./pawmapLayout607";
 
-export type EdgeItem622 = { id: string; layer: Layer607; rect: Rect607; anchor: { x: number; y: number } };
+export type EdgeItem622 = { id: string; layer: Layer607; rect: Rect607; anchor: { x: number; y: number }; /** 2610 — rond SÉLECTIONNÉ (sa bulle de prix) : posé en premier, jamais déplacé ni masqué. */ pinned?: boolean };
 export type EdgeResult622 = { shifts: Map<string, { dx: number; dy: number }>; hidden: Set<string>; /** couches principales sans place libre (2e passage : bulle repliée, puis masquées). */ unplaced: Set<string> };
 /** Jamais masqués, même sans place : moi et mes amis. */
 const NEVER_HIDE_622 = new Set<Layer607>(["me", "friend"]);
@@ -45,9 +45,15 @@ export function resolveEdges622(items: EdgeItem622[], view: Rect607, overlays: R
   const shifts = new Map<string, { dx: number; dy: number }>();
   const hidden = new Set<string>();
   const unplaced = new Set<string>();
-  const list = [...items].sort((x, y) => (PRIORITY_622[y.layer] - PRIORITY_622[x.layer]) || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+  const list = [...items].sort((x, y) => (Number(!!y.pinned) - Number(!!x.pinned)) || (PRIORITY_622[y.layer] - PRIORITY_622[x.layer]) || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
   const kept: Rect607[] = [];
   for (const it of list) {
+    if (it.pinned) {
+      const pa = it.anchor;
+      if (pa.x < view.l || pa.x > view.r || pa.y < view.t || pa.y > view.b) { hidden.add(it.id); continue; }
+      kept.push(it.rect);
+      continue;
+    }
     const a = it.anchor;
     // Pointe hors de la carte : on ne dessine pas un morceau d'épingle tranché au bord.
     if (a.x < view.l || a.x > view.r || a.y < view.t || a.y > view.b) { hidden.add(it.id); continue; }

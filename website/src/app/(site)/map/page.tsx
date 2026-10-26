@@ -116,6 +116,7 @@ import { alertFresh613, alertPinHtml613, emojiDraws613, reportEmoji613 } from "@
 import { joinLabel613, joinLine613, meters613, shouldRecomputeJoin613 } from "@/lib/join613";
 import { formatPriceUnit, priceUnitLabels } from "@/lib/priceUnit";
 import { requestServiceType622 } from "@/lib/mapPrice622";
+import { ROLE_2610, type Role2610 } from "@/lib/pawmap2610";
 import { ROLE_COLOR, blurLatLng, formatPrice, placePinHtml, spotPinHtml, roleKey, showsPriceBubble } from "@/lib/pawmapLegend";
 import { expandRows, formatKm, friendIdSetFrom, isFriendMember, locateFriend, mergePersons, personIdsOf, placeFriendsFromList, rolesMatching, rolesOf } from "@/lib/memberPersons";
 import type { Map as LeafletMap } from "leaflet";
@@ -1864,12 +1865,14 @@ export default function MapPage() {
           {/* 590 (§3.1, §3.2) — les 4 boutons « bijou » ROUGES du haut à droite
               (mêmes pour les 3 rôles, comme l'app) : ? (légende), loupe
               (recherche de ville), Actualiser, Options. */}
-          <div data-map-overlay="" onPointerDown={revealControls} className={`absolute right-2 top-2 z-[1000] flex items-center gap-1 ${fadeCls}`}>
-            <PawJewel palette={JEWEL_MENU[roleKey(myRole)]} icon="question_mark" size={40} label={t("legend_btn")} onClick={() => setLegendOpen(true)} />
-            <PawJewel
-              palette={JEWEL_MENU[roleKey(myRole)]}
+          {/* 26/10 (2610, maquette de l'app) — les 4 boutons du haut à droite en couleur PLEINE du
+              rôle actif (propriétaire #f23b16, gardien #1a6cff, promeneur #12b350), 38 px, contour
+              blanc 1,5 px, ombre teintée, icône blanche 19 px, appui 94 %. */}
+          <div data-map-overlay="" onPointerDown={revealControls} className={`absolute right-2 top-2 z-[1000] flex items-center ${fadeCls}`}>
+            <TopBtn2610 role={roleKey(myRole)} icon="question_mark" label={t("legend_btn")} onClick={() => setLegendOpen(true)} />
+            <TopBtn2610
+              role={roleKey(myRole)}
               icon="search"
-              size={40}
               label={t("map_search_city_ph")}
               onClick={() => {
                 const el = cityInputRef.current;
@@ -1878,10 +1881,10 @@ export default function MapPage() {
                 el.focus({ preventScroll: true });
               }}
             />
-            <PawJewel palette={JEWEL_MENU[roleKey(myRole)]} icon="refresh" size={40} label={t("p589_refresh")} onClick={manualRefresh}>
+            <TopBtn2610 role={roleKey(myRole)} icon="refresh" label={t("p589_refresh")} onClick={manualRefresh}>
               {refreshing ? <span className="h-5 w-5 animate-spin rounded-full border-[2.5px] border-white border-t-transparent" /> : undefined}
-            </PawJewel>
-            <PawJewel palette={JEWEL_MENU[roleKey(myRole)]} icon="settings" size={40} label={t("p589_options")} onClick={openOptions} />
+            </TopBtn2610>
+            <TopBtn2610 role={roleKey(myRole)} icon="settings" label={t("p589_options")} onClick={openOptions} />
           </div>
           {locateMsg && (
             <div className="absolute bottom-[270px] right-[72px] z-[1100] max-w-[230px] rounded-2xl bg-white px-3 py-2 text-[12px] font-medium text-[#231715] shadow-[0_10px_26px_-10px_rgba(120,53,15,0.45)]">
@@ -2904,6 +2907,21 @@ export default function MapPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/** 26/10 (2610) — bouton du haut à droite : disque 38 px plein à la couleur du rôle actif, zone
+ *  cliquable 45 × 44 px (le disque + l'écart de 7 px de la maquette). */
+function TopBtn2610({ role, icon, label, onClick, children }: { role: Role2610; icon: string; label: string; onClick: () => void; children?: React.ReactNode }) {
+  const c = ROLE_2610[role];
+  return (
+    <button type="button" onClick={onClick} aria-label={label} title={label} className="hps2610-btn grid h-[44px] w-[45px] shrink-0 place-items-center">
+      <span className="grid h-[38px] w-[38px] place-items-center rounded-full transition-transform duration-150" style={{ background: c.color, boxShadow: `0 3px 8px -2px ${c.glow}, 0 0 0 1.5px #fff, 0 0 0 2.5px rgba(0,0,0,.12)` }}>
+        {children ?? (
+          <span aria-hidden="true" className="material-symbols-rounded select-none" style={{ fontFamily: "'Material Symbols Rounded'", fontSize: 19, width: 19, height: 19, lineHeight: 1, overflow: "hidden", display: "inline-block", color: "#fff", fontStyle: "normal", whiteSpace: "nowrap", fontVariationSettings: "'FILL' 1, 'wght' 500", WebkitFontSmoothing: "antialiased" }}>{icon}</span>
+        )}
+      </span>
+    </button>
   );
 }
 

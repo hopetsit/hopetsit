@@ -116,6 +116,7 @@ import { parsePins1910, type Pins1910 } from "@/lib/pins1910";
 import { PinChips1910 } from "@/components/Pins1910";
 import { clusterFromPrice622, normalizeMemberPrices622, type MapRequestPricing622 } from "@/lib/mapPrice622";
 import { RequestFromLine622, useFromText622, useRequestFromLabels622 } from "@/components/RequestFrom622";
+import { PAWMAP_2610_CSS, SPIDER_MAX_2610, clusterHtml2610, profilePinHtml2610, role2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
 
 export { clusterize } from "@/lib/mapCluster";
 
@@ -189,28 +190,25 @@ const reportIcon = (type: string, fresh: boolean) => {
   }
   return ic;
 };
-function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], bubble: string | null, dark: boolean, duo?: [string, string] | null): L.DivIcon {
+// 26/10 (2610, maquette de l'app « A · Anneau ») — rond de profil 50 px, prix SEULEMENT sur le rond
+// sélectionné, autres ronds à 85 % pendant une sélection, décalage d'éclatement d'un groupe (`off`).
+function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], dark: boolean, o: { selected?: boolean; dim?: boolean; prices?: Price2610[]; live?: boolean; off?: { x: number; y: number } | null } = {}): L.DivIcon {
+  const ox = Math.round(o.off?.x ?? 0);
+  const oy = Math.round(o.off?.y ?? 0);
   return L.divIcon({
-    className: "hps-l-member",
-    html: memberPinHtml({
-      role: roles[0]?.role || m.role,
+    className: `hps-l-member${o.dim ? " hps2610-dim" : ""}`,
+    html: profilePinHtml2610({
       roles: roles.map((r) => r.role),
       premium: !!(m.isPremiumOnly ?? m.isPremium),
-      boosted: !!m.isBoosted,
-      pawFollow: !!m.hasPawFollow,
-      online: m.approx ? null : m.isOnline !== false,
-      avatar: m.avatar || null,
+      live: !!o.live,
+      selected: !!o.selected,
+      prices: o.prices,
       caption,
-      priceBubble: bubble,
-      priceDuo: duo ?? null,
-      verified: !!m.identityVerified,
       dark,
-      size: 46,
-      pins: parsePins1910(m.pins),
     }),
-    iconSize: [46, 46],
-    iconAnchor: [23, 23],
-    popupAnchor: [0, -26],
+    iconSize: [50, 50],
+    iconAnchor: [25 - ox, 25 - oy],
+    popupAnchor: [0, -28],
   });
 }
 /** Ami à sa position de PROFIL (floutée) : photo, anneau rose, pas de direct. */
@@ -235,11 +233,14 @@ function meIcon(o: { role: string; name: string; avatar?: string | null; premium
 }
 /** 622 — zoom à partir duquel les prix se montrent (pays). */
 const PRICE_ZOOM_COUNTRY_622 = 6;
-function requestIcon(r: MapRequest, mineLabel: string, fromLabel?: string | null): L.DivIcon {
+function requestIcon(r: MapRequest, mineLabel: string, _fromLabel?: string | null): L.DivIcon {
+  void _fromLabel;
   return L.divIcon({
     className: "hps-l-request",
     // 622 — budget du propriétaire ; sans budget, « dès 10 €/jour » (estimation publique, jamais inventée).
-    html: requestBubbleHtml({ service: r.service, priceLabel: r.priceLabel || (r.mine ? null : fromLabel || null), boosted: r.boosted, mine: r.mine, mineLabel }),
+    // 26/10 (2610, maquette de l'app : « par défaut, aucun prix sur la carte ») — le budget / « dès X »
+    // ne s'affiche plus sur la bulle de demande ; il reste dans sa carte focus et sa fiche (au clic).
+    html: requestBubbleHtml({ service: r.service, priceLabel: null, boosted: r.boosted, mine: r.mine, mineLabel }),
     // 590 — bulle 26 + pointe 7 : la pointe touche la position (floutée).
     iconSize: [96, 34],
     iconAnchor: [48, 34],
@@ -374,21 +375,20 @@ function PlaceCluster({ center, count, category }: { center: [number, number]; c
  * liste — zoomer ne les séparerait jamais. Sinon on cadre le groupe pour que
  * ses points se séparent vraiment ; déjà au zoom rue = liste.
  */
-function MemberCluster({ center, items, onList, friendSet, shift, price }: { center: [number, number]; items: NearbyMember[]; onList: (l: NearbyMember[]) => void; friendSet: Set<string>; shift?: Px; price?: { label: string; role: "sitter" | "walker" } | null }) {
+function MemberCluster({ center, items, onList, onSpider, open = false, dark = false, shift, price }: { center: [number, number]; items: NearbyMember[]; onList: (l: NearbyMember[]) => void; onSpider?: (items: NearbyMember[], center: [number, number]) => void; open?: boolean; dark?: boolean; friendSet?: Set<string>; shift?: Px; price?: { from: string; amount: string; role: Role2610 } | null }) {
   const map = useMap();
   const count = items.length;
-  const dom = dominantRole(items.map((m) => m.role));
-  const hasFriend = items.some((m) => isFriendMember(m, friendSet));
-  // 616 — parts aux couleurs des rôles présents (comme l'app).
+  // 2610 — anneau segmenté proportionnel aux rôles (maquette de l'app, README §3).
   const counts = roleCounts(items.map((m) => m.role));
   const countsKey = `${counts.owner}/${counts.sitter}/${counts.walker}`;
-  const sz = count >= 10 ? 44 : 40;
-  // 607 — décalée (au plus 48 px, pawRepelAll) quand elle toucherait « Moi » ou un ami :
-  // le DESSIN bouge, la position du groupe reste la même (comme l'app).
   const sx = Math.round(shift?.x ?? 0);
   const sy = Math.round(shift?.y ?? 0);
-  const icon = useMemo(() => L.divIcon({ className: "hps-l-mgroup", html: memberClusterHtml(count, dom, hasFriend, counts, price?.label ?? null, price?.role ?? "sitter"), iconSize: [sz, sz], iconAnchor: [sz / 2 - sx, sz / 2 - sy] }), [count, dom, hasFriend, countsKey, sz, sx, sy, price?.label, price?.role]);
+  // « dès X » masqué par défaut : visible seulement quand le groupe est touché (ouvert).
+  const label = open && price ? price : null;
+  const icon = useMemo(() => L.divIcon({ className: "hps-l-mgroup", html: clusterHtml2610({ counts, total: count, dark, fromLabel: label }), iconSize: [48, 48], iconAnchor: [24 - sx, 24 - sy] }), [count, countsKey, dark, sx, sy, label?.from, label?.amount, label?.role]);
   const onClick = () => {
+    // 2610 — toucher = zoom +1,5 et éclatement (6 sur 72 px, le reste sur 132 px), sans trait.
+    if (onSpider && count <= SPIDER_MAX_2610) { onSpider(items, center); return; }
     if (isStackedGroup(items) || map.getZoom() >= 17) { onList(items); return; }
     const pts = items.map(pointOf).filter((p): p is [number, number] => !!p);
     try {
@@ -398,7 +398,7 @@ function MemberCluster({ center, items, onList, friendSet, shift, price }: { cen
       safeFly(map, center, Math.min(map.getZoom() + 2.2, 18), 0.8);
     }
   };
-  return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.member} eventHandlers={{ click: onClick }} />;
+  return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.member + (open ? 500 : 0)} eventHandlers={{ click: onClick }} />;
 }
 function SpotCluster({ center, count }: { center: [number, number]; count: number }) {
   const map = useMap();
@@ -586,8 +586,9 @@ function ReportPopupBody({ r, label, onConfirm, labels }: {
   );
 }
 
-function FocusWatcher({ onClear }: { onClear: () => void }) {
-  useMapEvents({ click: onClear, dragstart: onClear });
+function FocusWatcher({ onClear, onReset }: { onClear: () => void; onReset?: () => void }) {
+  // 2610 — clic dans le vide = bulle masquée ET caméra remise comme avant ; glisser = bulle masquée.
+  useMapEvents({ click: onReset ?? onClear, dragstart: onClear });
   return null;
 }
 
@@ -867,8 +868,11 @@ export default function PoiMap({
     // 605 — sans tarif jour / heure : « 100 €/sem » ou « 350 €/mois ».
     return formatPriceUnit(amount, currency, alt, priceUnits, unit);
   };
-  const memberBubble = (role: string, amount?: number | null, currency?: string | null, alt?: PriceAlt | null, unit?: string | null): string | null =>
-    showPrice || cityZoom ? priceFor(role, amount, currency, alt, unit) : null;
+  // 26/10 (2610, maquette de l'app) — AUCUN prix sur la carte par défaut : la bulle n'existe que sur
+  // le rond touché (`selectedPrices2610`). Remplace l'affichage permanent du 622.
+  void cityZoom;
+  const memberBubble = (role: string, amount?: number | null, currency?: string | null, alt?: PriceAlt | null, unit?: string | null, selected = false): string | null =>
+    selected ? priceFor(role, amount, currency, alt, unit) : null;
   // 27/09 — gardien ET promeneur parmi les rôles montrés (filtre compris) :
   // les deux prix, gardien d'abord. Sinon null → bulle simple habituelle.
   const duoPrices = (roles: PersonRole[]): [string, string] | null => {
@@ -879,12 +883,27 @@ export default function PoiMap({
     const pw = priceFor("walker", w.priceFrom, w.currency, w.priceAlt, w.priceUnit);
     return ps && pw ? [ps, pw] : null;
   };
-  const memberDuo = (roles: PersonRole[]): [string, string] | null => (showPrice || cityZoom ? duoPrices(roles) : null);
+  const memberDuo = (roles: PersonRole[], selected = false): [string, string] | null => (selected ? duoPrices(roles) : null);
+  /** 2610 — `visiblePrices` : un segment par rôle de L'AUTRE côté du marché (rôle actif du spectateur). */
+  const selectedPrices2610 = (roles: PersonRole[], m: NearbyMember): Price2610[] => {
+    const allowed = visibleRoles2610(userRole);
+    const out: Price2610[] = [];
+    for (const r of roles) {
+      const k = role2610(r.role);
+      if (!allowed.includes(k) || out.some((x) => x.role === k)) continue;
+      const label = formatPriceUnit(r.priceFrom ?? (roles.length === 1 ? m.priceFrom : null), r.currency ?? m.currency, (r.priceAlt as PriceAlt | null) ?? (roles.length === 1 ? m.priceAlt : null) ?? null, priceUnits, r.priceUnit ?? (roles.length === 1 ? m.priceUnit : null));
+      if (label) out.push({ role: k, ...splitPrice2610(label) });
+    }
+    return out;
+  };
   /** 622 — « dès X » d'un rond de groupe (plus petit tarif réel, gardiens d'abord) ; null sans prix montrable. */
-  const clusterPrice = (items: NearbyMember[]): { label: string; role: "sitter" | "walker" } | null => {
-    if (!(showPrice || cityZoom)) return null;
+  const clusterPrice = (items: NearbyMember[]): { from: string; amount: string; role: Role2610 } | null => {
+    // 2610 — « dès X » d'un groupe : calculé seulement pour le groupe TOUCHÉ (ouvert).
     const cp = clusterFromPrice622(items, (m) => rolesOf(m), (r) => priceFor(String(r.role || ""), r.priceFrom, r.currency, (r.priceAlt as PriceAlt | null) ?? null, r.priceUnit));
-    return cp ? { label: fromText622(cp.label), role: cp.role } : null;
+    if (!cp) return null;
+    const full = fromText622(cp.label);
+    const i = full.lastIndexOf(cp.label);
+    return { from: i > 0 ? full.slice(0, i).trim() : "", amount: i > 0 ? cp.label : full, role: cp.role };
   };
 
   const poiClusters = useMemo(
@@ -901,7 +920,16 @@ export default function PoiMap({
     const k = String(uid).toLowerCase();
     return members.find((m) => personIdsOf(m).some((x) => String(x).toLowerCase() === k));
   };
-  const otherMembers = useMemo(() => members.filter((m) => !isFriendMember(m, friendSet)), [members, friendSet]);
+  const otherMembersAll = useMemo(() => members.filter((m) => !isFriendMember(m, friendSet)), [members, friendSet]);
+  // 26/10 (2610) — groupe ÉCLATÉ : ses membres sortent du regroupement et se posent autour de lui.
+  const [spider, setSpider] = useState<{ ids: string[]; center: [number, number]; key: string } | null>(null);
+  const spiderSet = useMemo(() => new Set(spider?.ids ?? []), [spider]);
+  const otherMembers = useMemo(() => otherMembersAll.filter((m) => !spiderSet.has(m.id)), [otherMembersAll, spiderSet]);
+  const spiderMembers = useMemo(() => {
+    if (!spider) return [] as NearbyMember[];
+    const byId = new Map(otherMembersAll.map((m) => [m.id, m] as const));
+    return spider.ids.map((id) => byId.get(id)).filter((m): m is NearbyMember => !!m);
+  }, [spider, otherMembersAll]);
   // 607 (PAM) — cases de 44 px PUIS fusion de tout groupe à moins de 50 px
   // d'un autre : plus de pastilles « 29 », « 3 », « 2 » empilées au zoom pays.
   const memberClusters = useMemo(() => {
@@ -958,7 +986,7 @@ export default function PoiMap({
     if (meAt) meRects.push(circleRect(meAt, 56 / 2 + 2), labelRect(meAt, 56 / 2, meW, "below", 16.3));
     const friendBox = pinBox(50 / 2 + 2.5);
     const entries: { items: NearbyMember[]; c: Px; r: number; friend: boolean }[] = [];
-    for (const g of memberClusters) entries.push({ items: g.items, c: pxOf(g.center), r: g.items.length > 1 ? 24.5 : 46 / 2 + 1 + (showPrice ? 10 : 0), friend: false });
+    for (const g of memberClusters) entries.push({ items: g.items, c: pxOf(g.center), r: g.items.length > 1 ? 24 + 2.5 : 50 / 2 + 1 + (showPrice ? 10 : 0), friend: false });
     for (const m of friendMembers) { const p = pointOf(m); if (p) entries.push({ items: [m], c: pxOf(p), r: 50 / 2 + 2, friend: true }); }
     // A. Amis trop près de « Moi » : décalés en éventail (un trait rose relie leur vraie position).
     const friendIdx = entries.map((e, i) => (e.friend ? i : -1)).filter((i) => i >= 0);
@@ -968,9 +996,8 @@ export default function PoiMap({
     // B. Pastilles et membres seuls (jamais un ami) : place libre la plus proche (prénom et bulle compris).
     const boxOf = (e: { items: NearbyMember[] }): Rect => {
       if (e.items.length > 1) {
-        // 622 — « dès X » sous le rond du groupe : sa place compte dans la boîte.
-        const cp = clusterPrice(e.items);
-        return cp ? pinBox(24.5, { labelW: textWidth(cp.label, "700 10.5px Poppins, Inter, system-ui, sans-serif", 10.5) + 14, labelH: 18, labelGap: 3 }) : pinBox(24.5);
+        // 2610 — « dès X » masqué tant que le groupe n'est pas touché : seul le rond (48 px) compte.
+        return pinBox(24 + 2.5);
       }
       const m = e.items[0];
       const wanted = rolesMatching(m, wantedRoles);
@@ -1113,14 +1140,51 @@ export default function PoiMap({
     prevViewRef.current = null;
     if (pv && mapObj) safeFly(mapObj, pv.c, pv.z, 0.6);
   };
+  // 26/10 (2610, maquette de l'app) — profil : 1er clic = zoom +2 centré + bulle de prix ; re-clic sur
+  // le même profil = bulle masquée et caméra remise comme avant (la fiche s'ouvre par la bulle ou
+  // « Profil › » de la carte focus). Dans un groupe éclaté : pas de vol, re-clic = bulle masquée.
+  const spiderRef = useRef(spider);
+  spiderRef.current = spider;
+  const resetAll2610 = () => {
+    const sp = spiderRef.current;
+    if (!focusKeyRef.current && !sp) return;
+    if (!sp && !focusKeyRef.current?.startsWith("p:")) { clearFocus(); return; }
+    if (sp) setSpider(null);
+    closeFocus();
+  };
+  const openSpider2610 = (items: NearbyMember[], c: [number, number]) => {
+    if (!mapObj) return;
+    if (!prevViewRef.current) {
+      const cc = mapObj.getCenter();
+      prevViewRef.current = { c: [cc.lat, cc.lng], z: mapObj.getZoom() };
+    }
+    setFocus(null);
+    setSheet(null);
+    setOpenReq(null);
+    setSpider({ ids: items.map((m) => m.id), center: c, key: items.map((m) => m.id).join(",") });
+    safeFly(mapObj, c, Math.min(19, mapObj.getZoom() + 1.5), 0.5);
+  };
   const tapFocus = (f: Focus) => {
     if (!focusLabels || !mapObj) { f.open(); return; }
+    const profile2610 = f.key.startsWith("p:");
     if (focusKeyRef.current === f.key) {
+      if (profile2610) {
+        if (spiderRef.current) { setFocus(null); return; }
+        closeFocus();
+        return;
+      }
       setFocus(null);
       prevViewRef.current = null;
       f.open();
       return;
     }
+    if (profile2610 && spiderRef.current && spiderRef.current.ids.includes(f.key.slice(2))) {
+      setSheet(null);
+      setOpenReq(null);
+      setFocus(f);
+      return;
+    }
+    if (spiderRef.current) setSpider(null);
     if (!prevViewRef.current) {
       const c = mapObj.getCenter();
       prevViewRef.current = { c: [c.lat, c.lng], z: mapObj.getZoom() };
@@ -1129,7 +1193,7 @@ export default function PoiMap({
     setOpenReq(null);
     setFocus(f);
     try {
-      const z = Math.min(18, Math.max(mapObj.getZoom() + 1.5, 15));
+      const z = profile2610 ? Math.min(19, mapObj.getZoom() + 2) : Math.min(18, Math.max(mapObj.getZoom() + 1.5, 15));
       const px = mapObj.project(L.latLng(f.lat, f.lng), z);
       // Le point ~60 px au-dessus du centre, mais toujours SOUS la carte
       // focus (et sa bulle de prix) quand la carte est basse.
@@ -1200,8 +1264,8 @@ export default function PoiMap({
 
   return (
     <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-[28px] max-lg:rounded-none">
-      <style dangerouslySetInnerHTML={{ __html: PAWMAP_KEYFRAMES }} />
-      <MapContainer ref={setMapObj} center={center} zoom={initialZoom} minZoom={3} maxZoom={19} style={{ height: "100%", width: "100%" }} scrollWheelZoom zoomControl={false}>
+      <style dangerouslySetInnerHTML={{ __html: PAWMAP_KEYFRAMES + PAWMAP_2610_CSS }} />
+      <MapContainer ref={setMapObj} center={center} zoom={initialZoom} minZoom={3} maxZoom={19} zoomSnap={0.5} style={{ height: "100%", width: "100%" }} scrollWheelZoom zoomControl={false}>
         {satellite ? (
           <TileLayer
             key="sat"
@@ -1223,7 +1287,7 @@ export default function PoiMap({
         <FlyToFocus target={focusTarget} />
         <RouteFit points={routePoints} extra={joinTo ? [routeFrom ?? userLocation, joinTo] : undefined} join={!!joinTo} token={routeFitToken || undefined} />
         <FollowController target={followTarget} onUserGesture={() => onFollowPause?.()} />
-        <FocusWatcher onClear={clearFocus} />
+        <FocusWatcher onClear={clearFocus} onReset={resetAll2610} />
         {/* 02/10 (607, PAM) — passe de mise en page unique (CONTRAT_607_bulles §2). */}
         <CollisionPass607 />
 
@@ -1392,10 +1456,18 @@ export default function PoiMap({
         {/* MEMBRES : UNE personne = UN rond (liseré de chacun de ses rôles),
             rond de groupe à la couleur dominante. Clic = fiche du bas. */}
         {memberClusters.map((g, i) =>
-          g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} items={g.items} onList={(items) => openSheet({ kind: "list", items }, g.center)} friendSet={friendSet} shift={lay.shifts[i]} price={clusterPrice(g.items)} /> : null,
+          g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} items={g.items} onList={(items) => openSheet({ kind: "list", items }, g.center)} onSpider={openSpider2610} dark={dark} shift={lay.shifts[i]} /> : null,
         )}
-        {[...memberClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]), ...friendMembers].map((m) => {
-          const pt = pointOf(m);
+        {/* 26/10 (2610) — groupe TOUCHÉ : il reste au centre avec son « dès X », ses profils autour
+            (6 sur 72 px, le reste sur 132 px), aucun trait ; re-clic = refermé, caméra remise. */}
+        {spider && spiderMembers.length > 0 && (
+          <MemberCluster key={`spider-${spider.key}`} center={spider.center} items={spiderMembers} onList={() => resetAll2610()} onSpider={() => resetAll2610()} open dark={dark} price={clusterPrice(spiderMembers)} />
+        )}
+        {[...memberClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]), ...friendMembers, ...(spider ? spiderMembers : [])].map((m) => {
+          const spiderIdx = spider ? spiderMembers.indexOf(m) : -1;
+          const spiderOff = spiderIdx >= 0 ? spiderfy2610(spiderMembers.length)[spiderIdx] : null;
+          const pt0 = pointOf(m);
+          const pt: [number, number] | null = spiderOff && spider ? spider.center : pt0;
           if (!pt) return null;
           const isFriend = isFriendMember(m, friendSet);
           // Un ami qui partage en direct a déjà son rond « en direct » : pas de doublon.
@@ -1415,7 +1487,8 @@ export default function PoiMap({
               : null;
             const fAlt = roles[0].priceAlt ?? m.priceAlt;
             const fUnit = roles[0].priceUnit ?? m.priceUnit;
-            const fFit = lay.priceFit(m, memberBubble(roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fAlt, fUnit), memberDuo(shown));
+            const fSel = focus?.key === `p:${m.id}`;
+            const fFit = lay.priceFit(m, memberBubble(roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fAlt, fUnit, fSel), memberDuo(shown, fSel));
             // 607 — dessous si libre, sinon dessus (sans bulle), sinon rien.
             const side = lay.friendSide(m, rawCaption, !!(fFit.bubble || fFit.duo));
             const caption = side === "none" ? null : rawCaption;
@@ -1427,9 +1500,13 @@ export default function PoiMap({
           const pCur = r0.currency ?? m.currency;
           const pAlt = r0.priceAlt ?? m.priceAlt;
           const pUnit = r0.priceUnit ?? m.priceUnit;
-          const fit = lay.priceFit(m, memberBubble(r0.role, pFrom, pCur, pAlt, pUnit), memberDuo(shown));
+          // 2610 — bulle de prix seulement sur le rond sélectionné ; clic SUR la bulle = la fiche.
+          const sel = focus?.key === `p:${m.id}`;
+          const dim = !!focus && !sel;
+          const live = personIdsOf(m).some((x) => liveIdSet.has(x));
+          const prices = sel ? selectedPrices2610(shown, m) : [];
           return (
-            <Marker key={`member-${m.id}`} position={lay.movedPos(m) ?? pt} icon={memberIcon(m, memberCaption({ ...m, role: r0.role }), roles, fit.bubble, dark, fit.duo)} zIndexOffset={m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: () => { const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt, pUnit); if (f) tapFocus(f); else open(); } }} />
+            <Marker key={`member-${m.id}${spiderOff ? "-sp" : ""}`} position={spiderOff ? pt : lay.movedPos(m) ?? pt} icon={memberIcon(m, spiderOff ? null : memberCaption({ ...m, role: r0.role }), roles, dark, { selected: sel, dim, prices, live, off: spiderOff })} zIndexOffset={sel ? PIN_Z.me + 500 : spiderOff ? PIN_Z.member + 800 : m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: (e) => { const onBubble = !!(e.originalEvent?.target as Element | null)?.closest?.("[data-price-bubble-2610]"); if (sel && onBubble) { open(); return; } const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt, pUnit); if (f) tapFocus(f); else open(); } }} />
           );
         })}
 

@@ -59,6 +59,29 @@ function overlayRects(container: HTMLElement, view: Rect607): Rect607[] {
   return out;
 }
 
+/** 26/10 (2610) — bulle de prix du rond sélectionné : toujours DANS la carte. La pilule glisse
+ *  horizontalement (marge 12 px, comme la maquette), la pointe reste sur le marqueur. Appelée par la
+ *  passe ET à chaque image d'un déplacement de carte (glisser, inertie). */
+function clampBubbles2610(icons: HTMLElement[], view: Rect607): void {
+  for (const el of icons) {
+    const pill = el.querySelector<HTMLElement>("[data-selected-2610] [data-bubble-2610]");
+    if (!pill) continue;
+    pill.style.translate = "";
+    // Rond hors de la carte : la bulle part avec lui (jamais une bulle seule collée au bord).
+    const tail = el.querySelector<HTMLElement>("[data-selected-2610] [data-tail-2610]")?.getBoundingClientRect();
+    if (!tail || tail.right < view.l || tail.left > view.r || tail.bottom < view.t || tail.top > view.b) continue;
+    const q = pill.getBoundingClientRect();
+    const lo = view.l + 12;
+    const hi = view.r - 12;
+    let dx = 0;
+    if (q.right - q.left > hi - lo) dx = (lo + hi) / 2 - (q.left + q.right) / 2;
+    else if (q.left < lo) dx = lo - q.left;
+    else if (q.right > hi) dx = hi - q.right;
+    // Le rond sélectionné est agrandi à 1,18 : le décalage se donne en px non agrandis.
+    if (dx) pill.style.translate = `${Math.round((dx / 1.18) * 10) / 10}px 0`;
+  }
+}
+
 export function runCollisionPass607(pane: HTMLElement, container: HTMLElement): { hidden: number; moved: number; total: number; compact: number } {
   const icons = Array.from(pane.querySelectorAll<HTMLElement>(".leaflet-marker-icon"));
   // Mesure sans le glissement ni le repli d'un passage précédent (visibility ne change pas la géométrie).
@@ -68,6 +91,7 @@ export function runCollisionPass607(pane: HTMLElement, container: HTMLElement): 
   }
   const c = container.getBoundingClientRect();
   const view: Rect607 = { l: c.left, t: c.top, r: c.right, b: c.bottom };
+  clampBubbles2610(icons, view);
   const items: (EdgeItem622 & { el: HTMLElement })[] = [];
   for (const el of icons) {
     const layer = layerOf(el);
@@ -77,7 +101,7 @@ export function runCollisionPass607(pane: HTMLElement, container: HTMLElement): 
     const box = el.getBoundingClientRect();
     const ml = parseFloat(el.style.marginLeft || "0") || 0;
     const mt = parseFloat(el.style.marginTop || "0") || 0;
-    items.push({ id: `${layer}:${Math.round(rect.l)}:${Math.round(rect.t)}:${items.length}`, layer, rect, anchor: { x: box.left - ml, y: box.top - mt }, el });
+    items.push({ id: `${layer}:${Math.round(rect.l)}:${Math.round(rect.t)}:${items.length}`, layer, rect, anchor: { x: box.left - ml, y: box.top - mt }, el, pinned: !!el.querySelector("[data-selected-2610], [data-cluster-open-2610]") });
   }
   const overlays = overlayRects(container, view);
   let { shifts, hidden, unplaced } = resolveEdges622(items, view, overlays);
@@ -129,11 +153,25 @@ export function CollisionPass607() {
     const mo2 = new MutationObserver((recs) => { if (recs.some((r) => !container.contains(r.target))) schedule(); });
     if (wrap) mo2.observe(wrap, { attributes: true, subtree: true, attributeFilter: ["class", "style", "aria-expanded", "data-collapsed"] });
     map.on("zoomend moveend resize", schedule);
+    let rafMove = 0;
+    const onMove = () => {
+      if (rafMove) return;
+      rafMove = requestAnimationFrame(() => {
+        rafMove = 0;
+        try {
+          const c = container.getBoundingClientRect();
+          clampBubbles2610(Array.from(pane.querySelectorAll<HTMLElement>(".leaflet-marker-icon")), { l: c.left, t: c.top, r: c.right, b: c.bottom });
+        } catch { /* jamais bloquant */ }
+      });
+    };
+    map.on("move", onMove);
     window.addEventListener("resize", schedule);
     schedule();
     return () => {
       mo.disconnect(); mo2.disconnect();
       map.off("zoomend moveend resize", schedule);
+      map.off("move", onMove);
+      if (rafMove) cancelAnimationFrame(rafMove);
       window.removeEventListener("resize", schedule);
       if (raf) cancelAnimationFrame(raf);
       window.clearTimeout(late);
