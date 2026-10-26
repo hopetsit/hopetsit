@@ -80,6 +80,11 @@ const PUBLIC_PATHS = [
   // pointent (canonical) vers /garde-animaux/paris et /pet-sitting/dallas —
   // même contenu, une seule adresse pour Google, donc hors du plan du site.
   "/devenir-petsitter/paris",
+  // 26/10 (Bob, semaine 44) — hub national : « devenir pet sitter » (sans
+  // ville) est la requête la plus vue de la semaine (46 impressions/28 j) et
+  // n'avait aucune page dédiée (404). Relie Paris + les 17 grandes villes
+  // françaises déjà en ligne.
+  "/devenir-petsitter",
   // v575 — page d'atterrissage de la pub Meta « Paris · Propriétaires » et hub
   // vers les 20 arrondissements (src/app/garde-animaux/paris/page.tsx).
   // Elle n'est pas produite par ownerPaths() : son slug n'est pas dans
@@ -109,6 +114,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (path === "") return 1;
     if (path === "/pawpoints-guide") return 0.5;
     if (path.startsWith("/blog") || path === "/villes" || path === "/download" || path === "/pawmap") return 0.8;
+    // 26/10 (Bob, semaine 44) — hub national : priorité légèrement au-dessus
+    // des pages ville, juste sous l'accueil.
+    if (path === "/devenir-petsitter") return 0.9;
     if (path.startsWith("/devenir-petsitter/") || path.startsWith("/garde-animaux/")) return 0.8;
     const m = path.match(/^\/(become-a-pet-sitter|pet-sitting)\/([^/]+)$/);
     if (m) return US.has(m[2]) ? 0.8 : 0.4;

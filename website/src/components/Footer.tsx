@@ -91,6 +91,12 @@ export function Footer() {
         // de blog lui-meme pas indexe. Un lien de pied de page la rend
         // atteignable depuis les 223 pages deja indexees.
         { href: "/garde-animaux/paris", label: "Garde d'animaux à Paris" },
+        // 26/10/2026 (Bob, semaine 44) : « devenir pet sitter » (sans ville) est
+        // la requête la plus vue de la semaine côté recrutement (46
+        // impressions/28 j) — la page n'existait pas avant cette semaine ; un
+        // lien de pied de page la rend atteignable depuis les 223 pages déjà
+        // indexées, comme pour /garde-animaux/paris en 21/09.
+        { href: "/devenir-petsitter", label: "Devenir pet sitter" },
         // 29/09/2026 (LEO, retour de SAM) : /petsitter/paris et /petsitter/dallas
         // sont d'anciennes adresses (canonical vers les nouvelles) : le pied de
         // page pointe sur les pages canoniques. Push USA gratuit : les deux
