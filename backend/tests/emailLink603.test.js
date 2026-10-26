@@ -83,7 +83,8 @@ describe('parité avec le routeur de l\'app 602', () => {
   test('chaque type → même route que l\'app 602 (appareils récents)', () => {
     const diffs = rows
       .map(([t, role, data, want]) => [t, role, buildEmailRoute(t, data, { role, devices: IOS602 }), want])
-      .filter(([, , got, want]) => got !== want);
+      // 2610 : le paramètre de mesure ?from=email (ADA) ne change pas la route lue par l'app
+      .filter(([, , got, want]) => got.split('?from=email')[0] !== want);
     expect(diffs).toEqual([]);
   });
 
@@ -122,7 +123,7 @@ describe('compatibilité apps 598-602', () => {
   // soient ses appareils (le repli /post/<id> restait bloqué sur « Cette page vit dans l'app »).
   test('application_new (owner) : /application/<id> partout ; le repli historique reste pour les push', () => {
     for (const devices of [IOS602, [...IOS602, { token: 't2', platform: 'android', appBuild: 602 }], [{ token: 't3', platform: 'ios', appBuild: 599 }], [], undefined]) {
-      expect(buildEmailRoute('application_new', { applicationId: a, postId: p }, { role: 'owner', devices })).toBe(`/application/${a}`);
+      expect(buildEmailRoute('application_new', { applicationId: a, postId: p }, { role: 'owner', devices })).toBe(`/application/${a}?from=email`);
     }
     expect(legacyFallbackFor(`/application/${a}`, { postId: p })).toBe(`/post/${p}`);
   });

@@ -129,7 +129,7 @@ describe('1. Le 1er candidat : e-mail tout de suite, utile, dans la langue du pr
     expect(m[0].html).toContain('https://res.cloudinary.com/demo/image/upload/sample.jpg');
     expect(m[0].html).toContain('★ 4,8 · 12 avis');
     expect(m[0].html).toContain('Posez vos dates pour voir le prix total');
-    expect(m[0].html).toContain('www.hopetsit.com/application/'); // toujours la page des candidats (test de FLO)
+    expect(m[0].html).toMatch(/www\.hopetsit\.com\/application\/[a-f0-9]{24}\?from=email/); // page des candidats + mesure d'ADA
     expect(m[0].html).not.toMatch(/2 minutes|choisis et paie/);
     expect(m[0].html).not.toContain('{{');
     save('email_fr_1er.html', m[0].html);

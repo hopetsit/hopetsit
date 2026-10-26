@@ -195,7 +195,7 @@ describe('1. Contact de la pub → demande publiée → candidature → le propr
     const { buildEmailRoute } = require('../src/utils/emailLinkBuilder');
     const attendu = buildEmailRoute('application_new', { applicationId: String(FR.application._id), providerRole: 'sitter', providerId: String(FR.sitter._id), postId: String(FR.post._id) }, { role: 'owner', devices: null });
     expect(decodeURIComponent(link.split('next=')[1])).toBe(attendu);
-    expect([`/application/${FR.application._id}`, `/post/${FR.post._id}`]).toContain(attendu);
+    expect(attendu).toBe(`/application/${FR.application._id}?from=email`); // 2610 : page des candidats + mesure ADA
     const n = await notifsOf(FR.owner._id, 'owner');
     const items = n.notifications || n.items || n;
     expect(items.some((x) => x.type === 'application_new')).toBe(true);
@@ -458,7 +458,7 @@ describe('6. Liens des e-mails pour chaque étape (propriétaire sans mot de pas
     const owner = ['application_new', 'booking_new', 'booking_accepted', 'booking_paid_owner', 'booking_cancelled_by_provider', 'handover_pickup_confirmed', 'payment_failed'].map((t) => [t, buildEmailRoute(t, d, { role: 'owner', devices: null })]);
     const sitter = ['application_accepted', 'booking_paid', 'wallet_credited', 'handover_return_confirmed', 'booking_cancelled_by_owner', 'payout_completed', 'withdrawal_requested'].map((t) => [t, buildEmailRoute(t, d, { role: 'sitter', devices: null })]);
     [...owner, ...sitter].forEach(([, route]) => expect(route).toMatch(/^\/(?!\/)/));
-    expect(Object.fromEntries(owner)).toMatchObject({ application_new: `/application/${FR.application._id}`, booking_accepted: `/pay?bookingId=${FR.booking._id}`, booking_paid_owner: `/bookings/${FR.booking._id}` });
+    expect(Object.fromEntries(owner)).toMatchObject({ application_new: `/application/${FR.application._id}?from=email`, booking_accepted: `/pay?bookingId=${FR.booking._id}`, booking_paid_owner: `/bookings/${FR.booking._id}` });
     expect(Object.fromEntries(sitter)).toMatchObject({ application_accepted: `/bookings/${FR.booking._id}`, booking_paid: `/bookings/${FR.booking._id}`, wallet_credited: '/wallet' });
     // appareils récents (iOS ≥ 602 / Android ≥ 603) : cible précise /application/<id>
     const precise = buildEmailRoute('application_new', d, { role: 'owner', devices: [{ platform: 'ios', build: 620 }] });

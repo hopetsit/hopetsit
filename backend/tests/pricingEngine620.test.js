@@ -204,7 +204,7 @@ describe('texte du prix dans « candidature reçue » (617) et nouveaux gabarits
     const { buildEmailRoute, buildPreciseRoute } = require('../src/utils/emailLinkBuilder');
     expect(buildPreciseRoute('application_pricing_updated', { applicationId: 'a'.repeat(24), postId: 'b'.repeat(24) }, 'owner')).toBe(`/application/${'a'.repeat(24)}`);
     // 2610 (test de FLO) : propriétaire → TOUJOURS la page web de ses candidats, même sans app récente
-    expect(buildEmailRoute('application_pricing_updated', { applicationId: 'a'.repeat(24), postId: 'b'.repeat(24) }, { role: 'owner', devices: null })).toBe(`/application/${'a'.repeat(24)}`);
+    expect(buildEmailRoute('application_pricing_updated', { applicationId: 'a'.repeat(24), postId: 'b'.repeat(24) }, { role: 'owner', devices: null })).toBe(`/application/${'a'.repeat(24)}?from=email`);
     expect(buildEmailRoute('application_pricing_updated', { applicationId: 'a'.repeat(24), postId: 'b'.repeat(24) }, { role: 'sitter', devices: null })).toBe(`/post/${'b'.repeat(24)}`);
     expect(buildEmailRoute('post_dates_required', { postId: 'b'.repeat(24) }, { role: 'owner', devices: null })).toBe(`/post/${'b'.repeat(24)}`);
   });

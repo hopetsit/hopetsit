@@ -373,9 +373,13 @@ describe('613 §9 — la publication dit combien de prestataires sont RÉELLEMEN
   // vers l'existante). Le registre 612 garde son rôle pour une demande fermée puis
   // republiée (voir tests/duplicateRequest1617.test.js et postPublished1617.test.js).
   test('la MÊME demande republiée (encore ouverte) : 409 DUPLICATE_REQUEST, jamais une 2e annonce', async () => {
-    const first = await publish(walk('2026-10-22'));
+    // 2610 (ZOE) — la date était codée en dur (22/10/2026) : depuis qu'elle est PASSÉE, la 1re
+    // demande n'est plus « ouverte » (duplicateRequest1617.isStillOpen) et la 2e passe, à raison.
+    // Le test échouait par le calendrier, pas par le code : on prend une date toujours future.
+    const future = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+    const first = await publish(walk(future));
     expect(first.body.notified).toBe(7);
-    const again = await publish(walk('2026-10-22'));
+    const again = await publish(walk(future));
     expect(again.status).toHaveBeenCalledWith(409);
     expect(again.body.code).toBe('DUPLICATE_REQUEST');
     expect(again.body.existingPostId).toBe(first.body.post.id || first.body.post._id);
