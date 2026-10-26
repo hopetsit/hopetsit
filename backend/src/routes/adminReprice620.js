@@ -9,6 +9,8 @@
  *   .repriceAfterServiceChange), prévient prestataires + propriétaire. Idempotent : une
  *   candidature déjà alignée n'est ni réécrite ni re-notifiée (aucun double envoi).
  *   ?dryRun=1 → simulation, rien d'écrit, rien d'envoyé.
+ *   ?silent=1 → écrit les prix corrigés SANS rien envoyer à personne (2610, Daniel).
+ *   Une candidature est « alignée » seulement si son prix stocké = celui du moteur unique.
  * Admin seulement (requireAdmin), journalisé par auditAdmin.
  */
 const express = require('express');
@@ -28,8 +30,12 @@ router.post('/posts/:id', requireAdmin, async (req, res) => {
     const post = await Post.findById(id);
     if (!post) return res.status(404).json({ error: 'Post not found.' });
     const dryRun = String(req.query.dryRun || (req.body && req.body.dryRun) || '') === '1';
+    // 2610 (ZOE, ordre de Daniel du 26/10 « corrige les prix SANS envoyer de message aux
+    // clients ») — ?silent=1 : recalcul sans AUCUN envoi (ni push, ni e-mail, ni cloche,
+    // ni propriétaire ni prestataire).
+    const silent = String(req.query.silent || (req.body && req.body.silent) || '') === '1';
     const svc = require('../services/applicationRepricing620');
-    const out = await svc.repriceAfterServiceChange(post, { dryRun });
+    const out = await svc.repriceAfterServiceChange(post, { dryRun, notify: silent ? false : undefined });
     const engine = require('../utils/pricingEngine620');
     return res.json({
       postId: String(post._id),
@@ -37,6 +43,7 @@ router.post('/posts/:id', requireAdmin, async (req, res) => {
       dateMode: engine.effectiveDateMode(post),
       visitsPerDay: engine.visitsPerDayOf(post),
       dryRun,
+      silent,
       ...out,
     });
   } catch (e) {

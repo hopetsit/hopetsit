@@ -48,10 +48,11 @@ describe('quantités', () => {
     expect(engine.quantityFor({ ...post, startDate: d('2026-11-20'), endDate: d('2026-11-20'), houseSittingVenue: 'sitters_home' }, 'house_sitting').quantity).toBe(1);
     expect(engine.quantityFor(post, 'day_care')).toEqual({ quantity: 5, unit: 'day', days: 5 });
   });
-  test('visites = jours × visites/jour (1 par défaut) ; balades = 1', () => {
+  test('visites = jours × visites/jour (1 par défaut) ; balades = 1 par jour (2610)', () => {
     expect(engine.quantityFor(post, 'home_visit')).toEqual({ quantity: 5, unit: 'visit', days: 5 });
     expect(engine.quantityFor({ ...post, visitsPerDay: 2 }, 'home_visit')).toEqual({ quantity: 10, unit: 'visit', days: 5 });
-    expect(engine.quantityFor(post, 'dog_walking')).toEqual({ quantity: 1, unit: 'walk', days: 5 });
+    expect(engine.quantityFor(post, 'dog_walking')).toEqual({ quantity: 5, unit: 'walk', days: 5 });
+    expect(engine.quantityFor({ ...post, endDate: post.startDate }, 'dog_walking')).toEqual({ quantity: 1, unit: 'walk', days: 1 });
   });
   test('dates à prévoir : quantité null', () => {
     expect(engine.quantityFor({ dateMode: 'tbd' }, 'home_visit')).toEqual({ quantity: null, unit: 'visit', days: null });

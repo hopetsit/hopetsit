@@ -12,7 +12,7 @@
  *       jours   = fin − début + 1 (calendrier, UTC)        unit 'day'
  *       nuits   = jours − 1 (garde chez le gardien)         unit 'night'
  *       visites = jours × visitsPerDay (1 par défaut)       unit 'visit'
- *       balades = 1 par défaut                              unit 'walk'
+ *       balades = 1 par jour de la période (1 pour un seul jour) unit 'walk'
  *       'tbd' → quantity null (on ne connaît pas encore la période).
  *   · estimate({ serviceType, unit, rate, post, commissionRate }) →
  *       { quantity, unit, unitRate, unitTotal, commission, ownerTotal, indicative }
@@ -119,7 +119,10 @@ const quantityFor = (post, serviceType) => {
   if (mode === 'tbd') return { quantity: null, unit: unit === 'day' && isSittersHome(post, key) ? 'night' : unit, days: null };
   const days = dayCount(post) || 1;
   if (unit === 'visit') return { quantity: days * visitsPerDayOf(post), unit: 'visit', days };
-  if (unit === 'walk') return { quantity: 1, unit: 'walk', days };
+  // 2610 (ZOE, ordre de Daniel « corrige les prix des candidatures ») — une balade PAR JOUR de
+  // la période : c'est ce que voient les promeneurs sur la demande (« 1 fois / jour »). Avant,
+  // une demande de balades du 20/12 au 03/01 valait 1 seule balade (12 € pour 15 jours).
+  if (unit === 'walk') return { quantity: days, unit: 'walk', days };
   if (isSittersHome(post, key)) return { quantity: Math.max(1, days - 1), unit: 'night', days };
   return { quantity: days, unit: 'day', days };
 };

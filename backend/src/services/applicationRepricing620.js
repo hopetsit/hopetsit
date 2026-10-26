@@ -41,7 +41,9 @@ const tierForUnit = (unit) => (unit === 'visit' ? 'visit' : unit === 'walk' ? 'w
  * @returns {object|null} bloc `pricing` complet, ou null si le prestataire n'a pas de tarif pour ce service
  */
 function priceApplication({ application, post, provider, providerRole }) {
-  const serviceType = engine.serviceKey(application.serviceType) || engine.mainService(post);
+  // 2610 — le service facturé est celui de la DEMANDE (le candidat répond à cette demande) ;
+  // celui de la candidature ne sert qu'à défaut (index d'app ancienne parfois faux).
+  const serviceType = engine.mainService(post) || engine.serviceKey(application.serviceType);
   const duration = Number(post.walkDurationMinutes || application.duration) || undefined;
   const r = engine.rateFor(provider, serviceType, { durationMinutes: duration });
   if (!r) return null;
@@ -139,7 +141,7 @@ async function repriceApplicationsForPost(post, opts = {}) {
  * @returns {object} (appliedRate = tarif unitaire, 0 si le prestataire n'en a pas pour ce service)
  */
 function indicativePricing({ post, provider, providerRole, serviceType, duration, addOns = [] }) {
-  const key = engine.serviceKey(serviceType) || engine.mainService(post);
+  const key = engine.mainService(post) || engine.serviceKey(serviceType);
   const r = engine.rateFor(provider, key, { durationMinutes: Number(duration) || undefined });
   const isTop = providerRole === 'walker' ? provider.isTopWalker === true : provider.isTopSitter === true;
   const q = engine.quantityFor(post, key);
@@ -225,6 +227,40 @@ function isAligned(app, post, hasRate = false) {
   return p.indicative !== true && p.unit === q.unit && Number(p.quantity) === Number(q.quantity);
 }
 
+const near = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) <= 0.011;
+
+/**
+ * 2610 (ZOE) — le bloc `pricing` stocké correspond-il au prix que calcule le moteur unique
+ * aujourd'hui ? (tarif unitaire, quantité, unité, total). Une candidature « tarif à venir »
+ * sans tarif connu est conforme ; avec un tarif désormais connu, elle ne l'est plus.
+ */
+function matchesExpected(app, post, provider, providerRole, r) {
+  const p = app.pricing || {};
+  if (!r) return p.stale === true;
+  if (p.stale === true) return false;
+  const isTbd = engine.effectiveDateMode(post) === 'tbd';
+  if (isTbd) {
+    return p.indicative === true && p.totalPrice == null && near(p.appliedRate, r.rate);
+  }
+  const expected = priceApplication({ application: app, post, provider, providerRole });
+  if (!expected) return false;
+  return p.indicative !== true
+    && p.unit === expected.unit
+    && Number(p.quantity) === Number(expected.quantity)
+    && near(p.appliedRate, expected.appliedRate)
+    && near(p.totalPrice, expected.totalPrice);
+}
+
+/** Total incohérent : inférieur au tarif unitaire, ou absent sur une demande datée. */
+function isIncoherentTotal(pricing) {
+  const p = pricing || {};
+  if (p.indicative === true || p.stale === true) return false;
+  const total = Number(p.totalPrice);
+  const rate = Number(p.appliedRate);
+  if (!(total > 0)) return true;
+  return rate > 0 && total + 0.001 < rate;
+}
+
 const fmtMoney = (n, currency, lang) => {
   try { return new Intl.NumberFormat(String(lang || 'fr').slice(0, 2), { style: 'currency', currency: currency || 'EUR' }).format(Number(n) || 0); }
   catch (_) { return `${Number(n) || 0} ${currency || 'EUR'}`; }
@@ -261,10 +297,15 @@ async function repriceAfterServiceChange(post, opts = {}) {
         .select('hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker appLocale language').lean();
       if (!provider) { out.skipped.push(String(app._id)); continue; }
       const r = engine.rateFor(provider, key, { durationMinutes: Number(post.walkDurationMinutes || app.duration) || undefined });
-      if (!opts.force && isAligned(app, post, !!r)) { out.aligned.push(String(app._id)); continue; }
+      // 2610 — « aligné » = le prix STOCKÉ est celui que donne le moteur aujourd'hui (tarif,
+      // quantité, total). Avant, seuls le service et l'unité étaient comparés : 2,70 € pour un
+      // tarif de 18 €/jour passait pour « aligné » et n'était jamais corrigé.
+      if (!opts.force && isAligned(app, post, !!r) && matchesExpected(app, post, provider, providerRole, r)) { out.aligned.push(String(app._id)); continue; }
       const providerId = String(providerRole === 'walker' ? app.walkerId : app.sitterId);
       const lang = provider.appLocale || provider.language || 'fr';
       const before = app.serviceType;
+      const totalBefore = app.pricing && typeof app.pricing.totalPrice === 'number' ? app.pricing.totalPrice : null;
+      const rateBefore = app.pricing && typeof app.pricing.appliedRate === 'number' ? app.pricing.appliedRate : null;
       app.serviceType = key;
       app.houseSittingVenue = key === 'house_sitting' ? (post.houseSittingVenue || app.houseSittingVenue || null) : null;
       let pricing = null;
@@ -293,7 +334,7 @@ async function repriceAfterServiceChange(post, opts = {}) {
         out.stale.push(String(app._id));
         changed.push({ app, providerId, providerRole, lang, kind: 'stale', unit });
       }
-      out.details.push({ id: String(app._id), providerId, role: providerRole, from: before, to: key, kind: pricing ? 'repriced' : 'stale', total: pricing ? pricing.totalPrice : null, rate: pricing ? pricing.appliedRate : 0 });
+      out.details.push({ id: String(app._id), providerId, role: providerRole, from: before, to: key, kind: pricing ? 'repriced' : 'stale', total: pricing ? pricing.totalPrice : null, rate: pricing ? pricing.appliedRate : 0, totalBefore, rateBefore, quantity: pricing ? pricing.quantity : null, unit: pricing ? pricing.unit : null, indicative: pricing ? !!pricing.indicative : true, currency: pricing ? pricing.currency : null });
       // eslint-disable-next-line no-await-in-loop
       if (!opts.dryRun) await app.save();
     } catch (e) {
@@ -490,6 +531,8 @@ module.exports = {
   serviceLabel,
   unitLabel,
   isAligned,
+  matchesExpected,
+  isIncoherentTotal,
   repriceAfterServiceChange,
   datesRequiredMessage,
   priceApplication,

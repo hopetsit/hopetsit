@@ -247,7 +247,7 @@ describe('3. Candidature indicative → 409 → dates posées → recalcul → 2
     expect(b.pricing).toMatchObject({ pricingTier: 'visit', totalPrice: 86.4, commission: 14.4, netPayout: 72 });
     expect(String((await Post.findById(S.postTbd.id).lean()).reservedBy.bookingId)).toBe(String(b._id));
   }, 60000);
-  test('compatibilité : candidature 619 (serviceDate, timeSlot, sans quantity) sur une demande datée → calcul historique inchangé + quantité informative', async () => {
+  test('candidature 619 (serviceDate, timeSlot) sur une demande datée → prix du MOTEUR UNIQUE sur les dates de la demande (2610 : plus jamais 2 h facturées)', async () => {
     const d = inDays(20);
     const r = await request(app).post(`/applications?ownerId=${S.owner._id}`).set(hdr(S.sitterNoVisit._id, 'sitter')).send({
       postId: S.postExact.id, serviceType: 'home_visit', serviceDate: d.toISOString(), startDate: d.toISOString(), endDate: new Date(d.getTime() + 2 * 3600000).toISOString(), timeSlot: 'morning', description: 'Je peux garder Rex.',
@@ -255,7 +255,8 @@ describe('3. Candidature indicative → 409 → dates posées → recalcul → 2
     if (r.status !== 201) console.log('createApplication 619 →', r.status, JSON.stringify(r.body)); // eslint-disable-line no-console
     expect(r.status).toBe(201);
     const p = r.body.application.pricing;
-    expect(p).toMatchObject({ indicative: false, pricingTier: 'hourly', appliedRate: 10, basePrice: 20, totalPrice: 24, quantity: 3, unit: 'day' }); // demande datée J+20 → J+22 : 3 jours
+    // demande datée J+20 → J+22 (garde chez le propriétaire) : 3 jours × (10 €/h × 8 = 80 €/jour) = 240 + 20 % = 288
+    expect(p).toMatchObject({ indicative: false, pricingTier: 'daily', appliedRate: 80, basePrice: 240, totalPrice: 288, quantity: 3, unit: 'day' });
   }, 60000);
 });
 

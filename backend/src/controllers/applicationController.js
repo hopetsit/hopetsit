@@ -476,6 +476,32 @@ const createApplication = async (req, res) => {
       };
       tierPricing = { basePrice: null, pricingTier: 'indicative', appliedRate: pricing620.appliedRate, totalHours: 0, totalDays: 0 };
       pricingBreakdown = { basePrice: null, addOns: pricing620.addOns, addOnsTotal: pricing620.addOnsTotal, totalPrice: null, commission: null, netPayout: null, commissionRate: pricing620.commissionRate, currency: bookingCurrency };
+    } else if (post620 && !visit620) {
+      // 2610 (ZOE, ordre de Daniel du 26/10 « corrige le bug et les prix de toutes les
+      // candidatures ») — CAUSE RACINE des prix faux : sur une demande DATÉE, le prix venait
+      // encore de l'ancien calcul horaire (tierPricing) avec les dates envoyées par l'app :
+      //   · une seule date (ou fin = début) → 1 heure facturée = tarif jour ÷ 8 → total ≈ 15 %
+      //     du tarif jour (Hanene 18 €/j → 2,70 €) ;
+      //   · balade sur une période → heures de la période × tarif horaire dérivé (12 €/30 min
+      //     → 24 €/h × 336 h = 8 064 €) ;
+      //   · tarif semaine/mois appliqué en douce (Sohane 50 €/j → 308,57 € pour 19 jours).
+      // Désormais : le MOTEUR UNIQUE (quantité de la demande × tarif unitaire + commission
+      // 20 % / 15 % Top), exactement ce que le propriétaire a vu en estimation.
+      const priced = repricing620.priceApplication({
+        application: { serviceType, pricing: { addOns: normalizedAddOns, currency: bookingCurrency, commissionRate: commissionRateForProvider(isTopProvider) }, duration: effectiveDuration },
+        post: post620,
+        provider,
+        providerRole,
+      });
+      if (!priced) {
+        return res.status(400).json({
+          error: 'Set your price for this service before applying to this request.',
+          code: 'RATE_REQUIRED',
+        });
+      }
+      pricingBreakdown = { basePrice: priced.basePrice, addOns: priced.addOns, addOnsTotal: priced.addOnsTotal, totalPrice: priced.totalPrice, commission: priced.commission, netPayout: priced.netPayout, commissionRate: priced.commissionRate, currency: priced.currency };
+      tierPricing = { basePrice: priced.basePrice, pricingTier: priced.pricingTier, appliedRate: priced.appliedRate, totalHours: 0, totalDays: priced.totalDays };
+      pricing620 = { quantity: priced.quantity, unit: priced.unit, indicative: false };
     } else if (visit620) {
       const r = engine620.rateFor(provider, 'home_visit');
       const est = engine620.estimate({ serviceType: 'home_visit', rate: r.rate, post: post620, commissionRate: commissionRateForProvider(isTopProvider), currency: bookingCurrency });
@@ -875,6 +901,34 @@ const respondToApplication = async (req, res) => {
         }
       } catch (e) {
         logger.warn(`[respondToApplication] devise non vérifiée : ${e?.message || e}`);
+      }
+      // 2610 (ZOE, ordre de Daniel du 26/10) — FILET : au moment du choix, le prix d'une
+      // candidature sur une demande datée est recontrôlé par le moteur unique. Un prix stocké
+      // faux (ancien calcul horaire : 2,70 € pour 18 €/jour, 8 064 € pour 12 €/balade) est
+      // remplacé AVANT de créer la réservation : jamais une réservation à un prix incohérent.
+      if (application.postId && !application.bookingId) {
+        try {
+          const engine620 = require('../utils/pricingEngine620');
+          const rp = require('../services/applicationRepricing620');
+          const p620 = await require('../models/Post').findById(application.postId).lean();
+          if (p620 && engine620.effectiveDateMode(p620) !== 'tbd') {
+            const PM = isWalkerApp ? require('../models/Walker') : Sitter;
+            const prov = await PM.findById(providerRefId)
+              .select('hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker').lean();
+            const priced = prov ? rp.priceApplication({ application, post: p620, provider: prov, providerRole }) : null;
+            const cur620 = application.pricing || {};
+            if (priced && (Math.abs((Number(cur620.totalPrice) || 0) - priced.totalPrice) > 0.011 || cur620.indicative === true || cur620.stale === true)) {
+              logger.info(`[respondToApplication] prix recalculé avant réservation (candidature ${id}) : ${cur620.totalPrice} → ${priced.totalPrice}`);
+              application.pricing = { ...priced, stale: false };
+              if (!application.timeSlot) application.timeSlot = 'flexible';
+              if (!application.serviceDate) application.serviceDate = p620.startDate || application.serviceDate;
+              if (!application.startDate) application.startDate = p620.startDate || application.startDate;
+              if (!application.endDate) application.endDate = p620.endDate || application.endDate;
+            }
+          }
+        } catch (e) {
+          logger.warn(`[respondToApplication] contrôle prix 2610 : ${e?.message || e}`);
+        }
       }
       application.status = 'accepted';
 
