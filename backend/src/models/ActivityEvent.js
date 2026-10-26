@@ -11,6 +11,9 @@ const activityEventSchema = new mongoose.Schema(
     at: { type: Date, default: Date.now },
     platform: { type: String, default: '' }, // ios | android | web
     appVersion: { type: String, default: '' },
+    // 26/10 (ADA) — app | web | script : une session « script » (nos outils, l'admin)
+    // ne compte JAMAIS comme un retour de la personne (utils/ownerReturn2610).
+    origin: { type: String },
     city: { type: String, default: '' },
     country: { type: String, default: '' },
   },

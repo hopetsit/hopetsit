@@ -233,7 +233,7 @@ const ADMIN_BUILD = 'v623'; // 623 (PAM, 26/10) : maquette PawMap ronds Anneau, 
 const _ADMIN_BUILD_612 = 'v612'; // 612 (PAM, 04/10) : admin — rangs Chiot → Légende à la place des anciens badges
 // 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à
 // redéployer quand seul admin_dashboard.html a bougé (ADMIN_BUILD reste celui de l'app).
-const ADMIN_DEPLOYED_AT = '2026-10-24T22:05'; // 24/10, 22 h 05 (ADA) : contacts pub réels (GET /admin/ad-leads/stats) sur la ligne du jour + bloc « Pub à formulaire — 7 jours » (accueil, Demandes publiées), modale Parcours lit stale/indicative sur applications[]
+const ADMIN_DEPLOYED_AT = '2026-10-26T15:50'; // 26/10 (ADA, décision de Daniel) : « vrai dernier retour du propriétaire » (scripts exclus), « a ouvert ses candidats », « a l'app » dans Demandes publiées
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -304,6 +304,8 @@ const versionedRoutes = [
   // requis), sans cookie, qui répond toujours 204 : validation, filtrage des
   // robots et limitation de débit sont dans le routeur.
   { path: '/site-events', mw: [], router: siteEventRoutes },
+  // 26/10 (ADA, décision de Daniel) — repère « le propriétaire a ouvert ses candidats » (site + app).
+  { path: '/owner-signals', mw: [], router: require('./routes/candidatesView2610') },
   { path: '/applications', mw: [], router: applicationRoutes },
   { path: '/conversations', mw: [], router: conversationRoutes },
   { path: '/tasks', mw: [], router: taskRoutes },

@@ -48,16 +48,24 @@ function isNewSession(last, now, gap = SESSION_GAP_MS) {
 async function recordActivity(req, userId, role, now = Date.now()) {
   const id = String(userId || '');
   if (!id || !MODEL_PATH[role]) return null;
-  touchLastSeen(id, now).catch(() => {});
-  const last = _seen.get(id);
-  _seen.set(id, now);
+  // 26/10 (ADA, décision de Daniel) — origine de la requête : une session ouverte par
+  // nos scripts ou l'admin (jeton d'un propriétaire, sans navigateur ni app) ne touche
+  // PAS « vu il y a », ne lance pas les PawPoints, et reste séparée des vraies sessions.
+  const { classifyOrigin, isRealOrigin } = require('./ownerReturn2610');
+  const origin = classifyOrigin(req);
+  const real = isRealOrigin(origin);
+  if (real) touchLastSeen(id, now).catch(() => {});
+  const key = real ? id : `${id}:script`;
+  const last = _seen.get(key);
+  _seen.set(key, now);
   if (!isNewSession(last, now)) return null;
   if (_seen.size > 50000) _seen.clear();
   try {
     const ActivityEvent = require('../models/ActivityEvent');
     // Après un redémarrage du serveur la mémoire est vide : on relit la base.
     if (!last) {
-      const prev = await ActivityEvent.findOne({ userId: id }).sort({ at: -1 }).select('at').lean();
+      const prev = await ActivityEvent.findOne({ userId: id, origin: real ? { $in: ['app', 'web'] } : 'script' })
+        .sort({ at: -1 }).select('at').lean();
       if (prev && !isNewSession(new Date(prev.at).getTime(), now)) return null;
     }
     const doc = await require(MODEL_PATH[role]).findById(id).select('city country location.city').lean();
@@ -70,12 +78,14 @@ async function recordActivity(req, userId, role, now = Date.now()) {
       at: new Date(now),
       platform,
       appVersion: _header(req, 'x-app-version'),
+      origin,
       city: (doc && ((doc.location && doc.location.city) || doc.city)) || '',
       country: (doc && doc.country) || '',
     });
     // 607 (ZOE) — PawPoints : chaque début de session compte pour la série de
     // 7 jours, et vérifie profil complet / Pionnier. Best-effort, sans attendre.
-    try {
+    // 26/10 : jamais pour une session de script.
+    if (real) try {
       require('../services/pawPointsActivity607')
         .checkIn({ userId: id, role, now: new Date(now) })
         .catch(() => {});
@@ -92,7 +102,7 @@ async function activitySummary({ days = 30, limit = 500 } = {}) {
   const ActivityEvent = require('../models/ActivityEvent');
   const since = new Date(Date.now() - Math.max(1, Math.min(90, days)) * 86400000);
   const rows = await ActivityEvent.aggregate([
-    { $match: { at: { $gte: since } } },
+    { $match: { at: { $gte: since }, origin: { $ne: 'script' } } }, // 26/10 : nos scripts ne sont pas des connexions
     { $sort: { at: -1 } },
     { $group: {
       _id: '$userId',

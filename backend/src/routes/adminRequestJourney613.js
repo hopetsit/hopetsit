@@ -464,12 +464,22 @@ router.get('/board', requireAdmin, async (req, res) => {
     const posts = await Post.find({ postType: 'request' }).sort({ createdAt: -1 }).limit(500).select(POST_FIELDS).lean();
     const map = await journeys(posts, { now });
     const real = [...map.values()].filter((x) => x.owner.kind === 'real');
+    // 26/10 (ADA, décision de Daniel) — par demande : vrai dernier retour du propriétaire (sessions
+    // site/app seulement, jamais nos scripts), ouvertures de la page des candidats, app installée.
+    // Jamais bloquant : en cas d'échec le tableau sort sans ces colonnes.
+    const shown = real.slice(0, limit);
+    try {
+      const sig = await require('../utils/ownerReturn2610').boardSignals(shown);
+      for (const it of shown) it.ownerSignals = sig.get(String(it.postId)) || null;
+    } catch (e) {
+      logger.warn(`[admin/requests613/board] ownerSignals ${e?.message || e}`);
+    }
     res.json({
       generatedAt: now, timeZone: tz,
       counters: boardCounters(real, now, tz),
       excludedTestOrStaff: map.size - real.length,
       total: real.length,
-      items: real.slice(0, limit),
+      items: shown,
     });
   } catch (e) {
     logger.error('[admin/requests613/board]', e);
