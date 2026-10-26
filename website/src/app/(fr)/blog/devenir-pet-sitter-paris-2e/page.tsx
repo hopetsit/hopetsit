@@ -26,7 +26,7 @@ const FAQ = [
   },
   {
     q: "Combien peut-on gagner en pet sitting dans le quartier ?",
-    a: "Les tarifs pratiqués à Paris tournent autour de 12 à 20 € la promenade et 20 à 30 € la garde à la journée. Deux ou trois promenades de midi régulières dans la semaine suffisent déjà à générer un revenu d'appoint stable.",
+    a: "Les tarifs pratiqués à Paris tournent autour de 12 à 20 € la promenade et 20 à 30 € la garde à la journée. Le montant gagné dépend uniquement du nombre de propriétaires qui vous réservent : rien n'est garanti, ce qui se construit, ce sont les clients réguliers.",
   },
   {
     q: "Quel statut choisir pour être payé légalement ?",
@@ -138,15 +138,8 @@ export default function ArticleParis2e() {
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
-        Combien à la fin du mois
+        Ce qui fait la différence
       </h2>
-      <p className="mt-4 leading-relaxed text-ink-muted">
-        Deux promenades de midi par jour à 15 €, trois jours par semaine, c'est
-        déjà 90 € par semaine pour un peu plus d'une heure sur la pause
-        déjeuner — soit près de 360 € par mois sans toucher à vos soirées ni à
-        vos week-ends. Avec trois ou quatre clients réguliers du quartier, qui
-        réservent le même créneau chaque semaine, ce chiffre grimpe vite.
-      </p>
       <p className="mt-4 leading-relaxed text-ink-muted">
         Ce qui compte ici n'est pas le nombre de clients, mais la régularité
         du rendez-vous : un actif qui travaille au Sentier a besoin de vous à

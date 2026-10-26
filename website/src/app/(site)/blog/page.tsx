@@ -116,7 +116,7 @@ const POSTS = [
   {
     slug: "how-much-does-a-pet-sitter-cost-in-dallas",
     lang: "🇺🇸",
-    title: "How Much Does a Pet Sitter Cost in Dallas? 2026 Rates",
+    title: "Pet Sitting Rates Per Day & Overnight in Dallas (2026)",
     excerpt:
       "Realistic Dallas rates ($30-55/day, $15-25/walk), how sitting compares to boarding, and how to pay safely.",
   },

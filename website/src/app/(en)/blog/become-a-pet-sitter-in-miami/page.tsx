@@ -19,8 +19,8 @@ const FAQ = [
     a: "No license is required for occasional dog walking or pet sitting. What matters most to owners is a clear profile, real availability, and reviews from past clients. Check your local rules if you plan to make it a full-time business.",
   },
   {
-    q: "How much can a pet sitter actually earn in Miami?",
-    a: "A few walks a week as a side activity typically brings in a few hundred dollars a month. With regular clients around Brickell, Wynwood, or Coral Gables and the occasional overnight stay while an owner travels, many sitters clear well over that.",
+    q: "How much does pet sitting pay in Miami?",
+    a: "It depends entirely on how many owners book you and how often, so there is no guaranteed amount. The rates in this guide are the usual ranges in Miami; what grows over time is the number of regular clients who book you again.",
   },
   {
     q: "Which Miami neighborhoods have the most demand?",
@@ -118,15 +118,8 @@ export default function ArticleMiami() {
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
-        Doing the monthly math
+        What makes the difference
       </h2>
-      <p className="mt-4 leading-relaxed text-ink-muted">
-        Three walks a week at $22 comes out to roughly $260 a month for a few
-        hours of walking. Add two sitting days at $45 while an owner is out of
-        town and that's another $180. A handful of regular clients — the kind
-        who travel often and call you every time — routinely pushes sitters
-        past $500 a month without turning it into a full-time job.
-      </p>
       <p className="mt-4 leading-relaxed text-ink-muted">
         What actually moves the needle isn't the rate on your profile, it's
         being the person an owner trusts with their keys or their building's

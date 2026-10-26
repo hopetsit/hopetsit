@@ -1398,6 +1398,8 @@ export function usFaq(slug: string, lang: string, mode: Mode): { q: string; a: s
   return usGuide(slug, lang)?.faq[mode] ?? [];
 }
 
+const DFW = new Set(["dallas", "fort-worth", "plano", "frisco", "irving", "arlington-tx"]);
+
 export default function UsLocalGuide({ slug, lang, name, mode }: { slug: string; lang: string; name: string; mode: Mode }) {
   const g = usGuide(slug, lang);
   if (!g) return null;
@@ -1468,6 +1470,18 @@ export default function UsLocalGuide({ slug, lang, name, mode }: { slug: string;
             </Link>
             .
           </p>
+          {/* 26/10 (GUS) — Search Console 28 j : le guide des prix de Dallas a 793 affichages pour
+              3 clics (place 17), surtout sur « tarif par jour / pour la nuit ». Aucune page
+              Dallas-Fort Worth ne le reliait : lien depuis les pages propriétaires de la région. */}
+          {DFW.has(slug) && (
+            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+              What does it cost?{" "}
+              <Link href="/blog/how-much-does-a-pet-sitter-cost-in-dallas" className="font-semibold text-owner underline">
+                Pet sitting rates per day and overnight in Dallas-Fort Worth
+              </Link>
+              .
+            </p>
+          )}
         </div>
       )}
       {/* 11/10 (GUS) — Search Console : « cat sitting / cat sitter <ville> » en 11e-20e place

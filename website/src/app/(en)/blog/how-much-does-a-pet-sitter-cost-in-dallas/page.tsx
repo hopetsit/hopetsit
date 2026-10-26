@@ -5,9 +5,9 @@ import Link from "@/components/SiteLink";
 // (Dallas). Topic #1 from marketing/sujets_us.md — links into the two
 // Dallas pages that Search Console still shows as unknown to Google.
 export const metadata: Metadata = {
-  title: "How Much Does a Pet Sitter Cost in Dallas? 2026 Rates",
+  title: "Pet Sitting Rates Per Day & Overnight in Dallas (2026)",
   description:
-    "Realistic Dallas pet sitting rates for 2026: $30-55 a day, $15-25 a walk. What changes the price, how it compares to boarding, and how to pay safely.",
+    "What a dog or pet sitter costs in Dallas in 2026: $15-25 a walk, $30-40 a day, $40-55 overnight. Per day vs overnight vs boarding, and how to pay safely.",
   alternates: {
     canonical:
       "https://www.hopetsit.com/blog/how-much-does-a-pet-sitter-cost-in-dallas",
@@ -22,6 +22,10 @@ const FAQ = [
   {
     q: "What's the difference between daytime sitting and overnight sitting?",
     a: "Daytime sitting with no overnight tends to land toward the lower end of the $30-55 range, while a full overnight stay — someone actually sleeping at your place or keeping your dog overnight — lands toward the higher end.",
+  },
+  {
+    q: "How much is overnight dog sitting in Dallas?",
+    a: "An overnight stay in Dallas typically runs $40 to $55 a night, compared with $30 to $40 for daytime sitting with no overnight. For several nights in a row, ask the sitter about a small discount after the first night.",
   },
   {
     q: "Is boarding cheaper than a pet sitter in Dallas?",
@@ -43,7 +47,7 @@ export default function ArticlePetSitterCostDallas() {
     "@graph": [
       {
         "@type": "Article",
-        headline: "How Much Does a Pet Sitter Cost in Dallas? 2026 Rates",
+        headline: "Pet Sitting Rates Per Day & Overnight in Dallas (2026)",
         inLanguage: "en-US",
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: {
@@ -71,7 +75,7 @@ export default function ArticlePetSitterCostDallas() {
       />
       <p className="text-sm font-semibold text-owner">Owner's guide · Dallas, TX</p>
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
-        How much does a pet sitter cost in Dallas?
+        How much does a pet sitter cost in Dallas? Rates per day and overnight
       </h1>
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         Uptown, Lakewood, Plano, Frisco: Dallas-Fort Worth is sprawling, hot
