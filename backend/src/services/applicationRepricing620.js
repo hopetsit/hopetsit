@@ -103,7 +103,23 @@ async function repriceApplicationsForPost(post, opts = {}) {
         .select('hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker').lean();
       if (!provider) { out.skipped.push(String(app._id)); continue; }
       const pricing = priceApplication({ application: app, post, provider, providerRole });
-      if (!pricing) { out.skipped.push(String(app._id)); continue; }
+      if (!pricing) {
+        // 2610 (ZOE, relevé de LEO) — le candidat n'a AUCUN tarif pour le service de la demande
+        // (ex. promeneur sur une garde) : avant, la candidature restait « indicative » sur une
+        // demande datée → « pose tes dates » alors que les dates étaient posées, Choisir bloqué
+        // sans explication. Elle passe en « tarif à venir » (stale), comme au changement de service.
+        if (!(app.pricing && app.pricing.stale === true)) {
+          const unit = engine.quantityFor(post, engine.mainService(post)).unit;
+          app.pricing = {
+            ...indicativePricing({ post, provider, providerRole, serviceType: engine.mainService(post), duration: post.walkDurationMinutes, addOns: Array.isArray(app.pricing && app.pricing.addOns) ? app.pricing.addOns : [] }),
+            appliedRate: 0, unit, indicative: true, stale: true, totalPrice: null, commission: null, netPayout: null, basePrice: null, quantity: null,
+          };
+          // eslint-disable-next-line no-await-in-loop
+          await app.save();
+        }
+        out.skipped.push(String(app._id));
+        continue;
+      }
       app.pricing = pricing;
       // Une candidature posée sans dates n'a ni date ni créneau : la réservation les exige.
       if (!app.timeSlot) app.timeSlot = 'flexible';
@@ -119,7 +135,10 @@ async function repriceApplicationsForPost(post, opts = {}) {
     }
   }
   if (out.repriced.length && opts.notify !== false) {
-    try {
+    // 2610 (ZOE, relevé de LEO : « enregistrer mes dates » prenait 1,3 à 9,8 s) — la notification
+    // (cloche + push + e-mail SMTP) partait AVANT la réponse au propriétaire. Elle part désormais
+    // en arrière-plan ; `opts.await === true` garde l'ancien comportement (tests).
+    const notifyNow = async () => {
       const send = typeof opts.send === 'function' ? opts.send : require('./notificationSender').sendNotification;
       await send({
         userId: String(post.ownerId && post.ownerId._id ? post.ownerId._id : post.ownerId),
@@ -132,10 +151,10 @@ async function repriceApplicationsForPost(post, opts = {}) {
           pricing620: '1',
         },
       });
-      out.notified = true;
-    } catch (e) {
-      logger.warn(`[reprice620] notification : ${e && e.message ? e.message : e}`);
-    }
+    };
+    out.notified = true;
+    const run = notifyNow().catch((e) => logger.warn(`[reprice620] notification : ${e && e.message ? e.message : e}`));
+    if (opts.await === true) await run;
   }
   return out;
 }

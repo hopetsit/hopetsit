@@ -873,10 +873,12 @@ const respondToApplication = async (req, res) => {
       try {
         const engine620 = require('../utils/pricingEngine620');
         let tbd = !!(application.pricing && application.pricing.indicative === true);
-        if (!tbd && application.postId) {
+        if (application.postId) {
+          // 2610 — la DEMANDE fait foi : une candidature « tarif à venir » sur une demande datée
+          // n'est pas un problème de dates (le prix est recontrôlé plus bas).
           const p = await require('../models/Post').findById(application.postId)
             .select('dateMode startDate endDate').lean();
-          tbd = !!p && engine620.normalizeDateMode(p.dateMode) === 'tbd';
+          if (p) tbd = engine620.effectiveDateMode(p) === 'tbd';
         }
         if (tbd) {
           const rp = require('../services/applicationRepricing620');

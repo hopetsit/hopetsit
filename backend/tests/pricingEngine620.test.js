@@ -68,6 +68,11 @@ describe('quantités', () => {
     expect(engine.estimate({ serviceType: 'house_sitting', rate: 10, weeklyRate: 100, post: P(7) })).toMatchObject({ unitTotal: 70, weeklyApplied: false });
     // 6 jours : jamais de tarif semaine
     expect(engine.estimate({ serviceType: 'house_sitting', rate: 20, weeklyRate: 50, post: P(6) })).toMatchObject({ unitTotal: 120, weeklyApplied: false });
+    // 2610 (Daniel) : tarif semaine < 3 jours de tarif jour → ignoré
+    expect(engine.estimate({ serviceType: 'house_sitting', rate: 50, weeklyRate: 100, post: P(15) })).toMatchObject({ unitTotal: 750, weeklyApplied: false, ownerTotal: 900 }); // Sohane
+    expect(engine.estimate({ serviceType: 'house_sitting', rate: 13, weeklyRate: 12, post: P(19) })).toMatchObject({ unitTotal: 247, weeklyApplied: false }); // 13 €/j, 12 €/sem
+    expect(engine.estimate({ serviceType: 'house_sitting', rate: 20, weeklyRate: 90, post: P(15) })).toMatchObject({ unitTotal: 200, weeklyApplied: true }); // 2 × 90 + 20
+    expect(engine.estimate({ serviceType: 'house_sitting', rate: 20, weeklyRate: 60, post: P(7) })).toMatchObject({ unitTotal: 60, weeklyApplied: true }); // pile 3 jours : gardé
     // nuits chez le gardien : 8 jours = 7 nuits → 1 semaine
     expect(engine.estimate({ serviceType: 'house_sitting', rate: 20, weeklyRate: 100, post: P(8, { houseSittingVenue: 'sitters_home' }) })).toMatchObject({ quantity: 7, unit: 'night', unitTotal: 100, weeklyApplied: true });
     // balades et visites : jamais

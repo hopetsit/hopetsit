@@ -138,14 +138,16 @@ const isSittersHome = (post, key) =>
 /**
  * 2610 (ZOE, décision de Daniel du 26/10 « applique le tarif semaine du gardien quand la garde
  * dure 7 jours ou plus et que c'est moins cher ») — prestation facturée à la journée (jours ou
- * nuits) de ≥ 7 unités, prestataire avec un tarif semaine : on prend le MOINS CHER entre
+ * nuits) de ≥ 7 unités, prestataire avec un tarif semaine (≥ 3 × tarif jour, sinon ignoré) : on prend le MOINS CHER entre
  * (unités × tarif jour) et (semaines entières × tarif semaine + unités restantes × tarif jour).
  * @returns {{unitTotal:number, weeklyApplied:boolean, weeks:number|null, weeklyRate:number|null}}
  */
 const dailyTotalWithWeekly = ({ unitRate, quantity, unit, weeklyRate }) => {
   const plain = round2(unitRate * quantity);
   const w = Number(weeklyRate);
-  if (!(unit === 'day' || unit === 'night') || !(quantity >= 7) || !(w > 0)) {
+  // 2610 (décision de Daniel, 26/10) : un tarif semaine inférieur à 3 jours de tarif jour est une
+  // erreur de saisie probable (Sohane 50 €/j, 100 €/sem ; 13 €/j, 12 €/sem) → ignoré, tarif jour.
+  if (!(unit === 'day' || unit === 'night') || !(quantity >= 7) || !(w > 0) || w < 3 * unitRate) {
     return { unitTotal: plain, weeklyApplied: false, weeks: null, weeklyRate: null };
   }
   const weeks = Math.floor(quantity / 7);

@@ -96,7 +96,7 @@ beforeAll(async () => {
   // Hanene : 18 €/jour ; Sohane : 50 €/jour MAIS 100 €/semaine (grille incohérente : le tarif jour fait foi) ;
   // Imane : promeneuse 12 €/30 min ; Nieheem : 100 $/jour (US).
   S.hanene = await Sitter.create({ ...fr, name: 'Hanene Test', email: 'zoe2610+hanene@example.test', dailyRate: 18 });
-  S.sohane = await Sitter.create({ ...fr, name: 'Sohane Test', email: 'zoe2610+sohane@example.test', dailyRate: 50, weeklyRate: 100 });
+  S.sohane = await Sitter.create({ ...fr, name: 'Sohane Test', email: 'zoe2610+sohane@example.test', dailyRate: 50, weeklyRate: 200 });
   S.imane = await Walker.create({ ...fr, name: 'Imane Test', email: 'zoe2610+imane@example.test', walkRates: [{ durationMinutes: 30, basePrice: 12, currency: 'EUR', enabled: true }] });
   S.nieheem = await Sitter.create({ ...us, name: 'Nieheem Test', email: 'zoe2610+nieheem@example.test', dailyRate: 100 });
 
@@ -133,10 +133,10 @@ describe('1. Nouvelles candidatures : prix du moteur unique (cause racine des pr
     expect(p).toMatchObject({ indicative: false, appliedRate: 18, quantity: 1, unit: 'day', basePrice: 18, commission: 3.6, totalPrice: 21.6, currency: 'EUR' });
     expect(p.totalPrice).toBeGreaterThanOrEqual(p.appliedRate);
   }, 60000);
-  test('garde datée 15 jours : tarif semaine appliqué parce que moins cher (Sohane 50 €/j, 100 €/sem → 2 × 100 + 50 = 250 + 20 % = 300 €), tarif jour sinon', async () => {
+  test('garde datée 15 jours : tarif semaine appliqué parce que moins cher (50 €/j, 200 €/sem → 2 × 200 + 50 = 450 + 20 % = 540 €), tarif jour sinon', async () => {
     S.postGarde = (await createPost({ serviceTypes: ['house_sitting'], houseSittingVenue: 'owners_home', dateMode: 'exact', startDate: day(30), endDate: day(44) }).expect(201)).body.post;
     const p = await pricingOf(await apply(S.postGarde, S.sohane, 'sitter', { serviceType: 'house_sitting', houseSittingVenue: 'owners_home', serviceDate: day(30), startDate: day(30), endDate: day(44) }));
-    expect(p).toMatchObject({ appliedRate: 50, quantity: 15, unit: 'day', basePrice: 250, commission: 50, totalPrice: 300, weeklyApplied: true, weeks: 2, weeklyRate: 100, pricingTier: 'weekly' });
+    expect(p).toMatchObject({ appliedRate: 50, quantity: 15, unit: 'day', basePrice: 450, commission: 90, totalPrice: 540, weeklyApplied: true, weeks: 2, weeklyRate: 200, pricingTier: 'weekly' });
     // l'app envoie une SEULE date (ancien client) : même prix, ce sont les dates de la demande qui comptent
     const p2 = await pricingOf(await apply(S.postGarde, S.hanene, 'sitter', { serviceType: 'house_sitting', houseSittingVenue: 'owners_home', serviceDate: day(30) }));
     expect(p2).toMatchObject({ appliedRate: 18, quantity: 15, totalPrice: 324 });
@@ -220,4 +220,44 @@ describe('3. Filet au moment du choix + règles d\'incohérence', () => {
     expect(isIncoherentTotal({ indicative: true, totalPrice: null, appliedRate: 18 })).toBe(false);
     expect(isIncoherentTotal({ stale: true, indicative: true, totalPrice: null })).toBe(false);
   });
+});
+
+describe('4. Relevés de LEO : pose des dates sur une garde', () => {
+  const newOwner = async (tag) => {
+    const o = await Owner.create({ password: PASS, city: 'Zone test', country: 'FR', currency: 'EUR', verified: true, location: ZONE, appLocale: 'fr', name: `Leo ${tag}`, email: `zoe2610+leo${tag}@example.test`, acceptedTerms: true });
+    const p = await Pet.create({ ownerId: o._id, petName: `P${tag}`, petType: 'cat' });
+    return { o, p };
+  };
+  test('promeneur candidat sur une garde (aucun tarif jour) : après les dates → « tarif à venir », plus jamais « pose tes dates »', async () => {
+    const { o, p } = await newOwner('a');
+    const post = (await createPost({ body: 'Garde LEO 2610.', serviceTypes: ['house_sitting'], houseSittingVenue: 'owners_home', dateMode: 'tbd' }, o, p).expect(201)).body.post;
+    const r = await apply(post, S.imane, 'walker', { serviceType: 'house_sitting', houseSittingVenue: 'owners_home' }, o);
+    if (r.status !== 201) console.log('apply walker →', r.status, JSON.stringify(r.body)); // eslint-disable-line no-console
+    expect(r.status).toBe(201);
+    const id = r.body.application.id || r.body.application._id;
+    await request(app).patch(`/posts/${post.id}`).set(hdr(o._id, 'owner')).send({ dateMode: 'exact', startDate: day(70), endDate: day(72) }).expect(200);
+    const a = await Application.findById(id).lean();
+    expect(a.pricing).toMatchObject({ stale: true, indicative: true, totalPrice: null });
+    const acc = await request(app).post(`/applications/${id}/respond`).set(hdr(o._id, 'owner')).send({ action: 'accept' });
+    expect(acc.body.code).not.toBe('DATES_REQUIRED');
+    expect(acc.status).not.toBe(200);
+  }, 60000);
+  test('enregistrer ses dates répond SANS attendre la notification (avant : 1,3 à 9,8 s) ; la notification part quand même', async () => {
+    const { o, p } = await newOwner('b');
+    const post = (await createPost({ body: 'Garde LEO 2610 bis.', serviceTypes: ['house_sitting'], houseSittingVenue: 'owners_home', dateMode: 'tbd', animalTypes: ['cat'] }, o, p).expect(201)).body.post;
+    expect((await apply(post, S.hanene, 'sitter', { serviceType: 'house_sitting', houseSittingVenue: 'owners_home' }, o)).status).toBe(201);
+    const ns = require('../src/services/notificationSender');
+    const real = ns.sendNotification;
+    let sent = 0;
+    const spy = jest.spyOn(ns, 'sendNotification').mockImplementation(async (x) => { await wait(4000); sent += 1; return real(x); });
+    try {
+      const t0 = Date.now();
+      const r = await request(app).patch(`/posts/${post.id}`).set(hdr(o._id, 'owner')).send({ dateMode: 'exact', startDate: day(80), endDate: day(82) }).expect(200);
+      expect(Date.now() - t0).toBeLessThan(2500);
+      expect(r.body.repricedApplications).toBe(1);
+      expect(sent).toBe(0);
+      await wait(4600);
+      expect(sent).toBe(1);
+    } finally { spy.mockRestore(); }
+  }, 60000);
 });
