@@ -291,10 +291,15 @@ export function PostCandidates1610({
           // 620b — la demande a changé de service et ce candidat n'a pas de tarif pour le nouveau :
           // « tarif à venir », aucun montant, Choisir bloqué avec l'explication.
           const stale = a.pricing?.stale === true;
-          const unitRate = stale ? null : (a.pricing?.appliedRate ?? a.pricing?.basePrice ?? null);
+          // 2610 (ZOE, ordre de Daniel) — jamais un total incohérent à l'écran : un total absent,
+          // nul ou INFÉRIEUR au tarif unitaire (ancien calcul horaire : 2,70 € pour 18 €/jour) n'est
+          // pas affiché, ni comme total ni comme tarif. Le serveur recalcule le prix au moment du choix.
+          const rawRate = a.pricing?.appliedRate ?? null;
+          const incoherent = !stale && !indicative && (total == null || !(total > 0) || (rawRate != null && rawRate > 0 && total + 0.001 < rawRate));
+          const unitRate = stale || incoherent ? null : (a.pricing?.appliedRate ?? a.pricing?.basePrice ?? null);
           // Tarif unitaire compact (« 12 €/visite », jamais « 12,00 € ») ; les centimes restent s'il y en a.
           const rateLabel = indicative && unitRate != null && unitRate > 0 ? `${moneyCompact(unitRate, currency, lang)}/${unitShort620(lang, unitOf(a))}` : "";
-          const priceLabel = !stale && !indicative && total != null && total > 0 ? money(total, currency, lang) : "";
+          const priceLabel = !stale && !indicative && !incoherent && total != null && total > 0 ? money(total, currency, lang) : "";
           const accepted = a.status === "accepted";
           const bk = accepted ? linkedBooking(a) : null;
           const isFocus = !!focusId && focusId === id;

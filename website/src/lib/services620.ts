@@ -150,7 +150,7 @@ export type Quantity620 = { quantity: number | null; unit: PriceUnit620 };
 /**
  * Port de `quantityFor(post, serviceType)` (serveur) : jours (fin − début + 1),
  * nuits = jours − 1 quand l'animal dort chez le gardien, visites = jours ×
- * visitsPerDay, balade = 1. Mode `tbd` → null (indicatif : tarif unitaire seul).
+ * visitsPerDay, balades = 1 par jour (2610). Mode `tbd` → null (indicatif : tarif unitaire seul).
  */
 export function quantityFor620(input: {
   service: string | null | undefined;
@@ -165,7 +165,8 @@ export function quantityFor620(input: {
   if (input.dateMode === "tbd") return { quantity: null, unit: unit0 };
   const days = daysBetween620(input.startDate, input.endDate);
   if (days <= 0) return { quantity: null, unit: unit0 };
-  if (input.service === "dog_walking") return { quantity: 1, unit: "walk" };
+  // 2610 (ZOE) — une balade PAR JOUR de la période, comme le serveur (pricingEngine620).
+  if (input.service === "dog_walking") return { quantity: days, unit: "walk" };
   if (input.service === "home_visit") {
     const v = Number(input.visitsPerDay);
     const per = v === 2 ? 2 : 1;
