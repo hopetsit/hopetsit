@@ -54,6 +54,7 @@ import 'widgets/pawmap_help619_sections.dart';
 import 'widgets/pawmap_buttons.dart';
 import 'widgets/pawmap_discreet.dart';
 import 'widgets/pawmap_pins.dart';
+import 'widgets/pawmap_ring2610.dart';
 import 'widgets/pawmap_rail.dart';
 import 'widgets/pawmap_sheets.dart';
 import 'widgets/pawmap_balade_illustration.dart';
@@ -776,28 +777,31 @@ PawLegendEntry _friendEntry() {
   );
 }
 
-/// Gardien + promeneur : UNE bulle bleu / vert avec les deux prix.
+/// 623 — gardien + promeneur (maquette 26/10) : rond « Anneau » découpé,
+/// pastilles des rôles, et la bulle des deux prix qui s'ouvre au toucher.
 PawLegendEntry _duoEntry() {
-  const s = PawMapLegend.memberSize;
-  const price = '20 €|12 €';
-  final pw = PawMapPinPainter.photoBitmapSize(s);
-  final w = math.max(pw, PawMapPinPainter.priceBubbleWidth(price) + 10);
+  const segs = [
+    PawPriceSeg2610('sitter', '20 €', '/jour'),
+    PawPriceSeg2610('walker', '12 €', '/balade'),
+  ];
+  final bub = pawBubbleBitmap2610(segs, lift: 0);
+  final ring = pawRingBitmap2610(1, multi: true);
+  final w = math.max(bub.width, ring.width);
+  // La pointe de la bulle 31 pt au-dessus du centre du rond, comme sur la carte.
+  final top = bub.height - (25 + kRingMargin2610 - kBubbleLift2610);
   return PawLegendEntry(
     key: 'duo2709',
     label: 'help2709_duo_t'.tr,
     width: w,
-    height: pw + PawMapPinPainter.priceBubbleZone,
+    height: top + ring.height,
     paint: (c) {
       c.save();
-      c.translate((w - pw) / 2, 0);
-      PawMapPinPainter.paintPhotoDot(c,
-          avatar: null,
-          ringColor: PawMapLegend.sitter,
-          ringColors: const [PawMapLegend.sitter, PawMapLegend.walker],
-          size: s,
-          priceBubble: price,
-          fallbackTint: PawMapLegend.sitter,
-          fallbackIcon: Icons.home_rounded);
+      c.translate((w - ring.width) / 2, top);
+      paintRingBitmap2610(c, roles: const ['sitter', 'walker'], premium: true);
+      c.restore();
+      c.save();
+      c.translate((w - bub.width) / 2, 0);
+      paintBubble2610(c, segs);
       c.restore();
     },
   );
@@ -829,19 +833,13 @@ PawLegendEntry _spotNamedEntry(String label) {
 
 /// PawFollow : lueur violette (suivi en direct).
 PawLegendEntry _followEntry() {
-  const s = PawMapLegend.memberSize;
   return PawLegendEntry(
     key: 'follow2709',
     label: 'help2709_follow_t'.tr,
-    width: PawMapPinPainter.photoBitmapSize(s),
-    height: PawMapPinPainter.photoBitmapSize(s),
-    paint: (c) => PawMapPinPainter.paintPhotoDot(c,
-        avatar: null,
-        ringColor: PawMapLegend.walker,
-        size: s,
-        followPhase: 0.25,
-        fallbackTint: PawMapLegend.walker,
-        fallbackIcon: Icons.directions_walk_rounded),
+    // 623 — rond « Anneau » + halo violet (comme la carte et le site).
+    width: pawRingBitmap2610(1, multi: false).width,
+    height: pawRingBitmap2610(1, multi: false).height,
+    paint: (c) => paintRingBitmap2610(c, roles: const ['walker'], pawFollow: true),
   );
 }
 

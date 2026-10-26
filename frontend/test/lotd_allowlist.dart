@@ -62,4 +62,8 @@ const Map<String, int> kRawButtonsAllowed = <String, int>{
 
 /// Couleurs grises (saturation HSL < 0,25, luminosité 12–92 %) encore présentes, par fichier.
 const Map<String, int> kGrayColorsAllowed = <String, int>{
+  // 623 (26/10) — maquette de Daniel « Améliorer boutons et profil PawMap » :
+  // le mot « dès » du groupe ouvert est en #7a6f71 (clair) / #a99c9e (sombre),
+  // valeurs EXACTES de la maquette (fidélité totale demandée par Daniel).
+  'lib/views/map/widgets/pawmap_ring2610.dart': 2,
 };

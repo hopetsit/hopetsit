@@ -85,6 +85,7 @@ import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_discreet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_overlap607.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_layout622.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_ring2610.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_follow612.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_friends610.dart';
 import 'package:hopetsit/views/service_provider/widgets/book_as_owner.dart';
@@ -148,6 +149,15 @@ class PawMapScreen extends StatefulWidget {
   static LatLng? Function()? debugFirstRequestPos622;
   /// 622 — boîtes posées par la simulation (px relatifs au centre), par id.
   static final Map<String, Rect> debugLayout622 = <String, Rect>{};
+  /// 623 — (tests) rôles de chaque rond posé, taille de chaque groupe, et
+  /// segments de la bulle posée.
+  static final Map<String, List<String>> debugRoles2610 = <String, List<String>>{};
+  static final Map<String, int> debugCluster2610 = <String, int>{};
+  static final Map<String, Set<String>> debugSigns2610 = <String, Set<String>>{};
+  static List<String> debugBubble2610 = const <String>[];
+  static void Function(bool night)? debugNight2610;
+  /// 623 — (tests) nombre de reconstructions RÉELLES des marqueurs.
+  static int debugBuilds2610 = 0;
 
   const PawMapScreen({
     super.key,
@@ -2018,6 +2028,12 @@ class _PawMapScreenState extends State<PawMapScreen>
     final bool secondTap = _focusTapId == id &&
         _focusTapAt != null &&
         now.difference(_focusTapAt!) < const Duration(seconds: 30);
+    // 623 (maquette 26/10) — toucher le MÊME profil : bulle masquée, caméra
+    // remise comme avant (la fiche s'ouvre par « Profil › » de la carte focus).
+    if (fromMarker && _focusTapId != null && _focusTapId == id) {
+      _deselect2610();
+      return;
+    }
     if (fromMarker && !secondTap && lat != null && lng != null) {
       // v590 — handoff §2/§4 : zoom + CARTE FOCUS (Profil › / ✕).
       final String dist = approx ? '' : _distanceLabelTo(lat, lng);
@@ -2089,11 +2105,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           ),
         ),
       );
-      if (!_focusHintShown && mounted) {
-        _focusHintShown = true;
-        PawSignal.show(context, isFriend ? PawSignalKind.friends : PawSignalKind.all,
-            'pawmap589_tap_again'.tr);
-      }
+      // 623 — plus d'indice « touche encore pour le profil » : un 2e toucher
+      // masque désormais la bulle (maquette 26/10).
       return;
     }
     _clearFocus();
@@ -2800,6 +2813,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       PawCatchCelebration.freeZone614 = null;
     }
     _pinZoomTimer?.cancel();
+    _springTimer2610?.cancel(); // 623
+    _liveTimer2610?.cancel(); // 623
     _filtersBannerTimer?.cancel();
     _filtersBannerWorker?.dispose();
     _presencePoll616?.cancel();
@@ -4721,6 +4736,17 @@ class _PawMapScreenState extends State<PawMapScreen>
   Set<Marker> _getMarkersFromCache() {
     final key = [
       _focusTapId ?? '', // v589 — mini bulle « Voir le profil »
+      // 623 — ressort, éclatement, pouls « en direct ».
+      _springIdx2610,
+      _spider2610?.key ?? '',
+      _livePhase2610,
+      _rev2610.value,
+      // Bulle affichée : centre de la caméra à 4 px près (bulle bornée juste).
+      if (_focusTapId != null)
+        () {
+          final c = pawMercatorPx(_currentCenter.latitude, _currentCenter.longitude, _zoomLevel);
+          return 'f${(c.dx / 4).round()},${(c.dy / 4).round()}';
+        }(),
       _nearbyProviders.length,
       _poiController.visiblePois.length,
       // v521 — identité des POI (le backend plafonne à 200 → même longueur).
@@ -4928,74 +4954,7 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   // ── fabriques d'épingles (cache PawMapPinCache) ──────────────────────────
 
-  BitmapDescriptor _memberIcon({
-    required String role,
-    required bool crown,
-    required bool boosted,
-    required bool verified,
-    required bool online,
-    required bool selected,
-    String? priceLabel,
-    double rating = 0,
-    // v592 — comme le web : prénom dessous, prix dans la bulle colorée au-dessus.
-    String? priceBubble,
-    String? slot,
-    bool offlineDot = false, // 616
-    int pin618 = 0, // 618 — pin du classement
-  }) {
-    final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
-    final size = PawMapLegend.memberSize;
-    final withLabel = priceLabel != null && priceLabel.isNotEmpty;
-    final withBubble = priceBubble != null && priceBubble.isNotEmpty;
-    final r1 = withLabel ? (rating * 10).round() / 10 : 0.0;
-    // 607 — marge adaptée (lueur PawBoost seulement si boosté).
-    final double mm = PawMapPinPainter.memberMarginFor(
-        boosted: boosted, crown: crown, selected: selected);
-    final key =
-        'member:m$mm:$role:${crown ? 1 : 0}:$phase:${verified ? 1 : 0}:${online ? 1 : 0}${offlineDot ? 'o' : ''}:${selected ? 1 : 0}:${priceLabel ?? ''}:$r1:${priceBubble ?? ''}:p$pin618';
-    // v605 — bitmap élargi à la bulle (duo, prix longs) : plus de bulle rognée.
-    final w = PawMapPinPainter.memberBitmapWidth(size,
-        priceBubble: withBubble ? priceBubble : null,
-        // 607 — le prénom sous le rond compte aussi (il sortait coupé).
-        priceLabel: withLabel ? priceLabel : null,
-        rating: r1,
-        margin: mm);
-    final double dx = (w - PawMapPinPainter.memberBitmapSize(size, margin: mm)) / 2;
-    final h = PawMapPinPainter.memberBitmapSize(size,
-        withLabel: withLabel, withBubble: withBubble, margin: mm);
-    _lastIconW = w; // 612 — décalage par l'ancre
-    _lastIconH = h;
-    return _pins.getOrBuild(
-          key,
-          w,
-          h,
-          (c) {
-            c.save();
-            c.translate(dx, 0);
-            PawMapPinPainter.paintMemberDot(
-            c,
-            role: role,
-            size: size,
-            crown: crown,
-            verified: verified,
-            online: online,
-            selected: selected,
-            boostPhase: boosted ? phase / kBoostPhases : null,
-            priceLabel: priceLabel,
-            rating: r1,
-            priceBubble: withBubble ? priceBubble : null,
-            margin: mm,
-            offlineDot: offlineDot,
-            pin618: pin618,
-          );
-            c.restore();
-          },
-          slot: slot,
-          scale: pawMemberPinScale(), // 607 — réserve de textures iOS
-        ) ??
-        // 607 — jamais l'épingle Google en attendant le dessin (clignotement).
-        PawMapPinCache.transparent;
-  }
+
 
   BitmapDescriptor _photoIcon({
     required String keyPrefix,
@@ -5125,27 +5084,305 @@ class _PawMapScreenState extends State<PawMapScreen>
             labelAbove: labelAbove));
   }
 
-  BitmapDescriptor _memberClusterIcon(int count, Map<String, int> roleCounts,
-      {bool hasFriend = false, String? priceLabel, String priceRole = 'sitter'}) {
-    final sig = ['owner', 'sitter', 'walker']
-        .map((k) => '${k[0]}${roleCounts[k] ?? 0}')
-        .join();
-    final n = count > 99 ? 100 : count;
-    // 622 — « dès X » sous le rond (parité site) : image plus haute.
-    final bmp = PawMapPinPainter.memberClusterBitmap622(n, priceLabel);
+
+
+
+  // ── 623 — maquette 26/10 : rond « Anneau », groupe, bulle de prix ────────
+
+  BitmapDescriptor _ringIcon2610({
+    required List<String> roles,
+    required bool premium,
+    required bool live,
+    bool boosted = false,
+    bool verified = false,
+    bool? status,
+    int pin618 = 0,
+    bool pawFollow = false,
+    double scale = 1,
+    String? slot,
+  }) {
+    final bool multi = roles.length > 1;
+    final double s = (scale * 100).round() / 100;
+    final int phase = live ? _livePhase2610 : -1;
+    if (live) _anyLive2610 = true;
+    final bool boost = boosted && kPawRingExtras2610;
+    if (boost) _anyBoosted = true;
+    final int bph = boost ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
+    final bool ver = verified && kPawRingExtras2610;
+    final sz = pawRingBitmap2610(s, multi: multi);
+    _lastIconW = sz.width;
+    _lastIconH = sz.height;
     return _pins.getOrBuild(
-          'mcluster:$n:$sig:${hasFriend ? 1 : 0}:${priceLabel ?? ''}:$priceRole',
-          bmp.width,
-          bmp.height,
-          (c) => PawMapPinPainter.paintMemberCluster(c, count,
-              roleCounts: roleCounts,
-              hasFriend: hasFriend,
-              priceLabel: priceLabel,
-              priceRole: priceRole),
+          'ring2610:${roles.join(',')}:${premium ? 1 : 0}:$phase:$s:b$bph:${ver ? 'v' : ''}:st${status == null ? '-' : (status ? 1 : 0)}:p$pin618:${pawFollow ? 'f' : ''}',
+          sz.width,
+          sz.height,
+          (c) => paintRingBitmap2610(c,
+              roles: roles,
+              premium: premium,
+              livePhase: live ? phase / 6 : null,
+              boostPhase: boost ? bph / kBoostPhases : null,
+              verified: ver,
+              status: status,
+              pin618: pin618,
+              pawFollow: pawFollow,
+              s: s),
+          slot: slot,
+          scale: pawMemberPinScale(),
         ) ??
         PawMapPinCache.transparent;
   }
 
+  BitmapDescriptor _cluster2610Icon(int count, Map<String, int> roleCounts,
+      {String? labelPrefix, String? labelPrice, String labelRole = 'sitter'}) {
+    final bool dark = _nightMode.value; // carte sombre (maquette « Sombre »)
+    final sz = pawClusterBitmap2610(labelPrefix: labelPrefix, labelPrice: labelPrice);
+    final sig = ['owner', 'sitter', 'walker']
+        .map((k) => '${k[0]}${roleCounts[k] ?? 0}')
+        .join();
+    return _pins.getOrBuild(
+          'cl2610:${count > 99 ? 100 : count}:$sig:${dark ? 1 : 0}:${labelPrefix ?? ''}:${labelPrice ?? ''}:$labelRole',
+          sz.width,
+          sz.height,
+          (c) => paintCluster2610(c,
+              count: count,
+              counts: roleCounts,
+              dark: dark,
+              labelPrefix: labelPrefix,
+              labelPrice: labelPrice,
+              labelRole: labelRole),
+        ) ??
+        PawMapPinCache.transparent;
+  }
+
+  BitmapDescriptor _bubble2610Icon(List<PawPriceSeg2610> segs, double tailDx,
+      {double lift = kBubbleLift2610}) {
+    final sz = pawBubbleBitmap2610(segs, lift: lift);
+    final t = (tailDx * 2).round() / 2;
+    return _pins.getOrBuild(
+          'bub2610:${segs.join('|')}:$t:$lift',
+          sz.width,
+          sz.height,
+          (c) => paintBubble2610(c, segs, tailDx: t),
+          slot: 'bub2610',
+          scale: pawMemberPinScale(),
+        ) ??
+        PawMapPinCache.transparent;
+  }
+
+  /// 623 — segments de la bulle d'une personne selon `visiblePrices()` :
+  /// propriétaire → gardien / promeneur ; gardien / promeneur → budget des
+  /// demandes du propriétaire (jamais une estimation présentée en budget).
+  List<PawPriceSeg2610> _prices2610(Map<String, dynamic> p) {
+    final entries = pawMapExpandRoles(p);
+    final ids = pawMapPersonIds(p).map((e) => e.toLowerCase()).toSet();
+    return pawVisiblePrices2610(_role, pawMapPersonRoles(p), (role) {
+      if (role == 'owner') {
+        final all = _requests.where((r) => ids.contains(r.ownerId.toLowerCase())).toList();
+        final reqs = all.where((r) => r.budget > 0).toList();
+        if (reqs.isNotEmpty) {
+          reqs.sort((a, b) => a.budget.compareTo(b.budget));
+          return pawSplitPrice2610(reqs.first.budgetLabel);
+        }
+        // Sans budget : « dès X » (minimum du marché calculé par le serveur).
+        for (final r in all) {
+          final t = _reqFromText2610(r);
+          if (t != null) return t;
+        }
+        return null;
+      }
+      // Le tarif DE CE RÔLE seulement (une entrée développée garde sinon le
+      // tarif du rôle principal de la personne).
+      Map? e;
+      final raw = p['roles'];
+      if (raw is List && raw.whereType<Map>().length > 1) {
+        final r = raw.whereType<Map>().toList().firstWhereOrNull(
+            (x) => (x['role'] ?? '').toString().toLowerCase() == role);
+        if (r != null) e = {...r, 'currency': r['currency'] ?? p['currency']};
+      } else {
+        e = entries.firstWhereOrNull((x) =>
+            (x['_role'] ?? x['role'] ?? '').toString().toLowerCase() == role);
+      }
+      if (e == null) return null;
+      final t = pawMapRolePriceText(e,
+          format: CurrencyHelper.formatCompact, unitSuffix: _priceUnitSuffix);
+      return t.isEmpty ? null : pawSplitPrice2610(t);
+    });
+  }
+
+  /// 623 — « dès 40 €/jour » d'une demande sans budget (estimation du
+  /// serveur déjà en cache), découpé montant / unité ; null sinon.
+  ({String amount, String unit})? _reqFromText2610(NearbyRequestPost r) {
+    final e = _reqPinEstimate622(r, mine: false);
+    final t = fromRatePinText622(e);
+    if (t.isEmpty) return null;
+    return pawSplitPrice2610(t);
+  }
+
+  /// 623 — « dès X » d'un groupe ouvert : (préfixe traduit, prix, rôle).
+  ({String prefix, String price, String role})? _spiderLabel2610(
+      List<Map<String, dynamic>> group) {
+    final String tpl = 'pawmap622_from_pin'.tr;
+    final int at = tpl.indexOf('@price');
+    final String prefix = at > 0 ? tpl.substring(0, at).trim() : '';
+    if (_isSitterOrWalker) {
+      final ids = <String>{
+        for (final m in group) ...pawMapPersonIds(m).map((e) => e.toLowerCase())
+      };
+      final reqs = _requests
+          .where((r) => ids.contains(r.ownerId.toLowerCase()) && r.budget > 0)
+          .toList();
+      if (reqs.isEmpty || reqs.map((r) => r.currency).toSet().length != 1) return null;
+      reqs.sort((a, b) => a.budget.compareTo(b.budget));
+      return (prefix: prefix, price: reqs.first.budgetLabel, role: 'owner');
+    }
+    final r = pawMapClusterFromPrice622(
+      group,
+      shows: (role) => pawMapShowsPriceBubble(_role, role),
+      shownRoles: _memberRoles.toSet(),
+      format: CurrencyHelper.formatCompact,
+      unitSuffix: _priceUnitSuffix,
+    );
+    if (r == null) return null;
+    return (prefix: prefix, price: r.price, role: r.role);
+  }
+
+  /// 623 — pose la bulle de prix de [p] (rond en [pos], à [screenDx] px du
+  /// centre de l'écran en x, décalé de [shift]).
+  void _addBubble2610(Set<Marker> markers, Map<String, dynamic> p, LatLng pos,
+      Offset screenPx, Offset shift) {
+    final id = (p['id'] ?? p['_id'] ?? '').toString();
+    _placeBubble2610(markers, _prices2610(p), pos, screenPx, shift, debugId: id);
+  }
+
+  /// 623 — pose UNE bulle de prix (pointe [lift] pt au-dessus de [pos]).
+  void _placeBubble2610(Set<Marker> markers, List<PawPriceSeg2610> segs, LatLng pos,
+      Offset screenPx, Offset shift,
+      {double lift = kBubbleLift2610, String debugId = '', VoidCallback? onTap}) {
+    if (segs.isEmpty) return;
+    final Size scr = MediaQuery.sizeOf(context);
+    final double w = scr.width;
+    // Hauteur de la bulle à l'écran : la barre de gauche et la capsule de
+    // droite (UI fixe, par-dessus la carte) bornent la place utile.
+    final double y = scr.height / 2 + screenPx.dy;
+    final Rect bub = Rect.fromLTRB(0, y - lift - 28, w, y - lift);
+    final double? left = (_railRect622.width > 4 && _railRect622.overlaps(bub))
+        ? _railRect622.right + 6
+        : null;
+    final double? right = (_capsuleRect622.width > 4 && _capsuleRect622.overlaps(bub))
+        ? _capsuleRect622.left - 6
+        : null;
+    final double tail = pawBubbleTailDx2610(
+        pawBubbleBodyW2610(segs), w / 2 + screenPx.dx, w, left: left, right: right);
+    final sz = pawBubbleBitmap2610(segs, lift: lift);
+    if (kDebugMode) {
+      PawMapScreen.debugPricedIds622.add('bub2610_$debugId');
+      PawMapScreen.debugBubble2610 = [for (final x in segs) x.toString()];
+    }
+    markers.add(Marker(
+      markerId: const MarkerId('bub2610'),
+      position: pos,
+      icon: _bubble2610Icon(segs, tail, lift: lift),
+      anchor: pawShiftedAnchor612(
+          pawBubbleAnchor2610(segs, (tail * 2).round() / 2, lift: lift), shift,
+          width: sz.width, height: sz.height),
+      zIndexInt: 11,
+      consumeTapEvents: true,
+      // Toucher la bulle = toucher le même profil : bulle masquée.
+      onTap: onTap ?? _deselect2610,
+    ));
+  }
+
+  /// 623 — pose le groupe éclaté : son rond au centre avec « dès X », et
+  /// ses profils sur 72 pt (6 premiers) puis 132 pt, sans aucun trait.
+  void _addSpider2610(Set<Marker> markers) {
+    final sp = _spider2610;
+    if (sp == null || !_showProviders.value) return;
+    final counts = <String, int>{'owner': 0, 'sitter': 0, 'walker': 0};
+    for (final m in sp.members) {
+      final r = (m['_role'] ?? '').toString().toLowerCase();
+      if (counts.containsKey(r)) counts[r] = counts[r]! + 1;
+    }
+    final lab = _spiderLabel2610(sp.members);
+    final hubSz = pawClusterBitmap2610(labelPrefix: lab?.prefix, labelPrice: lab?.price);
+    markers.add(Marker(
+      markerId: MarkerId(sp.key),
+      position: sp.hub,
+      icon: _cluster2610Icon(sp.members.length, counts,
+          labelPrefix: lab?.prefix, labelPrice: lab?.price, labelRole: lab?.role ?? 'sitter'),
+      anchor: pawClusterAnchor2610(labelPrefix: lab?.prefix, labelPrice: lab?.price),
+      // Au-dessus des profils éclatés : « dès X » reste lisible en entier.
+      zIndexInt: 9,
+      consumeTapEvents: true,
+      onTap: () => _closeSpider2610(),
+    ));
+    if (hubSz.isEmpty) return;
+    final cam = pawMercatorPx(_currentCenter.latitude, _currentCenter.longitude, _zoomLevel);
+    final hubPx = pawScreenDelta(
+        pawMercatorPx(sp.hub.latitude, sp.hub.longitude, _zoomLevel) - cam,
+        bearingDeg: _camBearing612,
+        tiltDeg: _camTilt612);
+    final fan = pawSpiderfy2610(sp.members.length);
+    for (var j = 0; j < sp.members.length; j++) {
+      final p = sp.members[j];
+      final id = (p['id'] ?? p['_id'] ?? '').toString();
+      if (id.isEmpty) continue;
+      final roles = pawMapPersonRoles(p);
+      final bool focused = _focusTapId != null && pawMapPersonIds(p).contains(_focusTapId);
+      final double sc = focused ? (_selScale2610 * 100).round() / 100 : 1;
+      final bool approx = p['approx'] == true;
+      final bool online = _presenceOf616(pawMapPersonIds(p)) ??
+          (p['isOnline'] != false && p['online'] != false);
+      final icon = _ringIcon2610(
+        roles: roles,
+        premium: p['isPremium'] == true && _showPremiumLayer.value,
+        live: false,
+        boosted: p['isBoosted'] == true || pawMapPersonIds(p).any(_personBoosted),
+        verified: pawIdentityVerified(p),
+        status: approx ? null : online,
+        pawFollow: p['hasPawFollow'] == true,
+        pin618: PawPins618.bestOf([p['pins'], for (final e in pawMapExpandRoles(p)) e['pins']])?.mapCode ?? 0,
+        scale: sc,
+        slot: 'spider_$id',
+      );
+      final sz = pawRingBitmap2610(sc, multi: roles.length > 1);
+      if (kDebugMode) PawMapScreen.debugRoles2610['spider_$id'] = roles;
+      final entries = pawMapExpandRoles(p);
+      final bool friend = p['isFriend'] == true ||
+          _friendController.isFriendWithAny(pawMapPersonIds(p));
+      markers.add(Marker(
+        markerId: MarkerId('spider_$id'),
+        position: sp.hub,
+        icon: icon,
+        anchor: pawShiftedAnchor612(pawRingAnchor2610(sc, multi: roles.length > 1), fan[j],
+            width: sz.width, height: sz.height),
+        alpha: (_focusTapId != null && !focused) ? 0.85 : 1,
+        zIndexInt: focused ? 10 : 8,
+        consumeTapEvents: true,
+        onTap: () {
+          if (entries.length > 1) {
+            _tapMemberEntry(_defaultRoleEntry(entries),
+                roleEntries: entries, fromMarker: true, isFriend: friend,
+                lat: sp.hub.latitude, lng: sp.hub.longitude);
+          } else {
+            _tapMemberEntry(entries.first,
+                roleEntries: entries, fromMarker: true, isFriend: friend,
+                lat: sp.hub.latitude, lng: sp.hub.longitude);
+          }
+        },
+      ));
+      if (focused) _addBubble2610(markers, p, sp.hub, hubPx + fan[j], fan[j]);
+    }
+  }
+
+  /// 623 — 2e toucher du même profil (ou de sa bulle) : bulle masquée et
+  /// caméra remise comme avant ; dans un groupe éclaté, la caméra reste.
+  void _deselect2610() {
+    final keep = _spider2610 != null ? _focusSavedCam : null;
+    _clearFocus(restore: _spider2610 == null);
+    if (keep != null) _focusSavedCam = keep;
+    _selectedNearbyId = null;
+    _rev2610.value++;
+  }
 
   BitmapDescriptor _placeIcon(String category) {
     final w = PawMapPinPainter.dropBitmapWidth(PawMapLegend.placeSize);
@@ -5606,6 +5843,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     var reqGroups622 = _requestGroups622();
     Map<String, Offset>? reqShifts622;
     _anyBoosted = false;
+    _anyLive2610 = false; // 623
+    if (kDebugMode) PawMapScreen.debugBuilds2610++;
+    if (kDebugMode) PawMapScreen.debugBubble2610 = const <String>[];
     _meShift612 = Offset.zero; // 612 — recalculé plus bas (membres)
     _liveFan607.clear();
     // ── MOI : ma photo 56 px, anneau à la couleur de mon rôle, « Moi »,
@@ -5797,9 +6037,16 @@ class _PawMapScreenState extends State<PawMapScreen>
             friend: isFriendMember(p),
           );
 
+      // 623 — un groupe ÉCLATÉ : ses profils sortent du regroupement (ils
+      // sont posés autour de son centre, plus bas).
+      final Set<String> spiderIds2610 = <String>{
+        for (final m in _spider2610?.members ?? const <Map<String, dynamic>>[])
+          (m['id'] ?? m['_id'] ?? '').toString(),
+      };
       final placeable = combined
           .where((p) =>
-              posOfMember(p) != null && familyOk(p) && availableOk(p) && verifiedOk(p))
+              posOfMember(p) != null && familyOk(p) && availableOk(p) && verifiedOk(p) &&
+              !spiderIds2610.contains((p['id'] ?? p['_id'] ?? '').toString()))
           .toList();
       // Compteur « N membres autour de toi » (< 50 km de l'utilisateur).
       const double aroundKm = 50.0;
@@ -5860,6 +6107,14 @@ class _PawMapScreenState extends State<PawMapScreen>
       // bulle de prix ; ami : rond rose), partagée par la simulation et la
       // passe d'écartement.
       Rect boxForGroup622(List<Map<String, dynamic>> g, {bool compact = false}) {
+        // 623 — boîtes de la maquette : groupe 48 (+ contour 3,5), rond 50
+        // (+ couronne, + pastilles de rôles), sans prix par défaut.
+        if (g.length > 1) return pawPinBox(27.5);
+        if (!isFriendMember(g.first)) {
+          return pawRingBox2610(
+              multi: pawMapPersonRoles(g.first).length > 1,
+              premium: g.first['isPremium'] == true && _showPremiumLayer.value);
+        }
         if (g.length > 1) {
           final cp = compact ? null : _clusterPrice622(g);
           return pawPinBox(PawMapLegend.memberClusterHeight / 2 + 1,
@@ -5938,6 +6193,10 @@ class _PawMapScreenState extends State<PawMapScreen>
               if (fp.liveState != FriendLiveState.seen)
                 PawPlacedBox(px622(LatLng(fp.latitude, fp.longitude)),
                     pawPinBox(PawMapLegend.friendSize / 2 + 2.5)),
+            // 623 — l'éclatement occupe son cercle : rien ne s'y pose.
+            if (_spider2610 != null)
+              PawPlacedBox(px622(_spider2610!.hub),
+                  pawPinBox(pawSpiderRadius2610(_spider2610!.members.length))),
             ..._railObstacles622(),
           ],
           movable: (g) => !isFriendGroup(g),
@@ -6142,42 +6401,29 @@ class _PawMapScreenState extends State<PawMapScreen>
           }
           final String ck622 = 'mcluster_${pawClusterKey616(
               group.map((m) => (m['id'] ?? m['_id'] ?? '').toString()))}';
-          final cp622 = _compact622.contains(ck622) ? null : _clusterPrice622(group);
-          final bmp622 = PawMapPinPainter.memberClusterBitmap622(
-              group.length > 99 ? 100 : group.length, cp622?.text);
-          if (kDebugMode && cp622 != null) {
-            PawMapScreen.debugPricedIds622.add('mcluster_${pawClusterKey616(
-                group.map((m) => (m['id'] ?? m['_id'] ?? '').toString()))}');
-          }
+          // 623 (maquette 26/10) — rond 48, anneau segmenté, « dès X »
+          // MASQUÉ par défaut (visible quand le groupe est ouvert).
+          final sz2610 = pawClusterBitmap2610();
+          if (kDebugMode) PawMapScreen.debugCluster2610[ck622] = group.length;
           markers.add(
             Marker(
               // 616 — id STABLE (plus petit id du groupe) : à chaque
               // recalcul, Google Maps met le rond à jour en place au lieu de
               // le détruire et d'en recréer un (ronds qui « se dédoublent »).
-              markerId: MarkerId('mcluster_${pawClusterKey616(
-                  group.map((m) => (m['id'] ?? m['_id'] ?? '').toString()))}'),
+              markerId: MarkerId(ck622),
               // 612 — décalé par l'ANCRE (px) : rien ne saute pendant un zoom.
               position: target,
-              // v592 — un groupe qui contient un ami porte l'anneau rose (web).
-              icon: _memberClusterIcon(group.length, roleCounts,
-                  hasFriend: group.any((m) =>
-                      m['isFriend'] == true ||
-                      _friendController.isFriendWithAny(pawMapPersonIds(m))),
-                  priceLabel: cp622?.text,
-                  priceRole: cp622?.role ?? 'sitter'),
-              // 607 (02/10) — écarté (au plus 60 px) de Moi / d'un ami par sa
-              // POSITION : l'ancre reste au centre du ROND (622 : l'étiquette
-              // « dès X » pend dessous).
-              anchor: pawShiftedAnchor612(
-                  Offset(0.5,
-                      (6 + PawMapPinPainter.memberClusterWidth(group.length) / 2) /
-                          bmp622.height),
-                  sh,
-                  width: bmp622.width,
-                  height: bmp622.height),
+              icon: _cluster2610Icon(group.length, roleCounts),
+              anchor: pawShiftedAnchor612(pawClusterAnchor2610(), sh,
+                  width: sz2610.width, height: sz2610.height),
+              alpha: _focusTapId != null ? 0.85 : 1,
               zIndexInt: 7,
               consumeTapEvents: true,
-              onTap: () => _zoomToCluster(target, members: group),
+              // 623 — toucher = zoom +1,5 et éclatement (≤ 45 profils, 3 cercles ;
+              // au-delà, zoom qui sépare le groupe comme avant).
+              onTap: () => group.length <= kSpiderMax2610
+                  ? _openSpider2610(ck622, target, group)
+                  : _zoomToCluster(target, members: group),
             ),
           );
           continue;
@@ -6228,26 +6474,9 @@ class _PawMapScreenState extends State<PawMapScreen>
         // (seuil 13). Une épingle SEULE à l'écran porte maintenant sa bulle
         // dès le zoom ville (≥ [_cityPriceZoom]) si la place est libre
         // au-dessus d'elle ; le prénom reste réservé au zoom rue.
-        final bool cityZoom = !showPrice && _pinZoom >= _cityPriceZoom;
-        final priceBubAny = ((!showPrice && !cityZoom) ||
-                _compact622.contains('nearby_$id')) // 622 — prix replié
-            ? null
-            : pawMapPersonPriceBubble(
-                personRoles,
-                shows: (r) => pawMapShowsPriceBubble(_role, r),
-                shownRoles: _memberRoles.toSet(),
-                format: CurrencyHelper.formatCompact,
-                unitSuffix: _priceUnitSuffix,
-              );
-        final priceBub = (priceBubAny != null &&
-                cityZoom &&
-                !pawBubbleHasRoom(
-                    groupPx[groupIdx],
-                    groupR[groupIdx],
-                    PawMapPinPainter.priceBubbleBitmapWidth(priceBubAny.text),
-                    obstaclesBut(groupIdx)))
-            ? null
-            : priceBubAny;
+        // 623 (maquette 26/10) — AUCUN prix sur la carte par défaut : la
+        // bulle n'apparaît qu'au toucher (marqueur `bub2610` ci-dessous).
+        const ({String text, String role})? priceBub = null;
         final String priceLabel = priceBub == null
             ? ''
             : priceBub.text.replaceAll('|', ' · ');
@@ -6347,80 +6576,40 @@ class _PawMapScreenState extends State<PawMapScreen>
               withLabel: friendLabel.isNotEmpty,
               withBubble: bubble != null,
               labelAbove: friendLabelAbove);
-        } else if (personRoles.length > 1) {
-          // v585 (25/09, Daniel : « la pastille 2 zoome et c'est tout ») — UN
-          // rond pour la personne, liseré partagé entre ses rôles.
-          icon = _photoIcon(
-            keyPrefix: 'multi:$id',
-            avatarUrl: avatar,
-            ring: roleRings.isNotEmpty ? roleRings.first : PawMapLegend.roleColor(role),
-            ringColors: roleRings,
-            size: PawMapLegend.memberSize,
-            label: photoLabel.isEmpty ? null : photoLabel,
-            priceBubble: bubble,
-            priceRole: priceRole,
-            labelColor: PawMapLegend.darken(roleRings.isNotEmpty ? roleRings.first : PawMapLegend.roleColor(role), 0.25),
-            crown: premium && _showPremiumLayer.value,
-            crownSize: PawMapLegend.crownMember,
-            online: online && !approx,
-            offlineDot: !approx, // 616 — orange plein hors ligne
-            verified: verified, // 609
-            boosted: boosted,
-            fallbackIcon: PawMapLegend.roleIcon(role),
-            fallbackTint: roleRings.isNotEmpty ? roleRings.first : PawMapLegend.roleColor(role),
-            pin618: pin618,
-          );
-          anchor = _photoAnchor(PawMapLegend.memberSize,
-              withLabel: photoLabel.isNotEmpty, withBubble: bubble != null);
-        } else if (avatar.startsWith('http')) {
-          // v584 (25/09, Daniel : « mets plus en valeur les utilisateurs ») —
-          // la PHOTO du membre dans un rond à la couleur de son rôle.
-          icon = _photoIcon(
-            keyPrefix: 'member:$id',
-            avatarUrl: avatar,
-            ring: PawMapLegend.roleColor(role),
-            size: PawMapLegend.memberSize,
-            label: photoLabel.isEmpty ? null : photoLabel,
-            priceBubble: bubble,
-            priceRole: priceRole,
-            labelColor: PawMapLegend.darken(PawMapLegend.roleColor(role), 0.25),
-            crown: premium && _showPremiumLayer.value,
-            crownSize: PawMapLegend.crownMember,
-            online: online && !approx,
-            offlineDot: !approx, // 616 — orange plein hors ligne
-            verified: verified, // 609
-            boosted: boosted,
-            fallbackIcon: PawMapLegend.roleIcon(role),
-            fallbackTint: PawMapLegend.roleColor(role),
-            pin618: pin618,
-          );
-          anchor = _photoAnchor(PawMapLegend.memberSize,
-              withLabel: photoLabel.isNotEmpty, withBubble: bubble != null);
         } else {
-          icon = _memberIcon(
-            role: role,
-            crown: premium && _showPremiumLayer.value,
+          // 623 (maquette 26/10, style « A · Anneau ») — UN rond pour la
+          // personne : anneau du rôle (découpé si multi-rôle), centre plein +
+          // icône blanche, pastilles de rôles, couronne, point « en direct ».
+          // Aucun prix par défaut : la bulle n'apparaît qu'au toucher.
+          final bool sel2610 = focused;
+          if (kDebugMode) {
+            PawMapScreen.debugRoles2610['nearby_$id'] = pawMapPersonRoles(p);
+            PawMapScreen.debugSigns2610['nearby_$id'] = <String>{
+              if (premium && _showPremiumLayer.value) 'couronne',
+              if (boosted) 'pawboost',
+              if (verified) 'verifie',
+              if (!approx && online) 'en_ligne',
+              if (!approx && !online) 'hors_ligne',
+              if (pin618 > 0) 'podium',
+              if (p['hasPawFollow'] == true) 'pawfollow',
+            };
+          }
+          icon = _ringIcon2610(
+            roles: pawMapPersonRoles(p),
+            premium: premium && _showPremiumLayer.value,
+            // « en direct » = partage en direct (couche des amis) : jamais
+            // sur un rond de membre ; le point en ligne garde son sens.
+            live: false,
             boosted: boosted,
             verified: verified,
-            online: online && !approx,
-            offlineDot: !approx, // 616 — orange plein hors ligne
-            selected: selected,
-            priceLabel: photoLabel,
-            rating: (p['rating'] as num?)?.toDouble() ?? 0,
-            priceBubble: bubble,
-            slot: 'nearby_$id',
+            status: approx ? null : online,
             pin618: pin618,
+            pawFollow: p['hasPawFollow'] == true,
+            scale: sel2610 ? _selScale2610 : 1,
+            slot: 'nearby_$id',
           );
-          anchor = Offset(
-              0.5,
-              PawMapPinPainter.memberAnchorY(PawMapLegend.memberSize,
-                  withLabel: photoLabel.isNotEmpty,
-                  withBubble: bubble != null,
-                  // 607 — même marge que l'image (_memberIcon).
-                  margin: PawMapPinPainter.memberMarginFor(
-                      boosted: boosted,
-                      crown: premium && _showPremiumLayer.value,
-                      selected: selected)));
+          anchor = pawRingAnchor2610(sel2610 ? (_selScale2610 * 100).round() / 100 : 1,
+              multi: pawMapPersonRoles(p).length > 1);
         }
         final Offset singleShift = groupShift[groupIdx];
         if (kDebugMode && (bubble != null || priceLabel.isNotEmpty)) {
@@ -6434,8 +6623,10 @@ class _PawMapScreenState extends State<PawMapScreen>
             position: pos,
             icon: icon,
             anchor: _anchorShift(anchor, singleShift),
+            // 623 — un profil sélectionné : les autres à 85 %.
+            alpha: (_focusTapId != null && !focused) ? 0.85 : 1,
             // v584 — boosté = visible en premier (point 16).
-            zIndexInt: selected ? 9 : (isFriend ? 8 : (boosted ? 7 : 6)),
+            zIndexInt: focused ? 10 : (selected ? 9 : (isFriend ? 8 : (boosted ? 7 : 6))),
             // v590 — handoff §2 : on gère nous-mêmes le zoom (sinon Google
             // Maps recentre aussi la carte et les deux animations se battent).
             consumeTapEvents: true,
@@ -6472,6 +6663,11 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
           ),
         );
+        // 623 — bulle de prix du profil TOUCHÉ (règle visiblePrices), 31 pt
+        // au-dessus du rond, gardée dans l'écran (la pointe reste sur lui).
+        if (focused) {
+          _addBubble2610(markers, p, pos, groupPx[groupIdx], singleShift);
+        }
         // 610 — la personne m'a envoyé une demande d'ami : petit badge rose
         // à gauche de son rond ; l'appui ouvre Accepter / Refuser.
         final Friendship? incoming610 = _incomingFrom610(pawMapPersonIds(p));
@@ -6786,6 +6982,9 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
     }
 
+    // ── 623 — GROUPE ÉCLATÉ : centre (« dès X ») + profils en cercle ──
+    _addSpider2610(markers);
+
     // ── DEMANDES DES PROPRIÉTAIRES : bulle orange foncé, ~1 km ──
     // 622 (PAM, captures de Daniel du 25/10) — regroupées (une bulle + son
     // chiffre), écartées des membres et des bords, et leur PRIX dessus :
@@ -6832,8 +7031,28 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (kDebugMode && g.label.isNotEmpty) {
           PawMapScreen.debugPricedIds622.add(g.key);
         }
+        // 623 (LEO/BOB 26/10, règle visiblePrices) — gardien / promeneur qui
+        // touche une demande : bulle du BUDGET au-dessus de sa bulle.
+        if (g.reqs.length == 1 &&
+            !g.mine &&
+            _isSitterOrWalker &&
+            _focusTapId == 'req:${g.reqs.first.id}') {
+          final cam = pawMercatorPx(_currentCenter.latitude, _currentCenter.longitude, _zoomLevel);
+          final px = pawScreenDelta(pawMercatorPx(g.at.latitude, g.at.longitude, _zoomLevel) - cam,
+                  bearingDeg: _camBearing612, tiltDeg: _camTilt612) +
+              sh;
+          final b = g.reqs.first.budget > 0
+              ? pawSplitPrice2610(g.reqs.first.budgetLabel)
+              : _reqFromText2610(g.reqs.first);
+          if (b != null) _placeBubble2610(markers, [PawPriceSeg2610('owner', b.amount, b.unit)], g.at, px, sh,
+              // pointe de la demande (corps 26 + liseré 2 + pointe 7) + 6.
+              lift: 35 + 6,
+              debugId: g.key,
+              onTap: () => _clearFocus(restore: true));
+        }
       }
     }
+    _syncLiveTimer2610(); // 623 — pouls seulement si un point « en direct »
     return markers;
   }
 
@@ -6950,7 +7169,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   _ReqGroup622 _reqGroupOf622(List<NearbyRequestPost> g,
       {required bool mine, Offset shift = Offset.zero, bool compact = false}) {
     // 622 — `compact` : place trop juste, la bulle replie son prix (icône seule).
-    final String label = compact ? '' : _reqGroupPrice622(g, mine: mine);
+    // 623 (maquette 26/10) — AUCUN prix sur la carte par défaut, demandes
+    // comprises : le budget se lit au toucher (carte focus, fiche).
+    final String label = (compact || !kShowPinPrices2610) ? '' : _reqGroupPrice622(g, mine: mine);
     final double w = PawMapPinPainter.requestBubbleWidth(
         priceLabel: label.isEmpty ? null : label,
         mineLabel: mine ? 'pawmap_request_mine'.tr : null);
@@ -8343,28 +8564,21 @@ class _PawMapScreenState extends State<PawMapScreen>
             label: 'pawmap_legend_btn'.tr,
             onTap: _openLegend,
           ),
-          SizedBox(width: 2.w),
+          const SizedBox(width: 1), // 623 — écart 7 entre les ronds (3 + 1 + 3)
           _headerRoundButton(
             key: const ValueKey<String>('pawmap_header_search'),
             icon: PawSymbols.search,
             label: 'pawmap_search_city'.tr,
             onTap: _onSearchCity,
           ),
-          SizedBox(width: 2.w),
+          const SizedBox(width: 1),
           Obx(() => _refreshing.value
-              ? SizedBox(
-                  width: 42.w,
-                  height: 42.w,
-                  child: Center(
-                    child: SizedBox(
-                      width: 18.w,
-                      height: 18.w,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.primaryColor,
-                      ),
-                    ),
-                  ),
+              ? PawRoleButton2610(
+                  role: _role.isEmpty ? 'owner' : _role,
+                  icon: PawSymbols.refresh,
+                  label: 'pawmap_appbar_refresh'.tr,
+                  busy: true,
+                  onTap: () {},
                 )
               : _headerRoundButton(
                   key: const ValueKey<String>('pawmap_header_refresh'),
@@ -8375,7 +8589,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           // v589 — Daniel : « le bouton flottant Options gêne quand on dézoome,
           // il est au milieu : le mettre en haut à droite, icône paramètres
           // style iPhone, même orange, à droite du bouton actualiser ».
-          SizedBox(width: 2.w),
+          const SizedBox(width: 1),
           // v591 — pastille tant qu'un filtre cache des personnes.
           Obx(() => _headerRoundButton(
                 key: const ValueKey<String>('pawmap_header_options'),
@@ -8403,13 +8617,13 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v590 — handoff §3.1/§3.2 : les 4 boutons du haut à droite sont des
     // « bijoux » rouges de 40 dp pour les 3 rôles (?, loupe, actualiser,
     // réglages), icônes Material Symbols pleines.
-    return PawJewel(
+    // 623 (maquette 26/10, README §4) — 38 pt, fond PLEIN couleur du rôle
+    // actif (#f23b16 / #1a6cff / #12b350), contour blanc 1,5, icône 19.
+    return PawRoleButton2610(
       key: key,
-      // 607 (Daniel, 02/10) — couleur du menu du rôle actif.
-      palette: pawJewelHeaderFor(_role.isEmpty ? 'owner' : _role),
+      role: _role.isEmpty ? 'owner' : _role,
       icon: icon,
       label: label,
-      size: 40,
       badge: badge,
       onTap: onTap,
     );
@@ -8458,6 +8672,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _plush.items.length;
       _plush.shown.value;
       _glideTick612.value; // 612 — la photo suivie glisse
+      _rev2610.value; // 623 — ressort / éclatement / pouls
       // v552 — mode nuit.
       final night = _nightMode.value;
       return GoogleMap(
@@ -8472,6 +8687,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           pawMap603Log('onMapCreated');
           if (!_mapCtl.isCompleted) _mapCtl.complete(c);
           if (kDebugMode) PawMapScreen.debugMapController616 = c; // 616
+          if (kDebugMode) PawMapScreen.debugNight2610 = (v) => _nightMode.value = v; // 623
           // 616 — premier sondage de présence peu après l'arrivée des listes.
           Timer(const Duration(seconds: 8), () => unawaited(_pollPresence616()));
           // v23.1 part 213 — centre initial demandé (alerte, ami, lien) :
@@ -8499,8 +8715,15 @@ class _PawMapScreenState extends State<PawMapScreen>
             setState(() => _pickedSpotPos = latLng);
             return;
           }
-          // v590 — appui sur la carte vide : le focus s'annule.
-          if (_focusCard.value != null) _clearFocus();
+          // 623 (maquette 26/10) — appui sur la carte vide : bulle masquée,
+          // groupe refermé, caméra remise comme avant.
+          if (_spider2610 != null) {
+            _closeSpider2610();
+          } else if (_focusCard.value != null || _focusTapId != null) {
+            _clearFocus(restore: true);
+            _selectedNearbyId = null;
+            _rev2610.value++;
+          }
         },
         onCameraMove: _onCameraMove,
         // v23.1.263 — un geste MANUEL coupe le suivi (sauf si c'est nous qui
@@ -11604,6 +11827,88 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v589 — toucher en deux temps (zoom puis fiche) : dernier rond touché.
   String? _focusTapId;
 
+  // ── 623 (maquette 26/10) — sélection, ressort, éclatement, point en direct ──
+  /// Incrémenté à chaque image du ressort / du pouls : la carte se redessine.
+  final RxInt _rev2610 = 0.obs;
+  /// Pas du ressort du rond sélectionné (index dans kPawSpringSteps2610).
+  int _springIdx2610 = kPawSpringSteps2610.length - 1;
+  Timer? _springTimer2610;
+  /// Groupe ÉCLATÉ : clé, centre, membres (6 sur 72 pt, le reste sur 132).
+  ({String key, LatLng hub, List<Map<String, dynamic>> members})? _spider2610;
+  /// Pouls du point « en direct » (6 images sur 1,8 s), seulement s'il y en a un.
+  int _livePhase2610 = 0;
+  Timer? _liveTimer2610;
+  bool _anyLive2610 = false;
+
+  double get _selScale2610 =>
+      pawSpringScale2610(kPawSpringSteps2610[_springIdx2610].toDouble());
+
+  void _startSpring2610() {
+    _springTimer2610?.cancel();
+    _springIdx2610 = 0;
+    _rev2610.value++;
+    _springTimer2610 = Timer.periodic(const Duration(milliseconds: 40), (t) {
+      if (!mounted) return t.cancel();
+      // Pas suivant dont l'instant est atteint (pas de 40 ms, puis 60 ms).
+      if (_springIdx2610 >= kPawSpringSteps2610.length - 1) {
+        t.cancel();
+        return;
+      }
+      final elapsed = (t.tick * 40);
+      var i = _springIdx2610;
+      while (i < kPawSpringSteps2610.length - 1 && kPawSpringSteps2610[i + 1] <= elapsed) {
+        i++;
+      }
+      if (i != _springIdx2610) {
+        _springIdx2610 = i;
+        _rev2610.value++;
+      }
+    });
+  }
+
+  void _syncLiveTimer2610() {
+    if (_anyLive2610 && !_reduceMotion) {
+      _liveTimer2610 ??= Timer.periodic(const Duration(milliseconds: 300), (_) {
+        if (!mounted || _cameraMoving) return;
+        _livePhase2610 = (_livePhase2610 + 1) % 6;
+        _rev2610.value++;
+      });
+    } else {
+      _liveTimer2610?.cancel();
+      _liveTimer2610 = null;
+    }
+  }
+
+  /// Ferme l'éclatement d'un groupe (et remet la caméra si [restore]).
+  void _closeSpider2610({bool restore = true}) {
+    if (_spider2610 == null) return;
+    _spider2610 = null;
+    _clearFocus(restore: restore);
+    _rev2610.value++;
+    if (mounted) setState(() {});
+  }
+
+  /// Toucher un groupe : zoom +1,5 sur lui et éclatement (aucun trait).
+  void _openSpider2610(String key, LatLng hub, List<Map<String, dynamic>> members) {
+    if (_spider2610?.key == key) {
+      _closeSpider2610();
+      return;
+    }
+    _holdCamera();
+    final saved = _focusSavedCam ?? CameraPosition(target: _currentCenter, zoom: _zoomLevel);
+    _clearFocus();
+    _focusSavedCam = saved;
+    _spider2610 = (key: key, hub: hub, members: List<Map<String, dynamic>>.of(members));
+    _rev2610.value++;
+    if (mounted) setState(() {});
+    _fade.pulse();
+    unawaited(() async {
+      final ctl = await _activeMapCtl();
+      await ctl?.animateCamera(CameraUpdate.newLatLngZoom(
+          hub, math.min(_zoomLevel + 1.5, 20.0)));
+    }());
+  }
+
   // v590 — handoff §2/§4 : la carte focus et le cadrage d'avant le zoom.
   final Rxn<PawFocusInfo> _focusCard = Rxn<PawFocusInfo>();
   CameraPosition? _focusSavedCam;
@@ -11617,21 +11922,18 @@ class _PawMapScreenState extends State<PawMapScreen>
     _focusTapId = info.key;
     _focusTapAt = DateTime.now();
     _focusCard.value = info;
+    _startSpring2610(); // 623 — rond sélectionné : ressort 1 → 1,18
     if (mounted) setState(() {});
+    // 623 — dans un groupe éclaté, la caméra ne bouge pas (maquette).
+    if (_spider2610 != null) return;
     _fade.pulse();
     unawaited(() async {
       final ctl = await _activeMapCtl();
       if (ctl == null) return;
-      // 612 — on se rapproche, on ne recule JAMAIS (avant : plafond 18).
-      final double z = pawTapZoom(_zoomLevel);
-      // Mètres par pixel à ce zoom ; 60 px vers le sud pour que le marqueur
-      // reste un peu au-dessus du centre (la carte focus est en haut).
-      final double mpp = 156543.03392 *
-          math.cos(target.latitude * math.pi / 180) /
-          math.pow(2, z);
-      final double dLat = (60 * mpp) / 111320.0;
-      await ctl.animateCamera(CameraUpdate.newLatLngZoom(
-          LatLng(target.latitude - dLat, target.longitude), z));
+      // 623 (maquette 26/10) — zoom +2 CENTRÉ sur le profil touché, pour
+      // les 3 rôles (avant : +1,5, plafonné à 18, et rien au-delà de 18).
+      final double z = math.min(_zoomLevel + 2, 20.0);
+      await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, z));
     }());
   }
 
@@ -11659,7 +11961,6 @@ class _PawMapScreenState extends State<PawMapScreen>
       _focusTapAt != null &&
       DateTime.now().difference(_focusTapAt!) < const Duration(seconds: 30);
   DateTime? _focusTapAt;
-  static bool _focusHintShown = false;
   int _coachStep = -1;
 
   /// v584 (25/09, point 13) — PREMIER lancement seulement : mémorisé sur le

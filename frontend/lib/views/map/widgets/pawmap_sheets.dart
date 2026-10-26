@@ -32,6 +32,7 @@ import '../../../utils/pawmap_theme.dart';
 import 'pawmap_buttons.dart';
 import 'pawmap_jewel.dart';
 import 'pawmap_pins.dart';
+import 'pawmap_ring2610.dart';
 import '../../../widgets/paw_rank611.dart';
 import '../../../widgets/paw_pins618.dart';
 
@@ -1623,7 +1624,6 @@ class PawLegendEntry {
 
 /// Les entrées de la légende, dans l'ordre de LEGENDE_PAWMAP.md.
 List<PawLegendEntry> pawLegendEntries() {
-  final ms = PawMapLegend.memberSize;
   return [
     PawLegendEntry(
       key: 'me',
@@ -1653,17 +1653,18 @@ List<PawLegendEntry> pawLegendEntries() {
       PawLegendEntry(
         key: 'member_$role',
         label: 'pawmap_legend_$role'.tr,
-        width: PawMapPinPainter.memberBitmapSize(ms),
-        height: PawMapPinPainter.memberBitmapSize(ms),
-        paint: (c) => PawMapPinPainter.paintMemberDot(c, role: role),
+        // 623 — rond « Anneau » de la maquette du 26/10.
+        width: pawRingBitmap2610(1, multi: false).width,
+        height: pawRingBitmap2610(1, multi: false).height,
+        paint: (c) => paintRingBitmap2610(c, roles: [role]),
       ),
     PawLegendEntry(
       key: 'member_group',
       label: 'pawmap_legend_member_group'.tr,
-      width: PawMapPinPainter.memberClusterWidth(12) + 12,
-      height: PawMapLegend.memberClusterHeight + 12,
-      paint: (c) => PawMapPinPainter.paintMemberCluster(c, 12,
-          roleCounts: const {'owner': 5, 'sitter': 4, 'walker': 3}),
+      width: pawClusterBitmap2610().width,
+      height: pawClusterBitmap2610().height,
+      paint: (c) => paintCluster2610(c,
+          count: 12, counts: const {'owner': 5, 'sitter': 4, 'walker': 3}),
     ),
     PawLegendEntry(
       key: 'place',
@@ -1706,33 +1707,33 @@ List<PawLegendEntry> pawLegendEntries() {
     PawLegendEntry(
       key: 'request',
       label: 'pawmap_legend_request'.tr,
-      width: PawMapPinPainter.requestBubbleBitmapWidth(priceLabel: '25 €'),
+      // 623 — plus de prix posé par défaut : le budget se lit au toucher.
+      width: PawMapPinPainter.requestBubbleBitmapWidth(),
       height: PawMapPinPainter.requestBubbleBitmapHeight(),
-      paint: (c) => PawMapPinPainter.paintRequestBubble(c,
-          priceLabel: '25 €', walking: false),
+      paint: (c) => PawMapPinPainter.paintRequestBubble(c, walking: false),
     ),
     PawLegendEntry(
       key: 'premium',
       label: 'pawmap_legend_premium'.tr,
-      width: PawMapPinPainter.memberBitmapSize(ms),
-      height: PawMapPinPainter.memberBitmapSize(ms),
-      paint: (c) => PawMapPinPainter.paintMemberDot(c, role: 'sitter', crown: true),
+      width: pawRingBitmap2610(1, multi: false).width,
+      height: pawRingBitmap2610(1, multi: false).height,
+      paint: (c) => paintRingBitmap2610(c, roles: const ['sitter'], premium: true),
     ),
     PawLegendEntry(
       key: 'boost',
       label: 'pawmap_legend_boost'.tr,
-      width: PawMapPinPainter.memberBitmapSize(ms),
-      height: PawMapPinPainter.memberBitmapSize(ms),
+      width: pawRingBitmap2610(1, multi: false).width,
+      height: pawRingBitmap2610(1, multi: false).height,
       paint: (c) =>
-          PawMapPinPainter.paintMemberDot(c, role: 'walker', boostPhase: 0.25),
+          paintRingBitmap2610(c, roles: const ['walker'], boostPhase: 0.25),
     ),
     PawLegendEntry(
       key: 'verified',
       label: 'pawmap_legend_verified'.tr,
-      width: PawMapPinPainter.memberBitmapSize(ms),
-      height: PawMapPinPainter.memberBitmapSize(ms),
+      width: pawRingBitmap2610(1, multi: false).width,
+      height: pawRingBitmap2610(1, multi: false).height,
       paint: (c) =>
-          PawMapPinPainter.paintMemberDot(c, role: 'sitter', verified: true),
+          paintRingBitmap2610(c, roles: const ['sitter'], verified: true),
     ),
     PawLegendEntry(
       key: 'friends_only',

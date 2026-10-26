@@ -149,11 +149,11 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_roles_t':
         "Couleurs des profils",
     'help2709_roles_b':
-        "Le bouton « Profil » et le contour de la photo prennent la couleur du rôle : orange = propriétaire, bleu = gardien, vert = promeneur. Une personne qui a plusieurs rôles a un bouton bicolore ou tricolore, toujours dans cet ordre.",
+        "Le bouton « Profil » et l'anneau du rond prennent la couleur du rôle : orange = propriétaire, bleu = gardien, vert = promeneur. Une personne qui a plusieurs rôles a un anneau découpé et une pastille par rôle sous le rond, toujours dans cet ordre.",
     'help2709_duo_t':
         "Gardien + promeneur : deux prix",
     'help2709_duo_b':
-        "Une seule bulle bleu et vert donne les deux tarifs : 🏠 la garde, 🚶 la promenade. Si tu filtres un seul rôle, seul son prix s'affiche.",
+        "Aucun prix n'est posé sur la carte : touche le rond pour ouvrir la bulle, un segment par rôle (🏠 la garde, 🚶 la promenade) ; retouche-le pour la fermer. Si tu filtres un seul rôle, seul son prix s'affiche.",
     'help2709_follow_t':
         "PawFollow",
     'help2709_follow_b':
@@ -309,11 +309,11 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_roles_t':
         "Profile colours",
     'help2709_roles_b':
-        "The “Profile” button and the photo border take the role's colour: orange = owner, blue = sitter, green = walker. Someone with several roles gets a two- or three-colour button, always in that order.",
+        "The “Profile” button and the circle's ring take the role's colour: orange = owner, blue = sitter, green = walker. Someone with several roles has a split ring and one small badge per role under the circle, always in this order.",
     'help2709_duo_t':
         "Sitter + walker: two prices",
     'help2709_duo_b':
-        "One blue-and-green bubble shows both rates: 🏠 sitting, 🚶 walking. If you filter a single role, only its price is shown.",
+        "No price sits on the map: tap the circle to open the bubble, one segment per role (🏠 sitting, 🚶 walking); tap again to close it. If you filter a single role, only its price is shown.",
     'help2709_follow_t':
         "PawFollow",
     'help2709_follow_b':
@@ -469,11 +469,11 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_roles_t':
         "Colores de los perfiles",
     'help2709_roles_b':
-        "El botón «Perfil» y el borde de la foto toman el color del rol: naranja = dueño, azul = cuidador, verde = paseador. Quien tiene varios roles tiene un botón de dos o tres colores, siempre en este orden.",
+        "El botón «Perfil» y el anillo del círculo toman el color del rol: naranja = dueño, azul = cuidador, verde = paseador. Quien tiene varios roles tiene un anillo dividido y una pastilla por rol bajo el círculo, siempre en este orden.",
     'help2709_duo_t':
         "Cuidador + paseador: dos precios",
     'help2709_duo_b':
-        "Una sola burbuja azul y verde muestra las dos tarifas: 🏠 el cuidado, 🚶 el paseo. Si filtras un solo rol, solo aparece su precio.",
+        "No hay precios fijos en el mapa: toca el círculo para abrir la burbuja, un segmento por rol (🏠 el cuidado, 🚶 el paseo); tócalo otra vez para cerrarla. Si filtras un solo rol, solo aparece su precio.",
     'help2709_follow_t':
         "PawFollow",
     'help2709_follow_b':
@@ -629,11 +629,11 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_roles_t':
         "Farben der Profile",
     'help2709_roles_b':
-        "Der Button „Profil“ und der Rand des Fotos haben die Farbe der Rolle: Orange = Halter, Blau = Sitter, Grün = Gassigeher. Wer mehrere Rollen hat, bekommt einen zwei- oder dreifarbigen Button, immer in dieser Reihenfolge.",
+        "Der Button „Profil“ und der Ring des Kreises haben die Farbe der Rolle: Orange = Halter, Blau = Sitter, Grün = Gassigeher. Wer mehrere Rollen hat, bekommt einen geteilten Ring und unter dem Kreis ein Abzeichen pro Rolle, immer in dieser Reihenfolge.",
     'help2709_duo_t':
         "Sitter + Gassigeher: zwei Preise",
     'help2709_duo_b':
-        "Eine blau-grüne Blase zeigt beide Preise: 🏠 Betreuung, 🚶 Gassigehen. Wenn du nur eine Rolle filterst, siehst du nur ihren Preis.",
+        "Auf der Karte stehen keine Preise: Tippe auf den Kreis, um die Blase zu öffnen, ein Abschnitt pro Rolle (🏠 Betreuung, 🚶 Gassigehen); erneut tippen schließt sie. Wenn du nur eine Rolle filterst, siehst du nur ihren Preis.",
     'help2709_follow_t':
         "PawFollow",
     'help2709_follow_b':
@@ -789,11 +789,11 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_roles_t':
         "Colori dei profili",
     'help2709_roles_b':
-        "Il pulsante «Profilo» e il bordo della foto prendono il colore del ruolo: arancione = proprietario, blu = pet sitter, verde = dog walker. Chi ha più ruoli ha un pulsante a due o tre colori, sempre in quest'ordine.",
+        "Il pulsante «Profilo» e l'anello del cerchio prendono il colore del ruolo: arancione = proprietario, blu = pet sitter, verde = dog walker. Chi ha più ruoli ha un anello diviso e un bollino per ruolo sotto il cerchio, sempre in quest'ordine.",
     'help2709_duo_t':
         "Pet sitter + dog walker: due prezzi",
     'help2709_duo_b':
-        "Una sola bolla blu e verde mostra le due tariffe: 🏠 la custodia, 🚶 la passeggiata. Se filtri un solo ruolo, compare solo il suo prezzo.",
+        "Sulla mappa non ci sono prezzi fissi: tocca il cerchio per aprire la bolla, un segmento per ruolo (🏠 la custodia, 🚶 la passeggiata); toccalo di nuovo per chiuderla. Se filtri un solo ruolo, compare solo il suo prezzo.",
     'help2709_follow_t':
         "PawFollow",
     'help2709_follow_b':
@@ -949,11 +949,11 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_roles_t':
         "Cores dos perfis",
     'help2709_roles_b':
-        "O botão «Perfil» e o contorno da foto ficam com a cor do papel: laranja = dono, azul = cuidador, verde = passeador. Quem tem vários papéis tem um botão de duas ou três cores, sempre por esta ordem.",
+        "O botão «Perfil» e o anel do círculo ficam com a cor do papel: laranja = dono, azul = cuidador, verde = passeador. Quem tem vários papéis tem um anel dividido e um selo por papel por baixo do círculo, sempre por esta ordem.",
     'help2709_duo_t':
         "Cuidador + passeador: dois preços",
     'help2709_duo_b':
-        "Uma só bolha azul e verde mostra as duas tarifas: 🏠 o cuidado, 🚶 o passeio. Se filtrares um só papel, só aparece o seu preço.",
+        "Não há preços fixos no mapa: toca no círculo para abrir a bolha, um segmento por papel (🏠 o cuidado, 🚶 o passeio); toca de novo para a fechar. Se filtrares um só papel, só aparece o seu preço.",
     'help2709_follow_t':
         "PawFollow",
     'help2709_follow_b':
@@ -1109,11 +1109,11 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_roles_t':
         "프로필 색상",
     'help2709_roles_b':
-        "‘프로필’ 버튼과 사진 테두리는 역할 색을 따라요: 주황 = 보호자, 파랑 = 펫시터, 초록 = 산책 도우미. 역할이 여러 개인 사람은 항상 이 순서로 두세 가지 색 버튼이 돼요.",
+        "‘프로필’ 버튼과 동그라미의 테두리는 역할 색을 따라요: 주황 = 보호자, 파랑 = 펫시터, 초록 = 산책 도우미. 역할이 여러 개인 사람은 테두리가 나뉘고 동그라미 아래에 역할마다 작은 배지가 붙어요(항상 이 순서).",
     'help2709_duo_t':
         "펫시터 + 산책 도우미: 두 가지 가격",
     'help2709_duo_b':
-        "파랑·초록 말풍선 하나에 두 요금이 표시돼요: 🏠 돌봄, 🚶 산책. 한 역할만 필터하면 그 가격만 보여요.",
+        "지도에는 가격이 늘 떠 있지 않아요: 동그라미를 누르면 역할마다 한 칸씩 말풍선이 열리고(🏠 돌봄, 🚶 산책), 다시 누르면 닫혀요. 한 역할만 필터하면 그 가격만 보여요.",
     'help2709_follow_t':
         "PawFollow",
     'help2709_follow_b':
@@ -1269,11 +1269,11 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_roles_t':
         "プロフィールの色",
     'help2709_roles_b':
-        "「プロフィール」ボタンと写真の縁は役割の色になります：オレンジ＝飼い主、青＝シッター、緑＝散歩代行。複数の役割を持つ人は、この順番で2色または3色のボタンになります。",
+        "「プロフィール」ボタンと丸の縁は役割の色になります：オレンジ＝飼い主、青＝シッター、緑＝散歩代行。複数の役割を持つ人は縁が分かれ、丸の下に役割ごとの小さなバッジが付きます（常にこの順番）。",
     'help2709_duo_t':
         "シッター＋散歩代行：2つの料金",
     'help2709_duo_b':
-        "青と緑の吹き出し1つに2つの料金を表示：🏠 お世話、🚶 散歩。1つの役割だけで絞り込むと、その料金だけが表示されます。",
+        "地図に料金は常時表示されません：丸をタップすると役割ごとに1区画の吹き出しが開き（🏠 お世話、🚶 散歩）、もう一度タップで閉じます。1つの役割だけで絞り込むと、その料金だけが表示されます。",
     'help2709_follow_t':
         "PawFollow",
     'help2709_follow_b':
@@ -1429,11 +1429,11 @@ const Map<String, Map<String, String>> help587I18n =
     'help2709_roles_t':
         "Kolory profili",
     'help2709_roles_b':
-        "Przycisk „Profil” i obramowanie zdjęcia mają kolor roli: pomarańczowy = właściciel, niebieski = opiekun, zielony = spacerowicz. Osoba z kilkoma rolami ma przycisk dwu- lub trzykolorowy, zawsze w tej kolejności.",
+        "Przycisk „Profil” i obwódka kółka mają kolor roli: pomarańczowy = właściciel, niebieski = opiekun, zielony = spacerowicz. Osoba z kilkoma rolami ma podzieloną obwódkę i plakietkę każdej roli pod kółkiem, zawsze w tej kolejności.",
     'help2709_duo_t':
         "Opiekun + spacerowicz: dwie ceny",
     'help2709_duo_b':
-        "Jeden niebiesko-zielony dymek pokazuje obie stawki: 🏠 opieka, 🚶 spacer. Jeśli filtrujesz jedną rolę, widać tylko jej cenę.",
+        "Na mapie nie ma stałych cen: dotknij kółka, by otworzyć dymek, jeden segment na rolę (🏠 opieka, 🚶 spacer); dotknij ponownie, by go zamknąć. Jeśli filtrujesz jedną rolę, widać tylko jej cenę.",
     'help2709_follow_t':
         "PawFollow",
     'help2709_follow_b':
