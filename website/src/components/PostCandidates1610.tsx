@@ -23,9 +23,11 @@ import { SignatureButton } from "@/components/SignatureButton";
 // 620 (LEO, 24/10 — §B.2) : demande « dates à prévoir » → tarif unitaire +
 // bandeau « Pose tes dates pour valider » (éditeur de dates), Choisir désactivé ;
 // après les dates : totaux réels. + « Ouvrir dans l'app » (le site ramène dans l'app).
-import { AppBridge620 } from "@/components/AppBridge620";
 import { PostDatesEditor620 } from "@/components/PostDatesEditor620";
 import { d620, unitShort620 } from "@/lib/i18n/dates620";
+// 26/10 (LEO — décision de Daniel, proposition B de SAM) : « écrire d'abord, choisir ensuite,
+// payer après » — cartes côte à côte, « Écrire à <prénom> » en bouton principal.
+import { c2610 } from "@/lib/i18n/cand2610";
 import { dateModeOf620 } from "@/lib/services620";
 import {
   ApiError,
@@ -36,6 +38,7 @@ import {
   applicationId,
   applicationProvider,
   createBookingPaymentIntent,
+  startProviderConversation,
   getMyApplications,
   respondToApplication,
 } from "@/lib/api";
@@ -116,6 +119,9 @@ export function PostCandidates1610({
   // Photo introuvable (lien mort) → initiale à la couleur du rôle, jamais l'icône cassée du navigateur.
   const [brokenAvatars, setBrokenAvatars] = useState<Record<string, boolean>>({});
   const [rejectedNow, setRejectedNow] = useState<Record<string, boolean>>({});
+  // 2610 — conversation en cours d'ouverture (« Écrire à … »).
+  const [writingId, setWritingId] = useState<string | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
   const focusRef = useRef<HTMLLIElement | null>(null);
   // 620 — la demande telle qu'elle est (ses dates peuvent être posées ici même).
   const [cur, setCur] = useState<RequestPost>(post);
@@ -124,14 +130,19 @@ export function PostCandidates1610({
 
   useEffect(() => setItems(applications), [applications]);
   useEffect(() => {
-    if (focusId && focusRef.current) {
-      focusRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    // 2610 — arrivée par l'e-mail : la page s'ouvre directement sur les candidats (le haut du bloc),
+    // la candidature de l'e-mail reste entourée.
+    if (focusId && items.some((x) => applicationId(x) === focusId) && sectionRef.current) {
+      sectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [focusId, items.length]);
+  }, [focusId, items]);
 
   // Un candidat refusé À L'INSTANT reste affiché (« Candidature refusée ») : retour visible
   // au clic ; au prochain chargement il disparaît, comme dans l'app.
-  const visible = items.filter((a) => a.status === "pending" || a.status === "accepted" || rejectedNow[applicationId(a)]);
+  const visible = items
+    .filter((a) => a.status === "pending" || a.status === "accepted" || rejectedNow[applicationId(a)])
+    // 2610 — le candidat de l'e-mail en premier, puis l'ordre du serveur.
+    .sort((x, y) => Number(!!focusId && applicationId(y) === focusId) - Number(!!focusId && applicationId(x) === focusId));
   if (visible.length === 0) return null;
 
   const postPoint = point(cur.location);
@@ -207,6 +218,24 @@ export function PostCandidates1610({
     }
   }
 
+  /** 2610 — « Écrire à <prénom> » : ouvre (ou retrouve) la conversation avec ce prestataire. */
+  async function write(a: ApplicationItem) {
+    const id = applicationId(a);
+    const { role, who } = applicationProvider(a);
+    const providerId = String(who?.id || who?._id || "");
+    if (!providerId) { setErrors((er) => ({ ...er, [id]: c2610(lang, "write_fail") })); return; }
+    setWritingId(id);
+    setErrors((er) => ({ ...er, [id]: "" }));
+    try {
+      const conv = await startProviderConversation(role, providerId);
+      router.push(conv ? `/chat?c=${encodeURIComponent(conv)}` : "/chat");
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) { router.replace("/login?redirect=/posts"); return; }
+      setErrors((er) => ({ ...er, [id]: c2610(lang, "write_fail") }));
+      setWritingId(null);
+    }
+  }
+
   async function pay(a: ApplicationItem) {
     const bk = linkedBooking(a);
     if (!bk) return;
@@ -237,42 +266,42 @@ export function PostCandidates1610({
 
   return (
     <section
-      className="mt-3 rounded-2xl p-3"
-      style={{ background: "#FFF6F2", boxShadow: "inset 0 0 0 1px #F6D9CF" }}
-      aria-label={t("c1610_title")}
+      ref={sectionRef}
+      className="mt-3 scroll-mt-24 rounded-2xl p-3 sm:p-4"
+      style={{ background: "#FFF6F2", boxShadow: "inset 0 0 0 1px #F6D9CF", colorScheme: "light" }}
+      aria-label={c2610(lang, "title")}
       data-candidates-1610={pending}
+      data-candidates-2610=""
     >
-      <h3 className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: "#9E1F0B" }}>
-        <AppIcon name="people" size={15} color="#C92A12" />
-        {t("c1610_title")}
-        <span className="rounded-full bg-white px-1.5 text-[11px]" style={{ color: "#9E1F0B" }}>
+      <h3 className="flex flex-wrap items-center gap-1.5 text-[16px] font-extrabold" style={{ color: "#9E1F0B" }}>
+        <AppIcon name="people" size={17} color="#C92A12" />
+        {c2610(lang, "title")}
+        <span className="rounded-full bg-white px-2 text-[12px] font-bold" style={{ color: "#9E1F0B" }}>
           {visible.length}
         </span>
-        <span className="ml-auto text-[11px] font-semibold" style={{ color: "#6E4F48" }}>
-          {t("c1610_then_pay")}
-        </span>
       </h3>
+      <p className="mt-1 text-[13px] leading-snug" style={{ color: "#6E4F48" }}>{c2610(lang, "sub")}</p>
 
-      {/* 620 — « Pose tes dates pour valider » + éditeur de dates (PATCH /posts/:id). */}
+      {/* 2610 — « dates à prévoir » : encart en tête, le bouton ouvre DIRECTEMENT le choix des dates. */}
       {tbd && (
-        <div className="mt-2 rounded-xl p-3" style={{ background: "#FBE9E5" }} data-testid="tbd-banner-620">
-          <p className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: "#9E1F0B" }}>
-            <AppIcon name="calendar" size={15} color="#9E1F0B" />
-            {d620(lang, "cand_banner")}
+        <div className="mt-3 rounded-xl p-3" style={{ background: "#FBE9E5", boxShadow: "inset 0 0 0 1.5px #C92A12" }} data-testid="tbd-banner-620" data-tbd-2610="">
+          <p className="flex items-start gap-1.5 text-[14px] font-extrabold leading-snug" style={{ color: "#9E1F0B" }}>
+            <AppIcon name="calendar" size={16} color="#9E1F0B" />
+            <span>{c2610(lang, "tbd_title")}</span>
           </p>
-          <p className="mt-0.5 text-[12px] leading-snug" style={{ color: "#6E4F48" }}>{d620(lang, "cand_banner_sub")}</p>
+          <p className="mt-1 text-[12px] leading-snug" style={{ color: "#6E4F48" }}>{c2610(lang, "tbd_sub")}</p>
           {!editingDates && (
             <div className="mt-2">
-              <SignatureButton tone="owner" icon="calendar" label={d620(lang, "cand_set_dates")} onClick={() => setEditingDates(true)} />
+              <SignatureButton tone="owner" icon="calendar" label={c2610(lang, "tbd_cta")} onClick={() => setEditingDates(true)} />
             </div>
+          )}
+          {editingDates && (
+            <PostDatesEditor620 post={cur} lang={lang} onSaved={(u) => void onDatesSaved(u)} onCancel={() => setEditingDates(false)} startLabel={t("posts_start_label")} endLabel={t("posts_end_label")} />
           )}
         </div>
       )}
-      {tbd && editingDates && (
-        <PostDatesEditor620 post={cur} lang={lang} onSaved={(u) => void onDatesSaved(u)} onCancel={() => setEditingDates(false)} startLabel={t("posts_start_label")} endLabel={t("posts_end_label")} />
-      )}
 
-      <ul className="mt-2 space-y-2">
+      <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {visible.map((a) => {
           const id = applicationId(a);
           const { role, who } = applicationProvider(a);
@@ -288,31 +317,36 @@ export function PostCandidates1610({
           const currency = (a.pricing?.currency || cur.budgetCurrency || cur.currency || "EUR").toUpperCase();
           // 620 — indicatif (dates à prévoir) : « 12 €/visite » au lieu d'un total.
           const indicative = a.pricing?.indicative === true || (tbd && !(total != null && total > 0));
-          // 620b — la demande a changé de service et ce candidat n'a pas de tarif pour le nouveau :
-          // « tarif à venir », aucun montant, Choisir bloqué avec l'explication.
+          // 620b — « tarif à venir » : aucun montant, Choisir bloqué avec l'explication.
           const stale = a.pricing?.stale === true;
           // 2610 (ZOE, ordre de Daniel) — jamais un total incohérent à l'écran : un total absent,
-          // nul ou INFÉRIEUR au tarif unitaire (ancien calcul horaire : 2,70 € pour 18 €/jour) n'est
-          // pas affiché, ni comme total ni comme tarif. Le serveur recalcule le prix au moment du choix.
+          // nul ou INFÉRIEUR au tarif unitaire n'est affiché ni comme total ni comme tarif.
           const rawRate = a.pricing?.appliedRate ?? null;
           const incoherent = !stale && !indicative && (total == null || !(total > 0) || (rawRate != null && rawRate > 0 && total + 0.001 < rawRate));
           const unitRate = stale || incoherent ? null : (a.pricing?.appliedRate ?? a.pricing?.basePrice ?? null);
-          // Tarif unitaire compact (« 12 €/visite », jamais « 12,00 € ») ; les centimes restent s'il y en a.
           const rateLabel = indicative && unitRate != null && unitRate > 0 ? `${moneyCompact(unitRate, currency, lang)}/${unitShort620(lang, unitOf(a))}` : "";
           const priceLabel = !stale && !indicative && !incoherent && total != null && total > 0 ? money(total, currency, lang) : "";
+          // Pas de tarif unitaire sous le total : le serveur renvoie un total frais compris et un tarif
+          // hors frais (FLO, 26/10) — on affiche ce que le serveur renvoie comme total, sans mélanger.
+          const unitLine = "";
           const accepted = a.status === "accepted";
           const bk = accepted ? linkedBooking(a) : null;
           const isFocus = !!focusId && focusId === id;
-          const applied = a.createdAt ? new Date(a.createdAt).toLocaleDateString(lang, { day: "numeric", month: "short" }) : "";
           const err = errors[id];
+          const meta = [
+            rating > 0 ? `★ ${rating.toFixed(1)}${reviews > 0 ? ` (${reviews})` : ""}` : c2610(lang, "no_reviews"),
+            city,
+            km != null ? fill(t("c1610_km_about"), { km }) : "",
+          ].filter(Boolean).join(" · ");
 
           return (
             <li
               key={id}
               ref={isFocus ? focusRef : undefined}
               id={`application-${id}`}
-              className="rounded-xl bg-white p-3"
-              style={isFocus ? { boxShadow: "0 0 0 2px #C92A12" } : undefined}
+              className="flex min-w-0 flex-col rounded-2xl bg-white p-3"
+              style={{ boxShadow: isFocus ? "0 0 0 2px #C92A12, 0 6px 16px -10px rgba(35,23,21,.35)" : "0 6px 16px -10px rgba(35,23,21,.35)" }}
+              data-candidate-2610={role}
             >
               <div className="flex items-start gap-3">
                 {who?.avatar && !brokenAvatars[id] ? (
@@ -320,18 +354,18 @@ export function PostCandidates1610({
                   <img
                     src={who.avatar}
                     alt=""
-                    className="h-11 w-11 shrink-0 rounded-full object-cover"
-                    style={{ boxShadow: `0 0 0 2px ${tone.dark}` }}
+                    className="h-14 w-14 shrink-0 rounded-full object-cover"
+                    style={{ boxShadow: `0 0 0 2.5px ${tone.dark}` }}
                     onError={() => setBrokenAvatars((m) => ({ ...m, [id]: true }))}
                   />
                 ) : (
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-base font-bold text-white" style={{ background: tone.dark }}>
+                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full text-lg font-bold text-white" style={{ background: tone.dark }}>
                     {firstName.slice(0, 1).toUpperCase()}
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="text-[15px] font-bold" style={{ color: "#231715" }}>{firstName}</p>
+                  <p className="truncate text-[16px] font-extrabold" style={{ color: "#231715" }}>{firstName}</p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1">
                     <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: tone.pale, color: tone.dark }}>
                       <AppIcon name={role === "walker" ? "walker" : "home"} size={11} color={tone.dark} />
                       {t(role === "walker" ? "role_walker" : "role_sitter")}
@@ -346,121 +380,135 @@ export function PostCandidates1610({
                       <span className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{ background: "#C92A12" }}>{t("c1610_new")}</span>
                     )}
                   </div>
-                  <p className="mt-0.5 text-[12px] leading-snug" style={{ color: "#6E4F48" }}>
-                    {[
-                      rating > 0 ? `★ ${rating.toFixed(1)}${reviews > 0 ? ` (${reviews})` : ""}` : t("c1610_no_reviews"),
-                      city,
-                      km != null ? fill(t("c1610_km_about"), { km }) : "",
-                      applied ? fill(t("c1610_applied_on"), { date: applied }) : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                  {a.description && a.description.trim() && (
-                    <p className="mt-1 whitespace-pre-wrap text-[13px]" style={{ color: "#231715" }}>{a.description.trim()}</p>
-                  )}
+                  <p className="mt-1 text-[12px] leading-snug" style={{ color: "#6E4F48" }}>{meta}</p>
                 </div>
-                {priceLabel && (
-                  <div className="shrink-0 text-right">
-                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#8A6B64" }}>{t("c1610_total")}</p>
-                    <p className="text-[17px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }}>{priceLabel}</p>
-                  </div>
-                )}
-                {!priceLabel && rateLabel && (
-                  <div className="shrink-0 text-right" data-rate-620={unitRate ?? ""}>
-                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#8A6B64" }}>{d620(lang, "cand_rate_label")}</p>
-                    <p className="text-[17px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }}>{rateLabel}</p>
-                  </div>
-                )}
-                {stale && (
-                  <div className="shrink-0 text-right" data-stale-620="">
-                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#8A6B64" }}>{d620(lang, "cand_rate_label")}</p>
-                    <p className="text-[14px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }}>{d620(lang, "cand_stale")}</p>
-                  </div>
-                )}
               </div>
+
+              {/* Prix : total juste, sinon tarif indicatif (dates à prévoir), sinon « tarif à venir » expliqué. */}
+              {(priceLabel || rateLabel || stale) && <div className="mt-2 flex items-baseline justify-between gap-2 rounded-xl px-3 py-2" style={{ background: "#FFF6F2" }}>
+                {priceLabel ? (
+                  <>
+                    <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#8A6B64" }}>{c2610(lang, "total")}</span>
+                    <span className="text-right">
+                      <span className="block text-[18px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }} data-total-2610="">{priceLabel}</span>
+                      {unitLine && <span className="block text-[11px] font-semibold" style={{ color: "#8A6B64" }}>{unitLine}</span>}
+                    </span>
+                  </>
+                ) : rateLabel ? (
+                  <>
+                    <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#8A6B64" }}>{c2610(lang, "rate")}</span>
+                    <span className="text-[18px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }} data-rate-620={unitRate ?? ""}>{rateLabel}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#8A6B64" }}>{c2610(lang, "rate")}</span>
+                    <span className="text-[14px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }} data-stale-620="">{c2610(lang, "stale_short")}</span>
+                  </>
+                )}
+              </div>}
+              {/* « Tarif à venir » toujours expliqué ; un total incohérent (ZOE) n'affiche rien du tout. */}
               {stale && a.status === "pending" && (
-                <p className="mt-2 rounded-xl px-3 py-2 text-[12px] font-semibold leading-snug" style={{ background: "#FBE9E5", color: "#9E1F0B" }} data-stale-hint-620="">
+                <p className="mt-1.5 text-[11.5px] font-semibold leading-snug" style={{ color: "#9E1F0B" }} data-stale-hint-620="">
                   {d620(lang, "cand_stale_hint")}
                 </p>
               )}
 
-              {a.status === "pending" && (
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <div className="sm:flex-1">
-                    <SignatureButton
-                      tone="owner"
-                      icon="check"
-                      label={t("c1610_choose")}
-                      price={priceLabel || rateLabel || undefined}
-                      loading={busyId === id}
-                      disabled={(busyId !== null && busyId !== id) || tbd || stale}
-                      disabledReason={stale ? d620(lang, "cand_stale_hint") : tbd ? d620(lang, "cand_choose_blocked") : undefined}
-                      onClick={() => { if (stale) return; if (tbd) { setEditingDates(true); return; } void respond(a, "accept"); }}
-                      ariaLabel={`${t("c1610_choose")} ${firstName}`}
-                    />
-                    {tbd && !stale && <p className="mt-1 text-center text-[11px] font-semibold" style={{ color: "#8A6B64" }} data-choose-blocked-620="">{d620(lang, "cand_choose_blocked")}</p>}
-                  </div>
-                  <div className="sm:w-[150px]">
-                    <SignatureButton
-                      tone="danger"
-                      kind="secondary"
-                      label={t("c1610_reject")}
+              {a.description && a.description.trim() && (
+                <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-[13px] leading-snug" style={{ color: "#231715" }}>« {a.description.trim()} »</p>
+              )}
+
+              <div className="mt-auto pt-3">
+                {(a.status === "pending" || accepted) && (
+                  <SignatureButton
+                    tone={role === "walker" ? "walker" : "sitter"}
+                    icon="chat"
+                    label={writingId === id ? c2610(lang, "opening") : c2610(lang, "write", { name: firstName })}
+                    loading={writingId === id}
+                    disabled={writingId !== null && writingId !== id}
+                    onClick={() => void write(a)}
+                    ariaLabel={c2610(lang, "write", { name: firstName })}
+                  />
+                )}
+
+                {a.status === "pending" && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <SignatureButton
+                        tone="owner"
+                        kind="secondary"
+                        icon="check"
+                        label={t("c1610_choose")}
+                        price={priceLabel || undefined}
+                        loading={busyId === id}
+                        disabled={(busyId !== null && busyId !== id) || tbd || stale}
+                        disabledReason={stale ? d620(lang, "cand_stale_hint") : tbd ? d620(lang, "cand_choose_blocked") : undefined}
+                        onClick={() => { if (stale) return; if (tbd) { setEditingDates(true); sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; } void respond(a, "accept"); }}
+                        ariaLabel={`${t("c1610_choose")} ${firstName}`}
+                      />
+                    </div>
+                    <button
+                      type="button"
                       disabled={busyId !== null}
                       onClick={() => respond(a, "reject")}
-                      ariaLabel={`${t("c1610_reject")} ${firstName}`}
-                    />
+                      className="min-h-[44px] shrink-0 rounded-full px-3 text-[13px] font-bold underline-offset-2 hover:underline disabled:opacity-60"
+                      style={{ color: "#9E1F0B" }}
+                      aria-label={`${t("c1610_reject")} ${firstName}`}
+                    >
+                      {t("c1610_reject")}
+                    </button>
                   </div>
-                </div>
-              )}
+                )}
+                {a.status === "pending" && tbd && !stale && (
+                  <p className="mt-1 text-center text-[11px] font-semibold" style={{ color: "#8A6B64" }} data-choose-blocked-620="">{d620(lang, "cand_choose_blocked")}</p>
+                )}
 
-              {accepted && bk && !bk.paid && (
-                <div className="mt-3 rounded-xl p-3" style={{ background: "#FBE9E5" }}>
-                  <p className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: "#9E1F0B" }}>
-                    <AppIcon name="check" size={15} color="#9E1F0B" />
-                    {t("c1610_booked")}
+                {accepted && bk && !bk.paid && (
+                  <div className="mt-2 rounded-xl p-3" style={{ background: "#FBE9E5" }}>
+                    <p className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: "#9E1F0B" }}>
+                      <AppIcon name="check" size={15} color="#9E1F0B" />
+                      {t("c1610_booked")}
+                    </p>
+                    <div className="mt-2">
+                      <SignatureButton
+                        tone="owner"
+                        icon="wallet"
+                        label={t("bookings_pay")}
+                        price={priceLabel || undefined}
+                        loading={payingId === id}
+                        earns
+                        onClick={() => pay(a)}
+                      />
+                    </div>
+                    <p className="mt-1.5 text-center text-[11px] font-semibold" style={{ color: "#8A6B64" }}>{t("bookings_pay_secure")}</p>
+                  </div>
+                )}
+
+                {a.status === "rejected" && (
+                  <p className="mt-2 rounded-xl px-3 py-2 text-[13px] font-bold" style={{ background: "#FBE9E5", color: "#9E1F0B" }}>
+                    {t("c1610_rejected")}
                   </p>
-                  <div className="mt-2">
-                    <SignatureButton
-                      tone="owner"
-                      icon="wallet"
-                      label={t("bookings_pay")}
-                      price={priceLabel || undefined}
-                      loading={payingId === id}
-                      earns
-                      onClick={() => pay(a)}
-                    />
-                  </div>
-                  <p className="mt-1.5 text-center text-[11px] font-semibold" style={{ color: "#8A6B64" }}>{t("bookings_pay_secure")}</p>
-                </div>
-              )}
+                )}
 
-              {a.status === "rejected" && (
-                <p className="mt-3 rounded-xl px-3 py-2 text-[13px] font-bold" style={{ background: "#FBE9E5", color: "#9E1F0B" }}>
-                  {t("c1610_rejected")}
-                </p>
-              )}
+                {accepted && bk?.paid && (
+                  <p className="mt-2 flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold" style={{ background: "#DCEFE3", color: "#15803D" }}>
+                    <AppIcon name="check" size={15} color="#15803D" />
+                    {t("bookings_payment_received")}
+                  </p>
+                )}
 
-              {accepted && bk?.paid && (
-                <p className="mt-3 flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold" style={{ background: "#DCEFE3", color: "#15803D" }}>
-                  <AppIcon name="check" size={15} color="#15803D" />
-                  {t("bookings_payment_received")}
-                </p>
-              )}
-
-              {err && (
-                <p className="mt-2 rounded-xl px-3 py-2 text-[12px] font-bold" style={{ background: "#FBE9E5", color: "#9E1F0B" }} role="alert">
-                  {err}
-                </p>
-              )}
+                {err && (
+                  <p className="mt-2 rounded-xl px-3 py-2 text-[12px] font-bold" style={{ background: "#FBE9E5", color: "#9E1F0B" }} role="alert">
+                    {err}
+                  </p>
+                )}
+              </div>
             </li>
           );
         })}
       </ul>
-      {/* 620 (§B.5) — le site ramène dans l'app. */}
-      <div className="mt-3">
-        <AppBridge620 lang={lang} loggedIn compact />
-      </div>
+      {/* 26/10 (retour de FLO) : plus de bloc « tout se passe dans l'app / paiement dans l'app » ici —
+          faux sur le web, où l'on paie juste au-dessus. */}
+      <p className="mt-3 text-center text-[12px] font-semibold" style={{ color: "#6E4F48" }}>{t("c1610_then_pay")}</p>
     </section>
   );
 }

@@ -86,6 +86,10 @@ export default function PostsPage() {
           const pendingByPost = new Map<string, number>();
           for (const a of mine) if (a.status === "pending" && a.postId) pendingByPost.set(a.postId, (pendingByPost.get(a.postId) || 0) + 1);
           list.sort((a, b) => (pendingByPost.get(postId(b)) || 0) - (pendingByPost.get(postId(a)) || 0));
+          // 26/10 — arrivée par l'e-mail (?application=…) : la demande de cette candidature en premier.
+          const fid = new URLSearchParams(window.location.search).get("application") || "";
+          const fpost = fid ? mine.find((a) => String(a.id || a._id || "") === fid)?.postId : null;
+          if (fpost) list.sort((a, b) => Number(postId(b) === fpost) - Number(postId(a) === fpost));
         }
         setPosts(list);
       } catch (e) {
@@ -353,6 +357,12 @@ function PostCard({
         )}
       </div>
 
+      {/* 16/10 → 26/10 (LEO, décision de Daniel, proposition B de SAM) — propriétaire : les CANDIDATS
+          en tête de la demande (« Écrire à … » d'abord, « Choisir » ensuite, payer après). */}
+      {isOwner && applications.length > 0 && (
+        <PostCandidates1610 post={post620} applications={applications} focusId={focusId} />
+      )}
+
       {post.body && <p className="mt-2 whitespace-pre-wrap text-sm text-ink">{post.body}</p>}
 
       {/* v402 — photos de l'annonce */}
@@ -401,10 +411,6 @@ function PostCard({
         )
       )}
 
-      {/* 16/10 — propriétaire : les candidats de cette demande → Choisir → Payer. */}
-      {isOwner && applications.length > 0 && (
-        <PostCandidates1610 post={post620} applications={applications} focusId={focusId} />
-      )}
 
       {/* Bande animaux : nom · race · âge · sexe + nombre de photos. */}
       {pets.length > 0 && (

@@ -9,7 +9,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // Les espaces privés / techniques reçoivent X-Robots-Tag: noindex (ils ne
 // doivent pas consommer le budget d'exploration ni apparaître dans Google).
 const NOINDEX = [
-  "/login", "/signup", "/verify-email", "/open", "/pay", "/kyc-complete",
+  "/login", "/signup", "/forgot-password", "/verify-email", "/open", "/pay", "/kyc-complete",
   "/search", "/map", "/boutique", "/posts", "/pawpoints", "/family", "/book",
   "/dashboard", "/chat", "/bookings", "/invoices", "/profile", "/pets",
   // 16/10/2026 (LEO) — /application/<id> : lien e-mail « candidature reçue » du propriétaire (privé).

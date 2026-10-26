@@ -2,6 +2,7 @@
 
 import Link from "@/components/SiteLink";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { AppIcon } from "@/components/AppIcon";
 
@@ -21,6 +22,10 @@ import { AppIcon } from "@/components/AppIcon";
 export function DownloadAppBanner() {
   const { t } = useT();
   const [shown, setShown] = useState(false);
+  // 26/10 (LEO — retour de FLO) : sur la page des candidats et du paiement, le bouton flottant
+  // recouvrait les cartes et « Choisir » ; on n'y propose pas l'app (on y paie sur le web).
+  const pathname = usePathname() || "";
+  const noFloat = /^\/(posts|application|pay)(\/|$)/.test(pathname);
 
   useEffect(() => {
     const onScroll = () => setShown(window.scrollY > 420);
@@ -47,8 +52,8 @@ export function DownloadAppBanner() {
         </Link>
       </div>
 
-      {/* Mobile : bouton flottant en bas à droite, après le héro. */}
-      <Link
+      {/* Mobile : bouton flottant en bas à droite, après le héro (jamais sur les candidats / le paiement). */}
+      {!noFloat && <Link
         href="/download"
         aria-hidden={!shown}
         tabIndex={shown ? 0 : -1}
@@ -58,7 +63,7 @@ export function DownloadAppBanner() {
         }
       >
         <AppIcon name="download" size={16} color="#fff" /> {t("dl_float")}
-      </Link>
+      </Link>}
     </>
   );
 }

@@ -7,8 +7,11 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { ApiError, login } from "@/lib/api";
 import { SocialButtons } from "@/components/SocialButtons";
 
+// 26/10 — « Mot de passe oublié ? » dans les 9 langues du site.
+const FORGOT = { fr: "Mot de passe oublié ?", en: "Forgot password?", es: "¿Olvidaste tu contraseña?", de: "Passwort vergessen?", it: "Password dimenticata?", pt: "Esqueceste-te da palavra-passe?", ko: "비밀번호를 잊으셨나요?", ja: "パスワードをお忘れですか？", pl: "Nie pamiętasz hasła?" } as const;
+
 export default function LoginPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const router = useRouter();
 
   const [email, setEmail]       = useState("");
@@ -61,6 +64,23 @@ export default function LoginPage() {
         <SocialButtons />
         <Field label={t("login_email")} value={email} onChange={setEmail} type="email" required autoComplete="email" />
         <Field label={t("login_password")} value={password} onChange={setPassword} type="password" required autoComplete="current-password" />
+        {/* 26/10 (LEO — retour de FLO) : le lien manquait ; les propriétaires venus de la pub n'ont
+            jamais choisi de mot de passe et /posts/confirmer leur dit de passer par ici. */}
+        <p className="-mt-1 text-right text-sm">
+          <Link
+            href={`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
+            onClick={(e) => {
+              try {
+                const r = new URLSearchParams(window.location.search).get("redirect");
+                if (r && r.startsWith("/")) { e.preventDefault(); router.push(`/forgot-password?redirect=${encodeURIComponent(r)}${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ""}`); }
+              } catch { /* lien simple */ }
+            }}
+            className="inline-flex min-h-[44px] items-center font-semibold text-owner"
+            data-forgot-link-2610=""
+          >
+            {FORGOT[lang as keyof typeof FORGOT] || FORGOT.fr}
+          </Link>
+        </p>
         <button
           disabled={busy}
           className="w-full rounded-full bg-owner py-3 text-sm font-semibold text-white shadow-cta hover:bg-owner-dark disabled:opacity-60"
