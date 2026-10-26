@@ -47,7 +47,7 @@ import {
 import { safeFly } from "@/lib/safeFly";
 import { AppIcon } from "@/components/AppIcon";
 import { CollisionPass607 } from "@/components/CollisionPass607";
-import { PAWMAP_2610_CSS, SPIDER_MAX_2610, clusterHtml2610, profilePinHtml2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
+import { PAWMAP_2610_CSS, SPIDER_MAX_2610, cachedIcon2610, popOnce2610, clusterHtml2610, profilePinHtml2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
 import { VerifiedPill } from "@/components/VerifiedPill";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
@@ -57,13 +57,10 @@ import { askHref, askLabel, askNote, dm } from "@/lib/i18n/demander2809";
 function memberIcon(p: PublicProvider, caption: string | null, o: { selected?: boolean; dim?: boolean; prices?: Price2610[]; off?: { x: number; y: number } | null; dark?: boolean } = {}): L.DivIcon {
   const ox = Math.round(o.off?.x ?? 0);
   const oy = Math.round(o.off?.y ?? 0);
-  return L.divIcon({
-    className: `hps-l-member${o.dim ? " hps2610-dim" : ""}`,
-    html: profilePinHtml2610({ roles: [p.role], selected: !!o.selected, prices: o.prices, caption, dark: !!o.dark, boosted: p.boosted, verified: p.identityVerified === true }),
-    iconSize: [50, 50],
-    iconAnchor: [25 - ox, 25 - oy],
-    popupAnchor: [ox, oy - 28],
-  });
+  const className = `hps-l-member${o.dim ? " hps2610-dim" : ""}`;
+  const html = profilePinHtml2610({ roles: [p.role], selected: !!o.selected, pop: popOnce2610(`p:${p.id}`, !!o.selected), prices: o.prices, caption, dark: !!o.dark, boosted: p.boosted, verified: p.identityVerified === true });
+  // 26/10 (bug « ça clignote ») — même dessin = même icône : aucune réécriture à chaque rendu.
+  return cachedIcon2610(`${className}|${ox},${oy}|${html.replace(/animation:hps2610-pop[^;]*;/, "")}`, () => L.divIcon({ className, html, iconSize: [50, 50], iconAnchor: [25 - ox, 25 - oy], popupAnchor: [ox, oy - 28] }));
 }
 // 1617 — bulle orange #C92A12 translucide + pastille du service (garde / promenade),
 // pointe sur la position FLOUTÉE (~1 km, floutage serveur). Aucun nom, aucune adresse.
@@ -83,7 +80,8 @@ function requestBubbleIcon(b: PublicRequestBubble, serviceLabel: string, daysLab
 
 function clusterIcon(items: PublicProvider[], dark: boolean, price?: { from: string; amount: string; role: Role2610 } | null): L.DivIcon {
   // 2610 — rond 48, anneau segmenté par rôle ; « dès X » seulement quand le groupe est touché.
-  return L.divIcon({ className: "hps-l-mgroup", html: clusterHtml2610({ counts: roleCounts(items.map((p) => p.role)), total: items.length, dark, fromLabel: price ?? null }), iconSize: [48, 48], iconAnchor: [24, 24] });
+  const html = clusterHtml2610({ counts: roleCounts(items.map((p) => p.role)), total: items.length, dark, fromLabel: price ?? null });
+  return cachedIcon2610(`grp|${html}`, () => L.divIcon({ className: "hps-l-mgroup", html, iconSize: [48, 48], iconAnchor: [24, 24] }));
 }
 
 // 04/10 (610, ajout de Daniel) — PawSpots en LECTURE SEULE sur la carte

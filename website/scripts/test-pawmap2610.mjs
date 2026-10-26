@@ -161,4 +161,16 @@ ok("signes existants gardés (Daniel 26/10) : vérifié bas gauche 15, fusée bo
   assert.doesNotMatch(z, /data-(verified|rocket|boost|follow|online)-2610/);
 });
 
+ok("anti-clignotement : rebond une seule fois par sélection, même dessin = même objet icône", () => {
+  assert.equal(m.popOnce2610("a", true, 1000), true);
+  assert.equal(m.popOnce2610("a", true, 1200), true); // encore dans les 0,35 s du rebond
+  assert.equal(m.popOnce2610("a", true, 2000), false); // redessiné plus tard : net, sans rebond
+  assert.equal(m.popOnce2610("a", false, 2100), false);
+  assert.equal(m.popOnce2610("a", true, 3000), true); // nouvelle sélection : rebond
+  assert.doesNotMatch(m.profilePinHtml2610({ roles: ["sitter"], selected: true, pop: false }), /hps2610-pop/);
+  assert.match(m.profilePinHtml2610({ roles: ["sitter"], selected: true, pop: false }), /transform:scale\(1.18\)/);
+  let made = 0; const a = m.cachedIcon2610("k1", () => ({ id: ++made })); const b = m.cachedIcon2610("k1", () => ({ id: ++made }));
+  assert.equal(a, b); assert.equal(made, 1);
+});
+
 console.log(`\n${n}/${n} tests OK`);

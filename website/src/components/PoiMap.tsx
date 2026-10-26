@@ -116,7 +116,7 @@ import { parsePins1910, pinsOnAvatarHtml, type Pins1910 } from "@/lib/pins1910";
 import { PinChips1910 } from "@/components/Pins1910";
 import { clusterFromPrice622, normalizeMemberPrices622, type MapRequestPricing622 } from "@/lib/mapPrice622";
 import { RequestFromLine622, useFromText622, useRequestFromLabels622 } from "@/components/RequestFrom622";
-import { PAWMAP_2610_CSS, SPIDER_MAX_2610, clusterHtml2610, priceBubbleHtml2610, profilePinHtml2610, role2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
+import { PAWMAP_2610_CSS, SPIDER_MAX_2610, cachedIcon2610, popOnce2610, clusterHtml2610, priceBubbleHtml2610, profilePinHtml2610, role2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
 
 export { clusterize } from "@/lib/mapCluster";
 
@@ -197,9 +197,9 @@ const reportIcon = (type: string, fresh: boolean) => {
 function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], dark: boolean, o: { selected?: boolean; dim?: boolean; prices?: Price2610[]; live?: boolean; off?: { x: number; y: number } | null } = {}): L.DivIcon {
   const ox = Math.round(o.off?.x ?? 0);
   const oy = Math.round(o.off?.y ?? 0);
-  return L.divIcon({
-    className: `hps-l-member${o.dim ? " hps2610-dim" : ""}`,
-    html: profilePinHtml2610({
+  const className = `hps-l-member${o.dim ? " hps2610-dim" : ""}`;
+  const html = profilePinHtml2610({
+      pop: popOnce2610(`m:${m.id}`, !!o.selected),
       roles: roles.map((r) => r.role),
       premium: !!(m.isPremiumOnly ?? m.isPremium),
       live: !!o.live,
@@ -213,11 +213,9 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
       prices: o.prices,
       caption,
       dark,
-    }),
-    iconSize: [50, 50],
-    iconAnchor: [25 - ox, 25 - oy],
-    popupAnchor: [0, -28],
-  });
+    });
+  // 26/10 (bug « ça clignote ») — même dessin = même icône : aucune réécriture à chaque rendu.
+  return cachedIcon2610(`${className}|${ox},${oy}|${html.replace(/animation:hps2610-pop[^;]*;/, "")}`, () => L.divIcon({ className, html, iconSize: [50, 50], iconAnchor: [25 - ox, 25 - oy], popupAnchor: [0, -28] }));
 }
 /** Ami à sa position de PROFIL (floutée) : photo, anneau rose, pas de direct. */
 function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[], caption?: string | null, bubble?: string | null, duo?: [string, string] | null, captionAbove = false): L.DivIcon {
@@ -248,14 +246,16 @@ function requestIcon(r: MapRequest, mineLabel: string, fromLabel?: string | null
   // segment propriétaire (budget saisi, sinon « dès X »).
   const budget = !r.mine ? r.priceLabel || fromLabel || null : null;
   const top = selected && budget ? `<span data-selected-2610="" style="position:absolute;left:0;right:0;bottom:0;height:34px;">${priceBubbleHtml2610([{ role: "owner", ...splitPrice2610(budget) }], 39)}</span>` : "";
-  return L.divIcon({
+  const html = `<div style="position:relative;">${requestBubbleHtml({ service: r.service, priceLabel: null, boosted: r.boosted, mine: r.mine, mineLabel })}${top}</div>`;
+  // 26/10 (bug « ça clignote ») — même dessin = même icône.
+  return cachedIcon2610(`req|${html}`, () => L.divIcon({
     className: "hps-l-request",
-    html: `<div style="position:relative;">${requestBubbleHtml({ service: r.service, priceLabel: null, boosted: r.boosted, mine: r.mine, mineLabel })}${top}</div>`,
+    html,
     // 590 — bulle 26 + pointe 7 : la pointe touche la position (floutée).
     iconSize: [96, 34],
     iconAnchor: [48, 34],
     popupAnchor: [0, -32],
-  });
+  }));
 }
 
 // ── Petits composants ────────────────────────────────────────────────────────

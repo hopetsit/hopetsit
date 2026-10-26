@@ -2916,9 +2916,13 @@ export default function MapPage() {
  *  cliquable 45 × 44 px (le disque + l'écart de 7 px de la maquette). */
 function TopBtn2610({ role, icon, label, onClick, children }: { role: Role2610; icon: string; label: string; onClick: () => void; children?: React.ReactNode }) {
   const c = ROLE_2610[role];
+  // 26/10 (Daniel) — propriétaire : EXACTEMENT l'orange du menu (même jeton MENU_PALETTE que la
+  // barre du site et kPawTabBarPalettes de l'app : #C92A12 → #9E1F0B). Gardien / promeneur : maquette.
+  const bg = role === "owner" ? `linear-gradient(180deg, ${MENU_PALETTE.owner.top}, ${MENU_PALETTE.owner.bottom})` : c.color;
+  const glow = role === "owner" ? MENU_PALETTE.owner.shadow : c.glow;
   return (
     <button type="button" onClick={onClick} aria-label={label} title={label} className="hps2610-btn grid h-[44px] w-[45px] shrink-0 place-items-center">
-      <span className="grid h-[38px] w-[38px] place-items-center rounded-full transition-transform duration-150" style={{ background: c.color, boxShadow: `0 3px 8px -2px ${c.glow}, 0 0 0 1.5px #fff, 0 0 0 2.5px rgba(0,0,0,.12)` }}>
+      <span data-top-btn-2610={role} className="grid h-[38px] w-[38px] place-items-center rounded-full transition-transform duration-150" style={{ background: bg, boxShadow: `0 3px 8px -2px ${glow}, 0 0 0 1.5px #fff, 0 0 0 2.5px rgba(0,0,0,.12)` }}>
         {children ?? (
           <span aria-hidden="true" className="material-symbols-rounded select-none" style={{ fontFamily: "'Material Symbols Rounded'", fontSize: 19, width: 19, height: 19, lineHeight: 1, overflow: "hidden", display: "inline-block", color: "#fff", fontStyle: "normal", whiteSpace: "nowrap", fontVariationSettings: "'FILL' 1, 'wght' 500", WebkitFontSmoothing: "antialiased" }}>{icon}</span>
         )}

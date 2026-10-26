@@ -78,6 +78,9 @@ export type ProfilePin2610 = {
   /** Pins du classement (HTML déjà prêt, coin haut gauche). */
   pinsHtml?: string;
   selected?: boolean;
+  /** 26/10 (bug « ça clignote ») — rebond SEULEMENT à la sélection ; une icône reconstruite plus tard
+   *  (nouveau rendu de la carte) reste nette à 1,18 sans rejouer l'animation. Défaut : true. */
+  pop?: boolean;
   /** Prix à montrer (rond SÉLECTIONNÉ seulement, règle visiblePrices appliquée par l'appelant). */
   prices?: Price2610[];
   /** Prénom sous le rond (zoom rue, existant) — posé sous les pastilles de rôles. */
@@ -155,7 +158,7 @@ export function profilePinHtml2610(o: ProfilePin2610): string {
     ? `<span data-pin-extra="" style="position:absolute;top:${capTop}px;left:50%;transform:translateX(-50%);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:10px;white-space:nowrap;max-width:160px;overflow:hidden;background:${o.dark ? "#262123" : "#fff"};color:${o.dark ? "#f6efec" : "#1d1719"};font:600 10.5px/1 Poppins,Inter,system-ui,sans-serif;box-shadow:0 2px 6px -1px rgba(0,0,0,.3);">${esc(o.caption)}</span>`
     : "";
   const bubble = o.selected && o.prices && o.prices.length ? priceBubbleHtml2610(o.prices, S + 5) : "";
-  const anim = o.selected ? "transform:scale(1.18);animation:hps2610-pop .35s cubic-bezier(.3,1.6,.5,1);" : "";
+  const anim = o.selected ? `transform:scale(1.18);${o.pop === false ? "" : "animation:hps2610-pop .35s cubic-bezier(.3,1.6,.5,1);"}` : "";
   return `<div data-pin-2610="" ${o.selected ? 'data-selected-2610=""' : ""} style="position:relative;width:${S}px;height:${S}px;transform-origin:50% 50%;${anim}">`
     + halo
     + `<div style="position:absolute;inset:0;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.16),0 2px 3px rgba(0,0,0,.25),0 4px 10px -2px ${main.glow};">`
@@ -268,6 +271,29 @@ export function spiderfy2610(n: number): { x: number; y: number }[] {
  * liste) — règle « 0 chevauchement ».
  */
 export const SPIDER_MAX_2610 = 21;
+
+/**
+ * 26/10 (bug « ça clignote ») — même HTML = même objet L.DivIcon : react-leaflet ne rappelle
+ * `setIcon` (qui réécrit l'icône et relance son animation) que si l'objet change. Cache borné.
+ */
+export function cachedIcon2610<T>(key: string, make: () => T): T {
+  const hit = ICON_CACHE_2610.get(key) as T | undefined;
+  if (hit) return hit;
+  if (ICON_CACHE_2610.size > 3000) ICON_CACHE_2610.clear();
+  const ic = make();
+  ICON_CACHE_2610.set(key, ic);
+  return ic;
+}
+const ICON_CACHE_2610 = new Map<string, unknown>();
+/** Rebond une seule fois par sélection : vrai la 1re fois qu'on dessine le rond sélectionné `id`. */
+let popKey2610 = "";
+let popAt2610 = 0;
+export function popOnce2610(id: string, selected: boolean, now = Date.now()): boolean {
+  if (!selected) { if (popKey2610 === id) popKey2610 = ""; return false; }
+  if (popKey2610 !== id) { popKey2610 = id; popAt2610 = now; return true; }
+  // Même sélection : l'animation (0,35 s) n'est rejouée que si l'icône est redessinée pendant le rebond.
+  return now - popAt2610 < 350;
+}
 
 /** Images clés (rebond de la sélection, point « en direct » pulsé) — mêmes courbes que la maquette. */
 export const PAWMAP_2610_CSS = `

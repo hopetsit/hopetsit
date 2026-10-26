@@ -145,7 +145,15 @@ export function CollisionPass607() {
       window.clearTimeout(late);
       late = window.setTimeout(run, 380);
     };
-    const mo = new MutationObserver(schedule);
+    // 26/10 (bug « ça clignote ») — une icône réécrite garde sa bulle à la bonne place DÈS l'image
+    // suivante (rattrapage avant l'affichage), la passe complète suit au prochain rafraîchissement.
+    const mo = new MutationObserver(() => {
+      try {
+        const c = container.getBoundingClientRect();
+        clampBubbles2610(Array.from(pane.querySelectorAll<HTMLElement>(".leaflet-marker-icon")), { l: c.left, t: c.top, r: c.right, b: c.bottom });
+      } catch { /* jamais bloquant */ }
+      schedule();
+    });
     mo.observe(pane, { childList: true, subtree: true });
     // Rails repliés / dépliés : leurs attributs changent (classe, style, aria).
     const wrap = container.closest("[data-map-shell]") || container.parentElement?.parentElement || null;
