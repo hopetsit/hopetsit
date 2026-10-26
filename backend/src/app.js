@@ -228,7 +228,7 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 // ⚠️ ADA 23/09 : Render ne redéploie QUE si un fichier de backend/ change. Une publication
 // de admin_dashboard.html seul (ex. aedfaab, traduction EN/ES) reste invisible en ligne :
 // toucher ce fichier. Garder un numéro en chiffres seuls (le contrôle de la page lit /v(\d+)/).
-const ADMIN_BUILD = 'v623'; // 623 (PAM, 26/10) : maquette PawMap ronds Anneau, prix au toucher, groupes éclatés, 4 boutons couleur du rôle ; 622 (PAM, 25/10) : PawMap bulles sans chevauchement + prix, rappel notifications ; 621 (PAM, 24/10) : « à partir de » + tarif à venir ; 620 : dates à prévoir + prix par visite ; 613 (ADA, 04/10) : parcours de chaque demande (Annonces + Tableau de bord)
+const ADMIN_BUILD = 'v624'; // 624 (PAM, 26/10) : page des candidats parité site, dates sans code postal, repère ADA, montants au format de la langue ; 623 (PAM, 26/10) : maquette PawMap ronds Anneau, prix au toucher, groupes éclatés, 4 boutons couleur du rôle ; 622 (PAM, 25/10) : PawMap bulles sans chevauchement + prix, rappel notifications ; 621 (PAM, 24/10) : « à partir de » + tarif à venir ; 620 : dates à prévoir + prix par visite ; 613 (ADA, 04/10) : parcours de chaque demande (Annonces + Tableau de bord)
 // avant :
 const _ADMIN_BUILD_612 = 'v612'; // 612 (PAM, 04/10) : admin — rangs Chiot → Légende à la place des anciens badges
 // 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à

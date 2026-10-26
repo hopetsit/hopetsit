@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/cancel_72h_sheet.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -358,7 +359,7 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
             caption: paid ? null : 'sitter_bookings_rate_label'.tr,
             amount: paid
                 ? 'bookings_card_you_receive'.trParams({
-                    'amount': '${net.toStringAsFixed(2)} $currency',
+                    'amount': CurrencyHelper.format(currency, net), // 624 — « 14,40 € »
                   })
                 : PricingDisplayHelper.sitterBookingRateLine(booking),
           ),

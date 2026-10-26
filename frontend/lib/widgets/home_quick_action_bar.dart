@@ -1823,8 +1823,13 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       return x.postId == app!.postId &&
           x.status.toLowerCase() == 'pending';
     }).length;
-    if (samePostCount > 1 && (app.postId ?? '').isNotEmpty) {
-      PostCandidatesSheet.show(context: context, postId: app.postId!);
+    // 624 — même page des candidats (Écrire d'abord, Choisir ensuite) dès
+    // le 1er candidat, celui du bandeau en premier.
+    if (samePostCount >= 1 && (app.postId ?? '').isNotEmpty) {
+      PostCandidatesSheet.show(
+          context: context,
+          postId: app.postId!,
+          highlightApplicationId: app.id);
       return;
     }
 

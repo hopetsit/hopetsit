@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/send_request_controller.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/utils/commission_rate.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 
 import 'lotd_harness.dart';
@@ -45,7 +46,7 @@ void main() {
     final call = lotdRequests.where((r) => r.path.endsWith('/pricing/commission-rate')).toList();
     expect(call, hasLength(1));
     expect(call.first.query, {'providerId': 'aaaaaaaaaaaaaaaaaaaaaa01', 'role': 'sitter'});
-    expect(find.text('120.00 EUR'), findsWidgets);
+    expect(find.text(CurrencyHelper.format('EUR', 120)), findsWidgets);
     expect(find.text('Commission HoPetSit (20%)'), findsOneWidget);
     expect(find.textContaining('(20%)'), findsWidgets);
     expect(find.textContaining('(15%)'), findsNothing);
@@ -55,8 +56,8 @@ void main() {
   testWidgets('prestataire Top : 100 € → 115 € payés, commission (15%)', (tester) async {
     _serverRate(0.15);
     await _openFor(tester, 'aaaaaaaaaaaaaaaaaaaaaa02');
-    expect(find.text('115.00 EUR'), findsWidgets);
-    expect(find.text('120.00 EUR'), findsNothing);
+    expect(find.text(CurrencyHelper.format('EUR', 115)), findsWidgets);
+    expect(find.text(CurrencyHelper.format('EUR', 120)), findsNothing);
     expect(find.text('Commission HoPetSit (15%)'), findsOneWidget);
     expect(find.textContaining('(20%)'), findsNothing);
     expect(tester.takeException(), isNull);

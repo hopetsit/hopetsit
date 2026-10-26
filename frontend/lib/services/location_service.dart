@@ -21,6 +21,11 @@ class LocationService {
   /// 'timeout'.
   String lastFailure = '';
 
+  /// 624 — sondes d'intégration seulement : jamais la fenêtre système de
+  /// position (elle couvre les captures et ne peut pas être touchée par un
+  /// test). Jamais vrai dans une app de store.
+  static bool skipPromptForTests = false;
+
   /// Request location permission and get current position
   Future<Position?> getCurrentLocation() async {
     try {
@@ -36,6 +41,10 @@ class LocationService {
       // Check and request location permission
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        if (skipPromptForTests) {
+          lastFailure = 'denied';
+          return null;
+        }
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           AppLogger.logError('Location permissions are denied');

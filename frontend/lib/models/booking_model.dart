@@ -704,6 +704,11 @@ class BookingPricing {
   /// et ce prestataire n'a pas encore de tarif pour le nouveau ; aucun total,
   /// aucun tarif unitaire. Le serveur recalcule dès qu'il l'ajoute.
   final bool stale;
+  /// 624 (serveur 2610 de ZOE) — tarif unitaire FRAIS COMPRIS à montrer au
+  /// propriétaire (demandes sans dates) ; null sur un serveur plus ancien.
+  final double? ownerUnitRate;
+  /// 624 — le tarif semaine du prestataire a été appliqué (≥ 7 jours).
+  final bool weeklyApplied;
 
   BookingPricing({
     this.platformFeePercentage,
@@ -720,6 +725,8 @@ class BookingPricing {
     this.quantity,
     this.unit = '',
     this.stale = false,
+    this.ownerUnitRate,
+    this.weeklyApplied = false,
   });
 
   /// 620 — tarif unitaire affichable (indicatif ou non).
@@ -780,6 +787,8 @@ class BookingPricing {
       quantity: (json['quantity'] as num?)?.toInt(),
       unit: (json['unit'] ?? json['priceUnit'] ?? json['rateUnit'] ?? '').toString(),
       stale: json['stale'] == true,
+      ownerUnitRate: (json['ownerUnitRate'] as num?)?.toDouble(),
+      weeklyApplied: json['weeklyApplied'] == true,
     );
   }
 

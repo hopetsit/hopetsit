@@ -211,7 +211,7 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
       Navigator.of(context).pop(true);
       if (capped || earned == 0) {
         CustomSnackbar.showWarning(
-          title: 'PawSpot 🐾',
+          title: 'PawSpot',
           message: pawSpotTr(
             'pawspot567_daily_cap',
             'Daily points limit reached: this spot earns no PawPoints',
@@ -219,7 +219,7 @@ class _PawSpotCreateSheetState extends State<_PawSpotCreateSheet> {
         );
       } else {
         CustomSnackbar.showSuccess(
-          title: 'PawSpot 🐾',
+          title: 'PawSpot',
           message: 'pawspot_published_msg'.trParams({'points': '$earned'}),
         );
       }
@@ -640,7 +640,7 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
     if (r['already'] == true) {
       // v567 — avant, un 2e tap ne disait rien du tout.
       CustomSnackbar.showInfo(
-        title: 'PawSpot 🐾',
+        title: 'PawSpot',
         message: pawSpotTr(
           'pawspot567_already_validated',
           'You already validated this spot',
@@ -651,7 +651,7 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
     // v567 — on affichait le LIBELLÉ DU BOUTON (« Valider ce spot ») comme
     // message de confirmation. On confirme maintenant vraiment.
     CustomSnackbar.showSuccess(
-      title: 'PawSpot 🐾',
+      title: 'PawSpot',
       message: pawSpotTr('pawspot567_validate_thanks', 'Thanks! Spot validated'),
     );
     widget.onChanged?.call();
@@ -678,7 +678,7 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
         );
       } else {
         CustomSnackbar.showSuccess(
-          title: 'PawSpot 🐾',
+          title: 'PawSpot',
           message: pawSpotTr('pawspot567_comment_posted', 'Comment posted'),
         );
       }
@@ -725,7 +725,7 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
       // l'utilisateur voir son total baisser sans explication.
       final revoked = (res['pointsRevoked'] as num?)?.toInt() ?? 0;
       CustomSnackbar.showSuccess(
-        title: 'PawSpot 🐾',
+        title: 'PawSpot',
         message: revoked > 0
             ? pawSpotTr(
                 'pawspot567_points_revoked',
@@ -749,7 +749,7 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
           .redeemReward('feature_spot', spotId: widget.spot.id);
       if (!mounted) return;
       CustomSnackbar.showSuccess(
-        title: 'PawSpot 🐾',
+        title: 'PawSpot',
         message: 'pawspot_reward_redeemed'.tr,
       );
       widget.onChanged?.call();

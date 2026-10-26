@@ -184,6 +184,12 @@ class ApplicationSitter {
   final String createdAt;
   final String updatedAt;
   final ApplicationAvatar avatar;
+  /// 624 — position approximative (floutée ~1 km par le serveur) pour
+  /// « à ~N km » sur la page des candidats ; null si absente.
+  final double? lat;
+  final double? lng;
+  /// 624 — identité vérifiée (KYC), pastille « Identité vérifiée ».
+  final bool identityVerified;
 
   ApplicationSitter({
     required this.id,
@@ -209,9 +215,27 @@ class ApplicationSitter {
     required this.createdAt,
     required this.updatedAt,
     required this.avatar,
+    this.lat,
+    this.lng,
+    this.identityVerified = false,
   });
 
+  /// 624 — `location.lat/lng`, sinon `location.coordinates` = [lng, lat].
+  static (double?, double?) _point(dynamic loc) {
+    if (loc is! Map) return (null, null);
+    double? d(dynamic v) => v is num ? v.toDouble() : double.tryParse('${v ?? ''}');
+    final la = d(loc['lat']), ln = d(loc['lng']);
+    if (la != null && ln != null) return (la, ln);
+    final c = loc['coordinates'];
+    if (c is List && c.length >= 2) {
+      final x = d(c[0]), y = d(c[1]);
+      if (x != null && y != null && !(x == 0 && y == 0)) return (y, x);
+    }
+    return (null, null);
+  }
+
   factory ApplicationSitter.fromJson(Map<String, dynamic> json) {
+    final pt = _point(json['location']);
     return ApplicationSitter(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -237,6 +261,12 @@ class ApplicationSitter {
       currency: _parseSitterCurrency(
         json['currency'] ?? json['hourlyRateCurrency'],
       ),
+      lat: pt.$1,
+      lng: pt.$2,
+      // Même règle que la PawMap (`pawIdentityVerified`) : jamais un simple
+      // e-mail vérifié.
+      identityVerified:
+          json['identityVerified'] == true || json['kycVerified'] == true,
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
       avatar: ApplicationAvatar.fromJson(

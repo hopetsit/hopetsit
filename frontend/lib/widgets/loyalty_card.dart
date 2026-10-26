@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -188,7 +189,7 @@ class _LoyaltyCardState extends State<LoyaltyCard>
                     Expanded(
                       child: Text(
                         'loyalty_credits_available'.trParams({
-                          'amount': credits.toStringAsFixed(2),
+                          'amount': CurrencyHelper.number(credits), // 624
                           'currency': ctrl.currency.value,
                         }),
                         maxLines: 2,

@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/net_image620.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/utils/service_location587.dart';
@@ -480,7 +481,12 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                       _buildInfoRow(
                         Icons.attach_money,
                         'owner_info_total_amount'.tr,
-                        '\$${(booking.pricing?.totalPrice ?? booking.totalAmount ?? 0.0).toStringAsFixed(2)}',
+                        // 624 — devise de la réservation et format de la langue (avant : « $72.00 »).
+                        CurrencyHelper.format(
+                            (booking.pricing?.currency ?? '').isNotEmpty
+                                ? booking.pricing!.currency!
+                                : 'EUR',
+                            booking.pricing?.totalPrice ?? booking.totalAmount ?? 0.0),
                       ),
                     ],
                   ],
@@ -656,10 +662,17 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                           Flexible(
                             child: InterText(
                               text: booking.totalAmount != null
-                                  ? 'owner_pay_with_amount'.tr.replaceAll(
-                                      '@amount',
-                                      booking.totalAmount!.toStringAsFixed(2),
-                                    )
+                                  // 624 — « Payer 72,00 € » (le modèle portait un « $ » figé).
+                                  ? 'owner_pay_with_amount'.tr
+                                      .replaceAll('\$@amount', '@amount')
+                                      .replaceAll(
+                                        '@amount',
+                                        CurrencyHelper.format(
+                                            (booking.pricing?.currency ?? '').isNotEmpty
+                                                ? booking.pricing!.currency!
+                                                : 'EUR',
+                                            booking.totalAmount!),
+                                      )
                                   : 'owner_pay_now'.tr,
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w600,

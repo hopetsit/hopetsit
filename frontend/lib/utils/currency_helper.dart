@@ -111,6 +111,17 @@ class CurrencyHelper {
   static String format(String code, double amount, {int decimals = 2, String? locale}) =>
       _render(code, amount, decimals, locale);
 
+  /// 624 — nombre seul au format de la langue (« 14,40 » en français,
+  /// « 14.40 » en anglais), pour un texte qui pose déjà le symbole.
+  static String number(double amount, {int decimals = 2, String? locale}) {
+    try {
+      return NumberFormat.decimalPatternDigits(locale: _lang(locale), decimalDigits: decimals)
+          .format(amount);
+    } catch (_) {
+      return amount.toStringAsFixed(decimals);
+    }
+  }
+
   /// Montant COURT pour les tarifs, épingles, boutons et estimations : pas de
   /// décimales quand le montant est rond (« 12 € », « $12 »), deux sinon
   /// (« 12,50 € »).

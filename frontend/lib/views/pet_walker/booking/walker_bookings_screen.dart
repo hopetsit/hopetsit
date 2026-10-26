@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:hopetsit/widgets/cancel_72h_sheet.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -349,9 +350,9 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
                   : Icons.sell_rounded,
               amount: paid
                   ? 'bookings_card_you_receive'.trParams({
-                      'amount': '${net.toStringAsFixed(2)} $currency',
+                      'amount': CurrencyHelper.format(currency, net), // 624
                     })
-                  : '${total.toStringAsFixed(2)} $currency',
+                  : CurrencyHelper.format(currency, total), // 624
             ),
           ],
           // v23.1.161 — Daniel : "dans reservation il manque le bouton

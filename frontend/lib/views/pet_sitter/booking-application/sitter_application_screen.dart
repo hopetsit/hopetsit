@@ -248,7 +248,7 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
                     _summaryCard(
                       context,
                       icon: Icons.send_rounded,
-                      label: 'Candidatures',
+                      label: 'sitter_applications_tab'.tr,
                       count: _pendingCount,
                       color: const Color(0xFF1A73E8),
                     ),

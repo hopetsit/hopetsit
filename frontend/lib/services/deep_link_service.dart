@@ -1010,7 +1010,13 @@ class DeepLinkService {
       _goToTab(0);
       return;
     }
-    await PostCandidatesSheet.show(context: ctx, postId: postId);
+    // 624 — le candidat de la notification en premier et entouré ; repère
+    // « a ouvert ses candidats » (source notification).
+    await PostCandidatesSheet.show(
+        context: ctx,
+        postId: postId,
+        highlightApplicationId: applicationId,
+        source: 'notification');
     // Choix fait dans la feuille → paiement tout de suite (1 tap de moins).
     final chosen = ctrl.applications.firstWhereOrNull((a) =>
         a.postId == postId &&

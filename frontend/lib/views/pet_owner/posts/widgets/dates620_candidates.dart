@@ -15,7 +15,7 @@ import '../../../../utils/currency_helper.dart';
 import '../../../../utils/services620.dart';
 import '../../../../widgets/app_text.dart';
 import '../../../../widgets/custom_snackbar_widget.dart';
-import '../../reservation_request/publish_reservation_request_screen.dart';
+import 'post_dates_sheet2610.dart';
 
 /// Vrai quand la candidature n'a pas de total (demande sans dates, ou
 /// « tarif à venir »).
@@ -63,7 +63,8 @@ String _unitOf(BookingPricing p, String providerRole) {
 /// « 12 €/visite · indicatif » ; vide sans tarif.
 String indicativePriceLabel620(ApplicationModel app) {
   final p = app.pricing;
-  final r = p?.unitRate;
+  // 624 (ZOE) — tarif FRAIS COMPRIS pour le propriétaire quand le serveur le donne.
+  final r = (p?.ownerUnitRate != null && p!.ownerUnitRate! > 0) ? p.ownerUnitRate : p?.unitRate;
   if (p == null || r == null) return '';
   final cur = (p.currency ?? '').isNotEmpty ? p.currency! : app.sitter.currency;
   final suffix = priceUnitSuffix620(_unitOf(p, app.providerRole));
@@ -94,7 +95,11 @@ Future<bool> openPostDatesEditor620(String? postId) async {
   try {
     final post = await Get.find<PostRepository>().getPostById(postId);
     if (post == null) return false;
-    await Get.to(() => PublishReservationRequestScreen(editPost: post));
+    // 624 (FLO) — plus le formulaire complet (animaux, lieu, code postal
+    // exigé) : la petite feuille des DATES SEULES, comme le site.
+    final ctx = Get.context;
+    if (ctx == null || !ctx.mounted) return false;
+    await PostDatesSheet2610.show(ctx, post);
     return true;
   } catch (_) {
     CustomSnackbar.showError(

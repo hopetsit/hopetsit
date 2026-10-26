@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/send_request_controller.dart';
@@ -1216,15 +1217,15 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
         if (providerGross != null && providerGross > 0) {
           final commission = providerGross * commissionRate;
           final ownerTotal = providerGross + commission;
-          totalText = '${ownerTotal.toStringAsFixed(2)} $currency';
+          totalText = CurrencyHelper.format(currency, ownerTotal); // 624
           // v23.1.255 — i18n : avant, breakdown était une string FR hardcodée
           // ("prestataire", "commission") affichée dans TOUTES les langues
           // (Daniel : ligne entourée sur le screenshot ES). Désormais via .trParams.
           breakdown = 'send_request_breakdown_walk'.trParams({
             'minutes': '$minutes',
-            'provider': providerGross.toStringAsFixed(2),
+            'provider': CurrencyHelper.number(providerGross), // 624
             'currency': currency,
-            'commission': commission.toStringAsFixed(2),
+            'commission': CurrencyHelper.number(commission), // 624
             'percent': commissionPercent,
           });
         } else if (notSetNotice != null) {
@@ -1255,11 +1256,11 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
               providerGross = dailyRate;
               final commission = providerGross * commissionRate;
               final ownerTotal = providerGross + commission;
-              totalText = '${ownerTotal.toStringAsFixed(2)} $currency';
+              totalText = CurrencyHelper.format(currency, ownerTotal); // 624
               breakdown = 'send_request_breakdown_days_one'.trParams({
-                'rate': dailyRate.toStringAsFixed(2),
+                'rate': CurrencyHelper.number(dailyRate), // 624
                 'currency': currency,
-                'commission': commission.toStringAsFixed(2),
+                'commission': CurrencyHelper.number(commission), // 624
                 'percent': commissionPercent,
               });
             }
@@ -1283,15 +1284,15 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             providerGross = dailyRate * days;
             final commission = providerGross * commissionRate;
             final ownerTotal = providerGross + commission;
-            totalText = '${ownerTotal.toStringAsFixed(2)} $currency';
+            totalText = CurrencyHelper.format(currency, ownerTotal); // 624
             breakdown = (days > 1
                     ? 'send_request_breakdown_days_many'
                     : 'send_request_breakdown_days_one')
                 .trParams({
               'days': '$days',
-              'rate': dailyRate.toStringAsFixed(2),
+              'rate': CurrencyHelper.number(dailyRate), // 624
               'currency': currency,
-              'commission': commission.toStringAsFixed(2),
+              'commission': CurrencyHelper.number(commission), // 624
               'percent': commissionPercent,
             });
           }
@@ -1405,7 +1406,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                       iconColor: const Color(0xFF16A34A),
                       label: 'send_request_provider_receives'.tr,
                       amount:
-                          '${providerGross.toStringAsFixed(2)} $currency',
+                          CurrencyHelper.format(currency, providerGross) /* 624 */,
                       boldAmount: true,
                     ),
                     SizedBox(height: 8.h),
@@ -1416,7 +1417,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                       label: commissionLabel(
                           'send_request_commission_label'.tr, serverRate),
                       amount:
-                          '${commission.toStringAsFixed(2)} $currency',
+                          CurrencyHelper.format(currency, commission) /* 624 */,
                     ),
                     SizedBox(height: 6.h),
                     Divider(
@@ -1430,7 +1431,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                       iconColor: _roleColor,
                       label: 'send_request_you_pay'.tr,
                       amount:
-                          '${ownerTotal.toStringAsFixed(2)} $currency',
+                          CurrencyHelper.format(currency, ownerTotal) /* 624 */,
                       boldAmount: true,
                       emphasisColor: _roleColor,
                     ),

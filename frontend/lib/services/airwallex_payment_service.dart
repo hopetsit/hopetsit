@@ -21,6 +21,7 @@
 // Toute l'UI Airwallex est servie par leur infra (PCI-DSS) — on ne touche
 // jamais aux données carte de l'utilisateur.
 
+import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_config.dart';
@@ -255,7 +256,7 @@ class _AirwallexCheckoutScreenState extends State<_AirwallexCheckoutScreen> {
                 ),
               ),
               Text(
-                '${widget.amount.toStringAsFixed(2)} ${widget.currency.toUpperCase()}',
+                CurrencyHelper.format(widget.currency.toUpperCase(), widget.amount), // 624 — « 72,00 € »
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
@@ -340,7 +341,7 @@ class _BrandedLoader extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${amount.toStringAsFixed(2)} ${currency.toUpperCase()}',
+              CurrencyHelper.format(currency.toUpperCase(), amount), // 624
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 22,

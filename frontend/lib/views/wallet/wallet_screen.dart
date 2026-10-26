@@ -334,7 +334,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     CustomSnackbar.showWarning(
                       title: 'wallet_withdraw_button'.tr,
                       message: 'wallet_withdraw_min_required'.trParams({
-                        'amount': _minWithdrawal.toStringAsFixed(2),
+                        'amount': CurrencyHelper.number(_minWithdrawal), // 624
                       }),
                     );
                   },
@@ -580,7 +580,7 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: 'wallet_amount_min'
-            .trParams({'min': widget.minWithdrawal.toStringAsFixed(2)}),
+            .trParams({'min': CurrencyHelper.number(widget.minWithdrawal)}), // 624
       );
       return;
     }

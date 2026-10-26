@@ -13,6 +13,19 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/service_location587.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/dates620_candidates.dart';
+import 'package:hopetsit/views/pet_owner/posts/widgets/post_dates_sheet2610.dart';
+import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
+import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/models/post_model.dart';
+import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/repositories/post_repository.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/services620.dart';
+import 'package:hopetsit/widgets/chat_access_upsell_helper.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'dart:async';
+import 'dart:math' as math;
 
 /// v23.1 — B5 : bottom sheet listing every pending candidate for one of the
 /// owner's posts. The owner can choose one (auto-rejects the others on the
@@ -20,18 +33,64 @@ import 'package:hopetsit/views/pet_owner/posts/widgets/dates620_candidates.dart'
 class PostCandidatesSheet {
   PostCandidatesSheet._();
 
+  /// 624 — [highlightApplicationId] : le candidat de la notification, posé
+  /// en premier et entouré. [source] : `push` | `notification` | `direct`
+  /// (repère « a ouvert ses candidats » d'ADA).
   static Future<void> show({
     required BuildContext context,
     required String postId,
+    String? highlightApplicationId,
+    String source = 'direct',
   }) {
+    markCandidatesViewed2610(postId, source);
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _CandidatesSheetBody(postId: postId),
+      builder: (ctx) => _CandidatesSheetBody(
+          postId: postId, highlightId: highlightApplicationId),
     );
   }
+}
+
+/// 624 (ADA) — repère « le propriétaire a ouvert ses candidats » : envoyé
+/// sans attendre, toutes les erreurs ignorées (le serveur répond 204).
+void markCandidatesViewed2610(String postId, String source) {
+  if (postId.isEmpty || !Get.isRegistered<ApiClient>()) return;
+  final src = const {'push', 'notification', 'direct'}.contains(source) ? source : 'direct';
+  unawaited(() async {
+    try {
+      await Get.find<ApiClient>().post('/owner-signals/candidates-view',
+          body: {'postId': postId, 'source': src}, requiresAuth: true);
+    } catch (_) {/* repère facultatif */}
+  }());
+}
+
+/// 624 — total à afficher (frais compris, tel que renvoyé par le serveur),
+/// au format de la langue (« 86,40 € »). Vide si absent, nul ou inférieur
+/// au tarif unitaire (règle de ZOE : jamais un total incohérent). Pure.
+String candidateTotal2610(ApplicationModel app) {
+  final p = app.pricing;
+  if (p == null || p.stale || applicationIsIndicative620(app)) return '';
+  final t = p.totalPrice;
+  if (t == null || !(t > 0)) return '';
+  final rate = p.appliedRate;
+  if (rate != null && rate > 0 && t + 0.001 < rate) return '';
+  final cur = (p.currency ?? '').isNotEmpty ? p.currency! : 'EUR';
+  return CurrencyHelper.format(cur, t);
+}
+
+/// 624 — distance arrondie au km (≥ 1), jamais l'adresse. Pure.
+int? candidateKm2610(double? lat1, double? lng1, double? lat2, double? lng2) {
+  if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return null;
+  const r = 6371.0;
+  double rad(double d) => d * math.pi / 180;
+  final dLat = rad(lat2 - lat1), dLng = rad(lng2 - lng1);
+  final h = math.pow(math.sin(dLat / 2), 2) +
+      math.cos(rad(lat1)) * math.cos(rad(lat2)) * math.pow(math.sin(dLng / 2), 2);
+  final km = 2 * r * math.asin(math.min(1.0, math.sqrt(h.toDouble())));
+  return math.max(1, km.round());
 }
 
 /// v573 — dialogue de confirmation au patron moderne (accepter / refuser un
@@ -133,46 +192,104 @@ Future<bool?> _showModernConfirm({
 }
 
 class _CandidatesSheetBody extends StatefulWidget {
-  const _CandidatesSheetBody({required this.postId});
+  const _CandidatesSheetBody({required this.postId, this.highlightId});
 
   final String postId;
+  final String? highlightId;
 
   @override
   State<_CandidatesSheetBody> createState() => _CandidatesSheetBodyState();
 }
 
-enum _SortMode { newest, priceAsc, ratingDesc }
-
 class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
-  _SortMode _sortMode = _SortMode.newest;
   final RxBool _busy = false.obs;
+  final RxString _writing = ''.obs;
+  PostModel? _post;
 
   ApplicationsController get _controller => Get.isRegistered<ApplicationsController>()
       ? Get.find<ApplicationsController>()
       : Get.put(ApplicationsController());
 
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadPost());
+  }
+
+  Future<void> _loadPost() async {
+    if (!Get.isRegistered<PostRepository>()) return;
+    try {
+      final p = await Get.find<PostRepository>().getPostById(widget.postId);
+      if (mounted && p != null) setState(() => _post = p);
+    } catch (_) {/* la page reste utilisable sans la demande */}
+  }
+
+  /// Candidats en attente ; celui de la notification d'abord, puis les plus
+  /// récents.
   List<ApplicationModel> _candidates() {
     final list = _controller.applications
         .where((a) =>
             a.postId == widget.postId &&
             a.status.toLowerCase().trim() == 'pending')
-        .toList();
-    switch (_sortMode) {
-      case _SortMode.priceAsc:
-        list.sort((a, b) {
-          final pa = a.pricing?.totalPrice ?? double.infinity;
-          final pb = b.pricing?.totalPrice ?? double.infinity;
-          return pa.compareTo(pb);
-        });
-        break;
-      case _SortMode.ratingDesc:
-        list.sort((a, b) => b.sitter.rating.compareTo(a.sitter.rating));
-        break;
-      case _SortMode.newest:
-        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        break;
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final h = widget.highlightId;
+    if (h != null && h.isNotEmpty) {
+      final i = list.indexWhere((a) => a.id == h);
+      if (i > 0) list.insert(0, list.removeAt(i));
     }
     return list;
+  }
+
+  bool _postIsTbd(List<ApplicationModel> list) {
+    final p = _post;
+    if (p != null) return p.dateMode == 'tbd';
+    return list.any(applicationNeedsDates620);
+  }
+
+  Future<void> _openDates() async {
+    var p = _post;
+    if (p == null) {
+      await _loadPost();
+      p = _post;
+    }
+    if (p == null || !mounted) {
+      CustomSnackbar.showError(
+          title: 'common_error'.tr, message: 'cand2610_editor_error'.tr);
+      return;
+    }
+    final saved = await PostDatesSheet2610.show(context, p);
+    if (saved) await _loadPost();
+  }
+
+  Future<void> _write(ApplicationModel app) async {
+    if (_writing.value.isNotEmpty) return;
+    _writing.value = app.id;
+    final isWalker = app.providerRole == 'walker';
+    try {
+      final res = await Get.find<OwnerRepository>().startConversation(
+        sitterId: isWalker ? null : app.sitter.id,
+        walkerId: isWalker ? app.sitter.id : null,
+      );
+      final conv = res['conversation'];
+      final id = conv is Map ? (conv['id'] ?? conv['_id'] ?? '').toString() : '';
+      if (id.isEmpty) {
+        CustomSnackbar.showError(title: 'common_error'.tr, message: 'cand2610_write_fail'.tr);
+        return;
+      }
+      await Get.to(() => IndividualChatScreen(
+            conversationId: id,
+            contactName: app.sitter.name,
+            contactImage: app.sitter.avatar.url,
+          ));
+    } on ApiException catch (e) {
+      if (mounted && ChatAccessUpsellHelper.maybeShowChatUpsell(context, e)) return;
+      CustomSnackbar.showError(title: 'common_error'.tr, message: 'cand2610_write_fail'.tr);
+    } catch (_) {
+      CustomSnackbar.showError(title: 'common_error'.tr, message: 'cand2610_write_fail'.tr);
+    } finally {
+      _writing.value = '';
+    }
   }
 
   Future<void> _accept(ApplicationModel app) async {
@@ -238,8 +355,9 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
     return Container(
+      key: const Key('cand2610_sheet'),
       constraints: BoxConstraints(
-        maxHeight: mq.size.height * 0.85,
+        maxHeight: mq.size.height * 0.92,
       ),
       decoration: BoxDecoration(
         color: AppColors.scaffold(context),
@@ -252,149 +370,147 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
         // v569 — `padding.bottom` = 0 sur le Samsung de Daniel.
         20.h + appBottomInset(context),
       ),
+      child: Obx(() {
+        // Touching .applications/.isLoading inside Obx so reactive.
+        final loading = _controller.isLoading.value;
+        final list = _candidates();
+        final bool tbd = list.isNotEmpty && _postIsTbd(list);
+        final int stale620 = list.where(applicationIsStale620).length;
+        final String place = list
+            .map((a) => serviceLocationDisplay(a.serviceLocation,
+                meetingPoint: a.meetingPoint))
+            .firstWhere((t) => t.isNotEmpty, orElse: () => '');
+        final header = <Widget>[
+          if (tbd) _TbdBanner2610(onTap: _openDates),
+          if (stale620 > 0) StaleBanner620(count: stale620),
+          if (place.isNotEmpty)
+            Row(
+              key: const Key('candidates_service_location'),
+              children: [
+                Icon(Icons.place_rounded,
+                    size: 16.sp,
+                    color: AppColors.accentOn(context, AppColors.primaryColor)),
+                SizedBox(width: 6.w),
+                Expanded(
+                  child: InterText(
+                    text: place,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context),
+                  ),
+                ),
+              ],
+            ),
+        ];
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44.w,
+                height: 4.h,
+                margin: EdgeInsets.only(bottom: 10.h),
+                decoration: BoxDecoration(
+                  color: AppColors.divider(context),
+                  borderRadius: BorderRadius.circular(2.r),
+                ),
+              ),
+            ),
+            _header(context, list.length),
+            SizedBox(height: 10.h),
+            Flexible(
+              child: Builder(builder: (context) {
+                if (loading && list.isEmpty) return const _CandidatesSkeleton();
+                if (list.isEmpty) return _empty(context);
+                return ListView.separated(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: header.length + list.length,
+                  separatorBuilder: (_, __) => SizedBox(height: 10.h),
+                  itemBuilder: (_, i) {
+                    if (i < header.length) return header[i];
+                    final app = list[i - header.length];
+                    final p = _post?.location;
+                    return _CandidateCard(
+                      app: app,
+                      busy: _busy,
+                      writing: _writing,
+                      tbd: tbd,
+                      highlighted: app.id == widget.highlightId,
+                      km: candidateKm2610(p?.lat, p?.lng, app.sitter.lat, app.sitter.lng),
+                      onWrite: () => _write(app),
+                      onAccept: () => _accept(app),
+                      onReject: () => _reject(app),
+                    );
+                  },
+                );
+              }),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _empty(BuildContext context) {
+    // v573 — état vide illustré (disque teinté + icône).
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 28.h),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag handle.
           Container(
-            width: 44.w,
-            height: 4.h,
-            margin: EdgeInsets.only(bottom: 12.h),
+            width: 64.w,
+            height: 64.w,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.divider(context),
-              borderRadius: BorderRadius.circular(2.r),
+              color: AppColors.primaryColor.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
             ),
+            child: Icon(Icons.groups_2_rounded,
+                size: 30.sp,
+                color: AppColors.accentOn(context, AppColors.primaryColor)),
           ),
-          _header(context),
           SizedBox(height: 12.h),
-          _sortBar(context),
-          SizedBox(height: 8.h),
-          Flexible(
-            child: Obx(() {
-              // Touching .applications/.isLoading inside Obx so reactive.
-              final loading = _controller.isLoading.value;
-              final list = _candidates();
-              if (loading && list.isEmpty) {
-                // v573 — squelettes de cartes plutôt qu'un spinner nu : la
-                // feuille garde sa forme pendant le chargement.
-                return const _CandidatesSkeleton();
-              }
-              if (list.isEmpty) {
-                // v573 — état vide illustré (disque teinté + icône) au lieu
-                // d'une ligne de texte perdue au milieu de la feuille.
-                return Padding(
-                  padding: EdgeInsets.symmetric(vertical: 28.h),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 64.w,
-                        height: 64.w,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryColor.withValues(alpha: 0.10),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.groups_2_rounded,
-                          size: 30.sp,
-                          color: AppColors.accentOn(
-                              context, AppColors.primaryColor),
-                        ),
-                      ),
-                      SizedBox(height: 12.h),
-                      InterText(
-                        text: 'candidates_empty'.tr,
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w500,
-                        textAlign: TextAlign.center,
-                        color: AppColors.textSecondary(context),
-                      ),
-                    ],
-                  ),
-                );
-              }
-              // v587 (point 8) — lieu du service de l'annonce (le même pour
-              // tous les candidats) : rappelé au-dessus de la liste.
-              final String place = list
-                  .map((a) => serviceLocationDisplay(a.serviceLocation,
-                      meetingPoint: a.meetingPoint))
-                  .firstWhere((t) => t.isNotEmpty, orElse: () => '');
-              // 620 — au moins une candidature indicative : bandeau « Pose
-              // tes dates pour valider » en tête de liste.
-              // 621 — « tarif à venir » (la demande a changé de service) :
-              // bandeau d'explication, jamais « Pose tes dates » pour ça.
-              final bool tbd620 = list.any(applicationNeedsDates620);
-              final int stale620 = list.where(applicationIsStale620).length;
-              final int offset =
-                  (place.isEmpty ? 0 : 1) + (tbd620 ? 1 : 0) + (stale620 > 0 ? 1 : 0);
-              int row = 0;
-              final int tbdRow = tbd620 ? row++ : -1;
-              final int staleRow = stale620 > 0 ? row++ : -1;
-              final int placeRow = place.isNotEmpty ? row++ : -1;
-              return ListView.separated(
-                shrinkWrap: true,
-                padding: EdgeInsets.zero,
-                itemCount: list.length + offset,
-                separatorBuilder: (_, __) => SizedBox(height: 10.h),
-                itemBuilder: (_, i) {
-                  if (i == tbdRow) {
-                    return SetDatesBanner620(
-                      postId: widget.postId,
-                      onOpened: () => Navigator.of(context).maybePop(),
-                    );
-                  }
-                  if (i == staleRow) {
-                    return StaleBanner620(count: stale620);
-                  }
-                  if (i == placeRow) {
-                    return Row(
-                      key: const Key('candidates_service_location'),
-                      children: [
-                        Icon(Icons.place_rounded,
-                            size: 16.sp,
-                            color: AppColors.accentOn(
-                                context, AppColors.primaryColor)),
-                        SizedBox(width: 6.w),
-                        Expanded(
-                          child: InterText(
-                            text: place,
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary(context),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  final app = list[i - offset];
-                  return _CandidateCard(
-                    app: app,
-                    busy: _busy,
-                    onAccept: () => _accept(app),
-                    onReject: () => _reject(app),
-                  );
-                },
-              );
-            }),
+          InterText(
+            text: 'candidates_empty'.tr,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w500,
+            textAlign: TextAlign.center,
+            color: AppColors.textSecondary(context),
           ),
         ],
       ),
     );
   }
 
-  Widget _header(BuildContext context) {
+  /// 624 — « Tes candidats (N) » + la phrase du site (écrire d'abord,
+  /// choisir ensuite, payer après).
+  Widget _header(BuildContext context, int n) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.groups_2_rounded,
-            size: 22.sp, color: AppColors.primaryColor),
-        SizedBox(width: 8.w),
         Expanded(
-          child: PoppinsText(
-            text: 'candidates_sheet_title'.tr,
-            fontSize: 17.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              PoppinsText(
+                key: const Key('cand2610_title'),
+                text: n > 0 ? '${'cand2610_title'.tr} ($n)' : 'cand2610_title'.tr,
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary(context),
+              ),
+              SizedBox(height: 3.h),
+              InterText(
+                text: 'cand2610_sub'.tr,
+                fontSize: 12.sp,
+                height: 1.35,
+                color: AppColors.textSecondary(context),
+                maxLines: 3,
+              ),
+            ],
           ),
         ),
         IconButton(
@@ -406,70 +522,61 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
       ],
     );
   }
+}
 
-  Widget _sortBar(BuildContext context) {
-    // v573 — 3 pilules FIXES à parts égales (même grammaire que
-    // `BookingSegmentedTabs`) : plus de rangée qui glisse, plus de
-    // `ChoiceChip` Material au milieu d'un écran au nouveau design. Le tri et
-    // ses 3 modes sont inchangés.
-    Widget pill(String labelKey, _SortMode mode, IconData icon) {
-      final bool selected = _sortMode == mode;
-      final Color fg =
-          selected ? AppColors.whiteColor : AppColors.textSecondary(context);
-      return Expanded(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => setState(() => _sortMode = mode),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 8.h),
-            decoration: BoxDecoration(
-              color: selected ? AppColors.primaryColor : Colors.transparent,
-              borderRadius: BorderRadius.circular(12.r),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 15.sp, color: fg),
-                SizedBox(width: 5.w),
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: InterText(
-                      text: labelKey.tr,
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w700,
-                      color: fg,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
+/// 624 — encart « Indique tes dates pour voir le prix total et choisir » +
+/// « Choisir mes dates » qui ouvre DIRECTEMENT le choix des dates.
+class _TbdBanner2610 extends StatelessWidget {
+  const _TbdBanner2610({required this.onTap});
+  final VoidCallback onTap;
 
+  @override
+  Widget build(BuildContext context) {
+    final tone = AppColors.primaryColor;
+    final on = AppColors.accentOn(context, tone);
     return Container(
-      padding: EdgeInsets.all(5.w),
+      key: const Key('dates620_set_dates_banner'),
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(12.w, 10.h, 12.w, 10.h),
       decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.divider(context)),
-        boxShadow: AppColors.cardShadow(context),
+        color: tone.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: tone, width: 1.5),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          pill('candidates_sort_newest', _SortMode.newest,
-              Icons.schedule_rounded),
-          SizedBox(width: 4.w),
-          pill('candidates_sort_price', _SortMode.priceAsc,
-              Icons.payments_rounded),
-          SizedBox(width: 4.w),
-          pill('candidates_sort_rating', _SortMode.ratingDesc,
-              Icons.star_rounded),
+          Row(
+            children: [
+              Icon(Icons.event_note_rounded, size: 18.sp, color: on),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: PoppinsText(
+                  text: 'cand2610_tbd_title'.tr,
+                  fontSize: 13.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: on,
+                  maxLines: 2,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 4.h),
+          InterText(
+            text: 'cand2610_tbd_sub'.tr,
+            fontSize: 11.5.sp,
+            color: AppColors.textSecondary(context),
+            maxLines: 3,
+          ),
+          SizedBox(height: 8.h),
+          ActionPillButton(
+            key: const Key('dates620_set_dates_button'),
+            label: 'cand2610_tbd_cta'.tr,
+            icon: Icons.edit_calendar_rounded,
+            tone: tone,
+            compact: true,
+            onPressed: onTap,
+          ),
         ],
       ),
     );
@@ -567,58 +674,93 @@ class _CandidateCard extends StatelessWidget {
   const _CandidateCard({
     required this.app,
     required this.busy,
+    required this.writing,
+    required this.tbd,
+    required this.highlighted,
+    required this.km,
+    required this.onWrite,
     required this.onAccept,
     required this.onReject,
   });
 
   final ApplicationModel app;
   final RxBool busy;
+  final RxString writing;
+  final bool tbd;
+  final bool highlighted;
+  final int? km;
+  final VoidCallback onWrite;
   final VoidCallback onAccept;
   final VoidCallback onReject;
 
-  // 620 — total réel, sinon tarif unitaire « 12 €/visite · indicatif ».
-  String _priceLabel() => candidatePriceLabel620(app);
   bool get _indicative => applicationIsIndicative620(app);
-  // 621 — « tarif à venir » : Choisir verrouillé avec SON explication.
   bool get _stale => applicationIsStale620(app);
+
+  /// « TARIF 12 €/balade » (demande sans dates) au format de la langue.
+  String _rateLabel() {
+    final p = app.pricing;
+    // 624 (ZOE) — tarif FRAIS COMPRIS pour le propriétaire, sinon l'ancien.
+    final r = (p?.ownerUnitRate != null && p!.ownerUnitRate! > 0)
+        ? p.ownerUnitRate
+        : p?.unitRate;
+    if (p == null || r == null || !(r > 0) || _stale) return '';
+    final cur = (p.currency ?? '').isNotEmpty ? p.currency! : app.sitter.currency;
+    final unit = p.unit.isNotEmpty ? p.unit : (app.providerRole == 'walker' ? 'walk' : 'day');
+    return '${CurrencyHelper.formatCompact(cur.isNotEmpty ? cur : 'EUR', r)}${priceUnitSuffix620(unit)}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final avatarUrl = app.sitter.avatar.url;
     final isWalker = app.providerRole == 'walker';
-    // v573 — couleur du rôle éclaircie en mode sombre (`accentOn`) : le bleu
-    // gardien #1976D2 et le rouge propriétaire étaient illisibles sur fond
-    // sombre.
-    final Color roleTone = AppColors.accentOn(
-      context,
-      isWalker ? const Color(0xFF1976D2) : AppColors.primaryColor,
-    );
+    final Color role = isWalker ? const Color(0xFF16A34A) : const Color(0xFF2563EB);
+    final Color roleOn = AppColors.accentOn(context, role);
+    final String name = app.sitter.name.isNotEmpty ? app.sitter.name : 'provider_unknown'.tr;
+    final String first = name.split(' ').first;
+    final String total = candidateTotal2610(app);
+    final String rate = _indicative ? _rateLabel() : '';
+    final String meta = [
+      app.sitter.rating > 0
+          ? '★ ${app.sitter.rating.toStringAsFixed(1)}'
+              '${app.sitter.reviewsCount > 0 ? ' (${app.sitter.reviewsCount})' : ''}'
+          : 'cand2610_no_reviews'.tr,
+      if ((app.sitter.city ?? '').isNotEmpty) app.sitter.city!,
+      if (km != null) 'cand2610_c1610_km_about'.tr.replaceAll('{km}', '$km'),
+    ].join(' · ');
+    final Color owner = AppColors.primaryColor;
+    final bool chooseLocked = _stale || _indicative || tbd;
     return Container(
+      key: Key('cand2610_card_${app.id}'),
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: AppColors.divider(context)),
+        border: Border.all(
+            color: highlighted ? owner : AppColors.divider(context),
+            width: highlighted ? 2 : 1),
         boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(onBackgroundImageError: (avatarUrl.isNotEmpty) ? netImageOnError620 : null, 
-                radius: 22.r,
-                backgroundColor:
-                    AppColors.primaryColor.withValues(alpha: 0.1),
-                // v23.1 part 250 — perf : CachedNetworkImageProvider + maxWidth
-                // (avatar 44px, repete dans la liste de candidats). NetworkImage
-                // brut re-telechargeait l'image entiere a chaque scroll.
+              // Photo 56, sinon l'initiale sur la couleur du rôle.
+              CircleAvatar(
+                onBackgroundImageError: avatarUrl.isNotEmpty ? netImageOnError620 : null,
+                radius: 28.r,
+                backgroundColor: role,
                 backgroundImage: avatarUrl.isNotEmpty
-                    ? CachedNetworkImageProvider(avatarUrl, maxWidth: 130)
+                    ? CachedNetworkImageProvider(avatarUrl, maxWidth: 170)
                     : null,
                 child: avatarUrl.isEmpty
-                    ? Icon(Icons.person, size: 22.sp,
-                        color: AppColors.primaryColor)
+                    ? PoppinsText(
+                        text: first.isNotEmpty ? first.characters.first.toUpperCase() : '?',
+                        fontSize: 20.sp,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      )
                     : null,
               ),
               SizedBox(width: 10.w),
@@ -626,164 +768,186 @@ class _CandidateCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    PoppinsText(
+                      text: first,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 3.h),
+                    Wrap(
+                      spacing: 5.w,
+                      runSpacing: 4.h,
                       children: [
-                        Flexible(
-                          child: PoppinsText(
-                            text: app.sitter.name.isNotEmpty
-                                ? app.sitter.name
-                                : 'provider_unknown'.tr,
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary(context),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        SizedBox(width: 6.w),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 7.w, vertical: 2.h),
-                          decoration: BoxDecoration(
-                            color: roleTone.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8.r),
-                          ),
-                          child: InterText(
-                            // v576 — libellé unifié (plus de « Petsitter »).
-                            text: roleLabelKey(
-                                isWalker ? 'walker' : 'sitter').tr,
-                            fontSize: 10.sp,
-                            fontWeight: FontWeight.w600,
-                            color: roleTone,
-                          ),
-                        ),
+                        _chip(context, roleLabelKey(isWalker ? 'walker' : 'sitter').tr,
+                            isWalker ? Icons.directions_walk_rounded : Icons.home_rounded,
+                            role.withValues(alpha: 0.12), roleOn),
+                        if (app.sitter.identityVerified)
+                          _chip(context, 'identity_badge_verified'.tr, Icons.verified_user_rounded,
+                              const Color(0xFF16A34A).withValues(alpha: 0.14),
+                              AppColors.accentOn(context, const Color(0xFF15803D))),
+                        if (highlighted)
+                          _chip(context, 'cand2610_c1610_new'.tr, null, owner, Colors.white),
                       ],
                     ),
-                    SizedBox(height: 2.h),
-                    Row(
-                      children: [
-                        Icon(Icons.star_rounded,
-                            size: 14.sp, color: const Color(0xFFFFB400)),
-                        SizedBox(width: 2.w),
-                        InterText(
-                          // 617 (BOB, §B.3) — sans avis : « Nouveau · vérifié ».
-                          text: app.sitter.rating > 0
-                              ? '${app.sitter.rating.toStringAsFixed(1)} '
-                                  '(${app.sitter.reviewsCount})'
-                              : (app.sitter.verified
-                                  ? 'bob617_new_verified'
-                                  : 'bob617_new').tr,
-                          fontSize: 11.sp,
-                          color: AppColors.textSecondary(context),
-                        ),
-                        if ((app.sitter.city ?? '').isNotEmpty) ...[
-                          SizedBox(width: 8.w),
-                          Icon(Icons.place_outlined,
-                              size: 12.sp,
-                              color: AppColors.textSecondary(context)),
-                          SizedBox(width: 2.w),
-                          Flexible(
-                            child: InterText(
-                              text: app.sitter.city ?? '',
-                              fontSize: 11.sp,
-                              color: AppColors.textSecondary(context),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ],
+                    SizedBox(height: 4.h),
+                    InterText(
+                      text: meta,
+                      fontSize: 12.sp,
+                      color: AppColors.textSecondary(context),
+                      maxLines: 2,
                     ),
                   ],
                 ),
               ),
-              if (_priceLabel().isNotEmpty)
-                // 620 — « 12 €/visite · indicatif » est plus large qu'un
-                // total : la pastille partage la ligne (flex) et se réduit
-                // au lieu de pousser le nom hors de la carte (débordement
-                // de 4,5 px vu au simulateur).
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(10.r),
-                      ),
-                      child: PoppinsText(
-                        text: _priceLabel(),
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w700,
-                        color:
-                            AppColors.accentOn(context, AppColors.primaryColor),
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
-          if (app.description.isNotEmpty) ...[
+          SizedBox(height: 10.h),
+          // Encadré prix : total frais compris, sinon tarif, sinon tarif à venir.
+          Container(
+            key: Key('cand2610_price_${app.id}'),
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 9.h),
+            decoration: BoxDecoration(
+              color: owner.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: _stale
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      InterText(
+                        text: 'cand2610_stale_short'.tr,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.accentOn(context, owner),
+                      ),
+                      SizedBox(height: 2.h),
+                      InterText(
+                        text: 'cand2610_cand_stale_hint'.tr,
+                        fontSize: 11.5.sp,
+                        color: AppColors.textSecondary(context),
+                        maxLines: 3,
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      InterText(
+                        text: (total.isNotEmpty ? 'cand2610_total' : 'cand2610_rate').tr.toUpperCase(),
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textSecondary(context),
+                      ),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: PoppinsText(
+                          text: total.isNotEmpty ? total : (rate.isNotEmpty ? rate : '—'),
+                          fontSize: 17.sp,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.accentOn(context, owner),
+                          maxLines: 1,
+                        ),
+                      ),
+                      if (total.isNotEmpty && app.pricing?.weeklyApplied == true)
+                        InterText(
+                          key: Key('cand2610_weekly_${app.id}'),
+                          text: 'cand2610_weekly'.tr,
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.accentOn(context, const Color(0xFF15803D)),
+                        ),
+                    ],
+                  ),
+          ),
+          if (app.description.trim().isNotEmpty) ...[
             SizedBox(height: 8.h),
             InterText(
-              text: app.description,
-              fontSize: 12.sp,
+              text: '« ${app.description.trim()} »',
+              fontSize: 12.5.sp,
+              height: 1.35,
               color: AppColors.textPrimary(context),
-              maxLines: 3,
+              maxLines: 4,
               overflow: TextOverflow.ellipsis,
             ),
           ],
           SizedBox(height: 12.h),
-          // v569 — même langage visuel que les feuilles d'action du bandeau :
-          // choisir = pilule pleine, refuser = rouge texte, indicateur « en
-          // cours » (busy) qui neutralise le double tap. Mêmes callbacks.
-          Obx(
-            () => Row(
-              children: [
-                Expanded(
-                  child: ActionPillButton(
-                    label: 'common_reject'.tr,
-                    icon: Icons.close_rounded,
-                    tone: ActionTone.danger,
-                    kind: ActionPillKind.danger,
-                    expand: true,
-                    haptic: true,
-                    busy: busy.value,
-                    onPressed: onReject,
-                  ),
+          // Boutons : Écrire (principal, couleur du rôle) · Choisir (contour
+          // orange) · Refuser (lien). Paiement inchangé (après Choisir).
+          Obx(() => ActionPillButton(
+                key: Key('cand2610_write_${app.id}'),
+                label: 'cand2610_write'.tr.replaceAll('{name}', first),
+                icon: Icons.chat_bubble_rounded,
+                tone: role,
+                expand: true,
+                busy: writing.value == app.id,
+                onPressed: onWrite,
+              )),
+          SizedBox(height: 8.h),
+          Obx(() => Opacity(
+                opacity: chooseLocked ? 0.55 : 1,
+                child: ActionPillButton(
+                  key: Key('dates620_choose_${app.id}'),
+                  label: _stale
+                      ? 'dates620_stale_label'.tr
+                      : (chooseLocked
+                          ? 'dates620_choose_locked'.tr
+                          : (total.isNotEmpty
+                              ? '${'candidates_choose_button'.tr} · $total'
+                              : 'candidates_choose_button'.tr)),
+                  icon: _stale
+                      ? Icons.hourglass_top_rounded
+                      : (chooseLocked ? Icons.lock_clock_rounded : Icons.check_circle_rounded),
+                  tone: owner,
+                  kind: ActionPillKind.outlined,
+                  expand: true,
+                  haptic: true,
+                  busy: busy.value,
+                  onPressed: onAccept,
                 ),
-                SizedBox(width: 8.w),
-                Expanded(
-                  flex: 2,
-                  child: Opacity(
-                    // 620 — Choisir désactivé tant que les dates ne sont
-                    // pas posées (le tap explique pourquoi).
-                    opacity: _indicative ? 0.55 : 1,
-                    child: ActionPillButton(
-                      key: Key('dates620_choose_${app.id}'),
-                      label: _stale
-                          ? 'dates620_stale_label'.tr
-                          : _indicative
-                              ? 'dates620_choose_locked'.tr
-                              : 'candidates_choose_button'.tr,
-                      icon: _stale
-                          ? Icons.hourglass_top_rounded
-                          : _indicative
-                              ? Icons.lock_clock_rounded
-                              : Icons.check_circle_rounded,
-                      tone: AppColors.primaryColor,
-                      expand: true,
-                      haptic: true,
-                      busy: busy.value,
-                      onPressed: onAccept,
-                    ),
-                  ),
-                ),
-              ],
+              )),
+          if (chooseLocked && !_stale) ...[
+            SizedBox(height: 4.h),
+            Center(
+              child: InterText(
+                text: 'cand2610_cand_choose_blocked'.tr,
+                fontSize: 11.sp,
+                color: AppColors.textSecondary(context),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+          SizedBox(height: 4.h),
+          // « Refuser » en lien texte (rouge, sans aplat — kit).
+          Center(
+            child: ActionPillButton(
+              key: Key('cand2610_reject_${app.id}'),
+              label: 'common_reject'.tr,
+              tone: ActionTone.danger,
+              kind: ActionPillKind.danger,
+              compact: true,
+              onPressed: onReject,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(BuildContext context, String text, IconData? icon, Color bg, Color fg) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 11.sp, color: fg),
+            SizedBox(width: 3.w),
+          ],
+          InterText(text: text, fontSize: 11.sp, fontWeight: FontWeight.w700, color: fg),
         ],
       ),
     );

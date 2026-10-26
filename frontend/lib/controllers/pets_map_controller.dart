@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:hopetsit/services/location_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
@@ -109,7 +110,10 @@ class PetsMapController extends GetxController {
   Future<Position> _determinePosition() async {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+      // 624 — sondes : jamais la fenêtre système (refus simulé).
+      if (!LocationService.skipPromptForTests) {
+        permission = await Geolocator.requestPermission();
+      }
     }
 
     if (permission == LocationPermission.deniedForever ||
