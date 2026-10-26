@@ -691,8 +691,11 @@ const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtr
   // Les variables viennent en partie des utilisateurs (aperçu d'un message, commentaire
   // d'avis, nom) : elles sont ÉCHAPPÉES avant d'entrer dans le HTML de l'e-mail, sinon un
   // message « <a href=…> » devenait un vrai lien dans un e-mail à l'en-tête HoPetSit.
+  // 2610 (ZOE) — seule exception : `candidatesHtml2610`, HTML construit par le SERVEUR
+  // (utils/applicationEmailText2610, qui échappe lui-même chaque valeur venue d'un utilisateur).
+  const RAW_HTML_KEYS = new Set(['candidatesHtml2610']);
   const htmlData = Object.fromEntries(
-    Object.entries(renderData).map(([k, v]) => [k, typeof v === 'string' ? escapeHtmlValue(v) : v]),
+    Object.entries(renderData).map(([k, v]) => [k, typeof v === 'string' && !RAW_HTML_KEYS.has(k) ? escapeHtmlValue(v) : v]),
   );
   // 612 — lien de désabonnement en pied d'e-mail quand l'appelant en fournit un.
   const unsubscribeUrl = emailExtras && emailExtras.unsubscribeUrl ? String(emailExtras.unsubscribeUrl) : '';
@@ -1052,6 +1055,35 @@ const sendNotification = async ({
 };
 
 /**
+ * 2610 (ZOE, 26/10/2026) — E-MAIL SEUL (ni cloche, ni push) avec les mêmes garde-fous que
+ * sendNotification : compte jamais vérifié → rien ; catégorie coupée → rien ; types sans e-mail →
+ * rien ; même lien (sans mot de passe pour les propriétaires venus de la pub), même gabarit commun.
+ * Sert à l'e-mail « candidats reçus » regroupé (services/applicationEmail2610).
+ * @returns {Promise<{sent:boolean, reason?:string, subject?:string}>}
+ */
+/** 2610 — langue d'envoi d'un destinataire (même règle que prepareNotification). */
+const resolveRecipientLocale = async (role, userId) => {
+  const user = await resolveUser(role, userId);
+  if (!user) return null;
+  const appLocale = await resolveAppLocaleAcrossRoles(user, userId);
+  return resolveLocale(appLocale || user.language);
+};
+
+const sendEmailOnly = async ({ userId, role, type, templateType = null, data = {} } = {}) => {
+  if (!userId || !role || !type) return { sent: false, reason: 'bad_args' };
+  const prepared = await prepareNotification({ userId, role, type, rawData: data || {}, templateType });
+  if (!prepared) return { sent: false, reason: 'unresolved' };
+  if (!prepared.categoryEnabled) return { sent: false, reason: `prefs_category_off:${prepared.category}` };
+  if (NO_EMAIL_TYPES.has(String(type))) return { sent: false, reason: 'no_email_type' };
+  if (prepared.emailBlocked) return { sent: false, reason: `email_blocked:${prepared.emailBlocked}` };
+  const to = prepared.email;
+  if (!to || to.length < 4) return { sent: false, reason: 'no_email' };
+  await sendEmail(to, prepared.emailSubject || prepared.title, prepared.emailText, prepared.emailBody);
+  logger.info(`[notif.channel] email ok for ${templateType || type} (e-mail seul) role=${role} userId=${userId}`);
+  return { sent: true, subject: prepared.emailSubject, html: prepared.emailBody, locale: prepared.locale };
+};
+
+/**
  * v599 (ZOE, 29/09/2026) — envoi de l'e-mail « message non lu » à l'échéance
  * (15 min sans lecture), appelé par chatUnreadEmailScheduler599.runOnce. Même
  * gabarit que l'e-mail immédiat d'hier (9 langues, accents, lien vers la
@@ -1181,5 +1213,7 @@ module.exports = {
   sendBadgeSync, // v566
   prepareNotification, // v599 — e-mail différé
   sendDeferredChatEmail, // v599 — e-mail différé
+  sendEmailOnly, // 2610 — e-mail « candidats reçus » regroupé
+  resolveRecipientLocale, // 2610
   BADGE_MIN_IOS_BUILD,
 };

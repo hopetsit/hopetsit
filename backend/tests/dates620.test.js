@@ -197,9 +197,9 @@ describe('3. Candidature indicative → 409 → dates posées → recalcul → 2
     expect(n.length).toBe(1);
     expect(n[0].data.priceIndicative).toBe('1');
     const { renderNotificationContent } = require('../src/services/notificationSender');
-    expect(renderNotificationContent('application_new', n[0].data, 'fr').body).toContain('12 €/visite');
+    expect(renderNotificationContent('application_new', n[0].data, 'fr').body).toContain('14,40 €/visite'); // 2610 : frais compris
     await wait(300);
-    expect(MAILS.some((m) => m.to === 'zoe620+owner@example.test' && m.text.includes('12 €/visite'))).toBe(true);
+    expect(MAILS.some((m) => m.to === 'zoe620+owner@example.test' && m.text.includes('14,40 €/visite'))).toBe(true);
   }, 60000);
   test('accepter avant les dates → 409 DATES_REQUIRED (message en français)', async () => {
     const r = await request(app).post(`/applications/${S.app._id}/respond`).set(hdr(S.owner._id, 'owner')).send({ action: 'accept' });

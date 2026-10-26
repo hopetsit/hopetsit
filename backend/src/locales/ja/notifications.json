@@ -518,5 +518,11 @@
     "body": "応募（{{service}}）が再計算されました：{{total}}",
     "emailSubject": "料金を保存しました — 応募が再計算されました — HoPetSit",
     "emailBody": "<p>料金を保存しました。<strong>{{service}}</strong>のリクエストへの応募は<strong>{{total}}</strong>に再計算されました。飼い主に通知済みです。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">リクエストを見る</a></p>"
+  },
+  "application_new_2610": {
+    "title": "{{subjectLine}}",
+    "body": "{{subjectLine}}",
+    "emailSubject": "{{subjectLine}}",
+    "emailBody": "<p style=\"font-size:18px;font-weight:700;line-height:1.4;margin:0 0 14px;color:#231715\">{{subjectLine}}</p>{{candidatesHtml2610}}<p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:14px 28px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-weight:700;font-family:sans-serif;\">{{ctaLabel}}</a></p>"
   }
 }

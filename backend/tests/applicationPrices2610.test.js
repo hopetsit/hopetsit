@@ -133,10 +133,10 @@ describe('1. Nouvelles candidatures : prix du moteur unique (cause racine des pr
     expect(p).toMatchObject({ indicative: false, appliedRate: 18, quantity: 1, unit: 'day', basePrice: 18, commission: 3.6, totalPrice: 21.6, currency: 'EUR' });
     expect(p.totalPrice).toBeGreaterThanOrEqual(p.appliedRate);
   }, 60000);
-  test('garde datée 15 jours : tarif JOUR × 15, jamais le tarif semaine en douce (Sohane 50 €/j → 900 €, pas 257 €)', async () => {
+  test('garde datée 15 jours : tarif semaine appliqué parce que moins cher (Sohane 50 €/j, 100 €/sem → 2 × 100 + 50 = 250 + 20 % = 300 €), tarif jour sinon', async () => {
     S.postGarde = (await createPost({ serviceTypes: ['house_sitting'], houseSittingVenue: 'owners_home', dateMode: 'exact', startDate: day(30), endDate: day(44) }).expect(201)).body.post;
     const p = await pricingOf(await apply(S.postGarde, S.sohane, 'sitter', { serviceType: 'house_sitting', houseSittingVenue: 'owners_home', serviceDate: day(30), startDate: day(30), endDate: day(44) }));
-    expect(p).toMatchObject({ appliedRate: 50, quantity: 15, unit: 'day', basePrice: 750, commission: 150, totalPrice: 900 });
+    expect(p).toMatchObject({ appliedRate: 50, quantity: 15, unit: 'day', basePrice: 250, commission: 50, totalPrice: 300, weeklyApplied: true, weeks: 2, weeklyRate: 100, pricingTier: 'weekly' });
     // l'app envoie une SEULE date (ancien client) : même prix, ce sont les dates de la demande qui comptent
     const p2 = await pricingOf(await apply(S.postGarde, S.hanene, 'sitter', { serviceType: 'house_sitting', houseSittingVenue: 'owners_home', serviceDate: day(30) }));
     expect(p2).toMatchObject({ appliedRate: 18, quantity: 15, totalPrice: 324 });

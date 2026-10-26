@@ -351,6 +351,11 @@ const buildEmailRoute = (notifType, data = {}, opts = {}) => {
   const { role = '', devices = null } = opts || {};
   const precise = buildPreciseRoute(notifType, data, role);
   if (!routeNeedsRecentApp(precise)) return precise;
+  // 2610 (ZOE, test de FLO du 26/10) — un PROPRIÉTAIRE va TOUJOURS sur la page web de ses
+  // candidats (/application/<id>, en ligne depuis le 16/10). Le repli /post/<id> affichait
+  // « Cette page vit dans l'app » (bloqué 17 s sur téléphone), puis la liste sans le candidat.
+  // Une ancienne app qui ne connaît pas ce chemin laisse le lien s'ouvrir dans le navigateur.
+  if (String(role || '').toLowerCase() === 'owner' && /^\/application\/[^/]+$/.test(precise)) return precise;
   const list = Array.isArray(devices) ? devices : [];
   if (list.length > 0 && list.every(deviceOpensPreciseLinks)) return precise;
   return legacyFallbackFor(precise, data);

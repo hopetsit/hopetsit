@@ -165,6 +165,8 @@ async function startServer() {
     require('./services/postDatesReminder620').startPostDatesReminderScheduler();
     // 1610 (SAM, 16/10) — « Partagez votre fiche » aux gardiens/promeneurs, une fois par personne, étalé, de jour, jamais d'e-mail.
     require('./services/sitterInvite1610').startSitterInviteScheduler();
+    // 2610 (ZOE, 26/10) — e-mail « candidats reçus » : 1er tout de suite, suivants regroupés 1×/jour par demande.
+    require('./services/applicationEmail2610').startApplicationEmailScheduler();
   } catch (error) {
     logger.error('Failed to start server', error);
     process.exit(1);

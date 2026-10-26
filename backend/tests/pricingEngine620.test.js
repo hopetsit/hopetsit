@@ -54,6 +54,25 @@ describe('quantités', () => {
     expect(engine.quantityFor(post, 'dog_walking')).toEqual({ quantity: 5, unit: 'walk', days: 5 });
     expect(engine.quantityFor({ ...post, endDate: post.startDate }, 'dog_walking')).toEqual({ quantity: 1, unit: 'walk', days: 1 });
   });
+  test('2610 tarif semaine (décision de Daniel) : ≥ 7 jours et moins cher seulement', () => {
+    const P = (n, extra = {}) => ({ dateMode: 'exact', startDate: d('2026-11-01'), endDate: d(`2026-11-${String(n).padStart(2, '0')}`), ...extra });
+    // 7 jours pile : 1 semaine à 100 € < 7 × 20 € = 140 €
+    expect(engine.estimate({ serviceType: 'house_sitting', rate: 20, weeklyRate: 100, post: P(7) })).toMatchObject({ quantity: 7, unitTotal: 100, weeklyApplied: true, weeks: 1, weeklyRate: 100, commission: 20, ownerTotal: 120 });
+    // 9 jours : 100 + 2 × 20 = 140 < 180
+    expect(engine.estimate({ serviceType: 'house_sitting', rate: 20, weeklyRate: 100, post: P(9) })).toMatchObject({ unitTotal: 140, weeklyApplied: true, weeks: 1, ownerTotal: 168 });
+    // 19 jours : 2 × 100 + 5 × 20 = 300 < 380
+    expect(engine.estimate({ serviceType: 'house_sitting', rate: 20, weeklyRate: 100, post: P(19) })).toMatchObject({ unitTotal: 300, weeklyApplied: true, weeks: 2, ownerTotal: 360 });
+    // pas de tarif semaine : jours × tarif jour
+    expect(engine.estimate({ serviceType: 'house_sitting', rate: 20, post: P(9) })).toMatchObject({ unitTotal: 180, weeklyApplied: false, weeks: null });
+    // tarif semaine PLUS cher que 7 × tarif jour : tarif jour
+    expect(engine.estimate({ serviceType: 'house_sitting', rate: 10, weeklyRate: 100, post: P(7) })).toMatchObject({ unitTotal: 70, weeklyApplied: false });
+    // 6 jours : jamais de tarif semaine
+    expect(engine.estimate({ serviceType: 'house_sitting', rate: 20, weeklyRate: 50, post: P(6) })).toMatchObject({ unitTotal: 120, weeklyApplied: false });
+    // nuits chez le gardien : 8 jours = 7 nuits → 1 semaine
+    expect(engine.estimate({ serviceType: 'house_sitting', rate: 20, weeklyRate: 100, post: P(8, { houseSittingVenue: 'sitters_home' }) })).toMatchObject({ quantity: 7, unit: 'night', unitTotal: 100, weeklyApplied: true });
+    // balades et visites : jamais
+    expect(engine.estimate({ serviceType: 'home_visit', rate: 12, weeklyRate: 10, post: P(9) })).toMatchObject({ unitTotal: 108, weeklyApplied: false });
+  });
   test('dates à prévoir : quantité null', () => {
     expect(engine.quantityFor({ dateMode: 'tbd' }, 'home_visit')).toEqual({ quantity: null, unit: 'visit', days: null });
   });
@@ -143,7 +162,8 @@ describe('catalogue des 4 services', () => {
 
 describe('texte du prix dans « candidature reçue » (617) et nouveaux gabarits', () => {
   test('données brutes : indicatif = tarif unitaire, daté = total', () => {
-    expect(text617.priceData620({ indicative: true, appliedRate: 12, unit: 'visit', currency: 'EUR' })).toEqual({ priceAmount: '12', priceUnit: 'visit', priceCurrency: 'EUR', priceIndicative: '1' });
+    expect(text617.priceData620({ indicative: true, appliedRate: 12, unit: 'visit', currency: 'EUR' })).toEqual({ priceAmount: '14.4', // 2610 : frais compris
+      priceUnit: 'visit', priceCurrency: 'EUR', priceIndicative: '1' });
     expect(text617.priceData620({ indicative: false, totalPrice: 86.4, currency: 'USD' })).toEqual({ priceAmount: '86.4', priceUnit: 'total', priceCurrency: 'USD', priceIndicative: '0' });
     expect(text617.priceData620({ indicative: true, appliedRate: 0 })).toEqual({});
   });
@@ -151,16 +171,20 @@ describe('texte du prix dans « candidature reçue » (617) et nouveaux gabarits
     const t = require(`../src/locales/${l}/notifications.json`)[text617.TEMPLATE];
     const base = text617.applicationNewData617({ provider: { name: 'Paul Martin' }, pendingCount: 2 });
     const ind = text617.enrichPrice620({ ...base, ...text617.priceData620({ indicative: true, appliedRate: 12, unit: 'visit', currency: 'EUR' }) }, l);
-    expect(ind.priceText).toContain('12 €/');
+    // 2610 — indicatif FRAIS COMPRIS (12 € + 20 % = 14,40 €) au format de la langue
+    const ownerRate = `${text617.fmtAmount(14.4, 'EUR', l)}/`;
+    expect(ind.priceText).toContain(ownerRate);
     const bodyInd = render(t.body, ind);
-    expect(bodyInd).toContain('12 €/');
+    expect(bodyInd).toContain(ownerRate);
     expect(bodyInd).not.toMatch(/\{\{/);
     const tot = text617.enrichPrice620({ ...base, ...text617.priceData620({ indicative: false, totalPrice: 86.4, currency: 'USD' }) }, l);
-    expect(tot.priceText).toContain('$86.4');
+    expect(tot.priceText).toContain(text617.fmtAmount(86.4, 'USD', l));
+    if (l === 'fr') expect(tot.priceText).toContain('86,40 $');
+    if (l === 'en') expect(tot.priceText).toContain('$86.40');
     const old = render(t.body, base); // notification d'avant le 620 : pas de prix, pas de trou
     expect(old).not.toMatch(/\{\{/);
     expect(old).toContain('2');
-    expect(render(t.emailBody, { ...ind, emailLink: 'https://www.hopetsit.com/x' })).toContain('12 €/');
+    expect(render(t.emailBody, { ...ind, emailLink: 'https://www.hopetsit.com/x' })).toContain(ownerRate);
   });
   test.each(LANGS)('%s : application_pricing_updated + post_dates_required présents et rendus', (l) => {
     const all = require(`../src/locales/${l}/notifications.json`);
@@ -179,8 +203,9 @@ describe('texte du prix dans « candidature reçue » (617) et nouveaux gabarits
   test('lien du bouton : application_pricing_updated → la candidature (propriétaire)', () => {
     const { buildEmailRoute, buildPreciseRoute } = require('../src/utils/emailLinkBuilder');
     expect(buildPreciseRoute('application_pricing_updated', { applicationId: 'a'.repeat(24), postId: 'b'.repeat(24) }, 'owner')).toBe(`/application/${'a'.repeat(24)}`);
-    // sans appareil récent connu : repli sur la demande (même règle que application_new)
-    expect(buildEmailRoute('application_pricing_updated', { applicationId: 'a'.repeat(24), postId: 'b'.repeat(24) }, { role: 'owner', devices: null })).toBe(`/post/${'b'.repeat(24)}`);
+    // 2610 (test de FLO) : propriétaire → TOUJOURS la page web de ses candidats, même sans app récente
+    expect(buildEmailRoute('application_pricing_updated', { applicationId: 'a'.repeat(24), postId: 'b'.repeat(24) }, { role: 'owner', devices: null })).toBe(`/application/${'a'.repeat(24)}`);
+    expect(buildEmailRoute('application_pricing_updated', { applicationId: 'a'.repeat(24), postId: 'b'.repeat(24) }, { role: 'sitter', devices: null })).toBe(`/post/${'b'.repeat(24)}`);
     expect(buildEmailRoute('post_dates_required', { postId: 'b'.repeat(24) }, { role: 'owner', devices: null })).toBe(`/post/${'b'.repeat(24)}`);
   });
 });

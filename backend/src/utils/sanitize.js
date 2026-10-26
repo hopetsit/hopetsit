@@ -471,6 +471,9 @@ const sanitizeApplication = (applicationDoc) => {
     application.pricing.quantity = typeof application.pricing.quantity === 'number' ? application.pricing.quantity : null;
     application.pricing.unit = application.pricing.unit || '';
     application.pricing.stale = application.pricing.stale === true; // 620b — « tarif à venir »
+    // 2610 (ZOE, test de FLO) — tarif unitaire FRAIS COMPRIS (ce que paie le propriétaire :
+    // 24 €/jour pour 20 €/jour + 20 %) ; `appliedRate` reste le tarif net du prestataire.
+    application.pricing.ownerUnitRate = application.pricing.stale ? 0 : require('./applicationNewText617').ownerUnitRate(application.pricing);
   }
   return application;
 };

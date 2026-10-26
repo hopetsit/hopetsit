@@ -17,6 +17,7 @@
 const logger = require('../utils/logger');
 const engine = require('../utils/pricingEngine620');
 const { calculateTotalWithAddOns, commissionRateForProvider } = require('../utils/pricing');
+const { ownerUnitRate } = require('../utils/applicationNewText617');
 
 const TYPE_PRICING_UPDATED = 'application_pricing_updated';
 
@@ -50,14 +51,17 @@ function priceApplication({ application, post, provider, providerRole }) {
   const isTop = providerRole === 'walker' ? provider.isTopWalker === true : provider.isTopSitter === true;
   const commissionRate = Number(application.pricing && application.pricing.commissionRate) || commissionRateForProvider(isTop);
   const currency = (application.pricing && application.pricing.currency) || provider.currency || 'EUR';
-  const est = engine.estimate({ serviceType, rate: r.rate, post, commissionRate, currency });
+  const est = engine.estimate({ serviceType, rate: r.rate, post, commissionRate, currency, weeklyRate: provider.weeklyRate });
   if (est.indicative) return null;
   const addOns = Array.isArray(application.pricing && application.pricing.addOns) ? application.pricing.addOns : [];
   const breakdown = calculateTotalWithAddOns(est.unitTotal, addOns, currency, commissionRate);
   const days = engine.dayCount(post) || 0;
   return {
     basePrice: breakdown.basePrice,
-    pricingTier: tierForUnit(est.unit),
+    pricingTier: est.weeklyApplied ? 'weekly' : tierForUnit(est.unit),
+    weeklyApplied: est.weeklyApplied === true,
+    weeklyRate: est.weeklyApplied ? est.weeklyRate : null,
+    weeks: est.weeklyApplied ? est.weeks : null,
     appliedRate: r.rate,
     totalHours: 0,
     totalDays: days,
@@ -473,15 +477,16 @@ async function repriceAfterRateChange({ providerId, providerRole } = {}, opts = 
       const o = await Owner.findById(ownerId).select('appLocale language').lean();
       ownerLang = (o && (o.appLocale || o.language)) || 'fr';
     } catch (_) { /* fr */ }
-    const totalIn = (l) => (c.pricing.indicative
-      ? `${fmtMoney(c.pricing.appliedRate, c.pricing.currency, l)} ${unitLabel(c.pricing.unit, l)}`
+    // 2610 — tarif indicatif FRAIS COMPRIS pour le propriétaire, net pour le prestataire.
+    const totalIn = (l, forOwner = false) => (c.pricing.indicative
+      ? `${fmtMoney(forOwner ? ownerUnitRate(c.pricing) : c.pricing.appliedRate, c.pricing.currency, l)} ${unitLabel(c.pricing.unit, l)}`
       : fmtMoney(c.pricing.totalPrice, c.pricing.currency, l));
     const base = { postId: String(c.post._id), applicationId: String(c.app._id), serviceKey: c.key, rateAdded: '1', pricing620: '1', candidates: '1' };
     try {
       // eslint-disable-next-line no-await-in-loop
       await send({
         userId: ownerId, role: 'owner', type: TYPE_PRICING_UPDATED, templateType: TEMPLATE_RATE_ADDED_OWNER,
-        data: { ...base, providerName, total: totalIn(ownerLang), service: serviceLabel(c.key, ownerLang) },
+        data: { ...base, providerName, total: totalIn(ownerLang, true), service: serviceLabel(c.key, ownerLang) },
       });
       out.notified.owners += 1;
     } catch (e) {

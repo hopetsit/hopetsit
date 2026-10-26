@@ -135,7 +135,28 @@ const isSittersHome = (post, key) =>
  * Estimation complète.
  * @param {{serviceType?:string, unit?:string, rate:number, post:object, commissionRate?:number, currency?:string}} p
  */
-const estimate = ({ serviceType, unit, rate, post, commissionRate = 0.2, currency = 'EUR' } = {}) => {
+/**
+ * 2610 (ZOE, décision de Daniel du 26/10 « applique le tarif semaine du gardien quand la garde
+ * dure 7 jours ou plus et que c'est moins cher ») — prestation facturée à la journée (jours ou
+ * nuits) de ≥ 7 unités, prestataire avec un tarif semaine : on prend le MOINS CHER entre
+ * (unités × tarif jour) et (semaines entières × tarif semaine + unités restantes × tarif jour).
+ * @returns {{unitTotal:number, weeklyApplied:boolean, weeks:number|null, weeklyRate:number|null}}
+ */
+const dailyTotalWithWeekly = ({ unitRate, quantity, unit, weeklyRate }) => {
+  const plain = round2(unitRate * quantity);
+  const w = Number(weeklyRate);
+  if (!(unit === 'day' || unit === 'night') || !(quantity >= 7) || !(w > 0)) {
+    return { unitTotal: plain, weeklyApplied: false, weeks: null, weeklyRate: null };
+  }
+  const weeks = Math.floor(quantity / 7);
+  const rest = quantity - weeks * 7;
+  const alt = round2(weeks * w + rest * unitRate);
+  return alt + 0.001 < plain
+    ? { unitTotal: alt, weeklyApplied: true, weeks, weeklyRate: round2(w) }
+    : { unitTotal: plain, weeklyApplied: false, weeks: null, weeklyRate: null };
+};
+
+const estimate = ({ serviceType, unit, rate, post, commissionRate = 0.2, currency = 'EUR', weeklyRate = null } = {}) => {
   const q = quantityFor(post || {}, serviceType);
   const unitRate = round2(rate);
   const mode = effectiveDateMode(post || {});
@@ -155,7 +176,8 @@ const estimate = ({ serviceType, unit, rate, post, commissionRate = 0.2, currenc
       currency,
     };
   }
-  const unitTotal = round2(unitRate * q.quantity);
+  const wk = dailyTotalWithWeekly({ unitRate, quantity: q.quantity, unit: outUnit, weeklyRate });
+  const unitTotal = wk.unitTotal;
   const commission = round2(unitTotal * commissionRate);
   return {
     dateMode: mode,
@@ -164,6 +186,9 @@ const estimate = ({ serviceType, unit, rate, post, commissionRate = 0.2, currenc
     unit: outUnit,
     unitRate,
     unitTotal,
+    weeklyApplied: wk.weeklyApplied,
+    weeks: wk.weeks,
+    weeklyRate: wk.weeklyRate,
     commission,
     ownerTotal: round2(unitTotal + commission),
     commissionRate,
@@ -269,6 +294,7 @@ module.exports = {
   visitsPerDayOf,
   quantityFor,
   estimate,
+  dailyTotalWithWeekly,
   rateFor,
   resolveDates,
   round2,

@@ -72,6 +72,11 @@ const applicationSchema = new mongoose.Schema(
       // prestataire n'a pas de tarif pour le nouveau : totaux inconnus, « tarif à venir »
       // (services/applicationRepricing620.repriceAfterServiceChange).
       stale: { type: Boolean, default: false },
+      // 2610 (ZOE, décision de Daniel) — tarif SEMAINE appliqué (garde ≥ 7 jours, moins cher
+      // que jours × tarif jour) : semaines entières × weeklyRate + jours restants × appliedRate.
+      weeklyApplied: { type: Boolean, default: false },
+      weeklyRate: { type: Number, default: null },
+      weeks: { type: Number, default: null },
       totalHours: { type: Number, default: 0 },
       totalDays: { type: Number, default: 0 },
       addOns: [

@@ -169,7 +169,7 @@ describe('1. candidature stale + le gardien ajoute son tarif → recalcul + 2 no
     expect(oa.body).toMatch(/^Sohane a ajouté son tarif : 54,00.€/);
     expect(oa.data).toMatchObject({ postId: S.postA.id, providerName: 'Sohane', rateAdded: '1', serviceKey: 'home_visit', candidates: '1' });
     const ob = byApp[String(S.appSohaneB)];
-    expect(ob.body).toMatch(/15,00.€ par visite/);
+    expect(ob.body).toMatch(/18,00.€ par visite/); // 2610 : 15 € + 20 % de frais, ce que paie le propriétaire
     expect(ob.data.postId).toBe(S.postB.id);
     const ns = await bell(S.sohane._id);
     expect(ns).toHaveLength(2);

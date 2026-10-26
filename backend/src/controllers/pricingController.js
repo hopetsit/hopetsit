@@ -336,6 +336,7 @@ const estimatePricing620 = async (req, res) => {
     let rateSource = 'body';
     let durationMinutes = duration || null;
     let providerRole = body.providerRole === 'walker' ? 'walker' : body.providerRole === 'sitter' ? 'sitter' : null;
+    let weeklyRate = null; // 2610 — tarif semaine du prestataire visé (garde ≥ 7 jours)
     let providerId = typeof body.providerId === 'string' && /^[0-9a-fA-F]{24}$/.test(body.providerId) ? body.providerId : null;
     if (!providerId && !(rate > 0) && req.user && (req.user.role === 'sitter' || req.user.role === 'walker')) {
       providerId = String(req.user.id);
@@ -356,6 +357,7 @@ const estimatePricing620 = async (req, res) => {
         });
       }
       rate = r.rate;
+      weeklyRate = Number(provider.weeklyRate) > 0 ? Number(provider.weeklyRate) : null;
       durationMinutes = r.durationMinutes || durationMinutes;
       rateSource = r.source;
       currency = provider.currency || currency;
@@ -368,7 +370,7 @@ const estimatePricing620 = async (req, res) => {
       // quand personne ne propose le service autour de la demande.
       return res.json(await openEstimate620({ req, body, post, serviceType, unit, duration, currency: body.currency, commissionRate }));
     }
-    const out = engine.estimate({ serviceType, unit, rate, post, commissionRate, currency });
+    const out = engine.estimate({ serviceType, unit, rate, post, commissionRate, currency, weeklyRate });
     return res.json({ serviceType, ...out, durationMinutes, rateSource });
   } catch (error) {
     logger.error('[pricingController.estimatePricing620]', error);

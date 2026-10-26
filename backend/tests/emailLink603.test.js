@@ -114,11 +114,18 @@ describe('compatibilité apps 598-602', () => {
 
   const cases = [
     ['booking_new', 'sitter', { bookingId: b }, `/request/${b}`, `/bookings/${b}`],
-    ['application_new', 'owner', { applicationId: a, postId: p }, `/application/${a}`, `/post/${p}`],
     ['kyc_verified', 'sitter', {}, '/identity', '/profile'],
     ['NEW_REVIEW', 'walker', { reviewId: u }, '/reviews', '/profile'],
     ['friend_request_accepted', 'owner', { byUserId: u, byUserRole: 'walker' }, `/member/walker/${u}`, '/friends'],
   ];
+  // 2610 (ZOE, test de FLO) — propriétaire : TOUJOURS la page web de ses candidats, quels que
+  // soient ses appareils (le repli /post/<id> restait bloqué sur « Cette page vit dans l'app »).
+  test('application_new (owner) : /application/<id> partout ; le repli historique reste pour les push', () => {
+    for (const devices of [IOS602, [...IOS602, { token: 't2', platform: 'android', appBuild: 602 }], [{ token: 't3', platform: 'ios', appBuild: 599 }], [], undefined]) {
+      expect(buildEmailRoute('application_new', { applicationId: a, postId: p }, { role: 'owner', devices })).toBe(`/application/${a}`);
+    }
+    expect(legacyFallbackFor(`/application/${a}`, { postId: p })).toBe(`/post/${p}`);
+  });
   test.each(cases)('%s (%s) : précis si tous les appareils suivent, sinon repli', (t, role, data, precise, fallback) => {
     expect(buildEmailRoute(t, data, { role, devices: IOS602 })).toBe(precise);
     expect(buildEmailRoute(t, data, { role, devices: [...IOS602, { token: 't2', platform: 'android', appBuild: 602 }] })).toBe(fallback);

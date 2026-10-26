@@ -501,7 +501,7 @@ const createApplication = async (req, res) => {
       }
       pricingBreakdown = { basePrice: priced.basePrice, addOns: priced.addOns, addOnsTotal: priced.addOnsTotal, totalPrice: priced.totalPrice, commission: priced.commission, netPayout: priced.netPayout, commissionRate: priced.commissionRate, currency: priced.currency };
       tierPricing = { basePrice: priced.basePrice, pricingTier: priced.pricingTier, appliedRate: priced.appliedRate, totalHours: 0, totalDays: priced.totalDays };
-      pricing620 = { quantity: priced.quantity, unit: priced.unit, indicative: false };
+      pricing620 = { quantity: priced.quantity, unit: priced.unit, indicative: false, weeklyApplied: priced.weeklyApplied === true, weeklyRate: priced.weeklyRate, weeks: priced.weeks };
     } else if (visit620) {
       const r = engine620.rateFor(provider, 'home_visit');
       const est = engine620.estimate({ serviceType: 'home_visit', rate: r.rate, post: post620, commissionRate: commissionRateForProvider(isTopProvider), currency: bookingCurrency });
@@ -689,6 +689,7 @@ const createApplication = async (req, res) => {
         commissionRate: pricingBreakdown.commissionRate,
         currency: pricingBreakdown.currency,
         ...(pricing620 ? { quantity: pricing620.quantity, unit: pricing620.unit, indicative: pricing620.indicative === true } : {}),
+        ...(pricing620 && pricing620.weeklyApplied ? { weeklyApplied: true, weeklyRate: pricing620.weeklyRate, weeks: pricing620.weeks } : {}),
       },
     });
     await application.populate(['ownerId', 'sitterId', 'walkerId']);
@@ -713,11 +714,17 @@ const createApplication = async (req, res) => {
     } catch (_) { pendingCount617 = 1; }
     const text617 = require('../utils/applicationNewText617');
     const providerDoc617 = providerRole === 'walker' ? application.walkerId : application.sitterId;
+    // 2610 (ZOE, décision de Daniel, proposition A de SAM) — candidature SUR UNE DEMANDE :
+    // cloche + push inchangés ici, mais l'E-MAIL part par services/applicationEmail2610
+    // (1re candidature tout de suite, les suivantes regroupées 1 fois par jour au plus).
+    const appEmail2610 = require('../services/applicationEmail2610');
+    const grouped2610 = !!application.postId && appEmail2610.enabled();
     sendNotification({
       userId: ownerId,
       role: 'owner',
       type: 'application_new',
       templateType: text617.TEMPLATE,
+      ...(grouped2610 ? { channels: { email: false } } : {}),
       data: {
         applicationId: application._id.toString(),
         providerRole: providerRole === 'walker' ? 'walker' : 'sitter',
@@ -733,6 +740,7 @@ const createApplication = async (req, res) => {
         id: sitterId,
       },
     }).catch(() => {});
+    if (grouped2610) appEmail2610.onApplicationCreated(application).catch(() => {});
 
     // v23.1 — push real-time event so the owner's "applications" list and
     // the multi-candidates banner refresh immediately (instead of waiting for

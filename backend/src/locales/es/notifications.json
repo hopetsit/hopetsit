@@ -518,5 +518,11 @@
     "body": "Tu candidatura ({{service}}) se recalculó: {{total}}",
     "emailSubject": "Tu tarifa está guardada — tu candidatura recalculada — HoPetSit",
     "emailBody": "<p>Tu tarifa está guardada: tu candidatura para la solicitud de <strong>{{service}}</strong> se recalculó a <strong>{{total}}</strong>. El propietario ha sido avisado.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver la solicitud</a></p>"
+  },
+  "application_new_2610": {
+    "title": "{{subjectLine}}",
+    "body": "{{subjectLine}}",
+    "emailSubject": "{{subjectLine}}",
+    "emailBody": "<p style=\"font-size:18px;font-weight:700;line-height:1.4;margin:0 0 14px;color:#231715\">{{subjectLine}}</p>{{candidatesHtml2610}}<p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:14px 28px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-weight:700;font-family:sans-serif;\">{{ctaLabel}}</a></p>"
   }
 }
