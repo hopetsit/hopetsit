@@ -28,6 +28,8 @@ import { d620, unitShort620 } from "@/lib/i18n/dates620";
 // 26/10 (LEO — décision de Daniel, proposition B de SAM) : « écrire d'abord, choisir ensuite,
 // payer après » — cartes côte à côte, « Écrire à <prénom> » en bouton principal.
 import { c2610 } from "@/lib/i18n/cand2610";
+// 26/10 (ADA, proposition C de SAM) — repère « le propriétaire a ouvert ses candidats » (jamais bloquant).
+import { markCandidatesViewed } from "@/lib/candidatesView2610";
 import { dateModeOf620 } from "@/lib/services620";
 import {
   ApiError,
@@ -127,6 +129,12 @@ export function PostCandidates1610({
   const [cur, setCur] = useState<RequestPost>(post);
   const [editingDates, setEditingDates] = useState(false);
   useEffect(() => setCur(post), [post]);
+  // 2610 (ADA) — mesure : une ouverture par demande affichée ; provenance lue dans l'adresse
+  // (?from=email / utm_medium=email, transmis par /application/<id>). Erreurs ignorées.
+  const viewPostId = String(post.id || post._id || "");
+  useEffect(() => {
+    if (viewPostId) markCandidatesViewed({ postId: viewPostId });
+  }, [viewPostId]);
 
   useEffect(() => setItems(applications), [applications]);
   useEffect(() => {

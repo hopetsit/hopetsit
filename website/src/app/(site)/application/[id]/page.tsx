@@ -17,7 +17,16 @@ export default function ApplicationRoutePage({ params }: { params: { id: string 
   const id = String(params?.id || "").replace(/[^a-fA-F0-9]/g, "").slice(0, 24);
 
   useEffect(() => {
-    const target = id ? `/posts?application=${encodeURIComponent(id)}` : "/posts";
+    // 26/10 (ADA/LEO) — la provenance (?from=email, utm_medium=email…) suit jusqu'à la page des
+    // candidats, où elle est mesurée (markCandidatesViewed).
+    let extra = "";
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const keep = new URLSearchParams();
+      for (const k of ["from", "utm_medium", "utm_source", "utm_campaign"]) { const v = q.get(k); if (v) keep.set(k, v.slice(0, 40)); }
+      extra = keep.toString() ? `&${keep.toString()}` : "";
+    } catch { /* URL exotique */ }
+    const target = id ? `/posts?application=${encodeURIComponent(id)}${extra}` : "/posts";
     const u = getStoredUser();
     if (!u) {
       router.replace(`/login?redirect=${encodeURIComponent(target)}`);
