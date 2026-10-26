@@ -8,6 +8,7 @@ type D = Record<string, string>;
 
 export const CAND2610: Record<Lang, D> = {
   fr: {
+    weekly: "tarif semaine appliqué",
     date_label: "Date",
     time_label: "Heure",
     title: "Tes candidats",
@@ -26,6 +27,7 @@ export const CAND2610: Record<Lang, D> = {
     count_many: "{n} candidats",
   },
   en: {
+    weekly: "weekly rate applied",
     date_label: "Date",
     time_label: "Time",
     title: "Your candidates",
@@ -44,6 +46,7 @@ export const CAND2610: Record<Lang, D> = {
     count_many: "{n} candidates",
   },
   es: {
+    weekly: "tarifa semanal aplicada",
     date_label: "Fecha",
     time_label: "Hora",
     title: "Tus candidatos",
@@ -62,6 +65,7 @@ export const CAND2610: Record<Lang, D> = {
     count_many: "{n} candidatos",
   },
   de: {
+    weekly: "Wochentarif angewendet",
     date_label: "Datum",
     time_label: "Uhrzeit",
     title: "Deine Bewerber",
@@ -80,6 +84,7 @@ export const CAND2610: Record<Lang, D> = {
     count_many: "{n} Bewerber",
   },
   it: {
+    weekly: "tariffa settimanale applicata",
     date_label: "Data",
     time_label: "Ora",
     title: "I tuoi candidati",
@@ -98,6 +103,7 @@ export const CAND2610: Record<Lang, D> = {
     count_many: "{n} candidati",
   },
   pt: {
+    weekly: "tarifa semanal aplicada",
     date_label: "Data",
     time_label: "Hora",
     title: "Os teus candidatos",
@@ -116,6 +122,7 @@ export const CAND2610: Record<Lang, D> = {
     count_many: "{n} candidatos",
   },
   ko: {
+    weekly: "주간 요금 적용",
     date_label: "날짜",
     time_label: "시간",
     title: "내 지원자",
@@ -134,6 +141,7 @@ export const CAND2610: Record<Lang, D> = {
     count_many: "지원자 {n}명",
   },
   ja: {
+    weekly: "週料金を適用",
     date_label: "日付",
     time_label: "時間",
     title: "あなたへの応募者",
@@ -152,6 +160,7 @@ export const CAND2610: Record<Lang, D> = {
     count_many: "応募者 {n}名",
   },
   pl: {
+    weekly: "zastosowano stawkę tygodniową",
     date_label: "Data",
     time_label: "Godzina",
     title: "Twoi kandydaci",

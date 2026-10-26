@@ -1362,6 +1362,10 @@ export type ApplicationItem = {
     unit?: string;
     /** 24/10 (620b) — la demande a changé de service et ce candidat n'a pas de tarif pour le nouveau : « tarif à venir ». */
     stale?: boolean;
+    /** 26/10 (ZOE 2610b) — tarif unitaire FRAIS COMPRIS vu par le propriétaire (0 si « tarif à venir »). */
+    ownerUnitRate?: number | null;
+    /** 26/10 (ZOE 2610b) — le tarif semaine du prestataire a été appliqué au total. */
+    weeklyApplied?: boolean;
   } | null;
 };
 

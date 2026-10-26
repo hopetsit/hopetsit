@@ -331,12 +331,15 @@ export function PostCandidates1610({
           // nul ou INFÉRIEUR au tarif unitaire n'est affiché ni comme total ni comme tarif.
           const rawRate = a.pricing?.appliedRate ?? null;
           const incoherent = !stale && !indicative && (total == null || !(total > 0) || (rawRate != null && rawRate > 0 && total + 0.001 < rawRate));
-          const unitRate = stale || incoherent ? null : (a.pricing?.appliedRate ?? a.pricing?.basePrice ?? null);
+          // 2610b (ZOE) — demande sans dates : le tarif unitaire FRAIS COMPRIS renvoyé par le serveur
+          // (`ownerUnitRate`), sinon l'ancien tarif (serveur d'avant).
+          const ownerUnit = a.pricing?.ownerUnitRate != null && a.pricing.ownerUnitRate > 0 ? a.pricing.ownerUnitRate : null;
+          const unitRate = stale || incoherent ? null : (ownerUnit ?? a.pricing?.appliedRate ?? a.pricing?.basePrice ?? null);
           const rateLabel = indicative && unitRate != null && unitRate > 0 ? `${moneyCompact(unitRate, currency, lang)}/${unitShort620(lang, unitOf(a))}` : "";
           const priceLabel = !stale && !indicative && !incoherent && total != null && total > 0 ? money(total, currency, lang) : "";
           // Pas de tarif unitaire sous le total : le serveur renvoie un total frais compris et un tarif
           // hors frais (FLO, 26/10) — on affiche ce que le serveur renvoie comme total, sans mélanger.
-          const unitLine = "";
+          const unitLine = priceLabel && a.pricing?.weeklyApplied === true ? c2610(lang, "weekly") : "";
           const accepted = a.status === "accepted";
           const bk = accepted ? linkedBooking(a) : null;
           const isFocus = !!focusId && focusId === id;
@@ -399,7 +402,7 @@ export function PostCandidates1610({
                     <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#8A6B64" }}>{c2610(lang, "total")}</span>
                     <span className="text-right">
                       <span className="block text-[18px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }} data-total-2610="">{priceLabel}</span>
-                      {unitLine && <span className="block text-[11px] font-semibold" style={{ color: "#8A6B64" }}>{unitLine}</span>}
+                      {unitLine && <span className="block text-[11px] font-bold" style={{ color: "#15803D" }} data-weekly-2610="">{unitLine}</span>}
                     </span>
                   </>
                 ) : rateLabel ? (
