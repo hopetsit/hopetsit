@@ -51,7 +51,7 @@ ok("multi-rôle : anneau découpé avec écart de 6°, camembert, pastilles 17 p
 ok("couronne 17 px haut-droite (-4/-4), point direct 10 px bas-droite pulsé 1,8 s", () => {
   const h = m.profilePinHtml2610({ roles: ["owner"], premium: true, live: true });
   assert.match(h, /right:-4px;top:-4px;width:17px;height:17px;border-radius:50%;background:#f6b400/);
-  assert.match(h, /right:0;bottom:0;width:10px;height:10px;border-radius:50%;background:#e8452f;.*animation:hps2610-pulse 1.8s/);
+  assert.match(h, /right:0;bottom:0px;width:10px;height:10px;border-radius:50%;background:#e8452f;.*animation:hps2610-pulse 1.8s/);
 });
 
 ok("bulle de prix : RIEN tant que le rond n'est pas sélectionné, même avec des prix", () => {
@@ -138,6 +138,27 @@ ok("passe : un rond sélectionné dont la pointe est HORS de la carte est masqu�
   const view = { l: 0, t: 0, r: 400, b: 800 };
   const sel = { id: "member:sel", layer: "member", rect: { l: -300, t: 300, r: -140, b: 380 }, anchor: { x: -220, y: 355 }, pinned: true };
   assert.ok(edge.resolveEdges622([sel], view, []).hidden.has("member:sel"));
+});
+
+ok("signes existants gardés (Daniel 26/10) : vérifié bas gauche 15, fusée bord gauche 15, halo PawBoost qui respire, PawFollow violet, point en ligne bas droite 10", () => {
+  const h = m.profilePinHtml2610({ roles: ["sitter"], verified: true, boosted: true, online: true, premium: true });
+  assert.match(h, /data-verified-2610="" style="position:absolute;z-index:2;left:-1px;bottom:-1px;width:15px;height:15px;border-radius:50%;background:#2F6FE0/);
+  assert.match(h, /data-rocket-2610="" style="position:absolute;z-index:2;left:-6px;top:17.5px;width:15px;height:15px;border-radius:50%;background:#06B6D4/);
+  assert.match(h, /data-boost-2610="".*animation:hps2610-boost/);
+  assert.match(h, /data-online-2610="" style="position:absolute;z-index:2;right:0;bottom:0px;width:10px;height:10px;border-radius:50%;background:#16A34A/);
+  // le direct passe devant le point en ligne (même place)
+  const d = m.profilePinHtml2610({ roles: ["sitter"], live: true, online: true });
+  assert.match(d, /data-live-2610/); assert.doesNotMatch(d, /data-online-2610/);
+  const f = m.profilePinHtml2610({ roles: ["walker"], pawFollow: true });
+  assert.match(f, /data-follow-2610="".*rgba\(124,58,237/);
+  // PawBoost passe devant PawFollow (un seul halo)
+  assert.doesNotMatch(m.profilePinHtml2610({ roles: ["walker"], pawFollow: true, boosted: true }), /data-follow-2610/);
+  // multi-rôle : la coche quitte le bas gauche (pastilles de rôles) pour le milieu du bord droit
+  assert.match(m.profilePinHtml2610({ roles: ["sitter", "walker"], verified: true }), /data-verified-2610="" style="position:absolute;z-index:2;right:-6px;top:14px/);
+  assert.match(m.profilePinHtml2610({ roles: ["sitter", "walker"], online: true }), /data-online-2610="" style="position:absolute;z-index:2;right:0;bottom:9px/);
+  // rien par défaut
+  const z = m.profilePinHtml2610({ roles: ["walker"] });
+  assert.doesNotMatch(z, /data-(verified|rocket|boost|follow|online)-2610/);
 });
 
 console.log(`\n${n}/${n} tests OK`);

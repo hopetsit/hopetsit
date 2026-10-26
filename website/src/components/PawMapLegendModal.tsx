@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { clusterHtml2610, profilePinHtml2610 } from "@/lib/pawmap2610";
+import { PAWMAP_2610_CSS, clusterHtml2610, priceBubbleHtml2610, profilePinHtml2610 } from "@/lib/pawmap2610";
 import {
   memberPinHtml,
   photoPinHtml,
@@ -222,9 +222,8 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     color: "#231715",
   };
   const duoRow: Row = {
-    node: (
-      <span className="inline-flex h-[22px] items-center gap-[2px] rounded-[8px] px-1 text-[8.5px] font-bold text-white" style={{ background: "linear-gradient(90deg,#4A86F0,#2458C9 45%,#43B862 55%,#1F7A37)", boxShadow: "0 0 0 2px #fff" }}>🏠20·🚶12</span>
-    ),
+    // 26/10 (2610) — la bulle de la carte : un segment plein par rôle (gardien puis promeneur).
+    html: `<span style="position:relative;display:inline-block;width:46px;height:30px;"><span style="position:absolute;left:50%;bottom:0;width:150px;height:36px;transform:translateX(-50%) scale(.5);transform-origin:50% 100%;">${priceBubbleHtml2610([{ role: "sitter", amount: "20 €", unit: "" }, { role: "walker", amount: "12 €", unit: "" }], 0)}</span></span>`,
     title: t("priv2709_duo_t"),
     body: t("priv2709_duo_b"),
     color: ROLE_COLOR.sitter,
@@ -239,12 +238,12 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     { html: profilePinHtml2610({ roles: ["sitter"] }), title: t("legend_member_sitter"), body: t("legend_member_sitter_body"), color: ROLE_COLOR.sitter },
     { html: profilePinHtml2610({ roles: ["walker"] }), title: t("legend_member_walker"), body: t("legend_member_walker_body"), color: ROLE_COLOR.walker },
     // 02/10 (609) — identité vérifiée : coche bleue en haut à gauche du rond.
-    { html: memberPinHtml({ role: "sitter", verified: true }), title: t("help609_verified_title"), body: t("help609_verified_body"), color: "#2563EB" },
+    { html: profilePinHtml2610({ roles: ["sitter"], verified: true }), title: t("help609_verified_title"), body: t("help609_verified_body"), color: "#2563EB" },
     roleColorsRow,
     duoRow,
     { html: profilePinHtml2610({ roles: ["sitter"], premium: true }), title: t("legend_premium"), body: t("legend_premium_body"), color: PREMIUM_GOLD },
-    { html: memberPinHtml({ role: "walker", boosted: true }), title: t("legend_boost"), body: t("legend_boost_body"), color: PAWBOOST_TURQUOISE },
-    { html: memberPinHtml({ role: "walker", pawFollow: true }), title: t("legend_follow"), body: t("legend_follow_body"), color: PAWFOLLOW_VIOLET },
+    { html: profilePinHtml2610({ roles: ["walker"], boosted: true }), title: t("legend_boost"), body: t("legend_boost_body"), color: PAWBOOST_TURQUOISE },
+    { html: profilePinHtml2610({ roles: ["walker"], pawFollow: true }), title: t("legend_follow"), body: t("legend_follow_body"), color: PAWFOLLOW_VIOLET },
     // 27/09 — un seul halo à la fois (PawBoost > PawFollow > ami) + couronne.
     { node: (
         <span className="flex items-center gap-[5px]">
@@ -255,7 +254,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
       ), title: t("priv2709_halo_t"), body: t("priv2709_halo_b"), color: "#17141F" },
     { html: clusterHtml2610({ counts: { sitter: 2, walker: 1, owner: 1 }, total: 4 }), title: t("legend_member_group"), body: t("legend_member_group_body"), color: ROLE_COLOR.sitter },
     { html: memberClusterHtml(3, "walker", true), title: t("legend_member_group_friend"), body: t("legend_member_group_friend_body"), color: FRIEND_PINK },
-    { html: requestBubbleHtml({ service: "sitting", priceLabel: "25 €" }), title: t("legend_request"), body: t("legend_request_body"), color: ROLE_COLOR.owner },
+    { html: requestBubbleHtml({ service: "sitting", priceLabel: null }), title: t("legend_request"), body: t("legend_request_body"), color: ROLE_COLOR.owner },
     { html: placePinHtml("vet"), title: t("legend_place"), body: t("legend_place_body") },
     { html: placeClusterHtml(6, "park"), title: t("legend_place_group"), body: t("legend_place_group_body") },
     { html: spotPinHtml("path_walk", false), title: t("legend_spot"), body: t("legend_spot_body") },
@@ -461,7 +460,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
       aria-labelledby="pawmap-legend-title"
       onClick={onClose}
     >
-      <style dangerouslySetInnerHTML={{ __html: `${PAWMAP_KEYFRAMES}@keyframes hps-dot-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}50%{box-shadow:0 0 0 5px rgba(255,255,255,0)}}.hps-dot-pulse{animation:hps-dot-pulse 1.4s ease-out infinite}` }} />
+      <style dangerouslySetInnerHTML={{ __html: `${PAWMAP_KEYFRAMES}${PAWMAP_2610_CSS}@keyframes hps-dot-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}50%{box-shadow:0 0 0 5px rgba(255,255,255,0)}}.hps-dot-pulse{animation:hps-dot-pulse 1.4s ease-out infinite}` }} />
       <div
         ref={scrollRef}
         onScroll={onScroll}

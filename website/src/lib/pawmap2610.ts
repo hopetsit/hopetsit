@@ -19,6 +19,11 @@ export const ROLE_2610: Record<Role2610, { color: string; glow: string }> = {
 export const GOLD_2610 = "#f6b400";
 export const GOLD_ICON_2610 = "#7a4500";
 export const LIVE_2610 = "#e8452f";
+/** Signes existants gardés (Daniel, 26/10) — couleurs de la légende du site / de l'app 623. */
+export const BOOST_2610 = "#06B6D4";
+export const VERIFIED_2610 = "#2F6FE0";
+export const ONLINE_2610 = "#16A34A";
+export const OFFLINE_2610 = "#C2410C";
 
 export function role2610(r: string | null | undefined): Role2610 {
   const k = (r || "").toLowerCase();
@@ -32,6 +37,7 @@ const ICON: Record<Role2610, string> = {
   sitter: '<path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z"/>',
   walker: '<path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/>',
 };
+const ROCKET = '<path d="M14.5 2.5c3.3 0 6.4 1.6 7 4-3.2 6.4-6.7 9.6-9.7 11.2l-3.5-3.5C10 11.2 11.3 6 14.5 2.5zM8 14.7 4.4 13c1-2.2 2.4-3.9 4.1-5.1zM9.3 16 11 19.6c2.2-1 3.9-2.4 5.1-4.1zM4 20c1.1-2.6 2.2-3.5 3.6-3.6.2 1.4-.9 2.5-3.6 3.6zM15 7a1.6 1.6 0 1 0 0 3.2A1.6 1.6 0 0 0 15 7z"/>';
 /** Couronne (Font Awesome « crown », viewBox 576×512). */
 const CROWN = '<path d="M309 106c11.4-7 19-19.7 19-34c0-22.1-17.9-40-40-40s-40 17.9-40 40c0 14.4 7.6 27 19 34L209.7 220.6c-9.1 18.2-32.7 23.4-48.6 10.7L72 160c5-6.7 8-15 8-24c0-22.1-17.9-40-40-40S0 113.9 0 136s17.9 40 40 40c.2 0 .5 0 .7 0L86.4 427.4c5.5 30.4 32 52.6 63 52.6H426.6c30.9 0 57.4-22.1 63-52.6L535.3 176c.2 0 .5 0 .7 0c22.1 0 40-17.9 40-40s-17.9-40-40-40s-40 17.9-40 40c0 9 3 17.3 8 24l-89.1 71.3c-15.9 12.7-39.5 7.5-48.6-10.7L309 106z"/>';
 
@@ -63,6 +69,14 @@ export type ProfilePin2610 = {
   roles: (string | null | undefined)[];
   premium?: boolean;
   live?: boolean;
+  /** 26/10 (Daniel : « pawboost pawspot etc faut laisser ») — signes existants, redessinés discrets. */
+  boosted?: boolean;
+  pawFollow?: boolean;
+  verified?: boolean;
+  /** true = en ligne (point vert), false = hors ligne (point orange), null = rien. Le direct passe devant. */
+  online?: boolean | null;
+  /** Pins du classement (HTML déjà prêt, coin haut gauche). */
+  pinsHtml?: string;
   selected?: boolean;
   /** Prix à montrer (rond SÉLECTIONNÉ seulement, règle visiblePrices appliquée par l'appelant). */
   prices?: Price2610[];
@@ -109,9 +123,28 @@ export function profilePinHtml2610(o: ProfilePin2610): string {
   const crown = o.premium
     ? `<span style="position:absolute;z-index:2;right:-4px;top:-4px;width:17px;height:17px;border-radius:50%;background:${GOLD_2610};box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 576 512" width="9" height="8" fill="${GOLD_ICON_2610}" aria-hidden="true" style="display:block;">${CROWN}</svg></span>`
     : "";
+  // Multi-rôle : les pastilles occupent le bas → le point remonte de 9 px (jamais sur une pastille).
   const live = o.live
-    ? `<span data-live-2610="" style="position:absolute;z-index:2;right:0;bottom:0;width:10px;height:10px;border-radius:50%;background:${LIVE_2610};box-shadow:0 0 0 1.5px #fff;animation:hps2610-pulse 1.8s ease-out infinite;"></span>`
+    ? `<span data-live-2610="" style="position:absolute;z-index:2;right:0;bottom:${n > 1 ? 9 : 0}px;width:10px;height:10px;border-radius:50%;background:${LIVE_2610};box-shadow:0 0 0 1.5px #fff;animation:hps2610-pulse 1.8s ease-out infinite;"></span>`
+    : o.online === true || o.online === false
+      // Point « en ligne » : même place et même taille que le point direct, sans pulsation.
+      ? `<span data-online-2610="" style="position:absolute;z-index:2;right:0;bottom:${n > 1 ? 9 : 0}px;width:10px;height:10px;border-radius:50%;background:${o.online ? ONLINE_2610 : OFFLINE_2610};box-shadow:0 0 0 1.5px #fff;"></span>`
+      : "";
+  // Coche « identité vérifiée » 15 px en bas à GAUCHE (même place que l'app 623 de PAM).
+  const verified = o.verified
+    // Multi-rôle : le bas gauche est pris par les pastilles de rôles → milieu du bord DROIT.
+    ? `<span data-verified-2610="" style="position:absolute;z-index:2;${n > 1 ? "right:-6px;top:14px" : "left:-1px;bottom:-1px"};width:15px;height:15px;border-radius:50%;background:${VERIFIED_2610};box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block;"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>`
     : "";
+  // Fusée PawBoost 15 px au milieu du bord gauche (le bas gauche est à la coche).
+  const rocket = o.boosted
+    ? `<span data-rocket-2610="" style="position:absolute;z-index:2;left:-6px;top:17.5px;width:15px;height:15px;border-radius:50%;background:${BOOST_2610};box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="9" height="9" fill="#fff" aria-hidden="true" style="display:block;">${ROCKET}</svg></span>`
+    : "";
+  // Halo discret sous le rond : PawBoost turquoise qui respire, sinon PawFollow violet fixe.
+  const halo = o.boosted
+    ? `<span data-boost-2610="" style="position:absolute;inset:0;border-radius:50%;animation:hps2610-boost 1.6s ease-in-out infinite;box-shadow:0 0 0 1.5px rgba(6,182,212,.75),0 0 8px 3px rgba(6,182,212,.4);"></span>`
+    : o.pawFollow
+      ? `<span data-follow-2610="" style="position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 1.5px rgba(124,58,237,.7),0 0 8px 3px rgba(124,58,237,.35);"></span>`
+      : "";
   const chips = n > 1
     ? `<span data-chips-2610="" style="position:absolute;left:50%;top:42px;transform:translateX(-50%);display:flex;gap:4px;">${roles
         .map((r) => `<span style="width:17px;height:17px;border-radius:50%;background:${ROLE_2610[r].color};box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(0,0,0,.12),0 2px 3px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;">${icon(r, 10.5, "#fff")}</span>`)
@@ -124,10 +157,11 @@ export function profilePinHtml2610(o: ProfilePin2610): string {
   const bubble = o.selected && o.prices && o.prices.length ? priceBubbleHtml2610(o.prices, S + 5) : "";
   const anim = o.selected ? "transform:scale(1.18);animation:hps2610-pop .35s cubic-bezier(.3,1.6,.5,1);" : "";
   return `<div data-pin-2610="" ${o.selected ? 'data-selected-2610=""' : ""} style="position:relative;width:${S}px;height:${S}px;transform-origin:50% 50%;${anim}">`
+    + halo
     + `<div style="position:absolute;inset:0;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.16),0 2px 3px rgba(0,0,0,.25),0 4px 10px -2px ${main.glow};">`
     + `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" aria-hidden="true" style="position:absolute;inset:0;z-index:0;display:block;">${svg}</svg>`
     + `<span style="position:absolute;z-index:1;left:${C - 10}px;top:${C - 10}px;width:20px;height:20px;">${glyph}</span>`
-    + `${crown}${live}</div>${chips}${caption}${bubble}</div>`;
+    + `${crown}${live}${verified}${rocket}${o.pinsHtml || ""}</div>${chips}${caption}${bubble}</div>`;
 }
 
 /**
@@ -237,11 +271,12 @@ export const SPIDER_MAX_2610 = 21;
 
 /** Images clés (rebond de la sélection, point « en direct » pulsé) — mêmes courbes que la maquette. */
 export const PAWMAP_2610_CSS = `
+@keyframes hps2610-boost { 0%,100% { box-shadow:0 0 0 1.5px rgba(6,182,212,.75),0 0 6px 2px rgba(6,182,212,.35); } 50% { box-shadow:0 0 0 2px rgba(6,182,212,.85),0 0 10px 4px rgba(6,182,212,.5); } }
 @keyframes hps2610-pop { 0% { transform:scale(1); } 100% { transform:scale(1.18); } }
 @keyframes hps2610-pulse { 0% { box-shadow:0 0 0 1.5px #fff,0 0 0 0 rgba(232,69,47,.55); } 70% { box-shadow:0 0 0 1.5px #fff,0 0 0 7px rgba(232,69,47,0); } 100% { box-shadow:0 0 0 1.5px #fff,0 0 0 0 rgba(232,69,47,0); } }
 .hps2610-dim { opacity:.85; }
 .hps2610-btn { transition: transform .15s; }
 .hps2610-btn:hover > span { transform: translateY(-1px); }
 .hps2610-btn:active > span { transform: scale(.94); }
-@media (prefers-reduced-motion: reduce) { [data-pin-2610] { animation:none !important; } [data-live-2610] { animation:none !important; } }
+@media (prefers-reduced-motion: reduce) { [data-pin-2610] { animation:none !important; } [data-live-2610] { animation:none !important; } [data-boost-2610] { animation:none !important; } }
 `;

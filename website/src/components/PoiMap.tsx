@@ -112,7 +112,7 @@ import {
 } from "@/lib/memberPersons";
 import { RankPill611 } from "@/components/Rank611";
 import { parseRank611, type Rank611 } from "@/lib/ranks611";
-import { parsePins1910, type Pins1910 } from "@/lib/pins1910";
+import { parsePins1910, pinsOnAvatarHtml, type Pins1910 } from "@/lib/pins1910";
 import { PinChips1910 } from "@/components/Pins1910";
 import { clusterFromPrice622, normalizeMemberPrices622, type MapRequestPricing622 } from "@/lib/mapPrice622";
 import { RequestFromLine622, useFromText622, useRequestFromLabels622 } from "@/components/RequestFrom622";
@@ -203,6 +203,12 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
       roles: roles.map((r) => r.role),
       premium: !!(m.isPremiumOnly ?? m.isPremium),
       live: !!o.live,
+      // 26/10 (Daniel) — signes existants gardés, redessinés discrets sur l'Anneau.
+      boosted: !!m.isBoosted,
+      pawFollow: !!m.hasPawFollow,
+      verified: !!m.identityVerified,
+      online: m.approx ? null : m.isOnline !== false,
+      pinsHtml: pinsOnAvatarHtml(parsePins1910(m.pins), 50),
       selected: !!o.selected,
       prices: o.prices,
       caption,

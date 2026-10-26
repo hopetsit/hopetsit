@@ -59,7 +59,7 @@ function memberIcon(p: PublicProvider, caption: string | null, o: { selected?: b
   const oy = Math.round(o.off?.y ?? 0);
   return L.divIcon({
     className: `hps-l-member${o.dim ? " hps2610-dim" : ""}`,
-    html: profilePinHtml2610({ roles: [p.role], selected: !!o.selected, prices: o.prices, caption, dark: !!o.dark }),
+    html: profilePinHtml2610({ roles: [p.role], selected: !!o.selected, prices: o.prices, caption, dark: !!o.dark, boosted: p.boosted, verified: p.identityVerified === true }),
     iconSize: [50, 50],
     iconAnchor: [25 - ox, 25 - oy],
     popupAnchor: [ox, oy - 28],
