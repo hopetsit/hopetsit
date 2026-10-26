@@ -414,7 +414,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
           ) : null,
         )}
         {spider && spiderItems.length > 0 && (
-          <ClusterMarker key={`spider-${spider.key}`} center={spider.center} items={spiderItems} onList={() => resetAll()} onSpider={() => resetAll()} dark={dark} price={clusterPrice(spiderItems)} open />
+          <ClusterMarker key={`spider-${spider.key}`} center={spider.center} items={spiderItems} onList={() => resetAll()} onSpider={() => resetAll()} dark={dark} price={sel ? null : clusterPrice(spiderItems)} open />
         )}
         {[...clusters.filter((g) => g.items.length === 1).map((g) => g.items[0]), ...spiderItems].map((p) => {
           const si = spider ? spiderItems.indexOf(p) : -1;

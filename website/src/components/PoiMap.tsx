@@ -116,7 +116,7 @@ import { parsePins1910, type Pins1910 } from "@/lib/pins1910";
 import { PinChips1910 } from "@/components/Pins1910";
 import { clusterFromPrice622, normalizeMemberPrices622, type MapRequestPricing622 } from "@/lib/mapPrice622";
 import { RequestFromLine622, useFromText622, useRequestFromLabels622 } from "@/components/RequestFrom622";
-import { PAWMAP_2610_CSS, SPIDER_MAX_2610, clusterHtml2610, profilePinHtml2610, role2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
+import { PAWMAP_2610_CSS, SPIDER_MAX_2610, clusterHtml2610, priceBubbleHtml2610, profilePinHtml2610, role2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
 
 export { clusterize } from "@/lib/mapCluster";
 
@@ -160,6 +160,8 @@ export type MapRequest = {
   locationLabel?: string;
   /** 590 — photo du propriétaire (carte focus). */
   ownerAvatar?: string;
+  /** 26/10 (2610) — profil propriétaire de la demande : son rond montre ce budget au toucher. */
+  ownerId?: string;
   /** 622 — de quoi demander « à partir de » (POST /pricing/estimate/public) : service, devise, dates. */
   pricing?: MapRequestPricing622 | null;
 };
@@ -233,14 +235,16 @@ function meIcon(o: { role: string; name: string; avatar?: string | null; premium
 }
 /** 622 — zoom à partir duquel les prix se montrent (pays). */
 const PRICE_ZOOM_COUNTRY_622 = 6;
-function requestIcon(r: MapRequest, mineLabel: string, _fromLabel?: string | null): L.DivIcon {
-  void _fromLabel;
+function requestIcon(r: MapRequest, mineLabel: string, fromLabel?: string | null, selected = false): L.DivIcon {
+  // 622 — budget du propriétaire ; sans budget, « dès 10 €/jour » (estimation publique, jamais inventée).
+  // 26/10 (2610, maquette de l'app : « par défaut, aucun prix sur la carte ») — le budget n'est plus écrit
+  // sur la bulle de demande ; demande TOUCHÉE (gardien / promeneur) : bulle de prix 2610 au-dessus,
+  // segment propriétaire (budget saisi, sinon « dès X »).
+  const budget = !r.mine ? r.priceLabel || fromLabel || null : null;
+  const top = selected && budget ? `<span data-selected-2610="" style="position:absolute;left:0;right:0;bottom:0;height:34px;">${priceBubbleHtml2610([{ role: "owner", ...splitPrice2610(budget) }], 39)}</span>` : "";
   return L.divIcon({
     className: "hps-l-request",
-    // 622 — budget du propriétaire ; sans budget, « dès 10 €/jour » (estimation publique, jamais inventée).
-    // 26/10 (2610, maquette de l'app : « par défaut, aucun prix sur la carte ») — le budget / « dès X »
-    // ne s'affiche plus sur la bulle de demande ; il reste dans sa carte focus et sa fiche (au clic).
-    html: requestBubbleHtml({ service: r.service, priceLabel: null, boosted: r.boosted, mine: r.mine, mineLabel }),
+    html: `<div style="position:relative;">${requestBubbleHtml({ service: r.service, priceLabel: null, boosted: r.boosted, mine: r.mine, mineLabel })}${top}</div>`,
     // 590 — bulle 26 + pointe 7 : la pointe touche la position (floutée).
     iconSize: [96, 34],
     iconAnchor: [48, 34],
@@ -891,14 +895,51 @@ export default function PoiMap({
     for (const r of roles) {
       const k = role2610(r.role);
       if (!allowed.includes(k) || out.some((x) => x.role === k)) continue;
+      if (k === "owner") {
+        // Gardien / promeneur → budget de la demande de ce propriétaire (déjà chargée par la page).
+        const ids = new Set([...personIdsOf(m), r.id].map(String));
+        const b = ownerBudget2610(ids);
+        if (b) out.push({ role: "owner", ...splitPrice2610(b) });
+        continue;
+      }
       const label = formatPriceUnit(r.priceFrom ?? (roles.length === 1 ? m.priceFrom : null), r.currency ?? m.currency, (r.priceAlt as PriceAlt | null) ?? (roles.length === 1 ? m.priceAlt : null) ?? null, priceUnits, r.priceUnit ?? (roles.length === 1 ? m.priceUnit : null));
       if (label) out.push({ role: k, ...splitPrice2610(label) });
     }
     return out;
   };
+  /** 2610 — budget le plus bas parmi les demandes ouvertes d'un propriétaire (saisi, sinon « dès X »). */
+  const ownerBudget2610 = (ids: Set<string>): string | null => {
+    let best: { n: number; label: string } | null = null;
+    for (const rq of requests) {
+      if (rq.mine || !rq.ownerId || !ids.has(String(rq.ownerId))) continue;
+      const label = rq.priceLabel || reqFromOf(rq);
+      if (!label) continue;
+      const n = parseFloat(label.replace(/[^0-9.,]/g, "").replace(",", ".")) || Infinity;
+      if (!best || n < best.n) best = { n, label };
+    }
+    return best ? best.label : null;
+  };
   /** 622 — « dès X » d'un rond de groupe (plus petit tarif réel, gardiens d'abord) ; null sans prix montrable. */
   const clusterPrice = (items: NearbyMember[]): { from: string; amount: string; role: Role2610 } | null => {
     // 2610 — « dès X » d'un groupe : calculé seulement pour le groupe TOUCHÉ (ouvert).
+    // Gardien / promeneur (visiblePrices) : le plus petit budget des demandes de ses propriétaires.
+    if (visibleRoles2610(userRole).includes("owner")) {
+      let best: { n: number; label: string } | null = null;
+      for (const m of items) {
+        const b = ownerBudget2610(new Set(personIdsOf(m).map(String)));
+        if (!b) continue;
+        const n = parseFloat(b.replace(/[^0-9.,]/g, "").replace(",", ".")) || Infinity;
+        if (!best || n < best.n) best = { n, label: b };
+      }
+      if (!best) return null;
+      // Budget estimé : il porte déjà « dès » (ou « ～ » en japonais) — jamais « dès dès ».
+      const pre = fromText622("").replace("～", "").trim();
+      if (pre && best.label.startsWith(pre)) return { from: pre, amount: best.label.slice(pre.length).trim(), role: "owner" };
+      if (best.label.endsWith("～")) return { from: "", amount: best.label, role: "owner" };
+      const full = fromText622(best.label);
+      const i = full.lastIndexOf(best.label);
+      return { from: i > 0 ? full.slice(0, i).trim() : "", amount: i > 0 ? best.label : full, role: "owner" };
+    }
     const cp = clusterFromPrice622(items, (m) => rolesOf(m), (r) => priceFor(String(r.role || ""), r.priceFrom, r.currency, (r.priceAlt as PriceAlt | null) ?? null, r.priceUnit));
     if (!cp) return null;
     const full = fromText622(cp.label);
@@ -1148,7 +1189,7 @@ export default function PoiMap({
   const resetAll2610 = () => {
     const sp = spiderRef.current;
     if (!focusKeyRef.current && !sp) return;
-    if (!sp && !focusKeyRef.current?.startsWith("p:")) { clearFocus(); return; }
+    if (!sp && !focusKeyRef.current?.startsWith("p:") && !focusKeyRef.current?.startsWith("req:")) { clearFocus(); return; }
     if (sp) setSpider(null);
     closeFocus();
   };
@@ -1166,7 +1207,8 @@ export default function PoiMap({
   };
   const tapFocus = (f: Focus) => {
     if (!focusLabels || !mapObj) { f.open(); return; }
-    const profile2610 = f.key.startsWith("p:");
+    // 2610 — profil OU demande : même comportement (re-clic = bulle masquée, caméra remise).
+    const profile2610 = f.key.startsWith("p:") || f.key.startsWith("req:");
     if (focusKeyRef.current === f.key) {
       if (profile2610) {
         if (spiderRef.current) { setFocus(null); return; }
@@ -1412,11 +1454,13 @@ export default function PoiMap({
           <Marker
             key={`req-${r.id}`}
             position={[r.lat, r.lng]}
-            icon={requestIcon(r, requestMineLabel, reqFromOf(r))}
+            icon={requestIcon(r, requestMineLabel, reqFromOf(r), focus?.key === `req:${r.id}`)}
             zIndexOffset={PIN_Z.request + (r.mine ? 200 : 0)}
             eventHandlers={{
-              click: () => {
+              click: (e) => {
                 if (r.mine || !focusLabels) { clearFocus(); setOpenReq(r); return; }
+                // 2610 — demande touchée : clic SUR sa bulle de budget = sa fiche.
+                if (focus?.key === `req:${r.id}` && (e.originalEvent?.target as Element | null)?.closest?.("[data-price-bubble-2610]")) { setFocus(null); prevViewRef.current = null; setOpenReq(r); return; }
                 tapFocus({
                   key: `req:${r.id}`,
                   lat: r.lat,
@@ -1461,7 +1505,7 @@ export default function PoiMap({
         {/* 26/10 (2610) — groupe TOUCHÉ : il reste au centre avec son « dès X », ses profils autour
             (6 sur 72 px, le reste sur 132 px), aucun trait ; re-clic = refermé, caméra remise. */}
         {spider && spiderMembers.length > 0 && (
-          <MemberCluster key={`spider-${spider.key}`} center={spider.center} items={spiderMembers} onList={() => resetAll2610()} onSpider={() => resetAll2610()} open dark={dark} price={clusterPrice(spiderMembers)} />
+          <MemberCluster key={`spider-${spider.key}`} center={spider.center} items={spiderMembers} onList={() => resetAll2610()} onSpider={() => resetAll2610()} open dark={dark} price={focus?.key.startsWith("p:") && spider.ids.includes(focus.key.slice(2)) ? null : clusterPrice(spiderMembers)} />
         )}
         {[...memberClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]), ...friendMembers, ...(spider ? spiderMembers : [])].map((m) => {
           const spiderIdx = spider ? spiderMembers.indexOf(m) : -1;

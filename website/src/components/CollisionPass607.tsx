@@ -77,8 +77,9 @@ function clampBubbles2610(icons: HTMLElement[], view: Rect607): void {
     if (q.right - q.left > hi - lo) dx = (lo + hi) / 2 - (q.left + q.right) / 2;
     else if (q.left < lo) dx = lo - q.left;
     else if (q.right > hi) dx = hi - q.right;
-    // Le rond sélectionné est agrandi à 1,18 : le décalage se donne en px non agrandis.
-    if (dx) pill.style.translate = `${Math.round((dx / 1.18) * 10) / 10}px 0`;
+    // Le rond sélectionné est agrandi (1,18) : le décalage se donne en px non agrandis (échelle mesurée).
+    const k = pill.offsetWidth > 0 ? (q.right - q.left) / pill.offsetWidth : 1;
+    if (dx) pill.style.translate = `${Math.round((dx / (k || 1)) * 10) / 10}px 0`;
   }
 }
 
@@ -165,12 +166,17 @@ export function CollisionPass607() {
       });
     };
     map.on("move", onMove);
+    // 2610 — le rond sélectionné grandit (1 → 1,18 en 0,35 s) : nouvelle passe à la fin du rebond,
+    // sinon les voisins sont placés contre un rond encore petit.
+    const onAnim = (e: AnimationEvent) => { if (e.animationName === "hps2610-pop") schedule(); };
+    pane.addEventListener("animationend", onAnim);
     window.addEventListener("resize", schedule);
     schedule();
     return () => {
       mo.disconnect(); mo2.disconnect();
       map.off("zoomend moveend resize", schedule);
       map.off("move", onMove);
+      pane.removeEventListener("animationend", onAnim);
       if (rafMove) cancelAnimationFrame(rafMove);
       window.removeEventListener("resize", schedule);
       if (raf) cancelAnimationFrame(raf);

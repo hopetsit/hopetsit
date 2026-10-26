@@ -906,6 +906,8 @@ export default function MapPage() {
             // 590 — carte focus : « Léo · Demande » + sa photo.
             ownerName: p.owner?.name || "",
             ownerAvatar: p.owner?.avatar || "",
+            // 26/10 (2610, règle visiblePrices) — le rond du propriétaire porte le budget de sa demande.
+            ownerId: String(p.owner?.id || (typeof p.ownerId === "string" ? p.ownerId : p.ownerId?._id || p.ownerId?.id) || ""),
             // 622 (25/10) — « à partir de » quand il n'y a pas de budget : service, devise, dates de la
             // demande, position FLOUTÉE (jamais l'adresse). Lu par PoiMap → POST /pricing/estimate/public.
             pricing: {
