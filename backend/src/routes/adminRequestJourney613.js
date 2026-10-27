@@ -316,6 +316,8 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
             // 620 (ZOE, relevé ADA) — tarif, total (null = indicatif, en attente des dates) et statut.
             const pricing = x.pricing || {};
             return {
+              // 2810 (BOB) — id de la candidature : lien direct « Choisir et payer » (SMS aux contacts pub).
+              applicationId: String(x._id),
               name: pr.name, role, kind: pr.kind, km: kmTo(p, pr),
               // 620b (ZOE, 24/10) — `stale` : la demande a changé de service et le prestataire n'a pas de
               // tarif pour le nouveau → « tarif à venir » (pas de tarif à afficher, total null).
