@@ -34,6 +34,32 @@ const DATES_REQUIRED_MSG = {
 };
 const datesRequiredMessage = (locale) => DATES_REQUIRED_MSG[String(locale || '').slice(0, 2)] || DATES_REQUIRED_MSG.en;
 
+/**
+ * 2810 (ZOE, ordre de BOB — Lili, Marine, Svitlana) — candidature « tarif à venir » : le
+ * prestataire n'a PAS de tarif pour le service de la demande (ex. aucun tarif par visite sur
+ * une demande de visites). Avant : 400 en anglais technique (« missing valid pricing »).
+ * Désormais 409 `RATE_PENDING` avec une phrase claire dans la langue du propriétaire.
+ * Le choix se débloque tout seul dès que le prestataire ajoute son tarif (620c).
+ */
+const RATE_PENDING_MSG = {
+  fr: '{name} n’a pas encore de tarif {unit} : son prix sera calculé dès qu’il l’aura ajouté, puis tu pourras le choisir.',
+  en: '{name} has not set a price {unit} yet: their total will be calculated as soon as they add it, then you can choose them.',
+  es: '{name} aún no tiene tarifa {unit}: su precio se calculará en cuanto la añada y luego podrás elegirle.',
+  de: '{name} hat noch keinen Preis {unit}: der Gesamtpreis wird berechnet, sobald er hinzugefügt ist, dann kannst du wählen.',
+  it: '{name} non ha ancora una tariffa {unit}: il prezzo sarà calcolato appena la aggiunge, poi potrai sceglierlo.',
+  pt: '{name} ainda não tem tarifa {unit}: o preço será calculado assim que a adicionar e depois podes escolher.',
+  ko: '{name}님은 아직 {unit} 요금이 없습니다. 요금을 추가하면 가격이 계산되고 선택할 수 있습니다.',
+  ja: '{name}さんはまだ{unit}の料金を設定していません。料金が追加されると価格が計算され、選べるようになります。',
+  pl: '{name} nie ma jeszcze stawki {unit}: cena zostanie obliczona, gdy ją doda, wtedy będziesz mógł wybrać.',
+};
+const ratePendingMessage = (locale, name, unit) => {
+  const l = String(locale || '').slice(0, 2);
+  const tpl = RATE_PENDING_MSG[l] || RATE_PENDING_MSG.en;
+  const label = (UNIT_LABEL[unit] || UNIT_LABEL.day)[RATE_PENDING_MSG[l] ? l : 'en'];
+  const who = String(name || '').trim().split(/\s+/)[0] || (l === 'fr' ? 'Ce candidat' : 'This candidate');
+  return tpl.replace('{name}', who).replace('{unit}', label);
+};
+
 /** Tier enregistré selon l'unité facturée. */
 const tierForUnit = (unit) => (unit === 'visit' ? 'visit' : unit === 'walk' ? 'walk' : 'daily');
 
@@ -559,6 +585,7 @@ module.exports = {
   isIncoherentTotal,
   repriceAfterServiceChange,
   datesRequiredMessage,
+  ratePendingMessage,
   priceApplication,
   indicativePricing,
   repriceApplicationsForPost,

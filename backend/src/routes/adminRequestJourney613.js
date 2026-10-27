@@ -79,6 +79,27 @@ const cityOf = (d) => (d && ((d.location && d.location.city) || d.city || d.cove
 const DIST = require('../utils/applicationDistance1610');
 const CUR = require('../utils/applicationCurrency1610');
 /** Tarif affiché du prestataire : { amount, unit: 'day'|'hour'|'week'|'month'|'walk', minutes? }. */
+/**
+ * 2810 (ZOE) — tarif AFFICHÉ d'une candidature : celui que la candidature applique (tarif et unité
+ * stockés : 30 €/visite), pas le tarif jour du profil (Agnès apparaissait « 60 €/jour » sur une demande
+ * de visites facturée 15 × 30 €). « Tarif à venir » → null ; ancienne candidature sans unité → profil.
+ */
+function appliedRateOf(pricing, pr) {
+  const p = pricing || {};
+  if (p.stale === true) return null;
+  if (Number(p.appliedRate) > 0 && p.unit) return { amount: Number(p.appliedRate), unit: p.unit };
+  return (pr && pr.rate) || null;
+}
+/** 2810 (ZOE) — ordre de who[] : en attente avec prix d'abord, puis le reste, chacun par date. */
+function whoOrder(list) {
+  const rank = (x) => {
+    const p = x.pricing || {};
+    if (x.status === 'pending' && p.stale !== true && p.indicative !== true && Number(p.totalPrice) > 0) return 0;
+    if (x.status === 'pending') return 1;
+    return 2;
+  };
+  return list.map((x, i) => ({ x, i })).sort((u, v) => (rank(u.x) - rank(v.x)) || (u.i - v.i)).map((o) => o.x);
+}
 function rateOf(d) {
   if (!d) return null;
   if (d.dailyRate > 0) return { amount: d.dailyRate, unit: 'day' };
@@ -284,7 +305,12 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
           pending: a.filter((x) => x.status === 'pending').length,
           accepted: accepted.length,
           rejected: rejected.length,
-          who: a.slice(0, 5).map((x) => {
+          // 2810 (ZOE, ordre de BOB) — candidatures en attente AVEC un prix total (choisissables) /
+          // « tarif à venir ». Avant, who[] = 5 premières par date : sur la demande de Marine, la
+          // 6e candidate (Agnès, 540 €, la seule avec un prix) était invisible → « aucun prix ».
+          pricedPending: a.filter((x) => x.status === 'pending' && x.pricing && x.pricing.stale !== true && x.pricing.indicative !== true && Number(x.pricing.totalPrice) > 0).length,
+          ratePending: a.filter((x) => x.status === 'pending' && x.pricing && x.pricing.stale === true).length,
+          who: whoOrder(a).slice(0, 5).map((x) => {
             const role = x.walkerId ? 'walker' : 'sitter';
             const pr = person(role, x.walkerId || x.sitterId);
             // 620 (ZOE, relevé ADA) — tarif, total (null = indicatif, en attente des dates) et statut.
@@ -293,8 +319,7 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
               name: pr.name, role, kind: pr.kind, km: kmTo(p, pr),
               // 620b (ZOE, 24/10) — `stale` : la demande a changé de service et le prestataire n'a pas de
               // tarif pour le nouveau → « tarif à venir » (pas de tarif à afficher, total null).
-              rate: pricing.stale === true ? null : (pricing.indicative === true && Number(pricing.appliedRate) > 0
-                ? { amount: Number(pricing.appliedRate), unit: pricing.unit || '' } : (pr.rate || null)),
+              rate: appliedRateOf(pricing, pr),
               total: typeof pricing.totalPrice === 'number' ? pricing.totalPrice : null,
               currency: pricing.currency || pr.currency || 'EUR',
               indicative: pricing.indicative === true,
@@ -334,8 +359,7 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
           status: x.status, at: x.createdAt, updatedAt: x.updatedAt,
           currency: pr.currency || null, currencyStored: pr.currencyStored || null, currencyInferred: !!pr.currencyInferred, ownerCurrency, currencyMismatch: !!pr.currency && pr.currency !== ownerCurrency,
           // 2410 (ZOE, relevé ADA) — même lecture que who[] : tarif indicatif appliqué, « tarif à venir » (stale → rate null).
-          rate: pricing.stale === true ? null : (pricing.indicative === true && Number(pricing.appliedRate) > 0
-            ? { amount: Number(pricing.appliedRate), unit: pricing.unit || '' } : (pr.rate || null)),
+          rate: appliedRateOf(pricing, pr),
           total: typeof pricing.totalPrice === 'number' ? pricing.totalPrice : null, totalCurrency: pricing.currency || ownerCurrency,
           indicative: pricing.indicative === true, stale: pricing.stale === true,
         };

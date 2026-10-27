@@ -940,6 +940,22 @@ const respondToApplication = async (req, res) => {
           logger.warn(`[respondToApplication] contrôle prix 2610 : ${e?.message || e}`);
         }
       }
+      // 2810 (ZOE, ordre de BOB — demandes de visites de Lili, Marine, Svitlana) — après le filet,
+      // une candidature encore « tarif à venir » (le prestataire n'a toujours pas de tarif pour ce
+      // service, ex. aucun tarif par visite) ne peut pas devenir une réservation : 409 clair dans la
+      // langue du propriétaire au lieu de l'ancien 400 technique en anglais. Rien n'est écrit.
+      if (!application.bookingId && application.pricing && application.pricing.stale === true) {
+        const rp = require('../services/applicationRepricing620');
+        const loc = require('../utils/applicationCurrency1610').localeOf(application.ownerId);
+        const unit = application.pricing.unit || 'day';
+        logger.info(`[respondToApplication] acceptation refusée : tarif à venir (candidature ${id})`);
+        return res.status(409).json({
+          error: rp.ratePendingMessage(loc, providerDoc && (providerDoc.firstName || providerDoc.name), unit),
+          code: 'RATE_PENDING',
+          unit,
+          postId: application.postId ? String(application.postId) : null,
+        });
+      }
       application.status = 'accepted';
 
       // Move accepted application into booking flow so owner can pay.
