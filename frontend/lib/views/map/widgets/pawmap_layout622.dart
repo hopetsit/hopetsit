@@ -55,6 +55,13 @@ PawPlacement622<T> pawPlace622<T>(
   /// SUR sa position (glissement ≤ [kPawAnchorMaxShift625]) ; sans place, il
   /// replie sa bulle puis est masqué. Null : comportement 622 (tout glisse).
   bool Function(List<T> g)? anchored,
+  /// 626 — vrai : un groupe ancré (rond de personne, groupe de membres) n'est
+  /// JAMAIS masqué ni fondu par la passe : il reste affiché sur sa position
+  /// (glissement ≤ 12 pt, prix replié si la place manque). Le regroupement
+  /// hiérarchique stable (pawmap_cluster626) a déjà garanti ≥ 56 pt entre
+  /// deux groupes ; masquer au bord, sous un rail ou sous Moi faisait
+  /// apparaître / disparaître des groupes selon le chemin suivi.
+  bool keepAnchored = false,
 }) {
   var cur = <List<T>>[
     for (final g in groups)
@@ -90,13 +97,15 @@ PawPlacement622<T> pawPlace622<T>(
     // ancré ne part pas loin, il s'efface et réapparaît en zoomant.
     var hid = false;
     bool hide(int i) {
-      if (!mov[i] || hidden[i]) return false;
+      if (!mov[i] || hidden[i] || (keepAnchored && anc[i])) return false;
       hidden[i] = true;
       hid = true;
       return true;
     }
     bool merges(int i, int j) =>
-        mov[i] && mov[j] && (canMerge == null || canMerge(cur[i], cur[j]));
+        mov[i] && mov[j] &&
+        !(keepAnchored && (anc[i] || anc[j])) &&
+        (canMerge == null || canMerge(cur[i], cur[j]));
     final parent = List<int>.generate(cur.length, (i) => i);
     int find(int i) {
       while (parent[i] != i) {

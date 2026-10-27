@@ -86,6 +86,7 @@ import 'package:hopetsit/views/map/widgets/pawmap_discreet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_overlap607.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_layout622.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_anchor625.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_cluster626.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_ring2610.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_follow612.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_friends610.dart';
@@ -159,6 +160,8 @@ class PawMapScreen extends StatefulWidget {
   /// segments de la bulle posée.
   static final Map<String, List<String>> debugRoles2610 = <String, List<String>>{};
   static final Map<String, int> debugCluster2610 = <String, int>{};
+  /// 626 — dernier toucher de groupe (mesure : zoom de départ / d'arrivée).
+  static Map<String, Object?>? debugTap626;
   static final Map<String, Set<String>> debugSigns2610 = <String, Set<String>>{};
   static List<String> debugBubble2610 = const <String>[];
   static void Function(bool night)? debugNight2610;
@@ -1518,12 +1521,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   // zoome dessus et le groupe s'ouvre. Calcul en pixels Web Mercator au zoom
   // courant → le regroupement suit exactement ce que l'œil voit.
   static const double _clusterCellPx = 76;
-  /// v576 — les MEMBRES se regroupent dans une cellule plus fine que les
-  /// lieux : c'est le regroupement, pas le seuil de zoom, qui cachait la
-  /// couleur de rôle (une pastille rose « 3 » reste rose quel que soit le
-  /// zoom). Avec 44 px, les badges colorés se séparent environ un cran de
-  /// zoom plus tôt, sans rendre la carte illisible.
-  static const double _memberClusterCellPx = 44;
+  // 626 — `_memberClusterCellPx` (cases de 44 pt) remplacé par l'index
+  // stable pawmap_cluster626 (56 pt, niveau entier).
 
   double _mercX(double lng) => (lng + 180.0) / 360.0 * 256.0;
   double _mercY(double lat) {
@@ -1549,6 +1548,122 @@ class _PawMapScreenState extends State<PawMapScreen>
     return cells.values.toList();
   }
 
+  /// 626 — index de regroupement hiérarchique STABLE, un par couche
+  /// (membres, lieux, PawSpots), reconstruit seulement quand les données
+  /// changent (empreinte ids + positions). Voir pawmap_cluster626.dart.
+  final Map<String, Object> _idx626 = <String, Object>{};
+
+  PawClusterIndex626<T> _index626<T>(
+    String layer,
+    List<T> items,
+    String Function(T) idOf,
+    LatLng Function(T) posOf, {
+    double Function(int level)? radiusAt,
+  }) {
+    ({double lat, double lng}) p(T t) {
+      final ll = posOf(t);
+      return (lat: ll.latitude, lng: ll.longitude);
+    }
+
+    final sig = pawClusterSignature626<T>(items, idOf, p);
+    final cur = _idx626[layer];
+    if (cur is PawClusterIndex626<T> && cur.signature == sig) return cur;
+    final idx = PawClusterIndex626<T>(items,
+        idOf: idOf, posOf: p, radiusAt: radiusAt, signature: sig);
+    _idx626[layer] = idx;
+    return idx;
+  }
+
+  /// 626 — groupes STABLES de [items] au zoom courant (niveau = partie
+  /// entière) : mêmes groupes à même zoom et même zone, quel que soit le
+  /// chemin. Les éléments rendus sont ceux de [items] (données fraîches),
+  /// retrouvés par identifiant.
+  List<List<T>> _clusters626<T>(
+    String layer,
+    List<T> items,
+    String Function(T) idOf,
+    LatLng Function(T) posOf, {
+    double Function(int level)? radiusAt,
+  }) {
+    if (items.isEmpty) return <List<T>>[];
+    final idx = _index626<T>(layer, items, idOf, posOf, radiusAt: radiusAt);
+    final byId = <String, List<T>>{};
+    for (final it in items) {
+      (byId[idOf(it)] ??= <T>[]).add(it);
+    }
+    final used = <String, int>{};
+    final out = <List<T>>[];
+    for (final c in idx.clustersAt(_zoomLevel)) {
+      final g = <T>[];
+      for (final id in c.ids) {
+        final l = byId[id];
+        if (l == null) continue;
+        final k = used[id] ?? 0;
+        if (k >= l.length) continue;
+        used[id] = k + 1;
+        g.add(l[k]);
+      }
+      if (g.isNotEmpty) out.add(g);
+    }
+    return out;
+  }
+
+  /// 626 — toucher un groupe : la carte ZOOME (animation) sur l'emprise
+  /// réelle de ses membres, au moins jusqu'au niveau où il se divise.
+  /// Points superposés ou zoom max : la liste du groupe (jamais d'anneau
+  /// qui jette les gens à des centaines de km de leur vraie position).
+  Future<void> _tapCluster626(
+    String layer,
+    List<LatLng> pts,
+    List<String> ids, {
+    List<Map<String, dynamic>> members = const [],
+    List<MapPOI> places = const [],
+    List<PawSpotModel> spots = const [],
+  }) async {
+    if (!mounted) return;
+    final stacked = members.isNotEmpty &&
+        places.isEmpty &&
+        spots.isEmpty &&
+        pawMapClusterIsStacked(pts, samePerson: pawMapSamePerson(members));
+    final idx = _idx626[layer];
+    final int? exp = idx is PawClusterIndex626
+        ? idx.expansionLevel(ids, fromZoom: _zoomLevel)
+        : null;
+    final Size scr = MediaQuery.sizeOf(context);
+    // Zone utile : sous l'en-tête (~134), au-dessus du menu (~116), entre
+    // les rails (~72 de chaque côté), avec de l'air.
+    final double w = math.max(120.0, scr.width - 2 * 72);
+    final double h = math.max(160.0, scr.height - 134 - 116 - 60);
+    final t = stacked
+        ? null
+        : pawClusterTapTarget626(
+            pts: [for (final p in pts) pawMercatorPx(p.latitude, p.longitude, 0)],
+            w: w,
+            h: h,
+            currentZoom: _zoomLevel,
+            expansionLevel: exp,
+          );
+    if (kDebugMode) {
+      PawMapScreen.debugTap626 = <String, Object?>{
+        'layer': layer,
+        'n': ids.length,
+        'from': _zoomLevel,
+        'exp': exp,
+        'to': t?.zoom,
+        'list': t == null,
+      };
+    }
+    if (t == null) {
+      _openClusterList(members: members, places: places, spots: spots);
+      return;
+    }
+    final ctl = await _activeMapCtl();
+    if (ctl == null) return;
+    _fade.pulse();
+    await ctl.animateCamera(CameraUpdate.newLatLngZoom(
+        LatLng(t.center.lat, t.center.lng), t.zoom));
+  }
+
   /// 625 — position où un groupe est posé : celle de son membre le plus
   /// central (médoïde en pixels Mercator), jamais la moyenne.
   LatLng _anchor625<T>(List<T> group, LatLng Function(T) posOf) {
@@ -1559,74 +1674,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     }));
   }
 
-  LatLng _centroid<T>(List<T> group, LatLng Function(T) posOf) {
-    double la = 0, ln = 0;
-    for (final g in group) {
-      final p = posOf(g);
-      la += p.latitude;
-      ln += p.longitude;
-    }
-    return LatLng(la / group.length, ln / group.length);
-  }
-
-
-
-  /// Tap sur une pastille de groupe : zoom doux dessus jusqu'à séparer les
-  /// épingles ; v584 (25/09, point 15) — si elles restent superposées au
-  /// zoom max (≥ 17,5), une petite feuille liste le groupe (photo, prénom,
-  /// rôle / type, « Voir »).
-  Future<void> _zoomToCluster(
-    LatLng target, {
-    List<Map<String, dynamic>> members = const [],
-    List<MapPOI> places = const [],
-    List<PawSpotModel> spots = const [],
-  }) async {
-    if (!mounted) return;
-    // v585 (25/09, Daniel : « ça zoome et c'est tout ; il faut que ça me
-    // montre les deux rôles ») — si le zoom ne séparerait rien (points
-    // superposés, ou une seule personne à plusieurs rôles), la liste tout de
-    // suite ; le zoom ne sert que si les points se séparent vraiment.
-    final superposed = pawMapClusterIsStacked(
-      members.map(pawMapMemberLatLng).whereType<LatLng>().toList(),
-      samePerson: pawMapSamePerson(members),
-    );
-    if (_zoomLevel >= 17.5 || (superposed && places.isEmpty && spots.isEmpty)) {
-      _openClusterList(members: members, places: places, spots: spots);
-      return;
-    }
-    final ctl = await _activeMapCtl();
-    if (ctl == null) return;
-    // v592 — un toucher doit SUFFIRE à séparer le groupe : on cadre la carte
-    // sur tous ses points (avant : +2,2 niveaux, il fallait toucher 3-4 fois).
-    final pts = <LatLng>[
-      ...members.map(pawMapMemberLatLng).whereType<LatLng>(),
-      ...places.map((p) => LatLng(p.latitude, p.longitude)),
-      ...spots.map((s) => LatLng(s.lat, s.lng)),
-    ];
-    if (pts.length >= 2) {
-      double s0 = pts.first.latitude, n0 = s0, w0 = pts.first.longitude, e0 = w0;
-      for (final p in pts) {
-        s0 = math.min(s0, p.latitude);
-        n0 = math.max(n0, p.latitude);
-        w0 = math.min(w0, p.longitude);
-        e0 = math.max(e0, p.longitude);
-      }
-      // Points (quasi) superposés : la liste plutôt qu'un zoom inutile.
-      if ((n0 - s0).abs() < 0.00005 && (e0 - w0).abs() < 0.00005) {
-        _openClusterList(members: members, places: places, spots: spots);
-        return;
-      }
-      try {
-        await ctl.animateCamera(CameraUpdate.newLatLngBounds(
-          LatLngBounds(southwest: LatLng(s0, w0), northeast: LatLng(n0, e0)),
-          90,
-        ));
-        return;
-      } catch (_) {/* carte pas encore mesurée : repli ci-dessous */}
-    }
-    final z = math.min(_zoomLevel + 2.2, 19.0);
-    await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, z));
-  }
+  // 626 — `_centroid` (moyenne = en mer entre deux côtes) et `_zoomToCluster`
+  // remplacés par `_anchor625` et `_tapCluster626`.
 
   void _openClusterList({
     required List<Map<String, dynamic>> members,
@@ -6203,16 +6252,14 @@ class _PawMapScreenState extends State<PawMapScreen>
         // 625 (parité site, LEO c0fe532c) — fusion des groupes dont les
         // positions AFFICHÉES (membre le plus central) sont à < 56 pt, en
         // recommençant : on fusionne au lieu d'écarter.
-        (others) => pawMergeAnchored625<Map<String, dynamic>>(
-          _clusterize<Map<String, dynamic>>(
-            others,
-            (p) => posOfMember(p)!,
-            cellPx: _memberClusterCellPx,
-          ),
-          (p) {
-            final ll = posOfMember(p)!;
-            return pawMercatorPx(ll.latitude, ll.longitude, _zoomLevel);
-          },
+        // 626 (bug de Daniel du 27/10) — regroupement HIÉRARCHIQUE et STABLE
+        // (pawmap_cluster626) : niveau = partie entière du zoom, ordre fixe,
+        // ancre = membre le plus central, ≥ 56 pt entre deux groupes.
+        (others) => _clusters626<Map<String, dynamic>>(
+          'members',
+          others,
+          (p) => (p['id'] ?? p['_id'] ?? '').toString(),
+          (p) => posOfMember(p)!,
         ),
       );
       final showPrice = _pinZoom >= _priceZoom;
@@ -6314,12 +6361,16 @@ class _PawMapScreenState extends State<PawMapScreen>
             ..._railObstacles622(),
           ],
           movable: (g) => !isFriendGroup(g),
-          canMerge: (a, b) => isReq(a) == isReq(b) && !isFriendGroup(a) && !isFriendGroup(b),
+          // 626 — les groupes de membres viennent de l'index stable : la
+          // passe ne les fond plus (seules les demandes se fondent entre elles).
+          canMerge: (a, b) => isReq(a) && isReq(b),
           bounds: _viewBounds622(),
           screen: _screenRect622(),
           // 625 — ronds de personnes et groupes : ≤ 12 pt, sinon masqués ;
           // seules les demandes s'écartent plus loin.
           anchored: (g) => !isReq(g),
+          // 626 — un rond ou un groupe de membres n'est jamais masqué.
+          keepAnchored: true,
         );
         final mg = <List<Map<String, dynamic>>>[];
         final ms = <Offset>[];
@@ -6548,9 +6599,14 @@ class _PawMapScreenState extends State<PawMapScreen>
               consumeTapEvents: true,
               // 623 — toucher = zoom +1,5 et éclatement (≤ 45 profils, 3 cercles ;
               // au-delà, zoom qui sépare le groupe comme avant).
-              onTap: () => group.length <= kSpiderMax2610
-                  ? _openSpider2610(ck622, target, group)
-                  : _zoomToCluster(target, members: group),
+              // 626 — plus d'anneau à espacement fixe : la carte zoome sur
+              // l'emprise réelle du groupe, qui se divise en ses membres.
+              onTap: () => _tapCluster626(
+                'members',
+                [for (final m in group) if (pawMapMemberLatLng(m) != null) pawMapMemberLatLng(m)!],
+                [for (final m in group) (m['id'] ?? m['_id'] ?? '').toString()],
+                members: group,
+              ),
             ),
           );
           continue;
@@ -6821,13 +6877,16 @@ class _PawMapScreenState extends State<PawMapScreen>
 
     // ── LIEUX : goutte à la couleur du type ; groupe = carré blanc ──
     if (_showPois.value) {
-      final poiGroups = _clusterize<MapPOI>(
+      // 626 — même regroupement stable que les membres (ancre = un vrai lieu).
+      final poiGroups = _clusters626<MapPOI>(
+        'places',
         _poiController.visiblePois.toList(),
+        (poi) => poi.id.toString(),
         (poi) => LatLng(poi.latitude, poi.longitude),
       );
       for (final group in poiGroups) {
         if (group.length > 1) {
-          final target = _centroid<MapPOI>(
+          final target = _anchor625<MapPOI>(
               group, (poi) => LatLng(poi.latitude, poi.longitude));
           // Type DOMINANT du groupe → couleur du bord et du nombre.
           final counts = <String, int>{};
@@ -6840,14 +6899,18 @@ class _PawMapScreenState extends State<PawMapScreen>
               .key;
           markers.add(
             Marker(
-              markerId: MarkerId('pcluster_${target.latitude.toStringAsFixed(4)}'
-                  '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
+              markerId: MarkerId('pcluster_${pawClusterKey616(group.map((p) => p.id.toString()))}'),
               position: target,
               icon: _placeClusterIcon(group.length, dominant),
               anchor: pawClusterAnchor2610(), // 625 — centre du rond
               zIndexInt: 4,
               consumeTapEvents: true,
-              onTap: () => _zoomToCluster(target, places: group),
+              onTap: () => _tapCluster626(
+                'places',
+                [for (final p in group) LatLng(p.latitude, p.longitude)],
+                [for (final p in group) p.id.toString()],
+                places: group,
+              ),
             ),
           );
           continue;
@@ -6872,10 +6935,13 @@ class _PawMapScreenState extends State<PawMapScreen>
       // v592 — Daniel : « les PawSpots, surtout en groupe, je dois ultra
       // zoomer ». Cellule plus petite (44 px) et, dès le zoom quartier (13),
       // seuls les spots quasi superposés (18 px) restent groupés.
-      final spotGroups = _clusterize<PawSpotModel>(
+      // 626 — regroupement stable (44 pt, 18 pt dès le zoom quartier 13).
+      final spotGroups = _clusters626<PawSpotModel>(
+        'spots',
         _pawSpotController.spots.toList(),
+        (s) => s.id.toString(),
         (s) => LatLng(s.lat, s.lng),
-        cellPx: _pinZoom >= 13 ? 18 : 44,
+        radiusAt: (z) => z >= 13 ? 18 : 44,
       );
       // 610 (PAM, 04/10) — MESURÉ au simulateur : au zoom ville, un spot
       // (ou un groupe de spots) à quelques centaines de mètres de moi était
@@ -6912,17 +6978,21 @@ class _PawMapScreenState extends State<PawMapScreen>
       for (final group in spotGroups) {
         if (group.length > 1) {
           final target =
-              _centroid<PawSpotModel>(group, (s) => LatLng(s.lat, s.lng));
+              _anchor625<PawSpotModel>(group, (s) => LatLng(s.lat, s.lng));
           markers.add(
             Marker(
-              markerId: MarkerId('scluster_${target.latitude.toStringAsFixed(4)}'
-                  '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
+              markerId: MarkerId('scluster_${pawClusterKey616(group.map((sp) => sp.id.toString()))}'),
               position: spotDrawAt(target), // 614 — dessin = zone d'appui
               icon: _spotClusterIcon(group.length),
               anchor: const Offset(0.5, 0.5),
               zIndexInt: 5,
               consumeTapEvents: true,
-              onTap: () => _zoomToCluster(target, spots: group),
+              onTap: () => _tapCluster626(
+                'spots',
+                [for (final sp in group) LatLng(sp.lat, sp.lng)],
+                [for (final sp in group) sp.id.toString()],
+                spots: group,
+              ),
             ),
           );
           continue;
@@ -12018,26 +12088,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (mounted) setState(() {});
   }
 
-  /// Toucher un groupe : zoom +1,5 sur lui et éclatement (aucun trait).
-  void _openSpider2610(String key, LatLng hub, List<Map<String, dynamic>> members) {
-    if (_spider2610?.key == key) {
-      _closeSpider2610();
-      return;
-    }
-    _holdCamera();
-    final saved = _focusSavedCam ?? CameraPosition(target: _currentCenter, zoom: _zoomLevel);
-    _clearFocus();
-    _focusSavedCam = saved;
-    _spider2610 = (key: key, hub: hub, members: List<Map<String, dynamic>>.of(members));
-    _rev2610.value++;
-    if (mounted) setState(() {});
-    _fade.pulse();
-    unawaited(() async {
-      final ctl = await _activeMapCtl();
-      await ctl?.animateCamera(CameraUpdate.newLatLngZoom(
-          hub, math.min(_zoomLevel + 1.5, 20.0)));
-    }());
-  }
+  // 626 — `_openSpider2610` supprimé : l'éclatement en anneaux fixes de
+  // 72/132/192 pt jetait les membres en mer au dézoom (bug du 27/10).
 
   // v590 — handoff §2/§4 : la carte focus et le cadrage d'avant le zoom.
   final Rxn<PawFocusInfo> _focusCard = Rxn<PawFocusInfo>();
