@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -26,12 +28,40 @@ class LocationService {
   /// test). Jamais vrai dans une app de store.
   static bool skipPromptForTests = false;
 
+  /// 625 — (tests, mode debug) déroulé horodaté de chaque demande de
+  /// position : sert à mesurer ce qui se passe sur un téléphone donné.
+  static final List<String> debugTrace625 = <String>[];
+
+  /// 625 — délai de 3 s sur un appel du système qui peut ne jamais répondre
+  /// (sauf dans les tests unitaires : pas de minuterie laissée en suspens).
+  static final bool _inUnitTests625 = Platform.environment.containsKey('FLUTTER_TEST');
+  static Future<T> _guard625<T>(Future<T> f, T Function() onTimeout) =>
+      _inUnitTests625 ? f : f.timeout(const Duration(seconds: 3), onTimeout: onTimeout);
+  static final Stopwatch _sw625 = Stopwatch()..start();
+  static void _t(String s) {
+    if (kDebugMode && debugTrace625.length < 80) {
+      debugTrace625.add('${_sw625.elapsedMilliseconds}ms $s');
+    }
+  }
+
   /// Request location permission and get current position
-  Future<Position?> getCurrentLocation() async {
+  /// [openSettingsIfBlocked] : 625 — faux pour les demandes AUTOMATIQUES
+  /// (ouverture de la PawMap) ; MESURÉ au simulateur : position refusée →
+  /// chaque ouverture de la PawMap envoyait l'utilisateur dans les Réglages
+  /// du téléphone. Vrai seulement quand l'utilisateur touche un bouton.
+  Future<Position?> getCurrentLocation({bool openSettingsIfBlocked = true}) async {
     try {
       // Check if location services are enabled
       lastFailure = '';
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      _t('debut');
+      // 625 — MESURÉ (émulateur Android, position approximative) : cet appel
+      // n'a jamais répondu, et chaque demande de position partait au délai
+      // de l'appelant (8 s puis 15 s). Sans réponse en 3 s : on continue.
+      bool serviceEnabled = await _guard625(Geolocator.isLocationServiceEnabled(), () {
+        _t('service: pas de reponse en 3 s');
+        return true;
+      });
+      _t('service=$serviceEnabled');
       if (!serviceEnabled) {
         AppLogger.logError('Location services are disabled.');
         lastFailure = 'service_off';
@@ -39,7 +69,11 @@ class LocationService {
       }
 
       // Check and request location permission
-      LocationPermission permission = await Geolocator.checkPermission();
+      LocationPermission permission = await _guard625(Geolocator.checkPermission(), () {
+        _t('permission: pas de reponse en 3 s');
+        return LocationPermission.whileInUse; // on tente quand même
+      });
+      _t('permission=$permission');
       if (permission == LocationPermission.denied) {
         if (skipPromptForTests) {
           lastFailure = 'denied';
@@ -55,7 +89,8 @@ class LocationService {
 
       if (permission == LocationPermission.deniedForever) {
         // Permissions are denied forever, open app settings
-        await Geolocator.openLocationSettings();
+        _t('permission refusee definitivement');
+        if (openSettingsIfBlocked) await Geolocator.openLocationSettings();
         // v23.1 part 252 — meme si denied forever, on tente la derniere
         // position connue (souvent dispo du cache OS) pour que la PawMap
         // n'ouvre pas sur Paris.
@@ -78,7 +113,10 @@ class LocationService {
       Position? lastKnown;
       try {
         lastKnown = await Geolocator.getLastKnownPosition();
-      } catch (_) {/* defensive */}
+        _t('derniere_connue=${lastKnown != null}');
+      } catch (e) {
+        _t('derniere_connue erreur ${e.runtimeType}');
+      }
 
       try {
         final fresh = await Geolocator.getCurrentPosition(
@@ -87,12 +125,29 @@ class LocationService {
             timeLimit: Duration(seconds: 6),
           ),
         );
+        _t('moyenne OK');
         return fresh;
-      } catch (_) {
+      } catch (e) {
+        _t('moyenne erreur ${e.runtimeType}');
         // getCurrentPosition lent/echoue → on retombe sur la last-known
         // (peut etre null si l'OS n'a jamais eu de fix, mais c'est mieux
         // que Paris quand elle existe).
-        return lastKnown;
+        if (lastKnown != null) return lastKnown;
+      }
+      // 625 (Oppo / ColorOS, position « approximative ») — dernier essai en
+      // précision BASSE (réseau / antennes), qui répond là où le GPS se tait.
+      try {
+        final low = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.low,
+            timeLimit: Duration(seconds: 8),
+          ),
+        );
+        _t('basse OK');
+        return low;
+      } catch (e) {
+        _t('basse erreur ${e.runtimeType}');
+        return null;
       }
     } catch (e) {
       AppLogger.logError('Error getting location', error: e);

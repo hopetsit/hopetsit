@@ -393,7 +393,7 @@ class PawPlacedBox {
 /// par la direction opposée à l'obstacle le plus proche. Null si rien de
 /// libre (le rond reste en place).
 Offset? pawFreeSpot(Offset at, Rect box, List<PawPlacedBox> obstacles,
-    {double maxShift = 90, double air = kPawAirPx, Rect? bounds}) {
+    {double maxShift = 90, double air = kPawAirPx, Rect? bounds, double step = 4}) {
   // 622 — [bounds] (px écran) : la boîte doit y tenir ENTIÈRE (rien de
   // coupé par le bord de la carte, l'en-tête ou le menu du bas).
   bool inside(Offset p) => bounds == null || pawBoxInside(p, box, bounds);
@@ -433,7 +433,7 @@ Offset? pawFreeSpot(Offset at, Rect box, List<PawPlacedBox> obstacles,
     }
   }
   final a0 = math.atan2(away.dy, away.dx);
-  for (var d = 4.0; d <= maxShift; d += 4) {
+  for (var d = step; d <= maxShift; d += step) {
     for (var k = 0; k <= 12; k++) {
       for (final sign in k == 0 ? const [1] : const [1, -1]) {
         final a = a0 + sign * k * 15 * math.pi / 180;
@@ -456,10 +456,18 @@ List<Offset> pawRepelBoxes(
   double maxShift = 90,
   Rect? bounds,
   Rect? screen,
+  // 625 (parité site, ANCHORED_2610) — rond de personne / groupe : il ne
+  // glisse que de [anchorMax] pt au plus (pas de 2 pt), posé AVANT les
+  // autres ; sans place il reste SUR sa position et son index est ajouté à
+  // [unplaced] (l'appelant replie sa bulle puis le masque).
+  List<bool>? anchored,
+  double anchorMax = 12,
+  Set<int>? unplaced,
 }) {
   final n = at.length;
   final shift = List<Offset>.filled(n, Offset.zero);
   final placed = <PawPlacedBox>[...fixed];
+  bool isAnchored(int i) => anchored != null && i < anchored.length && anchored[i];
   // Les immobiles d'abord (ils comptent comme obstacles).
   for (var i = 0; i < n; i++) {
     if (movable != null && !movable[i]) placed.add(PawPlacedBox(at[i], boxes[i]));
@@ -472,6 +480,9 @@ List<Offset> pawRepelBoxes(
       double near(int i) => fixed.isEmpty
           ? 0
           : fixed.map((f) => (f.at - at[i]).distance).reduce(math.min);
+      // 625 — les ronds ancrés d'abord : ce sont les autres qui s'écartent.
+      final aa = isAnchored(a) ? 0 : 1, ab = isAnchored(b) ? 0 : 1;
+      if (aa != ab) return aa.compareTo(ab);
       return near(a).compareTo(near(b));
     });
   for (final i in order) {
@@ -486,6 +497,14 @@ List<Offset> pawRepelBoxes(
     final Rect? b = (bounds != null && pawNearBounds(at[i], boxes[i], screen ?? bounds))
         ? bounds
         : null;
+    if (isAnchored(i)) {
+      final s = pawFreeSpot(at[i], boxes[i], placed,
+          maxShift: anchorMax, bounds: b, step: 2);
+      if (s == null) unplaced?.add(i);
+      shift[i] = s ?? Offset.zero;
+      placed.add(PawPlacedBox(at[i] + shift[i], boxes[i]));
+      continue;
+    }
     final s = pawFreeSpot(at[i], boxes[i], placed, maxShift: maxShift, bounds: b) ??
         pawFreeSpot(at[i], boxes[i], placed, maxShift: maxShift * 2, bounds: b) ??
         // Zone saturée : au moins rentrer dans l'écran, sans autre contrainte.

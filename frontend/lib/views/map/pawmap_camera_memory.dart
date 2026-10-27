@@ -30,13 +30,35 @@ class PawMapCameraMemory {
 
   /// Centre à afficher au premier rendu : mémoire → profil → repli.
   static LatLng centerFrom(dynamic saved, Map<String, dynamic>? profile) {
-    final fromSaved = _latLng(
-      saved is Map ? saved['lat'] : null,
-      saved is Map ? saved['lng'] : null,
-    );
+    final fromSaved = savedCenter(saved);
     if (fromSaved != null) return fromSaved;
     return profileCenter(profile) ?? fallbackCenter;
   }
+
+  /// 625 (Oppo, nouveau promeneur en Espagne ouvert sur Paris) — MESURÉ : le
+  /// compte de test promeneur (profil en zone test) portait la caméra
+  /// synchronisée 48.8566, 2.3522 = le repli Paris lui-même, enregistré à
+  /// l'arrêt de la caméra lors d'une 1re ouverture sans position, puis
+  /// restauré à chaque ouverture (et sur tous les appareils) AVANT la
+  /// position du profil. Le repli n'est donc jamais une mémoire valable.
+  static bool isFallback(LatLng c) =>
+      (c.latitude - fallbackCenter.latitude).abs() < 1e-4 &&
+      (c.longitude - fallbackCenter.longitude).abs() < 1e-4;
+
+  /// Dernier endroit réellement regardé (null : rien, ou le repli Paris).
+  static LatLng? savedCenter(dynamic saved) {
+    final c = _latLng(
+      saved is Map ? saved['lat'] : null,
+      saved is Map ? saved['lng'] : null,
+    );
+    return (c == null || isFallback(c)) ? null : c;
+  }
+
+  /// 625 — centre à prendre quand le GPS ne répond pas (refusé, approximatif
+  /// muet, ColorOS) : on reste sur un vrai dernier endroit regardé (règle du
+  /// 23/09), sinon la position du profil, sinon rien (Paris est déjà là).
+  static LatLng? noGpsCenter({required bool trustedMemory, LatLng? profile}) =>
+      trustedMemory ? null : profile;
 
   /// Coordonnées du profil (`location.coordinates` = [lng, lat] côté
   /// serveur, format GeoJSON) si l'app en a une copie locale.

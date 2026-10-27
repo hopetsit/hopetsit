@@ -85,6 +85,7 @@ import 'package:hopetsit/views/map/widgets/pawmap_sheet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_discreet.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_overlap607.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_layout622.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_anchor625.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_ring2610.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_follow612.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_friends610.dart';
@@ -139,6 +140,11 @@ class PawMapScreen extends StatefulWidget {
   /// le contrôleur de la carte, chaque liste de marqueurs remise à Google
   /// Maps, et la durée de la dernière construction des marqueurs.
   static GoogleMapController? debugMapController616;
+  /// 625 — (tests) position GPS connue, centre de la carte, couche Moi.
+  static Map<String, Object?> Function()? debugState625;
+  /// 625 — (tests) sans le point bleu natif de Google : sa fenêtre système
+  /// « Autoriser la position ? » couvrirait la capture du cas « refusé ».
+  static bool debugNoNativeDot625 = false;
   static void Function(Set<Marker> markers)? debugMarkersTap616;
   static int debugLastBuildUs616 = 0;
   /// 622 — ids des épingles qui portent un prix (bulle ou étiquette), et
@@ -158,6 +164,11 @@ class PawMapScreen extends StatefulWidget {
   static void Function(bool night)? debugNight2610;
   /// 623 — (tests) nombre de reconstructions RÉELLES des marqueurs.
   static int debugBuilds2610 = 0;
+  /// 625 — nombre de ronds / groupes masqués faute de place (≤ 12 pt).
+  static int debugHidden625 = 0;
+  /// 625 — (tests) écart (pt) entre position affichée et position réelle
+  /// de chaque rond / groupe posé (id du marqueur).
+  static final Map<String, double> debugGap625 = <String, double>{};
 
   const PawMapScreen({
     super.key,
@@ -228,6 +239,69 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// connue, on part de la ville du profil (coordonnées enregistrées à
   /// l'inscription) — donc jamais « Paris » pour quelqu'un de Dallas.
   LatLng _currentCenter = _restoreLastCenter();
+
+  /// 625 — vrai si la carte s'est ouverte sur un endroit réellement regardé
+  /// (mémoire de l'appareil, hors repli Paris).
+  bool _centerTrusted625 = _restoreHadMemory625();
+
+  /// 625 — position du PROFIL, posée quand le GPS ne répond pas : le rond
+  /// « Moi » y est dessiné (avant : aucun rond, captures de l'Oppo).
+  /// Posée DÈS l'ouverture (avant même la réponse du GPS, qui peut prendre
+  /// 23 s sur un téléphone qui ne répond pas) ; le GPS la remplace.
+  LatLng? _meFallback625 = _profileCenter625();
+
+  static bool _restoreHadMemory625() {
+    try {
+      return PawMapCameraMemory.savedCenter(GetStorage().read(_kLastCenterKey)) != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static LatLng? _profileCenter625() {
+    try {
+      return PawMapCameraMemory.profileCenter(
+          GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 625 — le GPS n'a rien donné : « Moi » sur la position du profil, et la
+  /// carte y va si elle n'est pas déjà sur un endroit regardé (jamais Paris
+  /// pour quelqu'un d'Espagne).
+  void _onNoGps625({bool retry = true}) {
+    if (kDebugMode) LocationService.debugTrace625.add('carte: aucun GPS -> repli profil');
+    if (!mounted || _userPosition != null) return;
+    final prof = _profileCenter625();
+    if (prof == null) {
+      // Profil pas encore en mémoire (inscription toute fraîche) : 1 essai de plus.
+      if (retry) {
+        Timer(const Duration(seconds: 6), () => _onNoGps625(retry: false));
+      }
+      return;
+    }
+    setState(() => _meFallback625 = prof);
+    final bool focus = (widget.initialLat != null && widget.initialLng != null) ||
+        _friendFocusRequested ||
+        _explicitStart ||
+        _userMovedMap ||
+        _followUserId != null;
+    if (focus) return;
+    final target = PawMapCameraMemory.noGpsCenter(
+        trustedMemory: _centerTrusted625, profile: prof);
+    if (target == null) return;
+    _currentCenter = target;
+    _centerTrusted625 = true;
+    _saveLastCamera(target, _zoomLevel);
+    final double z = PawMapCameraMemory.launchZoom(_zoomLevel);
+    unawaited(_activeMapCtl().then((ctl) async {
+      try {
+        await ctl?.moveCamera(CameraUpdate.newLatLngZoom(target, z));
+      } catch (_) {/* carte pas prête : la position suivra au 1er arrêt */}
+    }));
+    unawaited(_reloadAtCenter());
+  }
 
   static const String _kLastCenterKey = 'pawmap_last_center';
 
@@ -435,6 +509,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// chaque image d'un glissement : consigne du 23/09) et après le recentrage
   /// GPS du lancement.
   static void _saveLastCamera(LatLng c, double zoom) {
+    // 625 — jamais le repli Paris (il se propageait au compte, voir
+    // PawMapCameraMemory.isFallback).
+    if (PawMapCameraMemory.isFallback(c)) return;
     try {
       GetStorage().write(_kLastCenterKey, PawMapCameraMemory.encode(c, zoom));
     } catch (_) {/* best effort */}
@@ -636,7 +713,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       try {
         final ls = LocationService();
         final loc = await ls
-            .getCurrentLocation()
+            .getCurrentLocation(openSettingsIfBlocked: false) // 625
             .timeout(const Duration(seconds: 15), onTimeout: () => null);
         if (_plushTrace.length < 40) _plushTrace.add('gps ${loc != null} ${ls.lastFailure}');
         if (loc != null && mounted) {
@@ -933,6 +1010,15 @@ class _PawMapScreenState extends State<PawMapScreen>
             list.first;
         return LatLng(r.lat, r.lng);
       };
+      // 625 — (tests) état de la position : GPS, centre, rond « Moi ».
+      PawMapScreen.debugState625 = () => <String, Object?>{
+            'gps': _userPosition == null
+                ? null
+                : '${_userPosition!.latitude.toStringAsFixed(3)},${_userPosition!.longitude.toStringAsFixed(3)}',
+            'center':
+                '${_currentCenter.latitude.toStringAsFixed(3)},${_currentCenter.longitude.toStringAsFixed(3)}',
+            'live': _showLiveLayer.value,
+          };
     }
     super.initState();
     // 614 — la carte de fête « +N points » se pose SOUS l'en-tête et la
@@ -1461,6 +1547,16 @@ class _PawMapScreenState extends State<PawMapScreen>
       (cells[key] ??= <T>[]).add(it);
     }
     return cells.values.toList();
+  }
+
+  /// 625 — position où un groupe est posé : celle de son membre le plus
+  /// central (médoïde en pixels Mercator), jamais la moyenne.
+  LatLng _anchor625<T>(List<T> group, LatLng Function(T) posOf) {
+    if (group.length == 1) return posOf(group.first);
+    return posOf(pawAnchorOf625<T>(group, (t) {
+      final p = posOf(t);
+      return pawMercatorPx(p.latitude, p.longitude, 0);
+    }));
   }
 
   LatLng _centroid<T>(List<T> group, LatLng Function(T) posOf) {
@@ -3009,7 +3105,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     _lastPresence614 = DateTime.now();
     try {
       final loc = await LocationService()
-          .getCurrentLocation()
+          .getCurrentLocation(openSettingsIfBlocked: false) // 625
           .timeout(const Duration(seconds: 8), onTimeout: () => null);
       if (loc == null || !mounted) return;
       await _sendHomePosition(LatLng(loc.latitude, loc.longitude));
@@ -3045,15 +3141,18 @@ class _PawMapScreenState extends State<PawMapScreen>
 
     try {
       var loc = await LocationService()
-          .getCurrentLocation()
+          .getCurrentLocation(openSettingsIfBlocked: false) // 625
           .timeout(const Duration(seconds: 8), onTimeout: () => null);
       // v500 — installation fraîche : la permission vient d'être accordée
       // et le 1er fix GPS peut dépasser les 8s → on retente UNE fois plus
       // longtemps au lieu d'abandonner (la carte restait sur Paris).
       loc ??= await LocationService()
-          .getCurrentLocation()
+          .getCurrentLocation(openSettingsIfBlocked: false) // 625
           .timeout(const Duration(seconds: 15), onTimeout: () => null);
-      if (loc == null) return;
+      if (loc == null) {
+        _onNoGps625(); // 625 — Moi + centrage sur la position du profil
+        return;
+      }
       final myCenter = LatLng(loc.latitude, loc.longitude);
       if (!mounted) return;
       // v590 — « mon frère vit vers Murcia et ça le met vers Valencia » :
@@ -3885,9 +3984,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v584 — la caméra s'arrête : on retient l'endroit ET le zoom, sur
     // l'appareil et sur le compte (« tout lié entre appareils »).
     _saveLastCamera(_currentCenter, _zoomLevel);
-    _prefs.update({
-      'camera': PawMapCameraMemory.encode(_currentCenter, _zoomLevel),
-    });
+    if (!PawMapCameraMemory.isFallback(_currentCenter)) {
+      _prefs.update({
+        'camera': PawMapCameraMemory.encode(_currentCenter, _zoomLevel),
+      });
+    }
     // v555 — pendant un placement, on résout l'adresse du point visé dès que
     // la carte s'immobilise (affichée dans la carte de placement).
     if (_pickingSpotPos.value ||
@@ -4828,6 +4929,12 @@ class _PawMapScreenState extends State<PawMapScreen>
       _userPosition == null
           ? ''
           : '${_userPosition!.latitude.toStringAsFixed(5)},${_userPosition!.longitude.toStringAsFixed(5)}',
+      // 625 — « Moi » posé sur la position du profil (sans GPS) : DANS la clé,
+      // sinon le rond n'apparaît qu'au prochain changement (mesuré : absent
+      // 40 s sur l'émulateur, position approximative).
+      _meFallback625 == null
+          ? ''
+          : 'mf${_meFallback625!.latitude.toStringAsFixed(4)},${_meFallback625!.longitude.toStringAsFixed(4)}',
       // Respiration PawBoost : seulement si un boost est visible.
     ].join('-');
     // v594 — fluidité (Daniel, 27/09) : avec un membre boosté à l'écran, la
@@ -5398,12 +5505,14 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   BitmapDescriptor _placeClusterIcon(int count, String? dominant) {
     final tone = PawMapLegend.placeColor(dominant ?? 'other');
-    final s = PawMapPinPainter.squareClusterBitmapSize();
+    // 625 — plus de carré blanc : rond « Anneau » (paintPlaceCluster625).
+    final bool dark = _nightMode.value;
+    final sz = pawClusterBitmap2610();
     return _pins.getOrBuild(
-          'pcluster:${count > 99 ? 100 : count}:${dominant ?? ''}',
-          s,
-          s,
-          (c) => PawMapPinPainter.paintSquareCluster(c, count, tone: tone),
+          'pcluster625:${count > 99 ? 100 : count}:${dominant ?? ''}:${dark ? 1 : 0}',
+          sz.width,
+          sz.height,
+          (c) => paintPlaceCluster625(c, count: count, tone: tone, dark: dark),
         ) ??
         PawMapPinCache.transparent; // 607 — pas d'épingle Google qui clignote
   }
@@ -5845,13 +5954,15 @@ class _PawMapScreenState extends State<PawMapScreen>
     _anyBoosted = false;
     _anyLive2610 = false; // 623
     if (kDebugMode) PawMapScreen.debugBuilds2610++;
+    if (kDebugMode) PawMapScreen.debugHidden625 = 0; // 625
     if (kDebugMode) PawMapScreen.debugBubble2610 = const <String>[];
     _meShift612 = Offset.zero; // 612 — recalculé plus bas (membres)
     _liveFan607.clear();
     // ── MOI : ma photo 56 px, anneau à la couleur de mon rôle, « Moi »,
     // couronne si Premium ; mode « amis seulement » = anneau pointillé +
     // œil barré (seul moi le vois : mes amis me voient normalement).
-    final myPos = _userPosition;
+    // 625 — sans GPS (refusé, ColorOS) : « Moi » sur la position du profil.
+    final myPos = _userPosition ?? _meFallback625;
     if (myPos != null && _showLiveLayer.value) {
       try {
         final profile =
@@ -6089,7 +6200,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         // 607 (PAM, captures de Daniel du 01/10) — les cases de 44 px
         // laissaient se chevaucher deux pastilles voisines (« 35 » sur « 5 »
         // sur « 4 ») : tout groupe à moins de 50 px d'un autre fusionne.
-        (others) => pawMergeCloseGroups<Map<String, dynamic>>(
+        // 625 (parité site, LEO c0fe532c) — fusion des groupes dont les
+        // positions AFFICHÉES (membre le plus central) sont à < 56 pt, en
+        // recommençant : on fusionne au lieu d'écarter.
+        (others) => pawMergeAnchored625<Map<String, dynamic>>(
           _clusterize<Map<String, dynamic>>(
             others,
             (p) => posOfMember(p)!,
@@ -6203,6 +6317,9 @@ class _PawMapScreenState extends State<PawMapScreen>
           canMerge: (a, b) => isReq(a) == isReq(b) && !isFriendGroup(a) && !isFriendGroup(b),
           bounds: _viewBounds622(),
           screen: _screenRect622(),
+          // 625 — ronds de personnes et groupes : ≤ 12 pt, sinon masqués ;
+          // seules les demandes s'écartent plus loin.
+          anchored: (g) => !isReq(g),
         );
         final mg = <List<Map<String, dynamic>>>[];
         final ms = <Offset>[];
@@ -6210,6 +6327,11 @@ class _PawMapScreenState extends State<PawMapScreen>
         _compact622.clear();
         for (var i = 0; i < placement.groups.length; i++) {
           final g = placement.groups[i];
+          // 625 — sans place à ≤ 12 pt de sa position : non dessiné.
+          if (placement.isHidden(i)) {
+            if (kDebugMode && !isReq(g)) PawMapScreen.debugHidden625++;
+            continue;
+          }
           if (isReq(g)) {
             rg.add(_reqGroupOf622(g.cast<NearbyRequestPost>(),
                 mine: reqMine,
@@ -6228,17 +6350,17 @@ class _PawMapScreenState extends State<PawMapScreen>
         }
         if (kDebugMode) {
           PawMapScreen.debugLayout622.clear();
+          PawMapScreen.debugGap625.clear();
           for (var i = 0; i < placement.groups.length; i++) {
             final g = placement.groups[i];
-            var x = 0.0, y = 0.0;
-            for (final o in g) {
-              final q = o is NearbyRequestPost
-                  ? px622(LatLng(o.lat, o.lng))
-                  : px622(posOfMember(o as Map<String, dynamic>)!);
-              x += q.dx;
-              y += q.dy;
-            }
-            final c = Offset(x / g.length, y / g.length) + placement.shifts[i];
+            if (placement.isHidden(i)) continue; // 625
+            // 625 — posé sur son membre le plus central (médoïde).
+            final c = pawAnchorPx625<Object>(
+                    g,
+                    (o) => o is NearbyRequestPost
+                        ? px622(LatLng(o.lat, o.lng))
+                        : px622(posOfMember(o as Map<String, dynamic>)!)) +
+                placement.shifts[i];
             final String id = isReq(g)
                 ? _reqGroupOf622(g.cast<NearbyRequestPost>(), mine: reqMine).key
                 : (g.length > 1
@@ -6251,6 +6373,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                 : boxForGroup622(g.cast<Map<String, dynamic>>(),
                     compact: placement.isCompact(i));
             PawMapScreen.debugLayout622[id] = b.shift(c);
+            // 625 — écart affiché / réel (pt) : glissement de la passe.
+            if (!isReq(g)) PawMapScreen.debugGap625[id] = placement.shifts[i].distance;
           }
         }
         groups = mg;
@@ -6294,9 +6418,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       final List<double> groupR = <double>[];
       final List<bool> groupIsFriend = <bool>[];
       for (final g in groups) {
-        final c = g.length > 1
-            ? pxOf(_centroid<Map<String, dynamic>>(g, (p) => posOfMember(p)!))
-            : pxOf(posOfMember(g.first)!);
+        // 625 — groupe posé sur son membre le plus central, jamais la moyenne.
+        final c = pxOf(_anchor625<Map<String, dynamic>>(g, (p) => posOfMember(p)!));
         final bool fr = g.length == 1 && isFriendMember(g.first);
         if (fr) {
           fixedPx.add(c);
@@ -6360,6 +6483,9 @@ class _PawMapScreenState extends State<PawMapScreen>
         friendsAt: fanAt,
         friendBox: friendBox,
         followed: followedIdx.toSet(),
+        // 625 — Moi et les amis : ≤ 12 pt de leur vraie position.
+        maxShift: kPawAnchorMaxShift625,
+        strict: true,
       );
       _meShift612 = fan.me;
       final fanShift = fan.friends;
@@ -6391,7 +6517,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       for (final group in groups) {
         groupIdx++;
         if (group.length > 1) {
-          final target = _centroid<Map<String, dynamic>>(
+          // 625 — vraie position (membre le plus central), jamais en mer.
+          final target = _anchor625<Map<String, dynamic>>(
               group, (p) => posOfMember(p)!);
           final Offset sh = groupShift[groupIdx];
           final roleCounts = <String, int>{'owner': 0, 'sitter': 0, 'walker': 0};
@@ -6717,7 +6844,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   '_${target.longitude.toStringAsFixed(4)}_${group.length}'),
               position: target,
               icon: _placeClusterIcon(group.length, dominant),
-              anchor: const Offset(0.5, 0.5),
+              anchor: pawClusterAnchor2610(), // 625 — centre du rond
               zIndexInt: 4,
               consumeTapEvents: true,
               onTap: () => _zoomToCluster(target, places: group),
@@ -7135,11 +7262,12 @@ class _PawMapScreenState extends State<PawMapScreen>
         pawMercatorPx(r.lat, r.lng, _zoomLevel) - cam,
         bearingDeg: _camBearing612,
         tiltDeg: _camTilt612);
-    final myPos = _userPosition;
+    final myPos = _userPosition ?? _meFallback625; // 625
     // Cases de 44 px + fusion < 44 px, puis fusion tant que deux bulles se
     // toucheraient encore à l'écran (pile de maisons au même endroit).
     final placement = pawPlace622<NearbyRequestPost>(
-      pawMergeCloseGroups<NearbyRequestPost>(
+      // 625 — fusion ancrée (membre le plus central), comme les membres.
+      pawMergeAnchored625<NearbyRequestPost>(
         _clusterize<NearbyRequestPost>(list, (r) => LatLng(r.lat, r.lng), cellPx: 44),
         (r) => pawMercatorPx(r.lat, r.lng, _zoomLevel),
         minPx: 44,
@@ -7180,7 +7308,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       reqs: g,
       mine: mine,
       at: many
-          ? _centroid<NearbyRequestPost>(g, (r) => LatLng(r.lat, r.lng))
+          ? _anchor625<NearbyRequestPost>(g, (r) => LatLng(r.lat, r.lng)) // 625
           : LatLng(g.first.lat, g.first.lng),
       label: label,
       walking: g.every((r) => r.serviceTypes.contains('dog_walking')),
@@ -8737,7 +8865,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         // 612 — UNE position par personne : le point bleu natif de Google
         // doublait « Moi » (et restait seul quand « Moi » s'écarte de la
         // personne suivie). Gardé seulement tant que « Moi » n'est pas posé.
-        myLocationEnabled: _userPosition == null,
+        myLocationEnabled: _userPosition == null && !PawMapScreen.debugNoNativeDot625,
         // v23.1 part 68 — nos propres commandes (capsule droite).
         myLocationButtonEnabled: false,
         zoomControlsEnabled: false,
@@ -11770,7 +11898,9 @@ class _PawMapScreenState extends State<PawMapScreen>
       final lng = (cam?['lng'] as num?)?.toDouble();
       final zoom = (cam?['zoom'] as num?)?.toDouble();
       final localMemory = GetStorage().read(_kLastCenterKey);
-      if (lat != null && lng != null && localMemory == null && _userPosition == null) {
+      if (lat != null && lng != null && PawMapCameraMemory.savedCenter(localMemory) == null && _userPosition == null &&
+          // 625 — la caméra du compte valant le repli Paris ne compte pas.
+          !PawMapCameraMemory.isFallback(LatLng(lat, lng))) {
         _currentCenter = LatLng(lat, lng);
         if (zoom != null) _zoomLevel = _idleZoom = zoom;
         unawaited(_activeMapCtl().then((ctl) => ctl?.animateCamera(

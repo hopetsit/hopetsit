@@ -1676,10 +1676,11 @@ List<PawLegendEntry> pawLegendEntries() {
     PawLegendEntry(
       key: 'place_group',
       label: 'pawmap_legend_place_group'.tr,
-      width: PawMapPinPainter.squareClusterBitmapSize(),
-      height: PawMapPinPainter.squareClusterBitmapSize(),
-      paint: (c) => PawMapPinPainter.paintSquareCluster(c, 8,
-          tone: PawMapLegend.placeColor('park')),
+      // 625 — rond « Anneau » (plus de carré blanc).
+      width: pawClusterBitmap2610().width,
+      height: pawClusterBitmap2610().height,
+      paint: (c) => paintPlaceCluster625(c,
+          count: 8, tone: PawMapLegend.placeColor('park')),
     ),
     PawLegendEntry(
       key: 'spot',

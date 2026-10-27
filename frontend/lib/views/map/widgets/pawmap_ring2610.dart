@@ -682,3 +682,33 @@ class _PawRoleButton2610State extends State<PawRoleButton2610> {
     );
   }
 }
+
+// ── 625 — groupe de LIEUX au style « Anneau » ───────────────────────────
+// Captures de l'Oppo (26/10) : « affichage ancien », des carrés blancs
+// « 39 », « 10 », « 99+ », « 20 ». MESURÉ (sonde Android) : ce sont les
+// groupes de LIEUX (vétos, parcs… couche « Lieux », marqueurs `pcluster_`),
+// seul groupe encore dessiné en carré blanc (`paintSquareCluster`). Ils
+// prennent le gabarit des groupes de membres 2610 : rond 48, liseré blanc,
+// anneau plein de 7 à la couleur du type dominant, nombre 15,5.
+void paintPlaceCluster625(Canvas canvas,
+    {required int count, required Color tone, bool dark = false}) {
+  final sz = pawClusterBitmap2610();
+  final c = Offset(sz.width / 2, kClusterMargin2610 + 24);
+  PawMapPinPainter.cssShadow(canvas, _circle(c, 24),
+      dy: 3, blur: 3, color: const Color(0x40000000));
+  canvas.drawCircle(c, 27.5, Paint()..color = const Color(0x2E000000));
+  canvas.drawCircle(c, 26.5, Paint()..color = Colors.white);
+  canvas.drawCircle(c, 24, Paint()..color = dark ? PawRole2610.clusterDark : Colors.white);
+  canvas.drawCircle(
+      c,
+      19,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 7
+        ..isAntiAlias = true
+        ..color = tone);
+  final t = _tp('${count > 99 ? '99+' : count}', 15.5, FontWeight.w800,
+      dark ? PawRole2610.inkDark : PawRole2610.inkLight,
+      letterSpacing: -0.5);
+  t.paint(canvas, Offset(c.dx - t.width / 2, c.dy - t.height / 2));
+}

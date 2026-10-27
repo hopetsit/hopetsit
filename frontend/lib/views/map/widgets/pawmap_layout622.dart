@@ -14,16 +14,22 @@
 // Fonctions PURES, testées (test/pam622_test.dart).
 import 'dart:ui' show Offset, Rect;
 
+import 'pawmap_anchor625.dart';
 import 'pawmap_overlap607.dart';
 
 /// Résultat : les groupes (ordre stable) et le décalage écran de chacun.
 class PawPlacement622<T> {
-  const PawPlacement622(this.groups, this.shifts, [this.compact = const <bool>[]]);
+  const PawPlacement622(this.groups, this.shifts,
+      [this.compact = const <bool>[], this.hidden = const <bool>[]]);
   final List<List<T>> groups;
   final List<Offset> shifts;
   /// Vrai : la bulle a REPLIÉ son prix (place trop juste) — règle du site.
   final List<bool> compact;
+  /// 625 — vrai : pas de place à ≤ 12 pt de sa position → NON dessiné (on
+  /// le retrouve en zoomant). Jamais « Moi » ni un ami.
+  final List<bool> hidden;
   bool isCompact(int i) => i < compact.length && compact[i];
+  bool isHidden(int i) => i < hidden.length && hidden[i];
 }
 
 /// Regroupe et place jusqu'à ce que toutes les bulles VISIBLES ([screen])
@@ -45,6 +51,10 @@ PawPlacement622<T> pawPlace622<T>(
   Rect? bounds,
   Rect? screen,
   int maxRounds = 12,
+  /// 625 (parité site) — vrai pour un rond de personne / un groupe : il reste
+  /// SUR sa position (glissement ≤ [kPawAnchorMaxShift625]) ; sans place, il
+  /// replie sa bulle puis est masqué. Null : comportement 622 (tout glisse).
+  bool Function(List<T> g)? anchored,
 }) {
   var cur = <List<T>>[
     for (final g in groups)
@@ -52,19 +62,39 @@ PawPlacement622<T> pawPlace622<T>(
   ];
   var compact = List<bool>.filled(cur.length, false);
   var shifts = List<Offset>.filled(cur.length, Offset.zero);
+  var hidden = List<bool>.filled(cur.length, false);
   for (var round = 0; round < maxRounds; round++) {
-    final at = <Offset>[for (final g in cur) _center(g, px)];
+    // 625 — un groupe est posé sur son membre le plus central (médoïde),
+    // jamais sur la moyenne (moyenne de deux côtes = en mer).
+    final at = <Offset>[for (final g in cur) pawAnchorPx625(g, px)];
     final boxes = <Rect>[
       for (var i = 0; i < cur.length; i++)
         (compact[i] && compactBoxOf != null) ? compactBoxOf(cur[i]) : boxOf(cur[i]),
     ];
     final mov = <bool>[for (final g in cur) movable == null || movable(g)];
+    final anc = <bool>[for (final g in cur) anchored != null && anchored(g)];
+    final unplaced = <int>{};
     shifts = pawRepelBoxes(at, boxes, fixed,
-        movable: mov, bounds: bounds, screen: screen);
-    if (cur.length < 2 || round == maxRounds - 1) break;
+        movable: mov,
+        bounds: bounds,
+        screen: screen,
+        anchored: anc,
+        anchorMax: kPawAnchorMaxShift625,
+        unplaced: unplaced);
+    hidden = List<bool>.filled(cur.length, false);
+    final bool lastRound = round == maxRounds - 1;
     final placed = <Offset>[for (var i = 0; i < at.length; i++) at[i] + shifts[i]];
     bool visible(int i) =>
-        screen == null || boxes[i].shift(placed[i]).overlaps(screen);
+        !hidden[i] && (screen == null || boxes[i].shift(placed[i]).overlaps(screen));
+    // 625 — masquer (jamais un immobile : Moi, ami) : sans place, le rond
+    // ancré ne part pas loin, il s'efface et réapparaît en zoomant.
+    var hid = false;
+    bool hide(int i) {
+      if (!mov[i] || hidden[i]) return false;
+      hidden[i] = true;
+      hid = true;
+      return true;
+    }
     bool merges(int i, int j) =>
         mov[i] && mov[j] && (canMerge == null || canMerge(cur[i], cur[j]));
     final parent = List<int>.generate(cur.length, (i) => i);
@@ -91,6 +121,7 @@ PawPlacement622<T> pawPlace622<T>(
     }
 
     void union(int i, int j) {
+      if (lastRound) return; // dernière passe : plus de fusion, on masque
       final a = find(i), b = find(j);
       if (a != b) {
         parent[b] = a;
@@ -123,8 +154,28 @@ PawPlacement622<T> pawPlace622<T>(
         // La plus large replie d'abord son prix, sinon l'autre.
         final wideFirst = boxes[i].width * boxes[i].height >= boxes[j].width * boxes[j].height;
         if (wideFirst ? (fold(i) || fold(j)) : (fold(j) || fold(i))) continue;
-        if (merges(i, j)) {
+        if (merges(i, j) && !lastRound) {
           union(i, j);
+          continue;
+        }
+        if (anc[i] || anc[j]) {
+          // 625 — un rond ancré ne rejoint JAMAIS un voisin lointain à cause
+          // d'une demande : c'est l'autre (non ancré) qui se fond avec sa
+          // voisine de même nature, sinon s'efface ; deux ancrés de natures
+          // différentes (ami / membre) : le mobile s'efface.
+          final o = anc[i] && !anc[j] ? j : (anc[j] && !anc[i] ? i : (mov[j] ? j : i));
+          final k = (!anc[o] && mov[o] && !lastRound)
+              ? nearestCompatible(o, except: o == i ? j : i)
+              : -1;
+          if (k >= 0) {
+            union(o, k);
+          } else if (!hide(o)) {
+            hide(o == i ? j : i);
+          }
+          continue;
+        }
+        if (lastRound) {
+          if (!hide(j)) hide(i);
           continue;
         }
         final ki = mov[i] ? nearestCompatible(i, except: j) : -1;
@@ -150,9 +201,32 @@ PawPlacement622<T> pawPlace622<T>(
       }
       if (!cut && !onFixed) continue;
       if (fold(i)) continue;
+      if (anc[i] || lastRound) {
+        // 625 — ancré sans place (sous Moi, un rail, coupé au bord) : masqué.
+        hide(i);
+        continue;
+      }
       final best = nearestCompatible(i);
       if (best >= 0) union(i, best);
     }
+    // 625 — ancré resté sans place à ≤ 12 pt (déjà replié) : masqué.
+    for (final i in unplaced) {
+      if (hidden[i] || !visible(i)) continue;
+      var touches = false;
+      for (var j = 0; j < cur.length && !touches; j++) {
+        if (j != i && visible(j) &&
+            pawBoxesTouch(placed[i], boxes[i], placed[j], boxes[j], air: 0)) {
+          touches = true;
+        }
+      }
+      for (final f in fixed) {
+        if (touches) break;
+        if (pawBoxesTouch(placed[i], boxes[i], f.at, f.box, air: 0)) touches = true;
+      }
+      if (touches && !fold(i)) hide(i);
+    }
+    if (cur.length < 2 && !hid && !folded) break;
+    if (lastRound) break;
     if (!merged && !folded) break;
     if (!merged) continue; // seulement des replis : on replace, mêmes groupes
     final byRoot = <int, List<T>>{};
@@ -170,8 +244,9 @@ PawPlacement622<T> pawPlace622<T>(
     // Un groupe neuf (fusion) repart avec son prix ; un groupe inchangé
     // garde son repli.
     compact = [for (final r in order) sizeOf[r] == 1 && foldOf[r]!];
+    hidden = List<bool>.filled(cur.length, false);
   }
-  return PawPlacement622<T>(cur, shifts, compact);
+  return PawPlacement622<T>(cur, shifts, compact, hidden);
 }
 
 /// Groupes seuls (voir [pawPlace622]) ; [mergeable] faux = ni bouge ni fond.
@@ -193,13 +268,3 @@ List<List<T>> pawMergeUntilPlaced622<T>(
             screen: screen,
             maxRounds: maxRounds)
         .groups;
-
-Offset _center<T>(List<T> g, Offset Function(T) px) {
-  var x = 0.0, y = 0.0;
-  for (final it in g) {
-    final p = px(it);
-    x += p.dx;
-    y += p.dy;
-  }
-  return Offset(x / g.length, y / g.length);
-}

@@ -191,6 +191,9 @@ PawFan612 pawFan612({
   required Rect friendBox,
   Set<int> followed = const <int>{},
   double maxShift = 90,
+  // 625 — vrai : chaque rond glisse de [maxShift] au plus (jamais ×2) et
+  // reste sur sa position s'il n'a pas de place (parité site, ancrés).
+  bool strict = false,
 }) {
   if (meAt == null) {
     return PawFan612(Offset.zero, List<Offset>.filled(friendsAt.length, Offset.zero));
@@ -199,7 +202,9 @@ PawFan612 pawFan612({
   if (followed.isNotEmpty) {
     me = pawRepelBoxes([meAt], [meBox],
         [for (final f in followed) PawPlacedBox(friendsAt[f], friendBox)],
-        maxShift: maxShift)[0];
+        maxShift: maxShift,
+        anchored: strict ? const [true] : null,
+        anchorMax: maxShift)[0];
   }
   final shifts = pawRepelBoxes(
     friendsAt,
@@ -207,6 +212,8 @@ PawFan612 pawFan612({
     [PawPlacedBox(meAt + me, meBox)],
     movable: [for (var k = 0; k < friendsAt.length; k++) !followed.contains(k)],
     maxShift: maxShift,
+    anchored: strict ? [for (final _ in friendsAt) true] : null,
+    anchorMax: maxShift,
   );
   return PawFan612(me, [
     for (var k = 0; k < friendsAt.length; k++)

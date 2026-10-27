@@ -83,7 +83,8 @@ class HomeController extends GetxController {
       return (lat: mLat, lng: mLng);
     }
     try {
-      final position = await LocationService().getCurrentLocation();
+      final position = await LocationService()
+          .getCurrentLocation(openSettingsIfBlocked: false); // 625 — chargement automatique : jamais les Réglages
       if (position != null) {
         anchoredOnGps.value = true;
         return (lat: position.latitude, lng: position.longitude);
