@@ -101,6 +101,16 @@ const ownerSchema = new mongoose.Schema(
     termsVersion: { type: String, default: '' },
     service: { type: [String], default: [] },
     verified: { type: Boolean, default: false },
+    // 27/10/2026 (SAM, décision de Daniel) — PREUVE que la personne lit cette boîte : posée
+    // UNIQUEMENT par un vrai clic (lien d'e-mail ouvert dans un navigateur ou l'app, code ou lien
+    // de vérification, mot de passe réinitialisé par code). Jamais par un script ni par la
+    // publication automatique d'une demande venue de la pub (`verified` n'en est plus la preuve).
+    emailProvenAt: { type: Date, default: null },
+    emailProofSource: { type: String, default: '' },
+    // 27/10 (SAM) — compte créé (ou repris) par la pub à formulaire Meta : marqueur PERMANENT
+    // (les AdLead sont purgés à 60 j). Sert à garder les e-mails de candidatures malgré
+    // `verified:false` et à ne PAS envoyer la relance « vérifie ton e-mail » (décision de Daniel).
+    adLeadAt: { type: Date, default: null },
     isStaff: { type: Boolean, default: false, index: true },
     // v560 — opt-out des e-mails de cycle de vie (lien de désabonnement).
     marketingOptOut: { type: Boolean, default: false },

@@ -136,7 +136,8 @@ describe('1. Contact de la pub → demande publiée → candidature → le propr
       lat: -35, lng: -30, country: 'FR', lang: 'fr', service: 'garde', animal: 'chien', quand: 'bientot',
     }).expect(200);
     FR.lead = reg.body.id;
-    const r = await request(app).post(`/ad-leads/${FR.lead}/confirm`).send({ lieu: 'at_owner' }).expect(200);
+    // 27/10 (SAM) — le clic vient d'un vrai navigateur (téléphone) : c'est lui qui prouve l'e-mail.
+    const r = await request(app).post(`/ad-leads/${FR.lead}/confirm`).set('User-Agent', 'Mozilla/5.0 (Linux; Android 14) Chrome/130 Mobile Safari/537.36').send({ lieu: 'at_owner' }).expect(200);
     FR.owner = await Owner.findOne({ email: 'flo2310+ownerfr@example.test' });
     expect(FR.owner).toBeTruthy();
     expect(FR.owner.verified).toBe(true);

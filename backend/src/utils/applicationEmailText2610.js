@@ -45,6 +45,7 @@ const petKey = (post) => {
 
 const T = {
   fr: {
+    choose: (n) => `Choisir ${n}`, // 2710 (SAM) — bouton direct de chaque carte
     verb: { sit: 'garder', visit: 'rendre visite à', walk: 'promener' },
     pet: { dog: 'votre chien', dogs: 'vos chiens', cat: 'votre chat', cats: 'vos chats', pet: 'votre animal', pets: 'vos animaux' },
     one: (n, v, p, c) => `${n} peut ${v} ${p}${c ? ` à ${c}` : ''}`,
@@ -57,6 +58,7 @@ const T = {
     weekly: 'tarif semaine appliqué',
   },
   en: {
+    choose: (n) => `Choose ${n}`, // 2710 (SAM) — bouton direct de chaque carte
     verb: { sit: 'look after', visit: 'visit', walk: 'walk' },
     pet: { dog: 'your dog', dogs: 'your dogs', cat: 'your cat', cats: 'your cats', pet: 'your pet', pets: 'your pets' },
     one: (n, v, p, c) => `${n} can ${v} ${p}${c ? ` in ${c}` : ''}`,
@@ -69,6 +71,7 @@ const T = {
     weekly: 'weekly rate applied',
   },
   es: {
+    choose: (n) => `Elegir a ${n}`, // 2710 (SAM) — bouton direct de chaque carte
     verb: { sit: 'cuidar a', visit: 'visitar a', walk: 'pasear a' },
     pet: { dog: 'su perro', dogs: 'sus perros', cat: 'su gato', cats: 'sus gatos', pet: 'su mascota', pets: 'sus mascotas' },
     one: (n, v, p, c) => `${n} puede ${v} ${p}${c ? ` en ${c}` : ''}`,
@@ -81,6 +84,7 @@ const T = {
     weekly: 'tarifa semanal aplicada',
   },
   de: {
+    choose: (n) => `${n} auswählen`, // 2710 (SAM) — bouton direct de chaque carte
     verb: { sit: 'betreuen', visit: 'besuchen', walk: 'ausführen' },
     pet: { dog: 'Ihren Hund', dogs: 'Ihre Hunde', cat: 'Ihre Katze', cats: 'Ihre Katzen', pet: 'Ihr Haustier', pets: 'Ihre Haustiere' },
     one: (n, v, p, c) => `${n} kann ${p}${c ? ` in ${c}` : ''} ${v}`,
@@ -93,6 +97,7 @@ const T = {
     weekly: 'Wochentarif angewendet',
   },
   it: {
+    choose: (n) => `Scegli ${n}`, // 2710 (SAM) — bouton direct de chaque carte
     verb: { sit: 'accudire', visit: 'fare visita a', walk: 'portare a spasso' },
     pet: { dog: 'il suo cane', dogs: 'i suoi cani', cat: 'il suo gatto', cats: 'i suoi gatti', pet: 'il suo animale', pets: 'i suoi animali' },
     one: (n, v, p, c) => `${n} può ${v} ${p}${c ? ` a ${c}` : ''}`,
@@ -105,6 +110,7 @@ const T = {
     weekly: 'tariffa settimanale applicata',
   },
   pt: {
+    choose: (n) => `Escolher ${n}`, // 2710 (SAM) — bouton direct de chaque carte
     verb: { sit: 'ficar com', visit: 'visitar', walk: 'passear' },
     pet: { dog: 'o seu cão', dogs: 'os seus cães', cat: 'o seu gato', cats: 'os seus gatos', pet: 'o seu animal', pets: 'os seus animais' },
     one: (n, v, p, c) => `${n} pode ${v} ${p}${c ? ` em ${c}` : ''}`,
@@ -117,6 +123,7 @@ const T = {
     weekly: 'tarifa semanal aplicada',
   },
   ko: {
+    choose: (n) => `${n}님 선택`, // 2710 (SAM) — bouton direct de chaque carte
     svc: { sit: '펫시팅', visit: '방문 돌봄', walk: '산책' },
     one: (n, s, c) => `${n}님이 지원했습니다 · ${s}${c ? ` · ${c}` : ''}`,
     many: (k, s, c) => `새 지원자 ${k}명 · ${s}${c ? ` · ${c}` : ''}`,
@@ -128,6 +135,7 @@ const T = {
     weekly: '주간 요금 적용',
   },
   ja: {
+    choose: (n) => `${n}さんを選ぶ`, // 2710 (SAM) — bouton direct de chaque carte
     svc: { sit: 'ペットシッター', visit: '訪問ケア', walk: '散歩' },
     one: (n, s, c) => `${n}さんが応募しました · ${s}${c ? ` · ${c}` : ''}`,
     many: (k, s, c) => `新しい応募者${k}名 · ${s}${c ? ` · ${c}` : ''}`,
@@ -139,6 +147,7 @@ const T = {
     weekly: '週料金を適用',
   },
   pl: {
+    choose: (n) => `Wybierz: ${n}`, // 2710 (SAM) — bouton direct de chaque carte
     svc: { sit: 'opieka nad zwierzęciem', visit: 'wizyty domowe', walk: 'spacer z psem' },
     one: (n, s, c) => `${n} zgłasza się: ${s}${c ? ` · ${c}` : ''}`,
     many: (k, s, c) => `Nowi kandydaci (${k}): ${s}${c ? ` · ${c}` : ''}`,
@@ -199,7 +208,12 @@ function cardsHtml(lang, cards) {
       + `<td width="68" style="padding:12px 0 12px 12px;vertical-align:middle">${avatar}</td>`
       + `<td style="padding:12px;vertical-align:middle"><div style="font-size:17px;font-weight:700;color:#231715">${name}</div><div style="font-size:13px;color:#6E4F48;line-height:1.4">${meta}</div></td>`
       + (price ? `<td style="padding:12px 14px 12px 0;vertical-align:middle;text-align:right;white-space:nowrap;font-size:16px;font-weight:800;color:#9E1F0B">${esc(price)}${c.pricing && c.pricing.weeklyApplied === true ? `<div style="font-size:11px;font-weight:700;color:#15803D">${esc(L.weekly)}</div>` : ''}</td>` : '')
-      + '</tr></table>';
+      + '</tr>'
+      // 2710 (SAM, ordre de Daniel « que les propriétaires valident et paient ») — bouton DIRECT
+      // « Choisir <prénom> » : ouvre la page de ce candidat (session sans mot de passe pour les
+      // contacts de la pub), où un seul geste confirme le choix et mène au paiement.
+      + (/^https:\/\//.test(String(c.link || '')) ? `<tr><td colspan="${price ? 3 : 2}" style="padding:0 12px 12px"><a href="${esc(c.link)}" style="display:block;padding:12px 10px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-size:16px;font-weight:800;text-align:center;font-family:sans-serif">${esc(L.choose(String(c.name || 'HoPetSit')))}</a></td></tr>` : '')
+      + '</table>';
   }).join('');
 }
 

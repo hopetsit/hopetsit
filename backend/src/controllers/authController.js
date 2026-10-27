@@ -170,12 +170,24 @@ const { ensureAvatarFromSiblingRoles } = require('../utils/avatarFallback');
 // owner > sitter > walker) : un promeneur qui possédait aussi un profil owner
 // validait l'owner, et son profil walker restait « non vérifié » pour
 // toujours (nouveau code à chaque login, actions d'argent bloquées).
-const markVerifiedAcrossRoles = async (email) => {
+const markVerifiedAcrossRoles = async (email, proofSource = '') => {
   const lower = String(email || '').toLowerCase();
   if (!lower) return;
   await Promise.all([Owner, Sitter, Walker].map((M) =>
     M.updateMany({ email: lower }, { $set: { verified: true } }),
   ));
+  // 27/10 (SAM, décision de Daniel) — `proofSource` non vide = l'appelant a constaté un VRAI
+  // geste sur cette boîte (code, lien, réinitialisation, clic d'un e-mail) : on le date une fois.
+  if (proofSource) await markEmailProven(lower, proofSource);
+};
+
+/** 27/10 (SAM) — date la première preuve réelle de l'e-mail (profil propriétaire). */
+const markEmailProven = async (email, source) => {
+  const lower = String(email || '').toLowerCase();
+  if (!lower) return;
+  try {
+    await Owner.updateMany({ email: lower, emailProvenAt: null }, { $set: { emailProvenAt: new Date(), emailProofSource: String(source || 'click').slice(0, 20) } });
+  } catch (e) { logger.warn(`[auth] preuve e-mail non notée : ${e && e.message ? e.message : e}`); }
 };
 
 // v565 — les 3 docs (éventuels) d'un e-mail, pour savoir s'il reste un profil
@@ -1743,7 +1755,7 @@ const verifyEmail = async (req, res) => {
     result.account.verified = true;
     await result.account.save();
     // v565 — propagation aux 3 profils de la personne (un compte, trois profils).
-    await markVerifiedAcrossRoles(email);
+    await markVerifiedAcrossRoles(email, 'verify');
     await VerificationCode.deleteOne({ email: email.toLowerCase(), purpose: 'email_verification' });
 
     // Generate JWT token after successful verification
@@ -1787,7 +1799,7 @@ const verifyEmailLink = async (req, res) => {
     if (!record || dayjs(record.expiresAt).isBefore(dayjs()) || !compareCode(code, record.code)) {
       return page(false, 'Lien expiré / Link expired', 'Ouvre l\'app, connecte-toi : un nouveau code t\'est envoyé automatiquement. / Open the app and sign in: a new code is sent automatically.');
     }
-    await markVerifiedAcrossRoles(email);
+    await markVerifiedAcrossRoles(email, 'verify');
     await VerificationCode.deleteOne({ email, purpose: 'email_verification' });
     logger.info(`[auth] verify-link OK ${email} (${accounts.map((a) => a.role).join('+')})`);
     return page(true, 'Compte activé ! / Account activated!', 'Reviens dans l\'app HoPetSit et connecte-toi, tout est prêt. / Go back to the HoPetSit app and sign in, you\'re all set.');
@@ -1987,6 +1999,8 @@ const resetPassword = async (req, res) => {
     // Reset password
     result.account.password = newPassword;
     await result.account.save();
+    // 27/10 (SAM) — un code reçu par e-mail puis validé PROUVE la boîte : compte vérifié (3 profils).
+    await markVerifiedAcrossRoles(email, 'reset');
     
     // Delete the verification code after successful password reset
     await VerificationCode.deleteOne({ email: email.toLowerCase() });
@@ -2226,6 +2240,7 @@ const refreshToken = async (req, res) => {
 
 module.exports = {
   markVerifiedAcrossRoles,
+  markEmailProven,
   verifyEmailLink,
   signup,
   login,

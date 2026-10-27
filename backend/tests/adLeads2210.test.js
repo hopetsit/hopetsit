@@ -69,12 +69,18 @@ test('enregistrement réservé à l’admin, idempotent, id opaque', async () =>
   await request(app).get('/ad-leads/pas-un-id').expect(404);
 });
 
-test('un clic : compte vérifié + demande publiée + session ; 2e clic = même demande', async () => {
+// 27/10 (SAM, décision de Daniel) — seul un VRAI clic (navigateur / app) prouve l'e-mail.
+const BROWSER = { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1' };
+test('un clic depuis un navigateur : compte vérifié + preuve datée + demande publiée + session ; 2e clic = même demande', async () => {
   const { body: { id } } = await request(app).post('/admin/ad-leads').set(ADMIN).send(LEAD);
-  const r = await request(app).post(`/ad-leads/${id}/confirm`).send({ lieu: 'at_sitter' }).expect(200);
+  const r = await request(app).post(`/ad-leads/${id}/confirm`).set(BROWSER).send({ lieu: 'at_sitter' }).expect(200);
   const owner = await Owner.findOne({ email: 'lea+test2210@example.com' });
   expect(owner).toBeTruthy();
   expect(owner.verified).toBe(true);
+  expect(owner.emailProvenAt).toBeTruthy();
+  expect(owner.emailProofSource).toBe('lead_web');
+  expect(owner.adLeadAt).toBeTruthy();
+  expect((await AdLead.findById(id)).clickedAt).toBeTruthy();
   expect(owner.acceptedTerms).toBe(true);
   expect(owner.currency).toBe('EUR');
   expect(jwt.verify(r.body.token, process.env.JWT_SECRET)).toMatchObject({ id: String(owner._id), role: 'owner' });
@@ -90,13 +96,13 @@ test('un clic : compte vérifié + demande publiée + session ; 2e clic = même 
   expect((await request(app).get(`/ad-leads/${id}`)).body.confirmed).toBe(true);
 });
 
-test('compte existant non vérifié : réutilisé et vérifié ; promenade en anglais', async () => {
+test('compte existant non vérifié : réutilisé, vérifié au vrai clic ; promenade en anglais', async () => {
   await Owner.create({ name: 'Sam', email: 'sam+test2210@example.com', password: 'motdepasse123', verified: false });
   const { body: { id } } = await request(app).post('/admin/ad-leads').set(ADMIN).send({
     ...LEAD, metaLeadId: 'meta-2', email: 'sam+test2210@example.com', lang: 'en', country: 'US',
     service: 'promenade', animal: 'chien', quand: 'bientot',
   });
-  const r = await request(app).post(`/ad-leads/${id}/confirm`).send({}).expect(200);
+  const r = await request(app).post(`/ad-leads/${id}/confirm`).set(BROWSER).send({}).expect(200);
   expect(await Owner.countDocuments({ email: 'sam+test2210@example.com' })).toBe(1);
   expect((await Owner.findOne({ email: 'sam+test2210@example.com' })).verified).toBe(true);
   const post = await Post.findById(r.body.postId);
@@ -105,7 +111,7 @@ test('compte existant non vérifié : réutilisé et vérifié ; promenade en an
 });
 
 // 23/10 (SAM, consigne de Daniel) — le suivi publie dès le formulaire rempli, par la route admin.
-test('admin publish : compte vérifié + demande + gardiens, sans session ; 2e appel = même demande ; GET renvoie postId', async () => {
+test('admin publish : compte NON vérifié (marqué pub) + demande + gardiens, sans session ; un clic de script ne prouve rien ; GET renvoie postId', async () => {
   const { body: { id } } = await request(app).post('/admin/ad-leads').set(ADMIN).send({
     ...LEAD, metaLeadId: 'meta-3', email: 'ana+test2310@example.com', firstName: 'Ana', service: 'visites', quand: 'bientot',
   });
@@ -115,7 +121,9 @@ test('admin publish : compte vérifié + demande + gardiens, sans session ; 2e a
   expect(r.body.alreadyPublished).toBe(false);
   expect(r.body.postId).toMatch(/^[a-f0-9]{24}$/);
   const owner = await Owner.findOne({ email: 'ana+test2310@example.com' });
-  expect(owner.verified).toBe(true);
+  expect(owner.verified).toBe(false);
+  expect(owner.emailProvenAt).toBeNull();
+  expect(owner.adLeadAt).toBeTruthy();
   expect(String(r.body.ownerId)).toBe(String(owner._id));
   const post = await Post.findById(r.body.postId);
   expect(post.body).toBe('Je cherche des visites à domicile pour mon chat dans les 15 jours.');
@@ -130,6 +138,14 @@ test('admin publish : compte vérifié + demande + gardiens, sans session ; 2e a
   // le clic depuis l'e-mail, après coup, ouvre la session sur la même demande
   const r3 = await request(app).post(`/ad-leads/${id}/confirm`).send({}).expect(200);
   expect(r3.body.postId).toBe(r.body.postId);
+  // sans User-Agent (= script) : aucune preuve
+  expect((await Owner.findById(owner._id)).verified).toBe(false);
+  await request(app).post(`/ad-leads/${id}/confirm`).set({ 'User-Agent': 'Python-urllib/3.12' }).send({}).expect(200);
+  expect((await Owner.findById(owner._id)).verified).toBe(false);
+  await request(app).post(`/ad-leads/${id}/confirm`).set(BROWSER).send({}).expect(200);
+  const proven = await Owner.findById(owner._id);
+  expect(proven.verified).toBe(true);
+  expect(proven.emailProvenAt).toBeTruthy();
   await request(app).post('/admin/ad-leads/00000000000000000000000000000000/publish').set(ADMIN).send({}).expect(404);
 });
 
@@ -161,4 +177,39 @@ test('dates : réponses du formulaire posées sur l\'annonce ; sinon déduites d
   expect(r3.body.dates).toBeNull();
   const post3 = await Post.findById(r3.body.postId);
   expect(post3.startDate == null).toBe(true);
+});
+
+// 27/10 (SAM, décision de Daniel) — mesure (sans e-mail) puis remise en « non vérifié » des comptes
+// pub sans preuve ; un compte d'avant la pub n'est jamais touché ; une vraie session = preuve datée.
+test('proof2710 + unverify2710 : essai sans écriture, puis seuls les comptes sans preuve repassent non vérifiés', async () => {
+  const ActivityEvent = require('../src/models/ActivityEvent');
+  const mk = async (n, opts = {}) => {
+    const { body: { id } } = await request(app).post('/admin/ad-leads').set(ADMIN).send({
+      ...LEAD, metaLeadId: `meta-u${n}`, email: `u${n}.t2710@example.com`, firstName: `U${n}`,
+    });
+    await request(app).post(`/admin/ad-leads/${id}/publish`).set(ADMIN).send({}).expect(200);
+    const o = await Owner.findOne({ email: `u${n}.t2710@example.com` });
+    // ancien comportement (avant 27/10) : compte posé vérifié d'office par la publication
+    await Owner.collection.updateOne({ _id: o._id }, { $set: { verified: true, adLeadAt: null, ...(opts.old ? { createdAt: new Date('2026-01-01') } : {}) } });
+    if (opts.session) await ActivityEvent.create({ userId: String(o._id), at: new Date(), platform: 'web', appVersion: 'web', origin: 'web' });
+    return o._id;
+  };
+  const none = await mk(1);
+  const withSession = await mk(2, { session: true });
+  const old = await mk(3, { old: true });
+  const proof = await request(app).get('/admin/ad-leads/proof2710').set(ADMIN).expect(200);
+  expect(JSON.stringify(proof.body)).not.toMatch(/@/); // jamais d'e-mail
+  const dec = Object.fromEntries(proof.body.rows.filter((r) => [none, withSession, old].map(String).includes(r.ownerId)).map((r) => [r.ownerId, r.decision]));
+  expect(dec[String(none)]).toBe('unverify');
+  expect(dec[String(withSession)]).toBe('keep_proven');
+  expect(dec[String(old)]).toBe('keep_preexisting');
+  const dry = await request(app).post('/admin/ad-leads/unverify2710').set(ADMIN).send({}).expect(200);
+  expect(dry.body.dryRun).toBe(true);
+  expect((await Owner.findById(none)).verified).toBe(true); // rien écrit
+  const run = await request(app).post('/admin/ad-leads/unverify2710').set(ADMIN).send({ dryRun: false }).expect(200);
+  expect(run.body.dryRun).toBe(false);
+  const [a, b, c] = await Promise.all([none, withSession, old].map((i) => Owner.findById(i)));
+  expect(a.verified).toBe(false); expect(a.adLeadAt).toBeTruthy(); expect(a.emailProvenAt).toBeNull();
+  expect(b.verified).toBe(true); expect(b.emailProvenAt).toBeTruthy(); expect(b.emailProofSource).toBe('session_web');
+  expect(c.verified).toBe(true); expect(c.emailProvenAt).toBeNull();
 });

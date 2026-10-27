@@ -44,6 +44,7 @@ async function cardsFor(apps, post) {
     let km = null;
     try { km = DIST.distanceKm(post, p); } catch (_) { km = null; }
     out.push({
+      applicationId: String(a._id || ''),
       name: firstNameOf(p) || 'HoPetSit',
       role,
       avatar: p.avatar && p.avatar.url ? p.avatar.url : '',
@@ -69,6 +70,19 @@ async function sendFor({ post, ownerId, apps, send }) {
   const newest = pending.slice().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   const cards = await cardsFor(newest.slice(0, MAX_CARDS), post);
   if (!cards.length) return { sent: false, reason: 'no_provider' };
+  // 2710 (SAM) — lien direct de chaque carte : /application/<id>?from=email&choose=1, passé par
+  // la page qui ouvre la session sans mot de passe pour un propriétaire venu de la pub (même
+  // règle que le bouton principal : leadOwnerEmailLink). En cas d'erreur : pas de bouton.
+  try {
+    const { BASE_URL } = require('../utils/emailLinkBuilder');
+    const ns = require('./notificationSender');
+    for (const c of cards) {
+      if (!/^[a-f0-9]{24}$/i.test(String(c.applicationId || ''))) continue;
+      const direct = `${BASE_URL}/application/${c.applicationId}?from=email&choose=1`;
+      // eslint-disable-next-line no-await-in-loop
+      c.link = typeof ns.leadOwnerEmailLink === 'function' ? await ns.leadOwnerEmailLink('owner', String(ownerId), direct, BASE_URL) : direct;
+    }
+  } catch (_) { /* cartes sans bouton direct */ }
   let lang = 'fr';
   try {
     const o = await Owner.findById(ownerId).select('appLocale language').lean();

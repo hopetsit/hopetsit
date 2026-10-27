@@ -23,7 +23,8 @@ export default function ApplicationRoutePage({ params }: { params: { id: string 
     try {
       const q = new URLSearchParams(window.location.search);
       const keep = new URLSearchParams();
-      for (const k of ["from", "utm_medium", "utm_source", "utm_campaign"]) { const v = q.get(k); if (v) keep.set(k, v.slice(0, 40)); }
+      // 2710 (SAM) — `choose=1` (bouton « Choisir <prénom> » de l'e-mail) suit aussi jusqu'aux candidats.
+      for (const k of ["from", "utm_medium", "utm_source", "utm_campaign", "choose"]) { const v = q.get(k); if (v) keep.set(k, v.slice(0, 40)); }
       extra = keep.toString() ? `&${keep.toString()}` : "";
     } catch { /* URL exotique */ }
     const target = id ? `/posts?application=${encodeURIComponent(id)}${extra}` : "/posts";

@@ -151,6 +151,15 @@ describe('verify_email_d2 — sélection des comptes', () => {
     expect(stepsSent()).not.toContain('welcome_owner_d1');
   });
 
+  // 27/10 (SAM, décision de Daniel) — propriétaire venu de la pub, non vérifié : AUCUNE relance
+  // « vérifie ton e-mail » (il prouve son adresse en cliquant ses e-mails de candidatures).
+  test('propriétaire venu de la pub (adLeadAt) non vérifié : pas de relance de vérification', async () => {
+    DOCS = [{ ...doc({ role: 'owner', email: 'pub@example.test', verified: false, ageDays: 3 }), adLeadAt: new Date(now - 3 * DAY) }];
+    await runLifecycleOnce();
+    expect(stepsSent()).not.toContain('verify_email_d2');
+    expect(stepsSent()).toContain('welcome_owner_d1'); // le compte est bien passé dans le planificateur
+  });
+
   test('un compte déjà vérifié ne reçoit rien de cette étape', async () => {
     DOCS = [doc({ email: 'ok@example.test', verified: true, ageDays: 3 })];
     await runLifecycleOnce();

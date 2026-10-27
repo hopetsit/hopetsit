@@ -25,6 +25,9 @@ export const CAND2610: Record<Lang, D> = {
     no_reviews: "Nouveau sur HoPetSit",
     count_one: "1 candidat",
     count_many: "{n} candidats",
+    fast_title: "Tu as choisi {name} ?",
+    fast_sub: "Un geste : {name} est réservé(e) et tu passes au paiement sécurisé par carte. Les autres candidatures sont refusées.",
+    fast_cta: "Choisir {name} et payer",
   },
   en: {
     weekly: "weekly rate applied",
@@ -44,6 +47,9 @@ export const CAND2610: Record<Lang, D> = {
     no_reviews: "New on HoPetSit",
     count_one: "1 candidate",
     count_many: "{n} candidates",
+    fast_title: "Going with {name}?",
+    fast_sub: "One tap: {name} is booked and you go to secure card payment. The other applications are declined.",
+    fast_cta: "Choose {name} and pay",
   },
   es: {
     weekly: "tarifa semanal aplicada",
@@ -63,6 +69,9 @@ export const CAND2610: Record<Lang, D> = {
     no_reviews: "Nuevo en HoPetSit",
     count_one: "1 candidato",
     count_many: "{n} candidatos",
+    fast_title: "¿Te quedas con {name}?",
+    fast_sub: "Un solo gesto: reservas a {name} y pasas al pago seguro con tarjeta. Las demás candidaturas se rechazan.",
+    fast_cta: "Elegir a {name} y pagar",
   },
   de: {
     weekly: "Wochentarif angewendet",
@@ -82,6 +91,9 @@ export const CAND2610: Record<Lang, D> = {
     no_reviews: "Neu bei HoPetSit",
     count_one: "1 Bewerber",
     count_many: "{n} Bewerber",
+    fast_title: "{name} auswählen?",
+    fast_sub: "Ein Tipp: {name} ist gebucht und du gehst zur sicheren Kartenzahlung. Die anderen Bewerbungen werden abgelehnt.",
+    fast_cta: "{name} wählen und bezahlen",
   },
   it: {
     weekly: "tariffa settimanale applicata",
@@ -101,6 +113,9 @@ export const CAND2610: Record<Lang, D> = {
     no_reviews: "Nuovo su HoPetSit",
     count_one: "1 candidato",
     count_many: "{n} candidati",
+    fast_title: "Scegli {name}?",
+    fast_sub: "Un solo gesto: prenoti {name} e passi al pagamento sicuro con carta. Le altre candidature vengono rifiutate.",
+    fast_cta: "Scegli {name} e paga",
   },
   pt: {
     weekly: "tarifa semanal aplicada",
@@ -120,6 +135,9 @@ export const CAND2610: Record<Lang, D> = {
     no_reviews: "Novo no HoPetSit",
     count_one: "1 candidato",
     count_many: "{n} candidatos",
+    fast_title: "Escolhes {name}?",
+    fast_sub: "Um só gesto: reservas {name} e passas ao pagamento seguro com cartão. As outras candidaturas são recusadas.",
+    fast_cta: "Escolher {name} e pagar",
   },
   ko: {
     weekly: "주간 요금 적용",
@@ -139,6 +157,9 @@ export const CAND2610: Record<Lang, D> = {
     no_reviews: "HoPetSit 신규",
     count_one: "지원자 1명",
     count_many: "지원자 {n}명",
+    fast_title: "{name}님으로 하시겠어요?",
+    fast_sub: "한 번에: {name}님을 예약하고 안전한 카드 결제로 이동합니다. 다른 지원은 거절됩니다.",
+    fast_cta: "{name}님 선택하고 결제",
   },
   ja: {
     weekly: "週料金を適用",
@@ -158,6 +179,9 @@ export const CAND2610: Record<Lang, D> = {
     no_reviews: "HoPetSit の新メンバー",
     count_one: "応募者 1名",
     count_many: "応募者 {n}名",
+    fast_title: "{name}さんに決めますか？",
+    fast_sub: "ワンタップで{name}さんを予約し、安全なカード決済へ進みます。ほかの応募はお断りされます。",
+    fast_cta: "{name}さんを選んで支払う",
   },
   pl: {
     weekly: "zastosowano stawkę tygodniową",
@@ -177,6 +201,9 @@ export const CAND2610: Record<Lang, D> = {
     no_reviews: "Nowy w HoPetSit",
     count_one: "1 kandydat",
     count_many: "Kandydaci: {n}",
+    fast_title: "Wybierasz {name}?",
+    fast_sub: "Jeden gest: rezerwujesz {name} i przechodzisz do bezpiecznej płatności kartą. Pozostałe zgłoszenia zostaną odrzucone.",
+    fast_cta: "Wybierz {name} i zapłać",
   },
 };
 

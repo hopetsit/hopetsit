@@ -219,6 +219,19 @@ describe('3. Langues', () => {
     // FR : pluriel et visite
     expect(t.buildEmailData({ lang: 'fr', post, cards, newCount: 1, totalPending: 1 }).subjectLine).toBe('Hanene peut rendre visite à vos chats à Clamart · 14,40 €/visite');
   });
+  // 2710 (SAM) — bouton direct « Choisir <prénom> » sur chaque carte qui porte un lien https.
+  test('bouton « Choisir <prénom> » par carte (9 langues), lien échappé ; sans lien https : pas de bouton', () => {
+    const t = require('../src/utils/applicationEmailText2610');
+    const link = 'https://www.hopetsit.com/posts/confirmer?l=abc&next=%2Fapplication%2F1%3Fchoose%3D1';
+    const h = t.cardsHtml('fr', [{ name: 'Hanene', role: 'sitter', link }]);
+    expect(h).toContain('Choisir Hanene');
+    expect(h).toContain('href="https://www.hopetsit.com/posts/confirmer?l=abc&amp;next=');
+    expect(t.cardsHtml('en', [{ name: 'Hanene', role: 'sitter', link }])).toContain('Choose Hanene');
+    for (const l of t.LANGS) expect(typeof t.T[l].choose).toBe('function');
+    expect(t.cardsHtml('fr', [{ name: 'Hanene', role: 'sitter', link: 'javascript:alert(1)' }])).not.toContain('Choisir Hanene');
+    expect(t.cardsHtml('fr', [{ name: 'Hanene', role: 'sitter' }])).not.toContain('Choisir');
+  });
+
   test('un prénom piégé est échappé dans le HTML', () => {
     const t = require('../src/utils/applicationEmailText2610');
     const h = t.cardsHtml('fr', [{ name: '<a href=x>Bob</a>', role: 'sitter', avatar: 'javascript:alert(1)' }]);

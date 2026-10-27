@@ -36,7 +36,8 @@ const adLeadSchema = new mongoose.Schema(
     endText: { type: String, default: '', trim: true },
     // 620 (ZOE) — service « visites » : visites par jour lues dans le formulaire (1 | 2), sinon 1.
     visitsPerDay: { type: Number, enum: [1, 2, null], default: null },
-    confirmedAt: { type: Date },
+    confirmedAt: { type: Date }, // demande publiée (par le clic OU par le suivi automatique) — n'est PAS une preuve
+    clickedAt: { type: Date }, // 27/10 (SAM) — 1er VRAI clic (navigateur ou app) sur le lien de l'e-mail
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Owner' },
     postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
     createdAt: { type: Date, default: Date.now, expires: 60 * 24 * 3600 },

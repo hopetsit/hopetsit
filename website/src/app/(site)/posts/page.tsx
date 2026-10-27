@@ -61,6 +61,8 @@ export default function PostsPage() {
   // 16/10 — candidatures reçues (propriétaire) + candidature ciblée par le lien e-mail (?application=…).
   const [apps, setApps] = useState<ApplicationItem[]>([]);
   const [focusId, setFocusId] = useState<string>("");
+  // 2710 (SAM) — ?choose=1 : arrivée par le bouton « Choisir <prénom> » de l'e-mail des candidats.
+  const [chooseNow, setChooseNow] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,6 +75,7 @@ export default function PostsPage() {
     setRole(u.role);
     try {
       setFocusId(new URLSearchParams(window.location.search).get("application") || "");
+      setChooseNow(new URLSearchParams(window.location.search).get("choose") === "1");
     } catch { /* ignore */ }
     (async () => {
       setLoading(true);
@@ -142,6 +145,7 @@ export default function PostsPage() {
             isOwner={isOwner}
             applications={isOwner ? apps.filter((a) => a.postId === postId(p)) : []}
             focusId={focusId}
+            chooseNow={chooseNow}
             onDeleted={() => setPosts((prev) => prev.filter((x) => postId(x) !== postId(p)))}
           />
         ))}
@@ -155,12 +159,14 @@ function PostCard({
   isOwner,
   applications,
   focusId,
+  chooseNow,
   onDeleted,
 }: {
   post: RequestPost;
   isOwner: boolean;
   applications: ApplicationItem[];
   focusId: string;
+  chooseNow?: boolean;
   onDeleted: () => void;
 }) {
   const { t, lang } = useT();
@@ -360,7 +366,7 @@ function PostCard({
       {/* 16/10 → 26/10 (LEO, décision de Daniel, proposition B de SAM) — propriétaire : les CANDIDATS
           en tête de la demande (« Écrire à … » d'abord, « Choisir » ensuite, payer après). */}
       {isOwner && applications.length > 0 && (
-        <PostCandidates1610 post={post620} applications={applications} focusId={focusId} />
+        <PostCandidates1610 post={post620} applications={applications} focusId={focusId} chooseNow={chooseNow} />
       )}
 
       {post.body && <p className="mt-2 whitespace-pre-wrap text-sm text-ink">{post.body}</p>}

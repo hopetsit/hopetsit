@@ -104,12 +104,16 @@ export function PostCandidates1610({
   post,
   applications,
   focusId,
+  chooseNow,
   onChanged,
 }: {
   post: RequestPost;
   applications: ApplicationItem[];
   /** Candidature à mettre en avant (lien de l'e-mail « candidature reçue »). */
   focusId?: string;
+  /** 2710 (SAM) — arrivée par le bouton « Choisir <prénom> » de l'e-mail (?choose=1) : encart
+   *  en tête « Choisir <prénom> et payer », UN geste = choix confirmé puis page de paiement. */
+  chooseNow?: boolean;
   onChanged?: (updated: ApplicationItem[]) => void;
 }) {
   const { t, lang } = useT();
@@ -179,12 +183,13 @@ export function PostCandidates1610({
     } catch { /* la page se rechargera avec les totaux */ }
   }
 
-  async function respond(a: ApplicationItem, action: "accept" | "reject") {
+  async function respond(a: ApplicationItem, action: "accept" | "reject", opts?: { confirmed?: boolean; andPay?: boolean }) {
     const id = applicationId(a);
     const { who } = applicationProvider(a);
     const name = who?.name || t("c1610_provider");
     const question = action === "accept" ? fill(t("c1610_choose_msg"), { name }) : fill(t("c1610_reject_msg"), { name });
-    if (!window.confirm(question)) return;
+    // 2710 — l'encart « Choisir <prénom> et payer » EST la confirmation (texte explicite au-dessus du bouton).
+    if (!opts?.confirmed && !window.confirm(question)) return;
     setBusyId(id);
     setErrors((e) => ({ ...e, [id]: "" }));
     try {
@@ -199,6 +204,11 @@ export function PostCandidates1610({
       if (action === "reject") setRejectedNow((m) => ({ ...m, [id]: true }));
       setItems(next);
       onChanged?.(next);
+      // 2710 — choix confirmé depuis l'encart : on enchaîne tout de suite sur le paiement.
+      if (action === "accept" && opts?.andPay) {
+        const chosen = next.find((x) => applicationId(x) === id);
+        if (chosen && linkedBooking(chosen)) { setBusyId(null); await pay(chosen); return; }
+      }
     } catch (e) {
       const code = apiErrorCode(e);
       const d = e instanceof ApiError && e.details && typeof e.details === "object" ? (e.details as Record<string, unknown>) : {};
@@ -272,6 +282,20 @@ export function PostCandidates1610({
     }
   }
 
+  // 2710 — encart « Choisir et payer » : candidature de l'e-mail, en attente, avec un total juste.
+  const fast = (() => {
+    if (!chooseNow || !focusId || tbd) return null;
+    const a = visible.find((x) => applicationId(x) === focusId);
+    if (!a || a.status !== "pending" || a.pricing?.stale === true || a.pricing?.indicative === true) return null;
+    const total = a.pricing?.totalPrice ?? null;
+    const rate = a.pricing?.appliedRate ?? null;
+    if (total == null || !(total > 0) || (rate != null && rate > 0 && total + 0.001 < rate)) return null;
+    const currency = (a.pricing?.currency || cur.budgetCurrency || cur.currency || "EUR").toUpperCase();
+    const { who } = applicationProvider(a);
+    const name = who?.name || t("c1610_provider");
+    return { app: a, id: applicationId(a), firstName: name.split(" ")[0] || name, price: money(total, currency, lang) };
+  })();
+
   return (
     <section
       ref={sectionRef}
@@ -289,6 +313,32 @@ export function PostCandidates1610({
         </span>
       </h3>
       <p className="mt-1 text-[13px] leading-snug" style={{ color: "#6E4F48" }}>{c2610(lang, "sub")}</p>
+
+      {/* 2710 (SAM, ordre de Daniel « que les propriétaires valident et paient ») — arrivée par le bouton
+          « Choisir <prénom> » de l'e-mail : le candidat, son prix total (serveur) et UN bouton qui confirme
+          le choix puis ouvre le paiement. Rien si dates à prévoir, tarif à venir ou total absent. */}
+      {fast && (
+        <div className="mt-3 rounded-xl bg-white p-3" style={{ boxShadow: "inset 0 0 0 2px #C92A12" }} data-fast-2710="">
+          <p className="text-[16px] font-extrabold leading-snug" style={{ color: "#231715" }}>{c2610(lang, "fast_title", { name: fast.firstName })}</p>
+          <p className="mt-1 text-[13px] leading-snug" style={{ color: "#6E4F48" }}>{c2610(lang, "fast_sub", { name: fast.firstName })}</p>
+          <div className="mt-2">
+            <SignatureButton
+              tone="owner"
+              icon="wallet"
+              label={c2610(lang, "fast_cta", { name: fast.firstName })}
+              price={fast.price}
+              loading={busyId === fast.id || payingId === fast.id}
+              disabled={busyId !== null || payingId !== null}
+              earns
+              onClick={() => void respond(fast.app, "accept", { confirmed: true, andPay: true })}
+            />
+          </div>
+          <p className="mt-1.5 text-center text-[11px] font-semibold" style={{ color: "#8A6B64" }}>{t("bookings_pay_secure")}</p>
+          {errors[fast.id] && (
+            <p className="mt-2 rounded-xl px-3 py-2 text-[12px] font-bold" style={{ background: "#FBE9E5", color: "#9E1F0B" }} role="alert">{errors[fast.id]}</p>
+          )}
+        </div>
+      )}
 
       {/* 2610 — « dates à prévoir » : encart en tête, le bouton ouvre DIRECTEMENT le choix des dates. */}
       {tbd && (

@@ -247,6 +247,11 @@ const UNVERIFIED_BYPASS_TYPES = new Set(['new_request_nearby', 'new_request_for_
 const unverifiedEmailBlocked = async (user, role) => {
   if (process.env.EMAIL_UNVERIFIED_GUARD === 'off') return false;
   if (!user || user.verified === true) return false;
+  // 27/10/2026 (SAM, décision de Daniel) — propriétaire venu de la pub Meta : il reste NON vérifié
+  // tant qu'il n'a pas cliqué, mais ses e-mails (candidatures, réservation, messages) DOIVENT
+  // partir : c'est par eux qu'il revient choisir et payer. Le lien de ces e-mails ouvre sa session
+  // et prouve la boîte au clic (routes/adLeads2210 /:id/confirm).
+  if (role === 'owner' && user.adLeadAt) return false;
   const created = user.createdAt ? new Date(user.createdAt).getTime() : NaN;
   if (!Number.isFinite(created) || created < UNVERIFIED_GUARD_SINCE) return false;
   const stored = String(user.email || '').toLowerCase().trim();
@@ -292,7 +297,7 @@ const resolveUser = async (role, userId) => {
     role === 'walker' ? Walker :
     null;
   if (!Model) return null;
-  const primary = await Model.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs verified createdAt').lean();
+  const primary = await Model.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs verified createdAt adLeadAt').lean();
   if (primary) return primary;
 
   // v23.1 part 49 — cross-collection fallback. The destructive switchRole
@@ -313,7 +318,7 @@ const resolveUser = async (role, userId) => {
   const fallbackModels = [Owner, Sitter, Walker].filter((m) => m !== Model);
   for (const Fb of fallbackModels) {
     try {
-      const found = await Fb.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs verified createdAt').lean();
+      const found = await Fb.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs verified createdAt adLeadAt').lean();
       if (found) {
         logger.warn(
           `[notif.fallback] user ${userId} expected in ${role} collection but ` +
@@ -1215,5 +1220,6 @@ module.exports = {
   sendDeferredChatEmail, // v599 — e-mail différé
   sendEmailOnly, // 2610 — e-mail « candidats reçus » regroupé
   resolveRecipientLocale, // 2610
+  leadOwnerEmailLink, // 2710 — boutons « Choisir <prénom> » de l'e-mail candidats
   BADGE_MIN_IOS_BUILD,
 };

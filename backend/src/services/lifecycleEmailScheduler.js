@@ -226,7 +226,7 @@ async function runLifecycleOnce({ max = Number(process.env.LIFECYCLE_MAX_PER_RUN
   for (const role of ['sitter', 'walker', 'owner']) {
     const Model = modelFor(role);
     const users = await Model.find({ ...baseFilter, createdAt: { $lte: new Date(now - 20 * HOUR_MS), $gte: LIFECYCLE_SINCE } })
-      .select('name email appLocale language isStaff marketingOptOut verified avatar bio hourlyRate dailyRate walkRates createdAt updatedAt referralCode')
+      .select('name email appLocale language isStaff marketingOptOut verified adLeadAt avatar bio hourlyRate dailyRate walkRates createdAt updatedAt referralCode')
       .sort({ createdAt: -1 }).limit(2000).lean();
     for (const u of users) {
       if (!budgetLeft()) break;
@@ -238,7 +238,9 @@ async function runLifecycleOnce({ max = Number(process.env.LIFECYCLE_MAX_PER_RUN
       // passage, 6 jours d'écart) font le reste. 48 h à 21 jours ; l'index
       // unique de LifecycleEmail garantit UNE SEULE relance par compte
       // (Daniel : « surtout pas harceler par mail »).
-      if (age >= 2 * DAY_MS && age < 21 * DAY_MS && u.verified !== true) {
+      // 27/10 (SAM, décision de Daniel) — jamais pour un propriétaire venu de la pub (`adLeadAt`) :
+      // il prouve son e-mail en cliquant les e-mails de candidatures, pas par une relance de plus.
+      if (age >= 2 * DAY_MS && age < 21 * DAY_MS && u.verified !== true && !u.adLeadAt) {
         await consider(u, role, 'verify_email_d2', async () => !(await personEmailVerified(u, role)));
       }
       // welcome_d1 — 20 h à 7 jours après l'inscription (au-delà : trop tard, on n'écrit plus « bienvenue »).

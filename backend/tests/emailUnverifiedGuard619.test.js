@@ -51,6 +51,19 @@ describe('619 — e-mails de notification et comptes jamais vérifiés', () => {
     mockExists.mockImplementation(async () => null);
   });
 
+  // 27/10 (SAM, décision de Daniel) — propriétaire venu de la pub : NON vérifié jusqu'à son clic,
+  // mais ses e-mails (candidatures…) partent : c'est par eux qu'il revient choisir et payer.
+  test('propriétaire venu de la pub (adLeadAt), non vérifié : l\'e-mail PART quand même', async () => {
+    mockUser.adLeadAt = new Date('2026-10-23T10:00:00Z');
+    try {
+      await fire();
+      expect(sendEmail).toHaveBeenCalledTimes(1);
+      expect(await unverifiedEmailBlocked({ ...mockUser }, 'owner')).toBe(false);
+      // le marqueur ne vaut que pour le rôle propriétaire
+      expect(await unverifiedEmailBlocked({ ...mockUser }, 'sitter')).toBe(true);
+    } finally { delete mockUser.adLeadAt; }
+  });
+
   test('compte récent, jamais vérifié, aucun frère vérifié : in-app + push oui, e-mail NON', async () => {
     await fire();
     expect(createNotificationSafe).toHaveBeenCalledTimes(1);
