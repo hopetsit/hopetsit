@@ -116,7 +116,7 @@ import { parsePins1910, pinsOnAvatarHtml, type Pins1910 } from "@/lib/pins1910";
 import { PinChips1910 } from "@/components/Pins1910";
 import { clusterFromPrice622, normalizeMemberPrices622, type MapRequestPricing622 } from "@/lib/mapPrice622";
 import { RequestFromLine622, useFromText622, useRequestFromLabels622 } from "@/components/RequestFrom622";
-import { PAWMAP_2610_CSS, SPIDER_MAX_2610, cachedIcon2610, popOnce2610, clusterHtml2610, priceBubbleHtml2610, profilePinHtml2610, role2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
+import { PAWMAP_2610_CSS, SPIDER_MAX_2610, cachedIcon2610, mergeAnchored2610, popOnce2610, clusterHtml2610, priceBubbleHtml2610, profilePinHtml2610, role2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
 
 export { clusterize } from "@/lib/mapCluster";
 
@@ -982,13 +982,10 @@ export default function PoiMap({
   const memberClusters = useMemo(() => {
     const posOf = (m: NearbyMember): [number, number] | null => (Array.isArray(m.location?.coordinates) && m.location.coordinates.length >= 2 ? [m.location.coordinates[1], m.location.coordinates[0]] : null);
     const cells = clusterize(otherMembers, zoomLevel, posOf, MEMBER_CELL_PX_607).map((g) => g.items);
-    const merged = mergeCloseGroups(cells, (m) => { const p = posOf(m)!; return mercatorPx(p[0], p[1], zoomLevel); });
-    return merged.map((items) => {
-      let la = 0;
-      let ln = 0;
-      for (const m of items) { const p = posOf(m)!; la += p[0]; ln += p[1]; }
-      return { items, center: [la / items.length, ln / items.length] as [number, number] };
-    });
+    // 26/10 (ordre de Daniel) — groupe posé sur une VRAIE position (membre le plus central), fusion au lieu
+    // d'écarter : plus de groupe en mer ni de rond décalé de sa ville.
+    const merged = mergeAnchored2610(cells, (m) => { const p = posOf(m)!; return mercatorPx(p[0], p[1], zoomLevel); });
+    return merged.map(({ items, anchor }) => ({ items, center: posOf(anchor)! }));
   }, [otherMembers, zoomLevel]);
   const spotClusters = useMemo(() => clusterize(spots, zoomLevel, (s) => [s.lat, s.lng]), [spots, zoomLevel]);
 
@@ -1506,7 +1503,7 @@ export default function PoiMap({
         {/* MEMBRES : UNE personne = UN rond (liseré de chacun de ses rôles),
             rond de groupe à la couleur dominante. Clic = fiche du bas. */}
         {memberClusters.map((g, i) =>
-          g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} items={g.items} onList={(items) => openSheet({ kind: "list", items }, g.center)} onSpider={openSpider2610} dark={dark} shift={lay.shifts[i]} /> : null,
+          g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} items={g.items} onList={(items) => openSheet({ kind: "list", items }, g.center)} onSpider={openSpider2610} dark={dark} /> : null,
         )}
         {/* 26/10 (2610) — groupe TOUCHÉ : il reste au centre avec son « dès X », ses profils autour
             (6 sur 72 px, le reste sur 132 px), aucun trait ; re-clic = refermé, caméra remise. */}
@@ -1556,7 +1553,7 @@ export default function PoiMap({
           const live = personIdsOf(m).some((x) => liveIdSet.has(x));
           const prices = sel ? selectedPrices2610(shown, m) : [];
           return (
-            <Marker key={`member-${m.id}${spiderOff ? "-sp" : ""}`} position={spiderOff ? pt : lay.movedPos(m) ?? pt} icon={memberIcon(m, spiderOff ? null : memberCaption({ ...m, role: r0.role }), roles, dark, { selected: sel, dim, prices, live, off: spiderOff })} zIndexOffset={sel ? PIN_Z.me + 500 : spiderOff ? PIN_Z.member + 800 : m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: (e) => { const onBubble = !!(e.originalEvent?.target as Element | null)?.closest?.("[data-price-bubble-2610]"); if (sel && onBubble) { open(); return; } const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt, pUnit); if (f) tapFocus(f); else open(); } }} />
+            <Marker key={`member-${m.id}${spiderOff ? "-sp" : ""}`} position={pt} icon={memberIcon(m, spiderOff ? null : memberCaption({ ...m, role: r0.role }), roles, dark, { selected: sel, dim, prices, live, off: spiderOff })} zIndexOffset={sel ? PIN_Z.me + 500 : spiderOff ? PIN_Z.member + 800 : m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: (e) => { const onBubble = !!(e.originalEvent?.target as Element | null)?.closest?.("[data-price-bubble-2610]"); if (sel && onBubble) { open(); return; } const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt, pUnit); if (f) tapFocus(f); else open(); } }} />
           );
         })}
 

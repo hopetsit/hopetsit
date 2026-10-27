@@ -306,3 +306,43 @@ export const PAWMAP_2610_CSS = `
 .hps2610-btn:active > span { transform: scale(.94); }
 @media (prefers-reduced-motion: reduce) { [data-pin-2610] { animation:none !important; } [data-live-2610] { animation:none !important; } [data-boost-2610] { animation:none !important; } }
 `;
+
+/**
+ * 26/10 (ordre de Daniel : « les marqueurs ne sont pas à leur place », groupes posés en mer) — regroupement
+ * ANCRÉ : chaque rond / groupe est posé sur une VRAIE position (un groupe = celle de son membre le plus
+ * proche du centre de ses membres : jamais en mer quand ses membres sont à terre). Deux positions
+ * affichées à moins de `minPx` (rond 50 + air 6) sont FUSIONNÉES (le chiffre augmente) au lieu d'être
+ * écartées l'une de l'autre. Pur (aucun DOM) : testé par scripts/test-pawmap2610.mjs.
+ */
+export const GROUP_MIN_PX_2610 = 56;
+export function mergeAnchored2610<T>(groups: T[][], px: (t: T) => { x: number; y: number }, minPx = GROUP_MIN_PX_2610): { items: T[]; anchor: T }[] {
+  type G = { items: T[]; pts: { x: number; y: number }[]; a: number };
+  const medoid = (pts: { x: number; y: number }[]): number => {
+    let mx = 0, my = 0;
+    for (const p of pts) { mx += p.x; my += p.y; }
+    mx /= pts.length; my /= pts.length;
+    let best = 0, bd = Infinity;
+    pts.forEach((p, i) => { const d = (p.x - mx) ** 2 + (p.y - my) ** 2; if (d < bd) { bd = d; best = i; } });
+    return best;
+  };
+  let gs: G[] = groups.filter((g) => g.length > 0).map((g) => { const pts = g.map(px); return { items: [...g], pts, a: medoid(pts) }; });
+  const min2 = minPx * minPx;
+  for (let guard = 0; guard < 200; guard++) {
+    let bi = -1, bj = -1, bd = Infinity;
+    for (let i = 0; i < gs.length; i++) {
+      const pi = gs[i].pts[gs[i].a];
+      for (let j = i + 1; j < gs.length; j++) {
+        const pj = gs[j].pts[gs[j].a];
+        const d = (pi.x - pj.x) ** 2 + (pi.y - pj.y) ** 2;
+        if (d < min2 && d < bd) { bd = d; bi = i; bj = j; }
+      }
+    }
+    if (bi < 0) break;
+    const items = [...gs[bi].items, ...gs[bj].items];
+    const pts = [...gs[bi].pts, ...gs[bj].pts];
+    const merged: G = { items, pts, a: medoid(pts) };
+    gs = gs.filter((_, k) => k !== bi && k !== bj);
+    gs.push(merged);
+  }
+  return gs.map((g) => ({ items: g.items, anchor: g.items[g.a] }));
+}

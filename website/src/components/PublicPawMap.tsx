@@ -47,7 +47,7 @@ import {
 import { safeFly } from "@/lib/safeFly";
 import { AppIcon } from "@/components/AppIcon";
 import { CollisionPass607 } from "@/components/CollisionPass607";
-import { PAWMAP_2610_CSS, SPIDER_MAX_2610, cachedIcon2610, popOnce2610, clusterHtml2610, profilePinHtml2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
+import { PAWMAP_2610_CSS, SPIDER_MAX_2610, cachedIcon2610, mergeAnchored2610, popOnce2610, clusterHtml2610, profilePinHtml2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
 import { VerifiedPill } from "@/components/VerifiedPill";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
@@ -279,13 +279,9 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
     const out = new Set(spider?.ids ?? []);
     const list = list0.filter((p) => !out.has(p.id));
     const cells = clusterize(list, view.zoom, (p) => [p.lat, p.lng], MEMBER_CELL_PX_607).map((g) => g.items);
-    const merged = mergeCloseGroups(cells, (p) => mercatorPx(p.lat, p.lng, view.zoom));
-    return merged.map((items) => {
-      let la = 0;
-      let ln = 0;
-      for (const p of items) { la += p.lat; ln += p.lng; }
-      return { items, center: [la / items.length, ln / items.length] as [number, number] };
-    });
+    // 26/10 (ordre de Daniel) — groupe posé sur une VRAIE position, fusion au lieu d'écarter.
+    const merged = mergeAnchored2610(cells, (p) => mercatorPx(p.lat, p.lng, view.zoom));
+    return merged.map(({ items, anchor }) => ({ items, center: [anchor.lat, anchor.lng] as [number, number] }));
   }, [providers, view.zoom, verifiedOnly, spider]);
   const spiderItems = useMemo(() => {
     if (!spider) return [] as PublicProvider[];

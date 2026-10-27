@@ -131,7 +131,8 @@ ok("passe de mise en page : le rond sélectionné (pinned) n'est ni déplacé ni
   const other = { id: "member:a", layer: "member", rect: { l: 150, t: 320, r: 200, b: 370 }, anchor: { x: 175, y: 345 } };
   const r = edge.resolveEdges622([other, sel], view, []);
   assert.ok(!r.shifts.has("member:sel") && !r.hidden.has("member:sel"));
-  assert.ok(r.shifts.has("member:a") || r.hidden.has("member:a"));
+  // 26/10 : un rond ne s'écarte plus loin — il glisse de ≤ 12 px, sinon il est replié puis effacé (2e passage).
+  assert.ok(r.shifts.has("member:a") || r.hidden.has("member:a") || r.unplaced.has("member:a"));
 });
 
 ok("passe : un rond sélectionné dont la pointe est HORS de la carte est masqué (pas de bulle orpheline au bord)", () => {
@@ -171,6 +172,41 @@ ok("anti-clignotement : rebond une seule fois par sélection, même dessin = mê
   assert.match(m.profilePinHtml2610({ roles: ["sitter"], selected: true, pop: false }), /transform:scale\(1.18\)/);
   let made = 0; const a = m.cachedIcon2610("k1", () => ({ id: ++made })); const b = m.cachedIcon2610("k1", () => ({ id: ++made }));
   assert.equal(a, b); assert.equal(made, 1);
+});
+
+ok("regroupement ancré : chaque groupe sur une VRAIE position (jamais en mer), aucune paire à moins de 56 px", () => {
+  // Deux côtes d'une baie : 3 membres à l'ouest, 3 à l'est, la moyenne tombe au milieu (en mer).
+  const P = (x, y) => ({ x, y });
+  const west = [P(0, 0), P(4, 10), P(2, 20)], east = [P(40, 0), P(44, 12), P(42, 22)];
+  const out = m.mergeAnchored2610([west, east], (p) => p, 56);
+  assert.equal(out.length, 1); // fusionnés (moins de 56 px) au lieu d'être écartés
+  const g = out[0];
+  assert.ok([...west, ...east].includes(g.anchor)); // posé sur un membre réel, pas sur la moyenne (21, 11)
+  // Grille de 200 points aléatoires : aucune paire de positions affichées à moins de 56 px.
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const pts = Array.from({ length: 200 }, () => P(rnd() * 1200, rnd() * 800));
+  const res = m.mergeAnchored2610(pts.map((p) => [p]), (p) => p, 56);
+  assert.equal(res.reduce((s, r) => s + r.items.length, 0), 200);
+  for (let i = 0; i < res.length; i++) for (let j = i + 1; j < res.length; j++) {
+    const a = res[i].anchor, b = res[j].anchor;
+    assert.ok(Math.hypot(a.x - b.x, a.y - b.y) >= 56, "deux ronds à moins de 56 px");
+  }
+  for (const r of res) assert.ok(r.items.includes(r.anchor));
+});
+
+ok("passe : un rond de personne / un groupe glisse de 12 px au plus (sinon il reste ou s'efface), une demande s'écarte", () => {
+  const view = { l: 0, t: 0, r: 400, b: 800 };
+  const a = { id: "member:a", layer: "member", rect: { l: 100, t: 100, r: 150, b: 150 }, anchor: { x: 125, y: 125 } };
+  const b = { id: "mgroup:b", layer: "mgroup", rect: { l: 120, t: 100, r: 170, b: 150 }, anchor: { x: 145, y: 125 } };
+  const q = { id: "request:q", layer: "request", rect: { l: 110, t: 110, r: 200, b: 140 }, anchor: { x: 155, y: 140 } };
+  const r = edge.resolveEdges622([a, b, q], view, []);
+  for (const [id, s] of r.shifts) if (!id.startsWith("request")) assert.ok(Math.hypot(s.dx, s.dy) <= 12, id + " glisse trop");
+  assert.ok(r.shifts.has("request:q") || r.hidden.has("request:q"));
+  // rond au bord : pas de grand glissement vers l'intérieur
+  const e = { id: "member:e", layer: "member", rect: { l: -30, t: 300, r: 20, b: 350 }, anchor: { x: 5, y: 325 } };
+  const r2 = edge.resolveEdges622([e], view, []);
+  const s2 = r2.shifts.get("member:e");
+  assert.ok(!s2 || Math.hypot(s2.dx, s2.dy) <= 12);
 });
 
 console.log(`\n${n}/${n} tests OK`);

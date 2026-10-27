@@ -21,7 +21,15 @@ const NEVER_HIDE_622 = new Set<Layer607>(["me", "friend"]);
 /** Ordre de pose : celui de la passe 607, sauf les DEMANDES qui passent avant les membres et leurs
  *  groupes (une demande n'a pas de bulle à replier : sans place elle disparaissait, alors que c'est
  *  ce que les gardiens et les visiteurs viennent chercher ; les membres replient leur prix d'abord). */
-export const PRIORITY_622: Record<Layer607, number> = { ...LAYER_PRIORITY_607, request: 82 };
+export const PRIORITY_622: Record<Layer607, number> = { ...LAYER_PRIORITY_607, request: 74 };
+// 26/10 (ordre de Daniel, « les marqueurs ne sont pas à leur place ») : les DEMANDES repassent après les
+// membres et leurs groupes (priorité 74 < 75) — ce sont elles qui s'écartent, jamais un rond de personne.
+
+/** 26/10 — couches « ancrées » : un rond de personne ou un groupe reste sur SA position ; au plus ~12 px
+ *  de glissement (½ rond). Sans place : son prénom / sa bulle se replient, puis il s'efface (moi et mes
+ *  amis restent). Le chevauchement entre ronds est évité EN AMONT, en fusionnant en groupe. */
+export const ANCHORED_2610 = new Set<Layer607>(["me", "friend", "member", "mgroup"]);
+export const ANCHOR_MAX_SHIFT_2610 = 12;
 
 /** Air minimal entre deux épingles et avec un bord (px). */
 export const AIR_622 = 3;
@@ -66,7 +74,8 @@ export function resolveEdges622(items: EdgeItem622[], view: Rect607, overlays: R
     const freeOf = (r: Rect607, withKept: boolean) =>
       inside(r, view) && !overlays.some((o) => touch(r, o)) && (!withKept || !near.some((k) => touch(r, k)));
     if (freeOf(it.rect, true)) { kept.push(it.rect); continue; }
-    const max = secondary ? MAX_SHIFT_SECONDARY_622 : MAX_SHIFT_MAIN_622;
+    const anchored = ANCHORED_2610.has(it.layer);
+    const max = anchored ? ANCHOR_MAX_SHIFT_2610 : secondary ? MAX_SHIFT_SECONDARY_622 : MAX_SHIFT_MAIN_622;
     let found: { dx: number; dy: number } | null = null;
     // 1er essai : la poussée minimale qui ramène la boîte dans la carte (bords seulement).
     const ex = it.rect.l < view.l + AIR_622 ? view.l + AIR_622 - it.rect.l : it.rect.r > view.r - AIR_622 ? view.r - AIR_622 - it.rect.r : 0;
@@ -75,7 +84,7 @@ export function resolveEdges622(items: EdgeItem622[], view: Rect607, overlays: R
     // Sinon : anneaux de 4 px, tous les 15°, à partir de la poussée vers l'intérieur.
     if (!found) {
       const a0 = ex || ey ? Math.atan2(ey, ex) : Math.atan2((view.t + view.b) / 2 - a.y, (view.l + view.r) / 2 - a.x);
-      outer: for (let d = 4; d <= max; d += 4) {
+      outer: for (let d = anchored ? 2 : 4; d <= max; d += anchored ? 2 : 4) {
         for (let k = 0; k <= 12; k++) {
           for (const s of k === 0 ? [1] : [1, -1]) {
             const ang = a0 + (s * k * 15 * Math.PI) / 180;
@@ -90,6 +99,12 @@ export function resolveEdges622(items: EdgeItem622[], view: Rect607, overlays: R
     if (!found) unplaced.add(it.id);
     // 2e passage (bulle déjà repliée) : toujours pas de place → masqué, on le retrouve en zoomant.
     if (!found && opts.hideUnplaced && !NEVER_HIDE_622.has(it.layer)) { hidden.add(it.id); continue; }
+    if (!found && anchored) {
+      // 2610 — un rond ancré ne part jamais loin de sa position : il reste où il est (moi, amis) —
+      // la fusion en groupe a déjà évité les ronds qui se touchent.
+      kept.push(it.rect);
+      continue;
+    }
     if (!found) {
       // Couche principale sans place libre (très dense) : au moins hors des bords et des rails.
       if ((ex || ey) && freeOf(move(it.rect, ex, ey), false)) found = { dx: ex, dy: ey };

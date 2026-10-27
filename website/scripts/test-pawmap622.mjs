@@ -101,32 +101,42 @@ const R = (l, t, w, h) => ({ l, t, r: l + w, b: t + h });
 const touches = (a, b) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
 const apply = (items, res) => items.filter((i) => !res.hidden.has(i.id)).map((i) => { const s = res.shifts.get(i.id) || { dx: 0, dy: 0 }; return { ...i, rect: { l: i.rect.l + s.dx, t: i.rect.t + s.dy, r: i.rect.r + s.dx, b: i.rect.b + s.dy } }; });
 
-ok("bord : bulle de prix coupée en haut → ramenée entièrement dans la carte", () => {
-  const items = [{ id: "a", layer: "member", rect: R(150, -20, 80, 90), anchor: { x: 190, y: 47 } }];
-  const out = apply(items, edge.resolveEdges622(items, view, []));
-  assert.equal(out.length, 1); assert.ok(out[0].rect.t >= 0 && out[0].rect.l >= 0 && out[0].rect.r <= 375 && out[0].rect.b <= 600);
+// 26/10 (ordre de Daniel, « les marqueurs ne sont pas à leur place ») : un rond de personne / un groupe
+// reste sur sa position (glissement ≤ 12 px) ; sans place il s'efface (2e passage), il ne part plus au loin.
+const two = (items, v, ov) => { const r1 = edge.resolveEdges622(items, v, ov); return r1.unplaced.size ? edge.resolveEdges622(items, v, ov, { hideUnplaced: true }) : r1; };
+const moved = (res, id) => { const s = res.shifts.get(id); return s ? Math.hypot(s.dx, s.dy) : 0; };
+ok("bord : bulle coupée en haut → ramenée de ≤ 12 px dans la carte, sinon effacée (jamais coupée, jamais loin)", () => {
+  const near = [{ id: "a", layer: "member", rect: R(150, -8, 80, 90), anchor: { x: 190, y: 47 } }];
+  const r1 = two(near, view, []);
+  const o1 = apply(near, r1);
+  assert.equal(o1.length, 1); assert.ok(o1[0].rect.t >= 0 && moved(r1, "a") <= 12);
+  const far = [{ id: "b", layer: "member", rect: R(150, -40, 80, 90), anchor: { x: 190, y: 20 } }];
+  const r2 = two(far, view, []);
+  assert.ok(r2.hidden.has("b") || (moved(r2, "b") <= 12 && apply(far, r2)[0].rect.t >= 0));
 });
 ok("bord : pointe hors de la carte → masquée (jamais un morceau d'épingle)", () => {
   const items = [{ id: "a", layer: "member", rect: R(-30, 200, 46, 46), anchor: { x: -7, y: 223 } }];
   const res = edge.resolveEdges622(items, view, []);
   assert.ok(res.hidden.has("a"));
 });
-ok("rails : une épingle sous le rail gauche ou la rangée du haut en sort", () => {
+ok("rails : une épingle sous un rail en sort de ≤ 12 px, sinon elle s'efface (jamais déplacée loin)", () => {
   const items = [
     { id: "l", layer: "member", rect: R(20, 300, 46, 46), anchor: { x: 43, y: 323 } },
     { id: "t", layer: "mgroup", rect: R(250, 10, 40, 40), anchor: { x: 270, y: 30 } },
   ];
-  const out = apply(items, edge.resolveEdges622(items, view, rails));
-  for (const it of out) for (const o of rails) assert.ok(!touches(it.rect, o), `${it.id} touche un rail`);
+  const res = two(items, view, rails);
+  const out = apply(items, res);
+  for (const it of out) { assert.ok(moved(res, it.id) <= 12, it.id); for (const o of rails) assert.ok(!touches(it.rect, o), `${it.id} touche un rail`); }
 });
-ok("chevauchement : deux membres et une demande au même point → trois boîtes séparées", () => {
+ok("chevauchement : deux membres et une demande au même point → aucune boîte l'une sur l'autre, ronds ≤ 12 px", () => {
   const items = [
     { id: "m1", layer: "member", rect: R(150, 250, 46, 76), anchor: { x: 173, y: 296 } },
     { id: "m2", layer: "member", rect: R(155, 255, 46, 76), anchor: { x: 178, y: 301 } },
     { id: "rq", layer: "request", rect: R(140, 270, 90, 34), anchor: { x: 185, y: 304 } },
   ];
-  const out = apply(items, edge.resolveEdges622(items, view, rails));
-  assert.equal(out.length, 3);
+  const res = two(items, view, rails);
+  const out = apply(items, res);
+  for (const it of out) if (it.layer !== "request") assert.ok(moved(res, it.id) <= 12, it.id);
   for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) assert.ok(!touches(out[i].rect, out[j].rect), `${out[i].id}/${out[j].id}`);
 });
 ok("secondaire : un groupe de lieux collé à un membre glisse (≤ 40 px) ou s'efface, jamais dessus", () => {
@@ -152,13 +162,13 @@ ok("trop dense : 2e passage → les membres sans place s'effacent, jamais « Moi
   for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) assert.ok(!touches(out[i].rect, out[j].rect));
   assert.ok(res.unplaced.size > 0);
 });
-ok("priorité : une demande passe avant un membre (le membre glisse, pas la demande)", () => {
+ok("priorité (26/10, ordre de Daniel) : le rond d'une personne reste sur sa position, c'est la demande qui s'écarte", () => {
   const items = [
     { id: "m", layer: "member", rect: R(150, 250, 46, 76), anchor: { x: 173, y: 296 } },
     { id: "rq", layer: "request", rect: R(140, 260, 90, 34), anchor: { x: 185, y: 294 } },
   ];
   const res = edge.resolveEdges622(items, view, []);
-  assert.equal(res.shifts.get("rq"), undefined); assert.ok(res.shifts.get("m"));
+  assert.equal(res.shifts.get("m"), undefined); assert.ok(res.shifts.get("rq") || res.hidden.has("rq"));
 });
 ok("déterministe : même entrée → même sortie", () => {
   const items = [{ id: "a", layer: "member", rect: R(20, 300, 46, 46), anchor: { x: 43, y: 323 } }, { id: "b", layer: "place", rect: R(60, 300, 26, 34), anchor: { x: 73, y: 333 } }];
