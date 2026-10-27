@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { trackSiteEvent, useCampaignHref } from "@/components/SiteAnalytics";
 import { EstimateLine620 } from "@/components/DateMode620";
 
@@ -55,8 +55,13 @@ export function ParisHeroForm({ city, lead, note }: { city: string; lead: string
   // 15/10 (SAM) : écouté sur click/focus, plus sur pointerdown — sur téléphone un
   // DÉFILEMENT qui commence sur le formulaire déclenchait pointerdown : le 14/10,
   // 119 « taps » pub pour 44 lectures de 3 s et 0 service choisi = des défilements.
-  function touch() {
-    if (touched) return;
+  // 27/10 (SAM) : seulement un VRAI tap (clic de confiance, page visible). Le
+  // 27/10, 168 « touches » pour 11 pages vues sur la page Paris (post du jour :
+  // 4 arrivées, 0 resté 3 s, 84 touches) : un focus() automatique (robot,
+  // préchargement, remplissage auto) suffisait à compter une touche — vérifié
+  // en ligne. Le focus au clavier n'est plus écouté (quasi nul sur téléphone).
+  function touch(e: MouseEvent) {
+    if (touched || !e.nativeEvent.isTrusted || document.visibilityState !== "visible") return;
     setTouched(true);
     trackSiteEvent("cta_click", { label: "hero_form_touche" });
   }
@@ -103,7 +108,7 @@ export function ParisHeroForm({ city, lead, note }: { city: string; lead: string
   const field = "mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-2.5 text-sm text-ink focus:border-owner focus:outline-none";
 
   return (
-    <div className="mt-3 rounded-3xl border border-owner/20 bg-owner-light/60 p-4 md:mx-auto md:max-w-md" data-testid="hero-form" onClickCapture={touch} onFocusCapture={touch}>
+    <div className="mt-3 rounded-3xl border border-owner/20 bg-owner-light/60 p-4 md:mx-auto md:max-w-md" data-testid="hero-form" onClickCapture={touch}>
       <p className="text-[15px] font-semibold leading-snug text-ink md:text-base">{lead}</p>
 
       <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Service">
