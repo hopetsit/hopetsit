@@ -9,9 +9,11 @@ import Link from "@/components/SiteLink";
 // alone » répond à « combien de temps », pas à « comment ça marche / comment choisir »).
 // Texte vrai, aucun chiffre inventé, aucun tarif : chaque gardien fixe son prix dans l'app.
 const URL = "https://www.hopetsit.com/blog/what-is-cat-sitting";
-const TITLE = "Cat sitting: how it works and how to find a cat sitter near you";
+// 27/10/2026 (GUS) — « cat sitting » 938 affichages à la 20e place, « cat sitter meaning » 8e,
+// 0 clic : titre et description donnent la définition tout de suite.
+const TITLE = "Cat Sitting Meaning: What a Cat Sitter Does and How It Works";
 const DESCRIPTION =
-  "What a cat sitter does on each visit, how many visits a day your cat needs, why most cats are better off at home than boarded, and how to choose a cat sitter you can trust.";
+  "Cat sitting means someone looks after your cat in your own home while you are away. What a cat sitter does on each visit, how many visits a day your cat needs, and how to choose a cat sitter you can trust.";
 const HEADLINE = "Cat sitting explained: what a cat sitter does and how to find one near you";
 
 export const metadata: Metadata = {

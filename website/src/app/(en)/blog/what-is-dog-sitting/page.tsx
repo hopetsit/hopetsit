@@ -8,9 +8,12 @@ import Link from "@/components/SiteLink";
 // répondait à la question de fond. Texte vrai, aucun chiffre inventé : les tarifs sont
 // renvoyés vers l'article Dallas (chiffres déjà publiés) et au prix affiché dans l'app.
 const URL = "https://www.hopetsit.com/blog/what-is-dog-sitting";
-const TITLE = "Dog sitting: how it works, what it costs, and how to find a dog sitter";
+// 27/10/2026 (GUS) — Search Console 28 j USA : « dog sitting meaning » 6,8e place, « dog sitter
+// meaning » 8e, « dog sitting » 7,7e — 267 affichages, 0 clic. Le titre ne disait pas « meaning » :
+// titre et description répondent maintenant à la question tapée (définition en 1re phrase).
+const TITLE = "Dog Sitting Meaning: What a Dog Sitter Does and How It Works";
 const DESCRIPTION =
-  "What dog sitting really is (drop-in visits, day sitting, overnight stays), how it differs from boarding, what drives the price, and how to find a trusted dog sitter near you.";
+  "Dog sitting means a person cares for your dog in a home, usually yours, while you are away: drop-in visits, day sitting or overnight stays. What a dog sitter does, how it differs from boarding, and how to find one.";
 const HEADLINE = "Dog sitting explained: how it works and how to find a dog sitter near you";
 
 export const metadata: Metadata = {
