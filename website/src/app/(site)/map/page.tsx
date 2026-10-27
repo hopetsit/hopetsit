@@ -29,6 +29,7 @@
 //     Préférences, synchronisé sur le compte).
 // Toutes les fonctions d'avant sont conservées (mêmes handlers, mêmes routes).
 
+import { mergeCache2710 } from "@/lib/pawmapGroups2710";
 import dynamic from "next/dynamic";
 import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
@@ -141,6 +142,9 @@ function roleFromModel(model: string): "walker" | "sitter" | "owner" {
   if (m === "sitter") return "sitter";
   return "owner";
 }
+
+/** 27/10 — clé d'un centre de requête (~100 m). */
+const coverKey2710 = (lat: number, lng: number) => `${lat.toFixed(3)},${lng.toFixed(3)}`;
 
 export default function MapPage() {
   const { t, lang } = useT();
@@ -290,6 +294,13 @@ export default function MapPage() {
   const [memberRoles, setMemberRoles] = useState<string[]>(["sitter", "walker", "owner"]);
   const [reports, setReports] = useState<MapReport[]>([]);
   const [members, setMembers] = useState<NearbyMember[]>([]);
+  const nearbyCache2710 = useRef<Map<string, NearbyMember>>(new Map());
+  const [nearbyCover2710, setNearbyCover2710] = useState<{ lat: number; lng: number; r: number } | null>(null);
+  const poiCache2710 = useRef<Map<string, Poi>>(new Map());
+  // Rayon couvert par centre déjà chargé : un retour au même endroit s'affiche juste, sans attendre le réseau.
+  const poiRadiusAt2710 = useRef<Map<string, number>>(new Map());
+  const nearbyRadiusAt2710 = useRef<Map<string, number>>(new Map());
+  const [poiCover2710, setPoiCover2710] = useState<{ lat: number; lng: number; r: number } | null>(null);
   const [worldMembers, setWorldMembers] = useState<NearbyMember[]>([]);
   const [createKind, setCreateKind] = useState<null | "spot" | "report">(null);
   const [createType, setCreateType] = useState<string>("");
@@ -805,7 +816,15 @@ export default function MapPage() {
         setError(null);
         try {
           const list = await getNearbyPois({ lat, lng, maxDistance: 10000, category: category === "all" ? undefined : category });
-          setPois(list);
+          // 27/10 — les lieux s'AJOUTENT au cache de la session (avant : remplacés, le groupe de lieux de
+          // Paris disparaissait ~1 s en revenant de Lyon, mesuré). Une autre catégorie = liste propre.
+          // Zone COUVERTE par cette réponse : 10 km, ou moins si le serveur a coupé à 200 lieux (les plus
+          // proches) — sinon un détour par une ville voisine ajouterait des lieux qu'un chargement direct n'a pas.
+          let r = 10;
+          if (list.length >= 200) r = Math.max(...list.map((p) => { const c = p.location?.coordinates; return Array.isArray(c) && c.length >= 2 ? haversineKm(lat, lng, c[1], c[0]) : 0; }));
+          poiRadiusAt2710.current.set(coverKey2710(lat, lng), r);
+          setPoiCover2710({ lat, lng, r });
+          setPois(category === "all" ? mergeCache2710(poiCache2710.current, list, (p) => String(p._id)) : list);
         } catch (e) {
           if (e instanceof ApiError && e.status === 401) { router.replace("/login"); return; }
           setError(e instanceof Error ? e.message : "Failed to load POI");
@@ -850,10 +869,24 @@ export default function MapPage() {
   useEffect(() => {
     // 25/09 — la couche « proches » pour tous (le serveur décide ce qu'il
     // renvoie), comme l'app : sinon un ami ou un gardien proche pouvait manquer.
-    if (loading) { setMembers([]); return; }
+    if (loading) { setMembers([]); nearbyCache2710.current.clear(); return; }
     const tid = setTimeout(async () => {
       try {
-        setMembers(await getNearbyMembers({ lat: center[0], lng: center[1], radiusInMeters: 25000 }));
+        // 27/10 (ordre de Daniel : « les groupes apparaissent ou disparaissent selon les fois ») — MESURÉ :
+        // la couche « proches » d'une autre ville restait affichée puis était REMPLACÉE d'un coup, et chaque
+        // personne sautait entre sa position précise (proches) et sa position floutée (monde), jusqu'à 1,8 km :
+        // 2 changements de groupes en 1,6 s à chaque arrivée. Désormais les proches s'AJOUTENT au cache de la
+        // session (même identifiant = fiche la plus récente) : l'affichage précédent reste tant que le nouveau
+        // n'est pas prêt, et une position précise déjà connue ne redevient jamais floutée.
+        const fresh = await getNearbyMembers({ lat: center[0], lng: center[1], radiusInMeters: 25000 });
+        // Zone couverte : 25 km, ou moins si le serveur a coupé un rôle à 80 fiches (les plus proches).
+        const byRole = new Map<string, number[]>();
+        for (const m of fresh) { const c = m.location?.coordinates; if (!Array.isArray(c) || c.length < 2) continue; const k = String(m.role || ""); (byRole.get(k) || byRole.set(k, []).get(k)!).push(haversineKm(center[0], center[1], c[1], c[0])); }
+        let r = 25;
+        for (const d of byRole.values()) if (d.length >= 80) r = Math.min(r, Math.max(...d));
+        nearbyRadiusAt2710.current.set(coverKey2710(center[0], center[1]), r);
+        setNearbyCover2710({ lat: center[0], lng: center[1], r });
+        setMembers(mergeCache2710(nearbyCache2710.current, fresh, (m) => String(m.id)));
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) router.replace("/login");
       }
@@ -1044,7 +1077,11 @@ export default function MapPage() {
   }, [plushBanner]);
   // 587 (point 11) — puis la position de profil floutée renvoyée par /friends
   // prime pour chaque ami (et ajoute ceux que les couches n'ont pas).
-  const mergedMembers = useMemo(() => placeFriendsFromList(placeFriendsAtProfile(mergePersons(members, worldMembers), worldMembers, friendIdSetFrom(friendsForMap)), friendsForMap), [members, worldMembers, friendsForMap]);
+  // 27/10 — même zone = même carte, quel que soit le chemin : la position PRÉCISE (couche proches) n'est
+  // utilisée que dans le rayon de la requête « proches » autour du centre ACTUEL (25 km, moins si le serveur a coupé) ;
+  // au-delà, la position floutée de la couche monde. Le cache évite seulement d'attendre le réseau.
+  const membersHere2710 = useMemo(() => { const r = Math.min(25, nearbyRadiusAt2710.current.get(coverKey2710(center[0], center[1])) ?? nearbyCover2710?.r ?? 25); return members.filter((m) => { const c = m.location?.coordinates; return Array.isArray(c) && c.length >= 2 && haversineKm(center[0], center[1], c[1], c[0]) <= r + 1e-6; }); }, [members, center[0], center[1], nearbyCover2710?.r]);
+  const mergedMembers = useMemo(() => placeFriendsFromList(placeFriendsAtProfile(mergePersons(membersHere2710, worldMembers), worldMembers, friendIdSetFrom(friendsForMap)), friendsForMap), [membersHere2710, worldMembers, friendsForMap]);
   // 25/09 (586, point 7) — familles INDÉPENDANTES : un ami ne dépend que de
   // la pastille « Amis », un autre membre que des pastilles de rôle.
   // 02/10 (609, Daniel) — filtre « Vérifiés seulement » (identité vérifiée ;
@@ -1706,6 +1743,11 @@ export default function MapPage() {
     }
   }
 
+  // 27/10 — AVANT le retour anticipé « if (loading) » (piège des hooks). Lieux du cache dans le rayon de la
+  // requête autour du centre ACTUEL (10 km, moins si le serveur a coupé à 200) : même zone = mêmes lieux.
+  const poisHere2710 = useMemo(() => { const r = Math.min(10, poiRadiusAt2710.current.get(coverKey2710(center[0], center[1])) ?? poiCover2710?.r ?? 10); return pois.filter((p) => { const c = p.location?.coordinates; return Array.isArray(c) && c.length >= 2 && haversineKm(center[0], center[1], c[1], c[0]) <= r + 1e-6; }); }, [pois, center[0], center[1], poiCover2710?.r]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const visiblePois = useMemo(() => (noneSelected ? [] : selectedCats.length === 0 ? poisHere2710 : poisHere2710.filter((p) => selectedCats.includes(p.category))), [noneSelected, poisHere2710, selectedCats.join(",")]);
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-24 text-center text-[#6E4F48]">
@@ -1763,7 +1805,6 @@ export default function MapPage() {
       : comfortQuota && (comfortQuota.remaining ?? 0) > 0 ? t("r610_hint_comfort_available")
       : t("r610_hint_comfort");
   const spotOptions: PawSpotType[] = ["path_walk", "chill", "playground", "swimming", "food_cafe", "other"];
-  const visiblePois = noneSelected ? [] : selectedCats.length === 0 ? pois : pois.filter((p) => selectedCats.includes(p.category));
   const roleColor = ROLE_COLOR[roleKey(myRole)];
   const roleLight = myRole === "owner" ? "bg-owner-light" : myRole === "walker" ? "bg-walker-light" : "bg-sitter-light";
   const roleTextDark = myRole === "owner" ? "text-owner-dark" : myRole === "walker" ? "text-walker-dark" : "text-sitter-dark";

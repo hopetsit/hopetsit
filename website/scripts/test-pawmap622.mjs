@@ -105,30 +105,32 @@ const apply = (items, res) => items.filter((i) => !res.hidden.has(i.id)).map((i)
 // reste sur sa position (glissement ≤ 12 px) ; sans place il s'efface (2e passage), il ne part plus au loin.
 const two = (items, v, ov) => { const r1 = edge.resolveEdges622(items, v, ov); return r1.unplaced.size ? edge.resolveEdges622(items, v, ov, { hideUnplaced: true }) : r1; };
 const moved = (res, id) => { const s = res.shifts.get(id); return s ? Math.hypot(s.dx, s.dy) : 0; };
-ok("bord : bulle coupée en haut → ramenée de ≤ 12 px dans la carte, sinon effacée (jamais coupée, jamais loin)", () => {
+ok("bord : bulle coupée en haut → ramenée de ≤ 12 px dans la carte ; sans place le rond RESTE (jamais effacé, jamais loin)", () => {
   const near = [{ id: "a", layer: "member", rect: R(150, -8, 80, 90), anchor: { x: 190, y: 47 } }];
   const r1 = two(near, view, []);
   const o1 = apply(near, r1);
   assert.equal(o1.length, 1); assert.ok(o1[0].rect.t >= 0 && moved(r1, "a") <= 12);
   const far = [{ id: "b", layer: "member", rect: R(150, -40, 80, 90), anchor: { x: 190, y: 20 } }];
   const r2 = two(far, view, []);
-  assert.ok(r2.hidden.has("b") || (moved(r2, "b") <= 12 && apply(far, r2)[0].rect.t >= 0));
+  // 27/10 (règle 626, app = site) : un rond de membre n'est JAMAIS effacé ; il reste à ≤ 12 px de sa place.
+  assert.ok(!r2.hidden.has("b") && moved(r2, "b") <= 12);
 });
 ok("bord : pointe hors de la carte → masquée (jamais un morceau d'épingle)", () => {
   const items = [{ id: "a", layer: "member", rect: R(-30, 200, 46, 46), anchor: { x: -7, y: 223 } }];
   const res = edge.resolveEdges622(items, view, []);
   assert.ok(res.hidden.has("a"));
 });
-ok("rails : une épingle sous un rail en sort de ≤ 12 px, sinon elle s'efface (jamais déplacée loin)", () => {
+ok("rails (règle 626) : un rond sous un rail en sort de ≤ 12 px s'il y a la place, sinon il RESTE (jamais effacé, jamais loin)", () => {
   const items = [
     { id: "l", layer: "member", rect: R(20, 300, 46, 46), anchor: { x: 43, y: 323 } },
     { id: "t", layer: "mgroup", rect: R(250, 10, 40, 40), anchor: { x: 270, y: 30 } },
   ];
   const res = two(items, view, rails);
   const out = apply(items, res);
-  for (const it of out) { assert.ok(moved(res, it.id) <= 12, it.id); for (const o of rails) assert.ok(!touches(it.rect, o), `${it.id} touche un rail`); }
+  assert.equal(out.length, items.length);
+  for (const it of out) assert.ok(moved(res, it.id) <= 12, it.id);
 });
-ok("chevauchement : deux membres et une demande au même point → aucune boîte l'une sur l'autre, ronds ≤ 12 px", () => {
+ok("chevauchement : deux membres et une demande au même point → ronds gardés à ≤ 12 px, la demande jamais dessus", () => {
   const items = [
     { id: "m1", layer: "member", rect: R(150, 250, 46, 76), anchor: { x: 173, y: 296 } },
     { id: "m2", layer: "member", rect: R(155, 255, 46, 76), anchor: { x: 178, y: 301 } },
@@ -137,7 +139,11 @@ ok("chevauchement : deux membres et une demande au même point → aucune boîte
   const res = two(items, view, rails);
   const out = apply(items, res);
   for (const it of out) if (it.layer !== "request") assert.ok(moved(res, it.id) <= 12, it.id);
-  for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) assert.ok(!touches(out[i].rect, out[j].rect), `${out[i].id}/${out[j].id}`);
+  // 27/10 (règle 626) : les deux ronds restent (en vrai, deux ronds à < 56 px sont FUSIONNÉS en groupe en
+  // amont, voir test-pawmap2710) ; la demande, elle, ne se pose jamais sur un rond.
+  assert.ok(!res.hidden.has("m1") && !res.hidden.has("m2"));
+  const rq = out.find((x) => x.id === "rq");
+  if (rq) for (const m of out.filter((x) => x.layer === "member")) assert.ok(!touches(rq.rect, m.rect), `rq/${m.id}`);
 });
 ok("secondaire : un groupe de lieux collé à un membre glisse (≤ 40 px) ou s'efface, jamais dessus", () => {
   const items = [
@@ -154,12 +160,12 @@ ok("dense : 40 lieux entassés → aucun chevauchement entre ceux qui restent", 
   for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) assert.ok(!touches(out[i].rect, out[j].rect));
   assert.ok(out.length >= 3);
 });
-ok("trop dense : 2e passage → les membres sans place s'effacent, jamais « Moi » ni un ami", () => {
-  const items = Array.from({ length: 30 }, (_, i) => ({ id: `m${i}`, layer: i === 0 ? "me" : i === 1 ? "friend" : "member", rect: R(100, 200, 160, 160), anchor: { x: 180, y: 280 } }));
+ok("trop dense (règle 626) : 2e passage → aucun rond de membre, « Moi » ni ami effacé ; les lieux s'effacent", () => {
+  const items = Array.from({ length: 30 }, (_, i) => ({ id: `m${i}`, layer: i === 0 ? "me" : i === 1 ? "friend" : i < 20 ? "member" : "place", rect: R(100, 200, 160, 160), anchor: { x: 180, y: 280 } }));
   const res = edge.resolveEdges622(items, { l: 0, t: 0, r: 375, b: 600 }, rails, { hideUnplaced: true });
-  assert.ok(!res.hidden.has("m0") && !res.hidden.has("m1"));
-  const out = apply(items, res).filter((i) => i.layer === "member");
-  for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) assert.ok(!touches(out[i].rect, out[j].rect));
+  for (let i = 0; i < 20; i++) assert.ok(!res.hidden.has(`m${i}`), `m${i}`);
+  for (let i = 0; i < 20; i++) assert.ok(moved(res, `m${i}`) <= 12, `m${i}`);
+  assert.ok([...res.hidden].some((h) => +h.slice(1) >= 20));
   assert.ok(res.unplaced.size > 0);
 });
 ok("priorité (26/10, ordre de Daniel) : le rond d'une personne reste sur sa position, c'est la demande qui s'écarte", () => {

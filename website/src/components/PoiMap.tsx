@@ -102,9 +102,9 @@ import {
   expandRows,
   formatKm,
   isFriendMember,
-  isStackedGroup,
   personIdsOf,
   pointOf,
+  isStackedGroup,
   rolesMatching,
   rolesOf,
   distanceKmTo,
@@ -116,7 +116,8 @@ import { parsePins1910, pinsOnAvatarHtml, type Pins1910 } from "@/lib/pins1910";
 import { PinChips1910 } from "@/components/Pins1910";
 import { clusterFromPrice622, normalizeMemberPrices622, type MapRequestPricing622 } from "@/lib/mapPrice622";
 import { RequestFromLine622, useFromText622, useRequestFromLabels622 } from "@/components/RequestFrom622";
-import { PAWMAP_2610_CSS, SPIDER_MAX_2610, cachedIcon2610, mergeAnchored2610, popOnce2610, clusterHtml2610, priceBubbleHtml2610, profilePinHtml2610, role2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
+import { clusterIndex2710, clusterTapTarget2710, type ClusterIndex2710 } from "@/lib/pawmapGroups2710";
+import { PAWMAP_2610_CSS, SPIDER_MAX_2610, cachedIcon2610, popOnce2610, clusterHtml2610, priceBubbleHtml2610, profilePinHtml2610, role2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
 
 export { clusterize } from "@/lib/mapCluster";
 
@@ -197,7 +198,8 @@ const reportIcon = (type: string, fresh: boolean) => {
 function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], dark: boolean, o: { selected?: boolean; dim?: boolean; prices?: Price2610[]; live?: boolean; off?: { x: number; y: number } | null } = {}): L.DivIcon {
   const ox = Math.round(o.off?.x ?? 0);
   const oy = Math.round(o.off?.y ?? 0);
-  const className = `hps-l-member${o.dim ? " hps2610-dim" : ""}`;
+  // 27/10 — rond d'un groupe éclaté (≤ 12 px de sa vraie place) : « épinglé » dans la passe de mise en page.
+  const className = `hps-l-member${o.dim ? " hps2610-dim" : ""}${o.off ? " hps-fan-2710" : ""}`;
   const html = profilePinHtml2610({
       pop: popOnce2610(`m:${m.id}`, !!o.selected),
       roles: roles.map((r) => r.role),
@@ -374,18 +376,47 @@ function RouteFit({ points, extra, join, token }: { points: { lat: number; lng: 
   return null;
 }
 
-function PlaceCluster({ center, count, category }: { center: [number, number]; count: number; category: PoiCategory | null }) {
-  const map = useMap();
-  const icon = useMemo(() => L.divIcon({ className: "hps-l-pgroup", html: placeClusterHtml(count, category), iconSize: [32, 32], iconAnchor: [16, 16] }), [count, category]);
-  return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.place + 50} eventHandlers={{ click: () => safeFly(map, center, Math.min(map.getZoom() + 2.2, 19), 0.8) }} />;
-}
 /**
- * Groupe de membres (25/09, PawMap 585) : si les points sont SUPERPOSÉS (même
- * position à ~25 m près, ou la même personne) le clic ouvre directement la
- * liste — zoomer ne les séparerait jamais. Sinon on cadre le groupe pour que
- * ses points se séparent vraiment ; déjà au zoom rue = liste.
+ * 27/10 (ordre de Daniel, captures daniel_2710 ; règle 626 de PAM, même comportement que l'app) — toucher un
+ * groupe = VOL animé vers le centre de l'emprise RÉELLE de ses membres, au zoom qui les montre tous dans la
+ * zone utile (carte − 2 × 72 px en largeur, − 180 px en hauteur), au moins jusqu'au niveau où le groupe se
+ * divise. Il ne se divise pas avant le zoom maximal (même endroit) ou on y est déjà : renvoie false → la liste.
+ * Plus aucun anneau : un membre n'est jamais dessiné ailleurs qu'à sa place.
  */
-function MemberCluster({ center, items, onList, onSpider, open = false, dark = false, shift, price }: { center: [number, number]; items: NearbyMember[]; onList: (l: NearbyMember[]) => void; onSpider?: (items: NearbyMember[], center: [number, number]) => void; open?: boolean; dark?: boolean; friendSet?: Set<string>; shift?: Px; price?: { from: string; amount: string; role: Role2610 } | null }) {
+function flyToGroup2710<T>(map: L.Map, items: T[], idOf: (t: T) => string, posOf: (t: T) => [number, number] | null, index: ClusterIndex2710<T> | null): boolean {
+  const pts = items.map(posOf).filter((p): p is [number, number] => !!p);
+  const sz = map.getSize();
+  const exp = index ? index.expansionLevel(items.map(idOf), map.getZoom()) : null;
+  const t = clusterTapTarget2710({ pts, w: Math.max(120, sz.x - 2 * 72), h: Math.max(160, sz.y - 180), currentZoom: map.getZoom(), expansionLevel: exp, maxZoom: map.getMaxZoom() });
+  if (!t) return false;
+  // Carte au demi-niveau (zoomSnap 0,5) : on arrondit vers le bas — l'emprise tient toujours, et jamais sous le
+  // niveau où le groupe se divise (niveau = partie entière du zoom), donc il se divise bien à l'arrivée.
+  const z = Math.min(map.getMaxZoom(), Math.max(Math.floor(t.zoom * 2) / 2, exp ?? 0));
+  try { map.stop(); map.flyTo(L.latLng(t.center[0], t.center[1]), z, { duration: 0.8 }); } catch { safeFly(map, t.center, z, 0.8); }
+  return true;
+}
+/** Type de lieu le plus représenté d'un groupe (couleur de l'anneau, comme l'app : `dominant`). */
+function dominantPlace2710(items: Poi[]): PoiCategory | null {
+  const n = new Map<PoiCategory, number>();
+  for (const p of items) n.set(p.category, (n.get(p.category) || 0) + 1);
+  let best: PoiCategory | null = null, bc = 0;
+  for (const [c, k] of [...n.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) if (k > bc) { best = c; bc = k; }
+  return best;
+}
+const poiPos2710 = (poi: Poi): [number, number] | null => (Array.isArray(poi.location?.coordinates) && poi.location.coordinates.length >= 2 ? [poi.location.coordinates[1], poi.location.coordinates[0]] : null);
+const memberPos2710 = (m: NearbyMember): [number, number] | null => (Array.isArray(m.location?.coordinates) && m.location.coordinates.length >= 2 ? [m.location.coordinates[1], m.location.coordinates[0]] : null);
+const spotPos2710 = (s: PawSpot): [number, number] => [s.lat, s.lng];
+/** Lieux / PawSpots au même endroit : pas de liste sur le site → zoom maximal sur eux. */
+function flyMax2710(map: L.Map, center: [number, number]) { safeFly(map, center, map.getMaxZoom(), 0.8); }
+function PlaceCluster({ center, count, category, items, index, dark = false }: { center: [number, number]; count: number; category: PoiCategory | null; items: Poi[]; index: ClusterIndex2710<Poi>; dark?: boolean }) {
+  const map = useMap();
+  // 27/10 (parité app 625) — rond « Anneau » 48 px à la couleur du type dominant (plus de carré blanc).
+  const icon = useMemo(() => L.divIcon({ className: "hps-l-pgroup", html: placeClusterHtml(count, category, dark), iconSize: [48, 48], iconAnchor: [24, 24] }), [count, category, dark]);
+  return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.place + 50} eventHandlers={{ click: () => { if (!flyToGroup2710(map, items, (p) => String(p._id), poiPos2710, index)) flyMax2710(map, center); } }} />;
+}
+/** Groupe de membres : toucher = vol (flyToGroup2710) ; même endroit (≤ 40 m, ou une seule personne) ou
+ *  zoom maximal = la liste de ses membres. */
+function MemberCluster({ center, items, onList, index, dark = false, shift }: { center: [number, number]; items: NearbyMember[]; onList: (l: NearbyMember[]) => void; index: ClusterIndex2710<NearbyMember>; dark?: boolean; shift?: Px }) {
   const map = useMap();
   const count = items.length;
   // 2610 — anneau segmenté proportionnel aux rôles (maquette de l'app, README §3).
@@ -393,27 +424,18 @@ function MemberCluster({ center, items, onList, onSpider, open = false, dark = f
   const countsKey = `${counts.owner}/${counts.sitter}/${counts.walker}`;
   const sx = Math.round(shift?.x ?? 0);
   const sy = Math.round(shift?.y ?? 0);
-  // « dès X » masqué par défaut : visible seulement quand le groupe est touché (ouvert).
-  const label = open && price ? price : null;
-  const icon = useMemo(() => L.divIcon({ className: "hps-l-mgroup", html: clusterHtml2610({ counts, total: count, dark, fromLabel: label }), iconSize: [48, 48], iconAnchor: [24 - sx, 24 - sy] }), [count, countsKey, dark, sx, sy, label?.from, label?.amount, label?.role]);
+  const icon = useMemo(() => cachedIcon2610(`mgroup|${countsKey}|${count}|${dark ? 1 : 0}|${sx},${sy}`, () => L.divIcon({ className: "hps-l-mgroup", html: clusterHtml2610({ counts, total: count, dark, fromLabel: null }), iconSize: [48, 48], iconAnchor: [24 - sx, 24 - sy] })), [count, countsKey, dark, sx, sy]);
   const onClick = () => {
-    // 2610 — toucher = zoom +1,5 et éclatement (6 sur 72 px, le reste sur 132 px), sans trait.
-    if (onSpider && count <= SPIDER_MAX_2610) { onSpider(items, center); return; }
-    if (isStackedGroup(items) || map.getZoom() >= 17) { onList(items); return; }
-    const pts = items.map(pointOf).filter((p): p is [number, number] => !!p);
-    try {
-      map.stop();
-      map.flyToBounds(L.latLngBounds(pts), { padding: [70, 70], maxZoom: 18, duration: 0.8 });
-    } catch {
-      safeFly(map, center, Math.min(map.getZoom() + 2.2, 18), 0.8);
-    }
+    // Même règle que l'app (pawMapClusterIsStacked : 40 m, ou la même personne) : zoomer ne les séparerait pas.
+    if (isStackedGroup(items, 40)) { onList(items); return; }
+    if (!flyToGroup2710(map, items, (m) => String(m.id), memberPos2710, index)) onList(items);
   };
-  return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.member + (open ? 500 : 0)} eventHandlers={{ click: onClick }} />;
+  return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.member} eventHandlers={{ click: onClick }} />;
 }
-function SpotCluster({ center, count }: { center: [number, number]; count: number }) {
+function SpotCluster({ center, count, items, index }: { center: [number, number]; count: number; items: PawSpot[]; index: ClusterIndex2710<PawSpot> }) {
   const map = useMap();
   const icon = useMemo(() => L.divIcon({ className: "hps-l-sgroup", html: spotClusterHtml(count), iconSize: [36, 36], iconAnchor: [18, 18] }), [count]);
-  return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.spot} eventHandlers={{ click: () => safeFly(map, center, Math.min(map.getZoom() + 2.2, 19), 0.8) }} />;
+  return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.spot} eventHandlers={{ click: () => { if (!flyToGroup2710(map, items, (x) => String(x.id), spotPos2710, index)) flyMax2710(map, center); } }} />;
 }
 
 /** Libellés du suivi en direct (fournis par la page, 9 langues). */
@@ -925,38 +947,12 @@ export default function PoiMap({
     }
     return best ? best.label : null;
   };
-  /** 622 — « dès X » d'un rond de groupe (plus petit tarif réel, gardiens d'abord) ; null sans prix montrable. */
-  const clusterPrice = (items: NearbyMember[]): { from: string; amount: string; role: Role2610 } | null => {
-    // 2610 — « dès X » d'un groupe : calculé seulement pour le groupe TOUCHÉ (ouvert).
-    // Gardien / promeneur (visiblePrices) : le plus petit budget des demandes de ses propriétaires.
-    if (visibleRoles2610(userRole).includes("owner")) {
-      let best: { n: number; label: string } | null = null;
-      for (const m of items) {
-        const b = ownerBudget2610(new Set(personIdsOf(m).map(String)));
-        if (!b) continue;
-        const n = parseFloat(b.replace(/[^0-9.,]/g, "").replace(",", ".")) || Infinity;
-        if (!best || n < best.n) best = { n, label: b };
-      }
-      if (!best) return null;
-      // Budget estimé : il porte déjà « dès » (ou « ～ » en japonais) — jamais « dès dès ».
-      const pre = fromText622("").replace("～", "").trim();
-      if (pre && best.label.startsWith(pre)) return { from: pre, amount: best.label.slice(pre.length).trim(), role: "owner" };
-      if (best.label.endsWith("～")) return { from: "", amount: best.label, role: "owner" };
-      const full = fromText622(best.label);
-      const i = full.lastIndexOf(best.label);
-      return { from: i > 0 ? full.slice(0, i).trim() : "", amount: i > 0 ? best.label : full, role: "owner" };
-    }
-    const cp = clusterFromPrice622(items, (m) => rolesOf(m), (r) => priceFor(String(r.role || ""), r.priceFrom, r.currency, (r.priceAlt as PriceAlt | null) ?? null, r.priceUnit));
-    if (!cp) return null;
-    const full = fromText622(cp.label);
-    const i = full.lastIndexOf(cp.label);
-    return { from: i > 0 ? full.slice(0, i).trim() : "", amount: i > 0 ? cp.label : full, role: cp.role };
-  };
 
-  const poiClusters = useMemo(
-    () => clusterize(pois, zoomLevel, (poi) => (Array.isArray(poi.location?.coordinates) && poi.location.coordinates.length >= 2 ? [poi.location.coordinates[1], poi.location.coordinates[0]] : null)),
-    [pois, zoomLevel],
-  );
+
+  // 27/10 (règle 626, même règle que l'app) — lieux : index hiérarchique stable (56 px), groupe posé sur un vrai lieu.
+  const poiIndex = useMemo(() => clusterIndex2710(pois, (poi) => String(poi._id), poiPos2710), [pois]);
+  const poiPos = poiPos2710;
+  const poiClusters = useMemo(() => poiIndex.at(zoomLevel).map((g) => ({ items: g.items, center: poiPos2710(g.anchor)!, key: g.key })), [poiIndex, zoomLevel]);
   // 587 (point 6) — les AMIS ne sont jamais regroupés avec des inconnus :
   // exclus du regroupement, dessinés un par un au-dessus des membres, à
   // tous les zooms, sans plafond.
@@ -977,17 +973,13 @@ export default function PoiMap({
     const byId = new Map(otherMembersAll.map((m) => [m.id, m] as const));
     return spider.ids.map((id) => byId.get(id)).filter((m): m is NearbyMember => !!m);
   }, [spider, otherMembersAll]);
-  // 607 (PAM) — cases de 44 px PUIS fusion de tout groupe à moins de 50 px
-  // d'un autre : plus de pastilles « 29 », « 3 », « 2 » empilées au zoom pays.
-  const memberClusters = useMemo(() => {
-    const posOf = (m: NearbyMember): [number, number] | null => (Array.isArray(m.location?.coordinates) && m.location.coordinates.length >= 2 ? [m.location.coordinates[1], m.location.coordinates[0]] : null);
-    const cells = clusterize(otherMembers, zoomLevel, posOf, MEMBER_CELL_PX_607).map((g) => g.items);
-    // 26/10 (ordre de Daniel) — groupe posé sur une VRAIE position (membre le plus central), fusion au lieu
-    // d'écarter : plus de groupe en mer ni de rond décalé de sa ville.
-    const merged = mergeAnchored2610(cells, (m) => { const p = posOf(m)!; return mercatorPx(p[0], p[1], zoomLevel); });
-    return merged.map(({ items, anchor }) => ({ items, center: posOf(anchor)! }));
-  }, [otherMembers, zoomLevel]);
-  const spotClusters = useMemo(() => clusterize(spots, zoomLevel, (s) => [s.lat, s.lng]), [spots, zoomLevel]);
+  // 27/10 — regroupement STABLE (règle 626 de PAM, lib/pawmapGroups2710) : index hiérarchique calculé une
+  // fois par jeu de données ; niveau = partie entière du zoom ; groupe posé sur son membre le plus central.
+  // Même zoom + mêmes données = mêmes groupes, quel que soit le chemin ou l'ordre d'arrivée des données.
+  const memberIndex = useMemo(() => clusterIndex2710(otherMembers, (m) => String(m.id), memberPos2710), [otherMembers]);
+  const memberClusters = useMemo(() => memberIndex.at(zoomLevel).map((g) => ({ items: g.items, center: memberPos2710(g.anchor)!, key: g.key })), [memberIndex, zoomLevel]);
+  const spotIndex = useMemo(() => clusterIndex2710(spots, (s) => String(s.id), spotPos2710, (z) => (z >= 13 ? 18 : 44)), [spots]);
+  const spotClusters = useMemo(() => spotIndex.at(zoomLevel).map((g) => ({ items: g.items, center: [g.anchor.lat, g.anchor.lng] as [number, number], key: g.key })), [spotIndex, zoomLevel]);
 
   // Suivi : point suivi + tracé violet (positions reçues, en mémoire de la session).
   const trails = useRef<Map<string, [number, number][]>>(new Map());
@@ -1196,18 +1188,7 @@ export default function PoiMap({
     if (sp) setSpider(null);
     closeFocus();
   };
-  const openSpider2610 = (items: NearbyMember[], c: [number, number]) => {
-    if (!mapObj) return;
-    if (!prevViewRef.current) {
-      const cc = mapObj.getCenter();
-      prevViewRef.current = { c: [cc.lat, cc.lng], z: mapObj.getZoom() };
-    }
-    setFocus(null);
-    setSheet(null);
-    setOpenReq(null);
-    setSpider({ ids: items.map((m) => m.id), center: c, key: items.map((m) => m.id).join(",") });
-    safeFly(mapObj, c, Math.min(19, mapObj.getZoom() + 1.5), 0.5);
-  };
+
   const tapFocus = (f: Focus) => {
     if (!focusLabels || !mapObj) { f.open(); return; }
     // 2610 — profil OU demande : même comportement (re-clic = bulle masquée, caméra remise).
@@ -1372,7 +1353,7 @@ export default function PoiMap({
         {/* LIEUX : goutte par type, carré blanc pour un groupe. */}
         {poiClusters.map((g, i) =>
           g.items.length > 1 ? (
-            <PlaceCluster key={`pc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} count={g.items.length} category={new Set(g.items.map((p) => p.category)).size === 1 ? g.items[0].category : null} />
+            <PlaceCluster key={`pc-${g.key}`} center={g.center} count={g.items.length} category={dominantPlace2710(g.items)} items={g.items} index={poiIndex} dark={dark} />
           ) : null,
         )}
         {poiClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((poi) => {
@@ -1415,7 +1396,7 @@ export default function PoiMap({
 
         {/* PAWSPOTS : goutte noire (or si doré), carré noir pour un groupe. */}
         {spotClusters.map((g, i) =>
-          g.items.length > 1 ? <SpotCluster key={`sc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} count={g.items.length} /> : null,
+          g.items.length > 1 ? <SpotCluster key={`sc-${g.key}`} center={g.center} count={g.items.length} items={g.items} index={spotIndex} /> : null,
         )}
         {spotClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((spot) => (
           <Marker key={`spot-${spot.id}`} position={[spot.lat, spot.lng]} icon={spotIcon(spot.type, spot.isGolden, showPrice ? spot.name : null)} zIndexOffset={spot.isGolden ? PIN_Z.spotGolden : PIN_Z.spot} eventHandlers={{ popupopen: () => onSpotVisit?.(spot.id) }}>
@@ -1503,18 +1484,15 @@ export default function PoiMap({
         {/* MEMBRES : UNE personne = UN rond (liseré de chacun de ses rôles),
             rond de groupe à la couleur dominante. Clic = fiche du bas. */}
         {memberClusters.map((g, i) =>
-          g.items.length > 1 ? <MemberCluster key={`mc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} items={g.items} onList={(items) => openSheet({ kind: "list", items }, g.center)} onSpider={openSpider2610} dark={dark} /> : null,
+          g.items.length > 1 ? <MemberCluster key={`mc-${g.key}`} center={g.center} items={g.items} onList={(items) => openSheet({ kind: "list", items }, g.center)} index={memberIndex} dark={dark} /> : null,
         )}
-        {/* 26/10 (2610) — groupe TOUCHÉ : il reste au centre avec son « dès X », ses profils autour
-            (6 sur 72 px, le reste sur 132 px), aucun trait ; re-clic = refermé, caméra remise. */}
-        {spider && spiderMembers.length > 0 && (
-          <MemberCluster key={`spider-${spider.key}`} center={spider.center} items={spiderMembers} onList={() => resetAll2610()} onSpider={() => resetAll2610()} open dark={dark} price={focus?.key.startsWith("p:") && spider.ids.includes(focus.key.slice(2)) ? null : clusterPrice(spiderMembers)} />
-        )}
+        {/* 27/10 — groupe éclaté (même endroit / zoom maximal) : le rond du groupe disparaît, ses membres
+            sont posés sur LEUR vraie position à ≤ 12 px près ; clic dans le vide = refermé. */}
         {[...memberClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]), ...friendMembers, ...(spider ? spiderMembers : [])].map((m) => {
           const spiderIdx = spider ? spiderMembers.indexOf(m) : -1;
-          const spiderOff = spiderIdx >= 0 ? spiderfy2610(spiderMembers.length)[spiderIdx] : null;
-          const pt0 = pointOf(m);
-          const pt: [number, number] | null = spiderOff && spider ? spider.center : pt0;
+          // 27/10 (règle 626) — plus d'éclatement : chaque rond est dessiné à sa vraie position.
+          const spiderOff: { x: number; y: number } | null = spiderIdx >= 0 ? { x: 0, y: 0 } : null;
+          const pt: [number, number] | null = pointOf(m);
           if (!pt) return null;
           const isFriend = isFriendMember(m, friendSet);
           // Un ami qui partage en direct a déjà son rond « en direct » : pas de doublon.

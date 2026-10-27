@@ -15,8 +15,10 @@ import { LAYER_PRIORITY_607, DROPPABLE_607, type Layer607, type Rect607 } from "
 
 export type EdgeItem622 = { id: string; layer: Layer607; rect: Rect607; anchor: { x: number; y: number }; /** 2610 — rond SÉLECTIONNÉ (sa bulle de prix) : posé en premier, jamais déplacé ni masqué. */ pinned?: boolean };
 export type EdgeResult622 = { shifts: Map<string, { dx: number; dy: number }>; hidden: Set<string>; /** couches principales sans place libre (2e passage : bulle repliée, puis masquées). */ unplaced: Set<string> };
-/** Jamais masqués, même sans place : moi et mes amis. */
-const NEVER_HIDE_622 = new Set<Layer607>(["me", "friend"]);
+/** Jamais masqués, même sans place : moi et mes amis — et, depuis le 27/10 (règle 626 de PAM, même règle
+ *  que l'app), les ronds de membres et leurs groupes : un groupe qui « disparaît » selon le zoom était l'un
+ *  des bugs filmés par Daniel. Sans place : prix / prénom repliés, glissement ≤ 12 px, jamais effacé. */
+const NEVER_HIDE_622 = new Set<Layer607>(["me", "friend", "member", "mgroup"]);
 
 /** Ordre de pose : celui de la passe 607, sauf les DEMANDES qui passent avant les membres et leurs
  *  groupes (une demande n'a pas de bulle à replier : sans place elle disparaissait, alors que c'est

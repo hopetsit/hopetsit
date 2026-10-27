@@ -325,24 +325,47 @@ export function mergeAnchored2610<T>(groups: T[][], px: (t: T) => { x: number; y
     pts.forEach((p, i) => { const d = (p.x - mx) ** 2 + (p.y - my) ** 2; if (d < bd) { bd = d; best = i; } });
     return best;
   };
-  let gs: G[] = groups.filter((g) => g.length > 0).map((g) => { const pts = g.map(px); return { items: [...g], pts, a: medoid(pts) }; });
+  // 27/10 (fluidité, mesurée : 1,5 s pour 3 000 membres au zoom pays avec la double boucle) — MÊME règle
+  // qu'avant : la paire la plus proche d'abord, à égalité la première dans l'ordre de la liste (un groupe
+  // fusionné passe en fin de liste). Mise en œuvre : file de priorité des paires voisines (grille de
+  // `minPx` : deux ancres à moins de `minPx` sont forcément dans des cases voisines) ; l'ordre de la liste
+  // est porté par un numéro croissant (`o`). Résultat identique, vérifié par scripts/test-pawmap2710.mjs.
+  type N = G & { o: number; dead: boolean; cx: number; cy: number };
   const min2 = minPx * minPx;
-  for (let guard = 0; guard < 200; guard++) {
-    let bi = -1, bj = -1, bd = Infinity;
-    for (let i = 0; i < gs.length; i++) {
-      const pi = gs[i].pts[gs[i].a];
-      for (let j = i + 1; j < gs.length; j++) {
-        const pj = gs[j].pts[gs[j].a];
-        const d = (pi.x - pj.x) ** 2 + (pi.y - pj.y) ** 2;
-        if (d < min2 && d < bd) { bd = d; bi = i; bj = j; }
+  let order = 0;
+  const live = new Map<number, N>();
+  const grid = new Map<string, Set<number>>();
+  const heap: [number, number, number][] = []; // [d², o petit, o grand]
+  const less = (a: [number, number, number], b: [number, number, number]) => a[0] < b[0] || (a[0] === b[0] && (a[1] < b[1] || (a[1] === b[1] && a[2] < b[2])));
+  const push = (e: [number, number, number]) => { heap.push(e); let k = heap.length - 1; while (k > 0) { const up = (k - 1) >> 1; if (!less(heap[k], heap[up])) break; [heap[k], heap[up]] = [heap[up], heap[k]]; k = up; } };
+  const pop = (): [number, number, number] | undefined => { const top = heap[0]; const last = heap.pop(); if (heap.length && last) { heap[0] = last; let k = 0; for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < heap.length && less(heap[l], heap[m])) m = l; if (r < heap.length && less(heap[r], heap[m])) m = r; if (m === k) break; [heap[k], heap[m]] = [heap[m], heap[k]]; k = m; } } return top; };
+  const add = (g: G): N => {
+    const p = g.pts[g.a];
+    const n: N = { ...g, o: order++, dead: false, cx: Math.floor(p.x / minPx), cy: Math.floor(p.y / minPx) };
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      const set = grid.get(`${n.cx + dx}_${n.cy + dy}`);
+      if (!set) continue;
+      for (const o of set) {
+        const q = live.get(o)!;
+        const pq = q.pts[q.a];
+        const d = (p.x - pq.x) ** 2 + (p.y - pq.y) ** 2;
+        if (d < min2) push([d, Math.min(o, n.o), Math.max(o, n.o)]);
       }
     }
-    if (bi < 0) break;
-    const items = [...gs[bi].items, ...gs[bj].items];
-    const pts = [...gs[bi].pts, ...gs[bj].pts];
-    const merged: G = { items, pts, a: medoid(pts) };
-    gs = gs.filter((_, k) => k !== bi && k !== bj);
-    gs.push(merged);
+    live.set(n.o, n);
+    const key = `${n.cx}_${n.cy}`;
+    (grid.get(key) || grid.set(key, new Set()).get(key)!).add(n.o);
+    return n;
+  };
+  const kill = (n: N) => { n.dead = true; live.delete(n.o); grid.get(`${n.cx}_${n.cy}`)?.delete(n.o); };
+  for (const g of groups) if (g.length > 0) { const pts = g.map(px); add({ items: [...g], pts, a: medoid(pts) }); }
+  for (let e = pop(); e; e = pop()) {
+    const A = live.get(e[1]), B = live.get(e[2]);
+    if (!A || !B) continue;
+    kill(A); kill(B);
+    const pts = [...A.pts, ...B.pts];
+    add({ items: [...A.items, ...B.items], pts, a: medoid(pts) });
   }
+  const gs = [...live.values()].sort((x, y) => x.o - y.o);
   return gs.map((g) => ({ items: g.items, anchor: g.items[g.a] }));
 }

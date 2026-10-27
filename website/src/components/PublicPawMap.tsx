@@ -47,7 +47,8 @@ import {
 import { safeFly } from "@/lib/safeFly";
 import { AppIcon } from "@/components/AppIcon";
 import { CollisionPass607 } from "@/components/CollisionPass607";
-import { PAWMAP_2610_CSS, SPIDER_MAX_2610, cachedIcon2610, mergeAnchored2610, popOnce2610, clusterHtml2610, profilePinHtml2610, spiderfy2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
+import { clusterIndex2710, clusterTapTarget2710, mergeCache2710, viewRadiusKm2710, type ClusterIndex2710 } from "@/lib/pawmapGroups2710";
+import { PAWMAP_2610_CSS, SPIDER_MAX_2610, cachedIcon2610, popOnce2610, clusterHtml2610, profilePinHtml2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
 import { VerifiedPill } from "@/components/VerifiedPill";
 import { PawMapLegendModal } from "@/components/PawMapLegendModal";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
@@ -57,7 +58,7 @@ import { askHref, askLabel, askNote, dm } from "@/lib/i18n/demander2809";
 function memberIcon(p: PublicProvider, caption: string | null, o: { selected?: boolean; dim?: boolean; prices?: Price2610[]; off?: { x: number; y: number } | null; dark?: boolean } = {}): L.DivIcon {
   const ox = Math.round(o.off?.x ?? 0);
   const oy = Math.round(o.off?.y ?? 0);
-  const className = `hps-l-member${o.dim ? " hps2610-dim" : ""}`;
+  const className = `hps-l-member${o.dim ? " hps2610-dim" : ""}${o.off ? " hps-fan-2710" : ""}`;
   const html = profilePinHtml2610({ roles: [p.role], selected: !!o.selected, pop: popOnce2610(`p:${p.id}`, !!o.selected), prices: o.prices, caption, dark: !!o.dark, boosted: p.boosted, verified: p.identityVerified === true });
   // 26/10 (bug « ça clignote ») — même dessin = même icône : aucune réécriture à chaque rendu.
   return cachedIcon2610(`${className}|${ox},${oy}|${html.replace(/animation:hps2610-pop[^;]*;/, "")}`, () => L.divIcon({ className, html, iconSize: [50, 50], iconAnchor: [25 - ox, 25 - oy], popupAnchor: [ox, oy - 28] }));
@@ -90,10 +91,26 @@ function clusterIcon(items: PublicProvider[], dark: boolean, price?: { from: str
 function publicSpotIcon(s: PublicPawSpot, label: string | null): L.DivIcon {
   return L.divIcon({ className: "hps-l-spot", html: spotPinHtml(s.type, s.isGolden, { label }), iconSize: [40, 50], iconAnchor: spotPinAnchor(40), popupAnchor: [0, -44] });
 }
-function PublicSpotCluster({ center, count }: { center: [number, number]; count: number }) {
+/**
+ * 27/10 (ordre de Daniel ; règle 626 de PAM, même comportement que l'app) — toucher un groupe = VOL animé vers
+ * le centre de l'emprise RÉELLE de ses membres, au zoom qui les montre tous (carte − 2 × 72 px, − 180 px), au
+ * moins jusqu'au niveau où il se divise ; false = il ne se divise pas avant le zoom maximal → la liste.
+ */
+function flyToGroup2710<T>(map: L.Map, items: T[], idOf: (t: T) => string, posOf: (t: T) => [number, number], index: ClusterIndex2710<T> | null): boolean {
+  const sz = map.getSize();
+  const exp = index ? index.expansionLevel(items.map(idOf), map.getZoom()) : null;
+  const t = clusterTapTarget2710({ pts: items.map(posOf), w: Math.max(120, sz.x - 2 * 72), h: Math.max(160, sz.y - 180), currentZoom: map.getZoom(), expansionLevel: exp, maxZoom: map.getMaxZoom() });
+  if (!t) return false;
+  // Carte au demi-niveau (zoomSnap 0,5) : on arrondit vers le bas — l'emprise tient toujours, et jamais sous le
+  // niveau où le groupe se divise (niveau = partie entière du zoom), donc il se divise bien à l'arrivée.
+  const z = Math.min(map.getMaxZoom(), Math.max(Math.floor(t.zoom * 2) / 2, exp ?? 0));
+  try { map.stop(); map.flyTo(L.latLng(t.center[0], t.center[1]), z, { duration: 0.8 }); } catch { safeFly(map, t.center, z, 0.8); }
+  return true;
+}
+function PublicSpotCluster({ center, count, items, index }: { center: [number, number]; count: number; items: PublicPawSpot[]; index: ClusterIndex2710<PublicPawSpot> }) {
   const map = useMap();
   const icon = useMemo(() => L.divIcon({ className: "hps-l-sgroup", html: spotClusterHtml(count), iconSize: [36, 36], iconAnchor: [18, 18] }), [count]);
-  return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.spot} eventHandlers={{ click: () => safeFly(map, center, Math.min(map.getZoom() + 2.2, 18), 0.8) }} />;
+  return <Marker position={center} icon={icon} zIndexOffset={PIN_Z.spot} eventHandlers={{ click: () => { if (!flyToGroup2710(map, items, (x) => String(x.id), (x) => [x.lat, x.lng], index)) safeFly(map, center, map.getMaxZoom(), 0.8); } }} />;
 }
 
 /**
@@ -129,30 +146,21 @@ function Watcher({ onChange }: { onChange: (v: View) => void }) {
   return null;
 }
 
-/**
- * Groupe (2610) : toucher = zoom +1,5 et éclatement autour de lui (6 sur 72 px, le reste sur
- * 132 px, sans trait). Au-delà de SPIDER_MAX_2610 profils : comportement d'avant (liste ou zoom).
- */
-function ClusterMarker({ center, items, onList, onSpider, dark, price, open = false }: { center: [number, number]; items: PublicProvider[]; onList: (l: PublicProvider[]) => void; onSpider: (items: PublicProvider[], center: [number, number]) => void; dark: boolean; price?: { from: string; amount: string; role: Role2610 } | null; open?: boolean }) {
+/** Groupe : toucher = vol (flyToGroup2710) ; même endroit (≤ 40 m, comme l'app) ou zoom maximal = la liste. */
+function ClusterMarker({ center, items, onList, index, dark }: { center: [number, number]; items: PublicProvider[]; onList: (l: PublicProvider[]) => void; index: ClusterIndex2710<PublicProvider>; dark: boolean }) {
   const map = useMap();
   return (
     <Marker
       position={center}
-      icon={clusterIcon(items, dark, open ? price : null)}
-      zIndexOffset={PIN_Z.member + (open ? 500 : 0)}
+      icon={clusterIcon(items, dark, null)}
+      zIndexOffset={PIN_Z.member}
       eventHandlers={{
         click: () => {
-          if (open || items.length <= SPIDER_MAX_2610) { onSpider(items, center); return; }
           let far = 0;
           for (let i = 0; i < items.length; i += 1) for (let j = i + 1; j < items.length; j += 1) far = Math.max(far, haversineKm(items[i].lat, items[i].lng, items[j].lat, items[j].lng) * 1000);
           const samePerson = items.every((p) => p.avatar && p.avatar === items[0].avatar && p.name === items[0].name);
-          if (far <= 25 || samePerson || map.getZoom() >= 16) { onList(items); return; }
-          try {
-            map.stop();
-            map.flyToBounds(L.latLngBounds(items.map((p) => [p.lat, p.lng] as [number, number])), { padding: [60, 60], maxZoom: 18, duration: 0.8 });
-          } catch {
-            safeFly(map, center, Math.min(map.getZoom() + 2.2, 18), 0.8);
-          }
+          if (far <= 40 || samePerson) { onList(items); return; }
+          if (!flyToGroup2710(map, items, (p) => p.id, (p) => [p.lat, p.lng], index)) onList(items);
         },
       }}
     />
@@ -203,7 +211,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   // 1617 — demandes des propriétaires autour du centre (compteur + bulles floutées).
   const [reqStats, setReqStats] = useState<{ count: number; city: string; bubbles: PublicRequestBubble[] }>({ count: 0, city: "", bubbles: [] });
-  const lastFetch = useRef<{ lat: number; lng: number } | null>(null);
+  const lastFetch = useRef<{ lat: number; lng: number; r: number } | null>(null);
   const reqSeq = useRef(0);
   // 622 (25/10) — bulles des demandes : « dès 10 €/jour » (estimation publique, jamais inventée).
   const fromText622 = useFromText622();
@@ -249,54 +257,56 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
   // requêtes remplace un drapeau « alive » de nettoyage : en développement
   // React monte deux fois les effets (StrictMode), et un drapeau annulait la
   // seule requête partie → carte vide et spinner figé (vu le 24/09).
+  // 27/10 (ordre de Daniel : « les groupes apparaissent ou disparaissent selon les fois ») — MESURÉ : à
+  // chaque recharge la liste était REMPLACÉE d'un coup (en revenant à New York, ses 7 groupes absents
+  // tant que la réponse n'était pas là) et le rayon restait de 30 km même dézoomé. Désormais : rayon qui
+  // couvre la carte visible (paliers fixes 30 → 500 km), et chaque réponse COMPLÈTE le cache de la
+  // session — l'affichage précédent reste tant que le nouveau n'est pas prêt.
+  const providerCache = useRef<Map<string, PublicProvider>>(new Map());
+  const spotCache = useRef<Map<string, PublicPawSpot>>(new Map());
+  const viewRadius = viewRadiusKm2710(view.s, view.w, view.n, view.e);
   useEffect(() => {
     const prev = lastFetch.current;
-    const moved = !prev || Math.abs(prev.lat - view.lat) > 0.045 || Math.abs(prev.lng - view.lng) > 0.06;
+    const moved = !prev || Math.abs(prev.lat - view.lat) > 0.045 || Math.abs(prev.lng - view.lng) > 0.06 || viewRadius > prev.r;
     if (!moved) return;
-    lastFetch.current = { lat: view.lat, lng: view.lng };
+    lastFetch.current = { lat: view.lat, lng: view.lng, r: viewRadius };
     const seq = ++reqSeq.current;
     setLoading(true);
-    getPublicProviders({ lat: view.lat, lng: view.lng, radiusKm: 30 })
+    getPublicProviders({ lat: view.lat, lng: view.lng, radiusKm: viewRadius })
       .then((list) => {
-        if (seq !== reqSeq.current) return;
-        setProviders(list);
-        onProviders?.(list);
+        const all = mergeCache2710(providerCache.current, list, (p) => p.id);
+        setProviders(all);
+        if (seq === reqSeq.current) onProviders?.(list);
       })
       .catch(() => {})
       .finally(() => { if (seq === reqSeq.current) { setLoading(false); setFetchedOnce(true); } });
     // 610 — PawSpots publics (jamais d'erreur : liste vide si la route manque).
-    void getPublicPawSpots({ lat: view.lat, lng: view.lng, radiusKm: 30 }).then((list) => { if (seq === reqSeq.current) setSpots(list); });
+    void getPublicPawSpots({ lat: view.lat, lng: view.lng, radiusKm: Math.min(viewRadius, 30) }).then((list) => setSpots(mergeCache2710(spotCache.current, list, (x) => String(x.id))));
     // 1617 — demandes ouvertes de propriétaires réels (serveur : floutées, sans nom, cache 5 min).
     void getPublicRequestStats({ lat: view.lat, lng: view.lng, radiusKm: 30 }).then((s) => { if (seq === reqSeq.current) setReqStats({ count: s.count, city: s.city, bubbles: s.bubbles }); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view.lat, view.lng]);
+  }, [view.lat, view.lng, viewRadius]);
 
   // 607 (02/10, aligné sur /map et l'app — pawmap_overlap607.dart) : cases de
   // 44 px PUIS fusion de tout groupe à moins de 50 px d'un autre. Avant :
   // cases de 36 px seules → pastilles « 5 », « 3 », « 2 » collées au zoom pays.
-  const clusters = useMemo(() => {
+  // 27/10 — regroupement STABLE (règle 626 de PAM, lib/pawmapGroups2710) : index hiérarchique calculé une fois
+  // par jeu de données, niveau = partie entière du zoom. Même zoom + mêmes données = mêmes groupes.
+  const groupable2710 = useMemo(() => {
     const list0 = verifiedOnly ? providers.filter((p) => p.identityVerified === true) : providers;
     const out = new Set(spider?.ids ?? []);
-    const list = list0.filter((p) => !out.has(p.id));
-    const cells = clusterize(list, view.zoom, (p) => [p.lat, p.lng], MEMBER_CELL_PX_607).map((g) => g.items);
-    // 26/10 (ordre de Daniel) — groupe posé sur une VRAIE position, fusion au lieu d'écarter.
-    const merged = mergeAnchored2610(cells, (p) => mercatorPx(p.lat, p.lng, view.zoom));
-    return merged.map(({ items, anchor }) => ({ items, center: [anchor.lat, anchor.lng] as [number, number] }));
-  }, [providers, view.zoom, verifiedOnly, spider]);
+    return list0.filter((p) => !out.has(p.id));
+  }, [providers, verifiedOnly, spider]);
+  const memberIndex = useMemo(() => clusterIndex2710(groupable2710, (p) => p.id, (p) => [p.lat, p.lng]), [groupable2710]);
+  const clusters = useMemo(() => memberIndex.at(view.zoom).map((g) => ({ items: g.items, center: [g.anchor.lat, g.anchor.lng] as [number, number], key: g.key })), [memberIndex, view.zoom]);
   const spiderItems = useMemo(() => {
     if (!spider) return [] as PublicProvider[];
     const byId = new Map(providers.map((p) => [p.id, p] as const));
     return spider.ids.map((id) => byId.get(id)).filter((p): p is PublicProvider => !!p);
   }, [spider, providers]);
-  const openSpider = (items: PublicProvider[], c: [number, number]) => {
-    if (spider && spider.key === items.map((p) => p.id).join(",")) { resetAll(); return; }
-    savePrev();
-    setSel(null);
-    setFiche(null);
-    setSpider({ ids: items.map((p) => p.id), center: c, key: items.map((p) => p.id).join(",") });
-    setCam({ lat: c[0], lng: c[1], dz: 1.5, ts: Date.now() });
-  };
-  const spotClusters = useMemo(() => clusterize(spots, view.zoom, (s) => [s.lat, s.lng]), [spots, view.zoom]);
+
+  const spotIndex = useMemo(() => clusterIndex2710(spots, (s) => String(s.id), (s) => [s.lat, s.lng], (z) => (z >= 13 ? 18 : 44)), [spots]);
+  const spotClusters = useMemo(() => spotIndex.at(view.zoom).map((g) => ({ items: g.items, center: [g.anchor.lat, g.anchor.lng] as [number, number], key: g.key })), [spotIndex, view.zoom]);
   const spotTypeLabel = (ty: string) => t(`map_spot_type_${ty}`) || ty;
   // 607 — mêmes seuils que l'app : prénom + prix au zoom rue (13) ; dès le
   // zoom ville (9) une épingle SEULE porte sa bulle si la place est libre.
@@ -356,7 +366,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         <CollisionPass607 />
         {/* 04/10 (610) — PawSpots, lecture seule : petite fiche + lien /spot/<id> + inscription. */}
         {spotClusters.map((g, i) =>
-          g.items.length > 1 ? <PublicSpotCluster key={`sc-${i}-${g.items.length}-${g.center[0].toFixed(4)}`} center={g.center} count={g.items.length} /> : null,
+          g.items.length > 1 ? <PublicSpotCluster key={`sc-${g.key}`} center={g.center} count={g.items.length} items={g.items} index={spotIndex} /> : null,
         )}
         {spotClusters.filter((g) => g.items.length === 1).map((g) => g.items[0]).map((sp) => (
           <Marker key={`spot-${sp.id}`} position={[sp.lat, sp.lng]} icon={publicSpotIcon(sp, showCaption ? sp.name : null)} zIndexOffset={sp.isGolden ? PIN_Z.spotGolden : PIN_Z.spot}>
@@ -404,15 +414,13 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         ))}
         {clusters.map((g, i) =>
           g.items.length > 1 ? (
-            <ClusterMarker key={`c-${i}-${g.items.length}-${g.center[0].toFixed(3)}`} center={g.center} items={g.items} onList={setClusterList} onSpider={openSpider} dark={dark} />
+            <ClusterMarker key={`c-${g.key}`} center={g.center} items={g.items} onList={setClusterList} index={memberIndex} dark={dark} />
           ) : null,
-        )}
-        {spider && spiderItems.length > 0 && (
-          <ClusterMarker key={`spider-${spider.key}`} center={spider.center} items={spiderItems} onList={() => resetAll()} onSpider={() => resetAll()} dark={dark} price={sel ? null : clusterPrice(spiderItems)} open />
         )}
         {[...clusters.filter((g) => g.items.length === 1).map((g) => g.items[0]), ...spiderItems].map((p) => {
           const si = spider ? spiderItems.indexOf(p) : -1;
-          const off = si >= 0 ? spiderfy2610(spiderItems.length)[si] : null;
+          // 27/10 (règle 626) — plus d'éclatement : chaque rond à sa vraie position.
+          const off: { x: number; y: number } | null = si >= 0 ? { x: 0, y: 0 } : null;
           const isSel = sel === p.id;
           const prices = isSel ? pricesOf(p) : [];
           const color = ROLE_COLOR[p.role];
@@ -423,7 +431,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
             <Marker
               key={`p-${p.id}${off ? "-sp" : ""}`}
               ref={(mk) => { if (mk) markerRefs.current.set(p.id, mk); else markerRefs.current.delete(p.id); }}
-              position={off && spider ? spider.center : [p.lat, p.lng]}
+              position={[p.lat, p.lng]}
               icon={memberIcon(p, off ? null : captionOf(p), { selected: isSel, dim: !!sel && !isSel, prices, off, dark })}
               zIndexOffset={isSel ? PIN_Z.me + 500 : off ? PIN_Z.member + 800 : p.boosted ? PIN_Z.memberBoosted : PIN_Z.member}
               eventHandlers={{

@@ -102,7 +102,7 @@ export function runCollisionPass607(pane: HTMLElement, container: HTMLElement): 
     const box = el.getBoundingClientRect();
     const ml = parseFloat(el.style.marginLeft || "0") || 0;
     const mt = parseFloat(el.style.marginTop || "0") || 0;
-    items.push({ id: `${layer}:${Math.round(rect.l)}:${Math.round(rect.t)}:${items.length}`, layer, rect, anchor: { x: box.left - ml, y: box.top - mt }, el, pinned: !!el.querySelector("[data-selected-2610], [data-cluster-open-2610]") });
+    items.push({ id: `${layer}:${Math.round(rect.l)}:${Math.round(rect.t)}:${items.length}`, layer, rect, anchor: { x: box.left - ml, y: box.top - mt }, el, pinned: el.classList.contains("hps-fan-2710") || !!el.querySelector("[data-selected-2610], [data-cluster-open-2610]") });
   }
   const overlays = overlayRects(container, view);
   let { shifts, hidden, unplaced } = resolveEdges622(items, view, overlays);

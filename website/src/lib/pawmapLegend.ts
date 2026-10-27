@@ -535,11 +535,18 @@ export function placePinHtml(category: string, size = 30): string {
 }
 
 /** Groupe de lieux : CARRÉ arrondi blanc + nombre, bord/nombre du type dominant (36). */
-export function placeClusterHtml(count: number, category?: string | null): string {
+export function placeClusterHtml(count: number, category?: string | null, dark = false): string {
   const color = category ? PLACE_COLOR[category] || PLACE_COLOR.other : PLACE_COLOR.other;
   const label = count > 99 ? "99+" : String(count);
-  // Carré BLANC, bord FIN : discret, jamais confondu avec un groupe de membres (rond plein).
-  return `<div style="width:32px;height:32px;border-radius:8px;background:#fff;border:1.5px solid ${color};color:${color};display:flex;align-items:center;justify-content:center;font:800 ${label.length > 2 ? 10 : 12}px/1 Inter,system-ui,sans-serif;box-shadow:0 1px 4px rgba(23,20,31,.25);box-sizing:border-box;">${label}</div>`;
+  // 27/10 (parité app 625, paintPlaceCluster625) — plus de carré blanc : rond « Anneau » 48 px comme les
+  // groupes de membres, liseré blanc, anneau PLEIN de 7 px à la couleur du type de lieu dominant, nombre 15,5.
+  const bg = dark ? "#262123" : "#fff";
+  const ink = dark ? "#f6efec" : "#1d1719";
+  return `<div data-place-cluster-2710="" style="position:relative;width:48px;height:48px;">`
+    + `<div style="position:absolute;inset:0;border-radius:50%;background:${bg};box-shadow:0 0 0 2.5px #fff,0 0 0 3.5px rgba(0,0,0,.18),0 3px 3px rgba(0,0,0,.25);">`
+    + `<svg viewBox="0 0 48 48" width="48" height="48" aria-hidden="true" style="position:absolute;inset:0;display:block;"><circle cx="24" cy="24" r="19" stroke="${color}" stroke-width="7" fill="none"/></svg>`
+    + `<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 ${label.length > 2 ? 13 : 15.5}px/1 Poppins,Inter,system-ui,sans-serif;letter-spacing:-.04em;color:${ink};">${label}</span>`
+    + `</div></div>`;
 }
 
 /**
