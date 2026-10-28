@@ -360,6 +360,7 @@ const versionedRoutes = [
   { path: '/admin/positions-from-city', mw: [], router: require('./routes/adminPositionsFromCity616') },
   // 620b (ZOE, 24/10) — rejouer le recalcul des candidatures d'une demande requalifiée (garde → visites). requireAdmin dans le routeur.
   { path: '/admin/reprice-620', mw: [], router: require('./routes/adminReprice620') },
+  { path: '/admin/candidates-reminder-2810', mw: [], router: require('./routes/adminCandidatesReminder2810') },
   // 1610 (SAM, 16/10) — « Partagez votre fiche » : registre + passage à la main (testOnly par défaut). requireAdmin dans le routeur.
   { path: '/admin/sitter-invite-1610', mw: [], router: require('./routes/adminSitterInvite1610') },
   // 607 (ADA, 02/10) — renvoi groupé de l'e-mail de vérification (garde-fous, simulation, journal).

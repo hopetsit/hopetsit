@@ -108,6 +108,17 @@ http.createServer(async (req, res) => {
   else if (p === "/map-pois/nearby") body = { pois };
   else if (p === "/users/me/profile") body = { profile: { name: "Camille Durand", avatar: { url: av("Camille Durand") }, preferences: { hideFromMap: false } } };
   else if (p === "/users/me/benefits") body = { premiumActive: false, pawspotActive: process.env.MOCK_SPOT === "1", pawFollowActive: true, familyActive: false, isPremium: false, boostExpiry: process.env.MOCK_BOOST === "1" ? new Date(Date.now() + 5 * 86400000).toISOString() : null, isBoosted: process.env.MOCK_BOOST === "1" };
+  // 2810 (BOB) — MOCK_CAND=1 : demande « dates à prévoir » avec 2 candidats (choisir → dates → payer).
+  else if (process.env.MOCK_CAND === "1" && p === "/posts/my") body = { posts: [global.__p2810 || (global.__p2810 = { id: "p-2810", ownerId: "o-cam", postType: "request", status: "open", dateMode: "tbd", serviceTypes: ["house_sitting"], houseSittingVenue: "owners_home", city: "Paris", body: "Garde de Rex", animalTypes: ["dog"], animalCount: 1, location: { city: "Paris", coordinates: at(0, 0) }, createdAt: new Date().toISOString() })] };
+  else if (process.env.MOCK_CAND === "1" && p === "/posts/p-2810" && req.method === "PATCH") { const b = JSON.parse(Buffer.concat(chunks).toString() || "{}"); global.__p2810 = { ...global.__p2810, dateMode: b.dateMode, startDate: b.startDate, endDate: b.endDate }; global.__dated2810 = true; body = { post: global.__p2810 }; }
+  else if (process.env.MOCK_CAND === "1" && p === "/applications/my") {
+    const dated = !!global.__dated2810;
+    const mk = (id, sid, name, rate, total) => ({ id, postId: "p-2810", status: global.__acc2810 === id ? "accepted" : "pending", serviceType: "house_sitting", sitter: { id: sid, name, avatar: av(name), rating: 4.8, reviewsCount: 3, city: "Paris", location: { coordinates: at(0.01, 0.01) } },
+      pricing: dated ? { indicative: false, unit: "day", quantity: 3, appliedRate: rate, totalPrice: total, currency: "EUR" } : { indicative: true, unit: "day", appliedRate: rate, totalPrice: null, currency: "EUR" } });
+    body = { applications: [mk("aaaaaaaaaaaaaaaaaaaaaaa1", "s-hanene", "Hanene B", 18, 64.8), mk("aaaaaaaaaaaaaaaaaaaaaaa2", "s-ines", "Inès P", 20, 72)] };
+  }
+  else if (process.env.MOCK_CAND === "1" && /^\/applications\/[a-f0-9]{24}\/respond$/.test(p)) { const id = p.split("/")[2]; global.__acc2810 = id; body = { application: { id, postId: "p-2810", status: "accepted" }, booking: { id: "bk-2810", status: "accepted", paymentStatus: "pending" } }; }
+  else if (process.env.MOCK_CAND === "1" && p === "/bookings/bk-2810/create-payment-intent") body = { clientSecret: "cs_mock", paymentIntentId: "int_mock_2810", currency: "EUR", amount: 6480 };
   else if (p === "/posts/my" || p === "/posts/requests") body = { posts: [] };
   else if (p === "/map-reports/nearby") body = { reports: [] };
   else if (p === "/friends/request") body = { ok: true };

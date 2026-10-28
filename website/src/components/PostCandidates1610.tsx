@@ -132,6 +132,10 @@ export function PostCandidates1610({
   // 620 — la demande telle qu'elle est (ses dates peuvent être posées ici même).
   const [cur, setCur] = useState<RequestPost>(post);
   const [editingDates, setEditingDates] = useState(false);
+  // 2810 (BOB) — « Choisir » sur une demande sans dates : le candidat retenu est gardé, on ouvre
+  // les dates, et dès qu'elles sont posées l'encart « Choisir <prénom> et payer · prix » apparaît
+  // pour lui (choisir → dates → payer, un seul fil). Hooks AVANT tout retour anticipé.
+  const [pickId, setPickId] = useState<string | null>(null);
   useEffect(() => setCur(post), [post]);
   // 2610 (ADA) — mesure : une ouverture par demande affichée ; provenance lue dans l'adresse
   // (?from=email / utm_medium=email, transmis par /application/<id>). Erreurs ignorées.
@@ -148,6 +152,13 @@ export function PostCandidates1610({
       sectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [focusId, items]);
+  useEffect(() => {
+    // 2810 — lien « Choisir » de l'e-mail sur une demande sans dates : les dates s'ouvrent tout de suite.
+    if (chooseNow && focusId && dateModeOf620(cur) === "tbd" && items.some((x) => applicationId(x) === focusId && x.status === "pending")) {
+      setPickId(focusId);
+      setEditingDates(true);
+    }
+  }, [chooseNow, focusId, cur, items]);
 
   // Un candidat refusé À L'INSTANT reste affiché (« Candidature refusée ») : retour visible
   // au clic ; au prochain chargement il disparaît, comme dans l'app.
@@ -284,8 +295,9 @@ export function PostCandidates1610({
 
   // 2710 — encart « Choisir et payer » : candidature de l'e-mail, en attente, avec un total juste.
   const fast = (() => {
-    if (!chooseNow || !focusId || tbd) return null;
-    const a = visible.find((x) => applicationId(x) === focusId);
+    const fid = pickId || (chooseNow ? focusId : null);
+    if (!fid || tbd) return null;
+    const a = visible.find((x) => applicationId(x) === fid);
     if (!a || a.status !== "pending" || a.pricing?.stale === true || a.pricing?.indicative === true) return null;
     const total = a.pricing?.totalPrice ?? null;
     const rate = a.pricing?.appliedRate ?? null;
@@ -501,9 +513,9 @@ export function PostCandidates1610({
                         label={t("c1610_choose")}
                         price={priceLabel || undefined}
                         loading={busyId === id}
-                        disabled={(busyId !== null && busyId !== id) || tbd || stale}
-                        disabledReason={stale ? d620(lang, "cand_stale_hint") : tbd ? d620(lang, "cand_choose_blocked") : undefined}
-                        onClick={() => { if (stale) return; if (tbd) { setEditingDates(true); sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; } void respond(a, "accept"); }}
+                        disabled={(busyId !== null && busyId !== id) || stale}
+                        disabledReason={stale ? d620(lang, "cand_stale_hint") : undefined}
+                        onClick={() => { if (stale) return; if (tbd) { setPickId(id); setEditingDates(true); sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; } void respond(a, "accept"); }}
                         ariaLabel={`${t("c1610_choose")} ${firstName}`}
                       />
                     </div>
@@ -519,9 +531,7 @@ export function PostCandidates1610({
                     </button>
                   </div>
                 )}
-                {a.status === "pending" && tbd && !stale && (
-                  <p className="mt-1 text-center text-[11px] font-semibold" style={{ color: "#8A6B64" }} data-choose-blocked-620="">{d620(lang, "cand_choose_blocked")}</p>
-                )}
+                {/* 2810 — plus de « Choisir sera possible une fois tes dates posées » : Choisir ouvre les dates. */}
 
                 {accepted && bk && !bk.paid && (
                   <div className="mt-2 rounded-xl p-3" style={{ background: "#FBE9E5" }}>
