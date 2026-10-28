@@ -64,6 +64,26 @@ const ratePendingMessage = (locale, name, unit) => {
 const tierForUnit = (unit) => (unit === 'visit' ? 'visit' : unit === 'walk' ? 'walk' : 'daily');
 
 /**
+ * 2810b (BOB, ordre de Daniel du 28/10 « HoPetSit doit réussir un petsitting payé ») — TARIF
+ * D'UNE CANDIDATURE. Visite à domicile et gardien SANS tarif par visite : on reprend SON tarif
+ * jour (le prix de sa candidature d'origine — les demandes de visites ont été requalifiées
+ * garde → visites le 24/10, après les candidatures), facturé PAR JOUR de la période (jamais par
+ * visite : 2 visites par jour ne doublent pas le prix). Résultat : plus de « tarif à venir »
+ * tant que le gardien a un tarif jour, et le propriétaire peut « Choisir et payer ».
+ * Les NOUVELLES candidatures restent refusées sans tarif par visite (VISIT_RATE_REQUIRED,
+ * createApplication) : elles portent toujours un vrai prix visite. Aucun tarif, aucune
+ * commission modifiés : seul le tarif DÉJÀ saisi par le gardien est appliqué.
+ * @returns {{ r: object|null, pricingKey: string }}
+ */
+const DAY_FALLBACK_KEY = 'day_care'; // unité jour, jamais « chez le gardien » (pas de nuit)
+function rateForApplication(provider, serviceType, opts = {}) {
+  const r = engine.rateFor(provider, serviceType, opts);
+  if (r || engine.unitFor(serviceType) !== 'visit') return { r, pricingKey: serviceType };
+  const day = engine.rateFor(provider, DAY_FALLBACK_KEY);
+  return day ? { r: { ...day, unit: 'day', fallbackFromVisit: true }, pricingKey: DAY_FALLBACK_KEY } : { r: null, pricingKey: serviceType };
+}
+
+/**
  * Prix d'une candidature pour une demande DATÉE, par le moteur unique.
  * @returns {object|null} bloc `pricing` complet, ou null si le prestataire n'a pas de tarif pour ce service
  */
@@ -72,12 +92,12 @@ function priceApplication({ application, post, provider, providerRole }) {
   // celui de la candidature ne sert qu'à défaut (index d'app ancienne parfois faux).
   const serviceType = engine.mainService(post) || engine.serviceKey(application.serviceType);
   const duration = Number(post.walkDurationMinutes || application.duration) || undefined;
-  const r = engine.rateFor(provider, serviceType, { durationMinutes: duration });
+  const { r, pricingKey } = rateForApplication(provider, serviceType, { durationMinutes: duration });
   if (!r) return null;
   const isTop = providerRole === 'walker' ? provider.isTopWalker === true : provider.isTopSitter === true;
   const commissionRate = Number(application.pricing && application.pricing.commissionRate) || commissionRateForProvider(isTop);
   const currency = (application.pricing && application.pricing.currency) || provider.currency || 'EUR';
-  const est = engine.estimate({ serviceType, rate: r.rate, post, commissionRate, currency, weeklyRate: provider.weeklyRate });
+  const est = engine.estimate({ serviceType: pricingKey, rate: r.rate, post, commissionRate, currency, weeklyRate: provider.weeklyRate });
   if (est.indicative) return null;
   const addOns = Array.isArray(application.pricing && application.pricing.addOns) ? application.pricing.addOns : [];
   const breakdown = calculateTotalWithAddOns(est.unitTotal, addOns, currency, commissionRate);
@@ -191,9 +211,9 @@ async function repriceApplicationsForPost(post, opts = {}) {
  */
 function indicativePricing({ post, provider, providerRole, serviceType, duration, addOns = [] }) {
   const key = engine.mainService(post) || engine.serviceKey(serviceType);
-  const r = engine.rateFor(provider, key, { durationMinutes: Number(duration) || undefined });
+  const { r, pricingKey } = rateForApplication(provider, key, { durationMinutes: Number(duration) || undefined });
   const isTop = providerRole === 'walker' ? provider.isTopWalker === true : provider.isTopSitter === true;
-  const q = engine.quantityFor(post, key);
+  const q = engine.quantityFor(post, pricingKey);
   return {
     basePrice: null,
     pricingTier: 'indicative',
@@ -265,9 +285,9 @@ function serviceFingerprint(post) {
  * `hasRate` : le prestataire a maintenant un tarif pour ce service → une candidature
  * « tarif à venir » (stale) n'est plus alignée, on la recalcule.
  */
-function isAligned(app, post, hasRate = false) {
+function isAligned(app, post, hasRate = false, pricingKey = null) {
   const key = engine.mainService(post);
-  const q = engine.quantityFor(post, key);
+  const q = engine.quantityFor(post, pricingKey || key);
   const sameService = engine.serviceKey(app.serviceType) === key;
   const p = app.pricing || {};
   if (!sameService) return false;
@@ -345,11 +365,11 @@ async function repriceAfterServiceChange(post, opts = {}) {
       const provider = await Model.findById(providerRole === 'walker' ? app.walkerId : app.sitterId)
         .select('hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker appLocale language').lean();
       if (!provider) { out.skipped.push(String(app._id)); continue; }
-      const r = engine.rateFor(provider, key, { durationMinutes: Number(post.walkDurationMinutes || app.duration) || undefined });
+      const { r, pricingKey } = rateForApplication(provider, key, { durationMinutes: Number(post.walkDurationMinutes || app.duration) || undefined });
       // 2610 — « aligné » = le prix STOCKÉ est celui que donne le moteur aujourd'hui (tarif,
       // quantité, total). Avant, seuls le service et l'unité étaient comparés : 2,70 € pour un
       // tarif de 18 €/jour passait pour « aligné » et n'était jamais corrigé.
-      if (!opts.force && isAligned(app, post, !!r) && matchesExpected(app, post, provider, providerRole, r)) { out.aligned.push(String(app._id)); continue; }
+      if (!opts.force && isAligned(app, post, !!r, pricingKey) && matchesExpected(app, post, provider, providerRole, r)) { out.aligned.push(String(app._id)); continue; }
       const providerId = String(providerRole === 'walker' ? app.walkerId : app.sitterId);
       const lang = provider.appLocale || provider.language || 'fr';
       const before = app.serviceType;
@@ -471,7 +491,9 @@ async function repriceAfterRateChange({ providerId, providerRole } = {}, opts = 
   const provider = await Model.findById(providerId)
     .select('name firstName hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker appLocale language').lean();
   if (!provider) return out;
-  const filter = { status: 'pending', 'pricing.stale': true };
+  // 2810b — + les candidatures de visites facturées au tarif JOUR faute de tarif par visite :
+  // dès que le gardien pose son tarif par visite, elles passent à son vrai prix visite.
+  const filter = { status: 'pending', $or: [{ 'pricing.stale': true }, { serviceType: 'home_visit', 'pricing.unit': 'day' }] };
   filter[role === 'walker' ? 'walkerId' : 'sitterId'] = provider._id;
   const stale = await Application.find(filter);
   if (!stale.length) return out;
@@ -484,8 +506,10 @@ async function repriceAfterRateChange({ providerId, providerRole } = {}, opts = 
       const post = await Post.findById(app.postId).lean();
       if (!post || post.status === 'closed') { out.skipped.push(String(app._id)); continue; }
       const key = engine.mainService(post);
-      const r = engine.rateFor(provider, key, { durationMinutes: Number(post.walkDurationMinutes || app.duration) || undefined });
+      const { r } = rateForApplication(provider, key, { durationMinutes: Number(post.walkDurationMinutes || app.duration) || undefined });
       if (!r) { out.kept.push(String(app._id)); continue; } // toujours pas de tarif pour ce service
+      // 2810b — déjà au tarif jour et toujours pas de tarif par visite : rien ne change, rien n'est envoyé.
+      if (r.fallbackFromVisit && !(app.pricing && app.pricing.stale === true)) { out.kept.push(String(app._id)); continue; }
       const isTbd = engine.effectiveDateMode(post) === 'tbd';
       const addOns = Array.isArray(app.pricing && app.pricing.addOns) ? app.pricing.addOns : [];
       const pricing = isTbd
@@ -567,6 +591,7 @@ async function repriceAfterRateChangeSafe(body, who) {
 }
 
 module.exports = {
+  rateForApplication,
   TYPE_PRICING_UPDATED,
   TYPE_SERVICE_CHANGED,
   TEMPLATE_SERVICE_REPRICED,

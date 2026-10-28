@@ -138,26 +138,40 @@ describe('Demande de visites à domicile datée sur 15 jours, 1 visite par jour 
 });
 
 describe('Candidature « tarif à venir » (état mesuré sur Lili, Marine, Svitlana)', () => {
-  test('C. Sohane candidate sur une garde, la demande passe en visites → « tarif à venir » ; Choisir = 409 RATE_PENDING, phrase claire, aucune réservation', async () => {
+  test('C. (2810b) Sohane (50 €/jour, aucun tarif par visite) candidate sur une garde, la demande passe en visites → PLUS de « tarif à venir » : son tarif jour par jour, 8 × 50 = 400 + 20 % = 480 € ; Choisir → réservation à 480 €', async () => {
     const r = await createPost({ serviceTypes: ['house_sitting'], houseSittingVenue: 'owners_home', dateMode: 'exact', startDate: day(50), endDate: day(57) });
     expect(r.status).toBe(201);
     S.post2 = r.body.post;
     const a = await apply(S.sohane, S.post2.id, 'house_sitting');
     expect(a.status).toBe(201);
     S.appSohane = idOf(a);
-    await request(app).patch(`/posts/${S.post2.id}`).set(hdr(S.owner._id, 'owner')).send({ serviceTypes: ['home_visit'], visitsPerDay: 1 }).expect(200);
+    await request(app).patch(`/posts/${S.post2.id}`).set(hdr(S.owner._id, 'owner')).send({ serviceTypes: ['home_visit'], visitsPerDay: 2 }).expect(200);
     await new Promise((res) => setTimeout(res, 300));
     const st = await Application.findById(S.appSohane).lean();
-    expect(st.pricing).toMatchObject({ stale: true, indicative: true, totalPrice: null });
-    const acc = await request(app).post(`/applications/${S.appSohane}/respond`).set(hdr(S.owner._id, 'owner')).send({ action: 'accept' });
+    // 2 visites par jour ne doublent pas le prix : 8 JOURS au tarif jour.
+    expect(st.pricing).toMatchObject({ stale: false, indicative: false, unit: 'day', quantity: 8, appliedRate: 50, totalPrice: 480 });
+    // rejeu admin idempotent : la candidature est « alignée », rien n'est réécrit.
+    const rp = require('../src/services/applicationRepricing620');
+    const again = await rp.repriceAfterServiceChange(await Post.findById(S.post2.id), { notify: false });
+    expect(again.aligned).toContain(String(S.appSohane));
+    expect(again.repriced.length + again.stale.length).toBe(0);
+  }, 60000);
+
+  test('C ter. (2810b) un gardien SANS AUCUN tarif reste « tarif à venir » : Choisir = 409 RATE_PENDING, aucune réservation', async () => {
+    const nul = await Sitter.create({ password: PASS, city: 'Zone test', country: 'FR', currency: 'EUR', verified: true, location: ZONE, name: 'Nul Visites', email: 'zoe2810.nul@example.test', dailyRate: 0 });
+    const post = await Post.findById(S.post2.id).lean();
+    const ins = await Application.collection.insertOne({
+      ownerId: S.owner._id, sitterId: nul._id, postId: post._id, petIds: [S.pet._id], serviceType: 'home_visit', status: 'pending',
+      serviceDate: inDays(50), timeSlot: 'flexible', createdAt: new Date(), updatedAt: new Date(),
+      pricing: { stale: true, indicative: true, totalPrice: null, appliedRate: 0, unit: 'visit', currency: 'EUR' },
+    });
+    const acc = await request(app).post(`/applications/${ins.insertedId}/respond`).set(hdr(S.owner._id, 'owner')).send({ action: 'accept' });
     expect(acc.status).toBe(409);
     expect(acc.body.code).toBe('RATE_PENDING');
     expect(acc.body.unit).toBe('visit');
-    expect(acc.body.error).toBe('Sohane n’a pas encore de tarif par visite : son prix sera calculé dès qu’il l’aura ajouté, puis tu pourras le choisir.');
-    const after = await Application.findById(S.appSohane).lean();
-    expect(after.status).toBe('pending');
-    expect(after.bookingId == null).toBe(true);
-    expect(await Booking.countDocuments({ sitterId: S.sohane._id })).toBe(0);
+    expect(acc.body.error).toBe('Nul n’a pas encore de tarif par visite : son prix sera calculé dès qu’il l’aura ajouté, puis tu pourras le choisir.');
+    expect(await Booking.countDocuments({ sitterId: nul._id })).toBe(0);
+    await Application.collection.deleteOne({ _id: ins.insertedId });
   }, 60000);
 
   test('C bis. message dans les 9 langues, prénom et unité insérés, aucune accolade restante', () => {
@@ -171,17 +185,34 @@ describe('Candidature « tarif à venir » (état mesuré sur Lili, Marine, Svit
     expect(rp.ratePendingMessage('xx', '', 'day')).toContain('per day');
   });
 
-  test('D. Sohane ajoute 20 €/visite → prix calculé tout seul (8 visites × 20 = 160 + 32 = 192 €), puis Choisir → réservation à 192 €', async () => {
+  test('D. Sohane ajoute 20 €/visite → sa candidature passe à son vrai prix visite (8 jours × 2 visites = 16 × 20 = 320 + 64 = 384 €), puis Choisir → réservation à 384 €', async () => {
     const put = await request(app).put('/sitters/me/pricing').set(hdr(S.sohane._id, 'sitter')).send({ visitRate: 20 });
     if (put.status !== 200) console.log('PUT pricing →', put.status, JSON.stringify(put.body)); // eslint-disable-line no-console
     expect(put.status).toBe(200);
     const doc = await Application.findById(S.appSohane).lean();
-    expect(doc.pricing).toMatchObject({ stale: false, indicative: false, unit: 'visit', quantity: 8, appliedRate: 20, totalPrice: 192 });
+    expect(doc.pricing).toMatchObject({ stale: false, indicative: false, unit: 'visit', quantity: 16, appliedRate: 20, totalPrice: 384 });
     const acc = await request(app).post(`/applications/${S.appSohane}/respond`).set(hdr(S.owner._id, 'owner')).send({ action: 'accept' });
     if (acc.status !== 200) console.log('accept →', acc.status, JSON.stringify(acc.body)); // eslint-disable-line no-console
     expect(acc.status).toBe(200);
     const b = await Booking.findOne({ sitterId: S.sohane._id }).lean();
-    expect(b.pricing.totalPrice).toBe(192);
+    expect(b.pricing.totalPrice).toBe(384);
+  }, 60000);
+
+  test('D bis. (2810b) Choisir une candidature au tarif jour → réservation au même prix que la carte (pas de 409)', async () => {
+    const r = await createPost({ serviceTypes: ['house_sitting'], houseSittingVenue: 'owners_home', dateMode: 'exact', startDate: day(70), endDate: day(72) });
+    expect(r.status).toBe(201);
+    const a = await apply(S.sasha, r.body.post.id, 'house_sitting');
+    expect(a.status).toBe(201);
+    const id = idOf(a);
+    await request(app).patch(`/posts/${r.body.post.id}`).set(hdr(S.owner._id, 'owner')).send({ serviceTypes: ['home_visit'], visitsPerDay: 1 }).expect(200);
+    await new Promise((res) => setTimeout(res, 300));
+    const doc = await Application.findById(id).lean();
+    expect(doc.pricing).toMatchObject({ stale: false, unit: 'day', quantity: 3, appliedRate: 35, totalPrice: 126 });
+    const acc = await request(app).post(`/applications/${id}/respond`).set(hdr(S.owner._id, 'owner')).send({ action: 'accept' });
+    if (acc.status !== 200) console.log('accept sasha →', acc.status, JSON.stringify(acc.body)); // eslint-disable-line no-console
+    expect(acc.status).toBe(200);
+    const b = await Booking.findOne({ sitterId: S.sasha._id }).lean();
+    expect(b.pricing.totalPrice).toBe(126);
   }, 60000);
 });
 

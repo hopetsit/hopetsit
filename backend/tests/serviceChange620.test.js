@@ -125,6 +125,9 @@ describe('A. demande DATÉE : garde à domicile (3 jours) → visites à domicil
     const b = await apply(S.sohane, S.post.id, 'house_sitting');
     expect(b.status).toBe(201);
     S.appSohane = b.body.application.id || b.body.application._id;
+    // 2810b — un gardien qui a un tarif jour est désormais facturé à ce tarif sur une demande de visites
+    // (plus de « tarif à venir ») : pour garder la couverture du cas « aucun tarif », on retire ici TOUS ses tarifs.
+    await Sitter.updateOne({ _id: S.sohane._id }, { $set: { dailyRate: 0, weeklyRate: 0, monthlyRate: 0, hourlyRate: 0 } });
     const h = await Application.findById(S.appHanene).lean();
     expect(h.pricing.totalPrice).toBeGreaterThan(0);
     expect(h.pricing.indicative).toBe(false);
@@ -231,8 +234,12 @@ describe('B. demande « dates à prévoir » : garde → visites', () => {
     const a = await request(app).post(`/applications?ownerId=${S.owner._id}`).set(hdr(S.hanene._id, 'sitter')).send({ postId: post.id, serviceType: 'house_sitting', houseSittingVenue: 'owners_home', description: 'Dispo.' });
     expect(a.status).toBe(201);
     expect(a.body.application.pricing).toMatchObject({ indicative: true, appliedRate: 18, unit: 'day' });
+    await Sitter.updateOne({ _id: S.sohane._id }, { $set: { dailyRate: 50 } });
     const b = await request(app).post(`/applications?ownerId=${S.owner._id}`).set(hdr(S.sohane._id, 'sitter')).send({ postId: post.id, serviceType: 'house_sitting', houseSittingVenue: 'owners_home', description: 'Dispo.' });
     expect(b.status).toBe(201);
+    // 2810b — un gardien qui a un tarif jour est désormais facturé à ce tarif sur une demande de visites
+    // (plus de « tarif à venir ») : pour garder la couverture du cas « aucun tarif », on retire ici TOUS ses tarifs.
+    await Sitter.updateOne({ _id: S.sohane._id }, { $set: { dailyRate: 0, weeklyRate: 0, monthlyRate: 0, hourlyRate: 0 } });
     await Notification.deleteMany({});
     const u = await request(app).patch(`/posts/${post.id}`).set(hdr(S.owner._id, 'owner')).send({ serviceTypes: ['home_visit'], visitsPerDay: 1 });
     expect(u.status).toBe(200);

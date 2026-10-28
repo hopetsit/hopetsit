@@ -123,6 +123,9 @@ describe('mise en place : deux demandes requalifiées en visites → 3 candidatu
     expect(b.status).toBe(201);
     S.postB = b.body.post;
     S.appSohaneB = appId(await apply(S.sohane, S.postB.id));
+    // 2810b — un gardien qui a un tarif jour est désormais facturé à ce tarif sur une demande de visites
+    // (plus de « tarif à venir ») : pour garder la couverture du cas « aucun tarif », on retire ici TOUS ses tarifs.
+    await Sitter.updateMany({ _id: { $in: [S.sohane._id, S.nadia._id] } }, { $set: { dailyRate: 0, weeklyRate: 0, monthlyRate: 0, hourlyRate: 0 } });
     const ra = await request(app).patch(`/posts/${S.postA.id}`).set(hdr(S.owner._id, 'owner')).send({ serviceTypes: ['home_visit'], visitsPerDay: 1 });
     expect(ra.status).toBe(200);
     expect(ra.body.serviceChanged).toEqual({ repriced: 1, stale: 2, aligned: 0 });
@@ -210,33 +213,32 @@ describe('2. candidature NON stale : le tarif change, l’offre faite reste l’
   });
 });
 
-describe('3. aucun tarif pour le service de la demande → rien', () => {
-  test('Nadia PUT /sitters/me/profile dailyRate 30 (pas de visitRate) : toujours « tarif à venir », 0 notification ; PUT sans champ de tarif : rien non plus', async () => {
-    const before = await Notification.countDocuments({});
+describe('3. (2810b) le gardien sans aucun tarif ajoute un tarif JOUR → candidature de visites facturée au tarif jour ; puis un tarif par visite → son vrai prix visite', () => {
+  test('Nadia PUT /sitters/me/profile dailyRate 30 (pas de visitRate) : 3 jours × 30 = 90 + 18 = 108 €, unité jour, plus « tarif à venir » ; PUT sans champ de tarif : rien', async () => {
     const r = await request(app).put('/sitters/me/profile').set(hdr(S.nadia._id, 'sitter')).send({ dailyRate: 30 });
     if (r.status !== 200) console.log('sitter profile →', r.status, JSON.stringify(r.body)); // eslint-disable-line no-console
     expect(r.status).toBe(200);
-    expect(r.body.repricedApplications).toBeUndefined();
-    expect((await Sitter.findById(S.nadia._id).lean()).dailyRate).toBe(30);
-    expect((await Application.findById(S.appNadia).lean()).pricing).toMatchObject({ stale: true, totalPrice: null });
+    expect(r.body.repricedApplications).toBe(1);
+    expect((await Application.findById(S.appNadia).lean()).pricing).toMatchObject({ stale: false, indicative: false, unit: 'day', quantity: 3, appliedRate: 30, totalPrice: 108 });
+    const before = await Notification.countDocuments({});
     const r2 = await request(app).put('/sitters/me/pricing').set(hdr(S.nadia._id, 'sitter')).send({ responseTimeMinutes: 30 });
     expect(r2.status).toBe(200);
     expect(r2.body.repricedApplications).toBeUndefined();
+    // re-PUT du même tarif jour : déjà au tarif jour, rien ne change, rien n'est envoyé.
+    const r3 = await request(app).put('/sitters/me/profile').set(hdr(S.nadia._id, 'sitter')).send({ dailyRate: 30 });
+    expect(r3.body.repricedApplications).toBeUndefined();
     await wait(300);
     expect(await Notification.countDocuments({})).toBe(before);
-    expect(await countAll(S.nadia._id)).toBe(0);
   });
 
-  test('Nadia ajoute ensuite visitRate 10 via « Modifier le profil » → recalcul 3 × 10 = 30 + 6 = 36, une notification de chaque côté', async () => {
+  test('Nadia ajoute ensuite visitRate 10 via « Modifier le profil » → recalcul 3 × 10 = 30 + 6 = 36, unité visite', async () => {
     const r = await request(app).put('/sitters/me/profile').set(hdr(S.nadia._id, 'sitter')).send({ visitRate: 10 });
     expect(r.status).toBe(200);
     expect(r.body.repricedApplications).toBe(1);
-    expect((await Application.findById(S.appNadia).lean()).pricing).toMatchObject({ stale: false, appliedRate: 10, quantity: 3, totalPrice: 36 });
-    expect(await bell(S.nadia._id)).toHaveLength(1);
+    expect((await Application.findById(S.appNadia).lean()).pricing).toMatchObject({ stale: false, unit: 'visit', appliedRate: 10, quantity: 3, totalPrice: 36 });
     const no = await bell(S.owner._id);
-    expect(no).toHaveLength(3);
-    expect(no[2].title).toBe('Nadia a ajouté son tarif');
-    expect(no[2].body).toMatch(/36,00.€/);
+    expect(no[no.length - 1].title).toBe('Nadia a ajouté son tarif');
+    expect(no[no.length - 1].body).toMatch(/36,00.€/);
   });
 });
 
