@@ -15,7 +15,7 @@
  * lien direct « Choisir » qui ouvre la session sans mot de passe quand c'est permis ; ligne
  * « posez vos dates » pour une demande sans dates), dans la langue du propriétaire.
  *
- * DÉSACTIVÉ PAR DÉFAUT : rien n'est envoyé tant que CANDIDATES_REMINDER_2810 ≠ 'on'.
+ * ACTIVÉ PAR DÉFAUT depuis le 28/10 (accord de Daniel) : CANDIDATES_REMINDER_2810=off pour tout couper.
  * La simulation (dryRun) liste ce qui partirait, sans rien écrire ni envoyer.
  */
 const logger = require('../utils/logger');
@@ -31,7 +31,8 @@ const TICK_MS = 30 * 60 * 1000;
 const HARD_STAFF_EMAILS = ['dadaciao84@gmail.com', 'hopetsit@gmail.com'];
 const NOT_A_PERSON_RE = /@invalid\.example$/i;
 
-const enabled = () => String(process.env.CANDIDATES_REMINDER_2810 || '').toLowerCase() === 'on';
+// ACTIVÉ le 28/10/2026 sur ordre écrit de Daniel (« oui, faut les relancer ») ; CANDIDATES_REMINDER_2810=off pour couper.
+const enabled = () => String(process.env.CANDIDATES_REMINDER_2810 || 'on').toLowerCase() !== 'off';
 
 const plainEmail = (stored) => {
   let e = stored;
@@ -151,7 +152,7 @@ const tick = async () => {
     running = false;
   }
 };
-/** Balayage toutes les 30 min, SEULEMENT si CANDIDATES_REMINDER_2810=on. */
+/** Balayage toutes les 30 min, sauf si CANDIDATES_REMINDER_2810=off. */
 const startCandidatesReminderScheduler = (opts = {}) => {
   if (timer) return;
   if (!enabled()) { logger.info('[relance2810] désactivé (CANDIDATES_REMINDER_2810 ≠ on)'); return; }

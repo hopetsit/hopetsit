@@ -2,7 +2,7 @@
  * 2810 (BOB) — relance « candidats non consultés » : simulation seulement depuis l'admin.
  *   GET /admin/candidates-reminder-2810  → ce qui partirait maintenant (rien d'écrit ni d'envoyé),
  *   + état (activé ou non) et registre des envois déjà faits.
- * L'envoi réel n'a lieu que par le balayage, quand CANDIDATES_REMINDER_2810=on.
+ * L'envoi réel n'a lieu que par le balayage, sauf si CANDIDATES_REMINDER_2810=off.
  */
 const express = require('express');
 const { requireAuth, requireRole } = require('../middleware/auth');

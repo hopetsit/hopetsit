@@ -167,7 +167,7 @@ async function startServer() {
     require('./services/sitterInvite1610').startSitterInviteScheduler();
     // 2610 (ZOE, 26/10) — e-mail « candidats reçus » : 1er tout de suite, suivants regroupés 1×/jour par demande.
     require('./services/applicationEmail2610').startApplicationEmailScheduler();
-    // 2810 (BOB) — relance « candidats non consultés » (e1 +2 h, e2 J+2, e3 J+5), DÉSACTIVÉE tant que CANDIDATES_REMINDER_2810 ≠ on.
+    // 2810 (BOB) — relance « candidats non consultés » (e1 +2 h, e2 J+2, e3 J+5), ACTIVE depuis le 28/10 (accord de Daniel), CANDIDATES_REMINDER_2810=off pour couper.
     require('./services/candidatesReminder2810').startCandidatesReminderScheduler();
   } catch (error) {
     logger.error('Failed to start server', error);

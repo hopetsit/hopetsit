@@ -95,8 +95,8 @@ const send = jest.fn(async (m) => { SENT.push(m); return { sent: true }; });
 const run = (h, extra = {}) => svc().runCandidatesReminders({ now: at(h), send, ...extra });
 
 describe('relance « candidats non consultés » 2810', () => {
-  test('désactivée par défaut : rien n’est envoyé ni écrit ; la simulation dit ce qui partirait (compte +test exclu)', async () => {
-    delete process.env.CANDIDATES_REMINDER_2810;
+  test('coupée par CANDIDATES_REMINDER_2810=off : rien n’est envoyé ni écrit ; la simulation dit ce qui partirait (compte +test exclu)', async () => {
+    process.env.CANDIDATES_REMINDER_2810 = 'off';
     const r = await run(3);
     expect(r.enabled).toBe(false);
     expect(r.sent).toHaveLength(0);
@@ -108,7 +108,7 @@ describe('relance « candidats non consultés » 2810', () => {
   });
 
   test('activée : rien avant 2 h ; e1 à +2 h (carte du candidat, demande, propriétaire) ; jamais deux fois', async () => {
-    process.env.CANDIDATES_REMINDER_2810 = 'on';
+    delete process.env.CANDIDATES_REMINDER_2810; // activée par défaut depuis le 28/10
     expect((await run(1)).sent).toHaveLength(0);
     const r = await run(3);
     expect(r.sent).toEqual([expect.objectContaining({ postId: String(S.real.postId), slot: 'e1' })]);
