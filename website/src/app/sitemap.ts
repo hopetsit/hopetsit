@@ -39,6 +39,8 @@ const PUBLIC_PATHS = [
   "/blog/finding-a-pet-sitter-in-houston",
   // 16/10 (SAM) — saisonnier Toussaint 2026 Paris (propriétaires).
   "/blog/garde-animaux-toussaint-paris",
+  // 28/10 (GUS) — guide propriétaire « dog sitter Paris » (demande FR 114 affichages / 0 clic).
+  "/blog/dog-sitter-paris",
   // 14/10 (GUS) — guide propriétaire « dog sitting » (demande USA 931 affichages / 0 clic).
   "/blog/what-is-dog-sitting",
   // 21/10 (GUS) — guide propriétaire « cat sitting » (demande USA 717 affichages / 0 clic).

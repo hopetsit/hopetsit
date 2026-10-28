@@ -13,6 +13,14 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 28/10 (GUS) — guide propriétaire « dog sitter Paris » (demande Search Console FR).
+  {
+    slug: "dog-sitter-paris",
+    lang: "🇫🇷",
+    title: "Dog sitter à Paris : ce qu'il fait et comment en trouver un",
+    excerpt:
+      "Garde chez lui ou chez vous, visites, promenade : les 4 formules d'un dog sitter à Paris et comment choisir quelqu'un de confiance près de chez vous.",
+  },
   // 2026-W43 — marketing hebdo : recrutement Paris 2e + Miami (recrutement,
   // seule ville de la rotation US encore jamais couverte).
   {
