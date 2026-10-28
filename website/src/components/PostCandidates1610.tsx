@@ -31,6 +31,8 @@ import { c2610 } from "@/lib/i18n/cand2610";
 // 26/10 (ADA, proposition C de SAM) — repère « le propriétaire a ouvert ses candidats » (jamais bloquant).
 import { markCandidatesViewed } from "@/lib/candidatesView2610";
 import { dateModeOf620 } from "@/lib/services620";
+// 2810 (SAM) — repères de l'entonnoir « candidats vus → choisir → payer » (aucune donnée perso).
+import { trackSiteEvent } from "@/components/SiteAnalytics";
 import {
   ApiError,
   type ApplicationItem,
@@ -143,6 +145,14 @@ export function PostCandidates1610({
   useEffect(() => {
     if (viewPostId) markCandidatesViewed({ postId: viewPostId });
   }, [viewPostId]);
+  // 2810 (SAM) — une fois par demande affichée avec au moins un candidat en attente.
+  const seenRef = useRef("");
+  useEffect(() => {
+    if (!viewPostId || seenRef.current === viewPostId) return;
+    if (!applications.some((x) => x.status === "pending")) return;
+    seenRef.current = viewPostId;
+    trackSiteEvent("cta_click", { label: chooseNow ? "cand_vus_mail" : "cand_vus" });
+  }, [viewPostId, applications, chooseNow]);
 
   useEffect(() => setItems(applications), [applications]);
   useEffect(() => {
@@ -200,7 +210,9 @@ export function PostCandidates1610({
     const name = who?.name || t("c1610_provider");
     const question = action === "accept" ? fill(t("c1610_choose_msg"), { name }) : fill(t("c1610_reject_msg"), { name });
     // 2710 — l'encart « Choisir <prénom> et payer » EST la confirmation (texte explicite au-dessus du bouton).
-    if (!opts?.confirmed && !window.confirm(question)) return;
+    const tag = action === "accept" ? (opts?.andPay ? "cand_choisir_payer" : "cand_choisir") : "cand_refuser";
+    if (!opts?.confirmed && !window.confirm(question)) { trackSiteEvent("cta_click", { label: `${tag}_annule` }); return; }
+    trackSiteEvent("cta_click", { label: tag });
     setBusyId(id);
     setErrors((e) => ({ ...e, [id]: "" }));
     try {
@@ -213,6 +225,7 @@ export function PostCandidates1610({
         return x;
       });
       if (action === "reject") setRejectedNow((m) => ({ ...m, [id]: true }));
+      else trackSiteEvent("cta_click", { label: "cand_choix_ok" });
       setItems(next);
       onChanged?.(next);
       // 2710 — choix confirmé depuis l'encart : on enchaîne tout de suite sur le paiement.
@@ -241,6 +254,7 @@ export function PostCandidates1610({
         router.replace("/login?redirect=/posts");
         return;
       }
+      trackSiteEvent("cta_click", { label: `cand_erreur_${String(code || (e instanceof ApiError ? e.status : "x")).toLowerCase()}` });
       setErrors((er) => ({ ...er, [id]: msg }));
     } finally {
       setBusyId(null);
@@ -253,6 +267,7 @@ export function PostCandidates1610({
     const { role, who } = applicationProvider(a);
     const providerId = String(who?.id || who?._id || "");
     if (!providerId) { setErrors((er) => ({ ...er, [id]: c2610(lang, "write_fail") })); return; }
+    trackSiteEvent("cta_click", { label: "cand_ecrire" });
     setWritingId(id);
     setErrors((er) => ({ ...er, [id]: "" }));
     try {
@@ -269,6 +284,7 @@ export function PostCandidates1610({
     const bk = linkedBooking(a);
     if (!bk) return;
     const id = applicationId(a);
+    trackSiteEvent("cta_click", { label: "cand_payer" });
     setPayingId(id);
     setErrors((e) => ({ ...e, [id]: "" }));
     try {
@@ -286,8 +302,10 @@ export function PostCandidates1610({
         booking: bk.id,
         ...(amount > 0 ? { amount: String(amount) } : {}),
       });
+      trackSiteEvent("cta_click", { label: "cand_page_carte" });
       router.push(`/pay?${qs.toString()}`);
     } catch (e) {
+      trackSiteEvent("cta_click", { label: "cand_payer_echec" });
       setErrors((er) => ({ ...er, [id]: e instanceof Error ? e.message : t("c1610_pay_fail") }));
       setPayingId(null);
     }
@@ -515,7 +533,7 @@ export function PostCandidates1610({
                         loading={busyId === id}
                         disabled={(busyId !== null && busyId !== id) || stale}
                         disabledReason={stale ? d620(lang, "cand_stale_hint") : undefined}
-                        onClick={() => { if (stale) return; if (tbd) { setPickId(id); setEditingDates(true); sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; } void respond(a, "accept"); }}
+                        onClick={() => { if (stale) return; if (tbd) { trackSiteEvent("cta_click", { label: "cand_dates" }); setPickId(id); setEditingDates(true); sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; } void respond(a, "accept"); }}
                         ariaLabel={`${t("c1610_choose")} ${firstName}`}
                       />
                     </div>
