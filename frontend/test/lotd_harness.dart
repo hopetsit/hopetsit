@@ -78,8 +78,10 @@ http.Client lotdFakeHttp() => MockClient((http.Request req) async {
       }
       lotdRequests.add(LotdRequest(req.method, req.url.path, body, req.url.queryParameters));
       final custom = lotdResponder?.call(req);
-      final payload = custom ?? const <String, dynamic>{};
-      return http.Response(jsonEncode(payload), 200,
+      final payload = Map<String, dynamic>.of(custom ?? const <String, dynamic>{});
+      // 627 — `'__status': 409` dans la réponse = code HTTP simulé.
+      final status = payload.remove('__status');
+      return http.Response(jsonEncode(payload), status is int ? status : 200,
           headers: <String, String>{'content-type': 'application/json'});
     });
 

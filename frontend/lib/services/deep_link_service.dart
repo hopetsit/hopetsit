@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/views/pet_sitter/booking-application/sitter_booking_detail_screen.dart';
@@ -189,6 +190,43 @@ class DeepLinkService {
     _pendingUris.clear();
   }
 
+  /// 627 (PAM) — candidature visée par un lien, parité site :
+  ///   /application/ID?from=email|sms&choose=1   (e-mail, SMS)
+  ///   /posts?application=ID&choose=1            (cible de /application/ID)
+  ///   hopetsit://application/ID?choose=1
+  /// `choose` vrai seulement pour `choose=1`. `null` si aucun id valide. Pure.
+  static ({String id, bool choose})? applicationTarget627(Uri uri) {
+    final segs = uri.pathSegments;
+    final bool custom = uri.scheme == 'hopetsit' && uri.host.isNotEmpty;
+    final String first = custom ? uri.host : (segs.isNotEmpty ? segs.first : '');
+    final List<String> rest =
+        custom ? segs : (segs.length > 1 ? segs.sublist(1) : const <String>[]);
+    String id = '';
+    if (first == 'application') {
+      id = rest.isNotEmpty ? rest.first : '';
+    } else if (first == 'posts' && rest.isEmpty) {
+      id = uri.queryParameters['application'] ?? '';
+    }
+    if (!_objectIdRegex.hasMatch(id)) return null;
+    return (id: id, choose: uri.queryParameters['choose'] == '1');
+  }
+
+  /// 627 (PAM) — lien de session sans mot de passe des comptes venus de la
+  /// pub (`/posts/confirmer?l=…`) : il appartient au site, jamais à l'app. Pure.
+  static bool isLeadConfirmLink627(Uri uri) {
+    if (uri.scheme != 'https' && uri.scheme != 'http') return false;
+    final segs = uri.pathSegments.where((x) => x.isNotEmpty).toList();
+    return segs.length >= 2 && segs[0] == 'posts' && segs[1] == 'confirmer';
+  }
+
+  Future<void> _openInBrowser627(Uri uri) async {
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      AppLogger.logWarning('DeepLink /posts/confirmer → navigateur impossible: $e');
+    }
+  }
+
   /// v23.1 part 125 — Phase 2 audit M1.
   /// Regex strict pour valider un Mongo ObjectId 24 hex chars. Tout autre
   /// pattern (URL malicieuse passée via Intent depuis une app tierce, ou
@@ -275,6 +313,16 @@ class DeepLinkService {
       return;
     }
 
+    // 627 (PAM) — `/posts/confirmer?l=<lead>&next=…` (e-mails des comptes
+    // venus de la pub, SAM 27/10) : c'est la PAGE DU SITE qui ouvre la
+    // session sans mot de passe et date la preuve du clic. L'app ne sait pas
+    // le faire : on rend le lien au navigateur (avant : Android l'attrapait
+    // par le préfixe « /post » et ouvrait l'accueil, la preuve était perdue).
+    if (isLeadConfirmLink627(uri)) {
+      await _openInBrowser627(uri);
+      return;
+    }
+
     final isPublicLink = first == 'open' || first == 'app' || first == 'auth';
     if (!isPublicLink && !_hasSession()) {
       // v561 — on mémorise la destination : elle est rejouée juste après la
@@ -344,6 +392,13 @@ class DeepLinkService {
       } else {
         _openBookingsScreen();
       }
+    } else if (first == 'posts' &&
+        applicationTarget627(uri) != null &&
+        _currentRole() == 'owner') {
+      // 627 — `/posts?application=<id>[&choose=1]` (cible de la page
+      // /application/<id> du site) : la candidature, comme sur le site.
+      final t = applicationTarget627(uri)!;
+      await _openOwnerApplication(t.id, chooseNow: t.choose);
     } else if (first == 'posts') {
       // v561 — mails du cycle de vie « publie une annonce » → accueil, onglet
       // « Mes annonces » (premier onglet de l'accueil propriétaire).
@@ -441,8 +496,11 @@ class DeepLinkService {
       }
     } else if (first == 'application') {
       // v602 — candidature reçue (propriétaire) : LA candidature.
-      if (_objectIdRegex.hasMatch(second) && _currentRole() == 'owner') {
-        await _openOwnerApplication(second);
+      // 627 — `?choose=1` (bouton « Choisir <prénom> » de l'e-mail / du SMS
+      // « candidats reçus ») : encart « Choisir <prénom> et payer » en tête.
+      final t = applicationTarget627(uri);
+      if (t != null && _currentRole() == 'owner') {
+        await _openOwnerApplication(t.id, chooseNow: t.choose);
       } else {
         _openBookingsScreen();
       }
@@ -978,7 +1036,8 @@ class DeepLinkService {
   /// candidats de la demande). On ouvre désormais les candidats de CETTE
   /// demande (Choisir / Refuser, avec confirmation) ; si le propriétaire
   /// choisit ce gardien, la page de paiement s'ouvre juste après.
-  Future<void> _openOwnerApplication(String applicationId) async {
+  Future<void> _openOwnerApplication(String applicationId,
+      {bool chooseNow = false}) async {
     final ApplicationsController ctrl = Get.isRegistered<ApplicationsController>()
         ? Get.find<ApplicationsController>()
         : Get.put(ApplicationsController());
@@ -1016,7 +1075,8 @@ class DeepLinkService {
         context: ctx,
         postId: postId,
         highlightApplicationId: applicationId,
-        source: 'notification');
+        source: 'notification',
+        chooseNow: chooseNow);
     // Choix fait dans la feuille → paiement tout de suite (1 tap de moins).
     final chosen = ctrl.applications.firstWhereOrNull((a) =>
         a.postId == postId &&

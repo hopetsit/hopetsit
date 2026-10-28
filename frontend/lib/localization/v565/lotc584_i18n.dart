@@ -6,7 +6,7 @@ const Map<String, Map<String, String>> lotC584I18n =
     <String, Map<String, String>>{
   'en': <String, String>{
     'pawmap_help_title': 'Understanding the PawMap',
-    'pawmap_help_intro': 'One shape per family: circle = a person, drop = a place, square = a group. The colour only says who or what it is.',
+    'pawmap_help_intro': 'One shape per family: circle = a person, drop = a place, circle with a number = a group. The colour only says who or what it is.',
     'pawmap_help_pins': 'The pins',
     'pawmap_help_buttons': 'The map buttons',
     'pawmap_help_buttons_sub': 'The same buttons as the left rail of the map. Tap one to read more; you can reorder or hide them from the map.',
@@ -16,7 +16,7 @@ const Map<String, Map<String, String>> lotC584I18n =
     'pawmap_legend_btn': 'Legend',
     'pawmap_legend_title': 'Understanding the map',
     'pawmap_legend_memo':
-        'Circle = a person · Drop = a place · Square = a group of places · Black & gold = PawSpot · Pink = a friend',
+        'Circle = a person · Drop = a place · Circle with a number = a group (tap to zoom) · Black & gold = PawSpot · Pink = a friend',
     'pawmap_legend_me': 'Me (my photo)',
     'pawmap_legend_friend': 'A friend (their photo, pink ring; green dot = online)',
     'pawmap_legend_owner': 'Pet owner',
@@ -119,7 +119,7 @@ const Map<String, Map<String, String>> lotC584I18n =
   },
   'fr': <String, String>{
     'pawmap_help_title': 'Comprendre la PawMap',
-    'pawmap_help_intro': 'Une forme par famille : rond = une personne, goutte = un lieu, carré = un groupe. La couleur dit seulement qui ou quoi.',
+    'pawmap_help_intro': 'Une forme par famille : rond = une personne, goutte = un lieu, rond avec un nombre = un groupe. La couleur dit seulement qui ou quoi.',
     'pawmap_help_pins': 'Les épingles',
     'pawmap_help_buttons': 'Les boutons de la carte',
     'pawmap_help_buttons_sub': 'Les mêmes boutons que le rail gauche de la carte. Touche un bouton pour en savoir plus ; tu peux les réordonner ou les masquer depuis la carte.',
@@ -129,7 +129,7 @@ const Map<String, Map<String, String>> lotC584I18n =
     'pawmap_legend_btn': 'Légende',
     'pawmap_legend_title': 'Comprendre la carte',
     'pawmap_legend_memo':
-        'Rond = une personne · Goutte = un lieu · Carré = un groupe de lieux · Noir et or = PawSpot · Rose = un ami',
+        'Rond = une personne · Goutte = un lieu · Rond avec un nombre = un groupe (touche pour zoomer) · Noir et or = PawSpot · Rose = un ami',
     'pawmap_legend_me': 'Moi (ma photo)',
     'pawmap_legend_friend': 'Un ami (sa photo, anneau rose ; point vert = en ligne)',
     'pawmap_legend_owner': 'Propriétaire',
@@ -232,7 +232,7 @@ const Map<String, Map<String, String>> lotC584I18n =
   },
   'es': <String, String>{
     'pawmap_help_title': 'Entender la PawMap',
-    'pawmap_help_intro': 'Una forma por familia: círculo = una persona, gota = un lugar, cuadrado = un grupo. El color solo indica quién o qué.',
+    'pawmap_help_intro': 'Una forma por familia: círculo = una persona, gota = un lugar, círculo con número = un grupo. El color solo indica quién o qué.',
     'pawmap_help_pins': 'Los marcadores',
     'pawmap_help_buttons': 'Los botones del mapa',
     'pawmap_help_buttons_sub': 'Los mismos botones que la barra izquierda del mapa. Toca uno para saber más; puedes reordenarlos u ocultarlos desde el mapa.',
@@ -242,7 +242,7 @@ const Map<String, Map<String, String>> lotC584I18n =
     'pawmap_legend_btn': 'Leyenda',
     'pawmap_legend_title': 'Entender el mapa',
     'pawmap_legend_memo':
-        'Círculo = una persona · Gota = un lugar · Cuadrado = un grupo de lugares · Negro y oro = PawSpot · Rosa = un amigo',
+        'Círculo = una persona · Gota = un lugar · Círculo con número = un grupo (toca para acercar) · Negro y oro = PawSpot · Rosa = un amigo',
     'pawmap_legend_me': 'Yo (mi foto)',
     'pawmap_legend_friend': 'Un amigo (su foto, anillo rosa; punto verde = en línea)',
     'pawmap_legend_owner': 'Propietario',
@@ -345,7 +345,7 @@ const Map<String, Map<String, String>> lotC584I18n =
   },
   'de': <String, String>{
     'pawmap_help_title': 'Die PawMap verstehen',
-    'pawmap_help_intro': 'Eine Form pro Familie: Kreis = eine Person, Tropfen = ein Ort, Quadrat = eine Gruppe. Die Farbe sagt nur, wer oder was es ist.',
+    'pawmap_help_intro': 'Eine Form pro Familie: Kreis = eine Person, Tropfen = ein Ort, Kreis mit Zahl = eine Gruppe. Die Farbe sagt nur, wer oder was es ist.',
     'pawmap_help_pins': 'Die Markierungen',
     'pawmap_help_buttons': 'Die Kartenschaltflächen',
     'pawmap_help_buttons_sub': 'Dieselben Schaltflächen wie die linke Leiste der Karte. Tippe auf eine, um mehr zu erfahren; du kannst sie auf der Karte umsortieren oder ausblenden.',
@@ -355,7 +355,7 @@ const Map<String, Map<String, String>> lotC584I18n =
     'pawmap_legend_btn': 'Legende',
     'pawmap_legend_title': 'Die Karte verstehen',
     'pawmap_legend_memo':
-        'Kreis = eine Person · Tropfen = ein Ort · Quadrat = mehrere Orte · Schwarz & Gold = PawSpot · Rosa = ein Freund',
+        'Kreis = eine Person · Tropfen = ein Ort · Kreis mit Zahl = eine Gruppe (tippen zum Zoomen) · Schwarz & Gold = PawSpot · Rosa = ein Freund',
     'pawmap_legend_me': 'Ich (mein Foto)',
     'pawmap_legend_friend': 'Ein Freund (sein Foto, rosa Ring; grüner Punkt = online)',
     'pawmap_legend_owner': 'Tierhalter',
@@ -458,7 +458,7 @@ const Map<String, Map<String, String>> lotC584I18n =
   },
   'it': <String, String>{
     'pawmap_help_title': 'Capire la PawMap',
-    'pawmap_help_intro': 'Una forma per famiglia: cerchio = una persona, goccia = un luogo, quadrato = un gruppo. Il colore dice solo chi o cosa.',
+    'pawmap_help_intro': 'Una forma per famiglia: cerchio = una persona, goccia = un luogo, cerchio con numero = un gruppo. Il colore dice solo chi o cosa.',
     'pawmap_help_pins': 'I segnaposto',
     'pawmap_help_buttons': 'I pulsanti della mappa',
     'pawmap_help_buttons_sub': 'Gli stessi pulsanti della barra sinistra della mappa. Tocca un pulsante per saperne di più; puoi riordinarli o nasconderli dalla mappa.',
@@ -468,7 +468,7 @@ const Map<String, Map<String, String>> lotC584I18n =
     'pawmap_legend_btn': 'Legenda',
     'pawmap_legend_title': 'Capire la mappa',
     'pawmap_legend_memo':
-        'Cerchio = una persona · Goccia = un luogo · Quadrato = un gruppo di luoghi · Nero e oro = PawSpot · Rosa = un amico',
+        'Cerchio = una persona · Goccia = un luogo · Cerchio con numero = un gruppo (tocca per ingrandire) · Nero e oro = PawSpot · Rosa = un amico',
     'pawmap_legend_me': 'Io (la mia foto)',
     'pawmap_legend_friend': 'Un amico (la sua foto, anello rosa; punto verde = online)',
     'pawmap_legend_owner': 'Proprietario',
@@ -571,7 +571,7 @@ const Map<String, Map<String, String>> lotC584I18n =
   },
   'pt': <String, String>{
     'pawmap_help_title': 'Perceber a PawMap',
-    'pawmap_help_intro': 'Uma forma por família: círculo = uma pessoa, gota = um lugar, quadrado = um grupo. A cor diz apenas quem ou o quê.',
+    'pawmap_help_intro': 'Uma forma por família: círculo = uma pessoa, gota = um lugar, círculo com número = um grupo. A cor diz apenas quem ou o quê.',
     'pawmap_help_pins': 'Os marcadores',
     'pawmap_help_buttons': 'Os botões do mapa',
     'pawmap_help_buttons_sub': 'Os mesmos botões da barra esquerda do mapa. Toca num botão para saberes mais; podes reordená-los ou escondê-los a partir do mapa.',
@@ -581,7 +581,7 @@ const Map<String, Map<String, String>> lotC584I18n =
     'pawmap_legend_btn': 'Legenda',
     'pawmap_legend_title': 'Perceber o mapa',
     'pawmap_legend_memo':
-        'Círculo = uma pessoa · Gota = um local · Quadrado = um grupo de locais · Preto e dourado = PawSpot · Rosa = um amigo',
+        'Círculo = uma pessoa · Gota = um local · Círculo com número = um grupo (toca para aproximar) · Preto e dourado = PawSpot · Rosa = um amigo',
     'pawmap_legend_me': 'Eu (a minha foto)',
     'pawmap_legend_friend': 'Um amigo (a foto dele, anel rosa; ponto verde = online)',
     'pawmap_legend_owner': 'Dono',
@@ -684,7 +684,7 @@ const Map<String, Map<String, String>> lotC584I18n =
   },
   'ko': <String, String>{
     'pawmap_help_title': 'PawMap 이해하기',
-    'pawmap_help_intro': '종류마다 하나의 모양: 원 = 사람, 물방울 = 장소, 사각형 = 그룹. 색은 누구인지, 무엇인지만 알려 줍니다.',
+    'pawmap_help_intro': '종류마다 하나의 모양: 원 = 사람, 물방울 = 장소, 숫자가 있는 원 = 그룹. 색은 누구인지, 무엇인지만 알려 줍니다.',
     'pawmap_help_pins': '핀',
     'pawmap_help_buttons': '지도 버튼',
     'pawmap_help_buttons_sub': '지도 왼쪽 바와 같은 버튼입니다. 버튼을 눌러 자세히 알아보세요. 지도에서 순서를 바꾸거나 숨길 수 있습니다.',
@@ -694,7 +694,7 @@ const Map<String, Map<String, String>> lotC584I18n =
     'pawmap_legend_btn': '범례',
     'pawmap_legend_title': '지도 이해하기',
     'pawmap_legend_memo':
-        '원 = 사람 · 물방울 = 장소 · 사각형 = 장소 묶음 · 검정과 금색 = PawSpot · 분홍 = 친구',
+        '원 = 사람 · 물방울 = 장소 · 숫자가 있는 원 = 그룹 (탭하면 확대) · 검정과 금색 = PawSpot · 분홍 = 친구',
     'pawmap_legend_me': '나 (내 사진)',
     'pawmap_legend_friend': '친구 (친구 사진, 분홍 테두리; 초록 점 = 온라인)',
     'pawmap_legend_owner': '반려인',
@@ -789,7 +789,7 @@ const Map<String, Map<String, String>> lotC584I18n =
   },
   'ja': <String, String>{
     'pawmap_help_title': 'PawMapの見方',
-    'pawmap_help_intro': '種類ごとに一つの形：丸 = 人、しずく = 場所、四角 = グループ。色は誰・何かを示すだけです。',
+    'pawmap_help_intro': '種類ごとに一つの形：丸 = 人、しずく = 場所、数字入りの丸 = グループ。色は誰・何かを示すだけです。',
     'pawmap_help_pins': 'ピン',
     'pawmap_help_buttons': '地図のボタン',
     'pawmap_help_buttons_sub': '地図の左側バーと同じボタンです。タップすると詳しく分かります。地図から並べ替えや非表示ができます。',
@@ -799,7 +799,7 @@ const Map<String, Map<String, String>> lotC584I18n =
     'pawmap_legend_btn': '凡例',
     'pawmap_legend_title': '地図の見方',
     'pawmap_legend_memo':
-        '丸 = 人 · しずく = 場所 · 四角 = 場所のグループ · 黒と金 = PawSpot · ピンク = 友だち',
+        '丸 = 人 · しずく = 場所 · 数字入りの丸 = グループ（タップでズーム） · 黒と金 = PawSpot · ピンク = 友だち',
     'pawmap_legend_me': '自分（自分の写真）',
     'pawmap_legend_friend': '友だち（写真、ピンクの輪、緑の点 = オンライン）',
     'pawmap_legend_owner': '飼い主',
@@ -894,7 +894,7 @@ const Map<String, Map<String, String>> lotC584I18n =
   },
   'pl': <String, String>{
     'pawmap_help_title': 'Jak czytać PawMap',
-    'pawmap_help_intro': 'Jeden kształt na rodzinę: kółko = osoba, kropla = miejsce, kwadrat = grupa. Kolor mówi tylko, kto lub co.',
+    'pawmap_help_intro': 'Jeden kształt na rodzinę: kółko = osoba, kropla = miejsce, koło z liczbą = grupa. Kolor mówi tylko, kto lub co.',
     'pawmap_help_pins': 'Pinezki',
     'pawmap_help_buttons': 'Przyciski mapy',
     'pawmap_help_buttons_sub': 'Te same przyciski co na lewym pasku mapy. Dotknij przycisku, aby dowiedzieć się więcej; możesz je przestawiać lub ukrywać z poziomu mapy.',
@@ -904,7 +904,7 @@ const Map<String, Map<String, String>> lotC584I18n =
     'pawmap_legend_btn': 'Legenda',
     'pawmap_legend_title': 'Jak czytać mapę',
     'pawmap_legend_memo':
-        'Koło = osoba · Kropla = miejsce · Kwadrat = grupa miejsc · Czerń i złoto = PawSpot · Róż = znajomy',
+        'Koło = osoba · Kropla = miejsce · Koło z liczbą = grupa (dotknij, aby przybliżyć) · Czerń i złoto = PawSpot · Róż = znajomy',
     'pawmap_legend_me': 'Ja (moje zdjęcie)',
     'pawmap_legend_friend': 'Znajomy (jego zdjęcie, różowa obwódka; zielona kropka = online)',
     'pawmap_legend_owner': 'Właściciel',

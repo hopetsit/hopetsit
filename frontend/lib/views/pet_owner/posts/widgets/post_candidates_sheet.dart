@@ -41,6 +41,7 @@ class PostCandidatesSheet {
     required String postId,
     String? highlightApplicationId,
     String source = 'direct',
+    bool chooseNow = false,
   }) {
     markCandidatesViewed2610(postId, source);
     return showModalBottomSheet<void>(
@@ -49,7 +50,9 @@ class PostCandidatesSheet {
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _CandidatesSheetBody(
-          postId: postId, highlightId: highlightApplicationId),
+          postId: postId,
+          highlightId: highlightApplicationId,
+          chooseNow: chooseNow),
     );
   }
 }
@@ -79,6 +82,27 @@ String candidateTotal2610(ApplicationModel app) {
   if (rate != null && rate > 0 && t + 0.001 < rate) return '';
   final cur = (p.currency ?? '').isNotEmpty ? p.currency! : 'EUR';
   return CurrencyHelper.format(cur, t);
+}
+
+/// 627 (PAM) — encart « Réserver (prénom) ? » (lien de l'e-mail ou du SMS
+/// « candidats reçus » avec `?choose=1`, parité `PostCandidates1610.tsx`) :
+/// la candidature ciblée, SEULEMENT si elle est en attente, avec un total
+/// juste (frais compris, serveur), hors « dates à prévoir », hors « Tarif à
+/// venir » et hors candidature indicative. Sinon `null` : la page normale
+/// des candidats s'affiche, sans encart. Pure.
+ApplicationModel? fastChoice627({
+  required List<ApplicationModel> applications,
+  required String? focusId,
+  required bool chooseNow,
+  required bool tbd,
+}) {
+  if (!chooseNow || tbd || focusId == null || focusId.isEmpty) return null;
+  final a = applications.firstWhereOrNull((x) => x.id == focusId);
+  if (a == null) return null;
+  if (a.status.toLowerCase().trim() != 'pending') return null;
+  if (applicationIsStale620(a) || applicationIsIndicative620(a)) return null;
+  if (candidateTotal2610(a).isEmpty) return null;
+  return a;
 }
 
 /// 624 — distance arrondie au km (≥ 1), jamais l'adresse. Pure.
@@ -192,10 +216,14 @@ Future<bool?> _showModernConfirm({
 }
 
 class _CandidatesSheetBody extends StatefulWidget {
-  const _CandidatesSheetBody({required this.postId, this.highlightId});
+  const _CandidatesSheetBody(
+      {required this.postId, this.highlightId, this.chooseNow = false});
 
   final String postId;
   final String? highlightId;
+
+  /// 627 — arrivée par « Choisir (prénom) » de l'e-mail / du SMS.
+  final bool chooseNow;
 
   @override
   State<_CandidatesSheetBody> createState() => _CandidatesSheetBodyState();
@@ -327,6 +355,23 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
     }
   }
 
+  /// 627 — « Choisir (prénom) et payer » : l'encart EST la confirmation
+  /// (texte explicite au-dessus du bouton, comme le site). Choix envoyé, la
+  /// feuille se ferme ; l'appelant ouvre le paiement de la réservation créée.
+  Future<void> _acceptAndPay(ApplicationModel app) async {
+    if (_busy.value) return;
+    _busy.value = true;
+    try {
+      final ok = await _controller.respondToApplication(
+        applicationId: app.id,
+        action: 'accept',
+      );
+      if (ok && mounted) Navigator.of(context).pop();
+    } finally {
+      _busy.value = false;
+    }
+  }
+
   Future<void> _reject(ApplicationModel app) async {
     if (_busy.value) return;
     final confirmed = await _showModernConfirm(
@@ -376,11 +421,22 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
         final list = _candidates();
         final bool tbd = list.isNotEmpty && _postIsTbd(list);
         final int stale620 = list.where(applicationIsStale620).length;
+        final ApplicationModel? fast = fastChoice627(
+            applications: list,
+            focusId: widget.highlightId,
+            chooseNow: widget.chooseNow,
+            tbd: tbd);
         final String place = list
             .map((a) => serviceLocationDisplay(a.serviceLocation,
                 meetingPoint: a.meetingPoint))
             .firstWhere((t) => t.isNotEmpty, orElse: () => '');
         final header = <Widget>[
+          if (fast != null)
+            FastChoose627(
+              app: fast,
+              busy: _busy,
+              onPressed: () => _acceptAndPay(fast),
+            ),
           if (tbd) _TbdBanner2610(onTap: _openDates),
           if (stale620 > 0) StaleBanner620(count: stale620),
           if (place.isNotEmpty)
@@ -520,6 +576,97 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ],
+    );
+  }
+}
+
+/// 627 (PAM) — encart « Réserver (prénom) ? » + « Choisir (prénom) et payer ·
+/// prix » (parité site `data-fast-2710`) : liseré orange propriétaire, UN
+/// bouton qui confirme le choix puis ouvre le paiement sécurisé.
+class FastChoose627 extends StatelessWidget {
+  const FastChoose627({
+    super.key,
+    required this.app,
+    required this.busy,
+    required this.onPressed,
+  });
+
+  final ApplicationModel app;
+  final RxBool busy;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color owner = AppColors.primaryColor;
+    final String name =
+        app.sitter.name.isNotEmpty ? app.sitter.name : 'provider_unknown'.tr;
+    final String first = name.split(' ').first;
+    final String total = candidateTotal2610(app);
+    return Container(
+      key: const Key('cand627_fast'),
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 10.h),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: owner, width: 2),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PoppinsText(
+            key: const Key('cand627_fast_title'),
+            text: 'cand627_fast_title'.tr.replaceAll('{name}', first),
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary(context),
+            maxLines: 2,
+          ),
+          SizedBox(height: 4.h),
+          InterText(
+            text: 'cand627_fast_sub'.tr.replaceAll('{name}', first),
+            fontSize: 12.5.sp,
+            height: 1.35,
+            color: AppColors.textSecondary(context),
+            maxLines: 4,
+          ),
+          SizedBox(height: 10.h),
+          Obx(() => ActionPillButton(
+                key: const Key('cand627_fast_cta'),
+                label:
+                    '${'cand627_fast_cta'.tr.replaceAll('{name}', first)} · $total',
+                icon: Icons.account_balance_wallet_rounded,
+                tone: owner,
+                expand: true,
+                haptic: true,
+                busy: busy.value,
+                onPressed: onPressed,
+              )),
+          SizedBox(height: 6.h),
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lock_rounded,
+                    size: 12.sp, color: AppColors.textSecondary(context)),
+                SizedBox(width: 4.w),
+                // 627 — Flexible : à 768 dp (échelle ×2) le texte débordait.
+                Flexible(
+                  child: InterText(
+                    text: 'cand627_pay_secure'.tr,
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary(context),
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

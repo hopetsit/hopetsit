@@ -6,6 +6,23 @@ import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
+/// 627 (PAM) — 409 `RATE_PENDING` du serveur (eee4b792, ZOE 28/10) : le
+/// candidat n'a pas encore de tarif pour ce service (ex. aucun tarif par
+/// visite). Renvoie la phrase claire à montrer — celle du serveur, déjà dans
+/// la langue du propriétaire — ou, à défaut, l'explication locale « Tarif à
+/// venir ». `null` si l'erreur n'est pas un RATE_PENDING. Jamais le code brut.
+String? ratePendingMessage627(ApiException error) {
+  final d = error.details;
+  final bool isRatePending = (d is Map && d['code']?.toString() == 'RATE_PENDING') ||
+      error.message.contains('RATE_PENDING');
+  if (!isRatePending) return null;
+  final String server = (d is Map ? (d['error'] ?? d['message'] ?? '') : '').toString().trim();
+  if (server.isNotEmpty && !server.contains('RATE_PENDING') && !server.startsWith('Request failed')) {
+    return server;
+  }
+  return 'dates620_stale_explain'.tr;
+}
+
 class ApplicationsController extends GetxController {
   ApplicationsController({OwnerRepository? ownerRepository})
     : _ownerRepository = ownerRepository ?? Get.find<OwnerRepository>();
@@ -112,6 +129,20 @@ class ApplicationsController extends GetxController {
           title: 'dates620_set_dates_banner'.tr,
           message: 'dates620_dates_required_error'.tr,
         );
+        return null;
+      }
+      // 627 — 409 RATE_PENDING (candidature « Tarif à venir ») : la phrase du
+      // serveur, en avertissement, puis la liste rechargée (le candidat
+      // s'affiche « Tarif à venir », Choisir verrouillé).
+      final String? ratePending = ratePendingMessage627(error);
+      if (ratePending != null) {
+        CustomSnackbar.showWarning(
+          title: 'dates620_stale_label'.tr,
+          message: ratePending,
+        );
+        try {
+          await loadApplications();
+        } catch (_) {}
         return null;
       }
       CustomSnackbar.showError(title: 'common_error'.tr, message: error.message);

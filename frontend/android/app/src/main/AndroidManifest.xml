@@ -169,7 +169,14 @@
                 <data android:pathPrefix="/pawspot" />
                 <data android:pathPrefix="/shop" />
                 <data android:pathPrefix="/profile" />
-                <data android:pathPrefix="/post" />
+                <!-- 627 (PAM) — plus de préfixe « /post » : il attrapait aussi
+                     /posts/confirmer?l=… (session sans mot de passe des comptes
+                     venus de la pub, ouverte par le SITE) et la preuve du clic
+                     était perdue. Chemins exacts de l'app seulement. -->
+                <data android:path="/post" />
+                <data android:pathPrefix="/post/" />
+                <data android:path="/posts" />
+                <data android:pathPrefix="/posts/create" />
                 <data android:pathPrefix="/friends" />
                 <data android:pathPrefix="/amis" />
                 <data android:pathPrefix="/family" />
