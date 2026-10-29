@@ -682,22 +682,21 @@ class PawMapPinPainter {
       {double? maxR}) {
     final s = 0.5 + 0.5 * math.sin(phase * 2 * math.pi);
     final m = maxR ?? radius + 22;
+    // 630 (Daniel : « les halos bleu, turquoise et violet ne sont pas assez
+    // voyants ») — valeurs du site de LEO : liseré BLANC 3 px, anneau PLEIN
+    // 8 px (turquoise PawBoost / violet PawFollow), lueur large qui respire.
     if (color == PawMapLegend.pawFollow) {
       drawCssGlow(canvas, center, radius, m, color, [
-        (3 + 4 * s, 0, 0.45 - 0.17 * s),
-        (3 + 7 * s, 10 + 16 * s, 0.5 + 0.2 * s),
+        (8 + s, 0, 0.92),
+        (8 + 2 * s, 22 + 6 * s, 0.6 + 0.15 * s),
       ]);
     } else {
-      // 628 (PAM, 29/10 — Daniel : « le turquoise doit être plus visible »,
-      // site 94e0e256 `boostGlowStyle` + `hps-breathe`) : liseré BLANC 3 px,
-      // puis anneau turquoise PLEIN de 4 px (r+3 → r+7, 95 % → 100 %), puis
-      // lueur plus large (spread 7 → 13, flou 20 → 34) qui respire.
       drawCssGlow(canvas, center, radius, m, color, [
-        (7 + 1 * s, 0, 0.95 + 0.05 * s),
-        (7 + 6 * s, 20 + 14 * s, 0.75 + 0.15 * s),
+        (8 + s, 0, 0.98),
+        (8 + 4 * s, 24 + 8 * s, 0.8 + 0.1 * s),
       ]);
-      canvas.drawCircle(center, radius + 3, Paint()..color = Colors.white);
     }
+    canvas.drawCircle(center, radius + 3, Paint()..color = Colors.white);
   }
 
   /// Pastille ronde façon site : fond, bord blanc (ou [border]) inclus dans
@@ -1465,8 +1464,10 @@ class PawMapPinPainter {
           dy: 2, blur: 6, color: PawMapLegend.ink.withValues(alpha: 0.35));
       drawBoostGlow(canvas, c, glowR, boostPhase!, maxR: maxR);
     } else if (pawFollowGlow) {
+      // 630 — PawFollow (famille) : violet net + liseré blanc, comme le site.
       drawCssGlow(canvas, c, glowR, maxR, PawMapLegend.pawFollow,
-          [(4, 0, 0.35), (5, 16, 0.55)]);
+          [(8, 0, 0.92), (8, 24, 0.7)]);
+      canvas.drawCircle(c, r + 3, Paint()..color = Colors.white);
     } else if (isFriend) {
       // v594 — Daniel (26/09) : « le halo rose oui » (l'or non, la couronne
       // suffit). Lueur rose FIXE autour de chaque ami, sous PawBoost/suivi.

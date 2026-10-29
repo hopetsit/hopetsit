@@ -170,8 +170,10 @@ const List<int> kPawSpringSteps2610 = <int>[0, 40, 80, 120, 160, 200, 240, 300, 
 
 // ── géométrie des images ─────────────────────────────────────────────────
 
-/// Marge autour du rond (halo 0 4 10 -2 et couronne).
-const double kRingMargin2610 = 14;
+/// Marge autour du rond (halo 0 4 10 -2 et couronne). 630 (Daniel : « les
+/// halos ne sont pas assez voyants ») : 14 → 22 pour loger le liseré blanc
+/// 3 + l'anneau plein 8 + la lueur large de PawBoost / PawFollow (site).
+const double kRingMargin2610 = 22;
 
 /// Taille de l'image d'un rond à l'échelle [s] (multi = pastilles dessous).
 Size pawRingBitmap2610(double s, {required bool multi}) {
@@ -232,28 +234,37 @@ void paintRing2610(
   final n = rs.length;
   final main = rs.first;
   final disc = _circle(c, 25);
-  // Variante extras : lueur PawBoost turquoise qui respire, sous le rond.
+  // 630 (Daniel, 30/10 : « les halos bleu, turquoise et violet ne sont pas
+  // assez voyants ») — mêmes valeurs que le site de LEO (`boostGlowStyle`,
+  // `hps-breathe`, halo PawFollow) : liseré BLANC 3 pt, anneau PLEIN 8 pt,
+  // lueur large (24-32 pt) qui respire, lisible sur carte claire et sombre.
   if (kPawRingExtras2610 && boostPhase != null) {
-    // Discrète : liseré turquoise de 1 à 2 pt + halo court qui respire.
     final k = 0.5 + 0.5 * math.sin(boostPhase * 2 * math.pi);
-    PawMapPinPainter.drawCssGlow(canvas, c, 25, 25 + 11, PawMapLegend.boost, [
-      (1.5 + 0.5 * k, 0, 0.75),
-      (2 + 2 * k, 6 + 4 * k, 0.35 + 0.15 * k),
+    PawMapPinPainter.drawCssGlow(canvas, c, 25, 25 + kRingMargin2610 - 0.5, PawMapLegend.boost, [
+      (8 + k, 0, 0.98),
+      (8 + 4 * k, 24 + 8 * k, 0.8 + 0.1 * k),
     ]);
   }
-  // PawFollow : halo violet fixe (un seul halo : PawBoost passe devant).
+  // PawFollow : halo violet net (un seul halo : PawBoost passe devant).
   if (kPawRingExtras2610 && boostPhase == null && pawFollow) {
-    PawMapPinPainter.drawCssGlow(canvas, c, 25, 25 + 11, PawMapLegend.pawFollow, [
-      (1.5, 0, 0.7),
-      (3, 8, 0.35),
+    PawMapPinPainter.drawCssGlow(canvas, c, 25, 25 + kRingMargin2610 - 0.5, PawMapLegend.pawFollow, [
+      (8, 0, 0.95),
+      (10, 30, 0.85),
     ]);
   }
+  final bool halo630 = kPawRingExtras2610 && (boostPhase != null || pawFollow);
   // box-shadow (CSS : le 1er listé est dessus → on peint à l'envers).
   PawMapPinPainter.cssShadow(canvas, disc,
       dy: 4, blur: 10, spread: -2, color: PawRole2610.glow(main));
   PawMapPinPainter.cssShadow(canvas, disc,
       dy: 2, blur: 3, color: const Color(0x40000000));
-  canvas.drawCircle(c, 26, Paint()..color = const Color(0x29000000)); // .16
+  if (halo630) {
+    // 630 — liseré BLANC 3 pt entre le rond et l'anneau plein (site : `0 0 0 3px #fff`),
+    // posé APRÈS les ombres pour rester blanc ; le filet gris .16 du rond saute.
+    canvas.drawCircle(c, 28, Paint()..color = Colors.white);
+  } else {
+    canvas.drawCircle(c, 26, Paint()..color = const Color(0x29000000)); // .16
+  }
   canvas.drawCircle(c, 25, Paint()..color = Colors.white);
   // Anneau 5 pt, centré à 5,5 du bord (r 19,5).
   final ring = Paint()
