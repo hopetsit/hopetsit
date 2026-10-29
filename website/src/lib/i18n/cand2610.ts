@@ -28,6 +28,9 @@ export const CAND2610: Record<Lang, D> = {
     fast_title: "Réserver {name} ?",
     fast_sub: "Un geste : {name} est réservé(e) et tu passes au paiement sécurisé par carte. Les autres candidatures sont refusées.",
     fast_cta: "Choisir {name} et payer",
+    g_cancel: "Annulation gratuite jusqu'à 72 h avant, remboursement intégral",
+    g_escrow: "Ton argent n'est versé qu'une fois le service terminé",
+    g_holiday: "Les gardiens sont très demandés pour les fêtes : réserve le tien maintenant, sans risque.",
   },
   en: {
     weekly: "weekly rate applied",
@@ -50,6 +53,9 @@ export const CAND2610: Record<Lang, D> = {
     fast_title: "Book {name}?",
     fast_sub: "One tap: {name} is booked and you go to secure card payment. The other applications are declined.",
     fast_cta: "Choose {name} and pay",
+    g_cancel: "Free cancellation up to 72 h before, full refund",
+    g_escrow: "Your money is only released once the service is done",
+    g_holiday: "Sitters are in high demand over the holidays: book yours now, risk-free.",
   },
   es: {
     weekly: "tarifa semanal aplicada",
@@ -72,6 +78,9 @@ export const CAND2610: Record<Lang, D> = {
     fast_title: "¿Reservar a {name}?",
     fast_sub: "Un solo gesto: reservas a {name} y pasas al pago seguro con tarjeta. Las demás candidaturas se rechazan.",
     fast_cta: "Elegir a {name} y pagar",
+    g_cancel: "Cancelación gratuita hasta 72 h antes, reembolso íntegro",
+    g_escrow: "Tu dinero solo se libera cuando termina el servicio",
+    g_holiday: "Los cuidadores están muy solicitados en las fiestas: reserva el tuyo ahora, sin riesgo.",
   },
   de: {
     weekly: "Wochentarif angewendet",
@@ -94,6 +103,9 @@ export const CAND2610: Record<Lang, D> = {
     fast_title: "{name} buchen?",
     fast_sub: "Ein Tipp: {name} ist gebucht und du gehst zur sicheren Kartenzahlung. Die anderen Bewerbungen werden abgelehnt.",
     fast_cta: "{name} wählen und bezahlen",
+    g_cancel: "Kostenlose Stornierung bis 72 Std. vorher, volle Erstattung",
+    g_escrow: "Dein Geld wird erst nach dem Service ausgezahlt",
+    g_holiday: "Sitter sind über die Feiertage sehr gefragt: buche deinen jetzt, ohne Risiko.",
   },
   it: {
     weekly: "tariffa settimanale applicata",
@@ -116,6 +128,9 @@ export const CAND2610: Record<Lang, D> = {
     fast_title: "Prenotare {name}?",
     fast_sub: "Un solo gesto: prenoti {name} e passi al pagamento sicuro con carta. Le altre candidature vengono rifiutate.",
     fast_cta: "Scegli {name} e paga",
+    g_cancel: "Cancellazione gratuita fino a 72 h prima, rimborso totale",
+    g_escrow: "I tuoi soldi vengono versati solo a servizio concluso",
+    g_holiday: "I pet sitter sono molto richiesti durante le feste: prenota il tuo ora, senza rischi.",
   },
   pt: {
     weekly: "tarifa semanal aplicada",
@@ -138,6 +153,9 @@ export const CAND2610: Record<Lang, D> = {
     fast_title: "Reservar {name}?",
     fast_sub: "Um só gesto: reservas {name} e passas ao pagamento seguro com cartão. As outras candidaturas são recusadas.",
     fast_cta: "Escolher {name} e pagar",
+    g_cancel: "Cancelamento gratuito até 72 h antes, reembolso total",
+    g_escrow: "O teu dinheiro só é libertado quando o serviço termina",
+    g_holiday: "Os cuidadores são muito procurados nas festas: reserva o teu agora, sem risco.",
   },
   ko: {
     weekly: "주간 요금 적용",
@@ -160,6 +178,9 @@ export const CAND2610: Record<Lang, D> = {
     fast_title: "{name}님을 예약할까요?",
     fast_sub: "한 번에: {name}님을 예약하고 안전한 카드 결제로 이동합니다. 다른 지원은 거절됩니다.",
     fast_cta: "{name}님 선택하고 결제",
+    g_cancel: "72시간 전까지 무료 취소, 전액 환불",
+    g_escrow: "결제 금액은 서비스가 끝난 뒤에만 지급됩니다",
+    g_holiday: "연휴에는 시터 예약이 몰립니다: 지금 위험 없이 예약하세요.",
   },
   ja: {
     weekly: "週料金を適用",
@@ -182,6 +203,9 @@ export const CAND2610: Record<Lang, D> = {
     fast_title: "{name}さんを予約しますか？",
     fast_sub: "ワンタップで{name}さんを予約し、安全なカード決済へ進みます。ほかの応募はお断りされます。",
     fast_cta: "{name}さんを選んで支払う",
+    g_cancel: "72時間前まで無料キャンセル・全額返金",
+    g_escrow: "代金はサービス完了後にのみ支払われます",
+    g_holiday: "年末年始はシッターの予約が集中します：今なら安心して予約できます。",
   },
   pl: {
     weekly: "zastosowano stawkę tygodniową",
@@ -204,6 +228,9 @@ export const CAND2610: Record<Lang, D> = {
     fast_title: "Zarezerwować: {name}?",
     fast_sub: "Jeden gest: rezerwujesz {name} i przechodzisz do bezpiecznej płatności kartą. Pozostałe zgłoszenia zostaną odrzucone.",
     fast_cta: "Wybierz {name} i zapłać",
+    g_cancel: "Bezpłatne anulowanie do 72 h przed, pełny zwrot",
+    g_escrow: "Twoje pieniądze są wypłacane dopiero po zakończeniu usługi",
+    g_holiday: "Opiekunowie są bardzo poszukiwani w święta: zarezerwuj swojego teraz, bez ryzyka.",
   },
 };
 

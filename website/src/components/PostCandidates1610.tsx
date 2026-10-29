@@ -182,6 +182,34 @@ export function PostCandidates1610({
   const pending = visible.filter((a) => a.status === "pending").length;
   // 620 — « dates à prévoir » : tarif unitaire seul, Choisir bloqué jusqu'aux dates.
   const tbd = dateModeOf620(cur) === "tbd";
+  // 2910 (BOB, ordre de Daniel « lancer la machine ») — garanties RÉELLES affichées au moment de choisir :
+  // annulation gratuite jusqu'à 72 h avant (self-cancel + remboursement, bookingController) — seulement si
+  // le début est à plus de 72 h — et séquestre jusqu'à la fin du service. Ligne « fêtes » seulement si les
+  // dates touchent la période du 15/12 au 06/01.
+  const startMs = cur.startDate ? new Date(cur.startDate).getTime() : NaN;
+  const endMs = cur.endDate ? new Date(cur.endDate).getTime() : startMs;
+  const freeCancel = !tbd && Number.isFinite(startMs) && startMs - Date.now() > 72 * 3600 * 1000;
+  const holidays = !tbd && Number.isFinite(startMs) && (() => {
+    const y = new Date(startMs).getFullYear();
+    return [y - 1, y].some((yy) => startMs <= Date.UTC(yy + 1, 0, 6) && endMs >= Date.UTC(yy, 11, 15));
+  })();
+  const guarantees = (
+    <ul className="mt-2 space-y-1" data-guarantees-2910="">
+      {freeCancel && (
+        <li className="flex items-start gap-1.5 text-[12px] font-bold leading-snug" style={{ color: "#15803D" }}>
+          <AppIcon name="shield-check" size={14} color="#15803D" />
+          <span>{c2610(lang, "g_cancel")}</span>
+        </li>
+      )}
+      <li className="flex items-start gap-1.5 text-[12px] font-bold leading-snug" style={{ color: "#15803D" }}>
+        <AppIcon name="lock" size={14} color="#15803D" />
+        <span>{c2610(lang, "g_escrow")}</span>
+      </li>
+      {holidays && (
+        <li className="text-[12px] font-semibold leading-snug" style={{ color: "#9E1F0B" }}>{c2610(lang, "g_holiday")}</li>
+      )}
+    </ul>
+  );
   const unitOf = (a: ApplicationItem): string => {
     const u = String(a.pricing?.unit || "");
     if (u) return u;
@@ -343,6 +371,7 @@ export function PostCandidates1610({
         </span>
       </h3>
       <p className="mt-1 text-[13px] leading-snug" style={{ color: "#6E4F48" }}>{c2610(lang, "sub")}</p>
+      {!tbd && !fast && pending > 0 && guarantees}
 
       {/* 2710 (SAM, ordre de Daniel « que les propriétaires valident et paient ») — arrivée par le bouton
           « Choisir <prénom> » de l'e-mail : le candidat, son prix total (serveur) et UN bouton qui confirme
@@ -363,6 +392,7 @@ export function PostCandidates1610({
               onClick={() => void respond(fast.app, "accept", { confirmed: true, andPay: true })}
             />
           </div>
+          {guarantees}
           <p className="mt-1.5 text-center text-[11px] font-semibold" style={{ color: "#8A6B64" }}>{t("bookings_pay_secure")}</p>
           {errors[fast.id] && (
             <p className="mt-2 rounded-xl px-3 py-2 text-[12px] font-bold" style={{ background: "#FBE9E5", color: "#9E1F0B" }} role="alert">{errors[fast.id]}</p>
