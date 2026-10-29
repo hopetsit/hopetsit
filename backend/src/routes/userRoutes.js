@@ -241,6 +241,8 @@ router.get(
         const { syncAllRolesByEmail } = require('../models/UserSubscription');
         await syncAllRolesByEmail(req.user.id, modelName);
       } catch (_) { /* best-effort */ }
+      // 2910 (BOB) — même chose pour les BOOSTS (stockés sur le profil, pas dans l'abonnement).
+      await require('../services/boostSync2910').syncBoostsForUser(req.user.id, modelName);
       try {
         const UserSubscriptionPs = require('../models/UserSubscription');
         const psSub = await UserSubscriptionPs.findOne({

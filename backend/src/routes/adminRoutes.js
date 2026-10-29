@@ -19,6 +19,7 @@ const router = express.Router();
 // JWT-based: requireAuth verifies token, requireRole('admin') checks payload.role.
 // Admin JWTs are issued by POST /auth/admin/login (see authController.adminLogin).
 const requireAdmin = [requireAuth, requireRole('admin')];
+const { auditAdmin } = require('../middleware/auditAdmin');
 
 // v565 — lot admin (points 21/31/24). Helpers partagés par les listes et les
 // détails : e-mail en clair (decrypt tolère le texte brut historique), chronologie
@@ -3936,6 +3937,36 @@ router.post('/users/:role/:id/premium-gift', requireAdmin, async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+// 2910 (BOB) — Daniel : « étends-le » (PawBoost d'Agnès acheté sur son profil promeneuse,
+// elle candidate en gardienne). Offre le PawBoost PROFIL à un profil gardien/promeneur
+// jusqu'à `until` (90 j max). N'écrit AUCUNE ligne boostPurchases : rien ne s'ajoute aux
+// revenus de la boutique. Ne raccourcit jamais un boost déjà plus long.
+router.post('/users/:role/:id/boost-gift', requireAdmin, auditAdmin, async (req, res) => {
+  try {
+    const Model = { sitter: Sitter, walker: Walker }[req.params.role];
+    if (!Model) return res.status(400).json({ error: 'role must be sitter or walker' });
+    const until = new Date((req.body || {}).until);
+    const now = new Date();
+    if (!(until > now) || until - now > 90 * 86400000) {
+      return res.status(400).json({ error: 'until must be in the next 90 days' });
+    }
+    const tier = ['bronze', 'silver', 'gold', 'platinum'].includes((req.body || {}).tier) ? req.body.tier : 'gold';
+    const doc = await Model.findById(req.params.id).select('name boostExpiry boostTier');
+    if (!doc) return res.status(404).json({ error: 'not found' });
+    const before = doc.boostExpiry || null;
+    if (!(before && new Date(before) >= until)) {
+      doc.boostExpiry = until;
+      doc.boostTier = tier;
+      await doc.save();
+    }
+    logger.info(`[admin/boost-gift] ${req.params.role} ${req.params.id} ${before ? new Date(before).toISOString() : 'none'} -> ${new Date(doc.boostExpiry).toISOString()} (${doc.boostTier})`);
+    res.json({ ok: true, role: req.params.role, id: String(doc._id), boostExpiry: doc.boostExpiry, boostTier: doc.boostTier, before });
+  } catch (e) {
+    logger.error('[admin/users/boost-gift]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.delete('/users/:role/:id/premium-gift', requireAdmin, async (req, res) => {
   try {
     const { revokePremiumGift } = require('../services/adminPremiumGift612');

@@ -169,6 +169,8 @@ async function startServer() {
     require('./services/applicationEmail2610').startApplicationEmailScheduler();
     // 2810 (BOB) — relance « candidats non consultés » (e1 +2 h, e2 J+2, e3 J+5), ACTIVE depuis le 28/10 (accord de Daniel), CANDIDATES_REMINDER_2810=off pour couper.
     require('./services/candidatesReminder2810').startCandidatesReminderScheduler();
+    // 2910 (BOB, Daniel : « les achats doivent suivre les 3 profils ») — boosts recopiés sur les 3 profils de la personne, toutes les 10 min. BOOST_SYNC=off pour couper.
+    require('./services/boostSync2910').startBoostSyncScheduler();
   } catch (error) {
     logger.error('Failed to start server', error);
     process.exit(1);
