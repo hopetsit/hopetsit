@@ -157,6 +157,15 @@ void main() {
       expect(chatChooseApplication628(apps, 's-a1')?.id, 'a1');
       expect(chatChooseApplication628(apps, 's-a2')?.id, 'a2');
       expect(chatChooseApplication628(apps, 's-a3'), isNull, reason: 'déjà choisie');
+      // 629 (ZOE) — 2 candidatures du même prestataire : la PAYABLE d'abord, sinon la plus récente.
+      Map<String, dynamic> sameSitter(Map<String, dynamic> j) => <String, dynamic>{
+            ...j,
+            'sitter': <String, dynamic>{...(j['sitter'] as Map<String, dynamic>), 'id': 's-a1'},
+          };
+      final staleSame = _m(sameSitter(_app('a9', 'Imane Benali', _stale)));
+      expect(chatChooseApplication628([staleSame, priced], 's-a1')?.id, 'a1', reason: 'payable avant stale');
+      final indicSame = _m(sameSitter(_app('a8', 'Imane Benali', _indicative)));
+      expect(chatChooseApplication628([indicSame, staleSame], 's-a1')?.id, 'a8', reason: 'aucune payable : la 1re (ordre serveur)');
       expect(chatChooseApplication628(apps, ''), isNull);
       expect(chatChooseApplication628(apps, 'zz'), isNull);
       expect(chatChoosePayable628(priced), isTrue);

@@ -137,9 +137,12 @@ PostPriceEstimate? estimatePostPrice({
   }
 
   // ----- SITTER ---------------------------------------------------------
-  // Use day count (inclusive). Minimum 1 day.
+  // 628 (ZOE, 29/10/2026) — MÊME compte que le serveur (pricingEngine620
+  // `dayCount`) : jours CALENDAIRES couverts, fin − début + 1 en UTC, ≥ 1.
+  // Avant : ceil(minutes / 1440) → une garde du 12/11 9 h au 14/11 9 h
+  // comptait 2 jours alors que le serveur en facture 3.
   final totalMinutes = end.difference(start).inMinutes;
-  int days = math.max(1, (totalMinutes / (60 * 24)).ceil());
+  final int days = calendarDays628(start, end);
 
   // v20.0.19 — CRITICAL : pour la GARDERIE (day_care), la règle métier est
   // "1 jour = 1 × dailyRate" quelle que soit la plage horaire. Avant ce
@@ -273,7 +276,32 @@ PostPriceEstimate? estimatePostPrice({
       unit: 'week',
     );
   }
-  // Short bookings (< 7 days) — always hourly, matches backend.
+  // 628 (ZOE, 29/10/2026) — < 7 jours : JOURS × tarif jour (nuits = jours − 1
+  // chez le gardien), comme le serveur depuis 620 (pricingEngine620 : unité
+  // 'day' / 'night' pour house_sitting, pet_sitting, day_care). Mesuré au
+  // simulateur : une garde de 3 jours (tarif 20 €/j, 10 €/h) affichait au
+  // gardien « Vous recevez 480 € » (48 h × 10 €) alors que le serveur lui
+  // verse 60 € et facture 72 € au propriétaire.
+  if (effectiveDaily > 0) {
+    final sittersHome = (services.contains('house_sitting') ||
+            services.contains('pet_sitting')) &&
+        (post.houseSittingVenue == 'sitters_home' ||
+            post.serviceLocation == 'at_sitter');
+    final int units = sittersHome ? math.max(1, days - 1) : days;
+    final double brut = effectiveDaily * units;
+    final double commission = brut * commissionRate;
+    return PostPriceEstimate(
+      brut: brut + commission,
+      net: brut,
+      commission: commission,
+      currency: currency,
+      breakdown: units == 1
+          ? '${'price_days_one'.tr} × ${_money(effectiveDaily, currency)}'
+          : '${'price_days_n'.tr.replaceAll('{n}', '$units')} × ${_money(effectiveDaily, currency)}',
+      unit: sittersHome ? 'night' : 'day',
+    );
+  }
+  // Aucun tarif jour dérivable (cas théorique : tout à 0 sauf l'horaire < 1 €).
   if (effectiveHourly > 0) {
     // v20.0.16 — sanity check : si le tarif horaire dérivé est absurde
     // (< 1€/h) c'est que le sitter n'a pas configuré ses tarifs proprement.
@@ -307,3 +335,14 @@ PostPriceEstimate? estimatePostPrice({
 /// Lot D — même format monétaire que partout (langue de l'app).
 String _money(double amount, String currency) =>
     CurrencyHelper.formatCompact(currency, amount);
+
+/// 628 — jours calendaires couverts par [start]..[end] (UTC, inclusif), ≥ 1 :
+/// même règle que `dayCount` de `pricingEngine620.js`. Pure.
+int calendarDays628(DateTime start, DateTime? end) {
+  final s = start.toUtc();
+  final e = (end ?? start).toUtc();
+  final sd = DateTime.utc(s.year, s.month, s.day);
+  final ed = DateTime.utc(e.year, e.month, e.day);
+  if (ed.isBefore(sd)) return 1;
+  return ed.difference(sd).inDays + 1;
+}

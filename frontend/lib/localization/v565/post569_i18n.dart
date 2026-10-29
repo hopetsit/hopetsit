@@ -9,7 +9,7 @@
 const Map<String, Map<String, String>> post569I18n =
     <String, Map<String, String>>{
   'en': <String, String>{
-    'post569_offer_service': 'Offer my service',
+    'post569_offer_service': 'Offer my services',
     'post569_sending': 'Sending…',
     'post569_request_sent': 'Request sent',
     'post569_already_taken': 'Already booked',
@@ -24,7 +24,7 @@ const Map<String, Map<String, String>> post569I18n =
     'post569_photo_failed': 'Photo could not load',
   },
   'fr': <String, String>{
-    'post569_offer_service': 'Proposer mon service',
+    'post569_offer_service': 'Proposer mes services',
     'post569_sending': 'Envoi…',
     'post569_request_sent': 'Demande envoyée',
     'post569_already_taken': 'Déjà réservé',
@@ -39,7 +39,7 @@ const Map<String, Map<String, String>> post569I18n =
     'post569_photo_failed': 'La photo n’a pas pu s’afficher',
   },
   'es': <String, String>{
-    'post569_offer_service': 'Ofrecer mi servicio',
+    'post569_offer_service': 'Ofrecer mis servicios',
     'post569_sending': 'Enviando…',
     'post569_request_sent': 'Solicitud enviada',
     'post569_already_taken': 'Ya reservado',
@@ -54,7 +54,7 @@ const Map<String, Map<String, String>> post569I18n =
     'post569_photo_failed': 'No se pudo cargar la foto',
   },
   'de': <String, String>{
-    'post569_offer_service': 'Service anbieten',
+    'post569_offer_service': 'Meine Dienste anbieten',
     'post569_sending': 'Senden…',
     'post569_request_sent': 'Anfrage gesendet',
     'post569_already_taken': 'Schon vergeben',
@@ -69,7 +69,7 @@ const Map<String, Map<String, String>> post569I18n =
     'post569_photo_failed': 'Foto konnte nicht laden',
   },
   'it': <String, String>{
-    'post569_offer_service': 'Offri il mio servizio',
+    'post569_offer_service': 'Proporre i miei servizi',
     'post569_sending': 'Invio…',
     'post569_request_sent': 'Richiesta inviata',
     'post569_already_taken': 'Già prenotato',
@@ -84,7 +84,7 @@ const Map<String, Map<String, String>> post569I18n =
     'post569_photo_failed': 'Impossibile caricare la foto',
   },
   'pt': <String, String>{
-    'post569_offer_service': 'Oferecer o meu serviço',
+    'post569_offer_service': 'Propor os meus serviços',
     'post569_sending': 'A enviar…',
     'post569_request_sent': 'Pedido enviado',
     'post569_already_taken': 'Já reservado',
@@ -129,7 +129,7 @@ const Map<String, Map<String, String>> post569I18n =
     'post569_photo_failed': '写真を読み込めませんでした',
   },
   'pl': <String, String>{
-    'post569_offer_service': 'Zaproponuj usługę',
+    'post569_offer_service': 'Zaproponuj moje usługi',
     'post569_sending': 'Wysyłanie…',
     'post569_request_sent': 'Prośba wysłana',
     'post569_already_taken': 'Już zarezerwowane',

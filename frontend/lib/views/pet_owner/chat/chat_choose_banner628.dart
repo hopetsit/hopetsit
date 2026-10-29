@@ -20,17 +20,22 @@ import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_sheet.dar
 import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
-/// La candidature EN ATTENTE de l'interlocuteur [contactId] (la plus
-/// récente d'abord, dans l'ordre du serveur). Pure.
+/// La candidature EN ATTENTE de l'interlocuteur [contactId] : d'abord une
+/// candidature PAYABLE (prix total connu, ni indicative ni « tarif à
+/// venir »), sinon la première dans l'ordre du serveur (la plus récente).
+/// Pure. (629, retour ZOE : 2 candidatures du même prestataire.)
 ApplicationModel? chatChooseApplication628(
     Iterable<ApplicationModel> applications, String contactId) {
   final id = contactId.trim();
   if (id.isEmpty) return null;
+  ApplicationModel? first;
   for (final a in applications) {
     if (a.status.toLowerCase().trim() != 'pending') continue;
-    if (a.sitter.id == id) return a;
+    if (a.sitter.id != id) continue;
+    if (chatChoosePayable628(a)) return a;
+    first ??= a;
   }
-  return null;
+  return first;
 }
 
 /// Prix connu et juste (frais compris, serveur) → « Choisir … et payer ·
