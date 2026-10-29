@@ -68,6 +68,21 @@ async function sendFor({ post, ownerId, apps, send }) {
   if (!pending.length) return { sent: false, reason: 'no_pending' };
   const totalPending = await Application.countDocuments({ postId: post._id, status: 'pending' });
   const newest = pending.slice().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  // 2910 (BOB) — les candidats au PawBoost actif ont leur carte en premier (tri stable).
+  try {
+    const Sitter = require('../models/Sitter');
+    const Walker = require('../models/Walker');
+    const now = new Date();
+    const sIds = pending.filter((a) => !a.walkerId && a.sitterId).map((a) => idOf(a.sitterId));
+    const wIds = pending.filter((a) => a.walkerId).map((a) => idOf(a.walkerId));
+    const [bs, bw] = await Promise.all([
+      sIds.length ? Sitter.find({ _id: { $in: sIds }, boostExpiry: { $gt: now } }).select('_id').lean() : [],
+      wIds.length ? Walker.find({ _id: { $in: wIds }, boostExpiry: { $gt: now } }).select('_id').lean() : [],
+    ]);
+    const boosted = new Set([...bs, ...bw].map((d) => String(d._id)));
+    const isB = (a) => (boosted.has(String(idOf(a.walkerId || a.sitterId))) ? 1 : 0);
+    if (boosted.size) newest.sort((x, y) => isB(y) - isB(x));
+  } catch (_) { /* ordre par date */ }
   const cards = await cardsFor(newest.slice(0, MAX_CARDS), post);
   if (!cards.length) return { sent: false, reason: 'no_provider' };
   // 2710 (SAM) — lien direct de chaque carte : /application/<id>?from=email&choose=1, passé par

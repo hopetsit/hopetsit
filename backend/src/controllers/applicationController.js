@@ -812,7 +812,17 @@ const listApplications = async (req, res) => {
       .populate('walkerId')
       .populate('bookingId');
 
-    res.json({ applications: applications.map(sanitizeApplication) });
+    // 2910 (BOB, Daniel : « sa candidature est devant tout le monde ? ») — côté propriétaire,
+    // les candidats au PawBoost actif passent en tête ; tri stable, donc du plus récent au
+    // plus ancien dans chaque groupe, comme avant.
+    const nowB = Date.now();
+    const boosted = (a) => {
+      const p = a.sitterId || a.walkerId;
+      return p && p.boostExpiry && new Date(p.boostExpiry).getTime() > nowB ? 1 : 0;
+    };
+    const ordered = userRole === 'owner' ? applications.slice().sort((x, y) => boosted(y) - boosted(x)) : applications;
+
+    res.json({ applications: ordered.map(sanitizeApplication) });
   } catch (error) {
     logger.error('Fetch applications error', error);
     res.status(500).json({ error: 'Unable to fetch applications. Please try again later.' });

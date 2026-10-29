@@ -5649,11 +5649,17 @@ async function adaTodayLine() {
 // ───────── 613 (ADA, 04/10) — PARCOURS D'UNE DEMANDE (lecture seule) ─────────
 // Daniel : « chaque demande, je sais s'il y a des contacts, si c'est validé ou pas ».
 // Données : /admin/requests613 (summary · live · :id/journey). Aucune action ici.
-function rjWhen(x) { return x ? new Date(x).toLocaleString(adminLocale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''; }
+function rjWhen(x) { if (!x) return ''; const d = new Date(x); if (!isNaN(d) && d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) return d.toLocaleDateString(adminLocale(), { day: '2-digit', month: '2-digit', timeZone: 'UTC' }); return d.toLocaleString(adminLocale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }); }
 // 16/10 (ADA) — heure LOCALE de la ville de la demande quand le serveur connaît son fuseau, sinon UTC marqué.
+// 2910 (BOB, Daniel : « 2:00, je sais pas si c'est 14 h ») — une date SANS heure est stockée à minuit UTC :
+// on affiche alors le jour seul (sinon « 01:00 » / « 02:00 » à Paris ne veut rien dire). Sinon, toujours en 24 h.
+function rjDateOnly(x) { const d = new Date(x); return !isNaN(d) && d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0; }
 function rjWhenTz(x, tz) {
   if (!x) return '';
-  try { return new Date(x).toLocaleString(adminLocale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: tz || 'UTC' }); }
+  try {
+    if (rjDateOnly(x)) return new Date(x).toLocaleDateString(adminLocale(), { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+    return new Date(x).toLocaleString(adminLocale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: tz || 'UTC' });
+  }
   catch (_) { return rjWhen(x); }
 }
 function rjTzLabel(tz) { return tz ? '(<span>heure de</span> <span class="rj-city">' + escapeHtml(String(tz).split('/').pop().replace(/_/g, ' ')) + '</span>)' : '(UTC)'; }
@@ -5667,7 +5673,8 @@ function rjPeriod(it) {
   let txt;
   if (it.serviceEnd) txt = '<span>Prestation du</span> ' + rjWhenTz(it.serviceDate, tz) + ' <span>au</span> ' + rjWhenTz(it.serviceEnd, tz);
   else txt = '<span>Prestation le</span> ' + rjWhenTz(it.serviceDate, tz) + (it.walkDurationMinutes ? ' · ' + it.walkDurationMinutes + '\u00a0min' : '');
-  return '<span class="rj-when">📅 ' + txt + ' ' + rjTzLabel(tz) + '</span>';
+  const timed = !rjDateOnly(it.serviceDate) || (it.serviceEnd && !rjDateOnly(it.serviceEnd));
+  return '<span class="rj-when">📅 ' + txt + (timed ? ' ' + rjTzLabel(tz) : '') + '</span>';
 }
 function rjVisibility(it) {
   const v = it.visibility; if (!v) return '';
@@ -5917,7 +5924,8 @@ function rjDatesLine(it) {
   let when;
   if (it.serviceEnd && it.serviceEnd !== it.serviceDate) when = '<span>du</span> ' + rjWhenTz(it.serviceDate, tz) + ' <span>au</span> ' + rjWhenTz(it.serviceEnd, tz);
   else when = '<span>le</span> ' + rjWhenTz(it.serviceDate, tz) + (it.walkDurationMinutes ? ' · ' + it.walkDurationMinutes + '\u00a0min' : '');
-  return '📅 ' + (mode ? rqDateMode(it) + ' ' : '') + when + ' ' + rjTzLabel(tz);
+  const timed = !rjDateOnly(it.serviceDate) || (it.serviceEnd && !rjDateOnly(it.serviceEnd));
+  return '📅 ' + (mode ? rqDateMode(it) + ' ' : '') + when + (timed ? ' ' + rjTzLabel(tz) : '');
 }
 // Tarif ou total : total payé > total prévu > tarif indicatif (« à partir de ») > « — ».
 function rjPriceLine(it) {
