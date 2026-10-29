@@ -74,7 +74,10 @@ void main() {
       final fr = pay628I18n['fr']!;
       expect(fr.keys.toSet(), {
         'cand628_g_cancel', 'cand628_g_escrow', 'cand628_g_holiday', 'cand628_chat_title', 'cand628_chat_see',
+        'home628_see_candidates', 'home628_offer_services', // point 8 (accueils)
       });
+      expect(fr['home628_see_candidates'], 'Voir les candidats');
+      expect(fr['home628_offer_services'], 'Proposer mes services');
       expect(fr['cand628_g_cancel'], 'Annulation gratuite jusqu\'à 72 h avant, remboursement intégral');
       expect(fr['cand628_g_escrow'], 'Ton argent n\'est versé qu\'une fois le service terminé');
       expect(fr['cand628_chat_title'], '{name} a candidaté à ta demande');

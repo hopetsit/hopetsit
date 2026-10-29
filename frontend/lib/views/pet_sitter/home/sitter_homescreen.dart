@@ -1293,9 +1293,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             );
           }
         },
+        // 628 (point 8) — « Envoyer la demande » laissait croire que le gardien
+        // demandait quelque chose : il PROPOSE ses services au propriétaire.
         requestButtonText: isCancelMode
             ? 'request_cancel_button'.tr
-            : 'send_request_button'.tr,
+            : 'home628_offer_services'.tr,
         isCancelRequest: isCancelMode,
         isRequestLoading:
             _loadingStates[post.id] ?? false,

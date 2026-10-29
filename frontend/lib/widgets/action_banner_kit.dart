@@ -519,7 +519,8 @@ class _ActionPillButtonState extends State<ActionPillButton> {
       enabled: widget.onPressed != null,
       expand: widget.expand,
       compact: true,
-      height: widget.compact ? 40.h : 48.h,
+      // 628 (point 8) — jamais sous 44 pt (règle tactile), même en compact.
+      height: widget.compact ? 44.h : 48.h,
       haptic: false,
     );
     if (widget.maxWidth != null) {
@@ -582,8 +583,9 @@ class ActionRoundButton extends StatelessWidget {
                     onPressed!();
                   },
             child: SizedBox(
-              width: 40.w,
-              height: 40.w,
+              // 628 (point 8) — ✓ / ✗ du bandeau : 44 pt (étaient 40).
+              width: 44.w,
+              height: 44.w,
               child: Icon(icon, size: 20.sp, color: fg),
             ),
           ),

@@ -967,7 +967,8 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       icon: Icons.how_to_reg_rounded,
       title: title,
       subtitle: subtitle,
-      ctaLabel: 'bookings_action_view_details'.tr,
+      // 628 (point 8) — le bouton dit ce qu'il ouvre : la liste des candidats.
+      ctaLabel: 'home628_see_candidates'.tr,
       // We reuse the booking field with a synthetic placeholder ; the tap
       // handler routes to MyPostsScreen and never reads booking-only fields.
       booking: _ownerCandidateStubBooking(first),
@@ -2190,8 +2191,20 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   Future<void> _ownerAcceptCandidate(ApplicationModel app) async {
     if (!Get.isRegistered<ApplicationsController>()) return;
     // 620 — candidature indicative (demande « dates à prévoir ») : on pose
-    // d'abord les dates (ouvre l'édition de la demande), jamais un 409 brut.
+    // d'abord les dates. 628 (point 8) : la feuille des candidats le fait en
+    // enchaînant dates → « Choisir <prénom> et payer · prix » → paiement
+    // (plus d'éditeur isolé qui laissait le propriétaire sans suite).
     if (applicationIsIndicative620(app)) {
+      final postId = app.postId ?? '';
+      if (postId.isNotEmpty && mounted) {
+        await PostCandidatesSheet.show(
+            context: context,
+            postId: postId,
+            highlightApplicationId: app.id,
+            source: 'direct',
+            chooseNow: true);
+        return;
+      }
       warnDatesRequired620();
       await openPostDatesEditor620(app.postId);
       return;
@@ -2204,6 +2217,13 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     // créée par l'acceptation est rechargée tout de suite → « Payer 120 € ».
     if (ok && Get.isRegistered<BookingsController>()) {
       await Get.find<BookingsController>().loadBookings();
+    }
+    // 628 (point 8, audit des accueils) — « Accepter » est le dernier pas
+    // avant l'argent : le paiement s'ouvre tout de suite au lieu de laisser
+    // le propriétaire sur l'accueil avec un bandeau « Payer ».
+    if (ok) {
+      final bookingId = chosenBookingId628(ctrl.applications, app.postId ?? '');
+      if (bookingId != null) await openBookingPayment628(bookingId);
     }
   }
 
