@@ -31,6 +31,8 @@ export const CAND2610: Record<Lang, D> = {
     g_cancel: "Annulation gratuite jusqu'à 72 h avant, remboursement intégral",
     g_escrow: "Ton argent n'est versé qu'une fois le service terminé",
     g_holiday: "Les gardiens sont très demandés pour les fêtes : réserve le tien maintenant, sans risque.",
+    chat_title: "{name} a candidaté à ta demande",
+    chat_see: "Voir sa candidature",
   },
   en: {
     weekly: "weekly rate applied",
@@ -56,6 +58,8 @@ export const CAND2610: Record<Lang, D> = {
     g_cancel: "Free cancellation up to 72 h before, full refund",
     g_escrow: "Your money is only released once the service is done",
     g_holiday: "Sitters are in high demand over the holidays: book yours now, risk-free.",
+    chat_title: "{name} applied to your request",
+    chat_see: "See the application",
   },
   es: {
     weekly: "tarifa semanal aplicada",
@@ -81,6 +85,8 @@ export const CAND2610: Record<Lang, D> = {
     g_cancel: "Cancelación gratuita hasta 72 h antes, reembolso íntegro",
     g_escrow: "Tu dinero solo se libera cuando termina el servicio",
     g_holiday: "Los cuidadores están muy solicitados en las fiestas: reserva el tuyo ahora, sin riesgo.",
+    chat_title: "{name} se ha postulado a tu solicitud",
+    chat_see: "Ver su candidatura",
   },
   de: {
     weekly: "Wochentarif angewendet",
@@ -106,6 +112,8 @@ export const CAND2610: Record<Lang, D> = {
     g_cancel: "Kostenlose Stornierung bis 72 Std. vorher, volle Erstattung",
     g_escrow: "Dein Geld wird erst nach dem Service ausgezahlt",
     g_holiday: "Sitter sind über die Feiertage sehr gefragt: buche deinen jetzt, ohne Risiko.",
+    chat_title: "{name} hat sich auf deine Anfrage beworben",
+    chat_see: "Bewerbung ansehen",
   },
   it: {
     weekly: "tariffa settimanale applicata",
@@ -131,6 +139,8 @@ export const CAND2610: Record<Lang, D> = {
     g_cancel: "Cancellazione gratuita fino a 72 h prima, rimborso totale",
     g_escrow: "I tuoi soldi vengono versati solo a servizio concluso",
     g_holiday: "I pet sitter sono molto richiesti durante le feste: prenota il tuo ora, senza rischi.",
+    chat_title: "{name} si è candidato/a alla tua richiesta",
+    chat_see: "Vedi la candidatura",
   },
   pt: {
     weekly: "tarifa semanal aplicada",
@@ -156,6 +166,8 @@ export const CAND2610: Record<Lang, D> = {
     g_cancel: "Cancelamento gratuito até 72 h antes, reembolso total",
     g_escrow: "O teu dinheiro só é libertado quando o serviço termina",
     g_holiday: "Os cuidadores são muito procurados nas festas: reserva o teu agora, sem risco.",
+    chat_title: "{name} candidatou-se ao teu pedido",
+    chat_see: "Ver a candidatura",
   },
   ko: {
     weekly: "주간 요금 적용",
@@ -181,6 +193,8 @@ export const CAND2610: Record<Lang, D> = {
     g_cancel: "72시간 전까지 무료 취소, 전액 환불",
     g_escrow: "결제 금액은 서비스가 끝난 뒤에만 지급됩니다",
     g_holiday: "연휴에는 시터 예약이 몰립니다: 지금 위험 없이 예약하세요.",
+    chat_title: "{name}님이 요청에 지원했습니다",
+    chat_see: "지원 보기",
   },
   ja: {
     weekly: "週料金を適用",
@@ -206,6 +220,8 @@ export const CAND2610: Record<Lang, D> = {
     g_cancel: "72時間前まで無料キャンセル・全額返金",
     g_escrow: "代金はサービス完了後にのみ支払われます",
     g_holiday: "年末年始はシッターの予約が集中します：今なら安心して予約できます。",
+    chat_title: "{name}さんがあなたの依頼に応募しました",
+    chat_see: "応募を見る",
   },
   pl: {
     weekly: "zastosowano stawkę tygodniową",
@@ -231,6 +247,8 @@ export const CAND2610: Record<Lang, D> = {
     g_cancel: "Bezpłatne anulowanie do 72 h przed, pełny zwrot",
     g_escrow: "Twoje pieniądze są wypłacane dopiero po zakończeniu usługi",
     g_holiday: "Opiekunowie są bardzo poszukiwani w święta: zarezerwuj swojego teraz, bez ryzyka.",
+    chat_title: "{name} zgłasza się do Twojego ogłoszenia",
+    chat_see: "Zobacz zgłoszenie",
   },
 };
 

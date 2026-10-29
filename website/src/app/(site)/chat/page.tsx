@@ -12,6 +12,9 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import BackLink from "@/components/BackLink";
 import {
   ApiError,
+  applicationId,
+  applicationProvider,
+  ApplicationItem,
   AuthRole,
   ChatDeliveredEvent,
   ChatFeatures,
@@ -26,6 +29,7 @@ import {
   getChatFeatures,
   getConversations,
   getMessages,
+  getMyApplications,
   getMyFriends,
   getStoredUser,
   requestFollowByConversation,
@@ -37,6 +41,7 @@ import {
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { getSocket } from "@/lib/socket";
 import { usePresence } from "@/lib/usePresence";
+import { c2610 } from "@/lib/i18n/cand2610";
 
 // v565 (point 10) — identité de l'autre personne d'une conversation (chat
 // ami : `otherParty`, chat réservation : l'autre rôle que le mien).
@@ -118,7 +123,7 @@ function ReceiptTicks({
 }
 
 export default function ChatPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -149,12 +154,20 @@ export default function ChatPage() {
   // mes autres appareils via `conversation:deleted`.
   const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // 2910 (BOB, ordre de Daniel « lancer la machine ») — propriétaire qui discute avec un CANDIDAT :
+  // bandeau « Choisir <prénom> et payer » au-dessus de la conversation (même parcours que l'e-mail).
+  const [myApps, setMyApps] = useState<ApplicationItem[]>([]);
 
   // v23.1 part 146 — assure que le socket est créé même si l'user arrive
   // directement sur /chat sans passer par /dashboard.
   useSocket();
 
   const user = getStoredUser();
+
+  useEffect(() => {
+    if (user?.role !== "owner") return;
+    getMyApplications().then(setMyApps).catch(() => { /* pas de bandeau */ });
+  }, [user?.role]);
 
   useEffect(() => {
     if (!user) {
@@ -884,6 +897,42 @@ export default function ChatPage() {
                   <span className="hidden truncate min-[400px]:inline">{t("chat_request_follow")}</span>
                 </button>
               </div>
+              {(() => {
+                if (user?.role !== "owner") return null;
+                const c = conversations.find((x) => x.id === activeId);
+                const other = c ? otherUserId(c, user?.role) : undefined;
+                if (!other) return null;
+                const a = myApps.find((x) => {
+                  const w = applicationProvider(x).who;
+                  return x.status === "pending" && String(w?.id || w?._id || "") === other;
+                });
+                if (!a) return null;
+                const w = applicationProvider(a).who;
+                const first = (w?.name || c?.participantName || "").split(" ")[0] || "";
+                const total = a.pricing?.totalPrice ?? 0;
+                const payable = total > 0 && a.pricing?.indicative !== true && a.pricing?.stale !== true;
+                let price = "";
+                if (payable) {
+                  try { price = new Intl.NumberFormat(lang, { style: "currency", currency: (a.pricing?.currency || "EUR").toUpperCase(), maximumFractionDigits: 2 }).format(total); } catch { price = `${total}`; }
+                }
+                return (
+                  <div className="border-b border-[#F6D9CF] px-4 py-3" style={{ background: "#FFF6F2" }} data-chat-choose-2910="">
+                    <p className="text-[13px] font-bold" style={{ color: "#9E1F0B" }}>{c2610(lang, "chat_title", { name: first })}</p>
+                    <Link
+                      href={`/application/${applicationId(a)}?choose=1&from=chat`}
+                      className="mt-2 flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-center text-[14px] font-extrabold text-white"
+                      style={{ background: "#C92A12" }}
+                    >
+                      {payable ? `${c2610(lang, "fast_cta", { name: first })} · ${price}` : c2610(lang, "chat_see")}
+                    </Link>
+                    {payable && (
+                      <p className="mt-1.5 text-center text-[11px] font-semibold" style={{ color: "#15803D" }}>
+                        {c2610(lang, "g_escrow")}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="flex-1 space-y-2 overflow-y-auto p-4">
                 {loadingMessages ? (
                   <div className="text-center text-sm text-ink-muted">{t("common_loading")}</div>

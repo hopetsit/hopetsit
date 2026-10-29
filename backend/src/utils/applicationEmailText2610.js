@@ -56,6 +56,7 @@ const T = {
     dates: 'Posez vos dates pour voir le prix total de chaque candidat.',
     cta: 'Voir mes candidats',
     weekly: 'tarif semaine appliqué',
+    guar: ['Annulation gratuite jusqu\'à 72 h avant, remboursement intégral', 'Votre argent n\'est versé qu\'une fois le service terminé'],
   },
   en: {
     choose: (n) => `Choose ${n}`, // 2710 (SAM) — bouton direct de chaque carte
@@ -69,6 +70,7 @@ const T = {
     dates: 'Set your dates to see each candidate’s total price.',
     cta: 'See my candidates',
     weekly: 'weekly rate applied',
+    guar: ['Free cancellation up to 72 h before, full refund', 'Your money is only released once the service is done'],
   },
   es: {
     choose: (n) => `Elegir a ${n}`, // 2710 (SAM) — bouton direct de chaque carte
@@ -82,6 +84,7 @@ const T = {
     dates: 'Indique sus fechas para ver el precio total de cada candidato.',
     cta: 'Ver mis candidatos',
     weekly: 'tarifa semanal aplicada',
+    guar: ['Cancelación gratuita hasta 72 h antes, reembolso íntegro', 'Su dinero solo se libera cuando termina el servicio'],
   },
   de: {
     choose: (n) => `${n} auswählen`, // 2710 (SAM) — bouton direct de chaque carte
@@ -95,6 +98,7 @@ const T = {
     dates: 'Legen Sie Ihre Daten fest, um den Gesamtpreis jedes Bewerbers zu sehen.',
     cta: 'Meine Bewerber ansehen',
     weekly: 'Wochentarif angewendet',
+    guar: ['Kostenlose Stornierung bis 72 Std. vorher, volle Erstattung', 'Ihr Geld wird erst nach dem Service ausgezahlt'],
   },
   it: {
     choose: (n) => `Scegli ${n}`, // 2710 (SAM) — bouton direct de chaque carte
@@ -108,6 +112,7 @@ const T = {
     dates: 'Indichi le date per vedere il prezzo totale di ogni candidato.',
     cta: 'Vedi i miei candidati',
     weekly: 'tariffa settimanale applicata',
+    guar: ['Cancellazione gratuita fino a 72 h prima, rimborso totale', 'I vostri soldi vengono versati solo a servizio concluso'],
   },
   pt: {
     choose: (n) => `Escolher ${n}`, // 2710 (SAM) — bouton direct de chaque carte
@@ -121,6 +126,7 @@ const T = {
     dates: 'Indique as suas datas para ver o preço total de cada candidato.',
     cta: 'Ver os meus candidatos',
     weekly: 'tarifa semanal aplicada',
+    guar: ['Cancelamento gratuito até 72 h antes, reembolso total', 'O seu dinheiro só é libertado quando o serviço termina'],
   },
   ko: {
     choose: (n) => `${n}님 선택`, // 2710 (SAM) — bouton direct de chaque carte
@@ -133,6 +139,7 @@ const T = {
     dates: '날짜를 정하면 지원자별 총액을 볼 수 있습니다.',
     cta: '내 지원자 보기',
     weekly: '주간 요금 적용',
+    guar: ['72시간 전까지 무료 취소, 전액 환불', '결제 금액은 서비스가 끝난 뒤에만 지급됩니다'],
   },
   ja: {
     choose: (n) => `${n}さんを選ぶ`, // 2710 (SAM) — bouton direct de chaque carte
@@ -145,6 +152,7 @@ const T = {
     dates: '日程を設定すると、各応募者の合計料金が表示されます。',
     cta: '応募者を見る',
     weekly: '週料金を適用',
+    guar: ['72時間前まで無料キャンセル・全額返金', '代金はサービス完了後にのみ支払われます'],
   },
   pl: {
     choose: (n) => `Wybierz: ${n}`, // 2710 (SAM) — bouton direct de chaque carte
@@ -157,6 +165,7 @@ const T = {
     dates: 'Ustaw daty, aby zobaczyć cenę całkowitą każdego kandydata.',
     cta: 'Zobacz kandydatów',
     weekly: 'zastosowano stawkę tygodniową',
+    guar: ['Bezpłatne anulowanie do 72 h przed, pełny zwrot', 'Pieniądze są wypłacane dopiero po zakończeniu usługi'],
   },
 };
 
@@ -221,6 +230,12 @@ function cardsHtml(lang, cards) {
  * Données de rendu de l'e-mail (gabarit application_new_2610).
  * @param {{lang:string, post:object, cards:object[], newCount:number, totalPending:number}} p
  */
+/** 2910 — début de la demande à plus de 72 h : l'annulation gratuite s'applique encore. */
+function freeCancel72(post, now = Date.now()) {
+  const t = post && post.startDate ? new Date(post.startDate).getTime() : NaN;
+  return Number.isFinite(t) && t - now > 72 * 3600 * 1000;
+}
+
 function buildEmailData({ lang, post, cards, newCount, totalPending }) {
   const l = lang2(lang);
   const L = T[l];
@@ -240,7 +255,10 @@ function buildEmailData({ lang, post, cards, newCount, totalPending }) {
     subjectLine,
     candidatesHtml2610: cardsHtml(l, cards)
       + (others > 0 ? `<p style="margin:4px 0 0;font-size:14px;color:#6E4F48">${esc(L.others(others))}</p>` : '')
-      + (tbd ? `<p style="margin:12px 0 0;padding:10px 12px;background:#FBE9E5;border-radius:10px;font-size:14px;font-weight:600;color:#9E1F0B">${esc(L.dates)}</p>` : ''),
+      + (tbd ? `<p style="margin:12px 0 0;padding:10px 12px;background:#FBE9E5;border-radius:10px;font-size:14px;font-weight:600;color:#9E1F0B">${esc(L.dates)}</p>` : '')
+      // 2910 (BOB, ordre de Daniel « lancer la machine ») — garanties RÉELLES : annulation gratuite
+      // (self-cancel jusqu'à 72 h avant, seulement si le début est à plus de 72 h) et séquestre.
+      + (!tbd && L.guar ? `<p style="margin:12px 0 0;padding:10px 12px;background:#EAF6EE;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;color:#15803D">${freeCancel72(post) ? `✓ ${esc(L.guar[0])}<br>` : ''}✓ ${esc(L.guar[1])}</p>` : ''),
     ctaLabel: L.cta,
   };
 }
