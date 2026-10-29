@@ -235,7 +235,9 @@ export function boostGlowStyle(active: boolean): string {
   return active
     // 2910 (BOB, Daniel : « le bleu est légèrement pas voyant ») — liseré blanc puis anneau
     // turquoise PLEIN de 4 px et lueur plus large : le profil boosté se repère d'un coup d'œil.
-    ? `box-shadow:0 0 0 3px #fff,0 0 0 7px rgba(6,182,212,.95),0 0 28px 10px rgba(6,182,212,.85),0 2px 6px rgba(23,20,31,.35);animation:hps-breathe 1.6s ease-in-out infinite;`
+    // 30/10 (LEO, Daniel : « les halos bleu, turquoise et violet ne sont pas assez voyants ») — liseré blanc 3 px,
+    // anneau turquoise PLEIN de 5 px, lueur large ; la respiration va de 5 à 7 px d'anneau et double la lueur.
+    ? `box-shadow:0 0 0 3px #fff,0 0 0 8px ${PAWBOOST_TURQUOISE},0 0 32px 12px rgba(6,182,212,.9),0 2px 6px rgba(23,20,31,.35);animation:hps-breathe 1.6s ease-in-out infinite;`
     : "";
 }
 
@@ -407,12 +409,13 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   // que JE suis en direct est TOUJOURS violette, même boostée (la fusée
   // reste) ; pour les autres : PawBoost > PawFollow > ami (rose). Même règle
   // que l'app (`pickPhotoHalo`, pawmap_pins.dart).
+  // 30/10 (LEO, Daniel) — violet PawFollow : liseré blanc 3 px, anneau violet PLEIN 5 px, lueur large (suivi : respire).
   const glow = o.followed
-    ? `box-shadow:0 0 0 3px rgba(124,58,237,.45),0 0 10px 3px rgba(124,58,237,.5);animation:hps-follow 1.8s ease-in-out infinite;`
+    ? `box-shadow:0 0 0 3px #fff,0 0 0 8px ${PAWFOLLOW_VIOLET},0 0 28px 10px rgba(124,58,237,.8);animation:hps-follow 1.8s ease-in-out infinite;`
     : o.boosted
       ? boostGlowStyle(true)
       : o.pawFollow
-        ? `box-shadow:0 0 0 4px rgba(124,58,237,.35),0 0 16px 5px rgba(124,58,237,.55),0 3px 8px rgba(23,20,31,.35);`
+        ? `box-shadow:0 0 0 3px #fff,0 0 0 8px ${PAWFOLLOW_VIOLET},0 0 24px 9px rgba(124,58,237,.7),0 3px 8px rgba(23,20,31,.35);`
         : o.me
           ? `box-shadow:0 3px 8px rgba(23,20,31,.35);`
           : FRIEND_GLOW;
@@ -636,8 +639,8 @@ export const PIN_Z = {
 export const PAWMAP_KEYFRAMES = `
 @keyframes hps-plush-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { [data-plush] { animation:none !important; } }
-@keyframes hps-breathe { 0%,100% { box-shadow:0 0 0 3px #fff,0 0 0 7px rgba(6,182,212,.95),0 0 20px 7px rgba(6,182,212,.75),0 2px 6px rgba(23,20,31,.35); } 50% { box-shadow:0 0 0 3px #fff,0 0 0 8px rgba(6,182,212,1),0 0 34px 13px rgba(6,182,212,.9),0 2px 6px rgba(23,20,31,.35); } }
-@keyframes hps-follow { 0%,100% { box-shadow:0 0 0 3px rgba(124,58,237,.45),0 0 10px 3px rgba(124,58,237,.5); } 50% { box-shadow:0 0 0 7px rgba(124,58,237,.28),0 0 26px 10px rgba(124,58,237,.7); } }
+@keyframes hps-breathe { 0%,100% { box-shadow:0 0 0 3px #fff,0 0 0 8px #06B6D4,0 0 24px 9px rgba(6,182,212,.8),0 2px 6px rgba(23,20,31,.35); } 50% { box-shadow:0 0 0 3px #fff,0 0 0 10px #06B6D4,0 0 44px 18px rgba(6,182,212,.95),0 2px 6px rgba(23,20,31,.35); } }
+@keyframes hps-follow { 0%,100% { box-shadow:0 0 0 3px #fff,0 0 0 8px #7C3AED,0 0 20px 8px rgba(124,58,237,.7); } 50% { box-shadow:0 0 0 3px #fff,0 0 0 10px #7C3AED,0 0 40px 16px rgba(124,58,237,.9); } }
 @keyframes hps-pulse { 0% { transform:scale(1); opacity:.65; } 70% { transform:scale(2.1); opacity:0; } 100% { transform:scale(2.1); opacity:0; } }
 @media (prefers-reduced-motion: reduce) { .leaflet-marker-icon * { animation: none !important; } }
 .leaflet-container { font-family: Inter, system-ui, sans-serif; }

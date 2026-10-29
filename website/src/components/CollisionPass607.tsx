@@ -34,6 +34,9 @@ function visibleRect(el: HTMLElement): Rect607 | null {
   const parts = el.querySelectorAll<HTMLElement>("*");
   const list: Element[] = parts.length ? Array.from(parts) : [el];
   for (const p of list) {
+    // 30/10 (LEO, fluidité mesurée à CPU ×4) — l'intérieur d'un <svg> (cercles, arcs, chemins) ne déborde
+    // jamais de sa boîte (overflow hidden) : on mesure le <svg>, pas ses enfants (≈ 40 % de rectangles en moins).
+    if (p instanceof SVGElement && p.tagName.toLowerCase() !== "svg") continue;
     const q = p.getBoundingClientRect();
     if (q.width < 2 || q.height < 2) continue;
     l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom);
@@ -64,6 +67,7 @@ function overlayRects(container: HTMLElement, view: Rect607): Rect607[] {
  *  passe ET à chaque image d'un déplacement de carte (glisser, inertie). */
 function clampBubbles2610(icons: HTMLElement[], view: Rect607): void {
   for (const el of icons) {
+    if (!el.querySelector("[data-selected-2610]")) continue;
     const pill = el.querySelector<HTMLElement>("[data-selected-2610] [data-bubble-2610]");
     if (!pill) continue;
     pill.style.translate = "";
@@ -94,15 +98,25 @@ export function runCollisionPass607(pane: HTMLElement, container: HTMLElement): 
   const view: Rect607 = { l: c.left, t: c.top, r: c.right, b: c.bottom };
   clampBubbles2610(icons, view);
   const items: (EdgeItem622 & { el: HTMLElement })[] = [];
+  let offMap = 0;
   for (const el of icons) {
     const layer = layerOf(el);
     if (!layer) continue;
-    const rect = visibleRect(el);
-    if (!rect) continue;
     const box = el.getBoundingClientRect();
     const ml = parseFloat(el.style.marginLeft || "0") || 0;
     const mt = parseFloat(el.style.marginTop || "0") || 0;
-    items.push({ id: `${layer}:${Math.round(rect.l)}:${Math.round(rect.t)}:${items.length}`, layer, rect, anchor: { x: box.left - ml, y: box.top - mt }, el, pinned: el.classList.contains("hps-fan-2710") || !!el.querySelector("[data-selected-2610], [data-cluster-open-2610]") });
+    const anchor = { x: box.left - ml, y: box.top - mt };
+    // 30/10 (LEO) — ancre hors de la carte : resolveEdges622 la masquerait de toute façon (« pointe hors de la
+    // carte ») ; on le fait ici, sans mesurer son contenu. Sur 240 épingles chargées, ~220 sont hors de l'écran
+    // au zoom rue : la passe passait de ~70 ms à ~15 ms sur un téléphone (CPU ×4).
+    if (anchor.x < view.l || anchor.x > view.r || anchor.y < view.t || anchor.y > view.b) {
+      offMap += 1;
+      if (!el.dataset.hps607Hidden) { el.style.visibility = "hidden"; el.style.pointerEvents = "none"; el.dataset.hps607Hidden = "1"; }
+      continue;
+    }
+    const rect = visibleRect(el);
+    if (!rect) continue;
+    items.push({ id: `${layer}:${Math.round(rect.l)}:${Math.round(rect.t)}:${items.length}`, layer, rect, anchor, el, pinned: el.classList.contains("hps-fan-2710") || !!el.querySelector("[data-selected-2610], [data-cluster-open-2610]") });
   }
   const overlays = overlayRects(container, view);
   let { shifts, hidden, unplaced } = resolveEdges622(items, view, overlays);
@@ -121,12 +135,12 @@ export function runCollisionPass607(pane: HTMLElement, container: HTMLElement): 
     ({ shifts, hidden, unplaced } = resolveEdges622(items, view, overlays, { hideUnplaced: true }));
   }
   for (const it of items) {
-    if (hidden.has(it.id)) { it.el.style.visibility = "hidden"; it.el.style.pointerEvents = "none"; it.el.dataset.hps607Hidden = "1"; continue; }
+    if (hidden.has(it.id)) { if (!it.el.dataset.hps607Hidden) { it.el.style.visibility = "hidden"; it.el.style.pointerEvents = "none"; it.el.dataset.hps607Hidden = "1"; } continue; }
     if (it.el.dataset.hps607Hidden) { it.el.style.visibility = ""; it.el.style.pointerEvents = ""; delete it.el.dataset.hps607Hidden; }
     const s = shifts.get(it.id);
     if (s) { it.el.style.translate = `${s.dx}px ${s.dy}px`; it.el.dataset.hps622Shift = "1"; }
   }
-  return { hidden: hidden.size, moved: shifts.size, total: items.length, compact: unplaced.size };
+  return { hidden: hidden.size + offMap, moved: shifts.size, total: items.length + offMap, compact: unplaced.size };
 }
 
 export function CollisionPass607() {
@@ -138,10 +152,12 @@ export function CollisionPass607() {
     let raf = 0;
     let late = 0;
     const run = () => { try { runCollisionPass607(pane, container); } catch { /* jamais bloquant */ } };
-    const schedule = () => {
+    // 30/10 (LEO) — `withLate` : la 2e passe à 380 ms sert aux rails qui s'animent (repli, mise à l'échelle) ;
+    // une mutation du calque des marqueurs (icône réécrite) n'en a pas besoin — elle doublait chaque passe.
+    const schedule = (withLate = true) => {
       if (raf) cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => { raf = 0; run(); });
-      // Les rails et la rangée du haut s'animent (repli, mise à l'échelle) : 2e passage après la transition.
+      if (!withLate) return;
       window.clearTimeout(late);
       late = window.setTimeout(run, 380);
     };
@@ -152,7 +168,7 @@ export function CollisionPass607() {
         const c = container.getBoundingClientRect();
         clampBubbles2610(Array.from(pane.querySelectorAll<HTMLElement>(".leaflet-marker-icon")), { l: c.left, t: c.top, r: c.right, b: c.bottom });
       } catch { /* jamais bloquant */ }
-      schedule();
+      schedule(false);
     });
     mo.observe(pane, { childList: true, subtree: true });
     // Rails repliés / dépliés : leurs attributs changent (classe, style, aria).
@@ -161,7 +177,8 @@ export function CollisionPass607() {
     // sinon la passe se relancerait elle-même en boucle.
     const mo2 = new MutationObserver((recs) => { if (recs.some((r) => !container.contains(r.target))) schedule(); });
     if (wrap) mo2.observe(wrap, { attributes: true, subtree: true, attributeFilter: ["class", "style", "aria-expanded", "data-collapsed"] });
-    map.on("zoomend moveend resize", schedule);
+    const scheduleLate = () => schedule(true);
+    map.on("zoomend moveend resize", scheduleLate);
     let rafMove = 0;
     const onMove = () => {
       if (rafMove) return;
@@ -176,17 +193,17 @@ export function CollisionPass607() {
     map.on("move", onMove);
     // 2610 — le rond sélectionné grandit (1 → 1,18 en 0,35 s) : nouvelle passe à la fin du rebond,
     // sinon les voisins sont placés contre un rond encore petit.
-    const onAnim = (e: AnimationEvent) => { if (e.animationName === "hps2610-pop") schedule(); };
+    const onAnim = (e: AnimationEvent) => { if (e.animationName === "hps2610-pop") schedule(false); };
     pane.addEventListener("animationend", onAnim);
-    window.addEventListener("resize", schedule);
+    window.addEventListener("resize", scheduleLate);
     schedule();
     return () => {
       mo.disconnect(); mo2.disconnect();
-      map.off("zoomend moveend resize", schedule);
+      map.off("zoomend moveend resize", scheduleLate);
       map.off("move", onMove);
       pane.removeEventListener("animationend", onAnim);
       if (rafMove) cancelAnimationFrame(rafMove);
-      window.removeEventListener("resize", schedule);
+      window.removeEventListener("resize", scheduleLate);
       if (raf) cancelAnimationFrame(raf);
       window.clearTimeout(late);
     };

@@ -12,9 +12,10 @@ export type Role2610 = "owner" | "sitter" | "walker";
 
 /** Couleurs pleines, vives (README §Couleurs) — pas de dégradé ni reflet. */
 export const ROLE_2610: Record<Role2610, { color: string; glow: string }> = {
-  owner: { color: "#f23b16", glow: "rgba(242,59,22,0.5)" },
-  sitter: { color: "#1a6cff", glow: "rgba(26,108,255,0.5)" },
-  walker: { color: "#12b350", glow: "rgba(18,179,80,0.5)" },
+  // 30/10 (LEO, Daniel : « le bleu n'est pas assez voyant ») — lueur de rôle sous le rond plus franche.
+  owner: { color: "#f23b16", glow: "rgba(242,59,22,0.75)" },
+  sitter: { color: "#1a6cff", glow: "rgba(26,108,255,0.8)" },
+  walker: { color: "#12b350", glow: "rgba(18,179,80,0.75)" },
 };
 export const GOLD_2610 = "#f6b400";
 export const GOLD_ICON_2610 = "#7a4500";
@@ -144,9 +145,11 @@ export function profilePinHtml2610(o: ProfilePin2610): string {
     : "";
   // Halo discret sous le rond : PawBoost turquoise qui respire, sinon PawFollow violet fixe.
   const halo = o.boosted
-    ? `<span data-boost-2610="" style="position:absolute;inset:0;border-radius:50%;animation:hps2610-boost 1.6s ease-in-out infinite;box-shadow:0 0 0 1.5px rgba(6,182,212,.75),0 0 8px 3px rgba(6,182,212,.4);"></span>`
+    // 30/10 (LEO, Daniel : « halos pas assez voyants ») — liseré blanc 3 px, anneau PLEIN 5 px (turquoise PawBoost qui
+    // respire / violet PawFollow fixe), lueur large : visible sur fond clair comme sombre, à 375 px.
+    ? `<span data-boost-2610="" style="position:absolute;inset:0;border-radius:50%;animation:hps2610-boost 1.6s ease-in-out infinite;box-shadow:0 0 0 3px #fff,0 0 0 8px ${BOOST_2610},0 0 26px 10px rgba(6,182,212,.8);"></span>`
     : o.pawFollow
-      ? `<span data-follow-2610="" style="position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 1.5px rgba(124,58,237,.7),0 0 8px 3px rgba(124,58,237,.35);"></span>`
+      ? `<span data-follow-2610="" style="position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 3px #fff,0 0 0 8px #7C3AED,0 0 22px 9px rgba(124,58,237,.7);"></span>`
       : "";
   const chips = n > 1
     ? `<span data-chips-2610="" style="position:absolute;left:50%;top:42px;transform:translateX(-50%);display:flex;gap:4px;">${roles
@@ -161,7 +164,7 @@ export function profilePinHtml2610(o: ProfilePin2610): string {
   const anim = o.selected ? `transform:scale(1.18);${o.pop === false ? "" : "animation:hps2610-pop .35s cubic-bezier(.3,1.6,.5,1);"}` : "";
   return `<div data-pin-2610="" ${o.selected ? 'data-selected-2610=""' : ""} style="position:relative;width:${S}px;height:${S}px;transform-origin:50% 50%;${anim}">`
     + halo
-    + `<div style="position:absolute;inset:0;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.16),0 2px 3px rgba(0,0,0,.25),0 4px 10px -2px ${main.glow};">`
+    + `<div style="position:absolute;inset:0;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.16),0 2px 3px rgba(0,0,0,.25),0 0 14px 3px ${main.glow};">`
     + `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" aria-hidden="true" style="position:absolute;inset:0;z-index:0;display:block;">${svg}</svg>`
     + `<span style="position:absolute;z-index:1;left:${C - 10}px;top:${C - 10}px;width:20px;height:20px;">${glyph}</span>`
     + `${crown}${live}${verified}${rocket}${o.pinsHtml || ""}</div>${chips}${caption}${bubble}</div>`;
@@ -297,7 +300,7 @@ export function popOnce2610(id: string, selected: boolean, now = Date.now()): bo
 
 /** Images clés (rebond de la sélection, point « en direct » pulsé) — mêmes courbes que la maquette. */
 export const PAWMAP_2610_CSS = `
-@keyframes hps2610-boost { 0%,100% { box-shadow:0 0 0 1.5px rgba(6,182,212,.75),0 0 6px 2px rgba(6,182,212,.35); } 50% { box-shadow:0 0 0 2px rgba(6,182,212,.85),0 0 10px 4px rgba(6,182,212,.5); } }
+@keyframes hps2610-boost { 0%,100% { box-shadow:0 0 0 3px #fff,0 0 0 8px #06B6D4,0 0 20px 8px rgba(6,182,212,.7); } 50% { box-shadow:0 0 0 3px #fff,0 0 0 10px #06B6D4,0 0 40px 16px rgba(6,182,212,.95); } }
 @keyframes hps2610-pop { 0% { transform:scale(1); } 100% { transform:scale(1.18); } }
 @keyframes hps2610-pulse { 0% { box-shadow:0 0 0 1.5px #fff,0 0 0 0 rgba(232,69,47,.55); } 70% { box-shadow:0 0 0 1.5px #fff,0 0 0 7px rgba(232,69,47,0); } 100% { box-shadow:0 0 0 1.5px #fff,0 0 0 0 rgba(232,69,47,0); } }
 .hps2610-dim { opacity:.85; }

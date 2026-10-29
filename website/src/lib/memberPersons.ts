@@ -39,6 +39,14 @@ export function normRole(r: string | undefined | null): RoleName {
   return "owner";
 }
 
+/** 29/10 — identifiant d'un RÔLE d'une personne : `rôle:id` (deux rôles peuvent partager le même id). */
+export function roleKeyOf(r: { id: string; role: string }): string {
+  return `${normRole(r.role)}:${String(r.id)}`;
+}
+export function sameRole(a: { id: string; role: string }, b: { id: string; role: string }): boolean {
+  return roleKeyOf(a) === roleKeyOf(b);
+}
+
 /** Tous les ids de la personne (profil affiché compris, sans doublon). */
 export function personIdsOf(m: NearbyMember): string[] {
   const out = new Set<string>();
@@ -55,10 +63,14 @@ export function personIdsOf(m: NearbyMember): string[] {
  */
 export function rolesOf(m: NearbyMember): PersonRole[] {
   const list: PersonRole[] = [];
+  // 29/10 (LEO, bug prouvé par Daniel sur Agnès D.) — la clé d'un rôle est RÔLE + id, jamais l'id seul :
+  // switchRole réutilise souvent le même _id pour le propriétaire et le gardien d'une même personne,
+  // et le dédoublonnage par id perdait le second (anneau sans bleu, fiche à 2 entrées).
   const seen = new Set<string>();
   const push = (r: PersonRole) => {
-    if (!r.id || seen.has(r.id)) return;
-    seen.add(r.id);
+    const k = roleKeyOf(r);
+    if (!r.id || seen.has(k)) return;
+    seen.add(k);
     list.push(r);
   };
   const self: PersonRole = {
@@ -74,7 +86,8 @@ export function rolesOf(m: NearbyMember): PersonRole[] {
     prices: m.prices ?? undefined,
   };
   const raw = Array.isArray(m.roles) ? m.roles : [];
-  const first = raw.find((r) => r && String(r.id) === String(m.id));
+  const first = raw.find((r) => r && String(r.id) === String(m.id) && normRole(r.role) === self.role)
+    ?? raw.find((r) => r && String(r.id) === String(m.id) && !raw.some((x) => x && String(x.id) === String(m.id) && normRole(x.role) === self.role));
   push(first ? { ...self, ...cleanRole(first), id: String(first.id), role: normRole(first.role) } : self);
   for (const r of raw) {
     if (!r || !r.id) continue;
@@ -134,7 +147,7 @@ export function mergePersons(nearby: NearbyMember[], world: NearbyMember[]): Nea
       // Compléter les rôles (note, prix) sans déplacer le point.
       const byId = new Map(rolesOf(m).map((r) => [r.id, r]));
       const merged: PersonRole[] = rolesOf(cur).map((r) => ({ ...(byId.get(r.id) || {}), ...stripUndef(r), id: r.id, role: r.role }));
-      for (const r of rolesOf(m)) if (!merged.some((x) => x.id === r.id)) merged.push(r);
+      for (const r of rolesOf(m)) if (!merged.some((x) => sameRole(x, r))) merged.push(r);
       const allIds = [...new Set([...personIdsOf(cur), ...ids])];
       out[hit] = {
         ...cur,

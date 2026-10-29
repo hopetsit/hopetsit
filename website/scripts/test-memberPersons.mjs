@@ -119,4 +119,24 @@ ok("587 point 11 — amis placés depuis /friends : floutée, masqué absent, ho
   assert.equal(M.placeFriendsFromList([stranger], []).length, 1); // ancien serveur : inchangé
 });
 
+// 29/10 (LEO) — bug prouvé par Daniel sur Agnès D. : propriétaire et gardienne portent le MÊME _id
+// (switchRole le réutilise) → les 3 rôles doivent rester, clé = rôle + id.
+const agnes = { id: "w-ag", role: "walker", name: "Agnès D.", location: { coordinates: [2.30349, 48.84343] }, priceFrom: 20,
+  roles: [{ id: "w-ag", role: "walker", priceFrom: 20 }, { id: "os-ag", role: "owner", priceFrom: 0 }, { id: "os-ag", role: "sitter", priceFrom: 50 }],
+  personIds: ["w-ag", "os-ag", "os-ag"] };
+ok("même id pour deux rôles : les 3 rôles sont gardés (Agnès D.)", () => {
+  const r = M.rolesOf(agnes);
+  assert.deepEqual(r.map((x) => `${x.role}:${x.id}`), ["walker:w-ag", "owner:os-ag", "sitter:os-ag"]);
+  assert.equal(r.find((x) => x.role === "sitter").priceFrom, 50);
+  assert.deepEqual(M.personIdsOf(agnes), ["w-ag", "os-ag"]);
+  assert.deepEqual(M.rolesMatching(agnes, ["sitter"]).map((x) => `${x.role}:${x.id}`), ["sitter:os-ag"]);
+  assert.equal(M.expandRows([agnes]).length, 3);
+  assert.equal(M.sameRole({ id: "os-ag", role: "owner" }, { id: "os-ag", role: "sitter" }), false);
+});
+ok("point dont le rôle partage son id avec un autre rôle : le rôle du point reste premier", () => {
+  const r = M.rolesOf({ ...agnes, id: "os-ag", role: "sitter" });
+  assert.deepEqual(r.map((x) => `${x.role}:${x.id}`), ["sitter:os-ag", "walker:w-ag", "owner:os-ag"]);
+  assert.equal(r[0].priceFrom, 50);
+});
+
 console.log(`\n${n} tests OK`);

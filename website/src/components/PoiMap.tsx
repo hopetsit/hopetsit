@@ -107,6 +107,7 @@ import {
   isStackedGroup,
   rolesMatching,
   rolesOf,
+  sameRole,
   distanceKmTo,
   type PersonRole,
 } from "@/lib/memberPersons";
@@ -1037,7 +1038,7 @@ export default function PoiMap({
       }
       const m = e.items[0];
       const wanted = rolesMatching(m, wantedRoles);
-      const roles = wanted.length ? [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => w.id === r.id))] : rolesOf(m);
+      const roles = wanted.length ? [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => sameRole(w, r)))] : rolesOf(m);
       const shown = wanted.length ? wanted : roles;
       const r0 = roles[0];
       const cap = memberCaption({ ...m, role: r0.role });
@@ -1122,7 +1123,7 @@ export default function PoiMap({
   // 588 — la fiche d'une personne : choix du rôle si elle en a plusieurs.
   const sheetFor = (m: NearbyMember): Sheet => {
     const wanted = rolesMatching(m, wantedRoles);
-    const roles = wanted.length ? [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => w.id === r.id))] : rolesOf(m);
+    const roles = wanted.length ? [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => sameRole(w, r)))] : rolesOf(m);
     return roles.length > 1 ? { kind: "person", m } : { kind: "role", m, r: roles[0] };
   };
   // 588 — « quand je clic sur mon ami, ça ne zoome pas sur lui » : un ami
@@ -1498,7 +1499,7 @@ export default function PoiMap({
           // Un ami qui partage en direct a déjà son rond « en direct » : pas de doublon.
           if (isFriend && personIdsOf(m).some((x) => liveIdSet.has(x))) return null;
           const wanted = rolesMatching(m, wantedRoles);
-          const roles = wanted.length ? [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => w.id === r.id))] : rolesOf(m);
+          const roles = wanted.length ? [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => sameRole(w, r)))] : rolesOf(m);
           // Rôles MONTRÉS par le filtre (prix double seulement s'il montre gardien ET promeneur).
           const shown = wanted.length ? wanted : roles;
           const open = () => openSheet(roles.length > 1 ? { kind: "person", m } : { kind: "role", m, r: roles[0] }, pt);
@@ -1811,7 +1812,7 @@ function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanc
     const m = sheet.m;
     const friend = isFriendMember(m, friendSet);
     const wanted = rolesMatching(m, wantedRoles);
-    const roles = [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => w.id === r.id))];
+    const roles = [...wanted, ...rolesOf(m).filter((r) => !wanted.some((w) => sameRole(w, r)))];
     body = (
       <>
         <div className="flex items-center gap-3">
@@ -1823,7 +1824,7 @@ function PersonSheet({ sheet, setSheet, labels, roleLabels, wantedRoles, distanc
           {close}
         </div>
         <ul className="mt-3 space-y-1.5">
-          {roles.map((r) => <RoleRow key={`pr-${r.id}`} m={m} r={r} friend={friend} onSee={() => setSheet({ kind: "role", m, r, back: sheet })} />)}
+          {roles.map((r) => <RoleRow key={`pr-${r.role}-${r.id}`} m={m} r={r} friend={friend} onSee={() => setSheet({ kind: "role", m, r, back: sheet })} />)}
         </ul>
       </>
     );

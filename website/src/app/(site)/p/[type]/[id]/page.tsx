@@ -32,6 +32,7 @@ import { RankPill611 } from "@/components/Rank611";
 import { PinChips1910 } from "@/components/Pins1910";
 import { parsePins1910 } from "@/lib/pins1910";
 import { parseRank611 } from "@/lib/ranks611";
+import { FicheSkeleton2910 } from "@/components/Skeleton2910";
 
 // 25/09/2026 (PawMap 584, point 8) — fiche refaite : bouton principal PLEIN
 // « Réserver · dès 20 €/j » (dégradé du rôle, texte blanc, devise du
@@ -198,11 +199,9 @@ function ProviderSharePage() {
   }
 
   if (etat === "chargement") {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <span className="h-7 w-7 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: r.c, borderTopColor: "transparent" }} />
-      </div>
-    );
+    // 29/10 (LEO) — squelette à la forme de la fiche : le pied de page ne saute plus à l'arrivée des
+    // données (mesuré : CLS 0,23–0,30 avec l'ancien spinner de 50 vh → 0 avec le squelette).
+    return <FicheSkeleton2910 tone={r.light} ring={r.c} />;
   }
   if (etat === "absent" || !fiche) {
     return (

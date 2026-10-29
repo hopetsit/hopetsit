@@ -26,6 +26,7 @@ import {
 import { PromoCodeBox } from "@/components/PromoCodeBox";
 import { BillingInfoSection } from "@/components/BillingInfoSection";
 import { VisibilityPills } from "@/components/MapVisibility";
+import { ProfileSkeleton2910 } from "@/components/Skeleton2910";
 
 // v402 — Daniel : "le badge avec le nombre de jours restants des abonnements
 // doit apparaître sur les 3 profils". Chip par abo actif (Premium / PawFollow /
@@ -288,11 +289,9 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-24 text-center text-ink-muted">
-        {t("common_loading")}
-      </div>
-    );
+    // 29/10 (LEO) — squelette à la hauteur du formulaire : la page ne saute plus quand le profil arrive
+    // (mesuré : CLS 0,62–0,69 avec « Chargement… » seul → voir rapport LEO du 29/10).
+    return <ProfileSkeleton2910 />;
   }
 
   if (!profile) {
