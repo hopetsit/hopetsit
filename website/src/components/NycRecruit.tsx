@@ -13,10 +13,12 @@ const SIGNUP_WALKER = "/signup?role=walker&city=New%20York";
 
 export const NYC_H1 = "Earn as a pet sitter or dog walker in New York — free to join";
 
+// 29/10 (GUS) — titre aligné sur la requête n° 1 de la page (« become a pet sitter », 38 affichages,
+// 12e place, 0 clic ; ancien titre « Jobs » : 121 affichages US, CTR 1,7 % en 28 j).
 export const NYC_META = {
-  title: "Dog Walker & Pet Sitter Jobs in New York City",
+  title: "Become a Pet Sitter or Dog Walker in NYC (Free)",
   description:
-    "Free to join: walk dogs or pet sit in Manhattan, Brooklyn, Queens, the Bronx or Staten Island. You set your rates and hours, payment is secured in the app.",
+    "Become a pet sitter or dog sitter in New York for free: dog sitting and walking gigs in Manhattan, Brooklyn, Queens and the Bronx. Set your own rates and hours.",
 };
 
 /** Bandeau « vraie demande » du premier écran. Daté, à retirer s'il n'est plus vrai. */
