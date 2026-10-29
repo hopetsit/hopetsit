@@ -75,6 +75,8 @@ const bookingSchema = new mongoose.Schema(
     heldReleasedAt: { type: Date, default: null },
     // Status change timestamps
     acceptedAt: { type: Date, default: null },
+    // 2910 (BOB) — relance de paiement « choisi mais non payé » : créneaux déjà envoyés (r1 +1 h, r2 +24 h).
+    paymentReminder2910: { sent: [{ at: { type: Date }, slot: { type: String } }] },
     rejectedAt: { type: Date, default: null },
     agreedAt: { type: Date, default: null },
     paidAt: { type: Date, default: null },

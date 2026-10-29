@@ -171,6 +171,8 @@ async function startServer() {
     require('./services/candidatesReminder2810').startCandidatesReminderScheduler();
     // 2910 (BOB, Daniel : « les achats doivent suivre les 3 profils ») — boosts recopiés sur les 3 profils de la personne, toutes les 10 min. BOOST_SYNC=off pour couper.
     require('./services/boostSync2910').startBoostSyncScheduler();
+    // 2910 (BOB, Daniel « qu'ils paient ») — relance de paiement : réservation choisie mais non payée → r1 +1 h, r2 +24 h. PAYMENT_REMINDER_2910=off pour couper.
+    require('./services/paymentReminder2910').startPaymentReminderScheduler();
   } catch (error) {
     logger.error('Failed to start server', error);
     process.exit(1);
