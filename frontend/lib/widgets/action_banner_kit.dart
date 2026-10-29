@@ -284,7 +284,13 @@ class ActionBanner extends StatelessWidget {
       ],
     );
 
+    // 628 (PAM, capture de Daniel 23 h) — « Nouvelle candidature — Prénom »
+    // était COUPÉ : le titre vivait dans la même rangée que la pastille
+    // compteur, le bouton d'action (jusqu'à 124 pt) et la croix → ~110 pt
+    // pour le texte sur 375 pt. Le bouton d'action passe SOUS le texte
+    // (pleine largeur du bloc, ≥ 44 pt) ; le titre garde 2 vraies lignes.
     final body = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _ActionBadge(
           tone: tone,
@@ -310,16 +316,25 @@ class ActionBanner extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
+              if (trailing != null) ...[
+                SizedBox(height: 10.h),
+                Align(
+                  key: const Key('banner628_trailing'),
+                  alignment: Alignment.centerRight,
+                  child: trailing,
+                ),
+              ],
             ],
           ),
         ),
-        SizedBox(width: 10.w),
-        trailing ??
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 22.sp,
-              color: AppColors.textSecondary(context).withValues(alpha: 0.7),
-            ),
+        if (trailing == null) ...[
+          SizedBox(width: 10.w),
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 22.sp,
+            color: AppColors.textSecondary(context).withValues(alpha: 0.7),
+          ),
+        ],
         if (onDismiss != null) ...[
           SizedBox(width: 2.w),
           _BannerIconButton(

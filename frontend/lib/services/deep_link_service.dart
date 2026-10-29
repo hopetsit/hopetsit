@@ -45,6 +45,7 @@ import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
+import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
 import 'package:hopetsit/views/profile/my_rates_screen.dart';
 import 'package:hopetsit/views/pet_owner/booking/owner_bookings_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
@@ -440,6 +441,10 @@ class DeepLinkService {
       Get.to(() => const CoinShopScreen(initialTab: 3));
     } else if (first == 'paw-spot' || first == 'pawspot') {
       Get.to(() => const CoinShopScreen(initialTab: 2));
+    } else if (first == 'pawpoints') {
+      // 628 — parité site (`/pawpoints`) : écran « Mes PawPoints » (carte dorée,
+      // rang, classement). Sert aussi à le vérifier au simulateur (`openurl`).
+      Get.to(() => const PawspotLeaderboardScreen());
     } else if (first == 'shop') {
       // v602 — /shop/<onglet> : 0 PawBoost · 1 PawFollow · 2 PawSpot · 3 Premium.
       final tab = int.tryParse(second) ?? 0;

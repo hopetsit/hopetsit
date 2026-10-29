@@ -246,9 +246,17 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
                   ],
                 ),
               ),
-              // 611 — mon RANG (Chiot → Légende) remplace l'ancien badge.
-              const PawMyRankPill611(),
             ],
+          ),
+          // 611 — mon RANG (Chiot → Légende) remplace l'ancien badge.
+          // 2910 (BOB, capture de Daniel) — les 2 pastilles de rang étaient DANS la
+          // rangée du titre : elles prenaient toute la largeur et le titre « Mes
+          // PawPoints · 3006 pts » s'affichait une lettre par ligne. Les pastilles
+          // passent sous le titre, sur leur propre ligne (Wrap, à gauche).
+          SizedBox(height: 10.h),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: PawMyRankPill611(),
           ),
           // v414 — Daniel : "améliore la liste de points et de récompenses".
           // CTA vers le catalogue de récompenses (lu depuis /pawpoints/catalog,

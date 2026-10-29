@@ -11,6 +11,9 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:hopetsit/widgets/action_banner_kit.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -462,6 +465,70 @@ void main() {
       final yAna = tester.getTopLeft(find.byKey(const Key('dates620_choose_a1'))).dy;
       final yBob = tester.getTopLeft(find.byKey(const Key('dates620_choose_a2'))).dy;
       expect(yBob, lessThan(yAna), reason: 'Bob (PawBoost) avant Ana');
+    });
+  });
+
+  group('bandeau d\'action (capture de Daniel 23 h)', () {
+    setUp(() async {
+      await lotdSetUp(role: 'owner');
+      Get.locale = const Locale('fr', 'FR');
+    });
+    tearDown(() async {
+      await Get.deleteAll(force: true);
+      Get.reset();
+    });
+
+    testWidgets('« Nouvelle candidature — Anne-Charlotte » se lit en entier sur 375 pt, avec pastille, bouton et croix',
+        (tester) async {
+      const title = 'Nouvelle candidature — Anne-Charlotte';
+      lotdPhone(tester, width: 375, height: 667);
+      await tester.pumpWidget(lotdApp(Scaffold(
+        body: Column(children: [
+          ActionBanner(
+            tone: ActionTone.pending,
+            icon: Icons.how_to_reg_rounded,
+            title: title,
+            subtitle: '8 nov. 2026 • Anne-Charlotte Dupont-Martin',
+            extraCount: 24,
+            onDismiss: () {},
+            onTap: () {},
+            trailing: ActionPillButton(
+              label: 'Voir les candidats',
+              tone: ActionTone.pending,
+              compact: true,
+              maxWidth: 124.w,
+              onPressed: () {},
+            ),
+          ),
+        ]),
+      )));
+      await lotdSettle(tester, frames: 4);
+      final para = tester.renderObject<RenderParagraph>(find.text(title));
+      expect(para.didExceedMaxLines, isFalse, reason: 'titre coupé');
+      expect(para.size.width, greaterThan(180), reason: 'le titre a de la place (avant : ~110 pt)');
+      expect(find.text('Voir les candidats'), findsOneWidget);
+      expect(find.byKey(const Key('banner628_trailing')), findsOneWidget);
+      // bouton ≥ 44 pt
+      expect(tester.getSize(find.byType(ActionPillButton)).height, greaterThanOrEqualTo(44));
+      expect(tester.takeException(), isNull);
+      // Titre long ET bouton sous le texte : rien ne déborde dans 9 langues (le plus long : allemand).
+      // Vrais titres (`notif_title_new_application` × 9 langues) + prénom long.
+      for (final t in const [
+        'Nouvelle candidature — Anne-Charlotte', 'New application — Anne-Charlotte', 'Nueva candidatura — Anne-Charlotte',
+        'Neue Bewerbung — Anne-Charlotte', 'Nuova candidatura — Anne-Charlotte', 'Nova candidatura — Anne-Charlotte',
+        '새 지원 — Anne-Charlotte', '新しい応募 — Anne-Charlotte', 'Nowe zgłoszenie — Anne-Charlotte',
+      ]) {
+        await tester.pumpWidget(lotdApp(Scaffold(
+          body: ActionBanner(
+            tone: ActionTone.pending, icon: Icons.how_to_reg_rounded, title: t, subtitle: 'x', extraCount: 3,
+            onDismiss: () {}, onTap: () {},
+            trailing: ActionPillButton(label: 'Voir les candidats', tone: ActionTone.pending, compact: true, maxWidth: 124.w, onPressed: () {}),
+          ),
+        )));
+        await lotdSettle(tester, frames: 2);
+        expect(tester.renderObject<RenderParagraph>(find.text(t)).didExceedMaxLines, isFalse, reason: t);
+        expect(tester.takeException(), isNull, reason: t);
+      }
     });
   });
 
