@@ -285,10 +285,11 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Avatar
-          CircleAvatar(onBackgroundImageError: (comment.authorAvatar.isNotEmpty) ? netImageOnError620 : null, 
+          CircleAvatar(
             radius: 20.r,
             backgroundColor: AppColors.primaryColor,
-            child: CircleAvatar(
+            // ZOE 28/10 — erreur d'image sur l'avatar qui porte l'image (assertion sinon).
+            child: CircleAvatar(onBackgroundImageError: (comment.authorAvatar.isNotEmpty) ? netImageOnError620 : null,
               radius: 18.r,
               backgroundColor: AppColors.lightGrey,
               // v23.1 part 250 — perf : maxWidth 120 (avatar 36px, repete

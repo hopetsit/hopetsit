@@ -13,6 +13,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/map_ui_state.dart';
+import 'package:hopetsit/views/pet_owner/chat/chat_choose_banner628.dart';
 import 'package:hopetsit/views/pet_owner/chat/tracking_request_sheet.dart';
 // v23.1 part 240 — LiveWalkMapScreen import retire : "Voir la carte" du
 // chat n'utilise plus l'ancienne carte "suivre balade" mais ouvre la
@@ -800,16 +801,29 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         ],
       ),
       body: PawPatternBackground(
- color: t.accent,
- child: ChatConversationBody(
-        session: chatController,
-        theme: t,
-        conversationId: widget.conversationId,
-        contactName: widget.contactName,
-        specialCardBuilder: _specialCard,
-        bottomBuilder: _bottom,
+        color: t.accent,
+        // 628 — bandeau « <Prénom> a candidaté à ta demande » + « Choisir
+        // <prénom> et payer · prix » quand l'interlocuteur a candidaté
+        // (parité site /chat). Column + Expanded hors de tout défilement.
+        child: Column(
+          children: [
+            ChatChooseBanner628(
+              conversationId: widget.conversationId,
+              conversations: () => chatController.conversations,
+            ),
+            Expanded(
+              child: ChatConversationBody(
+                session: chatController,
+                theme: t,
+                conversationId: widget.conversationId,
+                contactName: widget.contactName,
+                specialCardBuilder: _specialCard,
+                bottomBuilder: _bottom,
+              ),
+            ),
+          ],
+        ),
       ),
-),
     );
   }
 }

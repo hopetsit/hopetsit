@@ -1,0 +1,70 @@
+// 628 (PAM, 29/10/2026) — garanties sous « Choisir <prénom> et payer » (annulation gratuite 72 h,
+// séquestre jusqu'à la fin du service, ligne « fêtes » 15/12 – 06/01) et bandeau « <Prénom> a candidaté
+// à ta demande » dans la conversation du propriétaire. MÊMES textes que le site (BOB, e60bcaaa /
+// 279333b5) : website/src/lib/i18n/cand2610.ts (g_cancel, g_escrow, g_holiday, chat_title, chat_see).
+// Fichier GÉNÉRÉ ; {name} jamais traduit.
+const Map<String, Map<String, String>> pay628I18n = <String, Map<String, String>>{
+  'fr': <String, String>{
+    'cand628_g_cancel': 'Annulation gratuite jusqu\'à 72 h avant, remboursement intégral',
+    'cand628_g_escrow': 'Ton argent n\'est versé qu\'une fois le service terminé',
+    'cand628_g_holiday': 'Les gardiens sont très demandés pour les fêtes : réserve le tien maintenant, sans risque.',
+    'cand628_chat_title': '{name} a candidaté à ta demande',
+    'cand628_chat_see': 'Voir sa candidature',
+  },
+  'en': <String, String>{
+    'cand628_g_cancel': 'Free cancellation up to 72 h before, full refund',
+    'cand628_g_escrow': 'Your money is only released once the service is done',
+    'cand628_g_holiday': 'Sitters are in high demand over the holidays: book yours now, risk-free.',
+    'cand628_chat_title': '{name} applied to your request',
+    'cand628_chat_see': 'See the application',
+  },
+  'es': <String, String>{
+    'cand628_g_cancel': 'Cancelación gratuita hasta 72 h antes, reembolso íntegro',
+    'cand628_g_escrow': 'Tu dinero solo se libera cuando termina el servicio',
+    'cand628_g_holiday': 'Los cuidadores están muy solicitados en las fiestas: reserva el tuyo ahora, sin riesgo.',
+    'cand628_chat_title': '{name} se ha postulado a tu solicitud',
+    'cand628_chat_see': 'Ver su candidatura',
+  },
+  'de': <String, String>{
+    'cand628_g_cancel': 'Kostenlose Stornierung bis 72 Std. vorher, volle Erstattung',
+    'cand628_g_escrow': 'Dein Geld wird erst nach dem Service ausgezahlt',
+    'cand628_g_holiday': 'Sitter sind über die Feiertage sehr gefragt: buche deinen jetzt, ohne Risiko.',
+    'cand628_chat_title': '{name} hat sich auf deine Anfrage beworben',
+    'cand628_chat_see': 'Bewerbung ansehen',
+  },
+  'it': <String, String>{
+    'cand628_g_cancel': 'Cancellazione gratuita fino a 72 h prima, rimborso totale',
+    'cand628_g_escrow': 'I tuoi soldi vengono versati solo a servizio concluso',
+    'cand628_g_holiday': 'I pet sitter sono molto richiesti durante le feste: prenota il tuo ora, senza rischi.',
+    'cand628_chat_title': '{name} si è candidato/a alla tua richiesta',
+    'cand628_chat_see': 'Vedi la candidatura',
+  },
+  'pt': <String, String>{
+    'cand628_g_cancel': 'Cancelamento gratuito até 72 h antes, reembolso total',
+    'cand628_g_escrow': 'O teu dinheiro só é libertado quando o serviço termina',
+    'cand628_g_holiday': 'Os cuidadores são muito procurados nas festas: reserva o teu agora, sem risco.',
+    'cand628_chat_title': '{name} candidatou-se ao teu pedido',
+    'cand628_chat_see': 'Ver a candidatura',
+  },
+  'ko': <String, String>{
+    'cand628_g_cancel': '72시간 전까지 무료 취소, 전액 환불',
+    'cand628_g_escrow': '결제 금액은 서비스가 끝난 뒤에만 지급됩니다',
+    'cand628_g_holiday': '연휴에는 시터 예약이 몰립니다: 지금 위험 없이 예약하세요.',
+    'cand628_chat_title': '{name}님이 요청에 지원했습니다',
+    'cand628_chat_see': '지원 보기',
+  },
+  'ja': <String, String>{
+    'cand628_g_cancel': '72時間前まで無料キャンセル・全額返金',
+    'cand628_g_escrow': '代金はサービス完了後にのみ支払われます',
+    'cand628_g_holiday': '年末年始はシッターの予約が集中します：今なら安心して予約できます。',
+    'cand628_chat_title': '{name}さんがあなたの依頼に応募しました',
+    'cand628_chat_see': '応募を見る',
+  },
+  'pl': <String, String>{
+    'cand628_g_cancel': 'Bezpłatne anulowanie do 72 h przed, pełny zwrot',
+    'cand628_g_escrow': 'Twoje pieniądze są wypłacane dopiero po zakończeniu usługi',
+    'cand628_g_holiday': 'Opiekunowie są bardzo poszukiwani w święta: zarezerwuj swojego teraz, bez ryzyka.',
+    'cand628_chat_title': '{name} zgłasza się do Twojego ogłoszenia',
+    'cand628_chat_see': 'Zobacz zgłoszenie',
+  },
+};

@@ -688,10 +688,15 @@ class PawMapPinPainter {
         (3 + 7 * s, 10 + 16 * s, 0.5 + 0.2 * s),
       ]);
     } else {
+      // 628 (PAM, 29/10 — Daniel : « le turquoise doit être plus visible »,
+      // site 94e0e256 `boostGlowStyle` + `hps-breathe`) : liseré BLANC 3 px,
+      // puis anneau turquoise PLEIN de 4 px (r+3 → r+7, 95 % → 100 %), puis
+      // lueur plus large (spread 7 → 13, flou 20 → 34) qui respire.
       drawCssGlow(canvas, center, radius, m, color, [
-        (3 + 3 * s, 0, 0.35 + 0.15 * s),
-        (4 + 6 * s, 12 + 14 * s, 0.55 + 0.25 * s),
+        (7 + 1 * s, 0, 0.95 + 0.05 * s),
+        (7 + 6 * s, 20 + 14 * s, 0.75 + 0.15 * s),
       ]);
+      canvas.drawCircle(center, radius + 3, Paint()..color = Colors.white);
     }
   }
 
@@ -1046,9 +1051,10 @@ class PawMapPinPainter {
     final (light, dark) = PawMapLegend.ringGradient(color);
     final circle = Path()..addOval(Rect.fromCircle(center: c, radius: r));
     if (boostPhase != null) {
-      drawBoostGlow(canvas, c, r, boostPhase, maxR: r + margin - 0.5);
+      // 628 — l'ombre AVANT le halo : le liseré blanc du PawBoost reste blanc.
       cssShadow(canvas, circle,
           dy: 2, blur: 6, color: PawMapLegend.ink.withValues(alpha: 0.35));
+      drawBoostGlow(canvas, c, r, boostPhase, maxR: r + margin - 0.5);
     } else {
       cssShadow(canvas, circle,
           dy: 5,
@@ -1454,6 +1460,9 @@ class PawMapPinPainter {
     if (halo == PawPhotoHalo.follow) {
       drawGlow(canvas, c, glowR, followPhase!, PawMapLegend.pawFollow, maxR: maxR);
     } else if (halo == PawPhotoHalo.boost) {
+      // 628 — l'ombre AVANT le halo : le liseré blanc du PawBoost reste blanc.
+      cssShadow(canvas, circle,
+          dy: 2, blur: 6, color: PawMapLegend.ink.withValues(alpha: 0.35));
       drawBoostGlow(canvas, c, glowR, boostPhase!, maxR: maxR);
     } else if (pawFollowGlow) {
       drawCssGlow(canvas, c, glowR, maxR, PawMapLegend.pawFollow,
@@ -1471,8 +1480,10 @@ class PawMapPinPainter {
 
     // 2. (v597) plus d'anneaux de rôle sous le rond : voir `contour`.
 
-    // 3. Ombre du rond.
-    if (boostPhase != null || followPhase != null) {
+    // 3. Ombre du rond (628 : déjà dessinée sous le halo PawBoost).
+    if (halo == PawPhotoHalo.boost) {
+      // rien : voir ci-dessus
+    } else if (boostPhase != null || followPhase != null) {
       cssShadow(canvas, circle,
           dy: 2, blur: 6, color: PawMapLegend.ink.withValues(alpha: 0.35));
     } else if (isFriend || isMe) {

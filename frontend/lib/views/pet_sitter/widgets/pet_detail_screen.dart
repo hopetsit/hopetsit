@@ -133,13 +133,15 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         actions: [
           Padding(
             padding: EdgeInsets.only(right: 16.w),
-            child: CircleAvatar(onBackgroundImageError: (widget.sitterProfileImage != null &&
-                        widget.sitterProfileImage!.isNotEmpty &&
-                        (widget.sitterProfileImage!.startsWith('http://') ||
-                            widget.sitterProfileImage!.startsWith('https://'))) ? netImageOnError620 : null, 
+            child: CircleAvatar(
               radius: 16.r,
               backgroundColor: AppColors.primaryColor,
-              child: CircleAvatar(
+              // ZOE 28/10 — l'erreur d'image va sur l'avatar qui PORTE l'image
+              // (sur l'anneau sans image : assertion Flutter, fiche vide en debug).
+              child: CircleAvatar(onBackgroundImageError: (widget.sitterProfileImage != null &&
+                        widget.sitterProfileImage!.isNotEmpty &&
+                        (widget.sitterProfileImage!.startsWith('http://') ||
+                            widget.sitterProfileImage!.startsWith('https://'))) ? netImageOnError620 : null,
                 radius: 14.r,
                 backgroundColor: AppColors.mediaPlaceholder(context),
                 backgroundImage:

@@ -430,13 +430,18 @@ const sanitizeApplication = (applicationDoc) => {
     application.owner = sanitizeUser(application.ownerId);
     delete application.ownerId;
   }
+  // 628 (PAM, 29/10) — PawBoost ACTIF du candidat (boostExpiry > maintenant), même calcul que
+  // sitterController / walkerController : l'app met les candidats boostés en tête (tri stable).
+  const boostedNow = (doc) => !!(doc && doc.boostExpiry && new Date(doc.boostExpiry).getTime() > Date.now());
   if (application.sitterId && typeof application.sitterId === 'object' && application.sitterId._id) {
     application.sitter = sanitizeUser(application.sitterId);
+    application.sitter.isBoosted = boostedNow(application.sitterId);
     delete application.sitterId;
   }
   // Session v16.3b - expose walker as a first-class field when present.
   if (application.walkerId && typeof application.walkerId === 'object' && application.walkerId._id) {
     application.walker = sanitizeUser(application.walkerId);
+    application.walker.isBoosted = boostedNow(application.walkerId);
     delete application.walkerId;
   }
   // Session v17.1 — ensure postId is always a plain string so the frontend

@@ -1036,6 +1036,18 @@ class DeepLinkService {
   /// candidats de la demande). On ouvre désormais les candidats de CETTE
   /// demande (Choisir / Refuser, avec confirmation) ; si le propriétaire
   /// choisit ce gardien, la page de paiement s'ouvre juste après.
+  /// 628 (PAM) — paiement d'une réservation (écran Airwallex, ou la fiche si
+  /// déjà payée) : appelé par la feuille des candidats dès que le choix est
+  /// fait, quel que soit le chemin d'entrée (bandeau d'accueil, lien, chat).
+  Future<void> openBookingPayment628(String bookingId) => _openPayment(bookingId);
+
+  /// 628 (PAM) — bandeau « Choisir (prénom) et payer » de la conversation :
+  /// même parcours que le lien `?choose=1` (feuille des candidats, encart,
+  /// puis paiement de la réservation créée).
+  Future<void> openOwnerApplication628(String applicationId,
+          {bool chooseNow = true}) =>
+      _openOwnerApplication(applicationId, chooseNow: chooseNow);
+
   Future<void> _openOwnerApplication(String applicationId,
       {bool chooseNow = false}) async {
     final ApplicationsController ctrl = Get.isRegistered<ApplicationsController>()
@@ -1071,18 +1083,14 @@ class DeepLinkService {
     }
     // 624 — le candidat de la notification en premier et entouré ; repère
     // « a ouvert ses candidats » (source notification).
+    // 628 — la feuille ouvre elle-même le paiement dès que le choix est fait
+    // (`PostCandidatesSheet.show`), pour TOUS les chemins d'entrée.
     await PostCandidatesSheet.show(
         context: ctx,
         postId: postId,
         highlightApplicationId: applicationId,
         source: 'notification',
         chooseNow: chooseNow);
-    // Choix fait dans la feuille → paiement tout de suite (1 tap de moins).
-    final chosen = ctrl.applications.firstWhereOrNull((a) =>
-        a.postId == postId &&
-        const <String>['accepted', 'agreed'].contains(a.status.toLowerCase().trim()) &&
-        _objectIdRegex.hasMatch(a.bookingId ?? ''));
-    if (chosen != null) await _openPayment(chosen.bookingId!);
   }
 
   // v23.1.286 — navigation par rôle vers les VRAIS écrans (les routes nommées

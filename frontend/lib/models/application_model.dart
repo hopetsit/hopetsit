@@ -190,6 +190,9 @@ class ApplicationSitter {
   final double? lng;
   /// 624 — identité vérifiée (KYC), pastille « Identité vérifiée ».
   final bool identityVerified;
+  /// 628 — PawBoost actif (`isBoosted` posé par le serveur dans
+  /// sanitizeApplication) : candidats boostés en tête, tri stable.
+  final bool isBoosted;
 
   ApplicationSitter({
     required this.id,
@@ -218,6 +221,7 @@ class ApplicationSitter {
     this.lat,
     this.lng,
     this.identityVerified = false,
+    this.isBoosted = false,
   });
 
   /// 624 — `location.lat/lng`, sinon `location.coordinates` = [lng, lat].
@@ -267,6 +271,7 @@ class ApplicationSitter {
       // e-mail vérifié.
       identityVerified:
           json['identityVerified'] == true || json['kycVerified'] == true,
+      isBoosted: json['isBoosted'] == true,
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
       avatar: ApplicationAvatar.fromJson(

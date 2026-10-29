@@ -165,6 +165,10 @@ const getWalkerProfile = async (req, res) => {
     // 02/10 (NEO) — ville non publiable (e-mail, lien, numéro) retirée pour les autres.
     if (!isSelfWalker) require('../utils/publicCity607').scrubCities(payload);
     payload.reviews = formattedReviews;
+    // 628 (PAM, 29/10, point 6 de BOB) — `isBoosted` renvoyait null pour un promeneur (le gardien
+    // renvoie true/false) : même calcul que sitterController (boostExpiry > maintenant).
+    payload.isBoosted = !!(walker.boostExpiry && new Date(walker.boostExpiry).getTime() > Date.now());
+    payload.boostTier = payload.isBoosted ? (walker.boostTier || null) : null;
     // 611 (PAM, demande LEO) — rang toujours présent (champ absent = Chiot).
     payload.rank = require('../services/ranks611').rankFor(walker.pawPoints);
     // v23.1.296 — self-heal : recalcule le statut Top Walker à la lecture du

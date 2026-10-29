@@ -15,6 +15,9 @@ import 'package:hopetsit/utils/service_location587.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/dates620_candidates.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_dates_sheet2610.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
+import 'package:hopetsit/services/deep_link_service.dart';
+import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
+import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/post_model.dart';
@@ -42,9 +45,9 @@ class PostCandidatesSheet {
     String? highlightApplicationId,
     String source = 'direct',
     bool chooseNow = false,
-  }) {
+  }) async {
     markCandidatesViewed2610(postId, source);
-    return showModalBottomSheet<void>(
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -54,8 +57,37 @@ class PostCandidatesSheet {
           highlightId: highlightApplicationId,
           chooseNow: chooseNow),
     );
+    // 628 (PAM) — IMPASSE mesurée au simulateur (bandeau d'accueil → Choisir
+    // → retour à l'accueil, rien d'autre) : dès qu'un candidat de cette
+    // demande est choisi (réservation créée), le paiement s'ouvre TOUT DE
+    // SUITE, quel que soit le chemin d'entrée (bandeau, notification, lien
+    // ?choose=1, chat). Avant, seul le lien le faisait.
+    final String? bookingId = chosenBookingId628(
+        Get.isRegistered<ApplicationsController>()
+            ? Get.find<ApplicationsController>().applications
+            : const <ApplicationModel>[],
+        postId);
+    if (bookingId != null) await openBookingPayment628(bookingId);
   }
 }
+
+/// 628 — réservation créée par le choix d'un candidat de [postId] (statut
+/// accepted / agreed avec un `bookingId` valide), sinon null. Pure.
+String? chosenBookingId628(Iterable<ApplicationModel> applications, String postId) {
+  final re = RegExp(r'^[0-9a-fA-F]{24}$');
+  for (final a in applications) {
+    if (a.postId != postId) continue;
+    if (!const <String>['accepted', 'agreed'].contains(a.status.toLowerCase().trim())) continue;
+    final b = a.bookingId ?? '';
+    if (re.hasMatch(b)) return b;
+  }
+  return null;
+}
+
+/// 628 — ouverture du paiement (écran Airwallex, ou la fiche si déjà payée).
+/// Remplaçable en test.
+Future<void> Function(String bookingId) openBookingPayment628 =
+    (bookingId) => DeepLinkService.instance.openBookingPayment628(bookingId);
 
 /// 624 (ADA) — repère « le propriétaire a ouvert ses candidats » : envoyé
 /// sans attendre, toutes les erreurs ignorées (le serveur répond 204).
@@ -104,6 +136,78 @@ ApplicationModel? fastChoice627({
   if (candidateTotal2610(a).isEmpty) return null;
   return a;
 }
+
+/// 628 (PAM) — ordre des candidats : celui de la notification d'abord, puis
+/// les PawBoost actifs (`sitter.isBoosted`, serveur 2910), puis l'ORDRE DU
+/// SERVEUR (`/applications/my` : boostés d'abord, du plus récent au plus
+/// ancien). Tri stable : on ne retrie plus par `createdAt` côté app. Pure.
+List<ApplicationModel> orderCandidates628(
+    Iterable<ApplicationModel> pending, String? highlightId) {
+  final list = pending.toList();
+  final boosted = list.where((a) => a.sitter.isBoosted).toList();
+  final others = list.where((a) => !a.sitter.isBoosted).toList();
+  final out = <ApplicationModel>[...boosted, ...others];
+  if (highlightId != null && highlightId.isNotEmpty) {
+    final i = out.indexWhere((a) => a.id == highlightId);
+    if (i > 0) out.insert(0, out.removeAt(i));
+  }
+  return out;
+}
+
+/// 628 (PAM) — garanties sous « Choisir (prénom) et payer » (parité site
+/// `PostCandidates1610.tsx`, BOB e60bcaaa) : clés i18n dans l'ordre.
+///  · `cand628_g_cancel` seulement si le début est à plus de 72 h
+///    (self-cancel + remboursement, bookingController) ;
+///  · `cand628_g_escrow` toujours (séquestre jusqu'à la fin du service) ;
+///  · `cand628_g_holiday` si la période touche le 15/12 – 06/01.
+/// Pure ; [now] injectable pour les tests.
+List<String> guaranteeLines628({DateTime? start, DateTime? end, DateTime? now}) {
+  final n = (now ?? DateTime.now()).toUtc();
+  final out = <String>[];
+  final s = start?.toUtc();
+  if (s != null && s.difference(n) > const Duration(hours: 72)) {
+    out.add('cand628_g_cancel');
+  }
+  out.add('cand628_g_escrow');
+  if (s != null) {
+    final e = (end ?? start)!.toUtc();
+    final y = s.year;
+    for (final yy in [y - 1, y]) {
+      final from = DateTime.utc(yy, 12, 15);
+      final to = DateTime.utc(yy + 1, 1, 6);
+      if (!s.isAfter(to) && !e.isBefore(from)) {
+        out.add('cand628_g_holiday');
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/// 628 — début / fin de la période pour les garanties : la demande d'abord,
+/// sinon ce que porte la candidature. Pure.
+({DateTime? start, DateTime? end}) guaranteePeriod628(ApplicationModel app, PostModel? post) {
+  if (post != null && post.dateMode != 'tbd' && post.startDate != null) {
+    return (start: post.startDate, end: post.endDate ?? post.startDate);
+  }
+  final s = DateTime.tryParse(app.startDate ?? '') ?? DateTime.tryParse(app.serviceDate ?? '');
+  return (start: s, end: s);
+}
+
+/// 628 (point 7, Daniel 29/10) — toucher la PHOTO ou le PRÉNOM d'un candidat
+/// ouvre son profil public (gardien → ServiceProviderDetailScreen, promeneur →
+/// WalkerDetailScreen), poussé PAR-DESSUS la feuille : le retour revient à la
+/// liste, sans perdre le candidat retenu ni le paiement (site 2910f :
+/// `/p/<rôle>/<id>`). Remplaçable en test.
+Future<void> Function(ApplicationModel app) openCandidateProfile628 = (app) async {
+  final id = app.sitter.id;
+  if (id.isEmpty) return;
+  if (app.providerRole == 'walker') {
+    await Get.to(() => WalkerDetailScreen(walkerId: id));
+  } else {
+    await Get.to(() => ServiceProviderDetailScreen(sitterId: id, status: 'pending'));
+  }
+};
 
 /// 624 — distance arrondie au km (≥ 1), jamais l'adresse. Pure.
 int? candidateKm2610(double? lat1, double? lng1, double? lat2, double? lng2) {
@@ -234,6 +338,13 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
   final RxString _writing = ''.obs;
   PostModel? _post;
 
+  /// 628 — candidat retenu AVANT les dates (« Choisir » sur une demande sans
+  /// dates, ou lien ?choose=1 sur une telle demande) : dès que les dates sont
+  /// posées, l'encart « Choisir <prénom> et payer · prix » apparaît pour lui
+  /// (site 2810, c1f7ae29). Vide = pas de candidat retenu.
+  String? _fastId;
+  bool _datesAutoOpened = false;
+
   ApplicationsController get _controller => Get.isRegistered<ApplicationsController>()
       ? Get.find<ApplicationsController>()
       : Get.put(ApplicationsController());
@@ -249,25 +360,28 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
     try {
       final p = await Get.find<PostRepository>().getPostById(widget.postId);
       if (mounted && p != null) setState(() => _post = p);
+      // 628 — lien « Choisir <prénom> » (?choose=1) sur une demande SANS
+      // dates : les dates s'ouvrent d'office, le candidat est retenu (site
+      // 2810). Une seule fois.
+      final h = widget.highlightId;
+      if (mounted && p != null && widget.chooseNow && p.dateMode == 'tbd' &&
+          !_datesAutoOpened && h != null && h.isNotEmpty) {
+        _datesAutoOpened = true;
+        _fastId = h;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_openDates());
+        });
+      }
     } catch (_) {/* la page reste utilisable sans la demande */}
   }
 
-  /// Candidats en attente ; celui de la notification d'abord, puis les plus
-  /// récents.
-  List<ApplicationModel> _candidates() {
-    final list = _controller.applications
-        .where((a) =>
-            a.postId == widget.postId &&
-            a.status.toLowerCase().trim() == 'pending')
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    final h = widget.highlightId;
-    if (h != null && h.isNotEmpty) {
-      final i = list.indexWhere((a) => a.id == h);
-      if (i > 0) list.insert(0, list.removeAt(i));
-    }
-    return list;
-  }
+  /// Candidats en attente : celui de la notification d'abord, puis les
+  /// PawBoost, puis l'ordre du serveur (628 — plus de retri par date).
+  List<ApplicationModel> _candidates() => orderCandidates628(
+      _controller.applications.where((a) =>
+          a.postId == widget.postId &&
+          a.status.toLowerCase().trim() == 'pending'),
+      widget.highlightId);
 
   bool _postIsTbd(List<ApplicationModel> list) {
     final p = _post;
@@ -287,7 +401,22 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
       return;
     }
     final saved = await PostDatesSheet2610.show(context, p);
-    if (saved) await _loadPost();
+    if (saved) {
+      await _loadPost();
+    } else if (mounted && _fastId != null) {
+      // 628 — dates abandonnées : le candidat n'est plus « retenu ».
+      setState(() => _fastId = null);
+    }
+  }
+
+  /// 628 — « Choisir » sur une demande sans dates (ou candidature indicative) :
+  /// on retient le candidat et on ouvre les dates ; dès qu'elles sont posées,
+  /// l'encart « Choisir (prénom) et payer · prix » s'affiche pour lui, prix
+  /// recalculé par le serveur (parité site 2810). Un geste de moins.
+  Future<void> _chooseDatesThenPay(ApplicationModel app) async {
+    if (_busy.value) return;
+    setState(() => _fastId = app.id);
+    await _openDates();
   }
 
   Future<void> _write(ApplicationModel app) async {
@@ -328,8 +457,8 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
       warnStale620(); // 621 — tarif à venir : rien à choisir encore
       return;
     }
-    if (applicationIsIndicative620(app)) {
-      warnDatesRequired620();
+    if (applicationIsIndicative620(app) || _postIsTbd([app])) {
+      await _chooseDatesThenPay(app); // 628 — dates puis paiement
       return;
     }
     final confirmed = await _showModernConfirm(
@@ -421,11 +550,15 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
         final list = _candidates();
         final bool tbd = list.isNotEmpty && _postIsTbd(list);
         final int stale620 = list.where(applicationIsStale620).length;
+        // 628 — candidat retenu avant les dates (`_fastId`) : l'encart dès que
+        // les dates sont posées, comme pour le lien ?choose=1.
+        final String? fastId = _fastId ?? widget.highlightId;
         final ApplicationModel? fast = fastChoice627(
             applications: list,
-            focusId: widget.highlightId,
-            chooseNow: widget.chooseNow,
+            focusId: fastId,
+            chooseNow: widget.chooseNow || _fastId != null,
             tbd: tbd);
+        final period = fast == null ? null : guaranteePeriod628(fast, _post);
         final String place = list
             .map((a) => serviceLocationDisplay(a.serviceLocation,
                 meetingPoint: a.meetingPoint))
@@ -436,6 +569,8 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
               app: fast,
               busy: _busy,
               onPressed: () => _acceptAndPay(fast),
+              periodStart: period?.start,
+              periodEnd: period?.end,
             ),
           if (tbd) _TbdBanner2610(onTap: _openDates),
           if (stale620 > 0) StaleBanner620(count: stale620),
@@ -589,11 +724,17 @@ class FastChoose627 extends StatelessWidget {
     required this.app,
     required this.busy,
     required this.onPressed,
+    this.periodStart,
+    this.periodEnd,
   });
 
   final ApplicationModel app;
   final RxBool busy;
   final VoidCallback onPressed;
+
+  /// 628 — période du service (garanties 72 h / fêtes).
+  final DateTime? periodStart;
+  final DateTime? periodEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -615,13 +756,27 @@ class FastChoose627 extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          PoppinsText(
-            key: const Key('cand627_fast_title'),
-            text: 'cand627_fast_title'.tr.replaceAll('{name}', first),
-            fontSize: 16.sp,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary(context),
-            maxLines: 2,
+          // 628 (point 7) — le titre (prénom) ouvre le profil public du candidat.
+          GestureDetector(
+            key: Key('cand628_fast_profile_${app.id}'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => openCandidateProfile628(app),
+            child: Row(
+              children: [
+                Expanded(
+                  child: PoppinsText(
+                    key: const Key('cand627_fast_title'),
+                    text: 'cand627_fast_title'.tr.replaceAll('{name}', first),
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary(context),
+                    maxLines: 2,
+                  ),
+                ),
+                Icon(Icons.account_circle_rounded,
+                    size: 22.sp, color: AppColors.accentOn(context, owner)),
+              ],
+            ),
           ),
           SizedBox(height: 4.h),
           InterText(
@@ -665,6 +820,43 @@ class FastChoose627 extends StatelessWidget {
               ],
             ),
           ),
+          // 628 — garanties RÉELLES collées au bouton (site e60bcaaa) :
+          // annulation gratuite 72 h (si le début est à plus de 72 h),
+          // séquestre, et la ligne « fêtes » quand la période touche le
+          // 15/12 – 06/01.
+          SizedBox(height: 8.h),
+          for (final k in guaranteeLines628(start: periodStart, end: periodEnd))
+            Padding(
+              key: Key(k),
+              padding: EdgeInsets.only(top: 3.h),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    k == 'cand628_g_holiday'
+                        ? Icons.celebration_rounded
+                        : Icons.verified_user_rounded,
+                    size: 13.sp,
+                    color: k == 'cand628_g_holiday'
+                        ? AppColors.accentOn(context, owner)
+                        : AppColors.accentOn(context, const Color(0xFF15803D)),
+                  ),
+                  SizedBox(width: 6.w),
+                  Expanded(
+                    child: InterText(
+                      text: k.tr,
+                      fontSize: 11.5.sp,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                      color: k == 'cand628_g_holiday'
+                          ? AppColors.accentOn(context, owner)
+                          : AppColors.accentOn(context, const Color(0xFF15803D)),
+                      maxLines: 3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -894,34 +1086,55 @@ class _CandidateCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Photo 56, sinon l'initiale sur la couleur du rôle.
-              CircleAvatar(
-                onBackgroundImageError: avatarUrl.isNotEmpty ? netImageOnError620 : null,
-                radius: 28.r,
-                backgroundColor: role,
-                backgroundImage: avatarUrl.isNotEmpty
-                    ? CachedNetworkImageProvider(avatarUrl, maxWidth: 170)
-                    : null,
-                child: avatarUrl.isEmpty
-                    ? PoppinsText(
-                        text: first.isNotEmpty ? first.characters.first.toUpperCase() : '?',
-                        fontSize: 20.sp,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      )
-                    : null,
+              // 628 (point 7) — la photo et le prénom ouvrent le profil public.
+              GestureDetector(
+                key: Key('cand628_avatar_${app.id}'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => openCandidateProfile628(app),
+                child: CircleAvatar(
+                  onBackgroundImageError: avatarUrl.isNotEmpty ? netImageOnError620 : null,
+                  radius: 28.r,
+                  backgroundColor: role,
+                  backgroundImage: avatarUrl.isNotEmpty
+                      ? CachedNetworkImageProvider(avatarUrl, maxWidth: 170)
+                      : null,
+                  child: avatarUrl.isEmpty
+                      ? PoppinsText(
+                          text: first.isNotEmpty ? first.characters.first.toUpperCase() : '?',
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        )
+                      : null,
+                ),
               ),
               SizedBox(width: 10.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    PoppinsText(
-                      text: first,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary(context),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    GestureDetector(
+                      key: Key('cand628_name_${app.id}'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => openCandidateProfile628(app),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: PoppinsText(
+                              text: first,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary(context),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          SizedBox(width: 4.w),
+                          Icon(Icons.chevron_right_rounded,
+                              size: 18.sp, color: AppColors.textSecondary(context)),
+                        ],
+                      ),
                     ),
                     SizedBox(height: 3.h),
                     Wrap(
