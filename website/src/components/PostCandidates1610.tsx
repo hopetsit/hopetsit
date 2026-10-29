@@ -340,11 +340,10 @@ export function PostCandidates1610({
   }
 
   // 2710 — encart « Choisir et payer » : candidature de l'e-mail, en attente, avec un total juste.
-  const fast = (() => {
-    const fid = pickId || (chooseNow ? focusId : null);
-    if (!fid || tbd) return null;
-    const a = visible.find((x) => applicationId(x) === fid);
-    if (!a || a.status !== "pending" || a.pricing?.stale === true || a.pricing?.indicative === true) return null;
+  // 2910 (SAM) — même règle pour l'encart et pour « Choisir » sur une carte : la fenêtre du navigateur
+  // (sans prix) faisait renoncer (cand_choisir_annule 1, cand_choisir 0) ; une carte payable ouvre l'encart.
+  function fastFor(a: ApplicationItem | undefined) {
+    if (!a || tbd || a.status !== "pending" || a.pricing?.stale === true || a.pricing?.indicative === true) return null;
     const total = a.pricing?.totalPrice ?? null;
     const rate = a.pricing?.appliedRate ?? null;
     if (total == null || !(total > 0) || (rate != null && rate > 0 && total + 0.001 < rate)) return null;
@@ -352,6 +351,10 @@ export function PostCandidates1610({
     const { who } = applicationProvider(a);
     const name = who?.name || t("c1610_provider");
     return { app: a, id: applicationId(a), firstName: name.split(" ")[0] || name, price: money(total, currency, lang) };
+  }
+  const fast = (() => {
+    const fid = pickId || (chooseNow ? focusId : null);
+    return fid ? fastFor(visible.find((x) => applicationId(x) === fid)) : null;
   })();
 
   return (
@@ -563,7 +566,7 @@ export function PostCandidates1610({
                         loading={busyId === id}
                         disabled={(busyId !== null && busyId !== id) || stale}
                         disabledReason={stale ? d620(lang, "cand_stale_hint") : undefined}
-                        onClick={() => { if (stale) return; if (tbd) { trackSiteEvent("cta_click", { label: "cand_dates" }); setPickId(id); setEditingDates(true); sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; } void respond(a, "accept"); }}
+                        onClick={() => { if (stale) return; if (tbd) { trackSiteEvent("cta_click", { label: "cand_dates" }); setPickId(id); setEditingDates(true); sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; } if (fastFor(a)) { trackSiteEvent("cta_click", { label: "cand_encart" }); setPickId(id); sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; } void respond(a, "accept"); }}
                         ariaLabel={`${t("c1610_choose")} ${firstName}`}
                       />
                     </div>
