@@ -27,7 +27,7 @@ function models() {
   };
 }
 
-const SEL = 'email boostExpiry boostTier mapBoostExpiry mapBoostTier mapBoostLocation';
+const SEL = 'email boostExpiry boostTier mapBoostExpiry mapBoostTier mapBoostLocation kycStatus kycVerifiedAt kycApplicantId identityVerification';
 const ms = (d) => (d ? new Date(d).getTime() : 0);
 
 /** Aligne les boosts des profils d'une même personne. @returns {Promise<number>} profils mis à jour */
@@ -69,6 +69,43 @@ async function syncBoostsForEmail(email, now = new Date()) {
   return changed;
 }
 
+/**
+ * 2910b (BOB, Daniel : « pourquoi Agnès a son statut de sitter enlevé ? ») — l'IDENTITÉ VÉRIFIÉE (3 €, Didit ou
+ * validation admin) est celle de la PERSONNE : si un profil gardien/promeneur est vérifié, les autres profils
+ * gardien/promeneur de la même personne le deviennent (badge « identité vérifiée » partout). Jamais l'inverse,
+ * jamais un propriétaire (pas de KYC propriétaire), aucun paiement ajouté.
+ * @returns {Promise<number>} profils mis à jour
+ */
+async function syncKycForEmail(email, now = new Date()) {
+  const mail = String(email || '').trim();
+  if (!mail) return 0;
+  const M = models();
+  const docs = [];
+  for (const name of ['Sitter', 'Walker']) {
+    const d = await M[name].findOne({ email: mail }).select(SEL).lean();
+    if (d) docs.push({ name, Model: M[name], d });
+  }
+  if (docs.length < 2) return 0;
+  const isV = (d) => d.kycStatus === 'verified' || !!(d.identityVerification && d.identityVerification.status === 'verified');
+  const src = docs.find((x) => isV(x.d));
+  if (!src) return 0;
+  let changed = 0;
+  for (const x of docs) {
+    if (x === src || isV(x.d)) continue;
+    const set = {
+      kycStatus: 'verified',
+      kycVerifiedAt: src.d.kycVerifiedAt || now,
+      'identityVerification.status': 'verified',
+      'identityVerification.reviewedAt': (src.d.identityVerification && src.d.identityVerification.reviewedAt) || null,
+    };
+    if (src.d.kycApplicantId && !x.d.kycApplicantId) set.kycApplicantId = src.d.kycApplicantId;
+    await x.Model.updateOne({ _id: x.d._id }, { $set: set });
+    changed += 1;
+    logger.info(`[boostSync] identité vérifiée recopiée ${src.name} → ${x.name} ${x.d._id}`);
+  }
+  return changed;
+}
+
 /** À partir d'un profil (id + modèle) : aligne la personne. Jamais bloquant. */
 async function syncBoostsForUser(userId, modelName) {
   if (!enabled()) return 0;
@@ -76,7 +113,8 @@ async function syncBoostsForUser(userId, modelName) {
     const Model = models()[modelName];
     if (!Model) return 0;
     const me = await Model.findById(userId).select('email').lean();
-    return me ? await syncBoostsForEmail(me.email) : 0;
+    if (!me) return 0;
+    return (await syncBoostsForEmail(me.email)) + (await syncKycForEmail(me.email));
   } catch (e) {
     logger.warn(`[boostSync] échec non bloquant : ${e && e.message}`);
     return 0;
@@ -91,10 +129,20 @@ async function syncAllActiveBoosts(now = new Date()) {
     const rows = await Model.find({ $or: [{ boostExpiry: { $gt: now } }, { mapBoostExpiry: { $gt: now } }] }).select('email').lean();
     for (const r of rows) if (r.email) emails.add(r.email);
   }
+  // 2910b — identité vérifiée : toute personne vérifiée sur un profil gardien/promeneur.
+  const kycEmails = new Set();
+  for (const name of ['Sitter', 'Walker']) {
+    const rows = await models()[name].find({ $or: [{ kycStatus: 'verified' }, { 'identityVerification.status': 'verified' }] }).select('email').lean();
+    for (const r of rows) if (r.email) kycEmails.add(r.email);
+  }
   let changed = 0;
   for (const e of emails) {
     // eslint-disable-next-line no-await-in-loop
     changed += await syncBoostsForEmail(e, now);
+  }
+  for (const e of kycEmails) {
+    // eslint-disable-next-line no-await-in-loop
+    changed += await syncKycForEmail(e, now);
   }
   return { emails: emails.size, changed };
 }
@@ -109,4 +157,4 @@ function startBoostSyncScheduler() {
   timer = setInterval(run, TICK_MS);
 }
 
-module.exports = { syncBoostsForEmail, syncBoostsForUser, syncAllActiveBoosts, startBoostSyncScheduler };
+module.exports = { syncBoostsForEmail, syncKycForEmail, syncBoostsForUser, syncAllActiveBoosts, startBoostSyncScheduler };

@@ -65,3 +65,23 @@ test('une autre personne n’est jamais touchée', async () => {
   expect((await Sitter.findById(b.s._id).lean()).boostExpiry || null).toBeNull();
   expect((await Sitter.findById(a.s._id).lean()).boostExpiry).toBeTruthy();
 });
+
+test('identité vérifiée sur la gardienne → la promeneuse a le badge, la propriétaire non touchée, jamais l’inverse', async () => {
+  const p = await person({ kycStatus: 'pending_payment' }, { kycStatus: 'verified', kycVerifiedAt: new Date('2026-10-28T16:22:50Z'), kycApplicantId: 'didit-1', identityVerification: { status: 'verified' } });
+  expect(await sync.syncKycForEmail(p.email)).toBe(1);
+  const w = await Walker.findById(p.w._id).lean();
+  expect(w.kycStatus).toBe('verified');
+  expect(w.kycApplicantId).toBe('didit-1');
+  expect(w.identityVerification.status).toBe('verified');
+  expect((await Owner.findById(p.o._id).lean()).kycStatus || null).toBeNull();
+  expect(await sync.syncKycForEmail(p.email)).toBe(0);
+  const q = await person({ kycStatus: 'rejected' }, { kycStatus: 'pending_payment' });
+  expect(await sync.syncKycForEmail(q.email)).toBe(0);
+  expect((await Walker.findById(q.w._id).lean()).kycStatus).toBe('rejected');
+});
+
+test('la passe complète recopie aussi l’identité', async () => {
+  const p = await person({}, { kycStatus: 'verified' });
+  await sync.syncAllActiveBoosts();
+  expect((await Walker.findById(p.w._id).lean()).kycStatus).toBe('verified');
+});
