@@ -66,7 +66,7 @@ const REAL_SESSION_FILTER = {
   ],
 };
 
-const SOURCES = ['email', 'push', 'notification', 'direct', 'link'];
+const SOURCES = ['email', 'push', 'notification', 'direct', 'link', 'sms'];
 const CHANNELS = ['web', 'app'];
 
 /**
@@ -148,6 +148,12 @@ async function boardSignals(items) {
         firstAt: vs[0] ? vs[0].at : null,
         lastAt: vs.length ? vs[vs.length - 1].at : null,
         fromEmail: vs.filter((v) => v.source === 'email').length,
+        // 2910 (BOB, Daniel : « savoir d'où le proprio répond : web, app, mail ou tél ») — par source et dernier retour.
+        fromSms: vs.filter((v) => v.source === 'sms').length,
+        fromPush: vs.filter((v) => v.source === 'push' || v.source === 'notification').length,
+        fromDirect: vs.filter((v) => !v.source || v.source === 'direct' || v.source === 'link').length,
+        lastSource: vs.length ? (vs[vs.length - 1].source || 'direct') : null,
+        lastChannel: vs.length ? (vs[vs.length - 1].channel || null) : null,
         channels: { web: vs.filter((v) => v.channel === 'web').length, app: vs.filter((v) => v.channel === 'app').length },
       },
       hasApp: pushByEmail.get(key) === true,

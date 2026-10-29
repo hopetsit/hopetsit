@@ -5,7 +5,7 @@
  *   POST /api/v1/owner-signals/candidates-view
  *     en-tête Authorization: Bearer <jeton du propriétaire> (comme tout appel connecté)
  *     corps { postId? , applicationId? , source? }   (l'un des deux identifiants suffit)
- *       source : 'email' | 'push' | 'notification' | 'direct' | 'link'
+ *       source : 'email' | 'push' | 'notification' | 'direct' | 'link' | 'sms' (2910 : lien du SMS)
  *     → toujours 204 (ne dit jamais si la demande existe ni à qui elle est).
  *
  * Le canal (web / app) et l'origine (vraie session ou script) sont décidés par

@@ -14,13 +14,15 @@
 //   On peut le forcer en le passant.
 import { API_BASE, getStoredToken } from "@/lib/api";
 
-type Source = "email" | "push" | "notification" | "direct" | "link";
+type Source = "email" | "push" | "notification" | "direct" | "link" | "sms";
 
 function sourceFromUrl(): Source {
   try {
     const q = new URLSearchParams(window.location.search);
     const from = (q.get("from") || "").toLowerCase();
     if (from === "email" || (q.get("utm_medium") || "").toLowerCase() === "email") return "email";
+    // 2910 (BOB, Daniel : « savoir d'où le proprio répond ») — lien du SMS (?from=sms).
+    if (from === "sms") return "sms";
     if (from === "push") return "push";
     if (from === "notification") return "notification";
   } catch {
