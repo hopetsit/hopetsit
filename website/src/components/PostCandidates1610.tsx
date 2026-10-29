@@ -473,22 +473,41 @@ export function PostCandidates1610({
               data-candidate-2610={role}
             >
               <div className="flex items-start gap-3">
-                {who?.avatar && !brokenAvatars[id] ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={who.avatar}
-                    alt=""
-                    className="h-14 w-14 shrink-0 rounded-full object-cover"
-                    style={{ boxShadow: `0 0 0 2.5px ${tone.dark}` }}
-                    onError={() => setBrokenAvatars((m) => ({ ...m, [id]: true }))}
-                  />
-                ) : (
-                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full text-lg font-bold text-white" style={{ background: tone.dark }}>
-                    {firstName.slice(0, 1).toUpperCase()}
-                  </span>
-                )}
+                {/* 2910 (BOB, Daniel : « si tu cliques sur la photo, ça montre le profil ») — photo et prénom ouvrent la
+                    fiche publique du candidat (/p/<rôle>/<id>) dans un nouvel onglet : la liste et le choix restent sous la main. */}
+                {(() => {
+                  const pid = String(who?.id || who?._id || "");
+                  const avatar = who?.avatar && !brokenAvatars[id] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={who.avatar}
+                      alt=""
+                      className="h-14 w-14 shrink-0 rounded-full object-cover"
+                      style={{ boxShadow: `0 0 0 2.5px ${tone.dark}` }}
+                      onError={() => setBrokenAvatars((m) => ({ ...m, [id]: true }))}
+                    />
+                  ) : (
+                    <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full text-lg font-bold text-white" style={{ background: tone.dark }}>
+                      {firstName.slice(0, 1).toUpperCase()}
+                    </span>
+                  );
+                  return pid ? (
+                    <a href={`/p/${role}/${pid}`} target="_blank" rel="noopener" aria-label={firstName} title={firstName} className="shrink-0 rounded-full" data-cand-profil-2910=""
+                       onClick={() => trackSiteEvent("cta_click", { label: "cand_profil" })}>
+                      {avatar}
+                    </a>
+                  ) : avatar;
+                })()}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[16px] font-extrabold" style={{ color: "#231715" }}>{firstName}</p>
+                  {(() => {
+                    const pid = String(who?.id || who?._id || "");
+                    const nameEl = <p className="truncate text-[16px] font-extrabold" style={{ color: "#231715" }}>{firstName}</p>;
+                    return pid ? (
+                      <a href={`/p/${role}/${pid}`} target="_blank" rel="noopener" className="block underline-offset-2 hover:underline" onClick={() => trackSiteEvent("cta_click", { label: "cand_profil" })}>
+                        {nameEl}
+                      </a>
+                    ) : nameEl;
+                  })()}
                   <div className="mt-0.5 flex flex-wrap items-center gap-1">
                     <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: tone.pale, color: tone.dark }}>
                       <AppIcon name={role === "walker" ? "walker" : "home"} size={11} color={tone.dark} />
