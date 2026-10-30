@@ -125,6 +125,16 @@ const ownerSchema = new mongoose.Schema(
       type: [{ token: { type: String, trim: true }, platform: { type: String, default: '' }, appBuild: { type: Number, default: 0 }, at: { type: Date, default: Date.now } }], // v566 — appBuild : badge iOS réservé aux builds ≥ 566
       default: [],
     },
+    // 3010 (BOB, Daniel : « la vérification du profil doit être sur les 3 profils ») — l'identité
+    // vérifiée d'une PERSONNE (Didit / validation admin sur son profil gardien ou promeneur) est
+    // recopiée sur son profil propriétaire par boostSync2910.syncKycForEmail (jamais vérifiée ici).
+    kycStatus: { type: String, enum: ['none', 'pending_payment', 'pending_verification', 'verified', 'rejected'], default: 'none', index: true },
+    kycVerifiedAt: { type: Date, default: null },
+    kycApplicantId: { type: String, default: null },
+    identityVerification: {
+      status: { type: String, enum: ['none', 'pending', 'verified', 'rejected'], default: 'none' },
+      reviewedAt: { type: Date, default: null },
+    },
     // Coin Boost — profile boosting system
     boostExpiry: { type: Date, default: null },
     boostTier: { type: String, enum: [null, 'bronze', 'silver', 'gold', 'platinum'], default: null },

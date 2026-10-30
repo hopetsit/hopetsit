@@ -73,7 +73,7 @@ async function syncBoostsForEmail(email, now = new Date()) {
  * 2910b (BOB, Daniel : « pourquoi Agnès a son statut de sitter enlevé ? ») — l'IDENTITÉ VÉRIFIÉE (3 €, Didit ou
  * validation admin) est celle de la PERSONNE : si un profil gardien/promeneur est vérifié, les autres profils
  * gardien/promeneur de la même personne le deviennent (badge « identité vérifiée » partout). Jamais l'inverse,
- * jamais un propriétaire (pas de KYC propriétaire), aucun paiement ajouté.
+ * le profil propriétaire de la personne reçoit aussi le badge (3010), aucun paiement ajouté.
  * @returns {Promise<number>} profils mis à jour
  */
 async function syncKycForEmail(email, now = new Date()) {
@@ -81,13 +81,15 @@ async function syncKycForEmail(email, now = new Date()) {
   if (!mail) return 0;
   const M = models();
   const docs = [];
-  for (const name of ['Sitter', 'Walker']) {
+  // 3010 — le profil PROPRIÉTAIRE reçoit aussi l'identité vérifiée (cible seulement : la source est
+  // toujours un gardien ou un promeneur, seuls profils qui passent la vérification).
+  for (const name of ['Sitter', 'Walker', 'Owner']) {
     const d = await M[name].findOne({ email: mail }).select(SEL).lean();
     if (d) docs.push({ name, Model: M[name], d });
   }
   if (docs.length < 2) return 0;
   const isV = (d) => d.kycStatus === 'verified' || !!(d.identityVerification && d.identityVerification.status === 'verified');
-  const src = docs.find((x) => isV(x.d));
+  const src = docs.find((x) => x.name !== 'Owner' && isV(x.d));
   if (!src) return 0;
   let changed = 0;
   for (const x of docs) {
