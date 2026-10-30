@@ -1,4 +1,4 @@
-// 3010 (ADA, 30/10) — GET /admin/app-presence : connectés maintenant, actifs 24 h / 7 j (sessions réelles),
+// 3010 (ADA, 30/10) — GET /admin/app-presence : total des personnes inscrites, connectés maintenant, actifs 24 h / 7 j (sessions réelles),
 // app installée (jeton push), personnes dédoublonnées par e-mail, test/staff/bloqués exclus. Lecture seule.
 // Vraie base Mongo en mémoire, vraie route ; authentification et sockets simulés.
 process.env.NODE_ENV = 'test';
@@ -72,6 +72,7 @@ describe('GET /admin/app-presence', () => {
 
     const r = await request(app).get('/admin/app-presence').set(ADMIN);
     expect(r.status).toBe(200);
+    expect(r.body.total).toBe(3);           // Alice (2 profils), Bob, Carla — inscrits, connectés ou pas
     expect(r.body.online).toBe(1);          // Alice seulement
     expect(r.body.active24h).toBe(1);       // Alice (2 profils = 1 personne) ; Bob hier, Carla script
     expect(r.body.active7d).toBe(2);        // Alice + Bob

@@ -3,7 +3,8 @@
  * 3010 (ADA, demande de Daniel 30/10 11 h : « un cadre "nombre de personnes dans l'app" ») — LECTURE SEULE.
  *
  *   GET /api/v1/admin/app-presence
- *   → { online, active24h, active7d, installed, previous: { active24h, active7d }, basis: {…}, generatedAt }
+ *   → { total, online, active24h, active7d, installed, previous: { active24h, active7d }, basis: {…}, generatedAt }
+ *  - total      : toutes les personnes inscrites (connectées ou pas), mêmes exclusions.
  *
  * Une PERSONNE = un e-mail (jusqu'à 3 profils owner/sitter/walker). Exclus : comptes de test et internes
  * (+test, hopetsit@, dadaciao84@, sonde — utils/userCounts.isInternalEmail), équipe (isStaff) et comptes
@@ -65,7 +66,10 @@ async function computePresence({ Owner, Sitter, Walker, ActivityEvent, onlineIds
     distinct(now - 7 * DAY, now + 60000), distinct(now - 14 * DAY, now - 7 * DAY),
   ]);
   const installedIds = [...idx.byId.entries()].filter(([, p]) => p.hasPush).map(([id]) => id);
+  // 30/10 11 h 20 (Daniel) — EN PREMIER : toutes les personnes inscrites, connectées ou pas (mêmes exclusions).
+  const total = countPeople([...idx.byId.keys()], idx);
   return {
+    total,
     online: countPeople([...(onlineIds || [])], idx),
     active24h: countPeople(a24, idx),
     active7d: countPeople(a7, idx),
@@ -74,6 +78,7 @@ async function computePresence({ Owner, Sitter, Walker, ActivityEvent, onlineIds
     excludedPeople: idx.excludedKeys.size,
     basis: {
       person: 'un e-mail = une personne (3 profils max) ; exclus : comptes de test/internes, équipe (isStaff), bloqués (status ≠ active)',
+      total: 'toutes les personnes inscrites, connectées ou pas (mêmes exclusions)',
       online: 'sockets présents maintenant (premier plan, signe de vie < 2 min) — sockets/emitter.getOnlineUserIds',
       active: 'débuts de session RÉELLE (ActivityEvent, origine app ou web, scripts et admin exclus) dans la fenêtre ; previous = fenêtre précédente (24-48 h, 7-14 j)',
       installed: 'au moins un jeton push (fcmDevices) sur un des profils ; pas de variation (aucun historique)',
