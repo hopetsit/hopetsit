@@ -23,7 +23,7 @@ const request = require('supertest');
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
-let mongo; let app; let Owner; let Sitter; let Walker; let ActivityEvent;
+let mongo; let app; let Owner; let Sitter; let Walker; let ActivityEvent; let AccountDeletion;
 const ADMIN = { 'x-test-user': 'admin1', 'x-test-role': 'admin' };
 const DAY = 86400000;
 let n = 0;
@@ -35,8 +35,8 @@ beforeAll(async () => {
   mongo = await MongoMemoryServer.create();
   await mongoose.connect(mongo.getUri());
   Owner = require('../src/models/Owner'); Sitter = require('../src/models/Sitter'); Walker = require('../src/models/Walker');
-  ActivityEvent = require('../src/models/ActivityEvent');
-  await Promise.all([Owner.init(), Sitter.init(), Walker.init(), ActivityEvent.init()]);
+  ActivityEvent = require('../src/models/ActivityEvent'); AccountDeletion = require('../src/models/AccountDeletion').AccountDeletion;
+  await Promise.all([Owner.init(), Sitter.init(), Walker.init(), ActivityEvent.init(), AccountDeletion.init()]);
   app = express(); app.use(express.json());
   app.use('/admin/app-presence', require('../src/routes/adminAppPresence3010'));
 }, 60000);
@@ -70,9 +70,19 @@ describe('GET /admin/app-presence', () => {
     const danS = await mk(Sitter, { email: 'dan@example.org', fcmDevices: PUSH });
     await ev(danS._id, 3600000); mockOnline.add(String(danS._id)); void danO;
 
+    // Mouvements : Dan (exclu) et un ancien compte créé il y a 10 j ne comptent pas comme arrivées du jour ;
+    // 2 suppressions de la même personne aujourd'hui = 1 départ ; une 3e il y a 3 jours → 2 sur 7 j.
+    await mk(Owner, { email: 'ancien@example.org', createdAt: new Date(Date.now() - 10 * DAY) });
+    await AccountDeletion.collection.insertMany([
+      { role: 'owner', emailHash: 'h1', deletedAt: new Date(Date.now() - 3600000) },
+      { role: 'sitter', emailHash: 'h1', deletedAt: new Date(Date.now() - 3500000) },
+      { role: 'walker', emailHash: 'h2', deletedAt: new Date(Date.now() - 3 * DAY) },
+    ]);
     const r = await request(app).get('/admin/app-presence').set(ADMIN);
     expect(r.status).toBe(200);
-    expect(r.body.total).toBe(3);           // Alice (2 profils), Bob, Carla — inscrits, connectés ou pas
+    expect(r.body.today).toEqual({ joined: 3, left: 1 });   // Alice, Bob, Carla créés à l'instant
+    expect(r.body.week).toEqual({ joined: 3, left: 2 });
+    expect(r.body.total).toBe(4);           // + l'ancien compte
     expect(r.body.online).toBe(1);          // Alice seulement
     expect(r.body.active24h).toBe(1);       // Alice (2 profils = 1 personne) ; Bob hier, Carla script
     expect(r.body.active7d).toBe(2);        // Alice + Bob
