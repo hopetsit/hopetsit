@@ -127,12 +127,18 @@ router.get('/', requireAdmin, async (req, res) => {
     // ── Identités (calcul de FLO : utils/kycPeople607) ──
     let identity = { verified: 0, paidUnverified: 0, oldestPaidUnverifiedH: null, testAccounts: 0, series: [], value7: 0, prev7: 0 };
     try {
-      const { personRow, summarize } = require('../utils/kycPeople607');
+      const { personRow, summarize, groupByPerson } = require('../utils/kycPeople607');
       const f = { $or: [{ kycStatus: 'verified' }, { 'identityVerification.status': 'verified' }, { kycPaidAt: { $ne: null } }] };
       const fields = 'name email city location.city coverageCity kycStatus kycPaidAt kycVerifiedAt kycApplicantId kycPaymentIntentId identityVerification.status identityVerification.reviewedAt';
       const [ks, kw] = await Promise.all([Sitter.find(f).select(fields).lean(), Walker.find(f).select(fields).lean()]);
       const nowD = new Date(now);
-      const rows = [...ks.map((d) => personRow(d, 'sitter', { now: nowD, isInternal })), ...kw.map((d) => personRow(d, 'walker', { now: nowD, isInternal }))];
+      // 3010 (BOB, Daniel : « c'est 4 et c'est écrit 8 ») — UNE identité par PERSONNE (même e-mail), comme la
+      // page Identité (KYC) : les lignes par profil sont regroupées avant tout comptage.
+      const keyOf = (d) => String(plainEmail(d.email) || '').trim().toLowerCase() || `id:${d._id}`;
+      const rows = groupByPerson([
+        ...ks.map((d) => ({ ...personRow(d, 'sitter', { now: nowD, isInternal }), personKey: keyOf(d) })),
+        ...kw.map((d) => ({ ...personRow(d, 'walker', { now: nowD, isInternal }), personKey: keyOf(d) })),
+      ]);
       const sum = summarize(rows, { now: nowD });
       const pu = rows.filter((r) => !r.isTest && r.paid && !r.verified);
       const oldest = pu.reduce((m, r) => Math.min(m, new Date(r.paidAt).getTime()), Infinity);
