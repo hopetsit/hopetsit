@@ -341,6 +341,8 @@ const versionedRoutes = [
   // vérifiés, revenus KYC par période. Lecture seule, requireAdmin dans le routeur.
   { path: '/admin/kyc-people', mw: [], router: require('./routes/adminKycRoutes607') },
   { path: '/admin/payment-reminder-2910', mw: [], router: require('./routes/adminPaymentReminder2910') },
+  // 3010 (ADA, Daniel 30/10) — « Dans l'app » : connectés, actifs 24 h / 7 j, app installée (lecture seule).
+  { path: '/admin/app-presence', mw: [], router: require('./routes/adminAppPresence3010') },
   // 607 (ADA, 02/10) — tuiles du tableau de bord de l'admin (lecture seule, comptes de test à part).
   { path: '/admin/dashboard607', mw: [], router: require('./routes/adminDashboard607') },
   // 607 (ADA, 02/10) — « À traiter » : épingles signalées (détail) + action « Masquer », journalisée.
