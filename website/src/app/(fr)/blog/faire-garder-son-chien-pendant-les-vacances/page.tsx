@@ -111,7 +111,12 @@ export default function ArticleGarderChienVacances() {
           10e
         </Link>{" "}
         (Canal Saint-Martin, gares du Nord et de l'Est), les gardes courtes autour d'un départ
-        sont une habitude pour beaucoup de voyageurs.
+        sont une habitude pour beaucoup de voyageurs. Les autres arrondissements sont réunis sur
+        la page{" "}
+        <Link href="/garde-animaux/paris" className="font-semibold text-owner underline">
+          dog sitter à Paris pour les vacances
+        </Link>
+        .
       </p>
 
       <ParisGuidesLinks current="/blog/faire-garder-son-chien-pendant-les-vacances" />

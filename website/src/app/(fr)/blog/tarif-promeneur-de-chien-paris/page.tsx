@@ -106,7 +106,11 @@ export default function ArticleTarifPromeneurParis() {
           3e
         </Link>
         , entre le Marais nord et Arts-et-Métiers, familles et jeunes actifs se partagent une
-        forte densité de petits chiens.
+        forte densité de petits chiens. Votre arrondissement n'est pas cité ? La page{" "}
+        <Link href="/garde-animaux/paris" className="font-semibold text-owner underline">
+          dog sitter et promeneur à Paris
+        </Link>{" "}
+        les liste tous.
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">Questions fréquentes</h2>

@@ -325,6 +325,11 @@ export default function HomePage() {
         <div className="grid gap-8 md:grid-cols-2">
           <div>
             <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[#231715] md:text-2xl">Pet sitters à Paris et en Île-de-France</h2>
+            {/* 30/10 (GUS) — Search Console 7 j : « dog sitter paris » (50 affichages, 14e),
+                « pet sitter paris » (48, 17e), « pet sitting paris », « petsitter paris » → 0 clic ;
+                la page /garde-animaux/paris n'était reliée depuis l'accueil que par le pied de
+                page. Un lien en clair, avec les mots tapés, depuis la page la plus forte du site. */}
+            <p className="mt-3 text-sm"><Link href="/garde-animaux/paris" className="font-semibold text-owner hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">Trouver un pet sitter ou un dog sitter à Paris →</Link></p>
             <ul className="mt-3 flex flex-wrap gap-1.5 text-sm">
               {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
                 <li key={`p${n}`}><Link href={`/garde-animaux/paris-${n}`} className="inline-flex items-center rounded-full bg-[#FAF1EC] px-3 py-1.5 text-[#231715] transition hover:bg-owner-light hover:text-owner-dark max-lg:min-h-[44px]">Paris {n}{n === 1 ? "er" : "e"}</Link></li>

@@ -100,7 +100,11 @@ export default function ArticleGarderChatParis() {
           9e
         </Link>
         , du côté de Pigalle et des Grands Boulevards, où jeunes couples et petits chiens se
-        partagent le quartier avec de nombreux chats.
+        partagent le quartier avec de nombreux chats. Pour les autres quartiers, la page{" "}
+        <Link href="/garde-animaux/paris" className="font-semibold text-owner underline">
+          pet sitter à Paris
+        </Link>{" "}
+        réunit les 20 arrondissements et les communes voisines.
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">Questions fréquentes</h2>

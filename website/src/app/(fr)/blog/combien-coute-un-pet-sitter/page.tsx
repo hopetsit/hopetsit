@@ -111,6 +111,11 @@ export default function ArticlePrixPetSitter() {
           13e
         </Link>
         , quartier familial en pleine croissance où les pet sitters installés restent rares.
+        Pour comparer les tarifs proposés dans votre quartier, passez par la page{" "}
+        <Link href="/garde-animaux/paris" className="font-semibold text-owner underline">
+          pet sitter à Paris
+        </Link>
+        .
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">

@@ -120,7 +120,11 @@ export default function ArticleChienSeulJourneeParis() {
           20e
         </Link>
         , où les appartements sont petits et les trajets domicile-travail
-        longs — voir{" "}
+        longs (tous les quartiers sont sur la page{" "}
+        <Link href="/garde-animaux/paris" className="font-semibold text-owner underline">
+          dog sitter à Paris
+        </Link>
+        ) — voir{" "}
         <Link href="/blog/tarif-promeneur-de-chien-paris" className="font-semibold text-owner underline">
           les tarifs pratiqués par les promeneurs parisiens
         </Link>
