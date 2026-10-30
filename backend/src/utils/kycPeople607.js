@@ -118,6 +118,57 @@ function summarize(rows, { now = new Date() } = {}) {
   };
 }
 
+/**
+ * 3010 (ADA, demande de Daniel 30/10 15 h : « la vérification du profil doit être sur les 3 profils et
+ * compter comme UNE par personne »). Regroupe les lignes de profils (personRow) par PERSONNE.
+ * @param {object[]} rows   lignes personRow, chacune avec `personKey` (e-mail déchiffré normalisé, ou id)
+ * @param {Map<string,string[]>} [rolesByKey]  personKey → rôles EXISTANTS de la personne (owner/sitter/walker)
+ * Une ligne par personne : roles = profils existants (ordre sitter, walker, owner), rolesVerified = par rôle,
+ * verifiedAt = la plus ancienne, method = celle du profil source (le plus ancien vérifié), paid/paidAt = le
+ * paiement de 3 € une seule fois (le plus ancien), blocked = seulement si AUCUN profil n'est vérifié.
+ */
+const ROLE_ORDER = ['sitter', 'walker', 'owner'];
+function groupByPerson(rows, rolesByKey = new Map()) {
+  const groups = new Map();
+  for (const r of rows) {
+    const k = r.personKey || r.id;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  }
+  const ts = (x) => (x ? new Date(x).getTime() : Infinity);
+  const out = [];
+  for (const [k, list] of groups) {
+    const verifiedRows = list.filter((r) => r.verified).sort((a, b) => ts(a.verifiedAt) - ts(b.verifiedAt));
+    const paidRows = list.filter((r) => r.paid).sort((a, b) => ts(a.paidAt) - ts(b.paidAt));
+    const source = verifiedRows[0] || paidRows[0] || list[0];
+    const paidSrc = paidRows[0] || null;
+    const roles = new Set([...(rolesByKey.get(k) || []), ...list.map((r) => r.role)]);
+    const rolesVerified = {};
+    for (const r of list) rolesVerified[r.role] = rolesVerified[r.role] || !!r.verified;
+    const blockedSrc = verifiedRows.length ? null : (paidRows.find((r) => r.blocked) || null);
+    out.push({
+      ...source,
+      personKey: undefined,
+      roles: ROLE_ORDER.filter((x) => roles.has(x)),
+      rolesVerified,
+      profiles: list.length,
+      verified: verifiedRows.length > 0,
+      verifiedAt: verifiedRows.length ? verifiedRows[0].verifiedAt : null,
+      method: verifiedRows.length ? verifiedRows[0].method : null,
+      paid: paidRows.length > 0,
+      paidAt: paidSrc ? paidSrc.paidAt : null,
+      paidAmount: paidSrc ? KYC_PRICE_EUR : 0,
+      paymentChannel: paidSrc ? paidSrc.paymentChannel : null,
+      daysSincePayment: paidSrc ? paidSrc.daysSincePayment : null,
+      blocked: blockedSrc ? blockedSrc.blocked : null,
+      kycStatus: source.kycStatus,
+      providerSessionStarted: list.some((r) => r.providerSessionStarted),
+      isTest: list.some((r) => r.isTest),
+    });
+  }
+  return out.map((r) => { delete r.personKey; return r; });
+}
+
 module.exports = {
-  KYC_PRICE_EUR, STUCK_AFTER_MS, isVerifiedDoc, methodOf, paymentChannelOf, personRow, summarize,
+  KYC_PRICE_EUR, STUCK_AFTER_MS, isVerifiedDoc, methodOf, paymentChannelOf, personRow, summarize, groupByPerson, ROLE_ORDER,
 };

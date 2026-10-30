@@ -14,7 +14,7 @@ process.env.JWT_SECRET = 'test_jwt_secret_'.padEnd(64, 'x');
 
 const { sanitizeUser } = require('../src/utils/sanitize');
 const { toPublicProvider } = require('../src/utils/publicProvider607');
-const { personRow, summarize, methodOf } = require('../src/utils/kycPeople607');
+const { personRow, summarize, methodOf, groupByPerson } = require('../src/utils/kycPeople607');
 
 const NOW = new Date('2026-10-02T08:00:00Z');
 const PAID_18 = new Date('2026-09-18T10:56:50Z');
@@ -93,6 +93,37 @@ jest.mock('../src/middleware/auth', () => ({
   optionalAuth: (req, res, next) => next(),
 }));
 
+describe('kycPeople607.groupByPerson — 3010 : une personne = une ligne sur les 3 profils', () => {
+  const NOW = new Date('2026-10-30T12:00:00Z');
+  const D1 = new Date('2026-10-20T10:00:00Z'); const D2 = new Date('2026-10-25T10:00:00Z');
+  test('gardienne + promeneuse vérifiées = 1 ligne, verifiedAt la plus ancienne, 3 € une fois', () => {
+    const rows = [
+      { ...personRow({ _id: 's1', name: 'Agnès', kycStatus: 'verified', kycVerifiedAt: D2, kycApplicantId: 'x', kycPaidAt: D1, kycPaymentIntentId: 'i' }, 'sitter', { now: NOW }), personKey: 'agnes@x' },
+      { ...personRow({ _id: 'w1', name: 'Agnès', kycStatus: 'verified', identityVerification: { status: 'verified', reviewedAt: D1 } }, 'walker', { now: NOW }), personKey: 'agnes@x' },
+      { ...personRow({ _id: 's2', name: 'Bob', kycPaidAt: D1 }, 'sitter', { now: NOW }), personKey: 'bob@x' },
+    ];
+    const g = groupByPerson(rows, new Map([['agnes@x', ['sitter', 'walker', 'owner']], ['bob@x', ['sitter']]]));
+    expect(g).toHaveLength(2);
+    const a = g.find((r) => r.name === 'Agnès');
+    expect(a).toMatchObject({ id: 'w1', roles: ['sitter', 'walker', 'owner'], rolesVerified: { sitter: true, walker: true }, verified: true, method: 'admin_manual', paid: true, paidAmount: 3, blocked: null, profiles: 2 });
+    expect(new Date(a.verifiedAt).getTime()).toBe(D1.getTime());
+    expect(a.personKey).toBeUndefined();
+    const b = g.find((r) => r.name === 'Bob');
+    expect(b).toMatchObject({ roles: ['sitter'], verified: false, paid: true, blocked: 'session_jamais_creee' });
+    expect(summarize(g, { now: NOW })).toMatchObject({ verified: 1, paidUnverified: 1, blocked: 1 });
+    expect(summarize(g, { now: NOW }).revenue.allTime).toEqual({ count: 2, total: 6 });
+  });
+  test('bloqué seulement si AUCUN profil n\'est vérifié', () => {
+    const rows = [
+      { ...personRow({ _id: 's1', name: 'Eli', kycPaidAt: D1 }, 'sitter', { now: NOW }), personKey: 'eli@x' },
+      { ...personRow({ _id: 'w1', name: 'Eli', kycStatus: 'verified', kycVerifiedAt: D2, kycApplicantId: 'y' }, 'walker', { now: NOW }), personKey: 'eli@x' },
+    ];
+    const g = groupByPerson(rows);
+    expect(g).toHaveLength(1);
+    expect(g[0]).toMatchObject({ verified: true, blocked: null, paid: true, roles: ['sitter', 'walker'], rolesVerified: { sitter: false, walker: true } });
+  });
+});
+
 describe('GET /admin/kyc-people', () => {
   const express = require('express');
   const request = require('supertest');
@@ -119,6 +150,10 @@ describe('GET /admin/kyc-people', () => {
       { name: 'Manu W', email: 'manu@example.com', kycStatus: 'verified',
         identityVerification: { status: 'verified', reviewedAt: NOW }, kycVerifiedAt: NOW },
     ]);
+    // 3010 — Manu a aussi un profil gardien vérifié (même e-mail) et un profil propriétaire sans KYC → UNE ligne
+    await Sitter.collection.insertOne({ name: 'Manu W', email: 'manu@example.com', kycStatus: 'verified', kycVerifiedAt: NOW, kycApplicantId: 'uuid-didit-2' });
+    const Owner = require('../src/models/Owner'); await Owner.init();
+    await Owner.collection.insertOne({ name: 'Manu W', email: 'manu@example.com' });
     app = express();
     app.use(express.json());
     app.use('/admin/kyc-people', require('../src/routes/adminKycRoutes607'));
@@ -137,7 +172,9 @@ describe('GET /admin/kyc-people', () => {
     expect(raw).not.toMatch(/@example\.com|int_secret|uuid-didit/);
     expect(r.body.people.map((p) => p.name).sort()).toEqual(['Manu W', 'Sasha B', 'Test', 'Vera V']);
     const manu = r.body.people.find((p) => p.name === 'Manu W');
-    expect(manu).toMatchObject({ role: 'walker', verified: true, method: 'admin_manual', paid: false });
+    // 3010 — 2 profils vérifiés + 1 propriétaire = UNE personne, 3 rôles affichés, source = la plus ancienne vérification
+    expect(manu).toMatchObject({ verified: true, paid: false, roles: ['sitter', 'walker', 'owner'], rolesVerified: { sitter: true, walker: true }, profiles: 2 });
+    expect(['admin_manual', 'didit']).toContain(manu.method);
     const vera = r.body.people.find((p) => p.name === 'Vera V');
     expect(vera).toMatchObject({ method: 'didit', paid: true });
     expect(r.body.summary).toMatchObject({ verified: 2, paidUnverified: 1, blocked: 1, testAccounts: 1 });
