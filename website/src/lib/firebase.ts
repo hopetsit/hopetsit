@@ -45,7 +45,9 @@ const _authDomain =
 const OWN_AUTH_DOMAIN = "www.hopetsit.com";
 const _effectiveAuthDomain =
   typeof window !== "undefined" &&
-  window.location.hostname === OWN_AUTH_DOMAIN
+  // hopetsit.com (sans www) sert aussi le site : la fenêtre passe quand même par
+  // www.hopetsit.com (domaine autorisé chez Google et Apple) — 31/10 23 h, capture Daniel.
+  (window.location.hostname === OWN_AUTH_DOMAIN || window.location.hostname === "hopetsit.com")
     ? OWN_AUTH_DOMAIN
     : _authDomain;
 
