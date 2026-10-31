@@ -156,6 +156,11 @@ export default function ArticleFindingPetSitterHouston() {
         .
       </p>
 
+      {/* 31/10/2026 (GUS) — « cat sitting » 1 730 affichages US en 7 j, 20e place, 0 clic : lien contextuel vers le guide cat sitting */}
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        For a cat, in-home visits are the usual format rather than walks: see <Link href="/blog/what-is-cat-sitting" className="font-semibold text-owner-dark underline">cat sitting explained</Link>.
+      </p>
+
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">Frequently asked questions</h2>
       <div className="mt-6 space-y-4">
         {FAQ.map((f) => (

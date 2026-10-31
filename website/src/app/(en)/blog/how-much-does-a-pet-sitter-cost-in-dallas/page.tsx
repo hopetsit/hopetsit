@@ -166,6 +166,11 @@ export default function ArticlePetSitterCostDallas() {
         attached.
       </p>
 
+      {/* 31/10/2026 (GUS) — « cat sitting » 1 730 affichages US en 7 j, 20e place, 0 clic : lien contextuel vers le guide cat sitting */}
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        For a cat, the visit format and what drives the price (visits a day, length, medication) are explained in our guide to <Link href="/blog/what-is-cat-sitting" className="font-semibold text-owner underline">cat sitting</Link>.
+      </p>
+
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
         Frequently asked questions
       </h2>

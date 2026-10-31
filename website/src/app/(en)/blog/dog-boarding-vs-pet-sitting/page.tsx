@@ -95,6 +95,11 @@ export default function ArticleBoardingVsSitting() {
         </table>
       </div>
 
+      {/* 31/10/2026 (GUS) — « cat sitting » 1 730 affichages US en 7 j, 20e place, 0 clic : lien contextuel vers le guide cat sitting */}
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        For a cat, boarding is rarely the right call: staying home with daily visits keeps the routine intact. See <Link href="/blog/what-is-cat-sitting" className="font-semibold text-owner underline">cat sitting: what a cat sitter does</Link>.
+      </p>
+
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">FAQ</h2>
       <div className="mt-6 space-y-4">
         {FAQ.map((f) => (

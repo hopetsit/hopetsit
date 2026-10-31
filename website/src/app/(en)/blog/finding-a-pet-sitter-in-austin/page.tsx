@@ -150,6 +150,11 @@ export default function ArticleFindingSitterAustin() {
         text.
       </p>
 
+      {/* 31/10/2026 (GUS) — « cat sitting » 1 730 affichages US en 7 j, 20e place, 0 clic : lien contextuel vers le guide cat sitting */}
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        Looking for someone to visit a cat rather than walk a dog? Read <Link href="/blog/what-is-cat-sitting" className="font-semibold text-owner underline">what cat sitting means and how it works</Link> before you book.
+      </p>
+
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
         Questions Austin owners actually ask
       </h2>
