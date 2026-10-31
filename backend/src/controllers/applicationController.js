@@ -773,24 +773,29 @@ const createApplication = async (req, res) => {
 async function annotatePriceChecks(apps, ownerId) {
   const sanity = require('../utils/priceSanity3110');
   const Post = require('../models/Post');
-  const ids = [...new Set(apps.map((a) => a && a.postId).filter(Boolean).map(String))];
-  if (!ids.length) return apps;
-  const [posts, sibs, owner] = await Promise.all([
-    Post.find({ _id: { $in: ids } }).select('startDate endDate dateMode').lean(),
-    Application.find({ postId: { $in: ids } }).select('_id postId status pricing.totalPrice pricing.indicative pricing.stale').lean(),
+  const Walker = require('../models/Walker');
+  // seules les candidatures à total < 10 sont candidates au garde-fou : on ne charge que celles-là
+  const suspects = apps.filter((a) => a && a.postId && a.pricing && (sanity.realTotalOf(a) || Infinity) < sanity.MIN_TOTAL);
+  if (!suspects.length) return apps;
+  const refId = (x) => (x && typeof x === 'object' ? String(x._id || x.id || '') : String(x || ''));
+  const postIds = [...new Set(suspects.map((a) => String(a.postId)))];
+  const sitterIds = [...new Set(suspects.map((a) => refId(a.sitterId)).filter(Boolean))];
+  const walkerIds = [...new Set(suspects.map((a) => refId(a.walkerId)).filter(Boolean))];
+  const fields = 'hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker';
+  const [posts, sitters, walkers, owner] = await Promise.all([
+    Post.find({ _id: { $in: postIds } }).lean(),
+    sitterIds.length ? Sitter.find({ _id: { $in: sitterIds } }).select(fields).lean() : [],
+    walkerIds.length ? Walker.find({ _id: { $in: walkerIds } }).select(fields).lean() : [],
     ownerId ? Owner.findById(ownerId).select('appLocale language').lean() : null,
   ]);
   const postById = new Map(posts.map((p) => [String(p._id), p]));
-  const sibsByPost = new Map();
-  for (const s of sibs) {
-    const k = String(s.postId);
-    if (!sibsByPost.has(k)) sibsByPost.set(k, []);
-    sibsByPost.get(k).push(s);
-  }
+  const provById = new Map([...sitters, ...walkers].map((d) => [String(d._id), d]));
   const label = sanity.priceToConfirmLabel(require('../utils/applicationCurrency1610').localeOf(owner || {}) || 'fr');
   return apps.map((a) => {
-    if (!a || !a.postId || !a.pricing || typeof a.pricing !== 'object') return a;
-    const chk = sanity.checkApplication(a, postById.get(String(a.postId)), sibsByPost.get(String(a.postId)) || []);
+    if (!suspects.includes(a)) return a;
+    const isWalker = !!refId(a.walkerId);
+    const prov = provById.get(isWalker ? refId(a.walkerId) : refId(a.sitterId)) || null;
+    const chk = sanity.checkApplication(a, postById.get(String(a.postId)), prov, isWalker ? 'walker' : 'sitter');
     if (!chk.toVerify) return a;
     return { ...a, pricing: { ...a.pricing, priceToConfirm: true, priceCheckReason: chk.reason, priceToConfirmLabel: label } };
   });
@@ -1010,16 +1015,17 @@ const respondToApplication = async (req, res) => {
           postId: application.postId ? String(application.postId) : null,
         });
       }
-      // 3110 (FLO, alerte prix de BOB du 31/10) — GARDE-FOU : un total < 10 sur au moins 2 jours,
-      // ou plus de 5 fois sous (ou au-dessus de) la médiane des autres candidats, n'est PAS payable.
-      // Rien n'est écrit, aucun prix ni commission modifiés : 409 PRICE_TO_CONFIRM, « prix à
-      // confirmer par le gardien » dans la langue du propriétaire (utils/priceSanity3110.js).
+      // 3110 (FLO, alerte prix de BOB du 31/10 + décision du soir) — GARDE-FOU : un total < 10 sur au
+      // moins 2 jours ET différent du prix au tarif ACTUEL du gardien (prix périmé) n'est PAS payable.
+      // Un vrai tarif de gardien, même bas, n'est jamais bloqué. Rien n'est écrit : 409
+      // PRICE_TO_CONFIRM, « prix à confirmer par le gardien » dans la langue du propriétaire.
       if (!application.bookingId && application.postId) {
         try {
           const sanity = require('../utils/priceSanity3110');
-          const pS = await require('../models/Post').findById(application.postId).select('startDate endDate dateMode').lean();
-          const sibs = pS ? await Application.find({ postId: application.postId }).select('_id status pricing.totalPrice pricing.indicative pricing.stale').lean() : [];
-          const chk = pS ? sanity.checkApplication(application, pS, sibs) : { toVerify: false };
+          const pS = await require('../models/Post').findById(application.postId).lean();
+          const PMs = isWalkerApp ? require('../models/Walker') : Sitter;
+          const provS = pS ? await PMs.findById(providerRefId).select('hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker').lean() : null;
+          const chk = pS ? sanity.checkApplication(application, pS, provS, providerRole) : { toVerify: false };
           if (chk.toVerify) {
             const loc = require('../utils/applicationCurrency1610').localeOf(application.ownerId);
             logger.info(`[respondToApplication] acceptation refusée : prix à confirmer (${chk.reason}) candidature ${id} total ${application.pricing && application.pricing.totalPrice}`);

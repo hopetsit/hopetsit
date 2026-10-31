@@ -1,29 +1,25 @@
 /**
  * 3110 (FLO, alerte prix de BOB du 31/10/2026) — GARDE-FOU « PRIX À CONFIRMER ».
  *
- * Constat en prod (demandes réelles de Saint-Maur et d'Égly) : un propriétaire voyait 2,70 € ou
- * 7,50 € pour 8 mois de visites (anciens prix calculés « 1 heure », avant le correctif du 26/10,
- * restés sur des candidatures refusées), et 36 € contre 216 € sur une garde de 2 nuits (gardien
- * à 10 €/jour). Un prix ridicule détruit la confiance et pourrait faire payer 2,70 € une garde
- * de 8 mois. Ce module ne CHANGE AUCUN prix ni aucune commission : il MARQUE un total suspect.
+ * Constat en prod (Saint-Maur) : 2,70 € et 7,50 € pour 8 mois de visites, anciens prix calculés
+ * « 1 heure » (avant le correctif du 26/10) restés en base. Ce module ne CHANGE AUCUN prix ni
+ * aucune commission : il MARQUE un total PÉRIMÉ et absurde.
  *
- * Un total est « à vérifier » (non payable, la carte affiche « prix à confirmer par le gardien ») :
- *   · 'too_low'      : total < 10 (dans la devise de la candidature) pour une période d'au moins
- *                      2 jours calendaires (au moins une nuit) ;
- *   · 'outlier_low'  : total plus de 5 fois inférieur à la médiane des AUTRES candidats ;
- *   · 'outlier_high' : total plus de 5 fois supérieur à la médiane des autres candidats, quand il
- *                      y en a au moins 2 (avec un seul autre candidat, l'écart ne dit pas lequel
- *                      des deux est faux : seul le moins cher, le risque pour la confiance et
- *                      pour l'argent, est marqué).
- * « Autres candidats » = candidatures de la même demande, ni refusées ni annulées, avec un vrai
- * total (pas « dates à prévoir », pas « tarif à venir »).
+ * Décision de BOB (31/10 soir, « le garde-fou ne doit JAMAIS bloquer un vrai tarif de gardien ») :
+ * un total est « à vérifier » (non payable, la carte affiche « prix à confirmer par le gardien »)
+ * UNIQUEMENT quand les DEUX conditions sont réunies :
+ *   · total < 10 (devise de la candidature) pour une période d'au moins 2 jours calendaires ;
+ *   · ET ce total ≠ le prix recalculé au tarif ACTUEL du gardien (prix périmé), ou le gardien n'a
+ *     plus de tarif pour ce service.
+ * Un petit prix qui correspond au vrai tarif du gardien (ex. 10 €/jour) n'est JAMAIS bloqué.
+ * L'écart à la médiane des autres candidats (× 5) n'est plus qu'une INDICATION (`outlierHint`),
+ * réservée à l'admin, jamais montrée au propriétaire ni bloquante.
  * Lecture pure, aucune I/O.
  */
 const { dayCount, effectiveDateMode } = require('./pricingEngine620');
 
 const MIN_TOTAL = 10;
 const MAX_RATIO = 5;
-const EXCLUDED_STATUSES = new Set(['rejected', 'cancelled', 'canceled', 'withdrawn', 'expired']);
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null));
 
@@ -43,35 +39,56 @@ const median = (list) => {
 };
 
 /**
- * @param {{ total:number|null, days:number|null, otherTotals?:number[] }} p
- * @returns {{ toVerify:boolean, reason:string|null, median:number|null }}
+ * Indication admin seulement : écart de plus de 5 fois à la médiane des autres candidats.
+ * @returns {{ outlier:string|null, median:number|null }}
  */
-function checkTotal({ total, days, otherTotals = [] } = {}) {
+function outlierHint(total, otherTotals = []) {
   const t = num(total);
-  if (t == null || !(t > 0)) return { toVerify: false, reason: null, median: null };
   const others = (Array.isArray(otherTotals) ? otherTotals : []).map(num).filter((x) => x != null && x > 0);
   const med = median(others);
-  if (num(days) != null && days >= 2 && t < MIN_TOTAL) return { toVerify: true, reason: 'too_low', median: med };
-  if (med != null && t * MAX_RATIO < med) return { toVerify: true, reason: 'outlier_low', median: med };
-  if (med != null && others.length >= 2 && t > med * MAX_RATIO) return { toVerify: true, reason: 'outlier_high', median: med };
-  return { toVerify: false, reason: null, median: med };
+  if (t == null || !(t > 0) || med == null) return { outlier: null, median: med };
+  if (t * MAX_RATIO < med) return { outlier: 'low', median: med };
+  if (others.length >= 2 && t > med * MAX_RATIO) return { outlier: 'high', median: med };
+  return { outlier: null, median: med };
 }
 
 /**
- * Contrôle d'une candidature parmi celles de sa demande.
- * @param {object} app      candidature (pricing.totalPrice, status, _id)
- * @param {object} post     demande (startDate, endDate, dateMode)
- * @param {object[]} siblings toutes les candidatures de la demande (app peut en faire partie)
+ * @param {{ total:number|null, days:number|null, recalculated?:number|null }} p
+ *   recalculated : total au tarif ACTUEL du gardien (null = plus de tarif pour ce service)
+ * @returns {{ toVerify:boolean, reason:string|null }}
  */
-function checkApplication(app, post, siblings = []) {
+function checkTotal({ total, days, recalculated } = {}) {
+  const t = num(total);
+  if (t == null || !(t > 0)) return { toVerify: false, reason: null };
+  if (!(num(days) != null && days >= 2 && t < MIN_TOTAL)) return { toVerify: false, reason: null };
+  const r = num(recalculated);
+  const stalePrice = r == null || Math.abs(r - t) > 0.011;
+  return stalePrice ? { toVerify: true, reason: 'stale_too_low' } : { toVerify: false, reason: null };
+}
+
+/**
+ * Contrôle d'une candidature.
+ * @param {object} app       candidature (pricing.totalPrice, _id)
+ * @param {object} post      demande COMPLÈTE (lean) : dates, services, lieu
+ * @param {object|null} provider  gardien / promeneur (tarifs actuels), null s'il n'existe plus
+ * @param {'sitter'|'walker'} providerRole
+ */
+function checkApplication(app, post, provider, providerRole) {
   const total = realTotalOf(app);
-  if (total == null || !post || effectiveDateMode(post) === 'tbd') return { toVerify: false, reason: null, median: null };
-  const id = String(app && (app._id || app.id));
-  const otherTotals = (siblings || [])
-    .filter((s) => s && String(s._id) !== id && !EXCLUDED_STATUSES.has(String(s.status || '').toLowerCase()))
-    .map(realTotalOf)
-    .filter((x) => x != null);
-  return checkTotal({ total, days: dayCount(post), otherTotals });
+  if (total == null || !post || effectiveDateMode(post) === 'tbd') return { toVerify: false, reason: null };
+  const days = dayCount(post);
+  if (!(days >= 2 && total < MIN_TOTAL)) return { toVerify: false, reason: null };
+  let recalculated = null;
+  if (provider) {
+    try {
+      const { priceApplication } = require('../services/applicationRepricing620');
+      const pr = priceApplication({ application: app, post, provider, providerRole });
+      recalculated = pr && pr.indicative !== true ? pr.totalPrice : null;
+    } catch (e) {
+      recalculated = null;
+    }
+  }
+  return checkTotal({ total, days, recalculated });
 }
 
 const MSG = {
@@ -95,4 +112,4 @@ const pick = (table, locale) => table[String(locale || '').slice(0, 2)] || table
 const priceToConfirmMessage = (locale) => pick(MSG, locale);
 const priceToConfirmLabel = (locale) => pick(SHORT, locale);
 
-module.exports = { MIN_TOTAL, MAX_RATIO, checkTotal, checkApplication, realTotalOf, median, priceToConfirmMessage, priceToConfirmLabel };
+module.exports = { MIN_TOTAL, MAX_RATIO, checkTotal, checkApplication, outlierHint, realTotalOf, median, priceToConfirmMessage, priceToConfirmLabel };

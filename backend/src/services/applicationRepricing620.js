@@ -345,7 +345,11 @@ async function repriceAfterServiceChange(post, opts = {}) {
   const Application = require('../models/Application');
   const out = { repriced: [], stale: [], skipped: [], aligned: [], notified: { owner: false, providers: 0 }, details: [] };
   if (!post) return out;
-  const pending = await Application.find({ postId: post._id, status: 'pending' });
+  // 3110 (FLO, décision de BOB) — `includeRejected` (recalcul SILENCIEUX seulement) : les candidatures
+  // refusées gardaient l'ancien prix « 1 heure » (2,70 € pour 8 mois) ; on les aligne aussi pour
+  // qu'aucun prix absurde ne reste affiché. Jamais d'envoi pour elles (notify doit valoir false).
+  const statuses = opts.includeRejected === true && opts.notify === false ? ['pending', 'rejected'] : ['pending'];
+  const pending = await Application.find({ postId: post._id, status: { $in: statuses } });
   if (!pending.length) return out;
   const Sitter = require('../models/Sitter');
   const Walker = require('../models/Walker');

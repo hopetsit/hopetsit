@@ -35,7 +35,10 @@ router.post('/posts/:id', requireAdmin, async (req, res) => {
     // ni propriétaire ni prestataire).
     const silent = String(req.query.silent || (req.body && req.body.silent) || '') === '1';
     const svc = require('../services/applicationRepricing620');
-    const out = await svc.repriceAfterServiceChange(post, { dryRun, notify: silent ? false : undefined });
+    // 3110 (FLO, décision de BOB) — ?includeRejected=1 (avec silent=1 uniquement) : aligne aussi les
+    // candidatures refusées, sans aucun envoi.
+    const includeRejected = silent && String(req.query.includeRejected || (req.body && req.body.includeRejected) || '') === '1';
+    const out = await svc.repriceAfterServiceChange(post, { dryRun, notify: silent ? false : undefined, includeRejected });
     const engine = require('../utils/pricingEngine620');
     return res.json({
       postId: String(post._id),
@@ -44,6 +47,7 @@ router.post('/posts/:id', requireAdmin, async (req, res) => {
       visitsPerDay: engine.visitsPerDayOf(post),
       dryRun,
       silent,
+      includeRejected,
       ...out,
     });
   } catch (e) {
