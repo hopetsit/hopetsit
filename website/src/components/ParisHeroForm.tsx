@@ -184,7 +184,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
             <Link href="/posts" className="mt-4 inline-block rounded-full bg-owner px-6 py-3.5 text-[16px] font-extrabold text-white shadow-card" onClick={() => trackSiteEvent("cta_click", { label: "hero_form_voir" })}>
               {t.done_link} →
             </Link>
-            <p className="mt-3 text-xs text-ink-soft">{t.done_mail}</p>
+            <p className="mt-3 text-xs text-ink-muted">{t.done_mail}</p>
           </>
         ) : (
           // 31/10 16 h 40 (ZOE) — compte déjà existant : pas de session ouverte ici (une adresse e-mail seule ne prouve
@@ -200,8 +200,11 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
     );
   }
 
+  // 31/10 (Daniel) — « juste derrière le formulaire, le fond d'écran soit lisse » : carte 100 % opaque (crème #FFF7F3,
+  // plus aucune patte qui transparaît), marge lisse unie de 20 px (28 px dès md) qui masque le motif autour, halo doux
+  // qui fond dans le dégradé, puis ombre portée. Le dégradé + pattes reste sur le reste du héros.
   return (
-    <div id="publier" className="mt-2 scroll-mt-20 rounded-3xl border border-owner/20 bg-owner-light/60 p-4 md:mx-auto md:max-w-md" data-testid="hero-form" data-hero-form-3110={lang} onClickCapture={touch}>
+    <div id="publier" className="mt-7 scroll-mt-20 rounded-3xl bg-[#FFF7F3] p-4 shadow-[0_0_0_20px_#FFF3EC,0_0_36px_32px_rgba(255,243,236,0.95),0_32px_56px_-24px_rgba(35,23,21,0.32)] md:mx-auto md:mt-10 md:max-w-md md:shadow-[0_0_0_28px_#FFF3EC,0_0_44px_40px_rgba(255,243,236,0.95),0_32px_56px_-24px_rgba(35,23,21,0.32)]" data-hero-card-lisse-3110="" data-testid="hero-form" data-hero-form-3110={lang} onClickCapture={touch}>
       <p className="text-[15px] font-semibold leading-snug text-ink md:text-base">{lead}</p>
       {target && <p className="mt-1.5 rounded-xl bg-white px-3 py-1.5 text-[12px] font-bold" style={{ color: "#1E4FB0" }} data-hero-target={target.role}>{t.target_note}</p>}
 
@@ -223,7 +226,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={field} data-testid="hero-end" />
         </label>
       </div>
-      <p className="mt-1 text-[11px] text-ink-soft">{t.dates_hint}</p>
+      <p className="mt-1 text-[11px] text-ink-muted">{t.dates_hint}</p>
 
       {svcId && (
         <div className="mt-3">
@@ -270,8 +273,8 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
         className="mt-3 block w-full rounded-full bg-owner px-6 py-4 text-center text-lg font-extrabold text-white shadow-card disabled:opacity-70">
         {busy ? t.busy : t.cta}
       </button>
-      <p className="mt-2 text-center text-xs text-ink-soft">{note}</p>
-      <p className="mt-1 text-center text-[11px] text-ink-soft">{t.terms} <Link href={lang === "fr" ? "/cgu" : "/terms"} className="underline">{t.terms_link}</Link>.</p>
+      <p className="mt-2 text-center text-xs text-ink-muted">{note}</p>
+      <p className="mt-1 text-center text-[11px] text-ink-muted">{t.terms} <Link href={lang === "fr" ? "/cgu" : "/terms"} className="underline">{t.terms_link}</Link>.</p>
     </div>
   );
 }
