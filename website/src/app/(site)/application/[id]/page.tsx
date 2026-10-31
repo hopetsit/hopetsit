@@ -1,44 +1,22 @@
 "use client";
 
-// 16/10/2026 — LEO. Cible du lien de l'e-mail « candidature reçue » envoyé au
-// PROPRIÉTAIRE (`emailLinkBuilder` : /application/:id). Avant : aucune page →
-// repli « Ouvre dans l'app ». Maintenant : connecté → ses demandes avec la
-// candidature mise en avant (Choisir → Payer) ; sinon connexion puis retour ici.
+// 16/10/2026 — LEO. Cible du lien de l'e-mail / du SMS « candidature reçue » envoyé au
+// PROPRIÉTAIRE (`emailLinkBuilder` : /application/:id?from=email|sms).
+// 31/10/2026 — LEO (ordre de Daniel « paiement plus simple ») : plus de rebond vers /posts.
+// Cette page EST la page unique « mes candidats → payer » (OwnerCandidatesPay3110) : les
+// candidats de la demande triés du plus proche au plus loin, un bouton « Choisir <prénom> et
+// payer · prix », l'encart carte Airwallex sur place. Sans session : connexion puis retour ICI
+// (les contacts de la pub arrivent déjà connectés par /posts/confirmer?l=…&next=…).
 // Page privée (noindex via middleware). Hooks en tête, aucun retour anticipé avant.
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useT } from "@/lib/i18n/LanguageProvider";
-import { getStoredUser } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { OwnerCandidatesPay3110 } from "@/components/OwnerCandidatesPay3110";
 
 export default function ApplicationRoutePage({ params }: { params: { id: string } }) {
-  const { t } = useT();
-  const router = useRouter();
   const id = String(params?.id || "").replace(/[^a-fA-F0-9]/g, "").slice(0, 24);
-
-  useEffect(() => {
-    // 26/10 (ADA/LEO) — la provenance (?from=email, utm_medium=email…) suit jusqu'à la page des
-    // candidats, où elle est mesurée (markCandidatesViewed).
-    let extra = "";
-    try {
-      const q = new URLSearchParams(window.location.search);
-      const keep = new URLSearchParams();
-      // 2710 (SAM) — `choose=1` (bouton « Choisir <prénom> » de l'e-mail) suit aussi jusqu'aux candidats.
-      for (const k of ["from", "utm_medium", "utm_source", "utm_campaign", "choose"]) { const v = q.get(k); if (v) keep.set(k, v.slice(0, 40)); }
-      extra = keep.toString() ? `&${keep.toString()}` : "";
-    } catch { /* URL exotique */ }
-    const target = id ? `/posts?application=${encodeURIComponent(id)}${extra}` : "/posts";
-    const u = getStoredUser();
-    if (!u) {
-      router.replace(`/login?redirect=${encodeURIComponent(target)}`);
-      return;
-    }
-    router.replace(u.role === "owner" ? target : "/posts");
-  }, [id, router]);
-
-  return (
-    <div className="mx-auto max-w-md px-4 py-24 text-center">
-      <p className="text-base font-bold" style={{ color: "#231715" }}>{t("c1610_opening")}</p>
-    </div>
-  );
+  // Rendu côté client seulement (session dans localStorage) : évite un écart serveur/client.
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setReady(true); }, []);
+  if (!ready) return <div className="mx-auto max-w-md px-4 py-24" aria-busy="true" />;
+  return <OwnerCandidatesPay3110 focusId={id || undefined} />;
 }
