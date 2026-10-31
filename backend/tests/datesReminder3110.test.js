@@ -137,6 +137,14 @@ describe('relance « posez vos dates » 3110', () => {
     expect(await Reminder.countDocuments({ postId: y.postId })).toBe(3);
   });
 
+  test('l’e-mail « candidats reçus » 2610 il y a moins de 24 h → attend (jamais deux e-mails le même jour)', async () => {
+    const x = await mk('camille.m3110@example.org');
+    await require('../src/models/ApplicationEmail2610').collection.insertOne({ postId: x.postId, ownerId: x.owner._id, sentIds: [], queuedIds: [], lastSentAt: at(-2), emails: 2 });
+    const r = await run(0);
+    expect(mine(r, x)).toHaveLength(0);
+    expect(mine(await run(24), x)).toHaveLength(1);
+  });
+
   test('une autre relance il y a moins de 24 h → attend ; ensuite part', async () => {
     const x = await mk('camille.g3110@example.org');
     await Reminder.create({ postId: x.postId, slot: 'e1', ownerId: x.owner._id, createdAt: at(-5) });

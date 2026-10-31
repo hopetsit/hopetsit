@@ -14,7 +14,8 @@
  *     nos scripts et l'admin ne comptent pas) ni ouverture de ses candidats depuis 24 h ;
  *   · UNE seule fois par demande (place `dates` du registre CandidatesReminder2810, prise AVANT
  *     l'envoi) ; registre COMMUN avec 2810 : jamais plus de 3 e-mails de relance par demande AU
- *     TOTAL (règle de Daniel du 28/10), jamais deux relances à moins de 24 h ;
+ *     TOTAL (règle de Daniel du 28/10), jamais à moins de 24 h d'une autre relance ni de l'e-mail
+ *     « candidats reçus » 2610 de la demande (jamais deux e-mails le même jour) ;
  *   · jamais la nuit (22 h – 8 h, heure locale, règle du 615) : attend le matin ;
  *   · jamais pour un compte +test, staff, sonde ou suspendu ;
  *   · arrêt de fait dès que les dates sont posées (dateMode ≠ tbd), la demande close ou réservée.
@@ -42,7 +43,8 @@ const MAX_CARDS = 3;
 const HARD_STAFF_EMAILS = ['dadaciao84@gmail.com', 'hopetsit@gmail.com'];
 const NOT_A_PERSON_RE = /@invalid\.example$/i;
 
-const enabled = () => String(process.env.DATES_REMINDER_3110 || 'off').toLowerCase() !== 'off'; // ÉTAPE 1 : simulation en prod d'abord
+// ACTIVÉE le 31/10/2026 après simulation en prod (ordre de Daniel via BOB) ; DATES_REMINDER_3110=off pour couper.
+const enabled = () => String(process.env.DATES_REMINDER_3110 || 'on').toLowerCase() !== 'off';
 
 const plainEmail = (stored) => {
   let e = stored;
@@ -130,6 +132,10 @@ const runDatesReminders = async (opts = {}) => {
       if (all.length >= MAX_TOTAL) { skip('max_3'); continue; }
       if (all.some((s) => now.getTime() - new Date(s.createdAt).getTime() < GAP)) { skip('recent_other'); continue; }
       if (now.getTime() - new Date(apps[0].createdAt).getTime() < MIN_AGE) { skip('not_due'); continue; }
+      // Pas deux e-mails le même jour : l'e-mail « candidats reçus » 2610 de la demande a-t-il moins de 24 h ?
+      // eslint-disable-next-line no-await-in-loop
+      const last2610 = await require('../models/ApplicationEmail2610').findOne({ postId: post._id }).select('lastSentAt').lean();
+      if (last2610 && last2610.lastSentAt && now.getTime() - new Date(last2610.lastSentAt).getTime() < GAP) { skip('recent_other'); continue; }
       // eslint-disable-next-line no-await-in-loop
       const owner = await Owner.findById(post.ownerId).select('email status isStaff location country').lean();
       if (!owner) { skip('no_owner'); continue; }
