@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import Link from "@/components/SiteLink";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { EstimateLine620 } from "@/components/DateMode620";
@@ -31,7 +31,7 @@ const ANIMALS: { id: "chien" | "chat" | "autre"; fr: string; en: string }[] = [
 const TXT = {
   fr: {
     from: "Du", to: "Au", dates_hint: "Pas encore de dates ? Laisse vide : tu les poseras ensuite.",
-    postal: "Code postal", first: "Prénom", email: "E-mail", animal: "Animal",
+    postal: "Code postal", first: "Prénom", email: "E-mail", animal: "Animal", city: "Ville",
     cta: "Publier ma demande", busy: "Publication…",
     need_service: "Choisis un service.", need_place: "Indique ton code postal.", need_email: "Indique un e-mail valide : c'est là que les candidats arrivent, avec leur prix.",
     err: "La publication n'a pas abouti. Réessaie dans un instant.", err_test: "Cette adresse est réservée aux tests.", err_many: "Trop d'envois. Réessaie dans quelques minutes.",
@@ -44,7 +44,7 @@ const TXT = {
   },
   en: {
     from: "From", to: "To", dates_hint: "No dates yet? Leave empty: you'll set them later.",
-    postal: "ZIP code", first: "First name", email: "Email", animal: "Pet",
+    postal: "ZIP code", first: "First name", email: "Email", animal: "Pet", city: "City",
     cta: "Post my request", busy: "Posting…",
     need_service: "Pick a service.", need_place: "Enter your ZIP code.", need_email: "Enter a valid email: that's where candidates arrive, with their price.",
     err: "Posting didn't go through. Try again in a moment.", err_test: "This address is reserved for tests.", err_many: "Too many attempts. Try again in a few minutes.",
@@ -57,10 +57,15 @@ const TXT = {
   },
 };
 
-export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", campaign = "paris_owners", page = "/garde-animaux/paris" }: {
+export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", campaign = "paris_owners", page = "/garde-animaux/paris", cityEditable = false }: {
   city: string; lead: string; note: string; lang?: Lang; country?: string; campaign?: string; page?: string;
+  /** 31/10 (accueil, décision BOB) — la ville se saisit (Paris / New York proposées par défaut). */
+  cityEditable?: boolean;
 }) {
   const t = TXT[lang];
+  const [cityValue, setCityValue] = useState(city);
+  // La langue (donc la ville proposée) peut arriver après le premier rendu : on suit la prop.
+  useEffect(() => { setCityValue(city); }, [city]);
   const [service, setService] = useState<"" | "garde" | "promenade" | "visites">("");
   const [animal, setAnimal] = useState<"chien" | "chat" | "autre">("chien");
   const [startDate, setStartDate] = useState("");
@@ -97,7 +102,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
     setBusy(true);
     try {
       const r = await publishSiteLead({
-        email: email.trim(), firstName: firstName.trim(), service, animal, postalCode: postalCode.trim(), city, country, lang,
+        email: email.trim(), firstName: firstName.trim(), service, animal, postalCode: postalCode.trim(), city: (cityEditable ? cityValue.trim() : city) || city, country, lang,
         startDate: startDate || undefined, endDate: endDate || startDate || undefined, campaign, page, website,
       });
       trackSiteEvent("cta_click", { label: r.existing ? "hero_form_deja" : "hero_form_envoye" });
@@ -155,11 +160,16 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
       {svcId && (
         <div className="mt-3">
           <EstimateLine620 lang={lang} service={svcId} dateMode={startDate && endDate ? "exact" : "tbd"} startDate={startDate} endDate={endDate}
-            visitsPerDay={1} venue={svcId === "house_sitting" ? "owners_home" : null} currency={country === "US" ? "USD" : "EUR"} location={{ city }} />
+            visitsPerDay={1} venue={svcId === "house_sitting" ? "owners_home" : null} currency={country === "US" ? "USD" : "EUR"} location={{ city: cityEditable ? cityValue : city }} />
         </div>
       )}
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      {cityEditable && (
+        <label className="mt-3 block text-xs font-semibold text-ink">{t.city}
+          <input value={cityValue} onChange={(e) => setCityValue(e.target.value)} autoComplete="address-level2" maxLength={80} className={field} data-testid="hero-city" />
+        </label>
+      )}
+      <div className={`${cityEditable ? "mt-2" : "mt-3"} grid grid-cols-2 gap-2`}>
         <label className="block text-xs font-semibold text-ink">{t.postal}
           <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} inputMode="numeric" autoComplete="postal-code" maxLength={12} className={field} data-testid="hero-postal" />
         </label>

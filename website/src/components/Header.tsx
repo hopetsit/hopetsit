@@ -9,8 +9,15 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 import { clearAuth } from "@/lib/api";
 
+// 31/10 (LEO, décision BOB) — chemin propriétaire à un clic : la page d'arrivée avec le formulaire 1 étape
+// (Paris en français, New York en anglais) ; « Devenir gardien » = inscription classique.
+const PUBLISH: Partial<Record<string, { label: string; short: string; become: string; href: string }>> = {
+  fr: { label: "Publier ma demande", short: "Publier", become: "Devenir gardien", href: "/garde-animaux/paris" },
+  en: { label: "Post my request", short: "Post", become: "Become a sitter", href: "/pet-sitting/new-york" },
+};
+
 export function Header() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const router = useRouter();
   const pathname = usePathname();
   const { user, ready } = useAuth();
@@ -120,14 +127,31 @@ export function Header() {
               >
                 {t("nav_login")}
               </Link>
+              {/* 31/10 (LEO, décision BOB, étape 3) — le bouton principal du menu = « Publier ma demande »
+                  (propriétaires d'abord : 37/39 n'ont pas l'app, 0 paiement) ; « Devenir gardien » reste en
+                  lien secondaire (menu). fr/en seulement ; les autres langues gardent « S'inscrire ». */}
+              {PUBLISH[lang] && (
+                <Link
+                  href={PUBLISH[lang]!.href}
+                  className="relative hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-[#231715]/80 hover:text-[#231715] lg:inline-block"
+                >
+                  {PUBLISH[lang]!.become}
+                </Link>
+              )}
               <Link
-                href="/signup"
+                href={PUBLISH[lang] ? PUBLISH[lang]!.href : "/signup"}
                 /* v585 — pouce (Bob, 25/09) : la pastille mesurait 32 px de haut.
                    Zone de toucher portée à 44 px par un calque invisible,
                    pastille visuellement inchangée. */
                 className="relative rounded-full bg-owner px-4 py-1.5 text-[13px] font-semibold text-white transition after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] hover:bg-owner-dark"
+                data-nav-publish-3110={PUBLISH[lang] ? "1" : undefined}
               >
-                {t("nav_signup")}
+                {PUBLISH[lang] ? (
+                  <>
+                    <span className="sm:hidden">{PUBLISH[lang]!.short}</span>
+                    <span className="hidden whitespace-nowrap sm:inline">{PUBLISH[lang]!.label}</span>
+                  </>
+                ) : t("nav_signup")}
               </Link>
             </>
           )}
@@ -191,13 +215,20 @@ export function Header() {
               </button>
             </>
           ) : (
-            <Link
-              href="/login"
-              onClick={() => setOpen(false)}
-              className="block px-2 py-3 text-sm font-medium text-ink"
-            >
-              {t("nav_login")}
-            </Link>
+            <>
+              {PUBLISH[lang] && (
+                <Link href="/signup" onClick={() => setOpen(false)} className="block px-2 py-3 text-sm font-medium text-ink">
+                  {PUBLISH[lang]!.become}
+                </Link>
+              )}
+              <Link
+                href="/login"
+                onClick={() => setOpen(false)}
+                className="block px-2 py-3 text-sm font-medium text-ink"
+              >
+                {t("nav_login")}
+              </Link>
+            </>
           )}
         </nav>
       )}

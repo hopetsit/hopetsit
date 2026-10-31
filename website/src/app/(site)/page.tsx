@@ -11,6 +11,8 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 import { pawmapShotFor, PhoneFrame } from "@/lib/screens";
 import { ROLE_COLOR } from "@/lib/pawmapLegend";
+// 31/10 (LEO, décision BOB, étape 3) — premier écran = le formulaire 1 étape (fr/en) : accueil 94 vues → 0 clic d'action.
+import { ParisHeroForm } from "@/components/ParisHeroForm";
 
 // v562 — Refonte « minimaliste, pro, façon Apple » (Daniel, 13/09).
 // 24/09/2026 — LOT B (plan de LEO validé par Daniel « oui, valide tout ») :
@@ -111,15 +113,35 @@ export default function HomePage() {
               <AppIcon name="globe" size={14} color="#C92A12" />
               {t("hero_badge")}
             </span>
-            <h1 className="mt-5 font-display text-[2.4rem] font-bold leading-[1.05] tracking-[-0.03em] text-[#231715] md:text-6xl">
+            <h1 className={`mt-4 font-display font-bold leading-[1.05] tracking-[-0.03em] text-[#231715] md:text-6xl ${lang === "fr" || lang === "en" ? "text-[2rem]" : "text-[2.4rem]"}`}>
               {keepTogether(t("home_hero_title_book"))}
             </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[#6E4F48] md:text-xl lg:mx-0">
-              {t("home_hero_sub_book")}
-            </p>
+            {/* 31/10 — fr/en : la promesse est dans le formulaire juste dessous (le sous-titre doublait et
+                repoussait le bouton à 937 px à 375). */}
+            {!(lang === "fr" || lang === "en") && (
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[#6E4F48] md:text-xl lg:mx-0">
+                {t("home_hero_sub_book")}
+              </p>
+            )}
 
+            {/* 31/10 (LEO, décision BOB) — fr/en : le formulaire 1 étape (ville à saisir, Paris / New York
+                proposées), publié sans compte ; les autres langues gardent la recherche carte. */}
+            {(lang === "fr" || lang === "en") && (
+              <div id="publier" className="mx-auto w-full max-w-md scroll-mt-20 text-left lg:mx-0" data-home-form-3110={lang}>
+                <ParisHeroForm
+                  city={lang === "fr" ? "Paris" : "New York"}
+                  cityEditable
+                  lang={lang}
+                  country={lang === "fr" ? "FR" : "US"}
+                  campaign={lang === "fr" ? "home_fr" : "home_en"}
+                  page="/"
+                  lead={lang === "fr" ? "Des gardiens vérifiés près de chez toi te répondent avec leur prix. Sans compte, tout de suite." : "Trusted pet sitters near you reply with their price. No account, posted right away."}
+                  note={lang === "fr" ? "Gratuit · sans compte · tu choisis et tu paies ensuite, annulation gratuite jusqu'à 72 h avant" : "Free · no account · you choose and pay later, free cancellation up to 72 h before"}
+                />
+              </div>
+            )}
             {/* Recherche : ville + service → la carte publique centrée sur la ville. */}
-            <form onSubmit={submitSearch} className="mx-auto mt-7 flex w-full max-w-xl flex-col gap-2 rounded-[22px] bg-[#FAF1EC] p-2 lg:mx-0 lg:max-w-none lg:flex-row lg:items-center lg:rounded-full" role="search" aria-label={t("home_search_aria")}>
+            {!(lang === "fr" || lang === "en") && <form onSubmit={submitSearch} className="mx-auto mt-7 flex w-full max-w-xl flex-col gap-2 rounded-[22px] bg-[#FAF1EC] p-2 lg:mx-0 lg:max-w-none lg:flex-row lg:items-center lg:rounded-full" role="search" aria-label={t("home_search_aria")}>
               <label className="flex min-h-[48px] min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-4">
                 <AppIcon name="pin" size={18} color="#C92A12" className="shrink-0" />
                 <input
@@ -150,7 +172,7 @@ export default function HomePage() {
                   <span className="whitespace-nowrap">{t("home_search_btn")}</span>
                 </button>
               </div>
-            </form>
+            </form>}
 
             <div className="mt-5 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
               <Link href="/download" className="hidden min-h-[44px] items-center gap-2 rounded-full bg-[#FAF1EC] px-5 text-sm font-semibold text-[#231715] transition hover:bg-[#F0E3DF] sm:inline-flex">
