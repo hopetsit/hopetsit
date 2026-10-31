@@ -258,6 +258,30 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     }
   }, [step]);
 
+  // 31/10 soir (LEO, demande BOB — relance d'ADA « Pose tes dates ») : sur une demande « dates à prévoir », l'éditeur
+  // (pré-rempli) s'ouvre d'office quand l'adresse porte `dates=1`, ou quand on arrive d'un e-mail (`from=email`, posé
+  // par emailLinkBuilder sur tout lien /application/<id> d'un propriétaire) ; on fait défiler jusqu'à lui et on
+  // place le curseur dans le 1er champ. Une seule fois par visite (« Annuler » le referme pour de bon).
+  const autoDatesRef = useRef<"pending" | "done">("pending");
+  useEffect(() => {
+    if (autoDatesRef.current === "done" || !post || step === "paid") return;
+    if (dateModeOf620(post) !== "tbd") { autoDatesRef.current = "done"; return; }
+    let q: URLSearchParams | null = null;
+    try { q = new URLSearchParams(window.location.search); } catch { q = null; }
+    autoDatesRef.current = "done";
+    if (!q || !(q.get("dates") === "1" || q.get("from") === "email")) return;
+    setEditingDates(true);
+    trackSiteEvent("cta_click", { label: "cand_dates_auto" });
+    // Pas de nettoyage : si `post`/`step` changent dans les 120 ms, le défilement doit quand même avoir lieu.
+    window.setTimeout(() => {
+      const box = datesRef.current;
+      if (!box) return;
+      box.scrollIntoView({ behavior: "smooth", block: "start" });
+      const field = box.querySelector<HTMLElement>("input[type=date]") || box.querySelector<HTMLElement>("input:not([type=hidden]),select,button");
+      try { field?.focus({ preventScroll: true }); } catch { /* sans focus */ }
+    }, 120);
+  }, [post, step]);
+
   // ── à partir d'ici, plus aucun hook ──────────────────────────────────────────────────────────
   const tbd = post ? dateModeOf620(post) === "tbd" : false;
   const postPoint = post ? point3110(post.location) : null;
