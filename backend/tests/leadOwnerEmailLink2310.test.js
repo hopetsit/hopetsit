@@ -55,7 +55,11 @@ describe('e-mail de candidature pour un propriétaire issu de la pub', () => {
     expect(link.startsWith(`${BASE_URL}/posts/confirmer?l=fdf72ce42f0a0580e128388e13149050&next=`)).toBe(true);
     // la cible = exactement celle que le bouton aurait eue sans réécriture (même routeur que la cloche)
     const attendu = buildEmailRoute('application_new', { applicationId: '6a0000000000000000000002', providerRole: 'sitter', providerId: '6a0000000000000000000004', postId: '6a0000000000000000000001' }, { role: 'owner', devices: null });
-    expect(decodeURIComponent(link.split('next=')[1])).toBe(attendu);
+    // 31/10 (LEO) — la cible porte en plus le jeton signé `&k=` (utils/applicationLink3110) :
+    // même route, suivie du jeton qui ouvre la session sans mot de passe.
+    const next = decodeURIComponent(link.split('next=')[1]);
+    expect(next.startsWith(`${attendu}&k=`)).toBe(true);
+    expect(require('../src/utils/applicationLink3110').verifyApplicationLink(next.split('&k=')[1])).toMatchObject({ ok: true, applicationId: '6a0000000000000000000002' });
     expect(attendu.startsWith('/')).toBe(true);
   });
 
@@ -64,7 +68,9 @@ describe('e-mail de candidature pour un propriétaire issu de la pub', () => {
     await sendNotification({ userId: mockUser._id, role: 'owner', type: 'application_new',
       data: { applicationId: '6a0000000000000000000002', providerRole: 'sitter', providerId: '6a0000000000000000000004' } });
     const attendu = buildEmailRoute('application_new', { applicationId: '6a0000000000000000000002', providerRole: 'sitter', providerId: '6a0000000000000000000004' }, { role: 'owner', devices: null });
-    expect(lastLink()).toBe(`${BASE_URL}${attendu}`);
+    // 31/10 (LEO) — lien direct + jeton signé `&k=` (sans mot de passe pour tous, feu vert BOB).
+    expect(lastLink().startsWith(`${BASE_URL}${attendu}&k=`)).toBe(true);
+    expect(require('../src/utils/applicationLink3110').verifyApplicationLink(lastLink().split('&k=')[1])).toMatchObject({ ok: true, ownerId: String(mockUser._id), applicationId: '6a0000000000000000000002' });
     expect(lastLink().indexOf('/posts/confirmer')).toBe(-1);
   });
 

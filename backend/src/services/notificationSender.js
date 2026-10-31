@@ -271,6 +271,12 @@ const unverifiedEmailBlocked = async (user, role) => {
 const leadOwnerEmailLink = async (role, userId, link, siteBase) => {
   try {
     if (role !== 'owner' || !userId || !link || typeof link !== 'string') return link;
+    // 31/10 (LEO, feu vert BOB) — TOUT lien /application/<id> d'un propriétaire porte un jeton signé
+    // (`k=`) : le site ouvre sa session sans mot de passe, même hors pub (utils/applicationLink3110).
+    // Appliqué AVANT la réécriture « pub » ci-dessous, dont la cible `next=` garde donc le jeton.
+    if (/\/application\/[a-f0-9]{24}(\?|$)/i.test(link)) {
+      try { link = await require('../utils/applicationLink3110').withSignedApplicationLink(role, userId, link); } catch (_) { /* lien inchangé */ }
+    }
     if (!link.startsWith(siteBase) || link.indexOf('/posts/confirmer') >= 0) return link;
     const AdLead = require('../models/AdLead2210');
     // Sans connexion à la base (bancs de test à modèles simulés), Mongoose mettrait la requête

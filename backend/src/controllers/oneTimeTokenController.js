@@ -183,7 +183,41 @@ const exchangeOneTimeToken = async (req, res) => {
   }
 };
 
+/**
+ * 31/10/2026 (LEO, feu vert BOB) — échange du LIEN SIGNÉ d'un e-mail « candidats » contre une
+ * session propriétaire : POST /auth/application-link { token, applicationId }.
+ * Le jeton (utils/applicationLink3110) est lié au propriétaire ET à la candidature ; il n'ouvre
+ * une session que pour la page /application/<cette candidature> (applicationId doit concorder),
+ * tant que la demande n'est ni close ni payée. Réutilisable jusqu'à sa date (voir l'utilitaire).
+ */
+const exchangeApplicationLink = async (req, res) => {
+  try {
+    const { token, applicationId } = req.body || {};
+    if (!token || typeof token !== 'string' || token.length > 600) {
+      return res.status(400).json({ error: 'Invalid token format.', code: 'LINK_INVALID' });
+    }
+    const { checkApplicationLink } = require('../utils/applicationLink3110');
+    const chk = await checkApplicationLink(token);
+    if (!chk.ok) return res.status(chk.status).json({ error: chk.error, code: chk.error });
+    if (applicationId && String(applicationId) !== String(chk.application._id)) {
+      return res.status(401).json({ error: 'LINK_INVALID', code: 'LINK_INVALID' });
+    }
+    const account = await Owner.findById(chk.ownerId);
+    if (!account) return res.status(404).json({ error: 'User not found.', code: 'LINK_INVALID' });
+    if (account.status && account.status !== 'active') {
+      return res.status(401).json({ error: 'Account not active.', status: account.status, code: 'LINK_INVALID' });
+    }
+    const newJwt = signAuthToken({ id: account._id, role: 'owner' });
+    logger.info({ userId: String(account._id), applicationId: String(chk.application._id) }, '[application-link] session ouverte par lien signé');
+    return res.json({ token: newJwt, role: 'owner', user: sanitizeUser(account.toObject(), { includeEmail: true }), applicationId: String(chk.application._id), postId: chk.application.postId ? String(chk.application.postId) : null });
+  } catch (error) {
+    logger.error({ err: error }, '[exchangeApplicationLink] failed');
+    return res.status(500).json({ error: 'Failed to open session. Please try again.' });
+  }
+};
+
 module.exports = {
   createOneTimeToken,
   exchangeOneTimeToken,
+  exchangeApplicationLink,
 };

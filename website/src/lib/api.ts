@@ -366,6 +366,22 @@ type OneTimeTokenRaw = {
  *   const { ott } = await requestOneTimeToken();
  *   window.location.href = `hopetsit://auth?ott=${ott}`;
  */
+/**
+ * 31/10/2026 (LEO, feu vert BOB) — lien signé des e-mails « candidats » (`/application/<id>?k=…`) :
+ * POST /auth/application-link ouvre la session du propriétaire SANS mot de passe (jeton lié à lui
+ * et à cette candidature, 14 j, invalide si la demande est close ou payée). La session est
+ * enregistrée comme après une connexion classique.
+ */
+export async function exchangeApplicationLink(token: string, applicationId: string) {
+  const raw = await request<AuthRaw & { applicationId?: string; postId?: string | null }>("/auth/application-link", {
+    method: "POST",
+    body: JSON.stringify({ token, applicationId }),
+  });
+  const data = normalizeAuthResponse(raw);
+  persistAuth(data.token, data.user);
+  return data;
+}
+
 export async function requestOneTimeToken(): Promise<OneTimeTokenRaw> {
   // request<T> ajoute déjà `Authorization: Bearer <token>` depuis localStorage.
   return request<OneTimeTokenRaw>("/auth/one-time-token", { method: "POST" });

@@ -188,14 +188,19 @@ describe('1. Contact de la pub → demande publiée → candidature → le propr
   }, 60000);
 
   test('e-mail « Nouvelle candidature » au propriétaire sans mot de passe : bouton = /posts/confirmer?l=<jeton>&next=/application/<id> ; cloche in-app', async () => {
-    await wait(300);
-    const m = mailsTo('flo2310+ownerfr@example.test');
+    // 31/10 (LEO) — le lien passe désormais par 2 lectures (candidature, propriétaire) pour le jeton
+    // signé : on attend l'e-mail jusqu'à 3 s au lieu d'un délai fixe de 300 ms.
+    let m = mailsTo('flo2310+ownerfr@example.test');
+    for (let i = 0; i < 30 && m.length === 0; i++) { await wait(100); m = mailsTo('flo2310+ownerfr@example.test'); } // eslint-disable-line no-await-in-loop
     expect(m.length).toBeGreaterThanOrEqual(1);
     const link = linkOf(m[m.length - 1]);
     expect(link).toContain(`/posts/confirmer?l=${FR.lead}&next=`);
     const { buildEmailRoute } = require('../src/utils/emailLinkBuilder');
     const attendu = buildEmailRoute('application_new', { applicationId: String(FR.application._id), providerRole: 'sitter', providerId: String(FR.sitter._id), postId: String(FR.post._id) }, { role: 'owner', devices: null });
-    expect(decodeURIComponent(link.split('next=')[1])).toBe(attendu);
+    // 31/10 (LEO) — la cible porte en plus le jeton signé `&k=` (sans mot de passe pour tous).
+    const next = decodeURIComponent(link.split('next=')[1]);
+    expect(next.startsWith(`${attendu}&k=`)).toBe(true);
+    expect(require('../src/utils/applicationLink3110').verifyApplicationLink(next.split('&k=')[1])).toMatchObject({ ok: true, ownerId: String(FR.owner._id), applicationId: String(FR.application._id) });
     expect(attendu).toBe(`/application/${FR.application._id}?from=email`); // 2610 : page des candidats + mesure ADA
     const n = await notifsOf(FR.owner._id, 'owner');
     const items = n.notifications || n.items || n;

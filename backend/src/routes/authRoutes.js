@@ -21,7 +21,7 @@ const {
   exchangeOneTimeToken,
 } = require('../controllers/oneTimeTokenController');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
-const { adminLoginLimiter } = require('../middleware/rateLimiters');
+const { adminLoginLimiter, sensitiveLimiter } = require('../middleware/rateLimiters');
 
 const router = express.Router();
 
@@ -1172,6 +1172,10 @@ router.post('/one-time-token', requireAuth, createOneTimeToken);
  *         description: User not found
  */
 router.post('/exchange', exchangeOneTimeToken);
+
+// 31/10/2026 (LEO, feu vert BOB) — lien signé des e-mails « candidats » du propriétaire :
+// POST /auth/application-link { token, applicationId } → session (voir utils/applicationLink3110).
+router.post('/application-link', sensitiveLimiter, require('../controllers/oneTimeTokenController').exchangeApplicationLink);
 
 module.exports = router;
 
