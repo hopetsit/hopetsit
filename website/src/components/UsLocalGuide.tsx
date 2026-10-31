@@ -1055,18 +1055,18 @@ const GUIDES_FR: Record<string, Guide> = {
     tips: [
       "En appartement sans jardin, la sortie du midi en semaine est souvent la plus dure à assurer : un dog sitter qui habite le même arrondissement peut passer à heure fixe pour la promenade.",
       "Pour un chat, les visites à domicile (cat sitting) évitent le transport et la pension : il garde ses repères. Une ou deux visites par jour selon son caractère.",
-      "Pensez aux codes : digicode, interphone, étage, et un double des clés remis en main propre lors de la rencontre, jamais dans une annonce.",
+      "Pense aux codes : digicode, interphone, étage, et un double des clés remis en main propre lors de la rencontre, jamais dans une annonce.",
       "Toussaint, Noël, été : beaucoup de Parisiens partent aux mêmes dates. Publie ta demande plusieurs semaines avant pour avoir le choix du petsitter.",
       "Dans le métro, les petits animaux voyagent dans un sac ou un panier ; pour un grand chien, les conditions de la RATP sont plus strictes : un pet sitter du quartier évite le trajet.",
     ],
     faq: {
       owner: [
         { q: "Pet sitter, petsitter, dog sitter ou cat sitter à Paris : quelle différence ?", a: "Aucune sur HoPetSit : ce sont les mêmes gardiens. Le dog sitting regroupe la garde et la promenade de chien, le cat sitting les visites à domicile pour un chat. Tu précises le service dans ta demande." },
-        { q: "Que donner au pet sitter avant une garde à Paris ?", a: "Le digicode, l'étage, un double des clés et la routine de l'animal (repas, sorties, vétérinaire habituel). Remettez les clés lors d'une rencontre avant la garde, après avoir discuté dans l'app." },
+        { q: "Que donner au pet sitter avant une garde à Paris ?", a: "Le digicode, l'étage, un double des clés et la routine de l'animal (repas, sorties, vétérinaire habituel). Remets les clés lors d'une rencontre avant la garde, après avoir discuté dans l'app." },
         { q: "Où promener son chien à Paris ?", a: "Dans les bois de Boulogne et de Vincennes, le long du canal Saint-Martin, et dans les parcs et jardins qui acceptent les chiens en laisse : le règlement est affiché à chaque entrée." },
       ],
       recruit: [
-        { q: "Où trouver ses premiers clients à Paris ?", a: "Dans votre arrondissement : les propriétaires préfèrent quelqu'un qui habite à pied, surtout pour la promenade du midi et les visites de chat." },
+        { q: "Où trouver ses premiers clients à Paris ?", a: "Dans ton arrondissement : les propriétaires préfèrent quelqu'un qui habite à pied, surtout pour la promenade du midi et les visites de chat." },
         { q: "Faut-il un jardin pour garder des animaux à Paris ?", a: "Non. La plupart des demandes sont des visites à domicile ou des promenades, chez le propriétaire." },
       ],
     },
@@ -1085,11 +1085,11 @@ const GUIDES_FR: Record<string, Guide> = {
     ],
     faq: {
       owner: [
-        { q: "Un pet-sitter de Paris peut-il venir à Malakoff ?", a: "Oui. Votre demande est montrée aux pet-sitters autour de votre adresse, y compris dans le 14e, le 15e et à Vanves ou Montrouge." },
-        { q: "Puis-je faire garder mon chat sans le déplacer ?", a: "Oui. Publiez une demande de visites à domicile : le pet-sitter vient nourrir, jouer et nettoyer la litière, et vous recevez des nouvelles dans l'app." },
+        { q: "Un pet-sitter de Paris peut-il venir à Malakoff ?", a: "Oui. Ta demande est montrée aux pet-sitters autour de ton adresse, y compris dans le 14e, le 15e et à Vanves ou Montrouge." },
+        { q: "Puis-je faire garder mon chat sans le déplacer ?", a: "Oui. Publie une demande de visites à domicile : le pet-sitter vient nourrir, jouer et nettoyer la litière, et tu reçois des nouvelles dans l'app." },
       ],
       recruit: [
-        { q: "Où trouver ses premiers clients à Malakoff ?", a: "Autour de chez vous : les propriétaires préfèrent quelqu'un qui habite à pied. Malakoff, Vanves, Montrouge et le sud du 14e forment une même zone." },
+        { q: "Où trouver ses premiers clients à Malakoff ?", a: "Autour de chez toi : les propriétaires préfèrent quelqu'un qui habite à pied. Malakoff, Vanves, Montrouge et le sud du 14e forment une même zone." },
         { q: "Faut-il un jardin pour garder des animaux ?", a: "Non. La plupart des demandes sont des visites à domicile ou des promenades, chez le propriétaire." },
       ],
     },
@@ -1102,18 +1102,18 @@ const GUIDES_FR: Record<string, Guide> = {
       { name: "Rues pavillonnaires calmes", note: "parfaites pour les petites sorties du matin et du soir" },
     ],
     tips: [
-      "Petite ville où tout se fait à pied : choisissez un pet-sitter du quartier, il pourra passer plusieurs fois par jour.",
+      "Petite ville où tout se fait à pied : choisis un pet-sitter du quartier, il pourra passer plusieurs fois par jour.",
       "La ligne 11 (Mairie des Lilas) relie la ville au 19e et au 20e : les pet-sitters de l'est parisien viennent facilement.",
       "Le bouche-à-oreille compte beaucoup : laisser un avis après la garde aide le pet-sitter et les voisins.",
     ],
     faq: {
       owner: [
-        { q: "Ma demande est-elle vue par des pet-sitters du 19e et du 20e ?", a: "Oui. Elle est montrée aux pet-sitters autour de votre adresse, aux Lilas comme dans les communes et arrondissements voisins." },
-        { q: "Puis-je rencontrer le pet-sitter avant de réserver ?", a: "Oui. Vous discutez dans l'app avant la réservation et pouvez convenir d'une première rencontre." },
+        { q: "Ma demande est-elle vue par des pet-sitters du 19e et du 20e ?", a: "Oui. Elle est montrée aux pet-sitters autour de ton adresse, aux Lilas comme dans les communes et arrondissements voisins." },
+        { q: "Puis-je rencontrer le pet-sitter avant de réserver ?", a: "Oui. Tu discutes dans l'app avant la réservation et tu peux convenir d'une première rencontre." },
       ],
       recruit: [
         { q: "Y a-t-il de la demande aux Lilas ?", a: "Oui, surtout pour les visites à domicile pendant les vacances et les promenades en semaine. Être du quartier est un vrai avantage." },
-        { q: "Puis-je aussi garder dans le 19e ou le 20e ?", a: "Oui. Réglez votre zone d'intervention sur ce que vous pouvez rejoindre à pied ou en métro." },
+        { q: "Puis-je aussi garder dans le 19e ou le 20e ?", a: "Oui. Règle ta zone d'intervention sur ce que tu peux rejoindre à pied ou en métro." },
       ],
     },
   },
@@ -1125,14 +1125,14 @@ const GUIDES_FR: Record<string, Guide> = {
       { name: "Rues résidentielles autour du lac", note: "calmes pour les sorties courtes" },
     ],
     tips: [
-      "Beaucoup de maisons avec jardin : précisez si le pet-sitter doit promener votre chien ou seulement passer le voir et jouer au jardin.",
+      "Beaucoup de maisons avec jardin : précise si le pet-sitter doit promener ton chien ou seulement passer le voir et jouer au jardin.",
       "La gare d'Enghien (ligne H) met la ville à 15 minutes de Paris Nord : pratique pour les pet-sitters qui n'ont pas de voiture.",
-      "Les gardes de nuit et les longs week-ends sont fréquents : décrivez bien la routine de l'animal dans la demande.",
+      "Les gardes de nuit et les longs week-ends sont fréquents : décris bien la routine de l'animal dans la demande.",
     ],
     faq: {
       owner: [
-        { q: "Les communes voisines sont-elles couvertes ?", a: "Oui. Votre demande est montrée aux pet-sitters autour de votre adresse : Enghien, Soisy, Deuil-la-Barre, Montmorency, Saint-Gratien…" },
-        { q: "Un pet-sitter peut-il dormir chez moi ?", a: "Oui. Publiez une demande de garde à domicile avec les dates ; vous en discutez dans l'app avant de réserver." },
+        { q: "Les communes voisines sont-elles couvertes ?", a: "Oui. Ta demande est montrée aux pet-sitters autour de ton adresse : Enghien, Soisy, Deuil-la-Barre, Montmorency, Saint-Gratien…" },
+        { q: "Un pet-sitter peut-il dormir chez moi ?", a: "Oui. Publie une demande de garde à domicile avec les dates ; tu en discutes dans l'app avant de réserver." },
       ],
       recruit: [
         { q: "Quelles gardes sont demandées à Enghien-les-Bains ?", a: "Des gardes de nuit, des visites pendant les vacances et des promenades autour du lac." },
@@ -1149,14 +1149,14 @@ const GUIDES_FR: Record<string, Guide> = {
       { name: "Mont Veyrier", note: "randonnée plus raide pour les chiens habitués à la montagne" },
     ],
     tips: [
-      "En été, les chiens sont souvent interdits sur les plages surveillées du lac : vérifiez les règles avant une baignade.",
+      "En été, les chiens sont souvent interdits sur les plages surveillées du lac : vérifie les règles avant une baignade.",
       "En montagne, les troupeaux ont parfois des chiens de protection (patous) : tenir son chien en laisse et contourner le troupeau.",
-      "Annecy est très touristique l'été : réservez tôt pour les gardes de juillet-août.",
+      "Annecy est très touristique l'été : réserve tôt pour les gardes de juillet-août.",
     ],
     faq: {
       owner: [
-        { q: "Mon pet-sitter peut-il emmener mon chien en randonnée ?", a: "Oui si vous l'acceptez et si votre chien est habitué. Précisez dans la demande les sentiers qu'il connaît et sa forme." },
-        { q: "Les communes autour d'Annecy sont-elles couvertes ?", a: "Oui. Votre demande est montrée aux pet-sitters autour de votre adresse, dans toute l'agglomération." },
+        { q: "Mon pet-sitter peut-il emmener mon chien en randonnée ?", a: "Oui si tu l'acceptes et si ton chien est habitué. Précise dans la demande les sentiers qu'il connaît et sa forme." },
+        { q: "Les communes autour d'Annecy sont-elles couvertes ?", a: "Oui. Ta demande est montrée aux pet-sitters autour de ton adresse, dans toute l'agglomération." },
       ],
       recruit: [
         { q: "Quand la demande est-elle la plus forte à Annecy ?", a: "L'été et pendant les vacances scolaires, quand les habitants partent et que les vacanciers arrivent avec leurs animaux." },
@@ -1173,18 +1173,18 @@ const GUIDES_FR: Record<string, Guide> = {
       { name: "Parc de la Citadelle", note: "parc arboré près de l'Esplanade" },
     ],
     tips: [
-      "Ville très cyclable : beaucoup de pet-sitters se déplacent à vélo ou en tram, précisez si vous habitez loin d'un arrêt.",
-      "Pendant le marché de Noël, le centre est bondé : prévoyez des promenades hors de la Grande Île.",
+      "Ville très cyclable : beaucoup de pet-sitters se déplacent à vélo ou en tram, précise si tu habites loin d'un arrêt.",
+      "Pendant le marché de Noël, le centre est bondé : prévois des promenades hors de la Grande Île.",
       "Les hivers sont froids : essuyer les pattes après les trottoirs salés.",
     ],
     faq: {
       owner: [
-        { q: "Les communes de l'Eurométropole sont-elles couvertes ?", a: "Oui. Votre demande est montrée aux pet-sitters autour de votre adresse, à Strasbourg comme à Schiltigheim, Illkirch ou Lingolsheim." },
-        { q: "Puis-je faire garder mon chat pendant les vacances ?", a: "Oui. Publiez une demande de visites à domicile : nourriture, litière, jeu et nouvelles dans l'app." },
+        { q: "Les communes de l'Eurométropole sont-elles couvertes ?", a: "Oui. Ta demande est montrée aux pet-sitters autour de ton adresse, à Strasbourg comme à Schiltigheim, Illkirch ou Lingolsheim." },
+        { q: "Puis-je faire garder mon chat pendant les vacances ?", a: "Oui. Publie une demande de visites à domicile : nourriture, litière, jeu et nouvelles dans l'app." },
       ],
       recruit: [
-        { q: "Où commencer comme pet-sitter à Strasbourg ?", a: "Dans votre quartier : la Krutenau, Neudorf, l'Esplanade et la Robertsau comptent beaucoup de propriétaires en appartement." },
-        { q: "Peut-on garder sans voiture ?", a: "Oui. Le vélo et le tram suffisent pour la plupart des visites ; réglez votre zone sur ce que vous rejoignez facilement." },
+        { q: "Où commencer comme pet-sitter à Strasbourg ?", a: "Dans ton quartier : la Krutenau, Neudorf, l'Esplanade et la Robertsau comptent beaucoup de propriétaires en appartement." },
+        { q: "Peut-on garder sans voiture ?", a: "Oui. Le vélo et le tram suffisent pour la plupart des visites ; règle ta zone sur ce que tu rejoins facilement." },
       ],
     },
   },
@@ -1196,18 +1196,18 @@ const GUIDES_FR: Record<string, Guide> = {
       { name: "Jardins suspendus", note: "anciens forts transformés en jardins, avec vue sur l'estuaire" },
     ],
     tips: [
-      "Le vent et la pluie sont fréquents : séchez bien votre chien après la promenade et prévoyez un manteau pour les races à poil ras.",
-      "Sur la plage, les règles pour les chiens changent selon la saison : vérifiez-les avant d'y aller.",
+      "Le vent et la pluie sont fréquents : sèche bien ton chien après la promenade et prévois un manteau pour les races à poil ras.",
+      "Sur la plage, les règles pour les chiens changent selon la saison : vérifie-les avant d'y aller.",
       "La ville haute et la ville basse sont reliées par le funiculaire et le tram : pratique pour les pet-sitters sans voiture.",
     ],
     faq: {
       owner: [
-        { q: "Sainte-Adresse et Montivilliers sont-elles couvertes ?", a: "Oui. Votre demande est montrée aux pet-sitters autour de votre adresse, dans toute l'agglomération." },
+        { q: "Sainte-Adresse et Montivilliers sont-elles couvertes ?", a: "Oui. Ta demande est montrée aux pet-sitters autour de ton adresse, dans toute l'agglomération." },
         { q: "Mon chien peut-il aller à la plage avec le pet-sitter ?", a: "Seulement là et quand les chiens sont autorisés. Sinon, la forêt de Montgeon est une belle alternative." },
       ],
       recruit: [
         { q: "Quelles demandes trouve-t-on au Havre ?", a: "Des promenades en semaine pour les propriétaires qui travaillent, et des gardes pendant les vacances." },
-        { q: "Comment se déplacer entre la ville haute et la ville basse ?", a: "Le tram et le funiculaire relient les deux. Réglez votre zone sur ce que vous rejoignez facilement." },
+        { q: "Comment se déplacer entre la ville haute et la ville basse ?", a: "Le tram et le funiculaire relient les deux. Règle ta zone sur ce que tu rejoins facilement." },
       ],
     },
   },
@@ -1222,18 +1222,18 @@ const GUIDES_FR: Record<string, Guide> = {
       { name: "Marais de Tasdon", note: "chemins plats autour du lac et des marais, au calme" },
     ],
     tips: [
-      "En saison, les chiens sont interdits sur les plages surveillées (Minimes, Concurrence, Chef de Baie) : vérifiez le panneau avant d'y aller.",
-      "La Rochelle est très touristique de juin à septembre : réservez tôt pour les gardes d'été, les pet-sitters du quartier sont vite pris.",
+      "En saison, les chiens sont interdits sur les plages surveillées (Minimes, Concurrence, Chef de Baie) : vérifie le panneau avant d'y aller.",
+      "La Rochelle est très touristique de juin à septembre : réserve tôt pour les gardes d'été, les pet-sitters du quartier sont vite pris.",
       "Tout se fait à vélo : un pet-sitter du quartier peut passer plusieurs fois par jour pour les visites à domicile.",
     ],
     faq: {
       owner: [
-        { q: "Mon chien peut-il aller à la plage avec le pet-sitter ?", a: "Hors saison oui, sur les plages qui l'autorisent. En été, les plages surveillées lui sont interdites : prévoyez le parc Charruyer ou le sentier de Chef de Baie." },
-        { q: "Les communes autour de La Rochelle sont-elles couvertes ?", a: "Oui. Votre demande est montrée aux pet-sitters autour de votre adresse, à Aytré, Lagord, Périgny ou Puilboreau comme en ville." },
+        { q: "Mon chien peut-il aller à la plage avec le pet-sitter ?", a: "Hors saison oui, sur les plages qui l'autorisent. En été, les plages surveillées lui sont interdites : prévois le parc Charruyer ou le sentier de Chef de Baie." },
+        { q: "Les communes autour de La Rochelle sont-elles couvertes ?", a: "Oui. Ta demande est montrée aux pet-sitters autour de ton adresse, à Aytré, Lagord, Périgny ou Puilboreau comme en ville." },
       ],
       recruit: [
         { q: "Quand la demande est-elle la plus forte à La Rochelle ?", a: "L'été et pendant les vacances scolaires, quand les habitants partent et que les vacanciers arrivent avec leurs animaux." },
-        { q: "Par où commencer comme pet-sitter à La Rochelle ?", a: "Par votre quartier : le centre, les Minimes, La Genette ou Tasdon. Réglez votre zone sur ce que vous rejoignez à pied ou à vélo." },
+        { q: "Par où commencer comme pet-sitter à La Rochelle ?", a: "Par ton quartier : le centre, les Minimes, La Genette ou Tasdon. Règle ta zone sur ce que tu rejoins à pied ou à vélo." },
       ],
     },
   },
@@ -1247,17 +1247,17 @@ const GUIDES_FR: Record<string, Guide> = {
       { name: "Parc Matisse", note: "près des gares, pratique pour les chiens d'appartement du centre" },
     ],
     tips: [
-      "Il pleut souvent : prévoyez une serviette à l'entrée et dites au pet-sitter si votre chien a un manteau.",
+      "Il pleut souvent : prévois une serviette à l'entrée et dis au pet-sitter si ton chien a un manteau.",
       "Beaucoup de Lillois vivent en appartement sans jardin : la promenade de midi en semaine est le service le plus demandé.",
       "Ville étudiante : de nombreux pet-sitters sont disponibles en semaine pendant l'année universitaire, moins l'été.",
     ],
     faq: {
       owner: [
         { q: "Où mon chien peut-il courir à Lille ?", a: "Dans les espaces de liberté pour chiens signalés dans les parcs, comme à la Citadelle. Ailleurs, dans les parcs et sur les berges, il reste en laisse." },
-        { q: "Y a-t-il un pet-sitter près de chez moi à Lille ?", a: "Ouvrez la carte dans HoPetSit pour voir les pet-sitters autour du Vieux-Lille, de Wazemmes, de Vauban, de Fives ou de Moulins. Vous discutez dans l'app avant de réserver." },
+        { q: "Y a-t-il un pet-sitter près de chez moi à Lille ?", a: "Ouvre la carte dans HoPetSit pour voir les pet-sitters autour du Vieux-Lille, de Wazemmes, de Vauban, de Fives ou de Moulins. Tu discutes dans l'app avant de réserver." },
       ],
       recruit: [
-        { q: "Par où commencer comme pet-sitter à Lille ?", a: "Par votre quartier : Vauban, Wazemmes, le Vieux-Lille ou Fives. Gardez une zone que vous parcourez à pied ou en métro pour enchaîner les promenades de midi." },
+        { q: "Par où commencer comme pet-sitter à Lille ?", a: "Par ton quartier : Vauban, Wazemmes, le Vieux-Lille ou Fives. Garde une zone que tu parcours à pied ou en métro pour enchaîner les promenades de midi." },
         { q: "Qu'attendent les propriétaires lillois ?", a: "Des promenades à l'heure, le chien en laisse hors des espaces autorisés, et un petit message après chaque visite. HoPetSit partage la balade en direct sur la carte." },
       ],
     },
@@ -1278,8 +1278,8 @@ const GUIDES_FR: Record<string, Guide> = {
     ],
     faq: {
       owner: [
-        { q: "Mon pet-sitter peut-il emmener mon chien à la Bastille ou en montagne ?", a: "Oui si vous l'acceptez et si votre chien est habitué. Précisez dans la demande les sentiers qu'il connaît et sa forme physique." },
-        { q: "Y a-t-il un pet-sitter près de chez moi à Grenoble ?", a: "Ouvrez la carte dans HoPetSit pour voir les pet-sitters autour du centre, de l'Île Verte, de Berriat, de Meylan ou de Saint-Martin-d'Hères. Vous discutez dans l'app avant de réserver." },
+        { q: "Mon pet-sitter peut-il emmener mon chien à la Bastille ou en montagne ?", a: "Oui si tu l'acceptes et si ton chien est habitué. Précise dans la demande les sentiers qu'il connaît et sa forme physique." },
+        { q: "Y a-t-il un pet-sitter près de chez moi à Grenoble ?", a: "Ouvre la carte dans HoPetSit pour voir les pet-sitters autour du centre, de l'Île Verte, de Berriat, de Meylan ou de Saint-Martin-d'Hères. Tu discutes dans l'app avant de réserver." },
       ],
       recruit: [
         { q: "Quand la demande est-elle la plus forte à Grenoble ?", a: "Les week-ends et les vacances scolaires, quand les habitants partent en montagne. Être disponible le week-end est un vrai avantage." },
@@ -1297,17 +1297,17 @@ const GUIDES_FR: Record<string, Guide> = {
       { name: "Campagne Pastré et les Calanques", note: "chemins vers Marseilleveyre et Sormiou, chiens en laisse" },
     ],
     tips: [
-      "En saison, les plages sont interdites aux chiens, sauf l'espace qui leur est réservé : vérifiez le panneau avant d'y aller.",
-      "En été, l'accès aux massifs (Calanques, Marseilleveyre) est réglementé les jours de risque d'incendie : consultez l'affichage du jour avant une randonnée.",
-      "Les promenades d'été se font tôt le matin ou le soir, avec de l'eau ; par mistral, préférez les parcs abrités.",
+      "En saison, les plages sont interdites aux chiens, sauf l'espace qui leur est réservé : vérifie le panneau avant d'y aller.",
+      "En été, l'accès aux massifs (Calanques, Marseilleveyre) est réglementé les jours de risque d'incendie : consulte l'affichage du jour avant une randonnée.",
+      "Les promenades d'été se font tôt le matin ou le soir, avec de l'eau ; par mistral, préfère les parcs abrités.",
     ],
     faq: {
       owner: [
-        { q: "Mon chien peut-il aller dans les Calanques avec le pet-sitter ?", a: "Oui, en laisse, hors des jours où l'accès aux massifs est fermé pour risque d'incendie. Précisez dans la demande les chemins qu'il connaît et son endurance." },
-        { q: "Y a-t-il un pet-sitter près de chez moi à Marseille ?", a: "Ouvrez la carte dans HoPetSit pour voir les pet-sitters autour du Vieux-Port, d'Endoume, de Castellane, de Bonneveine ou de Saint-Barnabé. Vous discutez dans l'app avant de réserver." },
+        { q: "Mon chien peut-il aller dans les Calanques avec le pet-sitter ?", a: "Oui, en laisse, hors des jours où l'accès aux massifs est fermé pour risque d'incendie. Précise dans la demande les chemins qu'il connaît et son endurance." },
+        { q: "Y a-t-il un pet-sitter près de chez moi à Marseille ?", a: "Ouvre la carte dans HoPetSit pour voir les pet-sitters autour du Vieux-Port, d'Endoume, de Castellane, de Bonneveine ou de Saint-Barnabé. Tu discutes dans l'app avant de réserver." },
       ],
       recruit: [
-        { q: "Par où commencer comme pet-sitter à Marseille ?", a: "Par votre quartier : la ville est immense et les propriétaires préfèrent quelqu'un de proche. Réglez votre zone sur quelques arrondissements que vous rejoignez vite." },
+        { q: "Par où commencer comme pet-sitter à Marseille ?", a: "Par ton quartier : la ville est immense et les propriétaires préfèrent quelqu'un de proche. Règle ta zone sur quelques arrondissements que tu rejoins vite." },
         { q: "Quand la demande est-elle la plus forte à Marseille ?", a: "L'été et pendant les vacances scolaires, quand les habitants partent et que les visiteurs arrivent avec leurs animaux." },
       ],
     },
@@ -1315,7 +1315,7 @@ const GUIDES_FR: Record<string, Guide> = {
   lyon: {
     hoods: ["la Presqu'île", "la Croix-Rousse", "le Vieux-Lyon", "les Brotteaux et la Part-Dieu", "Monplaisir", "Gerland", "Vaise", "Confluence", "Villeurbanne"],
     walks: [
-      { name: "Parc de la Tête d'Or", note: "le grand parc du 6e, chiens en laisse et certains espaces interdits : respectez les panneaux" },
+      { name: "Parc de la Tête d'Or", note: "le grand parc du 6e, chiens en laisse et certains espaces interdits : respecte les panneaux" },
       { name: "Berges du Rhône", note: "promenade plate du parc de la Tête d'Or jusqu'à Gerland" },
       { name: "Parc de Gerland", note: "au sud, grandes pelouses et bords du Rhône" },
       { name: "Parc de la Feyssine", note: "à Villeurbanne, chemins nature au bord du Rhône" },
@@ -1329,10 +1329,10 @@ const GUIDES_FR: Record<string, Guide> = {
     faq: {
       owner: [
         { q: "Où mon chien peut-il courir à Lyon ?", a: "Dans les espaces de liberté signalés dans les parcs. À la Tête d'Or, sur les berges et dans les autres parcs, il reste en laisse." },
-        { q: "Y a-t-il un pet-sitter près de chez moi à Lyon ?", a: "Ouvrez la carte dans HoPetSit pour voir les pet-sitters autour de la Croix-Rousse, de la Presqu'île, de Monplaisir, de Gerland ou de Villeurbanne. Vous discutez dans l'app avant de réserver." },
+        { q: "Y a-t-il un pet-sitter près de chez moi à Lyon ?", a: "Ouvre la carte dans HoPetSit pour voir les pet-sitters autour de la Croix-Rousse, de la Presqu'île, de Monplaisir, de Gerland ou de Villeurbanne. Tu discutes dans l'app avant de réserver." },
       ],
       recruit: [
-        { q: "Par où commencer comme pet-sitter à Lyon ?", a: "Par votre arrondissement : les propriétaires préfèrent quelqu'un de proche. Gardez une zone que vous parcourez à pied ou en métro pour enchaîner les promenades de midi." },
+        { q: "Par où commencer comme pet-sitter à Lyon ?", a: "Par ton arrondissement : les propriétaires préfèrent quelqu'un de proche. Garde une zone que tu parcours à pied ou en métro pour enchaîner les promenades de midi." },
         { q: "Qu'attendent les propriétaires lyonnais ?", a: "Des promenades à l'heure, le chien en laisse hors des espaces autorisés, et un petit message après chaque visite. HoPetSit partage la balade en direct sur la carte." },
       ],
     },
@@ -1346,18 +1346,18 @@ const GUIDES_FR: Record<string, Guide> = {
       { name: "Parc Chico-Mendès", note: "le parc du quartier Monclar, pour les sorties quotidiennes" },
     ],
     tips: [
-      "En juillet, le Festival remplit l'intra-muros : foule, bruit et rues fermées — prévoyez des balades sur la Barthelasse ou hors des remparts.",
+      "En juillet, le Festival remplit l'intra-muros : foule, bruit et rues fermées — prévois des balades sur la Barthelasse ou hors des remparts.",
       "Les étés sont chauds et le mistral souffle fort : promenades tôt le matin ou le soir, avec de l'eau.",
       "Beaucoup d'habitants partent en été : les visites à domicile et les gardes longues sont très demandées de juin à septembre.",
     ],
     faq: {
       owner: [
         { q: "Mon chien supporte mal le Festival. Que dire au pet-sitter ?", a: "Où il se cache, s'il peut rester seul avec le bruit et les horaires calmes pour sortir. Mettez-le dans la demande et dans la discussion avant de réserver." },
-        { q: "Villeneuve ou Les Angles sont-elles couvertes ?", a: "Oui. Votre demande est montrée aux pet-sitters autour de votre adresse, des deux côtés du Rhône." },
+        { q: "Villeneuve ou Les Angles sont-elles couvertes ?", a: "Oui. Ta demande est montrée aux pet-sitters autour de ton adresse, des deux côtés du Rhône." },
       ],
       recruit: [
         { q: "Quand la demande est-elle la plus forte à Avignon ?", a: "En juillet pendant le Festival et tout l'été, quand les habitants partent. Être disponible ces mois-là est un vrai avantage." },
-        { q: "Par où commencer comme pet-sitter à Avignon ?", a: "Par votre quartier : l'intra-muros, Saint-Ruf, Monclar ou Montfavet. Réglez votre zone sur ce que vous rejoignez à pied ou à vélo." },
+        { q: "Par où commencer comme pet-sitter à Avignon ?", a: "Par ton quartier : l'intra-muros, Saint-Ruf, Monclar ou Montfavet. Règle ta zone sur ce que tu rejoins à pied ou à vélo." },
       ],
     },
   },
@@ -1371,18 +1371,18 @@ const GUIDES_FR: Record<string, Guide> = {
       { name: "Sentier côtier GR34", note: "le long de la rade, vers Plougastel ou le Conquet, chiens en laisse" },
     ],
     tips: [
-      "Il pleut et il vente souvent : prévoyez une serviette à l'entrée et dites au pet-sitter si votre chien a un manteau.",
+      "Il pleut et il vente souvent : prévois une serviette à l'entrée et dis au pet-sitter si ton chien a un manteau.",
       "Ville de marins et de militaires : les gardes longues pendant les missions et les déplacements sont fréquentes.",
-      "Sur la côte, surveillez les marées et la houle : les promenades sur les rochers se font à marée basse, en laisse.",
+      "Sur la côte, surveille les marées et la houle : les promenades sur les rochers se font à marée basse, en laisse.",
     ],
     faq: {
       owner: [
-        { q: "Mon chien peut-il aller à la plage avec le pet-sitter ?", a: "Hors saison oui, au Moulin Blanc et sur les plages qui l'autorisent. En été, respectez l'affichage de chaque plage. Précisez dans la demande s'il aime l'eau." },
-        { q: "Y a-t-il un pet-sitter près de chez moi à Brest ?", a: "Ouvrez la carte dans HoPetSit pour voir les pet-sitters autour de Siam, de Saint-Martin, de Recouvrance, de Saint-Marc ou de Bellevue. Vous discutez dans l'app avant de réserver." },
+        { q: "Mon chien peut-il aller à la plage avec le pet-sitter ?", a: "Hors saison oui, au Moulin Blanc et sur les plages qui l'autorisent. En été, respecte l'affichage de chaque plage. Précise dans la demande s'il aime l'eau." },
+        { q: "Y a-t-il un pet-sitter près de chez moi à Brest ?", a: "Ouvre la carte dans HoPetSit pour voir les pet-sitters autour de Siam, de Saint-Martin, de Recouvrance, de Saint-Marc ou de Bellevue. Tu discutes dans l'app avant de réserver." },
       ],
       recruit: [
         { q: "Quand la demande est-elle la plus forte à Brest ?", a: "Pendant les vacances scolaires et lors des missions et déplacements des habitants, toute l'année. Les gardes longues sont fréquentes." },
-        { q: "Par où commencer comme pet-sitter à Brest ?", a: "Par votre quartier : le centre, Saint-Martin, Saint-Marc ou Bellevue. Réglez votre zone sur ce que vous rejoignez à pied ou en tram." },
+        { q: "Par où commencer comme pet-sitter à Brest ?", a: "Par ton quartier : le centre, Saint-Martin, Saint-Marc ou Bellevue. Règle ta zone sur ce que tu rejoins à pied ou en tram." },
       ],
     },
   },
@@ -1419,7 +1419,7 @@ export default function UsLocalGuide({ slug, lang, name, mode }: { slug: string;
       </p>
       <h3 className="mt-6 text-base font-bold text-ink">
         {fr
-          ? mode === "owner" ? "Où les pet-sitters promènent les chiens" : "Où vous promènerez"
+          ? mode === "owner" ? "Où les pet-sitters promènent les chiens" : "Où tu promèneras"
           : mode === "owner" ? "Where local sitters walk dogs" : "Where you will walk"}
       </h3>
       <ul className="mt-3 grid gap-3 md:grid-cols-2">
