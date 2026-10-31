@@ -36,6 +36,12 @@ const PUBLIC_PATHS = [
   "/blog/pet-sitting-new-york-holidays",
   "/blog/seoul-pet-sitter-guide",
   "/blog/tokyo-pet-sitter-guide",
+  // 31/10 (GUS, décision BOB : Paris 27/40 arrondissements indexés) — 5 boroughs de New York.
+  "/pet-sitting-new-york/manhattan",
+  "/pet-sitting-new-york/brooklyn",
+  "/pet-sitting-new-york/queens",
+  "/pet-sitting-new-york/the-bronx",
+  "/pet-sitting-new-york/staten-island",
   // 2026-W43 — marketing hebdo : recrutement Paris 2e + Miami (recrutement).
   "/blog/devenir-pet-sitter-paris-2e",
   "/blog/become-a-pet-sitter-in-miami",

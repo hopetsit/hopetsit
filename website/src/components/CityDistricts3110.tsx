@@ -57,7 +57,10 @@ export default function CityDistricts3110({ slug, lang, name }: { slug: string; 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {list.map((d) => (
           <article key={d.id} id={d.id} className="scroll-mt-24 rounded-2xl border border-ink/5 bg-white p-5 shadow-card">
-            <h3 className="font-bold text-ink">{t.label(d)}</h3>
+            <h3 className="font-bold text-ink">
+              {/* New York : chaque borough a sa page (31/10, GUS) — lien entrant depuis le pilier indexé. */}
+              {slug === "new-york" ? <a href={`/pet-sitting-new-york/${d.id}`} className="underline-offset-2 hover:underline">{t.label(d)} →</a> : t.label(d)}
+            </h3>
             {/* Comptes OSM affichés seulement quand ils sont représentatifs (≥ 10 vétérinaires recensés) :
                 à Séoul et Tokyo, OSM recense mal les commerces (Naver/Kakao, Google y dominent) — un « 2 » serait trompeur. */}
             {d.counts.vet >= 10 && <p className="mt-2 text-sm leading-relaxed text-ink-muted">{t.counts(d.counts)}</p>}
