@@ -140,6 +140,7 @@ async function boardSignals(items) {
     const real = evs.filter(isRealSession);
     const script = evs.filter((e) => !isRealSession(e));
     const lastReal = real[0] || null;
+    // 3110d — l'admin compte aussi comme retour une ouverture des candidats après la publication (candidatesView).
     // 3110 (ADA, demande de Daniel : « le propriétaire est revenu ? par canal ») — sessions RÉELLES (nos scripts et
     // l'admin exclus) depuis la publication, séparées site / app ; 0 pour un compte de test ou de l'équipe.
     const internal = internalOwner.has(String(it.owner && it.owner.id || ''));
