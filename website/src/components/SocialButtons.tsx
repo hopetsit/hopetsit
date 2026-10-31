@@ -22,6 +22,30 @@ export function SocialButtons({ defaultRole = "owner", city, next }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<"" | "google" | "apple">("");
   const [err, setErr]   = useState("");
+  // 31/10/2026 (BOB) — nouveau compte Google/Apple depuis /login : le serveur répond
+  // 400 CITY_REQUIRED (règle du 18/09). On demande la ville ici et on relance avec
+  // le même jeton Firebase (valable 1 h), au lieu d'afficher une erreur sans issue.
+  const [needCity, setNeedCity] = useState<null | { provider: "google" | "apple"; idToken: string }>(null);
+  const [cityInput, setCityInput] = useState("");
+  function isCityRequired(e: unknown): boolean {
+    if (!(e instanceof ApiError)) return false;
+    return /CITY_REQUIRED/.test(JSON.stringify(e.details ?? "")) || /ville|city/i.test(e.message || "");
+  }
+  async function retryWithCity() {
+    if (!needCity || cityInput.trim().length < 2) return;
+    const { provider, idToken } = needCity;
+    setBusy(provider);
+    setErr("");
+    try {
+      const fn = provider === "apple" ? appleSignIn : googleSignIn;
+      await fn(idToken, defaultRole, { city: cityInput.trim(), lang });
+      router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message || t("auth_error_generic") : t("auth_error_generic"));
+    } finally {
+      setBusy("");
+    }
+  }
 
   async function onGoogle() {
     if (!isFirebaseConfigured()) {
@@ -34,7 +58,12 @@ export function SocialButtons({ defaultRole = "owner", city, next }: Props) {
     setErr("");
     try {
       const idToken = await signInWithGooglePopup();
-      await googleSignIn(idToken, defaultRole, { city: city?.trim() || undefined, lang });
+      try {
+        await googleSignIn(idToken, defaultRole, { city: city?.trim() || undefined, lang });
+      } catch (e2) {
+        if (isCityRequired(e2)) { setNeedCity({ provider: "google", idToken }); return; }
+        throw e2;
+      }
       router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
     } catch (e) {
       // Firebase popup-cancellation: stay silent, the user just closed the window.
@@ -59,7 +88,12 @@ export function SocialButtons({ defaultRole = "owner", city, next }: Props) {
     setErr("");
     try {
       const idToken = await signInWithApplePopup();
-      await appleSignIn(idToken, defaultRole, { city: city?.trim() || undefined, lang });
+      try {
+        await appleSignIn(idToken, defaultRole, { city: city?.trim() || undefined, lang });
+      } catch (e2) {
+        if (isCityRequired(e2)) { setNeedCity({ provider: "apple", idToken }); return; }
+        throw e2;
+      }
       router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
     } catch (e) {
       const message = e instanceof Error ? e.message : "";
@@ -100,6 +134,30 @@ export function SocialButtons({ defaultRole = "owner", city, next }: Props) {
         {busy === "apple" ? t("common_loading") : (SOCIAL_TXT[lang]?.apple ?? SOCIAL_TXT.en.apple)}
       </button>}
 
+      {needCity && (
+        <div className="rounded-2xl border border-ink/15 bg-owner-light/40 p-3" data-testid="social-city">
+          <p className="text-sm font-semibold text-ink">{SOCIAL_TXT[lang]?.cityQ ?? SOCIAL_TXT.en.cityQ}</p>
+          <div className="mt-2 flex gap-2">
+            <input
+              autoFocus
+              value={cityInput}
+              onChange={(e) => setCityInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") retryWithCity(); }}
+              placeholder={SOCIAL_TXT[lang]?.cityPh ?? SOCIAL_TXT.en.cityPh}
+              className="min-w-0 flex-1 rounded-full border border-ink/20 bg-white px-4 py-2 text-sm text-ink outline-none focus:border-owner"
+            />
+            <button
+              type="button"
+              onClick={retryWithCity}
+              disabled={busy !== "" || cityInput.trim().length < 2}
+              className="shrink-0 rounded-full bg-owner px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {busy ? t("common_loading") : (SOCIAL_TXT[lang]?.cityGo ?? SOCIAL_TXT.en.cityGo)}
+            </button>
+          </div>
+        </div>
+      )}
+
       {err && <p className="text-center text-xs text-owner-dark">{err}</p>}
 
       <div className="my-2 flex items-center gap-3 text-[11px] uppercase tracking-wider text-ink-soft">
@@ -114,16 +172,16 @@ export function SocialButtons({ defaultRole = "owner", city, next }: Props) {
 const APPLE_WEB_ENABLED = true; // 31/10 : Firebase › Apple configuré (Services ID com.cardellihermanos.hopetsit.web, équipe 49C67YDPJ5, clé 3QKCSZMGW7), écran Apple vérifié.
 
 // 31/10/2026 (BOB) — libellés en dur en anglais sur toutes les langues.
-const SOCIAL_TXT: Record<string, { google: string; or: string; apple: string }> = {
-  fr: { google: "Continuer avec Google", or: "ou", apple: "Continuer avec Apple" },
-  en: { google: "Continue with Google", or: "or", apple: "Continue with Apple" },
-  es: { google: "Continuar con Google", or: "o", apple: "Continuar con Apple" },
-  de: { google: "Weiter mit Google", or: "oder", apple: "Weiter mit Apple" },
-  it: { google: "Continua con Google", or: "oppure", apple: "Continua con Apple" },
-  pt: { google: "Continuar com o Google", or: "ou", apple: "Continuar com a Apple" },
-  pl: { google: "Kontynuuj z Google", or: "lub", apple: "Kontynuuj z Apple" },
-  ko: { google: "Google로 계속하기", or: "또는", apple: "Apple로 계속하기" },
-  ja: { google: "Googleで続ける", or: "または", apple: "Appleで続ける" },
+const SOCIAL_TXT: Record<string, { google: string; or: string; apple: string; cityQ: string; cityPh: string; cityGo: string }> = {
+  fr: { google: "Continuer avec Google", or: "ou", apple: "Continuer avec Apple", cityQ: "Dernière étape : dans quelle ville es-tu ?", cityPh: "Ex. Paris", cityGo: "Continuer" },
+  en: { google: "Continue with Google", or: "or", apple: "Continue with Apple", cityQ: "Last step: which city are you in?", cityPh: "e.g. New York", cityGo: "Continue" },
+  es: { google: "Continuar con Google", or: "o", apple: "Continuar con Apple", cityQ: "Último paso: ¿en qué ciudad estás?", cityPh: "Ej. Madrid", cityGo: "Continuar" },
+  de: { google: "Weiter mit Google", or: "oder", apple: "Weiter mit Apple", cityQ: "Letzter Schritt: In welcher Stadt bist du?", cityPh: "z. B. Berlin", cityGo: "Weiter" },
+  it: { google: "Continua con Google", or: "oppure", apple: "Continua con Apple", cityQ: "Ultimo passo: in che città sei?", cityPh: "Es. Milano", cityGo: "Continua" },
+  pt: { google: "Continuar com o Google", or: "ou", apple: "Continuar com a Apple", cityQ: "Último passo: em que cidade estás?", cityPh: "Ex. Lisboa", cityGo: "Continuar" },
+  pl: { google: "Kontynuuj z Google", or: "lub", apple: "Kontynuuj z Apple", cityQ: "Ostatni krok: w jakim mieście jesteś?", cityPh: "Np. Warszawa", cityGo: "Dalej" },
+  ko: { google: "Google로 계속하기", or: "또는", apple: "Apple로 계속하기", cityQ: "마지막 단계: 어느 도시에 계세요?", cityPh: "예: 서울", cityGo: "계속" },
+  ja: { google: "Googleで続ける", or: "または", apple: "Appleで続ける", cityQ: "最後のステップ：お住まいの都市は？", cityPh: "例：東京", cityGo: "続ける" },
 };
 
 function GoogleIcon() {
@@ -138,9 +196,10 @@ function GoogleIcon() {
 }
 
 function AppleIcon() {
+  // 31/10/2026 (BOB) — logo Apple officiel (glyphe standard), l'ancien était redessiné.
   return (
-    <svg width="16" height="18" viewBox="0 0 16 18" aria-hidden="true" fill="currentColor">
-      <path d="M11.62 0c.07.97-.32 1.93-.94 2.62-.65.71-1.66 1.26-2.66 1.18-.09-.95.36-1.93.97-2.59C9.65.49 10.7-.05 11.62 0zM15.4 13.04c-.43.99-.63 1.43-1.18 2.31-.77 1.22-1.86 2.74-3.21 2.75-1.2.01-1.51-.78-3.14-.77-1.63.01-1.97.79-3.18.78-1.36-.01-2.39-1.38-3.16-2.6C-.5 12.04-.74 7.86 1.04 5.55c1.27-1.65 3.27-2.62 5.15-2.62 1.91 0 3.12 1.05 4.7 1.05 1.54 0 2.48-1.05 4.69-1.05 1.67 0 3.45.91 4.71 2.49-4.14 2.27-3.47 8.18-1.39 10.62z"/>
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+      <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/>
     </svg>
   );
 }
