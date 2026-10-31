@@ -12,6 +12,13 @@ vérifie (`npx tsc --noEmit`) et pousse sur `main` → Vercel déploie.
    dimanche du mois. **Sujets US : prendre dans l'ordre la banque `sujets_us.md`**
    (ajoutée le 29/09/2026, push USA gratuit) et cocher la ligne publiée.
 
+## ⚠️ Depuis le 31/10/2026 — 4 pôles SEO (consigne de Daniel)
+Paris + Europe · New York · Séoul · Tokyo. Article EN du dimanche = **New York** ; le 1er dimanche des
+mois pairs, il devient un article **Europe** (en/de/es/it, ville déjà en ligne). Sujets et rotation :
+**`sujets_4poles.md`** (prendre la 1re ligne non cochée du pôle, la cocher). Chaque article relie la page
+pilier de sa ville (ancre `#quartiers` pour Paris, `#districts` pour New York/Séoul/Tokyo) et mettre à jour
+`FOOTER_POSTS` dans `src/lib/footerCities3110.ts` (dernier article de la ville). Plafond 3 articles/semaine.
+
 ## Ce que produit chaque run
 - `website/src/app/(<langue>)/blog/<slug>/page.tsx` — l'article, dans le
   dossier de SA langue : `(fr)`, `(en)`, `(pl)`, `(ko)`… (depuis le 27/09 :

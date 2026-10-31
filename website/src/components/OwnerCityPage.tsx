@@ -10,6 +10,7 @@ import { TrackedLink } from "@/components/TrackedLink";
 import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
 import OwnerPageEngagement from "@/components/OwnerPageEngagement";
 import UsLocalGuide, { usFaq, usGuide } from "@/components/UsLocalGuide";
+import CityDistricts3110 from "@/components/CityDistricts3110";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 
 // v560 — moteur de croissance : pages « trouver un pet sitter à <ville> »
@@ -607,6 +608,9 @@ export default function OwnerCityPage({
 
       {/* 01/10 (SAM) — guide local réel (New York, San Francisco, Dallas). */}
       <UsLocalGuide slug={city.slug} lang={city.lang} name={city.name} mode="owner" />
+
+      {/* 31/10 (GUS) — quartiers réels (OSM) des pages piliers New York / Séoul / Tokyo. */}
+      <CityDistricts3110 slug={city.slug} lang={city.lang} name={city.name} />
 
       {paris && <ParisLocalPlaces slug={city.slug} mode="owner" />}
 

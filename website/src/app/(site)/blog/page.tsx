@@ -13,6 +13,31 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 31/10 (GUS) — consigne Daniel : 4 pôles (Paris, New York, Séoul, Tokyo).
+  {
+    slug: "faire-garder-son-animal-pendant-les-fetes-a-paris",
+    lang: "🇫🇷",
+    title: "Faire garder son chien ou son chat pendant les fêtes à Paris",
+    excerpt: "Noël, Nouvel An : quand réserver, garde chez le gardien ou chez vous, pétards et repas de fête, ce qu'il faut laisser au pet sitter.",
+  },
+  {
+    slug: "pet-sitting-new-york-holidays",
+    lang: "🇺🇸",
+    title: "Pet Sitting in New York over Thanksgiving & the Holidays",
+    excerpt: "When to book, overnights vs drop-ins, rock salt, fireworks and what to leave your sitter in NYC.",
+  },
+  {
+    slug: "seoul-pet-sitter-guide",
+    lang: "🇰🇷",
+    title: "서울 반려견 산책·펫시터 가이드",
+    excerpt: "돌봄 방식 4가지, 한강공원·서울숲 산책 요령, 반려동물 등록과 목줄 규칙, 명절 준비.",
+  },
+  {
+    slug: "tokyo-pet-sitter-guide",
+    lang: "🇯🇵",
+    title: "東京でペットシッターを頼むときのポイント",
+    excerpt: "4つのお世話の形、代々木公園・駒沢公園での散歩、犬の登録と狂犬病予防注射、年末年始の準備。",
+  },
   // 28/10 (GUS) — guide propriétaire « dog sitter Paris » (demande Search Console FR).
   {
     slug: "dog-sitter-paris",

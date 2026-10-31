@@ -31,6 +31,11 @@ const PUBLIC_PATHS = [
   "/remboursement",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  // 31/10 (GUS) — consigne Daniel : 4 pôles (Paris, New York, Séoul, Tokyo), un article par ville.
+  "/blog/faire-garder-son-animal-pendant-les-fetes-a-paris",
+  "/blog/pet-sitting-new-york-holidays",
+  "/blog/seoul-pet-sitter-guide",
+  "/blog/tokyo-pet-sitter-guide",
   // 2026-W43 — marketing hebdo : recrutement Paris 2e + Miami (recrutement).
   "/blog/devenir-pet-sitter-paris-2e",
   "/blog/become-a-pet-sitter-in-miami",

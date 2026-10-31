@@ -1,0 +1,233 @@
+{
+ "new-york": [
+  {
+   "id": "manhattan",
+   "name": "Manhattan",
+   "en": "Manhattan",
+   "counts": {
+    "vet": 67,
+    "shop": 51,
+    "groomer": 34,
+    "dogpark": 49
+   },
+   "dogparks": [
+    "Dog Run 105",
+    "105th St Dog Run",
+    "Tompkins Square Dog Run",
+    "Leroy Street Dog Run",
+    "Tribeca Dog Park",
+    "The Fi Office",
+    "West 72nd Street Dog Run",
+    "St. Nick's Dog Run"
+   ],
+   "parks": [
+    "Pumphouse Park",
+    "Cherry Tree Park",
+    "Pier 57 Rooftop Park",
+    "Duane Park",
+    "Battery Park",
+    "Bryant Park"
+   ],
+   "hoods": [
+    "Hell's Kitchen",
+    "Alphabet City",
+    "Tribeca",
+    "Clinton",
+    "SoHo",
+    "Kips Bay",
+    "Rose Hill",
+    "Upper West Side",
+    "East Village",
+    "Manhattanville",
+    "Washington Square Village",
+    "Lower East Side"
+   ],
+   "near": [
+    "the-bronx",
+    "queens",
+    "brooklyn"
+   ]
+  },
+  {
+   "id": "brooklyn",
+   "name": "Brooklyn",
+   "en": "Brooklyn",
+   "counts": {
+    "vet": 57,
+    "shop": 66,
+    "groomer": 44,
+    "dogpark": 36
+   },
+   "dogparks": [
+    "Brooklyn Bridge Park - Pier 6 - Dog Run",
+    "Main Street Dog Run",
+    "Hillside Dog Park",
+    "DiMattina Playground Dog Run",
+    "Willowtown Dog Run",
+    "Luna Park Dog Run",
+    "Kensington Dog Run",
+    "Manhattan Beach Dog Run"
+   ],
+   "parks": [
+    "Brownsville I Ura Park",
+    "Duke Park",
+    "McCarren Park",
+    "Fort Greene Park",
+    "Columbus Park",
+    "Walt Whitman Park"
+   ],
+   "hoods": [
+    "Flatlands",
+    "Canarsie",
+    "Clinton Hill",
+    "Cypress Hills",
+    "Bergen Beach",
+    "Paerdegat",
+    "Gerritsen Beach",
+    "Greenpoint",
+    "City Line",
+    "New Utrecht",
+    "Sheepshead Bay",
+    "Red Hook"
+   ],
+   "near": [
+    "queens",
+    "manhattan",
+    "staten-island"
+   ]
+  },
+  {
+   "id": "queens",
+   "name": "Queens",
+   "en": "Queens",
+   "counts": {
+    "vet": 44,
+    "shop": 29,
+    "groomer": 15,
+    "dogpark": 26
+   },
+   "dogparks": [
+    "Bugsy’s Dog Run",
+    "Triborough Bridge Playground C Dog Run",
+    "Rockaway Freeway Dog Park",
+    "Sherry Dog Run",
+    "Jackson Heights Canine Recreational Wonderland",
+    "Underbridge Dog Run",
+    "Glen Oaks Village Dog Park",
+    "Forest Park Barking Lot"
+   ],
+   "parks": [
+    "Clearview Park",
+    "Udall's Cove Park",
+    "Police Officer Edward Byrne Park",
+    "Lakeview Lane Park",
+    "Harvey Park",
+    "Francis Lewis Park"
+   ],
+   "hoods": [
+    "Sunnyside",
+    "Rosedale",
+    "Brooklyn Manor",
+    "Howard Beach",
+    "East Elmhurst",
+    "Little Neck",
+    "College Point",
+    "Bellaire",
+    "Cedar Manor Houses",
+    "Hollis",
+    "Hammels",
+    "Woodside"
+   ],
+   "near": [
+    "brooklyn",
+    "the-bronx",
+    "manhattan"
+   ]
+  },
+  {
+   "id": "the-bronx",
+   "name": "The Bronx",
+   "en": "The Bronx",
+   "counts": {
+    "vet": 2,
+    "shop": 6,
+    "groomer": 0,
+    "dogpark": 10
+   },
+   "dogparks": [
+    "Seton Park Dog Run",
+    "Canine Court",
+    "Woodlawn Dog Park",
+    "Dog Run"
+   ],
+   "parks": [
+    "Schneider-Sampson Park",
+    "Phyllis Post Goodman Park",
+    "Samuel H Young Park",
+    "Corporal Irwin Fischer Park",
+    "Saint Luke's Park",
+    "Summit Avenue Park"
+   ],
+   "hoods": [
+    "Eastchester Heights",
+    "Morris Heights",
+    "Morrisania",
+    "Parkchester",
+    "Van Nest",
+    "Throggs Neck",
+    "Schuylerville",
+    "Spencer Estates",
+    "Unionport",
+    "Lambert Houses",
+    "Wakefield",
+    "Pelham Bay"
+   ],
+   "near": [
+    "manhattan",
+    "queens"
+   ]
+  },
+  {
+   "id": "staten-island",
+   "name": "Staten Island",
+   "en": "Staten Island",
+   "counts": {
+    "vet": 20,
+    "shop": 11,
+    "groomer": 19,
+    "dogpark": 6
+   },
+   "dogparks": [
+    "Conference House Park Dog Run"
+   ],
+   "parks": [
+    "New Springville Park",
+    "Willowbrook Park",
+    "Brookfield Park",
+    "La Tourette Park",
+    "High Rock Park",
+    "Silver Lake Park"
+   ],
+   "hoods": [
+    "Oakwood Beach",
+    "South Beach",
+    "Hamilton Park",
+    "New Brighton",
+    "Seaside",
+    "Huguenot",
+    "Oakwood",
+    "Great Kills",
+    "Richmond Valley",
+    "Stapleton",
+    "Elm Park",
+    "Midland Beach"
+   ],
+   "near": [
+    "brooklyn",
+    "manhattan"
+   ]
+  }
+ ],
+ "seoul": [],
+ "tokyo": []
+}

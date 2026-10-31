@@ -4,6 +4,7 @@ import Link from "@/components/SiteLink";
 import { LogoWithText } from "./Logo";
 import { PawMapCTA } from "./PawMapCTA";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { FOOTER_CITIES, FOOTER_POSTS, FOOTER_CITY_TXT, footerCityName } from "@/lib/footerCities3110";
 
 // v402 — réseaux sociaux officiels HoPetSit (fournis par Daniel).
 const SOCIALS: { label: string; href: string; icon: React.ReactNode }[] = [
@@ -176,6 +177,25 @@ export function Footer() {
             </div>
           </div>
         )}
+        {/* 31/10 (GUS, Daniel) — « Nos villes » (4 pages piliers, section quartiers) + « Blog », toutes langues,
+            depuis une seule liste (lib/footerCities3110.ts). Empilé à 375 px, 2 colonnes dès 768 px. */}
+        {(() => { const ft = FOOTER_CITY_TXT[lang] ?? FOOTER_CITY_TXT.en; return (
+        <div className="mb-10 grid grid-cols-1 gap-6 md:grid-cols-2" data-footer-villes-3110={lang}>
+          <div className="rounded-3xl bg-white p-5" style={{ boxShadow: "inset 0 0 0 1.5px #F6D9CF" }}>
+            <h4 className="text-[13px] font-extrabold uppercase tracking-wider" style={{ color: "#9E1F0B" }}>{ft.cities}</h4>
+            <ul className="mt-3 grid grid-cols-2 gap-x-3">
+              {FOOTER_CITIES.map((c) => <li key={c.href}><Link href={c.href} className="flex min-h-[44px] items-center text-sm font-semibold text-ink hover:text-owner-dark">{footerCityName(c, lang)}</Link></li>)}
+            </ul>
+            <Link href="/villes" className="mt-1 flex min-h-[44px] items-center text-sm font-bold text-owner-dark underline-offset-2 hover:underline">{ft.all} →</Link>
+          </div>
+          <div className="rounded-3xl bg-white p-5" style={{ boxShadow: "inset 0 0 0 1.5px #C9DCF7" }}>
+            <h4 className="text-[13px] font-extrabold uppercase tracking-wider" style={{ color: "#1E4FB0" }}>{ft.blog}</h4>
+            <ul className="mt-3 space-y-0">
+              {FOOTER_POSTS.map((p) => <li key={p.href}><Link href={p.href} className="flex min-h-[44px] items-center break-words text-sm font-semibold text-ink hover:text-sitter-dark">{p.label}</Link></li>)}
+            </ul>
+            <Link href="/blog" className="mt-1 flex min-h-[44px] items-center text-sm font-bold underline-offset-2 hover:underline" style={{ color: "#1E4FB0" }}>{ft.allPosts} →</Link>
+          </div>
+        </div>); })()}
         <div className="grid grid-cols-2 gap-8 md:grid-cols-6">
           <div className="col-span-2">
             <LogoWithText />
