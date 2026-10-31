@@ -27,6 +27,7 @@ const DAY = 24 * HOUR;
 const FIRST_DELAY = 2 * HOUR;
 const FOLLOW_UPS = [['e2', 2 * DAY], ['e3', 5 * DAY]];
 const MAX_POSTS_PER_RUN = 300;
+const MAX_TOTAL = 3; // 3110 — toutes relances e-mail confondues (2810 + « posez vos dates »)
 const TICK_MS = 30 * 60 * 1000;
 const HARD_STAFF_EMAILS = ['dadaciao84@gmail.com', 'hopetsit@gmail.com'];
 const NOT_A_PERSON_RE = /@invalid\.example$/i;
@@ -98,7 +99,12 @@ const runCandidatesReminders = async (opts = {}) => {
       // eslint-disable-next-line no-await-in-loop
       if (await ownerOpened(post._id)) { skip('owner_opened'); continue; }
       // eslint-disable-next-line no-await-in-loop
-      const sent = await Reminder.find({ postId: post._id }).select('slot createdAt').lean();
+      const all = await Reminder.find({ postId: post._id }).select('slot createdAt').lean();
+      // 3110 (ADA) — registre COMMUN avec la relance « posez vos dates » : 3 e-mails AU TOTAL par demande
+      // (règle de Daniel du 28/10), et jamais deux relances à moins de 24 h d'écart.
+      if (all.length >= MAX_TOTAL) { skip('max_3'); continue; }
+      if (all.some((s) => s.slot === 'dates' && now.getTime() - new Date(s.createdAt).getTime() < DAY)) { skip('recent_other'); continue; }
+      const sent = all.filter((s) => s.slot !== 'dates');
       const slot = dueSlot(apps[0].createdAt, now, sent);
       if (!slot) { skip(sent.length >= 3 ? 'max_3' : 'not_due'); continue; }
       // eslint-disable-next-line no-await-in-loop
@@ -119,6 +125,13 @@ const runCandidatesReminders = async (opts = {}) => {
       } catch (e) {
         if (e && e.code === 11000) { skip('already'); continue; }
         throw e;
+      }
+      // 3110 — course avec l'autre balayage : recompte APRÈS la réservation, on rend la place si > 3.
+      // eslint-disable-next-line no-await-in-loop
+      if (await Reminder.countDocuments({ postId: post._id }) > MAX_TOTAL) {
+        // eslint-disable-next-line no-await-in-loop
+        await Reminder.deleteOne({ _id: claim._id });
+        skip('max_3'); continue;
       }
       // eslint-disable-next-line no-await-in-loop
       const r = await email2610.sendFor({ post, ownerId: post.ownerId, apps, send: opts.send });
@@ -165,5 +178,5 @@ const startCandidatesReminderScheduler = (opts = {}) => {
 const stopCandidatesReminderScheduler = () => { if (timer) { clearInterval(timer); timer = null; } };
 
 module.exports = {
-  enabled, dueSlot, runCandidatesReminders, startCandidatesReminderScheduler, stopCandidatesReminderScheduler, FIRST_DELAY, FOLLOW_UPS,
+  enabled, dueSlot, runCandidatesReminders, startCandidatesReminderScheduler, stopCandidatesReminderScheduler, FIRST_DELAY, FOLLOW_UPS, MAX_TOTAL,
 };

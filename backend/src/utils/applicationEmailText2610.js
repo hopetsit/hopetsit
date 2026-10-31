@@ -258,7 +258,10 @@ function buildEmailData({ lang, post, cards, newCount, totalPending }) {
       + (tbd ? `<p style="margin:12px 0 0;padding:10px 12px;background:#FBE9E5;border-radius:10px;font-size:14px;font-weight:600;color:#9E1F0B">${esc(L.dates)}</p>` : '')
       // 2910 (BOB, ordre de Daniel « lancer la machine ») — garanties RÉELLES : annulation gratuite
       // (self-cancel jusqu'à 72 h avant, seulement si le début est à plus de 72 h) et séquestre.
-      + (!tbd && L.guar ? `<p style="margin:12px 0 0;padding:10px 12px;background:#EAF6EE;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;color:#15803D">${freeCancel72(post) ? `✓ ${esc(L.guar[0])}<br>` : ''}✓ ${esc(L.guar[1])}</p>` : ''),
+      + (!tbd && L.guar ? `<p style="margin:12px 0 0;padding:10px 12px;background:#EAF6EE;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;color:#15803D">${freeCancel72(post) ? `✓ ${esc(L.guar[0])}<br>` : ''}✓ ${esc(L.guar[1])}</p>` : '')
+      // 3110 (ADA, ordre de Daniel via BOB) — dates qui touchent le 15/12 → 06/01 : « Les gardiens se
+      // réservent tôt pour les fêtes » (9 langues, utils/datesReminderText3110 ; require tardif : dépendance circulaire).
+      + require('./datesReminderText3110').holidayHtml(l, post),
     ctaLabel: L.cta,
   };
 }
