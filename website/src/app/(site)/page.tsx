@@ -33,6 +33,10 @@ const PublicPawMap = dynamic(() => import("@/components/PublicPawMap"), {
   ),
 });
 
+// Tuile de pattes du fond du héros (même dessin que le papier peint « à mon animal » de globals.css), en couleur
+// PLEINE #F3C7B8 sur crème : pas d'opacité, donc jamais de gris.
+const PAWS_TILE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220' fill='%23F3C7B8'><g id='p'><ellipse cx='0' cy='6' rx='9' ry='7.5'/><ellipse cx='-9' cy='-3' rx='4' ry='5.2' transform='rotate(-24 -9 -3)'/><ellipse cx='-3' cy='-9' rx='4' ry='5.4'/><ellipse cx='3' cy='-9' rx='4' ry='5.4'/><ellipse cx='9' cy='-3' rx='4' ry='5.2' transform='rotate(24 9 -3)'/></g><use href='%23p' transform='translate(40 40) rotate(-20) scale(1.1)'/><use href='%23p' transform='translate(150 30) rotate(30) scale(.85)'/><use href='%23p' transform='translate(95 125) rotate(10)'/><use href='%23p' transform='translate(185 170) rotate(-35) scale(.9)'/><use href='%23p' transform='translate(30 185) rotate(45) scale(.75)'/><path transform='translate(200 95) scale(.55)' d='M0 12 C-14 2,-8 -12,0 -6 C8 -12,14 2,0 12z'/><path transform='translate(80 200) scale(.5) rotate(-15)' d='M0 12 C-14 2,-8 -12,0 -6 C8 -12,14 2,0 12z'/></svg>") 0 0 / 220px 220px repeat`;
+
 const PARIS: [number, number] = [48.8566, 2.3522];
 
 // v585 — mobile (Bob, 25/09) : à 375 px le titre coupait « pet-/sitter » et
@@ -109,14 +113,18 @@ export default function HomePage() {
       {/* 31/10 (LEO, demande de Daniel « version PC, centre mieux ») — à partir de 1024 px : conteneur 1180 px centré,
           deux colonnes équilibrées (formulaire 560 px | maquette 400 px) centrées dans la page, marges égales ;
           dégagement en haut pour que le H1 ne passe jamais sous l'en-tête collant. Mobile/tablette inchangés. */}
-      <section className="overflow-x-hidden bg-white">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-12 pt-12 md:pt-20 lg:max-w-[1180px] lg:grid-cols-[minmax(0,560px)_minmax(0,400px)] lg:justify-center lg:gap-16 lg:pt-24 xl:gap-24">
+      {/* 31/10 (3e demande de Daniel « éviter ce grand espace blanc, et aussi mets un fond d'écran ») : colonnes
+          rapprochées (formulaire 460 px | maquette 288-320 px, écart 48-64 px, le tout centré), et un vrai fond de héros :
+          dégradé chaud orange → crème + pattes discrètes (SVG en couleur pleine, jamais du gris) — CSS seul, 0 octet
+          d'image, donc rien de lourd sur téléphone et LCP inchangé. */}
+      <section className="overflow-x-hidden" style={{ background: `${PAWS_TILE}, radial-gradient(55% 60% at 80% 25%, rgba(201,42,18,0.16), rgba(201,42,18,0) 70%), linear-gradient(165deg, #F8D9CC 0%, #FFF3EC 40%, #FFFFFF 100%)` }} data-hero-bg-3110="">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-12 pt-12 md:pt-20 lg:max-w-[1180px] lg:grid-cols-[minmax(0,448px)_auto] lg:justify-center lg:gap-12 lg:pt-24 xl:gap-16">
           <div className="min-w-0 text-center lg:text-left">
             <span className="inline-flex items-center gap-2 rounded-full bg-[#FAF1EC] px-3.5 py-1.5 text-xs font-semibold text-[#6E4F48]">
               <AppIcon name="globe" size={14} color="#C92A12" />
               {t("hero_badge")}
             </span>
-            <h1 className={`mt-4 font-display font-bold leading-[1.05] tracking-[-0.03em] text-[#231715] md:text-6xl ${lang === "fr" || lang === "en" ? "text-[2rem]" : "text-[2.4rem]"}`}>
+            <h1 className={`mt-4 font-display font-bold leading-[1.05] tracking-[-0.03em] text-[#231715] md:text-6xl lg:text-5xl ${lang === "fr" || lang === "en" ? "text-[2rem]" : "text-[2.4rem]"}`}>
               {keepTogether(t("home_hero_title_book"))}
             </h1>
             {/* 31/10 — fr/en : la promesse est dans le formulaire juste dessous (le sous-titre doublait et
@@ -195,7 +203,7 @@ export default function HomePage() {
             </ul>
           </div>
           <div className="hidden justify-center lg:flex">
-            <PhoneFrame src={pawmapShot} alt={t("hero609_alt")} className="w-64" priority w={768} h={1669} />
+            <PhoneFrame src={pawmapShot} alt={t("hero609_alt")} className="w-72 xl:w-80" priority w={768} h={1669} />
           </div>
         </div>
       </section>
