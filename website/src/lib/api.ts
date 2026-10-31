@@ -219,14 +219,19 @@ export type SiteLeadInput = {
   visitsPerDay?: 1 | 2; lieu?: "at_owner" | "at_sitter"; campaign?: string; page?: string; website?: string;
   /** 31/10 — « Réserver <prénom> » : prestataire prévenu en premier (validé par le serveur). */
   targetProvider?: { role: "sitter" | "walker"; id: string };
+  /** 31/10 (Daniel) — position choisie sur la carte : décide des gardiens prévenus et de la distance affichée. */
+  lat?: number; lng?: number;
 };
 export async function publishSiteLead(input: SiteLeadInput) {
-  const data = await request<{ id: string; postId: string | null; token: string; user: AuthUser; notified?: number; existing: boolean }>(
+  // 31/10 16 h 40 (ZOE) — le serveur ne renvoie un jeton QUE pour un compte créé par cet appel ; un compte
+  // déjà existant (ou un contact déjà publié) répond { session: "email" } : la session s'ouvre par le lien
+  // de l'e-mail ou par la connexion normale, jamais sur la seule saisie d'une adresse e-mail.
+  const data = await request<{ id: string; postId: string | null; token?: string; user?: AuthUser; notified?: number; existing: boolean; session?: "email" }>(
     "/ad-leads/site",
     { method: "POST", body: JSON.stringify(input) },
   );
-  persistAuth(data.token, { ...data.user, role: "owner" });
-  return data;
+  if (data.token && data.user) persistAuth(data.token, { ...data.user, role: "owner" });
+  return { ...data, sessionOpened: !!(data.token && data.user) };
 }
 
 export async function confirmAdLead(id: string, lieu?: "at_owner" | "at_sitter") {

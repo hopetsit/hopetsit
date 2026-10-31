@@ -5,6 +5,7 @@ import Link from "@/components/SiteLink";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { EstimateLine620 } from "@/components/DateMode620";
 import { ApiError, publishSiteLead } from "@/lib/api";
+import { PlaceMapConfirm3110, PlacePicker3110, type PlacePick } from "@/components/PlacePicker3110";
 
 // 12/10/2026 (SAM) — le PREMIER ÉCRAN de la page où arrive la pub EST le formulaire (956 arrivées →
 // 8 clics sur un bouton seul : 99 % ne cliquaient jamais).
@@ -33,13 +34,15 @@ const TXT = {
     from: "Du", to: "Au", dates_hint: "Pas encore de dates ? Laisse vide : tu les poseras ensuite.",
     postal: "Code postal", first: "Prénom", email: "E-mail", animal: "Animal", city: "Ville",
     cta: "Publier ma demande", busy: "Publication…",
-    need_service: "Choisis un service.", need_place: "Indique ton code postal.", need_email: "Indique un e-mail valide : c'est là que les candidats arrivent, avec leur prix.",
+    need_service: "Choisis un service.", need_place: "Choisis ta ville dans la liste ou indique ton code postal.", need_email: "Indique un e-mail valide : c'est là que les candidats arrivent, avec leur prix.",
     err: "La publication n'a pas abouti. Réessaie dans un instant.", err_test: "Cette adresse est réservée aux tests.", err_many: "Trop d'envois. Réessaie dans quelques minutes.",
     done_title: "Ta demande est en ligne.",
     done_body: "Tu reçois les candidats avec leur prix par e-mail — tu choisis, tu paies, annulation gratuite jusqu'à 72 h avant.",
     done_notified: (n: number) => (n > 0 ? `${n} gardien${n > 1 ? "s" : ""} et promeneur${n > 1 ? "s" : ""} près de chez toi ${n > 1 ? "sont prévenus" : "est prévenu"}.` : "Les gardiens et promeneurs près de chez toi sont prévenus."),
     done_existing: "Ta demande était déjà en ligne : la voici.",
     done_link: "Voir ma demande", done_mail: "Un e-mail te permet de revenir ici sans mot de passe.",
+    done_by_email: "Cette adresse a déjà un compte HoPetSit. Pour ouvrir ta demande, clique sur le lien de l'e-mail « ta demande est en ligne » (il ouvre ton espace sans mot de passe), ou connecte-toi.",
+    done_login: "Me connecter",
     target_note: "Ta demande sera envoyée d'abord à ce gardien, puis aux autres près de chez toi.",
     terms: "En publiant, tu acceptes les", terms_link: "conditions d'utilisation",
   },
@@ -47,13 +50,15 @@ const TXT = {
     from: "From", to: "To", dates_hint: "No dates yet? Leave empty: you'll set them later.",
     postal: "ZIP code", first: "First name", email: "Email", animal: "Pet", city: "City",
     cta: "Post my request", busy: "Posting…",
-    need_service: "Pick a service.", need_place: "Enter your ZIP code.", need_email: "Enter a valid email: that's where candidates arrive, with their price.",
+    need_service: "Pick a service.", need_place: "Pick your city from the list or enter your ZIP code.", need_email: "Enter a valid email: that's where candidates arrive, with their price.",
     err: "Posting didn't go through. Try again in a moment.", err_test: "This address is reserved for tests.", err_many: "Too many attempts. Try again in a few minutes.",
     done_title: "Your request is live.",
     done_body: "You get the candidates with their price by email — you choose, you pay, free cancellation up to 72 h before.",
     done_notified: (n: number) => (n > 0 ? `${n} sitter${n > 1 ? "s" : ""} and walker${n > 1 ? "s" : ""} near you ${n > 1 ? "have" : "has"} been notified.` : "Sitters and walkers near you have been notified."),
     done_existing: "Your request was already live: here it is.",
     done_link: "See my request", done_mail: "An email lets you come back here without a password.",
+    done_by_email: "This address already has a HoPetSit account. To open your request, click the link in the “your request is live” email (it opens your space without a password), or sign in.",
+    done_login: "Sign in",
     target_note: "Your request goes to this sitter first, then to the others near you.",
     terms: "By posting, you accept the", terms_link: "terms of use",
   },
@@ -66,6 +71,8 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
 }) {
   const t = TXT[lang];
   const [cityValue, setCityValue] = useState(city);
+  // 31/10 (Daniel) — position choisie sur la carte (ville de la liste + épingle déplaçable).
+  const [place, setPlace] = useState<PlacePick | null>(null);
   const [target, setTarget] = useState<{ role: "sitter" | "walker"; id: string } | null>(null);
   // La langue (donc la ville proposée) peut arriver après le premier rendu : on suit la prop.
   useEffect(() => { setCityValue(city); }, [city]);
@@ -96,7 +103,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState(false);
   const [touched, setTouched] = useState(false);
-  const [done, setDone] = useState<{ notified?: number; existing: boolean } | null>(null);
+  const [done, setDone] = useState<{ notified?: number; existing: boolean; sessionOpened: boolean } | null>(null);
 
   // 27/10 (SAM) : seulement un VRAI tap (clic de confiance, page visible) — un focus() automatique
   // (robot, préchargement, remplissage auto) comptait une touche.
@@ -114,18 +121,20 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   async function submit() {
     setErr("");
     if (!service) { trackSiteEvent("cta_click", { label: "hero_form_sans_service" }); return setErr(t.need_service); }
-    if (!postalCode.trim()) { trackSiteEvent("cta_click", { label: "hero_form_sans_lieu" }); return setErr(t.need_place); }
+    if (!postalCode.trim() && !place) { trackSiteEvent("cta_click", { label: "hero_form_sans_lieu" }); return setErr(t.need_place); }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { trackSiteEvent("cta_click", { label: "hero_form_sans_email" }); return setErr(t.need_email); }
     trackSiteEvent("cta_click", { label: "signup_web_hero" });
     setBusy(true);
     try {
       const r = await publishSiteLead({
-        email: email.trim(), firstName: firstName.trim(), service, animal, postalCode: postalCode.trim(), city: (cityEditable ? cityValue.trim() : city) || city, country, lang,
+        email: email.trim(), firstName: firstName.trim(), service, animal, postalCode: postalCode.trim(), city: (place ? place.city : cityValue.trim()) || city,
+        country: (place && place.countryCode) || country, lang,
+        ...(place ? { lat: place.lat, lng: place.lng } : {}),
         startDate: startDate || undefined, endDate: endDate || startDate || undefined, campaign, page, website,
         ...(target ? { targetProvider: target } : {}),
       });
       trackSiteEvent("cta_click", { label: r.existing ? "hero_form_deja" : "hero_form_envoye" });
-      setDone({ notified: r.notified, existing: r.existing });
+      setDone({ notified: r.notified, existing: r.existing, sessionOpened: r.sessionOpened });
     } catch (e) {
       const code = e instanceof ApiError && e.details && typeof e.details === "object" ? String((e.details as { code?: string }).code || "") : "";
       trackSiteEvent("cta_click", { label: `hero_form_refus_${(code || (e instanceof ApiError ? e.status : "x")).toString().toLowerCase()}` });
@@ -135,6 +144,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
     }
   }
 
+  const bias = country === "US" ? { lat: 40.7128, lng: -74.006 } : country === "FR" ? { lat: 48.8566, lng: 2.3522 } : null;
   const field = "mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-2.5 text-[15px] text-ink focus:border-owner focus:outline-none";
   const svcId = SERVICES.find((s) => s.id === service)?.svc || "";
 
@@ -144,10 +154,23 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
         <p className="text-[22px] font-extrabold leading-tight" style={{ color: "#15803D" }}>✓ {t.done_title}</p>
         <p className="mt-2 text-[15px] font-semibold leading-snug text-ink">{done.existing ? t.done_existing : t.done_notified(done.notified ?? 0)}</p>
         <p className="mt-2 text-[14px] leading-snug text-ink">{t.done_body}</p>
-        <Link href="/posts" className="mt-4 inline-block rounded-full bg-owner px-6 py-3.5 text-[16px] font-extrabold text-white shadow-card" onClick={() => trackSiteEvent("cta_click", { label: "hero_form_voir" })}>
-          {t.done_link} →
-        </Link>
-        <p className="mt-3 text-xs text-ink-soft">{t.done_mail}</p>
+        {done.sessionOpened ? (
+          <>
+            <Link href="/posts" className="mt-4 inline-block rounded-full bg-owner px-6 py-3.5 text-[16px] font-extrabold text-white shadow-card" onClick={() => trackSiteEvent("cta_click", { label: "hero_form_voir" })}>
+              {t.done_link} →
+            </Link>
+            <p className="mt-3 text-xs text-ink-soft">{t.done_mail}</p>
+          </>
+        ) : (
+          // 31/10 16 h 40 (ZOE) — compte déjà existant : pas de session ouverte ici (une adresse e-mail seule ne prouve
+          // rien) ; la personne passe par le lien de l'e-mail ou par la connexion.
+          <>
+            <p className="mt-3 text-[13px] leading-snug text-ink" data-hero-done-email="">{t.done_by_email}</p>
+            <Link href="/login?redirect=%2Fposts" className="mt-4 inline-block rounded-full border-2 border-owner px-6 py-3 text-[15px] font-extrabold text-owner" onClick={() => trackSiteEvent("cta_click", { label: "hero_form_login" })}>
+              {t.done_login} →
+            </Link>
+          </>
+        )}
       </div>
     );
   }
@@ -180,27 +203,28 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
       {svcId && (
         <div className="mt-3">
           <EstimateLine620 lang={lang} service={svcId} dateMode={startDate && endDate ? "exact" : "tbd"} startDate={startDate} endDate={endDate}
-            visitsPerDay={1} venue={svcId === "house_sitting" ? "owners_home" : null} currency={country === "US" ? "USD" : "EUR"} location={{ city: cityEditable ? cityValue : city }} />
+            visitsPerDay={1} venue={svcId === "house_sitting" ? "owners_home" : null} currency={country === "US" ? "USD" : "EUR"} location={{ city: place ? place.city : (cityEditable ? cityValue : city) }} />
         </div>
       )}
 
-      {cityEditable && (
-        <label className="mt-3 block text-xs font-semibold text-ink">{t.city}
-          <input value={cityValue} onChange={(e) => setCityValue(e.target.value)} autoComplete="address-level2" maxLength={80} className={field} data-testid="hero-city" />
-        </label>
-      )}
-      <div className={`${cityEditable ? "mt-2" : "mt-3"} grid grid-cols-2 gap-2`}>
+      {/* Ville (liste + carte) et code postal sur une rangée, prénom et e-mail sur la suivante : le bouton reste
+          dans le premier écran à 375 px même avec le champ Ville en plus. */}
+      <div className="mt-3 grid grid-cols-[1.4fr_1fr] gap-2">
+        <PlacePicker3110 lang={lang} value={cityValue} onChange={setCityValue} pick={place} setPick={(p) => { setPlace(p); trackSiteEvent("cta_click", { label: p ? "hero_form_carte" : "hero_form_carte_off" }); }} inputClass={field} bias={bias} />
         <label className="block text-xs font-semibold text-ink">{t.postal}
           <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} inputMode="numeric" autoComplete="postal-code" maxLength={12} className={field} data-testid="hero-postal" />
         </label>
+      </div>
+      <PlaceMapConfirm3110 lang={lang} pick={place} setPick={(p) => setPlace(p)} />
+      <div className="mt-2 grid grid-cols-[1fr_1.4fr] gap-2">
         <label className="block text-xs font-semibold text-ink">{t.first}
           <input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" maxLength={60} className={field} data-testid="hero-first" />
         </label>
+        <label className="block text-xs font-semibold text-ink">{t.email}
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" inputMode="email" maxLength={120} className={field} data-testid="hero-email"
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void submit(); } }} />
+        </label>
       </div>
-      <label className="mt-2 block text-xs font-semibold text-ink">{t.email}
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" inputMode="email" maxLength={120} className={field} data-testid="hero-email"
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void submit(); } }} />
-      </label>
       <div className="mt-2 flex items-center gap-2" role="group" aria-label={t.animal}>
         <span className="text-xs font-semibold text-ink">{t.animal}</span>
         {ANIMALS.map((a) => (

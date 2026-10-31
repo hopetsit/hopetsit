@@ -18,7 +18,9 @@
  * « ta demande est en ligne » UNE fois, avec le lien d'ouverture de session de la pub
  * (/posts/confirmer?l=…&next=/posts : sans mot de passe ; les e-mails « candidats » qui suivent
  * portent le lien signé &k=).
- * Sortie : { id, postId, token, user, notified?, existing }.
+ * Sortie : { id, postId, notified?, existing, token + user } — jeton SEULEMENT si le compte vient d'être créé par
+ * cet appel ; compte déjà existant (ou contact déjà publié) → { session: 'email' } : la session ne s'ouvre que par
+ * le lien de l'e-mail ou la connexion normale (ZOE 31/10 : une adresse e-mail seule ne prouve rien).
  */
 const crypto = require('crypto');
 const express = require('express');
@@ -109,17 +111,33 @@ router.post('/site', async (req, res) => {
     if (prev && prev.ownerId) {
       const post = await Post.findById(prev.postId).select('status').lean();
       const owner = post && post.status !== 'closed' ? await Owner.findById(prev.ownerId) : null;
-      if (owner) return res.status(200).json({ id: prev._id, postId: String(prev.postId), existing: true, ...session(owner) });
+      // 31/10 16 h 40 (ZOE) — JAMAIS de jeton de session pour un compte qui existe déjà : la seule
+      // donnée fournie ici est une adresse e-mail (connue de tous), elle ne prouve rien. La session ne
+      // s'ouvre que par le lien reçu dans la boîte (/posts/confirmer?l=…) ou par la connexion normale.
+      if (owner) return res.status(200).json({ id: prev._id, postId: String(prev.postId), existing: true, session: 'email' });
     }
 
-    // Position : code postal → ville + lat/lng ; sinon ville saisie ; sinon centre de la ville du pays.
+    // Position (demande de Daniel, 31/10 : « sélectionnée par carte pour être précis ») :
+    //   1. lat/lng choisis sur la carte par le propriétaire, s'ils sont plausibles (plages valides, pas 0/0) ;
+    //      une position hors plage est REFUSÉE (400 POSITION_INVALID) plutôt que corrigée en silence ;
+    //   2. sinon code postal → ville + lat/lng (Nominatim) ; 3. sinon ville saisie ; 4. sinon centre de la ville du pays.
+    // C'est cette position qui décide des gardiens prévenus et de la distance montrée aux candidats.
     const anchor = CITY_ANCHORS[country] || null;
-    const geo = postalCode ? await geocodePostal(postalCode, country) : null;
+    const hasLat = b.lat !== undefined && b.lat !== null && b.lat !== '';
+    const hasLng = b.lng !== undefined && b.lng !== null && b.lng !== '';
     const lat = Number(b.lat); const lng = Number(b.lng);
-    const place = geo
-      || (cityIn ? { city: cityIn, ...(Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : anchor ? { lat: anchor.lat, lng: anchor.lng } : {}) } : null)
+    let picked = null;
+    if (hasLat || hasLng) {
+      const ok = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01);
+      if (!ok) return res.status(400).json({ error: 'POSITION_INVALID', code: 'POSITION_INVALID' });
+      picked = { lat, lng, source: 'map' };
+    }
+    const geo = !picked && postalCode ? await geocodePostal(postalCode, country) : null;
+    const place = (picked ? { city: cityIn || (geo && geo.city) || (anchor ? anchor.city : ''), lat: picked.lat, lng: picked.lng } : null)
+      || geo
+      || (cityIn ? { city: cityIn, ...(anchor ? { lat: anchor.lat, lng: anchor.lng } : {}) } : null)
       || (anchor ? { city: anchor.city, lat: anchor.lat, lng: anchor.lng } : null);
-    if (!place) return res.status(400).json({ error: 'PLACE_REQUIRED', code: 'PLACE_REQUIRED' });
+    if (!place || !place.city) return res.status(400).json({ error: 'PLACE_REQUIRED', code: 'PLACE_REQUIRED' });
 
     const campaign = String(b.campaign || '').trim().slice(0, 40) || (country === 'US' ? 'nyc_owners' : 'paris_owners');
     const lead = await AdLead.create({
@@ -128,6 +146,7 @@ router.post('/site', async (req, res) => {
       campaign,
       page: String(b.page || '').trim().slice(0, 120),
       postalCode,
+      positionSource: picked ? 'map' : geo ? 'postal' : cityIn ? 'city' : 'anchor',
       email,
       firstName: String(b.firstName || '').trim().slice(0, 60),
       city: place.city,
@@ -144,6 +163,9 @@ router.post('/site', async (req, res) => {
       ...(() => { const tp = b.targetProvider && typeof b.targetProvider === 'object' ? b.targetProvider : null; const role = tp && String(tp.role || '').toLowerCase(); const id = tp && String(tp.id || ''); return role && ['sitter', 'walker'].includes(role) && /^[a-f0-9]{24}$/i.test(id) ? { targetRole: role, targetId: id } : {}; })(),
     });
 
+    // Compte déjà existant pour cet e-mail (inscrit dans l'app, ou contact précédent) → la demande est
+    // publiée sur son compte et l'e-mail « en ligne » part, mais la réponse ne porte AUCUN jeton (ZOE 31/10).
+    const existedBefore = !!(await Owner.exists({ email }));
     const r = await publishLead(lead, lieu);
     if (r.status !== 200) return res.status(r.status).json(r.body);
 
@@ -172,7 +194,7 @@ router.post('/site', async (req, res) => {
         logger.warn(`[adLeadsSite3110] e-mail « en ligne » non envoyé : ${e && e.message}`);
       }
     }
-    return res.status(201).json({ id: lead._id, postId: r.postId, existing: false, ...(r.notified === undefined || r.notified === null ? {} : { notified: r.notified }), ...session(r.owner) });
+    return res.status(201).json({ id: lead._id, postId: r.postId, existing: false, ...(r.notified === undefined || r.notified === null ? {} : { notified: r.notified }), ...(existedBefore ? { session: 'email' } : session(r.owner)) });
   } catch (e) {
     logger.error('[adLeadsSite3110] failed', e);
     return res.status(500).json({ error: 'Unable to publish.' });

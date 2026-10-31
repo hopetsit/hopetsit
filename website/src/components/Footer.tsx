@@ -47,9 +47,41 @@ const SOCIALS: { label: string; href: string; icon: React.ReactNode }[] = [
   },
 ];
 
+// 31/10 (LEO, étape 3 — décision BOB) — pied de page fr/en en 3 blocs : propriétaires · gardiens · HoPetSit,
+// avec les deux actions en tête (« Publier ma demande », « Devenir gardien »). Tous les liens existants
+// (SEO / maillage de GUS) sont conservés dans une rangée « Villes & guides ». Autres langues : inchangées.
+const BLOCKS: Record<"fr" | "en", {
+  owner: { title: string; cta: string; ctaHref: string; links: { href: string; label: string }[] };
+  sitter: { title: string; cta: string; ctaHref: string; links: { href: string; label: string }[] };
+  brand: { title: string; links: { href: string; label: string }[] };
+  seo: string;
+}> = {
+  fr: {
+    owner: { title: "Propriétaires", cta: "Publier ma demande", ctaHref: "/garde-animaux/paris", links: [
+      { href: "/how-it-works", label: "Comment ça marche" }, { href: "/pricing", label: "Tarifs" }, { href: "/pawmap", label: "PawMap" }, { href: "/posts", label: "Mes candidats" } ] },
+    sitter: { title: "Gardiens et promeneurs", cta: "Devenir gardien", ctaHref: "/devenir-petsitter", links: [
+      { href: "/blog/devenir-pet-sitter-combien-ca-rapporte", label: "Combien ça rapporte ?" }, { href: "/download", label: "Télécharger l'app" }, { href: "/villes", label: "Toutes les villes" } ] },
+    brand: { title: "HoPetSit", links: [
+      { href: "/contact", label: "Contact" }, { href: "/faq", label: "FAQ" }, { href: "/terms", label: "Conditions d'utilisation" }, { href: "/privacy", label: "Confidentialité" },
+      { href: "/refund", label: "Remboursements" }, { href: "/delete-account", label: "Supprimer mon compte" }, { href: "/imprint", label: "Mentions légales" } ] },
+    seo: "Villes & guides",
+  },
+  en: {
+    owner: { title: "Pet owners", cta: "Post my request", ctaHref: "/pet-sitting/new-york", links: [
+      { href: "/how-it-works", label: "How it works" }, { href: "/pricing", label: "Pricing" }, { href: "/pawmap", label: "PawMap" }, { href: "/posts", label: "My candidates" } ] },
+    sitter: { title: "Sitters and walkers", cta: "Become a sitter", ctaHref: "/become-a-pet-sitter/new-york", links: [
+      { href: "/become-a-pet-sitter/dallas", label: "Become a pet sitter in Dallas" }, { href: "/download", label: "Get the app" }, { href: "/villes", label: "All cities" } ] },
+    brand: { title: "HoPetSit", links: [
+      { href: "/contact", label: "Contact" }, { href: "/faq", label: "FAQ" }, { href: "/terms", label: "Terms of use" }, { href: "/privacy", label: "Privacy" },
+      { href: "/refund", label: "Refunds" }, { href: "/delete-account", label: "Delete my account" }, { href: "/imprint", label: "Legal notice" } ] },
+    seo: "Cities & guides",
+  },
+};
+
 export function Footer() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const year = new Date().getFullYear();
+  const blocks = lang === "fr" || lang === "en" ? BLOCKS[lang] : null;
 
   const cols = [
     {
@@ -116,6 +148,34 @@ export function Footer() {
   return (
     <footer className="border-t border-ink/5 bg-bg-soft">
       <div className="mx-auto max-w-6xl px-4 py-12 max-md:pb-24">
+        {blocks && (
+          <div className="mb-10 grid grid-cols-1 gap-6 md:grid-cols-3" data-footer-3110={lang}>
+            <div className="rounded-3xl bg-white p-5" style={{ boxShadow: "inset 0 0 0 1.5px #F6D9CF" }}>
+              <h4 className="text-[13px] font-extrabold uppercase tracking-wider" style={{ color: "#9E1F0B" }}>{blocks.owner.title}</h4>
+              <Link href={blocks.owner.ctaHref} className="mt-3 block rounded-full px-5 py-3 text-center text-[15px] font-extrabold text-white shadow-card" style={{ background: "linear-gradient(135deg,#C92A12,#9E1F0B)" }}>
+                {blocks.owner.cta}
+              </Link>
+              <ul className="mt-3 space-y-0">
+                {blocks.owner.links.map((l) => <li key={l.href}><Link href={l.href} className="flex min-h-[40px] items-center text-sm font-semibold text-ink hover:text-owner-dark">{l.label}</Link></li>)}
+              </ul>
+            </div>
+            <div className="rounded-3xl bg-white p-5" style={{ boxShadow: "inset 0 0 0 1.5px #C9DCF7" }}>
+              <h4 className="text-[13px] font-extrabold uppercase tracking-wider" style={{ color: "#1E4FB0" }}>{blocks.sitter.title}</h4>
+              <Link href={blocks.sitter.ctaHref} className="mt-3 block rounded-full px-5 py-3 text-center text-[15px] font-extrabold text-white shadow-card" style={{ background: "linear-gradient(135deg,#2F6FD6,#1E4FB0)" }}>
+                {blocks.sitter.cta}
+              </Link>
+              <ul className="mt-3 space-y-0">
+                {blocks.sitter.links.map((l) => <li key={l.href}><Link href={l.href} className="flex min-h-[40px] items-center text-sm font-semibold text-ink hover:text-sitter-dark">{l.label}</Link></li>)}
+              </ul>
+            </div>
+            <div className="rounded-3xl bg-white p-5" style={{ boxShadow: "inset 0 0 0 1.5px #F6D9CF" }}>
+              <h4 className="text-[13px] font-extrabold uppercase tracking-wider" style={{ color: "#231715" }}>{blocks.brand.title}</h4>
+              <ul className="mt-3 grid grid-cols-2 gap-x-3">
+                {blocks.brand.links.map((l) => <li key={l.href}><Link href={l.href} className="flex min-h-[40px] items-center text-sm font-semibold text-ink hover:text-owner-dark">{l.label}</Link></li>)}
+              </ul>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-8 md:grid-cols-6">
           <div className="col-span-2">
             <LogoWithText />
@@ -149,8 +209,8 @@ export function Footer() {
               ))}
             </div>
           </div>
-          {cols.map((c) => (
-            <div key={c.title}>
+          {(blocks ? cols.filter((c) => c.title === "Guides").map((c) => ({ ...c, title: blocks.seo })) : cols).map((c) => (
+            <div key={c.title} className={blocks ? "col-span-2 md:col-span-4" : undefined}>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
                 {c.title}
               </h4>
@@ -159,7 +219,7 @@ export function Footer() {
                   ouvrait « Confidentialite ». Sur telephone chaque lien occupe
                   44 px et l'ecart tombe a 0 : la zone grandit, le pied de page
                   ne s'allonge presque pas. Le bureau est inchange. */}
-              <ul className="mt-3 space-y-2 max-lg:space-y-0">
+              <ul className={blocks ? "mt-3 grid grid-cols-1 gap-x-6 sm:grid-cols-2" : "mt-3 space-y-2 max-lg:space-y-0"}>
                 {c.links.map((l) => (
                   <li key={l.href}>
                     <Link

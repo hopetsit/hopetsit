@@ -93,7 +93,26 @@ test('doublon e-mail : même demande, même propriétaire, pas de 2e compte ni d
   expect(await Owner.countDocuments({ email: BASE.email })).toBe(1);
   expect(await Post.countDocuments({ ownerId: first.ownerId })).toBe(1);
   expect(MAILS.filter((m) => m.to === BASE.email)).toHaveLength(1);
-  expect(jwt.verify(r.body.token, process.env.JWT_SECRET)).toMatchObject({ id: String(first.ownerId), role: 'owner' });
+  // 31/10 16 h 40 (ZOE) — un e-mail déjà vu n'ouvre PLUS de session : la réponse n'a ni jeton ni user.
+  expect(r.body.token).toBeUndefined();
+  expect(r.body.user).toBeUndefined();
+  expect(r.body.session).toBe('email');
+});
+
+test('e-mail d\'un compte propriétaire DÉJÀ inscrit (mot de passe, vérifié) → demande publiée sur son compte, e-mail envoyé, mais AUCUN jeton de session', async () => {
+  const email = 'nadia.inscrite3110@example.test';
+  const existing = await Owner.create({ name: 'Nadia', firstName: 'Nadia', lastName: 'R', email, password: 'Motdepasse!2026', city: 'Zone test', country: 'FR', currency: 'EUR', acceptedTerms: true, termsAcceptedAt: new Date(), verified: true });
+  const r = await post({ ...BASE, email, firstName: 'Quelqu\'un' }).expect(201);
+  expect(r.body.existing).toBe(false);
+  expect(r.body.token).toBeUndefined();
+  expect(r.body.user).toBeUndefined();
+  expect(r.body.session).toBe('email');
+  expect(await Owner.countDocuments({ email })).toBe(1);
+  const o = await Owner.findById(existing._id).lean();
+  expect(o.verified).toBe(true);
+  expect(await Post.countDocuments({ ownerId: existing._id })).toBe(1);
+  expect(MAILS.filter((m) => m.to === email)).toHaveLength(1);
+  expect(MAILS.find((m) => m.to === email).text).toContain('/posts/confirmer?l=');
 });
 
 test('champ piège rempli → 400 ROBOT, rien créé', async () => {
@@ -159,6 +178,37 @@ test('« Réserver <prénom> » : prestataire ciblé → la demande le porte (pr
   const r2 = await post({ ...BASE, email: 'cible2.site3110@example.test', targetProvider: { role: 'sitter', id: 'ffffffffffffffffffffffff' } }).expect(201);
   const p2 = await Post.findById(r2.body.postId).lean();
   expect(p2.targetProvider == null || !p2.targetProvider.id).toBe(true);
+});
+
+test('position choisie sur la carte : utilisée telle quelle (prioritaire sur le code postal)', async () => {
+  const r = await post({ ...BASE, email: 'carte.site3110@example.test', city: 'Zone test', postalCode: '75011', lat: -35.02, lng: -30.03 }).expect(201);
+  const lead = await AdLead.findById(r.body.id).lean();
+  expect(lead.lat).toBeCloseTo(-35.02, 3);
+  expect(lead.lng).toBeCloseTo(-30.03, 3);
+  expect(lead.positionSource).toBe('map');
+  const p = await Post.findById(r.body.postId).lean();
+  expect(p.location.lat).toBeCloseTo(-35.02, 3);
+  expect(p.location.city).toBe('Zone test');
+});
+
+test('position absente : repli code postal (sans réseau → centre de la ville du pays), source « postal » ou « anchor »', async () => {
+  const r = await post({ ...BASE, email: 'sanspos.site3110@example.test', city: '', lat: undefined, lng: undefined, postalCode: '75011' }).expect(201);
+  const lead = await AdLead.findById(r.body.id).lean();
+  expect(['postal', 'anchor']).toContain(lead.positionSource);
+  expect(lead.lat).toBeCloseTo(48.8566, 2);
+});
+
+test('position aberrante → 400 POSITION_INVALID, rien créé', async () => {
+  const before = await AdLead.countDocuments({});
+  let i = 0;
+  for (const pos of [{ lat: 123, lng: 2 }, { lat: 48, lng: -200 }, { lat: 0, lng: 0 }, { lat: 'abc', lng: 2 }]) {
+    i += 1;
+    // eslint-disable-next-line no-await-in-loop
+    const r = await post({ ...BASE, email: `aberrant${i}.site3110@example.test`, ...pos });
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('POSITION_INVALID');
+  }
+  expect(await AdLead.countDocuments({})).toBe(before);
 });
 
 test('position : code postal sans réseau → repli centre de la ville du pays (jamais sans position)', async () => {

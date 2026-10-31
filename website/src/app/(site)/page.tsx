@@ -106,8 +106,11 @@ export default function HomePage() {
       {/* ── 1. HÉRO ── « Réserve ici en 2 minutes » : recherche en haut,
            l'app en second. Une colonne sur téléphone, téléphone à droite sur
            grand écran seulement (plus jamais 3 cadres côte à côte). */}
+      {/* 31/10 (LEO, demande de Daniel « version PC, centre mieux ») — à partir de 1024 px : conteneur 1180 px centré,
+          deux colonnes équilibrées (formulaire 560 px | maquette 400 px) centrées dans la page, marges égales ;
+          dégagement en haut pour que le H1 ne passe jamais sous l'en-tête collant. Mobile/tablette inchangés. */}
       <section className="overflow-x-hidden bg-white">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-12 pt-12 md:pt-20 lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-12 pt-12 md:pt-20 lg:max-w-[1180px] lg:grid-cols-[minmax(0,560px)_minmax(0,400px)] lg:justify-center lg:gap-16 lg:pt-24 xl:gap-24">
           <div className="min-w-0 text-center lg:text-left">
             <span className="inline-flex items-center gap-2 rounded-full bg-[#FAF1EC] px-3.5 py-1.5 text-xs font-semibold text-[#6E4F48]">
               <AppIcon name="globe" size={14} color="#C92A12" />
