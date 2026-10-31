@@ -32,7 +32,7 @@ const TXT = {
   fr: {
     from: "Du", to: "Au", dates_hint: "Pas encore de dates ? Laisse vide : tu les poseras ensuite.",
     postal: "Code postal", first: "Prénom", email: "E-mail", animal: "Animal",
-    cta: "Publier ma demande — gratuit", busy: "Publication…",
+    cta: "Publier ma demande", busy: "Publication…",
     need_service: "Choisis un service.", need_place: "Indique ton code postal.", need_email: "Indique un e-mail valide : c'est là que les candidats arrivent, avec leur prix.",
     err: "La publication n'a pas abouti. Réessaie dans un instant.", err_test: "Cette adresse est réservée aux tests.", err_many: "Trop d'envois. Réessaie dans quelques minutes.",
     done_title: "Ta demande est en ligne.",
@@ -45,7 +45,7 @@ const TXT = {
   en: {
     from: "From", to: "To", dates_hint: "No dates yet? Leave empty: you'll set them later.",
     postal: "ZIP code", first: "First name", email: "Email", animal: "Pet",
-    cta: "Post my request — free", busy: "Posting…",
+    cta: "Post my request", busy: "Posting…",
     need_service: "Pick a service.", need_place: "Enter your ZIP code.", need_email: "Enter a valid email: that's where candidates arrive, with their price.",
     err: "Posting didn't go through. Try again in a moment.", err_test: "This address is reserved for tests.", err_many: "Too many attempts. Try again in a few minutes.",
     done_title: "Your request is live.",
@@ -129,7 +129,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   }
 
   return (
-    <div className="mt-3 rounded-3xl border border-owner/20 bg-owner-light/60 p-4 md:mx-auto md:max-w-md" data-testid="hero-form" data-hero-form-3110={lang} onClickCapture={touch}>
+    <div className="mt-2 rounded-3xl border border-owner/20 bg-owner-light/60 p-4 md:mx-auto md:max-w-md" data-testid="hero-form" data-hero-form-3110={lang} onClickCapture={touch}>
       <p className="text-[15px] font-semibold leading-snug text-ink md:text-base">{lead}</p>
 
       <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Service">

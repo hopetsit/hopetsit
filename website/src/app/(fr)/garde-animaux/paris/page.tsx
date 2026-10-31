@@ -80,7 +80,7 @@ export default function GardeAnimauxParisPage() {
   return (
     <OwnerCityPage
       city={PARIS}
-      h1="Pet sitter à Paris : garde de chien et de chat, dog sitting, promenades"
+      h1="Pet sitter à Paris : garde, visites et promenades"
       // 08/10 (SAM) — le menu « Vous habitez où ? » (06-07/10) : 17 visiteurs
       // de la pub restés 3 s le 07/10 → 0 choix, 0 « Publier ». Remplacé par
       // une phrase + UN bouton qui ouvre directement le formulaire (le quartier
@@ -93,7 +93,7 @@ export default function GardeAnimauxParisPage() {
         <>
           <ParisHeroForm
             city={PARIS.name}
-            lead="Des gardiens vérifiés près de chez toi à Paris te répondent par e-mail, avec leur prix. Donne tes dates, sans créer de compte : ta demande est publiée tout de suite."
+            lead="Des gardiens vérifiés près de chez toi te répondent avec leur prix. Sans compte, tout de suite."
             note="Gratuit · sans compte · tu choisis et tu paies ensuite, annulation gratuite jusqu'à 72 h avant"
             lang="fr"
             country="FR"
@@ -105,6 +105,7 @@ export default function GardeAnimauxParisPage() {
         </>
       }
       stickyWatchId="hero-publier"
+      seasonalBanner={false}
     >
       <section className="mt-12">
         {/* 16/10 (SAM) — lien saisonnier vers l'article Toussaint, sous la ligne de

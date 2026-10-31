@@ -33,7 +33,7 @@ export default function Page({ params }: { params: { city: string } }) {
             country="US"
             campaign="nyc_owners"
             page="/pet-sitting/new-york"
-            lead="Trusted pet sitters near you in New York reply by email, with their price. Give your dates, no account needed: your request is posted right away."
+            lead="Trusted pet sitters near you reply with their price. No account, posted right away."
             note="Free · no account · you choose and pay later, free cancellation up to 72 h before"
           />
         }

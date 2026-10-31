@@ -461,6 +461,7 @@ export default function OwnerCityPage({
   city,
   h1,
   heroCta,
+  seasonalBanner = true,
   stickyWatchId,
   children,
 }: {
@@ -473,6 +474,9 @@ export default function OwnerCityPage({
   h1?: string;
   /** Bloc supplémentaire inséré sous l'encadré local (maillage interne…). */
   children?: React.ReactNode;
+  /** 31/10 (LEO, décision BOB) — bandeau saisonnier masqué quand le premier écran est le formulaire
+   *  (à 375 px, il poussait le bouton « Publier » sous la ligne de flottaison : 736 px). */
+  seasonalBanner?: boolean;
 }) {
   const copy = COPY[city.lang];
   // v562 — arrondissement de Paris : contenu local réel à la place des blocs génériques.
@@ -519,7 +523,7 @@ export default function OwnerCityPage({
           Toussaint ») : le visiteur retrouve en haut de page ce qui l'a fait
           cliquer. Pages françaises seulement ; disparaît au 1er build après le
           2 novembre (page statique : la date est celle du build). */}
-      {city.lang === "fr" && Date.now() < TOUSSAINT_FIN && (
+      {seasonalBanner && city.lang === "fr" && Date.now() < TOUSSAINT_FIN && (
         <p className="mt-3 rounded-2xl bg-owner-light px-4 py-2.5 text-sm font-semibold leading-snug text-owner-dark">
           🍂 Vacances de la Toussaint (17 oct. – 2 nov.) : les gardiens se réservent maintenant.
         </p>
