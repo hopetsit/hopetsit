@@ -176,6 +176,12 @@ describe('relance « posez vos dates » 3110', () => {
     expect(sim.skipped.test).toBeGreaterThanOrEqual(1);
     expect(sim.skipped.owner_back_24h).toBeGreaterThanOrEqual(1);
     expect(await Reminder.countDocuments({ postId: script.postId })).toBe(0); // simulation : rien écrit
+    // Règle « personne » : une vraie session sur son profil GARDIEN (même e-mail) compte comme un retour.
+    const viaSitter = await mk('camille.n3110@example.org');
+    const sp = await Sitter.create({ name: 'Camille Durand', email: 'camille.n3110@example.org', password: PASS, city: 'Paris', country: 'FR', currency: 'EUR', verified: true, location: ZONE });
+    await ActivityEvent.create({ userId: String(sp._id), role: 'sitter', at: at(-2), platform: 'ios', appVersion: '23.1.0+631', origin: 'app' });
+    const sim2 = await run(0, { dryRun: true });
+    expect(sim2.wouldSend.map((l) => l.postId)).not.toContain(String(viaSitter.postId));
     // 25 h après sa visite, le propriétaire revenu reçoit la relance.
     expect(mine(await run(22), back)).toHaveLength(1);
   });

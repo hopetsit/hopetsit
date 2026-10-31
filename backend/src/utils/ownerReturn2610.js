@@ -89,32 +89,18 @@ async function boardSignals(items) {
   const CandidatesView = require('../models/CandidatesView2610');
 
   const ownerIds = [...new Set(items.map((it) => String(it.owner && it.owner.id || '')).filter((s) => /^[a-f0-9]{24}$/i.test(s)))];
-  const owners = await Owner.find({ _id: { $in: ownerIds } }).select('email fcmTokens isStaff').lean();
-  const emailOf = new Map(owners.map((o) => [String(o._id), String(o.email || '').toLowerCase()]));
-  const emails = [...new Set([...emailOf.values()].filter(Boolean))];
-  // Toute la personne (ses 3 profils, reliés par l'e-mail) : l'app peut être ouverte sur un autre rôle.
-  const groupIds = new Map(); // email → [ids]
-  const pushByEmail = new Map(); // email → bool
-  const add = (d) => {
-    const e = String(d.email || '').toLowerCase(); if (!e) return;
-    if (!groupIds.has(e)) groupIds.set(e, []);
-    groupIds.get(e).push(String(d._id));
-    if (Array.isArray(d.fcmTokens) && d.fcmTokens.length) pushByEmail.set(e, true);
-  };
-  if (emails.length) {
-    const [o2, s2, w2] = await Promise.all([Owner, Sitter, Walker].map((M) => M.find({ email: { $in: emails } }).select('email fcmTokens').lean()));
-    [...o2, ...s2, ...w2].forEach(add);
-  }
-  for (const o of owners) {
-    if (!emailOf.get(String(o._id))) { groupIds.set(`id:${o._id}`, [String(o._id)]); if (Array.isArray(o.fcmTokens) && o.fcmTokens.length) pushByEmail.set(`id:${o._id}`, true); }
-  }
-  const keyOfOwner = (id) => emailOf.get(id) || `id:${id}`;
+  const owners = await Owner.find({ _id: { $in: ownerIds } }).select('email isStaff').lean();
+  // 3110 (ADA, règle de Daniel « toujours regarder les 3 profils ») — une PERSONNE = même e-mail sur les profils
+  // propriétaire + gardien + promeneur (utils/person3110, fonction partagée) : sessions, appareils et « a l'app »
+  // se lisent sur les 3 profils.
+  const groups = await require('./person3110').personGroups(ownerIds.map((id) => ({ role: 'owner', id })));
+  const keyOfOwner = (id) => `owner:${id}`;
   // 3110 (ADA, demande de Daniel) — compte de test / équipe : ses sessions ne comptent pas comme un vrai retour.
   const plain = (e) => { try { return require('./encryption').decrypt(e || '') || String(e || ''); } catch (_) { return String(e || ''); } };
   const internalOwner = new Set(owners.filter((o) => o.isStaff === true || require('./userCounts').isInternalEmail(plain(o.email))).map((o) => String(o._id)));
-  const allIds = [...new Set([...groupIds.values()].flat())];
+  const allIds = [...new Set([...groups.values()].flatMap((g) => g.allIds))];
   const idToKey = new Map();
-  for (const [k, ids] of groupIds) for (const i of ids) idToKey.set(i, k);
+  for (const g of groups.values()) for (const i of g.allIds) idToKey.set(i, g.key);
 
   const [events, views] = await Promise.all([
     allIds.length ? ActivityEvent.find({ userId: { $in: allIds } }).select('userId at platform appVersion origin').sort({ at: -1 }).limit(20000).lean() : [],
@@ -170,7 +156,19 @@ async function boardSignals(items) {
         lastChannel: vs.length ? (vs[vs.length - 1].channel || null) : null,
         channels: { web: vs.filter((v) => v.channel === 'web').length, app: vs.filter((v) => v.channel === 'app').length },
       },
-      hasApp: pushByEmail.get(key) === true,
+      // 3110 (ADA) — « a l'app » = la PERSONNE a un appareil enregistré (3 profils) OU un retour mesuré par l'app
+      // (session ou ouverture des candidats) ; plateforme et build du dernier appareil connu.
+      hasApp: !!((groups.get(key) && groups.get(key).device.has) || real.some((e) => chanOf(e) === 'app') || vs.some((x) => x.channel === 'app')),
+      appDevice: (() => {
+        const d = groups.get(key) && groups.get(key).device;
+        if (d && (d.platform || d.appBuild)) return { platform: d.platform, build: d.appBuild || null };
+        const ev = real.find((e) => chanOf(e) === 'app');
+        if (!ev) return null;
+        const m = String(ev.appVersion || '').match(/\+(\d+)$/);
+        return { platform: String(ev.platform || ''), build: m ? Number(m[1]) : null };
+      })(),
+      // retours par l'app SANS nouvelle connexion (session déjà ouverte) : ouvertures des candidats dans l'app après la publication
+      appViewsSincePublish: internal ? 0 : vs.filter((x) => x.channel === 'app' && new Date(x.at).getTime() >= pub).length,
     });
   }
   return out;

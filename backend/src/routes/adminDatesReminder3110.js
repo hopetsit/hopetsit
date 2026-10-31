@@ -17,14 +17,17 @@ router.get('/', requireAdmin, async (req, res) => {
     const svc = require('../services/datesReminder3110');
     const Reminder = require('../models/CandidatesReminder2810');
     const sim = await svc.runDatesReminders({ dryRun: true });
-    const [bySlot, perPost] = await Promise.all([
+    const [bySlot, perPost, failed] = await Promise.all([
       Reminder.aggregate([{ $group: { _id: { slot: '$slot', status: '$status' }, n: { $sum: 1 } } }]),
       Reminder.aggregate([{ $group: { _id: '$postId', n: { $sum: 1 } } }, { $group: { _id: '$n', posts: { $sum: 1 } } }]),
+      // motifs des échecs (code technique du notificationSender, aucune donnée personnelle)
+      Reminder.aggregate([{ $match: { status: 'failed' } }, { $group: { _id: { slot: '$slot', error: '$error' }, n: { $sum: 1 } } }]),
     ]);
     return res.json({
       ...sim,
       registry: bySlot.map((x) => ({ slot: x._id.slot, status: x._id.status, n: x.n })),
       postsByReminderCount: perPost.map((x) => ({ reminders: x._id, posts: x.posts })).sort((a, b) => a.reminders - b.reminders),
+      failedReasons: failed.map((x) => ({ slot: x._id.slot, error: String(x._id.error || '').slice(0, 80), n: x.n })),
       maxPerPost: svc.MAX_TOTAL,
     });
   } catch (e) {

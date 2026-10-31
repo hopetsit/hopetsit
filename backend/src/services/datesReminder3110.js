@@ -52,13 +52,16 @@ const plainEmail = (stored) => {
   return typeof e === 'string' ? e.trim().toLowerCase() : '';
 };
 
-/** Dernier VRAI retour du propriétaire (session app/web ou ouverture de ses candidats), ou null. */
+/** Dernier VRAI retour de la PERSONNE (session app/web sur l'un de ses 3 profils, ou ouverture de ses candidats), ou null. */
 async function lastRealReturn(ownerId, postId) {
   const ActivityEvent = require('../models/ActivityEvent');
   const CandidatesView = require('../models/CandidatesView2610');
   const { REAL_SESSION_FILTER } = require('../utils/ownerReturn2610');
+  // Règle de Daniel (31/10) : la PERSONNE (3 profils, même e-mail) — une session sur son profil gardien compte.
+  let ids = [String(ownerId)];
+  try { ids = (await require('../utils/person3110').personOf('owner', String(ownerId))).allIds; } catch (_) { /* profil seul */ }
   const [ev, view] = await Promise.all([
-    ActivityEvent.findOne({ userId: String(ownerId), ...REAL_SESSION_FILTER }).sort({ at: -1 }).select('at').lean(),
+    ActivityEvent.findOne({ userId: { $in: ids }, ...REAL_SESSION_FILTER }).sort({ at: -1 }).select('at').lean(),
     CandidatesView.findOne({ postId: String(postId), origin: { $in: ['app', 'web'] } }).sort({ at: -1 }).select('at').lean(),
   ]);
   const ts = [ev && ev.at, view && view.at].filter(Boolean).map((d) => new Date(d).getTime());

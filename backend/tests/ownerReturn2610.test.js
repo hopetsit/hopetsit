@@ -171,3 +171,26 @@ describe('tableau des demandes (/board)', () => {
     expect(JSON.stringify(r.body)).not.toMatch(/example\.org|fcm-fictif/);
   });
 });
+
+// 3110 (ADA, règle de Daniel « toujours regarder les 3 profils ») — cas de Caroline : profil propriétaire créé par
+// changement de rôle SANS appareil, appareil rattaché à son profil GARDIEN (même e-mail), retour par la notification.
+describe('« A l’app » par PERSONNE (3 profils)', () => {
+  test('appareil sur le profil gardien → A l’app : oui · iOS · build ; retour app sans nouvelle connexion compté', async () => {
+    const owner = await ins(Owner, { name: 'Caroline', email: 'caroline3110@example.org', city: 'Paris', status: 'active', fcmTokens: [] });
+    await ins(Sitter, { name: 'Caroline', email: 'caroline3110@example.org', city: 'Paris', status: 'active', fcmTokens: [], fcmDevices: [{ token: 'fcm-fictif-2', platform: 'ios', appBuild: 631, at: new Date() }] });
+    const post = await ins(Post, {
+      ownerId: oid(owner), postType: 'request', body: 'Garde', serviceTypes: ['house_sitting'], location: { city: 'Paris' },
+      hidden: false, status: 'open', dateMode: 'tbd', budget: 10, budgetCurrency: 'EUR', createdAt: new Date(Date.now() - 3 * H), updatedAt: new Date(Date.now() - 3 * H),
+    });
+    await CandidatesView.create({ postId: post, ownerId: owner, at: new Date(Date.now() - H), channel: 'app', source: 'notification', origin: 'app' });
+    const r = await request(app).get('/admin/requests613/board?limit=50&tz=Europe/Paris')
+      .set({ Authorization: `Bearer ${tok(new mongoose.Types.ObjectId(), 'admin')}` });
+    const it = r.body.items.find((x) => x.postId === post);
+    expect(it.ownerSignals.hasApp).toBe(true);
+    expect(it.ownerSignals.appDevice).toEqual({ platform: 'ios', build: 631 });
+    expect(it.ownerSignals.sessionsByChannel).toEqual({ web: 0, app: 0 });
+    expect(it.ownerSignals.appViewsSincePublish).toBe(1);
+    expect(it.price).toEqual({ amount: 10, currency: 'EUR' }); // budget SAISI par le propriétaire : affiché tel quel
+    expect(JSON.stringify(r.body)).not.toMatch(/example\.org|fcm-fictif/);
+  });
+});
