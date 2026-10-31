@@ -71,10 +71,13 @@ export function SocialButtons({ defaultRole = "owner", city, next }: Props) {
         className="flex w-full items-center justify-center gap-3 rounded-full border border-ink/15 bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:border-ink/40 disabled:opacity-60"
       >
         <GoogleIcon />
-        {busy === "google" ? t("common_loading") : "Continue with Google"}
+        {busy === "google" ? t("common_loading") : (SOCIAL_TXT[lang]?.google ?? SOCIAL_TXT.en.google)}
       </button>
 
-      <button
+      {/* 31/10/2026 (BOB) — Firebase répond « OPERATION_NOT_ALLOWED : Code flow is not enabled
+          for Apple » : le fournisseur Apple n'a pas de Services ID web (il ne sert qu'à l'app iOS).
+          Bouton masqué tant que APPLE_WEB_ENABLED est faux, au lieu d'un bouton mort. */}
+      {APPLE_WEB_ENABLED && <button
         type="button"
         onClick={onApple}
         disabled={busy === "apple"}
@@ -82,18 +85,33 @@ export function SocialButtons({ defaultRole = "owner", city, next }: Props) {
       >
         <AppleIcon />
         Continue with Apple
-      </button>
+      </button>}
 
       {err && <p className="text-center text-xs text-owner-dark">{err}</p>}
 
       <div className="my-2 flex items-center gap-3 text-[11px] uppercase tracking-wider text-ink-soft">
         <span className="h-px flex-1 bg-ink/10" />
-        OR
+        {SOCIAL_TXT[lang]?.or ?? SOCIAL_TXT.en.or}
         <span className="h-px flex-1 bg-ink/10" />
       </div>
     </div>
   );
 }
+
+const APPLE_WEB_ENABLED = false;
+
+// 31/10/2026 (BOB) — libellés en dur en anglais sur toutes les langues.
+const SOCIAL_TXT: Record<string, { google: string; or: string }> = {
+  fr: { google: "Continuer avec Google", or: "ou" },
+  en: { google: "Continue with Google", or: "or" },
+  es: { google: "Continuar con Google", or: "o" },
+  de: { google: "Weiter mit Google", or: "oder" },
+  it: { google: "Continua con Google", or: "oppure" },
+  pt: { google: "Continuar com o Google", or: "ou" },
+  pl: { google: "Kontynuuj z Google", or: "lub" },
+  ko: { google: "Google로 계속하기", or: "또는" },
+  ja: { google: "Googleで続ける", or: "または" },
+};
 
 function GoogleIcon() {
   return (

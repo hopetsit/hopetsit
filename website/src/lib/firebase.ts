@@ -39,14 +39,12 @@ const _authDomain =
 // « auto created by Google Service » du projet hopetsit autorise depuis le 31/10
 // ~21 h 35 UTC l'origine https://www.hopetsit.com et le retour
 // https://www.hopetsit.com/__/auth/handler. Google annonce « 5 min à quelques
-// heures » pour appliquer : bascule seulement après OWN_AUTH_DOMAIN_FROM, sinon
-// repli sur firebaseapp.com (jamais de connexion cassée).
+// heures » : vérifié appliqué le 31/10 à 22 h 50 (Paris) — l'écran Google de choix
+// de compte accepte ce retour (app_domain = www.hopetsit.com), donc bascule immédiate.
 const OWN_AUTH_DOMAIN = "www.hopetsit.com";
-const OWN_AUTH_DOMAIN_FROM = Date.parse("2026-11-01T00:30:00Z");
 const _effectiveAuthDomain =
   typeof window !== "undefined" &&
-  window.location.hostname === OWN_AUTH_DOMAIN &&
-  Date.now() >= OWN_AUTH_DOMAIN_FROM
+  window.location.hostname === OWN_AUTH_DOMAIN
     ? OWN_AUTH_DOMAIN
     : _authDomain;
 
