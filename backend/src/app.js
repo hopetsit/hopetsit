@@ -343,6 +343,10 @@ const versionedRoutes = [
   { path: '/admin/payment-reminder-2910', mw: [], router: require('./routes/adminPaymentReminder2910') },
   // 3010 (ADA, Daniel 30/10) — « Dans l'app » : connectés, actifs 24 h / 7 j, app installée (lecture seule).
   { path: '/admin/app-presence', mw: [], router: require('./routes/adminAppPresence3010') },
+  // 3110 (ADA, bug vu par ZOE) — candidatures dont la demande a été supprimée / masquée / fermée : comptage, lecture seule.
+  { path: '/admin/applications-3110', mw: [], router: require('./routes/adminApplicationsOrphans3110') },
+  // 3110 (ADA, demande de BOB) — réponse support par e-mail depuis l'admin (journal SupportReply3110, bug → in_progress).
+  { path: '/admin/support-reply', mw: [], router: require('./routes/adminSupportReply3110') },
   // 607 (ADA, 02/10) — tuiles du tableau de bord de l'admin (lecture seule, comptes de test à part).
   { path: '/admin/dashboard607', mw: [], router: require('./routes/adminDashboard607') },
   // 607 (ADA, 02/10) — « À traiter » : épingles signalées (détail) + action « Masquer », journalisée.

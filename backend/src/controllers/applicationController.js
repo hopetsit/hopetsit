@@ -35,6 +35,7 @@ const {
 } = require('../utils/requestFingerprint');
 const { calculateTierBasePrice } = require('../utils/tierPricing');
 const logger = require('../utils/logger');
+const { filterVisibleApplications } = require('../utils/applicationsVisible3110');
 const { copyServiceLocation } = require('../utils/serviceLocation587');
 
 const cancelApplication = async (req, res) => {
@@ -805,12 +806,18 @@ const listApplications = async (req, res) => {
       filter.status = status;
     }
 
-    const applications = await Application.find(filter)
+    const found = await Application.find(filter)
       .sort({ createdAt: -1 })
       .populate('ownerId')
       .populate('sitterId')
       .populate('walkerId')
       .populate('bookingId');
+
+    // 3110 (ADA, bug vu par ZOE) — une candidature dont la demande a été supprimée (ou masquée,
+    // ou fermée et restée `pending`) ne sort plus : l'app en faisait un bandeau « Nouvelle
+    // candidature » fantôme et un compteur faux. Filtre à la lecture, rien n'est effacé
+    // (utils/applicationsVisible3110.js).
+    const applications = await filterVisibleApplications(found);
 
     // 2910 (BOB, Daniel : « sa candidature est devant tout le monde ? ») — côté propriétaire,
     // les candidats au PawBoost actif passent en tête ; tri stable, donc du plus récent au
