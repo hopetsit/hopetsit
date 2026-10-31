@@ -46,7 +46,7 @@ const OWN_AUTH_DOMAIN = "www.hopetsit.com";
 const _effectiveAuthDomain =
   typeof window !== "undefined" &&
   // hopetsit.com (sans www) sert aussi le site : la fenêtre passe quand même par
-  // www.hopetsit.com (domaine autorisé chez Google et Apple) — 31/10 23 h, capture Daniel.
+  // www.hopetsit.com (domaine autorisé chez Google et Apple) — 31/10 23 h, capture Daniel (redéploiement forcé : Vercel avait ignoré ed09636e).
   (window.location.hostname === OWN_AUTH_DOMAIN || window.location.hostname === "hopetsit.com")
     ? OWN_AUTH_DOMAIN
     : _authDomain;
