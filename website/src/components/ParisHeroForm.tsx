@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import Link from "@/components/SiteLink";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { EstimateLine620 } from "@/components/DateMode620";
@@ -104,6 +104,14 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   const [started, setStarted] = useState(false);
   const [touched, setTouched] = useState(false);
   const [done, setDone] = useState<{ notified?: number; existing: boolean; sessionOpened: boolean } | null>(null);
+  // 31/10 16 h 40 (ZOE, mesuré à 375 px) : après « Publier ma demande » (bouton en bas du formulaire), la carte
+  // « Ta demande est en ligne » remplaçait un bloc plus haut et finissait HORS ÉCRAN (haut à −280 px) : la personne
+  // ne voyait que les badges des stores. On la ramène sous l'en-tête.
+  const doneRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!done || !doneRef.current) return;
+    try { doneRef.current.scrollIntoView({ block: "start", behavior: "smooth" }); } catch { /* vieux navigateur */ }
+  }, [done]);
 
   // 27/10 (SAM) : seulement un VRAI tap (clic de confiance, page visible) — un focus() automatique
   // (robot, préchargement, remplissage auto) comptait une touche.
@@ -150,7 +158,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
 
   if (done) {
     return (
-      <div className="mt-3 rounded-3xl bg-white p-5 text-center md:mx-auto md:max-w-md" style={{ boxShadow: "0 0 0 2px #15803D, 0 14px 30px -18px rgba(35,23,21,.5)" }} data-testid="hero-done" data-hero-done-3110="">
+      <div ref={doneRef} className="mt-3 scroll-mt-24 rounded-3xl bg-white p-5 text-center md:mx-auto md:max-w-md" style={{ boxShadow: "0 0 0 2px #15803D, 0 14px 30px -18px rgba(35,23,21,.5)" }} data-testid="hero-done" data-hero-done-3110="">
         <p className="text-[22px] font-extrabold leading-tight" style={{ color: "#15803D" }}>✓ {t.done_title}</p>
         <p className="mt-2 text-[15px] font-semibold leading-snug text-ink">{done.existing ? t.done_existing : t.done_notified(done.notified ?? 0)}</p>
         <p className="mt-2 text-[14px] leading-snug text-ink">{t.done_body}</p>

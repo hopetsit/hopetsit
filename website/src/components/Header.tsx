@@ -132,7 +132,9 @@ export function Header() {
                   lien secondaire (menu). fr/en seulement ; les autres langues gardent « S'inscrire ». */}
               {PUBLISH[lang] && (
                 <Link
-                  href={PUBLISH[lang]!.href}
+                  /* 31/10 16 h 40 (ZOE, mesuré en ligne) : ce lien « Devenir gardien / Become a sitter » (bureau) pointait
+                     vers la page PROPRIÉTAIRES Paris / New York ; le menu téléphone, lui, va bien à /signup. */
+                  href="/signup"
                   className="relative hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-[#231715]/80 hover:text-[#231715] lg:inline-block"
                 >
                   {PUBLISH[lang]!.become}
