@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import StoreBadges from "@/components/StoreBadges";
+import { trackSiteEvent } from "@/components/SiteAnalytics";
+import Link from "@/components/SiteLink";
 import { CitySupplyProof } from "@/components/CitySupplyProof";
 import OwnerPageEngagement from "@/components/OwnerPageEngagement";
 import { currentCampaign } from "@/components/SiteAnalytics";
@@ -67,6 +69,16 @@ export default function DownloadPage() {
         <div className="mt-10 flex justify-center">
           <StoreBadges center />
         </div>
+        {/* 31/10 (LEO, étape 3 — plan validé par BOB) : la page garde son rôle (38 % de clics vers les stores) ;
+            une seule ligne pour le propriétaire qui ne veut pas d'app : le formulaire 1 étape de l'accueil (fr/en). */}
+        {(lang === "fr" || lang === "en") && (
+          <p className="mx-auto mt-5 max-w-xl text-[14px] font-semibold text-[#231715]" data-dl-owner-3110="">
+            {lang === "fr" ? "Tu es propriétaire ? " : "Pet owner? "}
+            <Link href="/#publier" className="underline underline-offset-2" style={{ color: "#9E1F0B" }} onClick={() => trackSiteEvent("cta_click", { label: "dl_publier_sans_app" })}>
+              {lang === "fr" ? "Publie ta demande ici, sans app →" : "Post your request here, no app needed →"}
+            </Link>
+          </p>
+        )}
         {promesse ? (
           <div className="mx-auto mt-8 max-w-xl text-left">
             <CitySupplyProof city={promesse.city} lang={promesse.lang} />
