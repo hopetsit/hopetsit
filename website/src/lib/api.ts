@@ -217,6 +217,8 @@ export type SiteLeadInput = {
   email: string; firstName?: string; service: "garde" | "promenade" | "visites"; animal?: "chien" | "chat" | "autre";
   postalCode?: string; city?: string; country: string; lang: "fr" | "en"; startDate?: string; endDate?: string;
   visitsPerDay?: 1 | 2; lieu?: "at_owner" | "at_sitter"; campaign?: string; page?: string; website?: string;
+  /** 31/10 — « Réserver <prénom> » : prestataire prévenu en premier (validé par le serveur). */
+  targetProvider?: { role: "sitter" | "walker"; id: string };
 };
 export async function publishSiteLead(input: SiteLeadInput) {
   const data = await request<{ id: string; postId: string | null; token: string; user: AuthUser; notified?: number; existing: boolean }>(

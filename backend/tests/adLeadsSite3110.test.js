@@ -147,6 +147,20 @@ test('sans dates → demande « dates à prévoir » ; promenade / visites → b
   expect(m.text).toContain('See my request');
 });
 
+test('« Réserver <prénom> » : prestataire ciblé → la demande le porte (prévenu en premier) ; cible inconnue ignorée', async () => {
+  const Sitter = require('../src/models/Sitter');
+  const sitter = await Sitter.create({ name: 'Zoé Test', email: 'zoe.cible3110@example.test', password: 'Hopetsit2026!', city: 'Zone test', country: 'FR', currency: 'EUR', verified: true, location: { lat: -35.01, lng: -30.01 }, acceptedTerms: true });
+  const r = await post({ ...BASE, email: 'cible.site3110@example.test', targetProvider: { role: 'sitter', id: String(sitter._id) } }).expect(201);
+  const p = await Post.findById(r.body.postId).lean();
+  expect(p.targetProvider && String(p.targetProvider.id)).toBe(String(sitter._id));
+  expect(p.targetProvider.role).toBe('sitter');
+  const lead = await AdLead.findById(r.body.id).lean();
+  expect(lead.targetRole).toBe('sitter');
+  const r2 = await post({ ...BASE, email: 'cible2.site3110@example.test', targetProvider: { role: 'sitter', id: 'ffffffffffffffffffffffff' } }).expect(201);
+  const p2 = await Post.findById(r2.body.postId).lean();
+  expect(p2.targetProvider == null || !p2.targetProvider.id).toBe(true);
+});
+
 test('position : code postal sans réseau → repli centre de la ville du pays (jamais sans position)', async () => {
   const r = await post({ ...BASE, email: 'cp.site3110@example.test', city: '', lat: undefined, lng: undefined, postalCode: '75011' }).expect(201);
   const lead = await AdLead.findById(r.body.id).lean();

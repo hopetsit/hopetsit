@@ -484,7 +484,7 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
                   {/* 28/09 (LEO) — sans compte : « Demander à <prénom> » ouvre la
                       demande (compte créé sur le même écran) ; connecté : Réserver. */}
                   <Link
-                    href={ready && user ? href : askHref(p.city, p.role, p.id)}
+                    href={ready && user ? href : askHref(p.city, p.role, p.id, lang)}
                     onClick={() => { if (!(ready && user)) trackSiteEvent("cta_click", { label: "demander_carte" }); }}
                     className="mt-3 flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-bold text-white"
                     style={{ background: `linear-gradient(90deg, ${p.role === "sitter" ? "#2563EB" : "#15803D"}, ${p.role === "sitter" ? "#1E4FB0" : "#166534"})`, color: "#fff" }}

@@ -25,7 +25,7 @@ const TXT = {
   fr: {
     lead: (c: string) => `Des gardiens vérifiés près de chez toi à ${c} te répondent avec leur prix. Sans compte, tout de suite.`,
     note: "Gratuit · sans compte · tu choisis et tu paies ensuite, annulation gratuite jusqu'à 72 h avant",
-    few_title: (c: string) => `${c} manque encore de gardiens : sois parmi les premiers.`,
+    few_title: (c: string) => `Il manque encore des gardiens actifs à ${c} : sois parmi les premiers.`,
     few_body: "Tu gardes des animaux près de chez toi ? Inscris-toi, fixe tes tarifs, et reçois les demandes du quartier en premier.",
     few_cta: "Devenir gardien",
     few_owner: "Tu cherches un gardien ? Publie ta demande quand même →",
@@ -33,7 +33,7 @@ const TXT = {
   en: {
     lead: (c: string) => `Trusted pet sitters near you in ${c} reply with their price. No account, posted right away.`,
     note: "Free · no account · you choose and pay later, free cancellation up to 72 h before",
-    few_title: (c: string) => `${c} still needs sitters: be one of the first.`,
+    few_title: (c: string) => `${c} still needs active sitters: be one of the first.`,
     few_body: "You look after pets near you? Sign up, set your rates, and get the neighbourhood's requests first.",
     few_cta: "Become a sitter",
     few_owner: "Looking for a sitter? Post your request anyway →",

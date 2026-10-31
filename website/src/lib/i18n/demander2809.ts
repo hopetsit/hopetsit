@@ -135,13 +135,16 @@ const ID_RE = /^[a-f0-9]{24}$/i;
  * La demande de NEO : ville pré-remplie, et `for=<rôle>:<id>` quand le bouton
  * vise un prestataire précis (il est prévenu en premier par le serveur).
  */
-export const askHref = (city?: string | null, role?: AskRole | string | null, id?: string | null): string => {
+export const askHref = (city?: string | null, role?: AskRole | string | null, id?: string | null, lang?: string | null): string => {
   const c = (city || "").trim();
   const q: string[] = [];
   if (c) q.push(`city=${encodeURIComponent(c)}`);
   const r = String(role || "").trim();
   const i = String(id || "").trim();
   if ((r === "sitter" || r === "walker") && ID_RE.test(i)) q.push(`for=${r}:${i}`);
+  // 31/10 (LEO, étape 3) — en français et en anglais, le visiteur sans compte va au formulaire 1 ÉTAPE de
+  // l'accueil (publié sans compte, prestataire prévenu en premier) ; les autres langues gardent /posts/create.
+  if (lang === "fr" || lang === "en") return `/${q.length ? `?${q.join("&")}` : ""}#publier`;
   return q.length ? `/posts/create?${q.join("&")}` : "/posts/create";
 };
 

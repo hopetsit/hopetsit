@@ -140,6 +140,8 @@ router.post('/site', async (req, res) => {
       startText: textDate(b.startDate, lang),
       endText: textDate(b.endDate || b.startDate, lang),
       ...([1, 2].includes(Number(b.visitsPerDay)) ? { visitsPerDay: Number(b.visitsPerDay) } : {}),
+      // Cible facultative { role, id } (profil public / épingle) : validée plus loin par createPost.
+      ...(() => { const tp = b.targetProvider && typeof b.targetProvider === 'object' ? b.targetProvider : null; const role = tp && String(tp.role || '').toLowerCase(); const id = tp && String(tp.id || ''); return role && ['sitter', 'walker'].includes(role) && /^[a-f0-9]{24}$/i.test(id) ? { targetRole: role, targetId: id } : {}; })(),
     });
 
     const r = await publishLead(lead, lieu);

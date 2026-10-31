@@ -40,6 +40,7 @@ const TXT = {
     done_notified: (n: number) => (n > 0 ? `${n} gardien${n > 1 ? "s" : ""} et promeneur${n > 1 ? "s" : ""} près de chez toi ${n > 1 ? "sont prévenus" : "est prévenu"}.` : "Les gardiens et promeneurs près de chez toi sont prévenus."),
     done_existing: "Ta demande était déjà en ligne : la voici.",
     done_link: "Voir ma demande", done_mail: "Un e-mail te permet de revenir ici sans mot de passe.",
+    target_note: "Ta demande sera envoyée d'abord à ce gardien, puis aux autres près de chez toi.",
     terms: "En publiant, tu acceptes les", terms_link: "conditions d'utilisation",
   },
   en: {
@@ -53,6 +54,7 @@ const TXT = {
     done_notified: (n: number) => (n > 0 ? `${n} sitter${n > 1 ? "s" : ""} and walker${n > 1 ? "s" : ""} near you ${n > 1 ? "have" : "has"} been notified.` : "Sitters and walkers near you have been notified."),
     done_existing: "Your request was already live: here it is.",
     done_link: "See my request", done_mail: "An email lets you come back here without a password.",
+    target_note: "Your request goes to this sitter first, then to the others near you.",
     terms: "By posting, you accept the", terms_link: "terms of use",
   },
 };
@@ -64,8 +66,24 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
 }) {
   const t = TXT[lang];
   const [cityValue, setCityValue] = useState(city);
+  const [target, setTarget] = useState<{ role: "sitter" | "walker"; id: string } | null>(null);
   // La langue (donc la ville proposée) peut arriver après le premier rendu : on suit la prop.
   useEffect(() => { setCityValue(city); }, [city]);
+  // 31/10 — accueil : « Réserver <prénom> » (profil public, épingle) arrive avec ?for=<rôle>:<id>&city=&service= :
+  // ville, service et prestataire ciblé pré-remplis (le serveur le prévient en premier).
+  useEffect(() => {
+    if (!cityEditable) return;
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const m = /^(sitter|walker):([a-f0-9]{24})$/i.exec(q.get("for") || "");
+      if (m) setTarget({ role: m[1].toLowerCase() as "sitter" | "walker", id: m[2] });
+      const c = (q.get("city") || "").trim().slice(0, 80);
+      if (c) setCityValue(c);
+      const sv = q.get("service") || "";
+      if (sv === "garde" || sv === "promenade" || sv === "visites") setService(sv);
+      else if (m && m[1].toLowerCase() === "walker") setService("promenade");
+    } catch { /* adresse exotique */ }
+  }, [cityEditable]);
   const [service, setService] = useState<"" | "garde" | "promenade" | "visites">("");
   const [animal, setAnimal] = useState<"chien" | "chat" | "autre">("chien");
   const [startDate, setStartDate] = useState("");
@@ -104,6 +122,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
       const r = await publishSiteLead({
         email: email.trim(), firstName: firstName.trim(), service, animal, postalCode: postalCode.trim(), city: (cityEditable ? cityValue.trim() : city) || city, country, lang,
         startDate: startDate || undefined, endDate: endDate || startDate || undefined, campaign, page, website,
+        ...(target ? { targetProvider: target } : {}),
       });
       trackSiteEvent("cta_click", { label: r.existing ? "hero_form_deja" : "hero_form_envoye" });
       setDone({ notified: r.notified, existing: r.existing });
@@ -136,6 +155,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   return (
     <div className="mt-2 rounded-3xl border border-owner/20 bg-owner-light/60 p-4 md:mx-auto md:max-w-md" data-testid="hero-form" data-hero-form-3110={lang} onClickCapture={touch}>
       <p className="text-[15px] font-semibold leading-snug text-ink md:text-base">{lead}</p>
+      {target && <p className="mt-1.5 rounded-xl bg-white px-3 py-1.5 text-[12px] font-bold" style={{ color: "#1E4FB0" }} data-hero-target={target.role}>{t.target_note}</p>}
 
       <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Service">
         {SERVICES.map((s) => (

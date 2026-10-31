@@ -104,7 +104,7 @@ export function ProviderLinkPage({ p }: { p: PublicProvider607 }) {
 
           {ready && (
             <Link
-              href={connecte ? cible : askHref(p.city, p.role, p.id)}
+              href={connecte ? cible : askHref(p.city, p.role, p.id, lang)}
               onClick={() => trackSiteEvent("cta_click", { label: connecte ? "reserver_lien_perso" : "demander_lien_perso" })}
               className="relative mt-6 flex min-h-[56px] w-full items-center justify-center gap-3 overflow-hidden rounded-[18px] px-5 text-[15px] font-bold text-white shadow-[0_12px_28px_-10px_rgba(23,20,31,0.45)] transition active:scale-[0.97]"
               style={{ background: `linear-gradient(90deg, ${r.g1}, ${r.g2})`, color: "#fff" }}

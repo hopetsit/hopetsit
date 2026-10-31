@@ -55,6 +55,8 @@ function postInputFor(lead, lieu) {
   // 620 (ZOE) — sans dates lisibles, la demande est « dates à prévoir » (tbd) : les
   // gardiens candidatent au tarif unitaire, le propriétaire pose ses dates ensuite.
   if (!input.startDate) input.dateMode = 'tbd';
+  // 31/10 (LEO) — contact du site « Réserver <prénom> » : prestataire ciblé, validé par createPost.
+  if (lead.targetRole && /^[a-f0-9]{24}$/i.test(String(lead.targetId || ''))) input.targetProvider = { role: lead.targetRole, id: String(lead.targetId) };
   if (lead.service === 'promenade') {
     input.serviceTypes = ['dog_walking'];
     input.serviceLocation = 'pickup';

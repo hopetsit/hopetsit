@@ -47,6 +47,10 @@ const adLeadSchema = new mongoose.Schema(
     page: { type: String, default: '' },
     postalCode: { type: String, default: '' },
     siteEmailAt: { type: Date }, // e-mail « ta demande est en ligne » envoyé (une fois)
+    // 31/10 (LEO) — « Réserver <prénom> » depuis un profil public / une épingle : le prestataire ciblé est
+    // prévenu en premier (createPost → targetProvider, utils/targetProvider2809).
+    targetRole: { type: String, enum: ['sitter', 'walker', null], default: null },
+    targetId: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now, expires: 60 * 24 * 3600 },
   },
   { versionKey: false },
