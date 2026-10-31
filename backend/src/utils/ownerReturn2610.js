@@ -89,7 +89,7 @@ async function boardSignals(items) {
   const CandidatesView = require('../models/CandidatesView2610');
 
   const ownerIds = [...new Set(items.map((it) => String(it.owner && it.owner.id || '')).filter((s) => /^[a-f0-9]{24}$/i.test(s)))];
-  const owners = await Owner.find({ _id: { $in: ownerIds } }).select('email fcmTokens').lean();
+  const owners = await Owner.find({ _id: { $in: ownerIds } }).select('email fcmTokens isStaff').lean();
   const emailOf = new Map(owners.map((o) => [String(o._id), String(o.email || '').toLowerCase()]));
   const emails = [...new Set([...emailOf.values()].filter(Boolean))];
   // Toute la personne (ses 3 profils, reliés par l'e-mail) : l'app peut être ouverte sur un autre rôle.
@@ -109,6 +109,9 @@ async function boardSignals(items) {
     if (!emailOf.get(String(o._id))) { groupIds.set(`id:${o._id}`, [String(o._id)]); if (Array.isArray(o.fcmTokens) && o.fcmTokens.length) pushByEmail.set(`id:${o._id}`, true); }
   }
   const keyOfOwner = (id) => emailOf.get(id) || `id:${id}`;
+  // 3110 (ADA, demande de Daniel) — compte de test / équipe : ses sessions ne comptent pas comme un vrai retour.
+  const plain = (e) => { try { return require('./encryption').decrypt(e || '') || String(e || ''); } catch (_) { return String(e || ''); } };
+  const internalOwner = new Set(owners.filter((o) => o.isStaff === true || require('./userCounts').isInternalEmail(plain(o.email))).map((o) => String(o._id)));
   const allIds = [...new Set([...groupIds.values()].flat())];
   const idToKey = new Map();
   for (const [k, ids] of groupIds) for (const i of ids) idToKey.set(i, k);
@@ -137,12 +140,22 @@ async function boardSignals(items) {
     const real = evs.filter(isRealSession);
     const script = evs.filter((e) => !isRealSession(e));
     const lastReal = real[0] || null;
+    // 3110 (ADA, demande de Daniel : « le propriétaire est revenu ? par canal ») — sessions RÉELLES (nos scripts et
+    // l'admin exclus) depuis la publication, séparées site / app ; 0 pour un compte de test ou de l'équipe.
+    const internal = internalOwner.has(String(it.owner && it.owner.id || ''));
+    const since = internal ? [] : real.filter((e) => new Date(e.at).getTime() >= pub);
+    const chanOf = (e) => e.origin || (String(e.appVersion) === 'web' ? 'web' : 'app');
+    const sessionsByChannel = { web: since.filter((e) => chanOf(e) === 'web').length, app: since.filter((e) => chanOf(e) === 'app').length };
     const vs = (viewsByPost.get(String(it.postId)) || []).sort((a, b) => new Date(a.at) - new Date(b.at));
     out.set(String(it.postId), {
       lastRealReturnAt: lastReal ? lastReal.at : null,
       lastRealReturnChannel: lastReal ? (lastReal.origin || (String(lastReal.appVersion) === 'web' ? 'web' : 'app')) : null,
       realSessionsSincePublish: real.filter((e) => new Date(e.at).getTime() >= pub).length,
       lastScriptAt: script[0] ? script[0].at : null,
+      sessionsByChannel,
+      lastReturnSincePublishAt: since[0] ? since[0].at : null,
+      lastReturnSincePublishChannel: since[0] ? chanOf(since[0]) : null,
+      internalOwner: internal,
       candidatesView: {
         count: vs.length,
         firstAt: vs[0] ? vs[0].at : null,
