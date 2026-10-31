@@ -178,6 +178,21 @@ function announceStarted(docs, { role, userId, at = new Date() } = {}) {
   }
 }
 
+// 631 (PAM, 31/10/2026) — vidéo de Daniel (Condado de Alhama) : pilule
+// « En direct · autre téléphone » alors qu'aucun de ses téléphones ne
+// diffusait, puis feuille « Rien en direct ». Une session RAM sans signal
+// reste 24 h (les amis voient « signal perdu ») ; pour la personne elle-même,
+// elle passait pour un direct « ailleurs » et bloquait le départ depuis le chat
+// (LiveShareStarter → liveElsewhere). Au-delà de 10 min sans signal (même
+// règle que la fin de suivi d'un ami, v584), ce n'est plus « ailleurs ».
+const LIVE_ELSEWHERE_MAX_SILENCE_MS = 10 * 60 * 1000;
+
+function isSessionLiveElsewhere(session, stoppedAt, now = Date.now()) {
+  if (!session || stoppedAt) return false;
+  const seen = Number(session.lastSeenAt || 0);
+  return now - seen <= LIVE_ELSEWHERE_MAX_SILENCE_MS;
+}
+
 /**
  * État du direct de la personne, tous profils confondus — lu par l'app à
  * l'ouverture et au retour au premier plan.
@@ -201,7 +216,7 @@ async function getMyLiveState(userId) {
     } catch (_) { /* ignore */ }
   }
   const described = session ? map.describeLiveSession(session) : null;
-  const active = !!session && !stoppedAt;
+  const active = isSessionLiveElsewhere(session, stoppedAt);
   return {
     active,
     stopped: !!stoppedAt,
@@ -222,4 +237,6 @@ module.exports = {
   markStartedByUser,
   announceStarted,
   getMyLiveState,
+  isSessionLiveElsewhere, // 631
+  LIVE_ELSEWHERE_MAX_SILENCE_MS,
 };
