@@ -45,7 +45,7 @@ const COPY: Record<RecruitLang, Copy> = {
     ],
     faqTitle: "Questions fréquentes",
     faq: (c) => [
-      { q: `Combien peut-on gagner comme pet sitter à ${c.name} ?`, a: `À ${c.name}, les gardes se facturent généralement ${c.dayRate} par jour et les promenades ${c.walkRate}. Avec quelques clients réguliers, un complément de 300 à 600 € par mois est réaliste.` },
+      { q: `Combien peut-on gagner comme pet sitter à ${c.name} ?`, a: `Vous fixez vous-même vos tarifs à ${c.name}, et vous gardez 100 % de votre prix : les frais de service sont payés par le propriétaire. Ce que vous gagnez dépend des gardes que vous acceptez.` },
       { q: "Faut-il un diplôme ou un statut particulier ?", a: "Aucun diplôme n'est requis pour commencer sur HoPetSit — il faut aimer les animaux, être fiable et avoir 18 ans ou plus. Pour une activité régulière, le statut d'auto-entrepreneur se crée gratuitement en ligne." },
       { q: "L'inscription coûte-t-elle quelque chose ?", a: "Non, l'inscription et le profil sont gratuits. Seule la vérification d'identité (badge ✓, fortement recommandée) coûte 3 €." },
       { q: "Comment le suivi GPS protège-t-il aussi le sitter ?", a: "Pendant une promenade, le suivi PawFollow prouve que le service a bien été rendu, du départ au retour. Transparence pour le propriétaire, protection pour vous." },
@@ -59,7 +59,7 @@ const COPY: Record<RecruitLang, Copy> = {
     // description était l'intro coupée à 155 caractères, au milieu d'une phrase.
     metaTitle: (c) => `Devenir pet sitter à ${c.name} : inscription gratuite`,
     metaDescription: (c) =>
-      `Gardez chiens et chats à ${c.name} : garde à domicile, visites, promenades. Vous fixez vos tarifs (souvent ${c.dayRate} la journée). Profil gratuit, paiement par l’app.`,
+      `Gardez chiens et chats à ${c.name} : garde à domicile, visites, promenades. Vous fixez vos tarifs. Profil gratuit, paiement par l’app.`,
   },
   en: {
     kicker: (c) => c.region,
@@ -76,9 +76,9 @@ const COPY: Record<RecruitLang, Copy> = {
     ],
     faqTitle: "Frequently asked questions",
     faq: (c) => [
-      { q: `How much can a pet sitter earn in ${c.name}?`, a: `In ${c.name}, sitting typically pays ${c.dayRate} per day and walks ${c.walkRate}. With a few regular clients, ${c.dayRate.startsWith("$") ? "$400–800" : c.dayRate.startsWith("£") ? "£300–600" : "€300–600"} a month on the side is realistic.` },
+      { q: `How much can a pet sitter earn in ${c.name}?`, a: `In ${c.name} you set your own rates and keep 100% of your price: the service fee is paid by the owner. What you earn depends on the bookings you accept.` },
       { q: "Do I need a license or certification?", a: "No certification is required to start on HoPetSit — you need to love animals, be reliable and be 18 or older." },
-      { q: "Does it cost anything to sign up?", a: `No. Signing up and creating your profile is free. Only identity verification (the ✓ badge, strongly recommended) costs ${c.dayRate.startsWith("$") ? "$3" : c.dayRate.startsWith("£") ? "£3" : "€3"}.` },
+      { q: "Does it cost anything to sign up?", a: `No. Signing up and creating your profile is free. Only identity verification (the ✓ badge, strongly recommended) costs ${/USA/.test(c.region) ? "$3" : /United Kingdom|UK/.test(c.region) ? "£3" : "€3"}.` },
       { q: "How does GPS tracking protect the sitter too?", a: "During a walk, PawFollow tracking proves the service was delivered from start to finish. Transparency for the owner, protection for you." },
     ],
     ctaTitle: (c) => `Early sitters in ${c.name} get the best clients`,
@@ -90,7 +90,7 @@ const COPY: Record<RecruitLang, Copy> = {
     // 0 clic ; description = intro coupée au milieu d'une phrase.
     metaTitle: (c) => `Become a Pet Sitter in ${c.name}: Free Sign-Up`,
     metaDescription: (c) =>
-      `Dog sitting, cat visits and dog walking in ${c.name}. Set your own rates (often ${c.dayRate} a day) and your own hours, get paid through the app. Free profile.`,
+      `Dog sitting, cat visits and dog walking in ${c.name}. Set your own rates and your own hours, get paid through the app. Free profile.`,
   },
   pl: {
     kicker: (c) => c.region,
@@ -107,7 +107,7 @@ const COPY: Record<RecruitLang, Copy> = {
     ],
     faqTitle: "Najczęstsze pytania",
     faq: (c) => [
-      { q: `Ile można zarobić jako opiekun zwierząt w mieście ${c.name}?`, a: `W mieście ${c.name} opieka kosztuje zwykle ${c.dayRate} za dzień, a spacer ${c.walkRate}. Z kilkoma stałymi klientami dodatkowe 1000–2000 zł miesięcznie jest realne.` },
+      { q: `Ile można zarobić jako opiekun zwierząt w mieście ${c.name}?`, a: `W mieście ${c.name} sam ustalasz stawki i zatrzymujesz 100% swojej ceny: opłatę serwisową płaci właściciel. Zarobek zależy od przyjętych rezerwacji.` },
       { q: "Czy potrzebuję uprawnień lub kursu?", a: "Nie. Aby zacząć na HoPetSit, wystarczy kochać zwierzęta, być odpowiedzialnym i mieć ukończone 18 lat." },
       { q: "Czy rejestracja coś kosztuje?", a: "Nie. Rejestracja i profil są darmowe. Płatna jest tylko weryfikacja tożsamości (odznaka ✓, mocno zalecana): 3 €." },
       { q: "Jak śledzenie GPS chroni także opiekuna?", a: "Podczas spaceru śledzenie PawFollow udowadnia, że usługa została wykonana od początku do końca. Przejrzystość dla właściciela, ochrona dla Ciebie." },
@@ -133,7 +133,7 @@ const COPY: Record<RecruitLang, Copy> = {
     ],
     faqTitle: "자주 묻는 질문",
     faq: (c) => [
-      { q: `${c.name}에서 펫시터는 얼마나 벌 수 있나요?`, a: `${c.name}에서는 하루 돌봄이 보통 ${c.dayRate}, 산책은 ${c.walkRate} 정도입니다. 단골 몇 분만 있어도 월 30만~60만 원의 부수입이 가능합니다.` },
+      { q: `${c.name}에서 펫시터는 얼마나 벌 수 있나요?`, a: `${c.name}에서는 요금을 직접 정하고, 정한 금액의 100%를 받습니다. 서비스 수수료는 보호자가 부담합니다. 수입은 수락한 예약에 따라 달라집니다.` },
       { q: "자격증이 필요한가요?", a: "아니요. HoPetSit을 시작하는 데 자격증은 필요 없습니다. 동물을 사랑하고, 책임감 있고, 만 18세 이상이면 됩니다." },
       { q: "가입 비용이 있나요?", a: "없습니다. 가입과 프로필 작성은 무료입니다. 신원 인증(✓ 배지, 강력 추천)만 3€입니다." },
       { q: "GPS 추적이 펫시터도 보호하나요?", a: "산책 중 PawFollow 추적은 출발부터 귀가까지 서비스가 제대로 이루어졌음을 증명합니다. 보호자에게는 투명성, 여러분에게는 보호막입니다." },
@@ -160,7 +160,7 @@ const COPY: Record<RecruitLang, Copy> = {
     ],
     faqTitle: "Preguntas frecuentes",
     faq: (c) => [
-      { q: `¿Cuánto se puede ganar como cuidador de mascotas en ${c.name}?`, a: `En ${c.name}, los cuidados se cobran normalmente ${c.dayRate} al día y los paseos ${c.walkRate}. Con algunos clientes habituales, un extra de 300 a 600 € al mes es realista.` },
+      { q: `¿Cuánto se puede ganar como cuidador de mascotas en ${c.name}?`, a: `En ${c.name} fijas tus propias tarifas y te quedas con el 100 % de tu precio: la comisión de servicio la paga el dueño. Lo que ganes depende de las reservas que aceptes.` },
       { q: "¿Hace falta un título o un estatus especial?", a: "No se requiere ningún título para empezar en HoPetSit: hay que querer a los animales, ser de fiar y tener 18 años o más. Para una actividad regular, infórmate sobre el alta como autónomo." },
       { q: "¿Cuesta algo registrarse?", a: "No, el registro y el perfil son gratuitos. Solo la verificación de identidad (insignia ✓, muy recomendable) cuesta 3 €." },
       { q: "¿Cómo protege también al cuidador el seguimiento GPS?", a: "Durante un paseo, el seguimiento PawFollow demuestra que el servicio se ha realizado, de la salida a la vuelta. Transparencia para el dueño, protección para ti." },
@@ -186,7 +186,7 @@ const COPY: Record<RecruitLang, Copy> = {
     ],
     faqTitle: "Häufige Fragen",
     faq: (c) => [
-      { q: `Wie viel kann man als Tiersitter in ${c.name} verdienen?`, a: `In ${c.name} kostet eine Betreuung meist ${c.dayRate} pro Tag, ein Spaziergang ${c.walkRate}. Deine Preise legst du selbst fest, und du behältst 100 % davon.` },
+      { q: `Wie viel kann man als Tiersitter in ${c.name} verdienen?`, a: `In ${c.name} legst du deine Preise selbst fest, und du behältst 100 % davon: die Servicegebühr zahlt der Halter. Was du verdienst, hängt von den Buchungen ab, die du annimmst.` },
       { q: "Brauche ich eine Ausbildung oder einen besonderen Status?", a: "Für den Start auf HoPetSit ist keine Ausbildung nötig — du musst Tiere mögen, zuverlässig und mindestens 18 sein. Für eine regelmäßige Tätigkeit informiere dich über die Anmeldung als Kleingewerbe." },
       { q: "Kostet die Anmeldung etwas?", a: "Nein, Anmeldung und Profil sind kostenlos. Nur die Identitätsprüfung (✓-Abzeichen, sehr empfohlen) kostet 3 €." },
       { q: "Wie schützt das GPS-Tracking auch den Sitter?", a: "Beim Spaziergang belegt das PawFollow-Tracking, dass der Service erbracht wurde — vom Start bis zur Rückkehr. Transparenz für den Halter, Schutz für dich." },
@@ -212,7 +212,7 @@ const COPY: Record<RecruitLang, Copy> = {
     ],
     faqTitle: "Domande frequenti",
     faq: (c) => [
-      { q: `Quanto si guadagna come pet sitter a ${c.name}?`, a: `A ${c.name}, le custodie si fatturano in genere ${c.dayRate} al giorno e le passeggiate ${c.walkRate}. Con qualche cliente abituale, un'integrazione di 300-600 € al mese è realistica.` },
+      { q: `Quanto si guadagna come pet sitter a ${c.name}?`, a: `A ${c.name} decidi tu le tariffe e tieni il 100% del tuo prezzo: la commissione di servizio la paga il proprietario. Il guadagno dipende dalle prenotazioni che accetti.` },
       { q: "Serve un diploma o una posizione particolare?", a: "Nessun diploma è richiesto per iniziare su HoPetSit: basta amare gli animali, essere affidabili e avere almeno 18 anni. Per un'attività regolare, informati sull'apertura di una partita IVA." },
       { q: "L'iscrizione costa qualcosa?", a: "No, iscrizione e profilo sono gratuiti. Solo la verifica dell'identità (badge ✓, fortemente consigliata) costa 3 €." },
       { q: "In che modo il monitoraggio GPS protegge anche il sitter?", a: "Durante una passeggiata, il monitoraggio PawFollow prova che il servizio è stato reso, dalla partenza al rientro. Trasparenza per il proprietario, protezione per te." },
@@ -238,7 +238,7 @@ const COPY: Record<RecruitLang, Copy> = {
     ],
     faqTitle: "Perguntas frequentes",
     faq: (c) => [
-      { q: `Quanto se pode ganhar como pet sitter em ${c.name}?`, a: `Em ${c.name}, os cuidados cobram-se normalmente ${c.dayRate} por dia e os passeios ${c.walkRate}. Com alguns clientes regulares, um extra de 300 a 600 € por mês é realista.` },
+      { q: `Quanto se pode ganhar como pet sitter em ${c.name}?`, a: `Em ${c.name} defines os teus preços e ficas com 100 % do teu preço: a taxa de serviço é paga pelo dono. O que ganhas depende das reservas que aceitas.` },
       { q: "É preciso um diploma ou um estatuto especial?", a: "Não é preciso nenhum diploma para começar na HoPetSit: basta gostar de animais, ser de confiança e ter 18 anos ou mais. Para uma atividade regular, informa-te sobre a abertura de atividade." },
       { q: "A inscrição custa alguma coisa?", a: "Não, a inscrição e o perfil são gratuitos. Só a verificação de identidade (selo ✓, muito recomendada) custa 3 €." },
       { q: "Como é que o rastreio GPS também protege o cuidador?", a: "Durante um passeio, o seguimento PawFollow prova que o serviço foi prestado, da partida ao regresso. Transparência para o dono, proteção para ti." },
@@ -264,7 +264,7 @@ const COPY: Record<RecruitLang, Copy> = {
     ],
     faqTitle: "よくある質問",
     faq: (c) => [
-      { q: `${c.name}でペットシッターはどのくらい稼げますか？`, a: `${c.name}では、お世話は1日あたり${c.dayRate}、散歩は${c.walkRate}が一般的です。常連が数人いれば、月3〜6万円ほどの副収入が現実的です。` },
+      { q: `${c.name}でペットシッターはどのくらい稼げますか？`, a: `${c.name}では料金を自分で決め、その100%を受け取れます。サービス手数料は飼い主が負担します。収入は引き受けた予約によって変わります。` },
       { q: "資格や特別な手続きは必要ですか？", a: "HoPetSitを始めるのに資格は不要です。動物が好きで、責任感があり、18歳以上であれば大丈夫。継続的に行う場合は、開業届などについて調べてみてください。" },
       { q: "登録に費用はかかりますか？", a: "いいえ、登録もプロフィール作成も無料です。本人確認（✓バッジ、強くおすすめ）のみ3ユーロです。" },
       { q: "GPS追跡はシッターも守ってくれますか？", a: "散歩中のPawFollow追跡は、出発から帰宅までサービスが確かに行われたことを証明します。飼い主さんには透明性を、あなたには安心を。" },
@@ -420,17 +420,17 @@ export default function RecruitCityPage({ city }: { city: RecruitCity }) {
 }
 
 // 29/09 (SAM) — la ligne verte des pages gardiens : ce qu'on gagne dans la
-// ville (fourchettes déjà affichées dans la FAQ), et la gratuité sous le bouton.
+// ville — 31/10 (GUS) : plus de fourchette sans source, on dit seulement « vous fixez vos tarifs, 100 % pour vous ».
 const GAINS: Record<RecruitLang, (c: RecruitCity) => string> = {
-  fr: (c) => `Gardes ${c.dayRate} par jour · promenades ${c.walkRate} — vous fixez vos tarifs`,
-  en: (c) => `Sitting ${c.dayRate} per day · walks ${c.walkRate} — you set your rates`,
-  es: (c) => `Cuidados ${c.dayRate} al día · paseos ${c.walkRate} — tú fijas tus tarifas`,
-  de: (c) => `Betreuung ${c.dayRate} pro Tag · Gassi ${c.walkRate} — du legst deine Preise fest`,
-  it: (c) => `Custodia ${c.dayRate} al giorno · passeggiate ${c.walkRate} — decidi tu le tariffe`,
-  pt: (c) => `Cuidado ${c.dayRate} por dia · passeios ${c.walkRate} — tu defines os teus preços`,
-  pl: (c) => `Opieka ${c.dayRate} za dzień · spacery ${c.walkRate} — sam ustalasz stawki`,
-  ko: (c) => `돌봄 하루 ${c.dayRate} · 산책 ${c.walkRate} — 요금은 직접 정해요`,
-  ja: (c) => `お預かり1日${c.dayRate}・散歩${c.walkRate} — 料金は自分で決められます`,
+  fr: (_c) => `Vous fixez vos tarifs · vous gardez 100 % de votre prix`,
+  en: (_c) => `You set your rates · you keep 100% of your price`,
+  es: (_c) => `Tú fijas tus tarifas · te quedas con el 100 % de tu precio`,
+  de: (_c) => `Du legst deine Preise fest · du behältst 100 % davon`,
+  it: (_c) => `Decidi tu le tariffe · tieni il 100% del tuo prezzo`,
+  pt: (_c) => `Tu defines os teus preços · ficas com 100 % do teu preço`,
+  pl: (_c) => `Sam ustalasz stawki · zatrzymujesz 100% ceny`,
+  ko: (_c) => `요금은 직접 정해요 · 정한 금액의 100%를 받아요`,
+  ja: (_c) => `料金は自分で決められます・その100%を受け取れます`,
 };
 const FREE: Record<RecruitLang, string> = {
   fr: "Inscription gratuite · profil en 5 minutes",

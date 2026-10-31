@@ -12,6 +12,7 @@ import OwnerPageEngagement from "@/components/OwnerPageEngagement";
 import UsLocalGuide, { usFaq, usGuide } from "@/components/UsLocalGuide";
 import CityDistricts3110 from "@/components/CityDistricts3110";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
+import { cityMedian } from "@/lib/recruit-cities";
 
 // v560 — moteur de croissance : pages « trouver un pet sitter à <ville> »
 // (intention PROPRIÉTAIRE : « pet sitter Paris 11 », « cuidador de perros
@@ -91,7 +92,7 @@ const COPY: Record<RecruitLang, Copy> = {
       { icon: "🗺️", t: "PawMap", p: "Les membres autour de toi, les lieux pet-friendly, leurs horaires et l'itinéraire pour y aller." },
     ],
     pricesTitle: (c) => `Combien coûte un pet sitter à ${c.name} ?`,
-    prices: (c) => `À ${c.name}, comptez ${c.dayRate} par jour pour une garde et ${c.walkRate} pour une promenade. Chaque gardien fixe ses tarifs : tu les vois sur son profil avant de réserver, sans surprise.`,
+    prices: (c) => `Chaque gardien fixe ses tarifs : tu les vois sur son profil avant de réserver, sans surprise.`,
     faqTitle: "Questions fréquentes",
     faq: (c) => [
       { q: `Comment trouver un pet sitter de confiance à ${c.name} ?`, a: `Publie ta demande : les gardiens de ${c.name} te répondent avec leur prix. Regarde les avis, discute par chat, et réserve seulement quand tu es à l'aise.` },
@@ -107,9 +108,9 @@ const COPY: Record<RecruitLang, Copy> = {
     // 03/10 (GUS) — pages FR en 4e-6e place sur « garde de chien <ville> » (Lille, Avignon…) avec
     // 0 clic : la description était l'intro coupée à 155 caractères, au milieu d'une phrase.
     // Titre qui reprend la requête + le tarif déjà affiché sur la page ; description complète.
-    metaTitle: (c) => `Garde de chien et chat à ${c.name} : ${c.dayRate}/jour`,
+    metaTitle: (c) => `Garde de chien et chat à ${c.name} : pet sitters près de chez toi`,
     metaDescription: (c) =>
-      `Pet sitters à ${c.name} : garde de chien à domicile, visites de chat, promenades. ${c.dayRate} par jour. Demande gratuite, tu paies à la réservation.`,
+      `Pet sitters à ${c.name} : garde de chien à domicile, visites de chat, promenades. Chaque gardien fixe son prix. Demande gratuite, tu paies à la réservation.`,
   },
   en: {
     kicker: (c) => c.region,
@@ -136,7 +137,7 @@ const COPY: Record<RecruitLang, Copy> = {
       { icon: "🗺️", t: "PawMap", p: "Members around you, pet-friendly places, their opening hours and directions to get there." },
     ],
     pricesTitle: (c) => `How much does a pet sitter cost in ${c.name}?`,
-    prices: (c) => `In ${c.name}, expect ${c.dayRate} per day for sitting and ${c.walkRate} for a walk. Every sitter sets their own rates: you see them on the profile before booking, no surprises.`,
+    prices: (c) => `Every sitter sets their own rates: you see them on the profile before booking, no surprises.`,
     faqTitle: "Frequently asked questions",
     faq: (c) => [
       { q: `How do I find a trustworthy pet sitter in ${c.name}?`, a: `Post your request in the app: sitters in ${c.name} reply. Read reviews, chat, and book only when you feel comfortable.` },
@@ -155,9 +156,9 @@ const COPY: Record<RecruitLang, Copy> = {
     // affiché sur la page ; description qui finit sa phrase.
     // 11/10 (GUS) — villes US avec guide local : « cat sitting / cat sitter <ville> » en 11e-20e
     // place sans clic ; le titre nomme aussi les chats (pet sitting + dog sitter gardés).
-    metaTitle: (c) => (usGuide(c.slug, "en") ? `Dog & Cat Sitters in ${c.name}: Pet Sitting ${c.dayRate}/day` : `Dog Sitting & Pet Sitters in ${c.name}: ${c.dayRate}/day`),
+    metaTitle: (c) => (usGuide(c.slug, "en") ? `Dog & Cat Sitters in ${c.name}: Pet Sitting Near You` : `Dog Sitting & Pet Sitters in ${c.name}: Book a Local Sitter`),
     metaDescription: (c) =>
-      `Dog sitters and cat sitters near you in ${c.name}. Typical rates ${c.dayRate} a day, walks ${c.walkRate}. Post your request free and pay only when you book.`,
+      `Dog sitters and cat sitters near you in ${c.name}. Each sitter sets their own price. Post your request free and pay only when you book.`,
   },
   es: {
     kicker: (c) => c.region,
@@ -184,7 +185,7 @@ const COPY: Record<RecruitLang, Copy> = {
       { icon: "🗺️", t: "PawMap", p: "Miembros cerca de ti, lugares pet-friendly, sus horarios y la ruta para llegar." },
     ],
     pricesTitle: (c) => `¿Cuánto cuesta un cuidador de mascotas en ${c.name}?`,
-    prices: (c) => `En ${c.name}, calcula ${c.dayRate} al día por un cuidado y ${c.walkRate} por un paseo. Cada cuidador fija sus tarifas: las ves en su perfil antes de reservar, sin sorpresas.`,
+    prices: (c) => `Cada cuidador fija sus tarifas: las ves en su perfil antes de reservar, sin sorpresas.`,
     faqTitle: "Preguntas frecuentes",
     faq: (c) => [
       { q: `¿Cómo encontrar un cuidador de confianza en ${c.name}?`, a: `Publica tu solicitud en la app: los cuidadores verificados de ${c.name} te responden. Lee las reseñas, chatea y reserva solo cuando estés tranquilo.` },
@@ -224,7 +225,7 @@ const COPY: Record<RecruitLang, Copy> = {
       { icon: "🗺️", t: "PawMap", p: "Mitglieder in deiner Nähe, tierfreundliche Orte, ihre Öffnungszeiten und der Weg dorthin." },
     ],
     pricesTitle: (c) => `Was kostet ein Tiersitter in ${c.name}?`,
-    prices: (c) => `In ${c.name} rechnest du mit ${c.dayRate} pro Tag für eine Betreuung und ${c.walkRate} für einen Spaziergang. Jeder Sitter legt seine Preise selbst fest: du siehst sie vor der Buchung im Profil, ohne Überraschungen.`,
+    prices: (c) => `Jeder Sitter legt seine Preise selbst fest: du siehst sie vor der Buchung im Profil, ohne Überraschungen.`,
     faqTitle: "Häufige Fragen",
     faq: (c) => [
       { q: `Wie finde ich einen vertrauenswürdigen Tiersitter in ${c.name}?`, a: `Veröffentliche deine Anfrage in der App: verifizierte Sitter aus ${c.name} antworten dir. Lies die Bewertungen, chatte und buche erst, wenn du dich wohlfühlst.` },
@@ -264,7 +265,7 @@ const COPY: Record<RecruitLang, Copy> = {
       { icon: "🗺️", t: "PawMap", p: "I membri vicino a te, i luoghi pet-friendly, i loro orari e il percorso per arrivarci." },
     ],
     pricesTitle: (c) => `Quanto costa un pet sitter a ${c.name}?`,
-    prices: (c) => `A ${c.name}, calcola ${c.dayRate} al giorno per una custodia e ${c.walkRate} per una passeggiata. Ogni sitter fissa le proprie tariffe: le vedi sul profilo prima di prenotare, senza sorprese.`,
+    prices: (c) => `Ogni sitter fissa le proprie tariffe: le vedi sul profilo prima di prenotare, senza sorprese.`,
     faqTitle: "Domande frequenti",
     faq: (c) => [
       { q: `Come trovare un pet sitter affidabile a ${c.name}?`, a: `Pubblica la tua richiesta nell'app: i sitter verificati di ${c.name} ti rispondono. Leggi le recensioni, chatta e prenota solo quando ti senti tranquillo.` },
@@ -304,7 +305,7 @@ const COPY: Record<RecruitLang, Copy> = {
       { icon: "🗺️", t: "PawMap", p: "Os membros perto de ti, os locais pet-friendly, os horários e o itinerário para lá chegar." },
     ],
     pricesTitle: (c) => `Quanto custa um pet sitter em ${c.name}?`,
-    prices: (c) => `Em ${c.name}, conta com ${c.dayRate} por dia para um cuidado e ${c.walkRate} por um passeio. Cada cuidador define os seus preços: vês-os no perfil antes de reservar, sem surpresas.`,
+    prices: (c) => `Cada cuidador define os seus preços: vês-os no perfil antes de reservar, sem surpresas.`,
     faqTitle: "Perguntas frequentes",
     faq: (c) => [
       { q: `Como encontrar um pet sitter de confiança em ${c.name}?`, a: `Publica o teu pedido na app: os cuidadores verificados de ${c.name} respondem-te. Lê as avaliações, conversa por chat e reserva só quando te sentires à vontade.` },
@@ -344,7 +345,7 @@ const COPY: Record<RecruitLang, Copy> = {
       { icon: "🗺️", t: "PawMap", p: "Członkowie w okolicy, miejsca przyjazne zwierzętom, ich godziny otwarcia i trasa dojazdu." },
     ],
     pricesTitle: (c) => `Ile kosztuje opiekun zwierząt — ${c.name}?`,
-    prices: (c) => `W mieście ${c.name} licz na ${c.dayRate} za dzień opieki i ${c.walkRate} za spacer. Każdy opiekun ustala własne stawki: widzisz je w profilu przed rezerwacją, bez niespodzianek.`,
+    prices: (c) => `Każdy opiekun ustala własne stawki: widzisz je w profilu przed rezerwacją, bez niespodzianek.`,
     faqTitle: "Najczęstsze pytania",
     faq: (c) => [
       { q: `Jak znaleźć zaufanego opiekuna zwierząt — ${c.name}?`, a: `Opublikuj ogłoszenie w aplikacji: zweryfikowani opiekunowie z miasta ${c.name} odpowiedzą. Przeczytaj opinie, porozmawiaj na czacie i rezerwuj dopiero, gdy poczujesz się pewnie.` },
@@ -384,7 +385,7 @@ const COPY: Record<RecruitLang, Copy> = {
       { icon: "🗺️", t: "PawMap", p: "근처 회원, 반려동물 친화 장소, 영업시간, 그리고 가는 길 안내까지." },
     ],
     pricesTitle: (c) => `${c.name} 펫시터 비용은 얼마인가요?`,
-    prices: (c) => `${c.name}에서는 돌봄 하루 ${c.dayRate}, 산책 ${c.walkRate} 정도를 예상하세요. 요금은 펫시터가 직접 정하며, 예약 전에 프로필에서 확인할 수 있어 놀랄 일이 없습니다.`,
+    prices: (c) => `요금은 펫시터가 직접 정하며, 예약 전에 프로필에서 확인할 수 있어 놀랄 일이 없습니다.`,
     faqTitle: "자주 묻는 질문",
     faq: (c) => [
       { q: `${c.name}에서 믿을 수 있는 펫시터를 어떻게 찾나요?`, a: `앱에 요청을 올리면 ${c.name}의 인증된 펫시터가 답합니다. 후기를 읽고, 채팅하고, 마음이 놓일 때만 예약하세요.` },
@@ -424,7 +425,7 @@ const COPY: Record<RecruitLang, Copy> = {
       { icon: "🗺️", t: "PawMap", p: "近くのメンバー、ペット歓迎スポット、その営業時間、そこまでのルート案内。" },
     ],
     pricesTitle: (c) => `${c.name}のペットシッターの料金は？`,
-    prices: (c) => `${c.name}では、お世話は1日${c.dayRate}、散歩は${c.walkRate}が目安です。料金はシッターが自分で設定し、予約前にプロフィールで確認できるので、驚くことはありません。`,
+    prices: (c) => `料金はシッターが自分で設定し、予約前にプロフィールで確認できるので、驚くことはありません。`,
     faqTitle: "よくある質問",
     faq: (c) => [
       { q: `${c.name}で信頼できるペットシッターを見つけるには？`, a: `アプリでリクエストを投稿すると、${c.name}の認証済みシッターが返信します。レビューを読み、チャットし、安心できたときだけ予約してください。` },
@@ -642,6 +643,14 @@ export default function OwnerCityPage({
       <div className="mt-14 rounded-2xl border border-ink/10 bg-bg-soft p-6">
         <h2 className="font-display text-xl font-extrabold text-ink">{copy.pricesTitle(city)}</h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">{copy.prices(city)}</p>
+        {/* 31/10 (GUS, décision BOB) — seul chiffre : la médiane réelle des gardiens HoPetSit (≥ 3 profils). */}
+        {(() => { const m = cityMedian(city); if (!m) return null; const fr = city.lang === "fr"; return (
+          <p className="mt-3 text-sm font-semibold leading-relaxed text-ink" data-median-3110>
+            {fr ? `Tarif médian des gardiens HoPetSit à ${city.name}` : `Median rate of HoPetSit sitters in ${city.name}`}
+            {fr ? " : " : ": "}
+            {[m.day && (fr ? `${m.day} par jour (${m.dayN} gardiens)` : `${m.day} per day (${m.dayN} sitters)`), m.walk && (fr ? `${m.walk} la promenade (${m.walkN} promeneurs)` : `${m.walk} per walk (${m.walkN} walkers)`)].filter(Boolean).join(" · ")}
+            <span className="font-normal text-ink-muted">{fr ? ` — profils publics HoPetSit au ${m.asOf}.` : ` — public HoPetSit profiles as of ${m.asOf}.`}</span>
+          </p>); })()}
       </div>
 
       <h2 className="mt-14 font-display text-2xl font-extrabold text-ink">{copy.faqTitle}</h2>

@@ -43,7 +43,7 @@ export function rheinH1(c: RecruitCity): string {
 export function rheinMeta(c: RecruitCity): { title: string; description: string } {
   return {
     title: `Tiersitter Jobs in ${c.name}: kostenlos anmelden`,
-    description: `Tiersitter oder Gassigeher in ${c.name}: kostenlos anmelden, Preise selbst festlegen (meist ${c.dayRate} pro Tag), 100 % deines Preises behalten, sicher in der App bezahlt.`,
+    description: `Tiersitter oder Gassigeher in ${c.name}: kostenlos anmelden, Preise selbst festlegen, 100 % deines Preises behalten, sicher in der App bezahlt.`,
   };
 }
 
@@ -96,8 +96,8 @@ const NEIGHBORS: Record<string, { slug: string; name: string }[]> = {
 /** Bloc détaillé : tarifs, paiement exact, liens vers l'article et les 2 villes voisines. */
 export default function RheinRecruitDetails({ city }: { city: RecruitCity }) {
   const rows = [
-    { s: "Betreuung / Besuche", r: city.dayRate, n: "pro Tag" },
-    { s: "Gassi gehen", r: city.walkRate, n: "pro Spaziergang" },
+    { s: "Betreuung / Besuche", r: "Dein Preis", n: "pro Tag oder pro Besuch" },
+    { s: "Gassi gehen", r: "Dein Preis", n: "pro Spaziergang" },
     { s: "Übernachtung beim Halter", r: "Dein Preis", n: "du legst Tages- und Wochenpreise selbst fest" },
   ];
   return (
@@ -106,8 +106,7 @@ export default function RheinRecruitDetails({ city }: { city: RecruitCity }) {
         Preise in {city.name}
       </h2>
       <p className="mt-3 text-sm leading-relaxed text-ink-muted">
-        Deine Preise legst du selbst in deinem Profil fest. Das sind die üblichen Spannen, die wir Haltern
-        in {city.name} zeigen:
+        Deine Preise legst du selbst in deinem Profil fest, für jede Leistung in {city.name}:
       </p>
       <div className="mt-4 overflow-hidden rounded-2xl border border-ink/5 bg-white shadow-card">
         <table className="w-full text-left text-sm">
@@ -158,7 +157,7 @@ export function rheinFaq(city: RecruitCity): { q: string; a: string }[] {
   const faq = [
     {
       q: `Wie viel verlangen Tiersitter in ${city.name}?`,
-      a: `In ${city.name} kostet eine Betreuung meist ${city.dayRate} pro Tag und ein Spaziergang ${city.walkRate}. Du legst deine Preise selbst fest, auch für Übernachtungen. Was du verdienst, hängt nur von den Buchungen ab, die du annimmst.`,
+      a: `In ${city.name} legst du deine Preise selbst fest, auch für Übernachtungen. Was du verdienst, hängt nur von den Buchungen ab, die du annimmst.`,
     },
     {
       q: "Was behält HoPetSit von meinem Preis?",
