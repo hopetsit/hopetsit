@@ -29,6 +29,15 @@ const nextConfig = {
   // v23.1.267 — SEO/marketing : les chemins FR partagés (pubs, anciens liens)
   // n'existaient pas comme routes (le site est mono-URL avec switch de langue
   // client) → 404. On les redirige vers leur équivalent EN (308 permanent).
+  // 31/10/2026 (BOB) — connexion Google sous www.hopetsit.com au lieu de
+  // hopetsit.firebaseapp.com : proxy du gestionnaire d'auth Firebase (méthode
+  // officielle « self-host / reverse proxy » de Firebase). Voir src/lib/firebase.ts.
+  async rewrites() {
+    return [
+      { source: '/__/auth/:path*', destination: 'https://hopetsit.firebaseapp.com/__/auth/:path*' },
+      { source: '/__/firebase/:path*', destination: 'https://hopetsit.firebaseapp.com/__/firebase/:path*' },
+    ];
+  },
   async redirects() {
     return [
       // v551 — l'APK (93 Mo) qui vivait dans public/ est retiré : il était
