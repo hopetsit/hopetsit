@@ -351,6 +351,16 @@ export async function switchRole(targetRole: AuthRole) {
  */
 // v565 audit-inscription — `user` (ville, langue) n'est lu par le serveur que
 // pour un NOUVEAU compte Google : ville plate + e-mails dans la langue du site.
+export async function appleSignIn(idToken: string, defaultRole: AuthRole = "owner", user?: { city?: string; lang?: string }) {
+  const extra = user
+    ? { user: { ...(user.city ? { city: user.city, location: { city: user.city } } : {}), ...(user.lang ? { language: user.lang, appLocale: user.lang } : {}) } }
+    : {};
+  const raw = await request<AuthRaw>("/auth/apple", { method: "POST", body: JSON.stringify({ idToken, role: defaultRole, ...extra }) });
+  const data = normalizeAuthResponse(raw);
+  persistAuth(data.token, data.user);
+  return data;
+}
+
 export async function googleSignIn(idToken: string, defaultRole: AuthRole = "owner", user?: { city?: string; lang?: string }) {
   const extra = user
     ? {

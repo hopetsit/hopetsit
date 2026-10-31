@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { ApiError, AuthRole, googleSignIn } from "@/lib/api";
-import { isFirebaseConfigured, signInWithGooglePopup } from "@/lib/firebase";
+import { ApiError, AuthRole, googleSignIn, appleSignIn } from "@/lib/api";
+import { isFirebaseConfigured, signInWithGooglePopup, signInWithApplePopup } from "@/lib/firebase";
 
 type Props = {
   /** Sent to /auth/google when this is the user's first social login on the
@@ -54,12 +54,25 @@ export function SocialButtons({ defaultRole = "owner", city, next }: Props) {
     }
   }
 
-  function onApple() {
-    // Apple Sign-In needs a Service ID + private key configured on the
-    // Apple Developer console. Wire it up once Daniel completes that — until
-    // then we keep the button visible so the marketing layout matches the
-    // mobile app, and explain the status on click.
-    setErr("Apple Sign-In is coming soon.");
+  async function onApple() {
+    setBusy("apple");
+    setErr("");
+    try {
+      const idToken = await signInWithApplePopup();
+      await appleSignIn(idToken, defaultRole, { city: city?.trim() || undefined, lang });
+      router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "";
+      if (message.includes("popup-closed-by-user") || message.includes("cancelled-popup-request")) {
+        // fenêtre fermée par l'utilisateur
+      } else if (e instanceof ApiError) {
+        setErr(e.message || t("auth_error_generic"));
+      } else {
+        setErr(t("auth_error_generic"));
+      }
+    } finally {
+      setBusy("");
+    }
   }
 
   return (
@@ -84,7 +97,7 @@ export function SocialButtons({ defaultRole = "owner", city, next }: Props) {
         className="flex w-full items-center justify-center gap-3 rounded-full border border-ink/15 bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-ink disabled:opacity-60"
       >
         <AppleIcon />
-        Continue with Apple
+        {busy === "apple" ? t("common_loading") : (SOCIAL_TXT[lang]?.apple ?? SOCIAL_TXT.en.apple)}
       </button>}
 
       {err && <p className="text-center text-xs text-owner-dark">{err}</p>}
@@ -98,19 +111,19 @@ export function SocialButtons({ defaultRole = "owner", city, next }: Props) {
   );
 }
 
-const APPLE_WEB_ENABLED = false;
+const APPLE_WEB_ENABLED = true; // 31/10 : Firebase › Apple configuré (Services ID com.cardellihermanos.hopetsit.web, équipe 49C67YDPJ5, clé 3QKCSZMGW7), écran Apple vérifié.
 
 // 31/10/2026 (BOB) — libellés en dur en anglais sur toutes les langues.
-const SOCIAL_TXT: Record<string, { google: string; or: string }> = {
-  fr: { google: "Continuer avec Google", or: "ou" },
-  en: { google: "Continue with Google", or: "or" },
-  es: { google: "Continuar con Google", or: "o" },
-  de: { google: "Weiter mit Google", or: "oder" },
-  it: { google: "Continua con Google", or: "oppure" },
-  pt: { google: "Continuar com o Google", or: "ou" },
-  pl: { google: "Kontynuuj z Google", or: "lub" },
-  ko: { google: "Google로 계속하기", or: "또는" },
-  ja: { google: "Googleで続ける", or: "または" },
+const SOCIAL_TXT: Record<string, { google: string; or: string; apple: string }> = {
+  fr: { google: "Continuer avec Google", or: "ou", apple: "Continuer avec Apple" },
+  en: { google: "Continue with Google", or: "or", apple: "Continue with Apple" },
+  es: { google: "Continuar con Google", or: "o", apple: "Continuar con Apple" },
+  de: { google: "Weiter mit Google", or: "oder", apple: "Weiter mit Apple" },
+  it: { google: "Continua con Google", or: "oppure", apple: "Continua con Apple" },
+  pt: { google: "Continuar com o Google", or: "ou", apple: "Continuar com a Apple" },
+  pl: { google: "Kontynuuj z Google", or: "lub", apple: "Kontynuuj z Apple" },
+  ko: { google: "Google로 계속하기", or: "또는", apple: "Apple로 계속하기" },
+  ja: { google: "Googleで続ける", or: "または", apple: "Appleで続ける" },
 };
 
 function GoogleIcon() {

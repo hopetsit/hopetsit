@@ -14,6 +14,7 @@ import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
+  OAuthProvider,
   signInWithPopup,
   Auth,
 } from "firebase/auth";
@@ -91,4 +92,18 @@ export async function signInWithGooglePopup(): Promise<string> {
   const cred = await signInWithPopup(auth, provider);
   const idToken = await cred.user.getIdToken();
   return idToken;
+}
+
+/**
+ * 31/10/2026 (BOB) — connexion Apple sur le site : même chemin que Google (popup
+ * Firebase → jeton Firebase → POST /auth/apple, que le serveur vérifie déjà avec
+ * firebaseAdmin.verifyIdToken). Exige le Services ID web dans Firebase › Apple.
+ */
+export async function signInWithApplePopup(): Promise<string> {
+  const auth = ensureAuth();
+  const provider = new OAuthProvider("apple.com");
+  provider.addScope("email");
+  provider.addScope("name");
+  const cred = await signInWithPopup(auth, provider);
+  return cred.user.getIdToken();
 }
