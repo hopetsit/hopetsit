@@ -102,9 +102,12 @@ async function boardSignals(items) {
   const idToKey = new Map();
   for (const g of groups.values()) for (const i of g.allIds) idToKey.set(i, g.key);
 
+  // 0111 (ADA) — ouvertures des candidats de la PERSONNE (toutes ses demandes, ses profils propriétaire), pas seulement
+  // celles des demandes affichées : un retour sur une autre demande est un retour de la personne (returnVerdict).
+  const ownerIdsAll = [...new Set([...groups.values()].flatMap((g) => g.ids.owner))];
   const [events, views] = await Promise.all([
     allIds.length ? ActivityEvent.find({ userId: { $in: allIds } }).select('userId at platform appVersion origin').sort({ at: -1 }).limit(20000).lean() : [],
-    CandidatesView.find({ postId: { $in: items.map((it) => String(it.postId)) } }).select('postId at channel source origin').lean(),
+    CandidatesView.find({ $or: [{ postId: { $in: items.map((it) => String(it.postId)) } }, { ownerId: { $in: ownerIdsAll } }] }).select('postId ownerId at channel source origin').lean(),
   ]);
   const evByKey = new Map();
   for (const ev of events) {
@@ -113,11 +116,16 @@ async function boardSignals(items) {
     evByKey.get(k).push(ev);
   }
   const viewsByPost = new Map();
+  const viewsByPerson = new Map();
+  const ownerToKey = new Map();
+  for (const g of groups.values()) for (const i of g.ids.owner) ownerToKey.set(i, g.key);
   for (const v of views) {
     if (!isRealOrigin(v.origin)) continue;
     const k = String(v.postId);
     if (!viewsByPost.has(k)) viewsByPost.set(k, []);
     viewsByPost.get(k).push(v);
+    const pk = ownerToKey.get(String(v.ownerId));
+    if (pk) { if (!viewsByPerson.has(pk)) viewsByPerson.set(pk, []); viewsByPerson.get(pk).push(v); }
   }
   for (const it of items) {
     const key = keyOfOwner(String(it.owner && it.owner.id || ''));
@@ -170,8 +178,88 @@ async function boardSignals(items) {
       // retours par l'app SANS nouvelle connexion (session déjà ouverte) : ouvertures des candidats dans l'app après la publication
       appViewsSincePublish: internal ? 0 : vs.filter((x) => x.channel === 'app' && new Date(x.at).getTime() >= pub).length,
     });
+    const sig = out.get(String(it.postId));
+    const g = groups.get(key);
+    sig.back = returnVerdict({
+      publishedAt: pub, internal, sessions: real, postViews: vs, personViews: viewsByPerson.get(key) || [], hasApp: sig.hasApp, appDevice: sig.appDevice,
+    });
+    sig.back.personKey = g ? require('crypto').createHash('sha1').update([...g.allIds].sort().join(',')).digest('hex').slice(0, 10) : null;
   }
+  markPrimary(items, out);
   return out;
 }
 
-module.exports = { classifyOrigin, isRealOrigin, isRealSession, REAL_SESSION_FILTER, boardSignals, SOURCES, CHANNELS };
+const _t = (d) => (d ? new Date(d).getTime() : 0);
+const _chan = (e) => e.origin || (String(e.appVersion) === 'web' ? 'web' : 'app');
+
+/**
+ * 0111 (ADA, bug signalé par Daniel : « Caroline est revenue et quand je mets détails c'est jamais revenu ») —
+ * LA SEULE règle « le propriétaire est revenu ? » de l'admin. La tuile du tableau de bord, la carte de « Demandes
+ * publiées » et « Voir le détail » affichent toutes ce verdict (ownerSignals.back), jamais un calcul à elles.
+ * Par PERSONNE (3 profils, même e-mail) : un retour = une vraie session site/app d'un des 3 profils, ou une
+ * ouverture de la page des candidats de l'une de ses demandes (nos scripts et l'admin exclus). Pur, testable.
+ *   state 'since'    : revenu après la publication de CETTE demande (lastAt = dernier retour)
+ *   state 'before'   : revenu, mais seulement avant cette demande (lastAt = dernier retour, antérieur)
+ *   state 'never'    : jamais revenu du tout
+ *   state 'internal' : compte de test / équipe, non compté
+ */
+function returnVerdict({ publishedAt, internal, sessions, postViews, personViews, hasApp, appDevice }) {
+  const pub = _t(publishedAt);
+  const seenList = (postViews || []).filter((v) => isRealOrigin(v.origin));
+  const seen = {
+    count: seenList.length,
+    web: seenList.filter((v) => v.channel === 'web').length,
+    app: seenList.filter((v) => v.channel === 'app').length,
+    lastAt: seenList.length ? new Date(Math.max(...seenList.map((v) => _t(v.at)))).toISOString() : null,
+  };
+  const base = { hasApp: !!hasApp, appDevice: appDevice || null, seen, primary: false };
+  if (internal) return { ...base, state: 'internal', lastAt: null, channel: null, via: null, sessions: { web: 0, app: 0 }, appViews: 0 };
+  const real = (sessions || []).filter(isRealSession);
+  const vmap = new Map();
+  for (const v of [...(personViews || []), ...(postViews || [])]) if (isRealOrigin(v.origin)) vmap.set(v._id ? String(v._id) : `${v.postId}|${_t(v.at)}`, v);
+  const views = [...vmap.values()];
+  const ret = [
+    ...real.map((e) => ({ at: _t(e.at), channel: _chan(e), kind: 'session' })),
+    ...views.map((v) => ({ at: _t(v.at), channel: v.channel === 'app' ? 'app' : v.channel === 'web' ? 'web' : null, kind: 'view', source: v.source || 'direct', postId: String(v.postId) })),
+  ].filter((r) => r.at).sort((a, b) => b.at - a.at);
+  const since = ret.filter((r) => r.at >= pub);
+  const sess = real.filter((e) => _t(e.at) >= pub);
+  const sessions2 = { web: sess.filter((e) => _chan(e) === 'web').length, app: sess.filter((e) => _chan(e) === 'app').length };
+  const appViews = views.filter((v) => v.channel === 'app' && _t(v.at) >= pub).length;
+  const last = since[0] || ret[0] || null;
+  if (!last) return { ...base, state: 'never', lastAt: null, channel: null, via: null, sessions: sessions2, appViews };
+  // « via » : provenance d'une ouverture des candidats dans la même demi-heure que le dernier retour, sinon inconnue.
+  const pool = since.length ? since : ret;
+  const v = pool.find((r) => r.kind === 'view' && Math.abs(r.at - last.at) <= 30 * 60000);
+  return {
+    ...base,
+    state: since.length ? 'since' : 'before',
+    lastAt: new Date(last.at).toISOString(),
+    channel: last.channel,
+    via: v ? v.source : null,
+    viewPostId: v ? v.postId : null,
+    sessions: sessions2,
+    appViews,
+  };
+}
+
+/** Une personne, plusieurs demandes : une seule ligne « revenu » = la demande concernée par le retour. */
+function markPrimary(items, out) {
+  const byPerson = new Map();
+  for (const it of items) {
+    const b = (out.get(String(it.postId)) || {}).back;
+    if (!b || b.state !== 'since' || !b.personKey) continue;
+    if (!byPerson.has(b.personKey)) byPerson.set(b.personKey, []);
+    byPerson.get(b.personKey).push({ it, b });
+  }
+  for (const list of byPerson.values()) {
+    const lastAt = Math.max(...list.map((x) => _t(x.b.lastAt)));
+    const viewed = list.find((x) => x.b.viewPostId && x.b.viewPostId === String(x.it.postId));
+    const pick = viewed || list
+      .filter((x) => _t(x.it.stages && x.it.stages.published && x.it.stages.published.at) <= lastAt)
+      .sort((a, b) => _t(b.it.stages.published.at) - _t(a.it.stages.published.at))[0] || list[0];
+    pick.b.primary = true;
+  }
+}
+
+module.exports = { classifyOrigin, isRealOrigin, isRealSession, REAL_SESSION_FILTER, boardSignals, returnVerdict, markPrimary, SOURCES, CHANNELS };

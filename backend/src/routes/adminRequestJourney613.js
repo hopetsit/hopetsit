@@ -522,7 +522,25 @@ router.get('/:postId/journey', requireAdmin, async (req, res) => {
     if (!post) return res.status(404).json({ error: 'Annonce introuvable.' });
     if (post.postType && post.postType !== 'request') return res.status(400).json({ error: 'Pas une demande.' });
     const map = await journeys([post], { detail: true });
-    res.json(map.get(String(post._id)));
+    const it = map.get(String(post._id));
+    // 0111 (ADA, bug signalé par Daniel) — « Voir le détail » affiche le MÊME verdict « revenu ? » que la tuile et la
+    // carte (ownerReturn2610.returnVerdict, par personne). Le choix de la ligne principale (primary) a besoin de toutes
+    // les demandes de la personne : on le recalcule sur ses demandes. Jamais bloquant.
+    try {
+      const R = require('../utils/ownerReturn2610');
+      const ownerId = String((it.owner && it.owner.id) || '');
+      const grp = await require('../utils/person3110').personOf('owner', ownerId);
+      const mine = grp.ids.owner.length
+        ? await Post.find({ postType: 'request', ownerId: { $in: grp.ids.owner } }).sort({ createdAt: -1 }).limit(50).select(POST_FIELDS).lean()
+        : [];
+      const others = mine.filter((p) => String(p._id) !== String(post._id));
+      const all = others.length ? [it, ...(await journeys(others)).values()] : [it];
+      const sig = await R.boardSignals(all);
+      it.ownerSignals = sig.get(String(post._id)) || null;
+    } catch (e) {
+      logger.warn(`[admin/requests613/journey] ownerSignals ${e?.message || e}`);
+    }
+    res.json(it);
   } catch (e) {
     logger.error('[admin/requests613/journey]', e);
     res.status(500).json({ error: e.message });
