@@ -99,6 +99,10 @@ const applicationSchema = new mongoose.Schema(
       enum: ['pending', 'accepted', 'rejected'],
       default: 'pending',
     },
+    // 3110 (ADA, ordre de Daniel 31/10 « enlève-les ») — candidature ARCHIVÉE : sa demande a été effacée
+    // (postController.deletePost) ou masquée ; jamais renvoyée à l'app, jamais comptée, jamais supprimée.
+    archivedAt: { type: Date, default: null, index: true },
+    archivedReason: { type: String, default: '' },
   },
   { timestamps: true }
 );

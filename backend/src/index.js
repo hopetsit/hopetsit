@@ -173,6 +173,8 @@ async function startServer() {
     require('./services/boostSync2910').startBoostSyncScheduler();
     // 2910 (BOB, Daniel « qu'ils paient ») — relance de paiement : réservation choisie mais non payée → r1 +1 h, r2 +24 h. PAYMENT_REMINDER_2910=off pour couper.
     require('./services/paymentReminder2910').startPaymentReminderScheduler();
+    // 3110 (ADA, ordre de Daniel 31/10) — contacts pub en brouillon : UN rappel « confirme ta demande » à +24 h.
+    require('./services/adLeadConfirmReminder3110').startAdLeadConfirmReminderScheduler();
   } catch (error) {
     logger.error('Failed to start server', error);
     process.exit(1);

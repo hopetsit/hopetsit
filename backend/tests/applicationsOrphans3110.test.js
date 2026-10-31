@@ -5,6 +5,10 @@ process.env.NODE_ENV = 'test';
 jest.mock('../src/config/firebaseAdmin', () => ({ messaging: () => ({ send: jest.fn(), sendEachForMulticast: jest.fn(async () => ({ successCount: 0, failureCount: 0, responses: [] })) }) }));
 jest.mock('../src/services/notificationSender', () => ({ sendNotification: jest.fn(async () => ({ ok: true })), sendEmailOnly: jest.fn(async () => ({ sent: true })) }));
 jest.mock('../src/sockets', () => ({ emitToUser: jest.fn(), emitToUsersAllRoles: jest.fn(() => 0) }));
+jest.mock('../src/middleware/auditAdmin', () => ({ auditAdmin: (req, res, next) => next() }));
+jest.mock('../src/services/translationService', () => ({ translateToAll: jest.fn(async (text) => ({ translations: { fr: text }, sourceLanguage: 'fr' })) }));
+jest.mock('../src/services/cloudinary', () => ({ uploadMedia: jest.fn(async () => ({})) }));
+jest.mock('../src/services/contentModerationService', () => ({ rejectIfUnsafe: jest.fn(async () => null) }));
 jest.mock('../src/middleware/auth', () => ({
   requireAuth: (req, res, next) => {
     const id = req.headers['x-test-user'];
@@ -103,4 +107,55 @@ test('admin : comptage cohérent, comptes de test à part, aucune donnée person
   expect(JSON.stringify(r.body)).not.toMatch(/example\.org|Olga|Sam|Wil/);
   expect(typeof r.body.oldestHiddenDays).toBe('number');
   expect((await request(app).get('/admin/applications-3110/orphans').set({ 'x-test-user': 'u', 'x-test-role': 'owner' })).status).toBe(403);
+});
+
+test('ARCHIVAGE (ordre de Daniel 31/10) : simulation puis archivage des orphelines ; archivées = hors de tout ; rien supprimé', async () => {
+  const total = await Application.countDocuments({});
+  const dry = await request(app).post('/admin/applications-3110/archive-orphans').set(ADMIN).send({}).expect(200);
+  expect(dry.body.dryRun).toBe(true);
+  expect(dry.body.toArchive).toBe(3); // deletedPending + hiddenAccepted + celle du compte test (demande effacée)
+  expect(dry.body.reasons).toEqual({ postMissing: 2, postHidden: 1 });
+  expect(dry.body.archived).toBe(0);
+  expect(await Application.countDocuments({ archivedAt: { $ne: null } })).toBe(0);
+  const run = await request(app).post('/admin/applications-3110/archive-orphans').set(ADMIN).send({ dryRun: false }).expect(200);
+  expect(run.body.archived).toBe(3);
+  expect(await Application.countDocuments({})).toBe(total); // rien supprimé
+  expect(await Application.countDocuments({ archivedAt: { $ne: null } })).toBe(3);
+  expect((await Application.findById(A.deletedPending._id)).archivedReason).toBe('post_missing');
+  expect((await Application.findById(A.hiddenAccepted._id)).archivedReason).toBe('post_hidden');
+  // comptage : archivées à part, il ne reste que la « fermée + pending » hors app
+  const r = await request(app).get('/admin/applications-3110/orphans').set(ADMIN).expect(200);
+  expect(r.body.archived).toBe(3);
+  expect(r.body.total).toBe(total - 3);
+  expect(r.body.hidden.total).toBe(1);
+  expect(r.body.hidden.reasons).toEqual({ postMissing: 0, postHidden: 0, closedPending: 1 });
+  // 2e archivage : plus rien à faire
+  expect((await request(app).post('/admin/applications-3110/archive-orphans').set(ADMIN).send({ dryRun: false }).expect(200)).body.archived).toBe(0);
+  // l'app ne les voit toujours pas
+  expect(ids(await list({ id: String(O._id), role: 'owner' }))).toEqual(K('openPending', 'noPost', 'closedAccepted'));
+});
+
+test('deletePost (propriétaire) : les candidatures de la demande sont archivées au moment de l\'effacement', async () => {
+  const pc = require('../src/controllers/postController');
+  const p = await Post.create({ ownerId: O._id, body: 'à effacer' });
+  const a1 = await Application.create({ ownerId: O._id, sitterId: S._id, postId: p._id, status: 'pending' });
+  const a2 = await Application.create({ ownerId: O._id, walkerId: W._id, postId: p._id, status: 'rejected' });
+  expect(ids(await list({ id: String(O._id), role: 'owner' }))).toContain(String(a1._id));
+  const res = await new Promise((resolve) => {
+    const r = { statusCode: 200, status(c) { this.statusCode = c; return this; }, json: (b) => resolve({ status: r.statusCode, body: b }) };
+    pc.deletePost({ params: { id: String(p._id) }, user: { id: String(O._id), role: 'owner' } }, r);
+  });
+  expect(res.status).toBe(200);
+  expect(res.body.archivedApplications).toBe(2);
+  expect(await Post.findById(p._id)).toBeNull();
+  for (const a of [a1, a2]) {
+    // eslint-disable-next-line no-await-in-loop
+    const d = await Application.findById(a._id);
+    expect(d).toBeTruthy(); // jamais supprimée
+    expect(d.archivedAt).toBeTruthy();
+    expect(d.archivedReason).toBe('post_deleted');
+  }
+  const owner = await list({ id: String(O._id), role: 'owner' });
+  expect(ids(owner)).not.toContain(String(a1._id));
+  expect(ids(owner)).not.toContain(String(a2._id));
 });

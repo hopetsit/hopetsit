@@ -168,9 +168,11 @@ adminRouter.get('/stats', requireAdmin, async (req, res) => {
     const since = new Date(now.getTime() - days * DAY);
     const from = new Date(Math.min(since.getTime(), t0.getTime() - DAY));
     // 31/10 (LEO) — les contacts venus du site (source 'site') ne comptent pas dans la pub : comptés à part.
-    const rows = await AdLead.find({ createdAt: { $gte: from }, source: { $ne: 'site' } }).select('createdAt city country lat lng postId startText endText confirmedAt').lean();
+    const rows = await AdLead.find({ createdAt: { $gte: from }, source: { $ne: 'site' } }).select('createdAt city country lat lng postId startText endText confirmedAt pendingConfirm clickedAt confirmEmailAt confirmReminderAt').lean();
     const { datesFor } = require('../utils/adLeadDates2310');
-    const out = { days, timeZone: tz, generatedAt: now, today: 0, yesterday: 0, d7: 0, byCity: { paris: 0, nyc: 0, other: 0 }, published: 0, withDates: 0, confirmed: 0, total: 0 };
+    // 3110 (ADA, ordre de Daniel) — awaitingConfirm = brouillons (e-mail « confirme » parti, pas encore cliqué) ;
+    // confirmedClick = contacts qui ont VRAIMENT cliqué (clickedAt) ; reminded = rappels +24 h envoyés.
+    const out = { days, timeZone: tz, generatedAt: now, today: 0, yesterday: 0, d7: 0, byCity: { paris: 0, nyc: 0, other: 0 }, published: 0, withDates: 0, confirmed: 0, awaitingConfirm: 0, confirmedClick: 0, reminded: 0, total: 0 };
     for (const l of rows) {
       const t = l.createdAt ? new Date(l.createdAt).getTime() : 0;
       if (t >= t0.getTime()) out.today += 1;
@@ -180,11 +182,15 @@ adminRouter.get('/stats', requireAdmin, async (req, res) => {
       out.byCity[cityBucket(l)] += 1;
       if (l.postId) out.published += 1;
       if (l.confirmedAt) out.confirmed += 1;
+      if (l.pendingConfirm && !l.postId) out.awaitingConfirm += 1;
+      if (l.clickedAt) out.confirmedClick += 1;
+      if (l.confirmReminderAt) out.reminded += 1;
       let dd = null;
       try { dd = datesFor(l, now); } catch (_) { dd = null; }
       if (dd && dd.source === 'form') out.withDates += 1;
     }
     out.total = await AdLead.countDocuments({ source: { $ne: 'site' } });
+    out.awaitingConfirmTotal = await AdLead.countDocuments({ source: { $ne: 'site' }, pendingConfirm: true, postId: null });
     out.site = await AdLead.countDocuments({ source: 'site', createdAt: { $gte: since } });
     return res.json(out);
   } catch (e) {
@@ -216,8 +222,8 @@ router.get('/:id', async (req, res) => {
  * demande par createPost = mêmes règles et mêmes alertes aux gardiens).
  * Renvoie { owner, postId, notified, status, body } ; status ≠ 200 = createPost a refusé.
  */
-async function publishLead(lead, lieu) {
-  // 1. Compte propriétaire : existant (rendu vérifié, l'e-mail vient de Meta / du clic) ou créé.
+/** 3110 — compte propriétaire du contact : existant (marqué pub) ou créé NON vérifié. Aucune demande. */
+async function ensureLeadOwner(lead) {
   let owner = await Owner.findOne({ email: lead.email });
   if (!owner) {
     const firstName = lead.firstName || (lead.lang === 'fr' ? 'Propriétaire' : 'Owner');
@@ -241,6 +247,82 @@ async function publishLead(lead, lieu) {
     // Compte déjà existant : on ne touche PAS à son état de vérification, on le marque seulement.
     await Owner.updateOne({ _id: owner._id }, { $set: { adLeadAt: new Date() } });
   }
+  return owner;
+}
+
+const TEST_LEAD_RE = /\+test|^hopetsit@|^dadaciao84@|^probe-|@invalid\.example$|staff@hopetsit/i;
+const escHtml = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/**
+ * 3110 (ADA, ordre de Daniel 31/10) — e-mail « confirme ta demande pour la publier » (lien /posts/confirmer?l=…,
+ * dont le clic vérifie l'e-mail ET publie). variant : 'new' (contact neuf : pub Meta ou site), 'existing'
+ * (compte déjà inscrit, texte de LEO), 'reminder' (UN rappel à +24 h). Jamais aux adresses de test.
+ * Retourne true si l'e-mail est parti.
+ */
+async function sendConfirmEmail(lead, variant = 'new') {
+  if (TEST_LEAD_RE.test(String(lead.email || ''))) return false;
+  const { BASE_URL } = require('../utils/emailLinkBuilder');
+  const { sendEmail } = require('../services/emailService');
+  const src = lead.source === 'site' ? 'site' : 'meta';
+  const campaign = lead.campaign || (lead.country === 'US' ? 'nyc_leads' : 'paris_leads');
+  const content = variant === 'reminder' ? 'rappel' : 'confirme';
+  const link = `${BASE_URL}/posts/confirmer?l=${lead._id}&utm_source=${src}&utm_medium=${src === 'meta' ? 'paid' : 'email'}&utm_campaign=${encodeURIComponent(campaign)}&utm_content=${content}`;
+  const p = lead.firstName || '';
+  const fr = lead.lang !== 'en';
+  let subject; let text; let cta;
+  if (variant === 'existing') {
+    subject = fr ? `${p ? `${p}, confirme` : 'Confirme'} ta demande pour la publier` : `${p ? `${p}, confirm` : 'Confirm'} your request to publish it`;
+    text = fr
+      ? `${p ? `Bonjour ${p},` : 'Bonjour,'}\n\nQuelqu'un vient de préparer une demande de garde avec ton adresse e-mail sur hopetsit.com. Si c'est toi, clique pour la publier : les gardiens près de chez toi seront prévenus et tu recevras leurs prix par e-mail.\n\nPublier ma demande : ${link}\n\nSi ce n'est pas toi, ignore cet e-mail : rien ne sera publié.\n\nHoPetSit`
+      : `${p ? `Hi ${p},` : 'Hi,'}\n\nSomeone just prepared a pet-sitting request with your email address on hopetsit.com. If it was you, click to publish it: sitters near you will be notified and you'll get their prices by email.\n\nPublish my request: ${link}\n\nIf it wasn't you, ignore this email: nothing will be published.\n\nHoPetSit`;
+    cta = fr ? 'Publier ma demande' : 'Publish my request';
+  } else if (variant === 'reminder') {
+    subject = fr ? `${p ? `${p}, ta` : 'Ta'} demande attend ta confirmation` : `${p ? `${p}, your` : 'Your'} request is waiting for your confirmation`;
+    text = fr
+      ? `${p ? `Bonjour ${p},` : 'Bonjour,'}\n\nTa demande de garde est prête mais pas encore publiée : il manque un clic pour confirmer ton adresse e-mail. Dès que c'est fait, les gardiens près de chez toi sont prévenus et tu reçois leurs prix par e-mail.\n\nConfirmer et publier : ${link}\n\nC'est le dernier rappel : si tu n'as plus besoin de garde, ignore simplement cet e-mail.\n\nHoPetSit`
+      : `${p ? `Hi ${p},` : 'Hi,'}\n\nYour pet-sitting request is ready but not published yet: one click is missing to confirm your email address. Once done, sitters near you are notified and you get their prices by email.\n\nConfirm and publish: ${link}\n\nThis is the last reminder: if you no longer need a sitter, just ignore this email.\n\nHoPetSit`;
+    cta = fr ? 'Confirmer et publier' : 'Confirm and publish';
+  } else {
+    subject = fr ? `${p ? `${p}, un` : 'Un'} clic pour publier ta demande` : `${p ? `${p}, one` : 'One'} click to publish your request`;
+    text = fr
+      ? `${p ? `Bonjour ${p},` : 'Bonjour,'}\n\nMerci pour ta demande sur HoPetSit ! Pour la publier, confirme ton adresse e-mail d'un clic : les gardiens et promeneurs près de chez toi seront prévenus et tu recevras leurs prix par e-mail. Gratuit, sans mot de passe.\n\nConfirmer et publier : ${link}\n\nTu choisis ensuite ton gardien et tu paies par carte : annulation gratuite jusqu'à 72 h avant, l'argent n'est versé au gardien qu'une fois la garde terminée.\n\nHoPetSit`
+      : `${p ? `Hi ${p},` : 'Hi,'}\n\nThanks for your request on HoPetSit! To publish it, confirm your email address with one click: sitters and walkers near you will be notified and you'll get their prices by email. Free, no password.\n\nConfirm and publish: ${link}\n\nYou then choose your sitter and pay by card: free cancellation up to 72 h before, the sitter is only paid once the stay is over.\n\nHoPetSit`;
+    cta = fr ? 'Confirmer et publier' : 'Confirm and publish';
+  }
+  const parts = text.split('\n\n');
+  const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#231715;line-height:1.5"><p>${escHtml(parts[0])}</p><p>${escHtml(parts[1])}</p><p style="text-align:center;margin:24px 0"><a href="${link}" style="display:inline-block;background:#C92A12;color:#fff;text-decoration:none;font-weight:800;padding:14px 26px;border-radius:999px">${cta}</a></p><p style="font-size:13px;color:#6E4F48">${escHtml(parts[3] || '')}</p></div>`;
+  await sendEmail(lead.email, subject, text, html);
+  if (variant === 'reminder') lead.confirmReminderAt = new Date();
+  else lead.confirmEmailAt = new Date();
+  await lead.save();
+  return true;
+}
+
+/**
+ * 3110 (ADA, ordre de Daniel 31/10 : « qu'il y ait au moins l'e-mail vérifié ») — BROUILLON : compte propriétaire
+ * NON vérifié (créé si besoin), contact `pendingConfirm`, AUCUNE demande, AUCUN gardien prévenu, e-mail « confirme »
+ * UNE fois. La publication n'a lieu qu'au clic (/:id/confirm). Idempotent.
+ */
+async function draftLead(lead, { variant = 'new' } = {}) {
+  if (lead.postId) return { alreadyPublished: true, postId: String(lead.postId), ownerId: lead.ownerId ? String(lead.ownerId) : null, pending: false, emailSent: false };
+  const owner = await ensureLeadOwner(lead);
+  lead.ownerId = owner._id;
+  lead.pendingConfirm = true;
+  await lead.save();
+  let emailSent = false;
+  if (!lead.confirmEmailAt) {
+    try { emailSent = await sendConfirmEmail(lead, variant); } catch (e) { logger.warn(`[adLeads2210] e-mail « confirme » non envoyé : ${e && e.message}`); }
+  }
+  return { alreadyPublished: false, postId: null, ownerId: String(owner._id), pending: true, emailSent, verified: owner.verified === true };
+}
+
+/**
+ * Publie la demande d'un contact (compte propriétaire créé ou repris, demande par createPost = mêmes règles
+ * et mêmes alertes aux gardiens). Renvoie { owner, postId, notified, status, body } ; status ≠ 200 = createPost a refusé.
+ */
+async function publishLead(lead, lieu) {
+  // 1. Compte propriétaire : existant (marqué pub) ou créé NON vérifié (3110 : ensureLeadOwner).
+  const owner = await ensureLeadOwner(lead);
 
   // 2. Demande : une seule par contact (2e appel = la même).
   let postId = lead.postId;
@@ -262,6 +344,7 @@ async function publishLead(lead, lieu) {
     if (postId && mongoose.isValidObjectId(String(postId))) lead.postId = postId;
     lead.ownerId = owner._id;
     lead.confirmedAt = lead.confirmedAt || new Date();
+    lead.pendingConfirm = false; // 3110 — le brouillon est publié
     await lead.save();
   }
   const dates = require('../utils/adLeadDates2310').datesFor(lead);
@@ -443,8 +526,26 @@ adminRouter.delete('/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// 3110 (ADA, ORDRE DE DANIEL 31/10 : « que dans la pub les demandes ne soient plus orphelines : au moins
+// l'e-mail vérifié ») — POST /admin/ad-leads/:id/draft : appelé par leads_suivi.py à la place de /publish.
+// Compte NON vérifié + brouillon + e-mail « confirme » ; rien publié, 0 gardien prévenu ; +test refusé (403).
+adminRouter.post('/:id/draft', requireAdmin, async (req, res) => {
+  try {
+    if (!ID_RE.test(req.params.id)) return res.status(404).json({ error: 'not_found' });
+    const lead = await AdLead.findById(req.params.id);
+    if (!lead) return res.status(404).json({ error: 'not_found' });
+    if (TEST_LEAD_RE.test(String(lead.email || ''))) return res.status(403).json({ error: 'TEST_ACCOUNT', code: 'TEST_ACCOUNT' });
+    const r = await draftLead(lead, { variant: 'new' });
+    return res.status(200).json({ id: lead._id, ...r });
+  } catch (e) {
+    logger.error('[adLeads2210] draft failed', e);
+    return res.status(500).json({ error: 'Unable to draft.' });
+  }
+});
+
 // 23/10 (SAM, consigne de Daniel « dès qu'un contact remplit le formulaire, le suivi
 // publie ») — même chemin que le clic, appelé par leads_suivi.py ; pas de session renvoyée.
+// ⚠️ 3110 : le suivi appelle désormais /draft (ordre de Daniel) ; /publish reste pour l'admin.
 adminRouter.post('/:id/publish', requireAdmin, async (req, res) => {
   try {
     if (!ID_RE.test(req.params.id)) return res.status(404).json({ error: 'not_found' });
@@ -468,3 +569,7 @@ module.exports = router;
 module.exports.adminRouter = adminRouter;
 module.exports.postInputFor = postInputFor;
 module.exports.publishLead = publishLead; // 31/10 (LEO) — réutilisé par adLeadsSite3110
+module.exports.draftLead = draftLead; // 3110 (ADA) — brouillon + e-mail « confirme » (site, suivi, rappel)
+module.exports.sendConfirmEmail = sendConfirmEmail;
+module.exports.ensureLeadOwner = ensureLeadOwner;
+module.exports.TEST_LEAD_RE = TEST_LEAD_RE;

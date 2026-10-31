@@ -1,5 +1,6 @@
-// 31/10/2026 (LEO, feu vert BOB 14 h 20) — POST /ad-leads/site : demande publiée en 1 étape depuis la
-// page d'arrivée, sans compte ni mot de passe. VRAIE base Mongo en mémoire, vrai createPost, zone
+// 31/10/2026 (LEO, feu vert BOB 14 h 20) — POST /ad-leads/site : demande en 1 étape depuis la page d'arrivée,
+// sans compte ni mot de passe. 3110 (ADA, ORDRE DE DANIEL 31/10) : NOUVEAU compte = BROUILLON (202), compte NON
+// vérifié, rien publié, e-mail « un clic pour publier » ; publication au clic (/ad-leads/:id/confirm). VRAIE base Mongo en mémoire, vrai createPost, zone
 // fictive (lat −35 / lng −30), aucun réseau (POSTAL_GEOCODE=off), aucun e-mail réel (emailService simulé).
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test_jwt_secret_'.padEnd(64, 'x');
@@ -36,6 +37,9 @@ const BASE = {
   campaign: 'paris_owners', page: '/garde-animaux/paris',
 };
 const post = (body) => request(app).post('/ad-leads/site').send(body);
+const BROWSER = { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1' };
+/** Le clic dans la boîte : vérifie l'e-mail et publie ; renvoie le corps de /confirm. */
+const confirm = async (id) => (await request(app).post(`/ad-leads/${id}/confirm`).set(BROWSER).send({}).expect(200)).body;
 
 beforeAll(async () => {
   mongo = await MongoMemoryServer.create({ instance: { launchTimeout: 90000 } });
@@ -52,41 +56,53 @@ beforeAll(async () => {
 }, 120000);
 afterAll(async () => { await mongoose.disconnect(); if (mongo) await mongo.stop(); }, 60000);
 
-test('création : compte propriétaire NON vérifié, demande publiée et visible, session, e-mail « en ligne » UNE fois, source site', async () => {
-  const r = await post(BASE).expect(201);
+test('création : compte propriétaire NON vérifié, BROUILLON (202), rien publié, e-mail « un clic pour publier » UNE fois ; le clic publie', async () => {
+  const ns = require('../src/services/notificationSender');
+  const notifBefore = ns.sendNotification.mock.calls.length;
+  const r = await post(BASE).expect(202);
   expect(r.body.existing).toBe(false);
+  expect(r.body.pending).toBe(true);
+  expect(r.body.session).toBe('email');
+  expect(r.body.token).toBeUndefined();
+  expect(r.body.postId).toBeUndefined();
   expect(r.body.id).toMatch(/^[a-f0-9]{32}$/);
-  expect(r.body.postId).toMatch(/^[a-f0-9]{24}$/);
   const owner = await Owner.findOne({ email: BASE.email });
   expect(owner).toBeTruthy();
   expect(owner.verified).toBe(false); // règle de Daniel du 27/10 : prouvé seulement par un clic
   expect(owner.adLeadAt).toBeTruthy();
   expect(owner.currency).toBe('EUR');
-  expect(jwt.verify(r.body.token, process.env.JWT_SECRET)).toMatchObject({ id: String(owner._id), role: 'owner' });
-  expect(r.body.user).toMatchObject({ id: String(owner._id), role: 'owner' });
-  const p = await Post.findById(r.body.postId).lean();
-  expect(p).toBeTruthy();
+  expect(await Post.countDocuments({ ownerId: owner._id })).toBe(0); // 3110 : rien publié avant le clic
+  expect(ns.sendNotification.mock.calls.length).toBe(notifBefore); // 0 gardien prévenu
+  const lead = await AdLead.findById(r.body.id).lean();
+  expect(lead.source).toBe('site');
+  expect(lead.campaign).toBe('paris_owners');
+  expect(lead.metaLeadId.startsWith('site:')).toBe(true);
+  expect(lead.pendingConfirm).toBe(true);
+  expect(lead.confirmEmailAt).toBeTruthy();
+  expect(lead.siteEmailAt).toBeTruthy();
+  // e-mail : une fois, au bon destinataire, au « tu », lien de confirmation (sans mot de passe)
+  expect(MAILS.filter((m) => m.to === BASE.email)).toHaveLength(1);
+  const m = MAILS[0];
+  expect(m.subject).toBe('Camille, un clic pour publier ta demande');
+  expect(m.text).toContain(`/posts/confirmer?l=${r.body.id}&utm_source=site`);
+  expect(m.text).toContain('72 h');
+  expect(m.text).not.toMatch(/\bvous\b/i);
+  // Le clic : e-mail vérifié, demande publiée avec les dates du formulaire, session
+  const c = await confirm(r.body.id);
+  expect(c.postId).toMatch(/^[a-f0-9]{24}$/);
+  expect(jwt.verify(c.token, process.env.JWT_SECRET)).toMatchObject({ id: String(owner._id), role: 'owner' });
+  expect((await Owner.findById(owner._id)).verified).toBe(true);
+  const p = await Post.findById(c.postId).lean();
   expect(String(p.ownerId)).toBe(String(owner._id));
   expect(p.status).toBe('open');
   expect(p.serviceTypes).toEqual(['house_sitting']);
   expect(p.location && p.location.city).toBe('Zone test');
   expect(new Date(p.startDate).toISOString().slice(0, 10)).toBe('2026-11-20');
   expect(new Date(p.endDate).toISOString().slice(0, 10)).toBe('2026-11-23');
-  const lead = await AdLead.findById(r.body.id).lean();
-  expect(lead.source).toBe('site');
-  expect(lead.campaign).toBe('paris_owners');
-  expect(lead.metaLeadId.startsWith('site:')).toBe(true);
-  expect(lead.siteEmailAt).toBeTruthy();
-  // e-mail : une fois, au bon destinataire, au « tu », lien d'ouverture de session (sans mot de passe)
   expect(MAILS.filter((m) => m.to === BASE.email)).toHaveLength(1);
-  const m = MAILS[0];
-  expect(m.subject).toContain('Camille, ta demande est en ligne');
-  expect(m.text).toContain(`/posts/confirmer?l=${r.body.id}&next=%2Fposts&utm_source=site`);
-  expect(m.text).toContain('72 h');
-  expect(m.text).not.toMatch(/\bvous\b/i);
 });
 
-test('doublon e-mail : même demande, même propriétaire, pas de 2e compte ni de 2e e-mail', async () => {
+test('doublon e-mail (contact déjà publié) : même demande, même propriétaire, pas de 2e compte ni de 2e e-mail', async () => {
   const first = await AdLead.findOne({ email: BASE.email }).lean();
   const r = await post({ ...BASE, firstName: 'Camille bis' }).expect(200);
   expect(r.body.existing).toBe(true);
@@ -141,58 +157,65 @@ test('+test / staff refusés (403), rien créé', async () => {
 
 test('limiteur par e-mail : au-delà de 3 envois en 10 min → 429', async () => {
   const email = 'limite.site3110@example.test';
-  // 1er = création (201), 2e et 3e = doublon (200), 4e = 429
-  expect((await post({ ...BASE, email })).status).toBe(201);
-  expect((await post({ ...BASE, email })).status).toBe(200);
-  expect((await post({ ...BASE, email })).status).toBe(200);
+  // 1er = brouillon (202), 2e et 3e = même brouillon en attente (202, pas de 2e e-mail), 4e = 429
+  expect((await post({ ...BASE, email })).status).toBe(202);
+  const r2 = await post({ ...BASE, email }); expect(r2.status).toBe(202); expect(r2.body.existing).toBe(true);
+  expect((await post({ ...BASE, email })).status).toBe(202);
+  expect(MAILS.filter((m) => m.to === email)).toHaveLength(1);
+  expect(await Owner.countDocuments({ email })).toBe(1);
   const r = await post({ ...BASE, email });
   expect(r.status).toBe(429);
   expect(r.body.code).toBe('TOO_MANY');
 });
 
 test('sans dates → demande « dates à prévoir » ; promenade / visites → bons services ; EN New York → anglais', async () => {
-  const a = await post({ ...BASE, email: 'tbd.site3110@example.test', startDate: '', endDate: '', service: 'promenade' }).expect(201);
+  const a0 = await post({ ...BASE, email: 'tbd.site3110@example.test', startDate: '', endDate: '', service: 'promenade' }).expect(202);
+  const a = { body: await confirm(a0.body.id) };
   const pa = await Post.findById(a.body.postId).lean();
   expect(pa.dateMode).toBe('tbd');
   expect(pa.serviceTypes).toEqual(['dog_walking']);
-  const b = await post({ ...BASE, email: 'ny.site3110@example.test', service: 'visites', visitsPerDay: 2, country: 'US', lang: 'en', city: 'Zone test', campaign: 'nyc_owners', page: '/pet-sitting/new-york' }).expect(201);
+  const b0 = await post({ ...BASE, email: 'ny.site3110@example.test', service: 'visites', visitsPerDay: 2, country: 'US', lang: 'en', city: 'Zone test', campaign: 'nyc_owners', page: '/pet-sitting/new-york' }).expect(202);
+  const b = { body: await confirm(b0.body.id) };
   const pb = await Post.findById(b.body.postId).lean();
   expect(pb.serviceTypes).toEqual(['home_visit']);
   expect(pb.visitsPerDay).toBe(2);
   const ob = await Owner.findOne({ email: 'ny.site3110@example.test' }).lean();
   expect(ob.currency).toBe('USD');
   const m = MAILS.find((x) => x.to === 'ny.site3110@example.test');
-  expect(m.subject).toContain('your request is live');
-  expect(m.text).toContain('See my request');
+  expect(m.subject).toBe('Camille, one click to publish your request');
+  expect(m.text).toContain('Confirm and publish');
 });
 
 test('« Réserver <prénom> » : prestataire ciblé → la demande le porte (prévenu en premier) ; cible inconnue ignorée', async () => {
   const Sitter = require('../src/models/Sitter');
   const sitter = await Sitter.create({ name: 'Zoé Test', email: 'zoe.cible3110@example.test', password: 'Hopetsit2026!', city: 'Zone test', country: 'FR', currency: 'EUR', verified: true, location: { lat: -35.01, lng: -30.01 }, acceptedTerms: true });
-  const r = await post({ ...BASE, email: 'cible.site3110@example.test', targetProvider: { role: 'sitter', id: String(sitter._id) } }).expect(201);
+  const r0 = await post({ ...BASE, email: 'cible.site3110@example.test', targetProvider: { role: 'sitter', id: String(sitter._id) } }).expect(202);
+  const r = { body: { ...r0.body, ...(await confirm(r0.body.id)) } };
   const p = await Post.findById(r.body.postId).lean();
   expect(p.targetProvider && String(p.targetProvider.id)).toBe(String(sitter._id));
   expect(p.targetProvider.role).toBe('sitter');
   const lead = await AdLead.findById(r.body.id).lean();
   expect(lead.targetRole).toBe('sitter');
-  const r2 = await post({ ...BASE, email: 'cible2.site3110@example.test', targetProvider: { role: 'sitter', id: 'ffffffffffffffffffffffff' } }).expect(201);
+  const r20 = await post({ ...BASE, email: 'cible2.site3110@example.test', targetProvider: { role: 'sitter', id: 'ffffffffffffffffffffffff' } }).expect(202);
+  const r2 = { body: await confirm(r20.body.id) };
   const p2 = await Post.findById(r2.body.postId).lean();
   expect(p2.targetProvider == null || !p2.targetProvider.id).toBe(true);
 });
 
 test('position choisie sur la carte : utilisée telle quelle (prioritaire sur le code postal)', async () => {
-  const r = await post({ ...BASE, email: 'carte.site3110@example.test', city: 'Zone test', postalCode: '75011', lat: -35.02, lng: -30.03 }).expect(201);
+  const r = await post({ ...BASE, email: 'carte.site3110@example.test', city: 'Zone test', postalCode: '75011', lat: -35.02, lng: -30.03 }).expect(202);
   const lead = await AdLead.findById(r.body.id).lean();
   expect(lead.lat).toBeCloseTo(-35.02, 3);
   expect(lead.lng).toBeCloseTo(-30.03, 3);
   expect(lead.positionSource).toBe('map');
-  const p = await Post.findById(r.body.postId).lean();
+  const c = await confirm(r.body.id);
+  const p = await Post.findById(c.postId).lean();
   expect(p.location.lat).toBeCloseTo(-35.02, 3);
   expect(p.location.city).toBe('Zone test');
 });
 
 test('position absente : repli code postal (sans réseau → centre de la ville du pays), source « postal » ou « anchor »', async () => {
-  const r = await post({ ...BASE, email: 'sanspos.site3110@example.test', city: '', lat: undefined, lng: undefined, postalCode: '75011' }).expect(201);
+  const r = await post({ ...BASE, email: 'sanspos.site3110@example.test', city: '', lat: undefined, lng: undefined, postalCode: '75011' }).expect(202);
   const lead = await AdLead.findById(r.body.id).lean();
   expect(['postal', 'anchor']).toContain(lead.positionSource);
   expect(lead.lat).toBeCloseTo(48.8566, 2);
@@ -243,21 +266,22 @@ test('SÉCURITÉ (BOB 31/10) : e-mail d’un compte EXISTANT → brouillon, RIEN
 
 test('alias « + » : a+1@ et a+2@ = même boîte pour le limiteur (3 puis 429) et le dédoublonnage ; +test toujours refusé', async () => {
   const base = 'alias.site3110@example.test';
-  expect((await post({ ...BASE, email: 'alias.site3110+un@example.test' })).status).toBe(201);
+  const r1 = await post({ ...BASE, email: 'alias.site3110+un@example.test' }); expect(r1.status).toBe(202);
   const first = await AdLead.findOne({ email: 'alias.site3110+un@example.test' }).lean();
-  // 2e alias de la même boîte → même demande (dédoublonnage canonique), pas de 2e compte
+  // 2e alias de la même boîte → même BROUILLON en attente (dédoublonnage canonique), pas de 2e compte ni e-mail
   const r2 = await post({ ...BASE, email: 'alias.site3110+deux@example.test' });
-  expect(r2.status).toBe(200);
+  expect(r2.status).toBe(202);
   expect(r2.body.existing).toBe(true);
-  expect(r2.body.postId).toBe(String(first.postId));
-  expect((await post({ ...BASE, email: base })).status).toBe(200);
+  expect(r2.body.id).toBe(String(first._id));
+  expect((await post({ ...BASE, email: base })).status).toBe(202);
+  expect(MAILS.filter((m) => /^alias\.site3110/.test(m.to))).toHaveLength(1);
   const r4 = await post({ ...BASE, email: 'alias.site3110+trois@example.test' });
   expect(r4.status).toBe(429);
   expect((await post({ ...BASE, email: 'quelquun+test@example.test' })).status).toBe(403);
 });
 
 test('position : code postal sans réseau → repli centre de la ville du pays (jamais sans position)', async () => {
-  const r = await post({ ...BASE, email: 'cp.site3110@example.test', city: '', lat: undefined, lng: undefined, postalCode: '75011' }).expect(201);
+  const r = await post({ ...BASE, email: 'cp.site3110@example.test', city: '', lat: undefined, lng: undefined, postalCode: '75011' }).expect(202);
   const lead = await AdLead.findById(r.body.id).lean();
   expect(lead.postalCode).toBe('75011');
   expect(lead.city).toBe('Paris');

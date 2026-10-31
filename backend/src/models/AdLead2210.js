@@ -49,6 +49,11 @@ const adLeadSchema = new mongoose.Schema(
     positionSource: { type: String, default: '' }, // 31/10 — map | postal | city | anchor
     pendingConfirm: { type: Boolean, default: false }, // 31/10 (BOB) — compte existant : publié seulement au clic de l'e-mail
     siteEmailAt: { type: Date }, // e-mail « ta demande est en ligne » envoyé (une fois)
+    // 3110 (ADA, ordre de Daniel 31/10 : « au moins l'e-mail vérifié ») — contact NEUF gardé en BROUILLON :
+    // compte non vérifié + e-mail « confirme ta demande » (confirmEmailAt), UN rappel à +24 h (confirmReminderAt),
+    // publication seulement au clic (/ad-leads/:id/confirm).
+    confirmEmailAt: { type: Date },
+    confirmReminderAt: { type: Date },
     // 31/10 (LEO) — « Réserver <prénom> » depuis un profil public / une épingle : le prestataire ciblé est
     // prévenu en premier (createPost → targetProvider, utils/targetProvider2809).
     targetRole: { type: String, enum: ['sitter', 'walker', null], default: null },

@@ -107,13 +107,8 @@ router.post('/site', async (req, res) => {
     if (!emailAllowed(canonical)) return res.status(429).json({ error: 'TOO_MANY', code: 'TOO_MANY' });
 
     const lieu = b.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner';
-    const { publishLead } = require('./adLeads2210');
     const Post = require('../models/Post');
-    const { signAuthToken } = require('../controllers/authController');
-    const session = (owner) => ({
-      token: signAuthToken({ id: owner._id.toString(), role: 'owner' }),
-      user: { id: owner._id.toString(), name: owner.name, email: owner.email, role: 'owner' },
-    });
+    // 3110 — plus aucun jeton de session renvoyé par cette route : la session s'ouvre par le lien de l'e-mail.
 
     // Dédoublonnage par e-mail CANONIQUE : un contact déjà publié dont la demande est encore ouverte → la même.
     const [cLocal, cDomain] = canonical.split('@');
@@ -127,6 +122,11 @@ router.post('/site', async (req, res) => {
       // s'ouvre que par le lien reçu dans la boîte (/posts/confirmer?l=…) ou par la connexion normale.
       if (owner) return res.status(200).json({ id: prev._id, postId: String(prev.postId), existing: true, session: 'email' });
     }
+
+    // 3110 (ADA, ordre de Daniel) — un brouillon encore en attente de confirmation pour la même boîte (< 24 h) :
+    // même brouillon, pas de 2e compte, pas de 2e e-mail (le rappel +24 h s'en charge).
+    const pendingDraft = await AdLead.findOne({ ...sameBox, pendingConfirm: true, postId: null, createdAt: { $gte: new Date(Date.now() - 24 * 3600 * 1000) } }).sort({ createdAt: -1 }).lean();
+    if (pendingDraft) return res.status(202).json({ id: pendingDraft._id, pending: true, existing: true, session: 'email' });
 
     // Position (demande de Daniel, 31/10 : « sélectionnée par carte pour être précis ») :
     //   1. lat/lng choisis sur la carte par le propriétaire, s'ils sont plausibles (plages valides, pas 0/0) ;
@@ -169,20 +169,10 @@ router.post('/site', async (req, res) => {
         ...([1, 2].includes(Number(b.visitsPerDay)) ? { visitsPerDay: Number(b.visitsPerDay) } : {}),
         ...(() => { const tp = b.targetProvider && typeof b.targetProvider === 'object' ? b.targetProvider : null; const role = tp && String(tp.role || '').toLowerCase(); const id = tp && String(tp.id || ''); return role && ['sitter', 'walker'].includes(role) && /^[a-f0-9]{24}$/i.test(id) ? { targetRole: role, targetId: id } : {}; })(),
       });
+      // 3110 (ADA) — texte « Quelqu'un vient de préparer… » (LEO) servi par le helper commun de adLeads2210.
       try {
-        const { BASE_URL } = require('../utils/emailLinkBuilder');
-        const { sendEmail } = require('../services/emailService');
-        const link = `${BASE_URL}/posts/confirmer?l=${draft._id}&utm_source=site&utm_medium=email&utm_campaign=${encodeURIComponent(campaign)}`;
-        const p = draft.firstName || '';
-        const fr = lang === 'fr';
-        const subject = fr ? `${p ? `${p}, confirme` : 'Confirme'} ta demande pour la publier` : `${p ? `${p}, confirm` : 'Confirm'} your request to publish it`;
-        const text = fr
-          ? `${p ? `Bonjour ${p},` : 'Bonjour,'}\n\nQuelqu'un vient de préparer une demande de garde avec ton adresse e-mail sur hopetsit.com. Si c'est toi, clique pour la publier : les gardiens près de chez toi seront prévenus et tu recevras leurs prix par e-mail.\n\nPublier ma demande : ${link}\n\nSi ce n'est pas toi, ignore cet e-mail : rien ne sera publié.\n\nHoPetSit`
-          : `${p ? `Hi ${p},` : 'Hi,'}\n\nSomeone just prepared a pet-sitting request with your email address on hopetsit.com. If it was you, click to publish it: sitters near you will be notified and you'll get their prices by email.\n\nPublish my request: ${link}\n\nIf it wasn't you, ignore this email: nothing will be published.\n\nHoPetSit`;
-        const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const parts = text.split('\n\n');
-        const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#231715;line-height:1.5"><p>${esc(parts[0])}</p><p>${esc(parts[1])}</p><p style="text-align:center;margin:24px 0"><a href="${link}" style="display:inline-block;background:#C92A12;color:#fff;text-decoration:none;font-weight:800;padding:14px 26px;border-radius:999px">${fr ? 'Publier ma demande' : 'Publish my request'}</a></p><p style="font-size:13px;color:#6E4F48">${esc(parts[3])}</p></div>`;
-        await sendEmail(email, subject, text, html);
+        const { sendConfirmEmail } = require('./adLeads2210');
+        await sendConfirmEmail(draft, 'existing');
         draft.siteEmailAt = new Date();
         await draft.save();
       } catch (e) {
@@ -214,38 +204,14 @@ router.post('/site', async (req, res) => {
       ...(() => { const tp = b.targetProvider && typeof b.targetProvider === 'object' ? b.targetProvider : null; const role = tp && String(tp.role || '').toLowerCase(); const id = tp && String(tp.id || ''); return role && ['sitter', 'walker'].includes(role) && /^[a-f0-9]{24}$/i.test(id) ? { targetRole: role, targetId: id } : {}; })(),
     });
 
-    // Compte déjà existant pour cet e-mail (inscrit dans l'app, ou contact précédent) → la demande est
-    // publiée sur son compte et l'e-mail « en ligne » part, mais la réponse ne porte AUCUN jeton (ZOE 31/10).
-    const existedBefore = !!(await Owner.exists({ email }));
-    const r = await publishLead(lead, lieu);
-    if (r.status !== 200) return res.status(r.status).json(r.body);
-
-    // E-mail « ta demande est en ligne » — UNE fois par contact, lien qui ouvre la session sans mot de passe.
-    if (!lead.siteEmailAt) {
-      try {
-        const { BASE_URL } = require('../utils/emailLinkBuilder');
-        const { sendEmail } = require('../services/emailService');
-        const link = `${BASE_URL}/posts/confirmer?l=${lead._id}&next=%2Fposts&utm_source=site&utm_medium=email&utm_campaign=${encodeURIComponent(campaign)}`;
-        const p = lead.firstName || '';
-        const n = Number(r.notified);
-        const fr = lang === 'fr';
-        const subject = fr ? `${p ? `${p}, ta` : 'Ta'} demande est en ligne — les gardiens sont prévenus` : `${p ? `${p}, your` : 'Your'} request is live — sitters have been notified`;
-        const who = fr
-          ? (Number.isFinite(n) && n > 0 ? `${n} gardien${n > 1 ? 's' : ''} et promeneur${n > 1 ? 's' : ''} près de chez toi ${n > 1 ? 'sont prévenus' : 'est prévenu'}.` : 'Les gardiens et promeneurs près de chez toi sont prévenus.')
-          : (Number.isFinite(n) && n > 0 ? `${n} sitter${n > 1 ? 's' : ''} and walker${n > 1 ? 's' : ''} near you ${n > 1 ? 'have' : 'has'} been notified.` : 'Sitters and walkers near you have been notified.');
-        const text = fr
-          ? `${p ? `Bonjour ${p},` : 'Bonjour,'}\n\nTa demande est en ligne sur HoPetSit. ${who}\n\nTu recevras chaque candidature, avec son prix, par e-mail. Tu choisis, tu paies par carte : annulation gratuite jusqu'à 72 h avant, l'argent n'est versé au gardien qu'une fois la garde terminée.\n\nVoir ma demande : ${link}\n\nPas de mot de passe à créer : ce lien ouvre ton espace.\n\nHoPetSit`
-          : `${p ? `Hi ${p},` : 'Hi,'}\n\nYour request is live on HoPetSit. ${who}\n\nYou'll get every application, with its price, by email. You choose, you pay by card: free cancellation up to 72 h before, the sitter is only paid once the stay is over.\n\nSee my request: ${link}\n\nNo password to create: this link opens your space.\n\nHoPetSit`;
-        const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#231715;line-height:1.5"><p>${esc(text.split('\n\n')[0])}</p><p>${esc(text.split('\n\n')[1])}</p><p>${esc(text.split('\n\n')[2])}</p><p style="text-align:center;margin:24px 0"><a href="${link}" style="display:inline-block;background:#C92A12;color:#fff;text-decoration:none;font-weight:800;padding:14px 26px;border-radius:999px">${fr ? 'Voir ma demande' : 'See my request'}</a></p><p style="font-size:13px;color:#6E4F48">${esc(text.split('\n\n')[4])}</p></div>`;
-        await sendEmail(email, subject, text, html);
-        lead.siteEmailAt = new Date();
-        await lead.save();
-      } catch (e) {
-        logger.warn(`[adLeadsSite3110] e-mail « en ligne » non envoyé : ${e && e.message}`);
-      }
-    }
-    return res.status(201).json({ id: lead._id, postId: r.postId, existing: false, ...(r.notified === undefined || r.notified === null ? {} : { notified: r.notified }), ...(existedBefore ? { session: 'email' } : session(r.owner)) });
+    // 3110 (ADA, ORDRE DE DANIEL 31/10 : « au moins l'e-mail vérifié, pour de vraies demandes suivies ») —
+    // NOUVEAU compte : plus de publication immédiate. Compte propriétaire NON vérifié + brouillon + e-mail
+    // « un clic pour publier ta demande » ; le clic (/ad-leads/:id/confirm) vérifie l'e-mail, publie et
+    // prévient les gardiens. Réponse 202 { pending } : le site affiche « vérifie ta boîte mail ».
+    const { draftLead } = require('./adLeads2210');
+    const d = await draftLead(lead, { variant: 'new' });
+    if (d.emailSent) { lead.siteEmailAt = new Date(); await lead.save(); }
+    return res.status(202).json({ id: lead._id, pending: true, existing: false, session: 'email' });
   } catch (e) {
     logger.error('[adLeadsSite3110] failed', e);
     return res.status(500).json({ error: 'Unable to publish.' });

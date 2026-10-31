@@ -20,6 +20,7 @@ const idOf = (v) => (v && typeof v === 'object' && v._id ? String(v._id) : (v ? 
 /** Pur. `info` = { exists, hidden, status } de la demande (undefined = introuvable). */
 function isApplicationVisible(app, info) {
   if (!app) return false;
+  if (app.archivedAt) return false;
   if (!idOf(app.postId)) return true;
   if (!info || !info.exists) return false;
   if (info.hidden === true) return false;
@@ -45,4 +46,47 @@ async function filterVisibleApplications(apps, PostModel) {
   return list.filter((a) => isApplicationVisible(a, info.get(idOf(a.postId))));
 }
 
-module.exports = { isApplicationVisible, postInfoByIds, filterVisibleApplications, idOf };
+/**
+ * 3110 (ordre de Daniel 31/10 : « enlève-les ») — ARCHIVE (archivedAt, jamais de suppression) les candidatures
+ * dont la demande n'existe plus ou est masquée. `dryRun` = compte sans écrire. Retourne { examined, archived,
+ * reasons: { postMissing, postHidden }, byStatus }.
+ */
+async function archiveOrphanApplications({ dryRun = true, ApplicationModel, PostModel } = {}) {
+  const Application = ApplicationModel || require('../models/Application');
+  const apps = await Application.find({ archivedAt: null, postId: { $ne: null } }).select('postId status').lean();
+  const info = await postInfoByIds(apps.map((a) => a.postId), PostModel);
+  const out = { dryRun, examined: apps.length, archived: 0, reasons: { postMissing: 0, postHidden: 0 }, byStatus: { pending: 0, accepted: 0, rejected: 0 } };
+  const toArchive = [];
+  for (const a of apps) {
+    const i = info.get(idOf(a.postId));
+    if (i && i.exists && i.hidden !== true) continue;
+    const reason = !i || !i.exists ? 'post_missing' : 'post_hidden';
+    out.reasons[reason === 'post_missing' ? 'postMissing' : 'postHidden'] += 1;
+    out.byStatus[a.status || 'pending'] = (out.byStatus[a.status || 'pending'] || 0) + 1;
+    toArchive.push({ id: a._id, reason });
+  }
+  if (!dryRun && toArchive.length) {
+    const now = new Date();
+    for (const reason of ['post_missing', 'post_hidden']) {
+      const ids = toArchive.filter((t) => t.reason === reason).map((t) => t.id);
+      if (!ids.length) continue;
+      // eslint-disable-next-line no-await-in-loop
+      const r = await Application.updateMany({ _id: { $in: ids }, archivedAt: null }, { $set: { archivedAt: now, archivedReason: reason } });
+      out.archived += r.modifiedCount || 0;
+    }
+  } else {
+    out.archived = dryRun ? 0 : 0;
+  }
+  out.toArchive = toArchive.length;
+  return out;
+}
+
+/** 3110 — à l'effacement d'une demande : ses candidatures sont archivées (plus jamais de nouvelles orphelines). */
+async function archiveApplicationsOfPost(postId, reason = 'post_deleted', ApplicationModel) {
+  const Application = ApplicationModel || require('../models/Application');
+  if (!idOf(postId)) return 0;
+  const r = await Application.updateMany({ postId, archivedAt: null }, { $set: { archivedAt: new Date(), archivedReason: reason } });
+  return r.modifiedCount || 0;
+}
+
+module.exports = { isApplicationVisible, postInfoByIds, filterVisibleApplications, idOf, archiveOrphanApplications, archiveApplicationsOfPost };

@@ -16,7 +16,8 @@ const express = require('express');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const logger = require('../utils/logger');
 const { isInternalEmail } = require('../utils/userCounts');
-const { isApplicationVisible, postInfoByIds, idOf } = require('../utils/applicationsVisible3110');
+const { isApplicationVisible, postInfoByIds, idOf, archiveOrphanApplications } = require('../utils/applicationsVisible3110');
+const { auditAdmin } = require('../middleware/auditAdmin');
 
 const router = express.Router();
 const requireAdmin = [requireAuth, requireRole('admin')];
@@ -38,7 +39,8 @@ router.get('/orphans', requireAdmin, async (req, res) => {
   try {
     const Application = require('../models/Application');
     const Owner = require('../models/Owner'); const Sitter = require('../models/Sitter'); const Walker = require('../models/Walker');
-    const apps = await Application.find({}).select('postId ownerId sitterId walkerId status createdAt').lean();
+    const archived = await Application.countDocuments({ archivedAt: { $ne: null } });
+    const apps = await Application.find({ archivedAt: null }).select('postId ownerId sitterId walkerId status createdAt').lean();
     const info = await postInfoByIds(apps.map((a) => a.postId));
 
     const count = () => ({ pending: 0, accepted: 0, rejected: 0 });
@@ -77,6 +79,7 @@ router.get('/orphans', requireAdmin, async (req, res) => {
       .map((a) => ({ id: String(a._id), postId: idOf(a.postId), status: a.status, ageDays: a.createdAt ? Math.round((now - new Date(a.createdAt).getTime()) / DAY) : null }));
 
     res.json({
+      archived, // 3110 — déjà archivées (archivedAt) : hors de tout (app, compteurs, ci-dessous)
       total: apps.length,
       byStatus,
       visible: apps.length - hiddenApps.length,
@@ -92,6 +95,21 @@ router.get('/orphans', requireAdmin, async (req, res) => {
   } catch (e) {
     logger.error('[admin/applications-3110] orphans', e);
     res.status(500).json({ error: 'Impossible de compter les candidatures orphelines.' });
+  }
+});
+
+// POST /admin/applications-3110/archive-orphans { dryRun: true|false } — 3110 (ordre de Daniel 31/10
+// « enlève-les ») : ARCHIVE (archivedAt) les candidatures dont la demande est supprimée ou masquée.
+// Simulation par défaut ; rien n'est supprimé ; le nombre archivé est journalisé.
+router.post('/archive-orphans', requireAdmin, auditAdmin, async (req, res) => {
+  try {
+    const dryRun = !(req.body && req.body.dryRun === false);
+    const out = await archiveOrphanApplications({ dryRun });
+    logger.info(`[admin/applications-3110] archive-orphans dryRun=${dryRun} examinées=${out.examined} à archiver=${out.toArchive} archivées=${out.archived} (${JSON.stringify(out.reasons)}) admin=${req.user && req.user.id}`);
+    return res.json({ ...out, generatedAt: new Date().toISOString() });
+  } catch (e) {
+    logger.error('[admin/applications-3110] archive-orphans', e);
+    return res.status(500).json({ error: 'Archivage impossible.' });
   }
 });
 

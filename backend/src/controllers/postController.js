@@ -1749,11 +1749,21 @@ const deletePost = async (req, res) => {
       return res.status(403).json({ error: 'You can only delete your own posts.' });
     }
 
+    // 3110 (ADA, ordre de Daniel 31/10) — les candidatures de la demande sont ARCHIVÉES avant l'effacement
+    // (archivedAt, jamais supprimées) : plus de « Nouvelle candidature » fantôme ni de compteur faux.
+    let archivedApplications = 0;
+    try {
+      archivedApplications = await require('../utils/applicationsVisible3110').archiveApplicationsOfPost(post._id, 'post_deleted');
+      if (archivedApplications) logger.info(`[deletePost] ${archivedApplications} candidature(s) archivée(s) pour la demande ${id}`);
+    } catch (e) {
+      logger.warn(`[deletePost] archivage des candidatures impossible (${e && e.message}) — suppression quand même`);
+    }
     await Post.findByIdAndDelete(id);
 
     return res.json({
       message: 'Post deleted successfully.',
       postId: id,
+      archivedApplications,
     });
   } catch (error) {
     logger.error('Delete post error', error);
