@@ -63,7 +63,7 @@ export default function CityDistricts3110({ slug, lang, name }: { slug: string; 
             </h3>
             {/* Comptes OSM affichés seulement quand ils sont représentatifs (≥ 10 vétérinaires recensés) :
                 à Séoul et Tokyo, OSM recense mal les commerces (Naver/Kakao, Google y dominent) — un « 2 » serait trompeur. */}
-            {d.counts.vet >= 10 && <p className="mt-2 text-sm leading-relaxed text-ink-muted">{t.counts(d.counts)}</p>}
+            {slug === "new-york" && d.counts.vet >= 10 && <p className="mt-2 text-sm leading-relaxed text-ink-muted">{t.counts(d.counts)}</p>}
             {d.hoods.length > 0 && <p className="mt-2 text-sm leading-relaxed text-ink-muted"><b className="text-ink">{t.hoods}</b> {d.hoods.join(", ")}</p>}
             {d.dogparks.length > 0 && <p className="mt-2 text-sm leading-relaxed text-ink-muted"><b className="text-ink">{t.dogparks}</b> {d.dogparks.join(", ")}</p>}
             {d.parks.length > 0 && <p className="mt-2 text-sm leading-relaxed text-ink-muted"><b className="text-ink">{t.parks}</b> {d.parks.join(", ")}</p>}
