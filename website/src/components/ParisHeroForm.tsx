@@ -43,6 +43,7 @@ const TXT = {
     done_link: "Voir ma demande", done_mail: "Un e-mail te permet de revenir ici sans mot de passe.",
     pending_title: "Encore un clic : vérifie ta boîte mail",
     pending_body: "Tu as déjà un compte HoPetSit avec cette adresse. Pour publier ta demande et prévenir les gardiens, clique sur le bouton de l'e-mail que tu viens de recevoir.",
+    pending_body_new: "On vient de t'envoyer un e-mail. Clique sur « Confirmer et publier » : ton adresse est vérifiée, ta demande est publiée et les gardiens près de chez toi sont prévenus.",
     pending_note: "Rien n'est publié tant que tu n'as pas cliqué. Pas d'e-mail ? Regarde les indésirables, ou connecte-toi avec ton mot de passe.",
     done_by_email: "Cette adresse a déjà un compte HoPetSit. Pour ouvrir ta demande, clique sur le lien de l'e-mail « ta demande est en ligne » (il ouvre ton espace sans mot de passe), ou connecte-toi.",
     done_login: "Me connecter",
@@ -62,6 +63,7 @@ const TXT = {
     done_link: "See my request", done_mail: "An email lets you come back here without a password.",
     pending_title: "One more click: check your inbox",
     pending_body: "You already have a HoPetSit account with this address. To publish your request and notify sitters, click the button in the email you just received.",
+    pending_body_new: "We just sent you an email. Click “Confirm and publish”: your address is verified, your request goes live and sitters near you are notified.",
     pending_note: "Nothing is published until you click. No email? Check your spam folder, or sign in with your password.",
     done_by_email: "This address already has a HoPetSit account. To open your request, click the link in the “your request is live” email (it opens your space without a password), or sign in.",
     done_login: "Sign in",
@@ -168,7 +170,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
     return (
       <div ref={doneRef} className="mt-3 scroll-mt-24 rounded-3xl bg-white p-5 text-center md:mx-auto md:max-w-md" style={{ boxShadow: "0 0 0 2px #C92A12, 0 14px 30px -18px rgba(35,23,21,.5)" }} data-testid="hero-pending" data-hero-pending-3110="">
         <p className="text-[22px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }}>✉ {t.pending_title}</p>
-        <p className="mt-2 text-[15px] font-semibold leading-snug text-ink">{t.pending_body}</p>
+        <p className="mt-2 text-[15px] font-semibold leading-snug text-ink">{done.existing ? t.pending_body : t.pending_body_new}</p>
         <p className="mt-3 text-[13px] leading-snug" style={{ color: "#6E4F48" }}>{t.pending_note}</p>
       </div>
     );
