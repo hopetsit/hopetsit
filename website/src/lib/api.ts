@@ -226,7 +226,7 @@ export async function publishSiteLead(input: SiteLeadInput) {
   // 31/10 16 h 40 (ZOE) — le serveur ne renvoie un jeton QUE pour un compte créé par cet appel ; un compte
   // déjà existant (ou un contact déjà publié) répond { session: "email" } : la session s'ouvre par le lien
   // de l'e-mail ou par la connexion normale, jamais sur la seule saisie d'une adresse e-mail.
-  const data = await request<{ id: string; postId: string | null; token?: string; user?: AuthUser; notified?: number; existing: boolean; session?: "email" }>(
+  const data = await request<{ id: string; postId: string | null; token?: string; user?: AuthUser; notified?: number; existing: boolean; session?: "email"; pending?: boolean }>(
     "/ad-leads/site",
     { method: "POST", body: JSON.stringify(input) },
   );

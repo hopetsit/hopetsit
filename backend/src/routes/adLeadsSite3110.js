@@ -35,6 +35,12 @@ const CITY_ANCHORS = {
   FR: { city: 'Paris', lat: 48.8566, lng: 2.3522, lang: 'fr' },
   US: { city: 'New York', lat: 40.7128, lng: -74.006, lang: 'en' },
 };
+/** a.b+alias@gmail.com → a.b@gmail.com (même boîte) ; sert au limiteur et au dédoublonnage, jamais au compte. */
+function canonicalEmail(email) {
+  const [local, domain] = String(email || '').toLowerCase().split('@');
+  if (!domain) return String(email || '').toLowerCase();
+  return `${local.split('+')[0]}@${domain}`;
+}
 const PER_EMAIL_MAX = 3;
 const PER_EMAIL_WINDOW_MS = 10 * 60 * 1000;
 const recent = new Map(); // e-mail → [timestamps]
@@ -88,6 +94,9 @@ router.post('/site', async (req, res) => {
     const email = String(b.email || '').trim().toLowerCase();
     if (!EMAIL_RE.test(email) || email.length > 120) return res.status(400).json({ error: 'EMAIL_INVALID', code: 'EMAIL_INVALID' });
     if (TEST_RE.test(email)) return res.status(403).json({ error: 'TEST_ACCOUNT', code: 'TEST_ACCOUNT' });
+    // 31/10 (BOB, point 1) — e-mail CANONIQUE : alias « +xxx » retiré (a+1@ = a+2@ = a@) pour le limiteur et le
+    // dédoublonnage ; le +test reste refusé au-dessus. Le compte, lui, garde l'adresse telle quelle.
+    const canonical = canonicalEmail(email);
     const service = AdLead.SERVICES.includes(b.service) ? b.service : '';
     if (!service) return res.status(400).json({ error: 'SERVICE_REQUIRED', code: 'SERVICE_REQUIRED' });
     const country = String(b.country || 'FR').trim().toUpperCase().slice(0, 2);
@@ -95,7 +104,7 @@ router.post('/site', async (req, res) => {
     const postalCode = String(b.postalCode || '').trim().slice(0, 12);
     const cityIn = String(b.city || '').trim().slice(0, 80);
     if (!postalCode && !cityIn) return res.status(400).json({ error: 'PLACE_REQUIRED', code: 'PLACE_REQUIRED' });
-    if (!emailAllowed(email)) return res.status(429).json({ error: 'TOO_MANY', code: 'TOO_MANY' });
+    if (!emailAllowed(canonical)) return res.status(429).json({ error: 'TOO_MANY', code: 'TOO_MANY' });
 
     const lieu = b.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner';
     const { publishLead } = require('./adLeads2210');
@@ -106,8 +115,10 @@ router.post('/site', async (req, res) => {
       user: { id: owner._id.toString(), name: owner.name, email: owner.email, role: 'owner' },
     });
 
-    // Dédoublonnage par e-mail : un contact déjà publié dont la demande est encore ouverte → la même.
-    const prev = await AdLead.findOne({ email, postId: { $ne: null } }).sort({ createdAt: -1 });
+    // Dédoublonnage par e-mail CANONIQUE : un contact déjà publié dont la demande est encore ouverte → la même.
+    const [cLocal, cDomain] = canonical.split('@');
+    const sameBox = { email: new RegExp(`^${cLocal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\+[^@]*)?@${cDomain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
+    const prev = await AdLead.findOne({ ...sameBox, postId: { $ne: null } }).sort({ createdAt: -1 });
     if (prev && prev.ownerId) {
       const post = await Post.findById(prev.postId).select('status').lean();
       const owner = post && post.status !== 'closed' ? await Owner.findById(prev.ownerId) : null;
@@ -140,6 +151,46 @@ router.post('/site', async (req, res) => {
     if (!place || !place.city) return res.status(400).json({ error: 'PLACE_REQUIRED', code: 'PLACE_REQUIRED' });
 
     const campaign = String(b.campaign || '').trim().slice(0, 40) || (country === 'US' ? 'nyc_owners' : 'paris_owners');
+    // 31/10 (BOB, point 1 — SÉCURITÉ) — COMPTE DÉJÀ EXISTANT : un inconnu qui connaît l'adresse ne doit pas pouvoir
+    // publier une demande au nom de ce compte ni faire prévenir les gardiens. La demande est donc gardée en
+    // BROUILLON (contact enregistré, rien publié, aucun gardien prévenu) et un e-mail « confirme ta demande » part
+    // vers la boîte : le clic (/posts/confirmer?l=…, route /ad-leads/:id/confirm) publie ET ouvre la session.
+    const existingOwner = await Owner.findOne({ email }).select('_id name').lean();
+    if (existingOwner) {
+      const draft = await AdLead.create({
+        metaLeadId: `site:${crypto.randomBytes(12).toString('hex')}`,
+        source: 'site', campaign, page: String(b.page || '').trim().slice(0, 120), postalCode,
+        positionSource: picked ? 'map' : geo ? 'postal' : cityIn ? 'city' : 'anchor',
+        pendingConfirm: true,
+        email, firstName: String(b.firstName || '').trim().slice(0, 60) || String(existingOwner.name || '').split(' ')[0] || '',
+        city: place.city, ...(Number.isFinite(place.lat) && Number.isFinite(place.lng) ? { lat: place.lat, lng: place.lng } : {}),
+        country, lang, service, animal: AdLead.ANIMALS.includes(b.animal) ? b.animal : 'autre', quand: 'plus_tard',
+        startText: textDate(b.startDate, lang), endText: textDate(b.endDate || b.startDate, lang),
+        ...([1, 2].includes(Number(b.visitsPerDay)) ? { visitsPerDay: Number(b.visitsPerDay) } : {}),
+        ...(() => { const tp = b.targetProvider && typeof b.targetProvider === 'object' ? b.targetProvider : null; const role = tp && String(tp.role || '').toLowerCase(); const id = tp && String(tp.id || ''); return role && ['sitter', 'walker'].includes(role) && /^[a-f0-9]{24}$/i.test(id) ? { targetRole: role, targetId: id } : {}; })(),
+      });
+      try {
+        const { BASE_URL } = require('../utils/emailLinkBuilder');
+        const { sendEmail } = require('../services/emailService');
+        const link = `${BASE_URL}/posts/confirmer?l=${draft._id}&utm_source=site&utm_medium=email&utm_campaign=${encodeURIComponent(campaign)}`;
+        const p = draft.firstName || '';
+        const fr = lang === 'fr';
+        const subject = fr ? `${p ? `${p}, confirme` : 'Confirme'} ta demande pour la publier` : `${p ? `${p}, confirm` : 'Confirm'} your request to publish it`;
+        const text = fr
+          ? `${p ? `Bonjour ${p},` : 'Bonjour,'}\n\nQuelqu'un vient de préparer une demande de garde avec ton adresse e-mail sur hopetsit.com. Si c'est toi, clique pour la publier : les gardiens près de chez toi seront prévenus et tu recevras leurs prix par e-mail.\n\nPublier ma demande : ${link}\n\nSi ce n'est pas toi, ignore cet e-mail : rien ne sera publié.\n\nHoPetSit`
+          : `${p ? `Hi ${p},` : 'Hi,'}\n\nSomeone just prepared a pet-sitting request with your email address on hopetsit.com. If it was you, click to publish it: sitters near you will be notified and you'll get their prices by email.\n\nPublish my request: ${link}\n\nIf it wasn't you, ignore this email: nothing will be published.\n\nHoPetSit`;
+        const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const parts = text.split('\n\n');
+        const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#231715;line-height:1.5"><p>${esc(parts[0])}</p><p>${esc(parts[1])}</p><p style="text-align:center;margin:24px 0"><a href="${link}" style="display:inline-block;background:#C92A12;color:#fff;text-decoration:none;font-weight:800;padding:14px 26px;border-radius:999px">${fr ? 'Publier ma demande' : 'Publish my request'}</a></p><p style="font-size:13px;color:#6E4F48">${esc(parts[3])}</p></div>`;
+        await sendEmail(email, subject, text, html);
+        draft.siteEmailAt = new Date();
+        await draft.save();
+      } catch (e) {
+        logger.warn(`[adLeadsSite3110] e-mail « confirme » non envoyé : ${e && e.message}`);
+      }
+      return res.status(202).json({ id: draft._id, pending: true, existing: false, session: 'email' });
+    }
+
     const lead = await AdLead.create({
       metaLeadId: `site:${crypto.randomBytes(12).toString('hex')}`,
       source: 'site',

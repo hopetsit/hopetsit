@@ -138,7 +138,7 @@ export default function HomePage() {
             {/* 31/10 (LEO, décision BOB) — fr/en : le formulaire 1 étape (ville à saisir, Paris / New York
                 proposées), publié sans compte ; les autres langues gardent la recherche carte. */}
             {(lang === "fr" || lang === "en") && (
-              <div id="publier" className="mx-auto w-full max-w-md scroll-mt-20 text-left lg:mx-0" data-home-form-3110={lang}>
+              <div className="mx-auto w-full max-w-md text-left lg:mx-0" data-home-form-3110={lang}>
                 <ParisHeroForm
                   city={lang === "fr" ? "Paris" : "New York"}
                   cityEditable

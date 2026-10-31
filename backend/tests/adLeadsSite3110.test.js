@@ -29,6 +29,7 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 
 let mongo; let app; let Owner; let Post; let AdLead;
 const ADMIN = { 'x-test-user': String(new mongoose.Types.ObjectId()), 'x-test-role': 'admin' };
+const ZONE = { lat: -35, lng: -30 };
 const BASE = {
   email: 'camille.site3110@example.test', firstName: 'Camille', service: 'garde', animal: 'chien',
   city: 'Zone test', lat: -35, lng: -30, country: 'FR', lang: 'fr', startDate: '2026-11-20', endDate: '2026-11-23',
@@ -99,22 +100,21 @@ test('doublon e-mail : même demande, même propriétaire, pas de 2e compte ni d
   expect(r.body.session).toBe('email');
 });
 
-test('e-mail d\'un compte propriétaire DÉJÀ inscrit (mot de passe, vérifié) → demande publiée sur son compte, e-mail envoyé, mais AUCUN jeton de session', async () => {
+test('e-mail d\'un compte propriétaire DÉJÀ inscrit (mot de passe, vérifié) → BROUILLON (202), rien publié, aucun jeton (règle BOB 31/10)', async () => {
   const email = 'nadia.inscrite3110@example.test';
-  const existing = await Owner.create({ name: 'Nadia', firstName: 'Nadia', lastName: 'R', email, password: 'Motdepasse!2026', city: 'Zone test', country: 'FR', currency: 'EUR', acceptedTerms: true, termsAcceptedAt: new Date(), verified: true });
-  const r = await post({ ...BASE, email, firstName: 'Quelqu\'un' }).expect(201);
-  expect(r.body.existing).toBe(false);
+  await Owner.create({ name: 'Nadia', firstName: 'Nadia', lastName: 'R', email, password: 'Motdepasse!2026', city: 'Zone test', country: 'FR', currency: 'EUR', acceptedTerms: true, termsAcceptedAt: new Date(), verified: true });
+  const before = await Post.countDocuments({});
+  const r = await post({ ...BASE, email, firstName: 'Quelqu\'un' }).expect(202);
+  expect(r.body.pending).toBe(true);
   expect(r.body.token).toBeUndefined();
   expect(r.body.user).toBeUndefined();
-  expect(r.body.session).toBe('email');
+  expect(r.body.postId).toBeUndefined();
+  expect(await Post.countDocuments({})).toBe(before);
   expect(await Owner.countDocuments({ email })).toBe(1);
-  const o = await Owner.findById(existing._id).lean();
-  expect(o.verified).toBe(true);
-  expect(await Post.countDocuments({ ownerId: existing._id })).toBe(1);
-  expect(MAILS.filter((m) => m.to === email)).toHaveLength(1);
-  expect(MAILS.find((m) => m.to === email).text).toContain('/posts/confirmer?l=');
+  const m = MAILS.filter((x) => x.to === email);
+  expect(m).toHaveLength(1);
+  expect(m[0].subject).toMatch(/confirme ta demande/i);
 });
-
 test('champ piège rempli → 400 ROBOT, rien créé', async () => {
   const before = await AdLead.countDocuments({});
   const r = await post({ ...BASE, email: 'robot.site3110@example.test', website: 'http://spam' }).expect(400);
@@ -209,6 +209,51 @@ test('position aberrante → 400 POSITION_INVALID, rien créé', async () => {
     expect(r.body.code).toBe('POSITION_INVALID');
   }
   expect(await AdLead.countDocuments({})).toBe(before);
+});
+
+test('SÉCURITÉ (BOB 31/10) : e-mail d’un compte EXISTANT → brouillon, RIEN publié, 0 gardien prévenu, e-mail « confirme » ; publication au clic', async () => {
+  const ns = require('../src/services/notificationSender');
+  const victim = await Owner.create({ password: 'Hopetsit2026!', city: 'Zone test', country: 'FR', currency: 'EUR', verified: true, location: ZONE, appLocale: 'fr', name: 'Victime Test', email: 'victime.site3110@example.test', acceptedTerms: true });
+  const postsBefore = await Post.countDocuments({});
+  const notifBefore = ns.sendNotification.mock.calls.length;
+  const mailsBefore = MAILS.length;
+  const r = await post({ ...BASE, email: 'VICTIME.site3110@example.test', firstName: 'Inconnu' }).expect(202);
+  expect(r.body.pending).toBe(true);
+  expect(r.body.token).toBeUndefined();
+  expect(r.body.postId).toBeUndefined();
+  expect(await Post.countDocuments({})).toBe(postsBefore);                 // rien publié
+  expect(ns.sendNotification.mock.calls.length).toBe(notifBefore);        // aucun gardien prévenu
+  expect(await Owner.countDocuments({ email: 'victime.site3110@example.test' })).toBe(1); // pas de 2e compte
+  const lead = await AdLead.findById(r.body.id).lean();
+  expect(lead.pendingConfirm).toBe(true);
+  expect(lead.postId == null).toBe(true);
+  const m = MAILS.slice(mailsBefore).filter((x) => x.to === 'victime.site3110@example.test');
+  expect(m).toHaveLength(1);
+  expect(m[0].subject).toMatch(/confirme ta demande/i);
+  expect(m[0].text).toContain(`/posts/confirmer?l=${r.body.id}`);
+  expect(m[0].text).toContain("Si ce n'est pas toi");
+  // Le clic dans la boîte (vrai navigateur) publie et ouvre la session
+  const c = await request(app).post(`/ad-leads/${r.body.id}/confirm`).set({ 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1' }).send({}).expect(200);
+  expect(c.body.postId).toMatch(/^[a-f0-9]{24}$/);
+  expect(jwt.verify(c.body.token, process.env.JWT_SECRET)).toMatchObject({ id: String(victim._id), role: 'owner' });
+  expect(await Post.countDocuments({})).toBe(postsBefore + 1);
+  const p = await Post.findById(c.body.postId).lean();
+  expect(String(p.ownerId)).toBe(String(victim._id));
+});
+
+test('alias « + » : a+1@ et a+2@ = même boîte pour le limiteur (3 puis 429) et le dédoublonnage ; +test toujours refusé', async () => {
+  const base = 'alias.site3110@example.test';
+  expect((await post({ ...BASE, email: 'alias.site3110+un@example.test' })).status).toBe(201);
+  const first = await AdLead.findOne({ email: 'alias.site3110+un@example.test' }).lean();
+  // 2e alias de la même boîte → même demande (dédoublonnage canonique), pas de 2e compte
+  const r2 = await post({ ...BASE, email: 'alias.site3110+deux@example.test' });
+  expect(r2.status).toBe(200);
+  expect(r2.body.existing).toBe(true);
+  expect(r2.body.postId).toBe(String(first.postId));
+  expect((await post({ ...BASE, email: base })).status).toBe(200);
+  const r4 = await post({ ...BASE, email: 'alias.site3110+trois@example.test' });
+  expect(r4.status).toBe(429);
+  expect((await post({ ...BASE, email: 'quelquun+test@example.test' })).status).toBe(403);
 });
 
 test('position : code postal sans réseau → repli centre de la ville du pays (jamais sans position)', async () => {

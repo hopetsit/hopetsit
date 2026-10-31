@@ -47,6 +47,7 @@ const adLeadSchema = new mongoose.Schema(
     page: { type: String, default: '' },
     postalCode: { type: String, default: '' },
     positionSource: { type: String, default: '' }, // 31/10 — map | postal | city | anchor
+    pendingConfirm: { type: Boolean, default: false }, // 31/10 (BOB) — compte existant : publié seulement au clic de l'e-mail
     siteEmailAt: { type: Date }, // e-mail « ta demande est en ligne » envoyé (une fois)
     // 31/10 (LEO) — « Réserver <prénom> » depuis un profil public / une épingle : le prestataire ciblé est
     // prévenu en premier (createPost → targetProvider, utils/targetProvider2809).

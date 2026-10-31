@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "@/components/SiteLink";
+import { useT } from "@/lib/i18n/LanguageProvider";
 import { trackSiteEvent, useCampaignHref } from "@/components/SiteAnalytics";
 
 // v577 — 21/09, correction de l'étape qui fuit le plus.
@@ -34,7 +35,11 @@ export function OwnerSignupCta({
   // des inscrits ne vérifiaient jamais leur e-mail et n'arrivaient jamais
   // jusqu'ici — mesuré le 22/09 : 33 inscriptions, 12 vérifiées, 0 demande.)
   // 05/10 (SAM) : utm_* recopiés, sinon le formulaire perd l'origine « pub ».
-  const href = useCampaignHref(`/posts/create${city ? `?city=${encodeURIComponent(city)}` : ""}`);
+  // 31/10 (LEO, décision BOB point 3) — fr/en : le bouton renvoie au formulaire 1 ÉTAPE de la page (#publier),
+  // le parcours de la pub v8 ; plus /posts/create (2 étapes + compte). Autres langues : inchangées.
+  const legacy = useCampaignHref(`/posts/create${city ? `?city=${encodeURIComponent(city)}` : ""}`);
+  const { lang } = useT();
+  const href = lang === "fr" || lang === "en" ? "#publier" : legacy;
   return (
     <Link
       href={href}

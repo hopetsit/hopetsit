@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "@/components/SiteLink";
+import { useT } from "@/lib/i18n/LanguageProvider";
 import { trackSiteEvent, useCampaignHref } from "@/components/SiteAnalytics";
 
 // 03/10/2026 (SAM) — barre « Publier ma demande » collée en bas de l'écran,
@@ -45,7 +46,11 @@ export function OwnerStickyCta({ label, city, watchId }: { label: string; city?:
 
   // 05/10 (SAM) : utm_* recopiés, sinon le formulaire perd l'origine « pub ».
   const cache = hidden || heroVu;
-  const href = useCampaignHref(`/posts/create${city ? `?city=${encodeURIComponent(city)}` : ""}`);
+  // 31/10 (LEO, décision BOB point 3) — fr/en : la barre renvoie au formulaire 1 ÉTAPE de la page (#publier), le
+  // parcours de la pub v8 ; plus /posts/create (2 étapes + compte). Autres langues : inchangées.
+  const legacy = useCampaignHref(`/posts/create${city ? `?city=${encodeURIComponent(city)}` : ""}`);
+  const { lang } = useT();
+  const href = lang === "fr" || lang === "en" ? "#publier" : legacy;
   return (
     <div
       className={`fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white/95 px-4 pt-3 backdrop-blur transition-transform duration-200 md:hidden ${cache ? "translate-y-full" : "translate-y-0"}`}

@@ -1452,11 +1452,11 @@ export const t: Bundle = {
 
     roles_title:        "Trois façons d'utiliser HoPetSit",
     role_owner_title:   "Propriétaire",
-    role_owner_body:    "Réservez des sitters ou promeneurs de confiance près de vous. Paiement sécurisé. Chat en temps réel. Suivi de chaque réservation.",
+    role_owner_body:    "Réserve des gardiens ou promeneurs de confiance près de chez toi. Paiement sécurisé. Chat en temps réel. Suivi de chaque réservation.",
     role_sitter_title:  "Pet-sitter",
-    role_sitter_body:   "Accueillez les animaux chez vous ou rendez-leur visite. Fixez vos tarifs jour/semaine/mois. Soyez payé via IBAN.",
+    role_sitter_body:   "Accueille les animaux chez toi ou rends-leur visite. Fixe tes tarifs jour/semaine/mois. Sois payé via IBAN.",
     role_walker_title:  "Promeneur",
-    role_walker_body:   "Proposez des balades de 30 min ou 1 h. Construisez votre réputation et gagnez le badge Top Promeneur.",
+    role_walker_body:   "Propose des balades de 30 min ou 1 h. Construis ta réputation et gagne le badge Top Promeneur.",
 
     trust_title:        "Conçu pour la confiance",
     trust_id_title:     "Identité vérifiée",
@@ -1501,12 +1501,12 @@ export const t: Bundle = {
 
     how_title:          "Comment fonctionne HoPetSit",
     how_sub:            "Que vous ayez un animal ou que vous vouliez en garder, le flow est le même : simple, sécurisé, transparent.",
-    how_step1_title:    "Créez votre compte",
-    how_step1_body:     "Choisissez votre rôle (propriétaire, sitter, promeneur), confirmez votre email, ajoutez votre ville. 90 secondes.",
+    how_step1_title:    "Publie ta demande",
+    how_step1_body:     "Service, dates, ville, e-mail : 1 minute, sans compte ni mot de passe. Les gardiens près de chez toi sont prévenus tout de suite.",
     how_step2_title:    "Trouvez ou soyez trouvé",
     how_step2_body:     "Les propriétaires parcourent les prestataires près de chez eux ou publient une demande. Les prestataires voient les nouvelles demandes en temps réel.",
     how_step3_title:    "Réservez et payez",
-    how_step3_body:     "Mettez-vous d'accord sur la date et le prix. Payez par carte en sécurité. Les fonds sont retenus.",
+    how_step3_body:     "Tu choisis ton gardien et tu paies par carte en sécurité. L'argent n'est versé qu'une fois la garde terminée.",
     how_step4_title:    "Prestation & avis",
     how_step4_body:     "Le prestataire s'occupe de l'animal. Après la prestation, le paiement est libéré et chacun laisse un avis.",
 
@@ -1761,7 +1761,7 @@ export const t: Bundle = {
     dash_card_invoices_title: "Mes factures", dash_card_invoices_sub: "Télécharger en PDF",
     common_error_generic: "Une erreur est survenue. Réessaye.",
 
-    dl_title:           "Téléchargez HoPetSit sur votre téléphone",
+    dl_title:           "Télécharge HoPetSit sur ton téléphone",
     open_app_title: "Ouverture de HoPetSit…", open_app_sub: "Si l'application ne s'ouvre pas automatiquement, téléchargez-la.", open_app_download: "Télécharger l'application",
     dl_sub:             "Disponible dès maintenant sur Google Play et l'App Store.",
     dl_apk:             "Télécharger l'APK Android",

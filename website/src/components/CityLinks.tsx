@@ -46,7 +46,7 @@ const T: Record<RecruitLang, T> = {
     around: (n) => `Autour de ${n}`,
     ownerAnchor: (n) => `Garde d'animaux ${n}`,
     recruitAnchor: (n) => `Devenir pet sitter ${n}`,
-    toRecruit: (n) => `Vous aimez les animaux ? Devenez pet sitter à ${n} →`,
+    toRecruit: (n) => `Tu aimes les animaux ? Deviens pet sitter à ${n} →`,
     toOwner: (n) => `Vous êtes propriétaire ? Trouver un pet sitter à ${n} →`,
   },
   en: {

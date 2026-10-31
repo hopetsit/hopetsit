@@ -4,6 +4,7 @@ import { OwnerSignupCta } from "@/components/OwnerSignupCta";
 import { OwnerStickyCta } from "@/components/OwnerStickyCta";
 import { CitySupplyProof } from "@/components/CitySupplyProof";
 import { CityFirstScreen3110 } from "@/components/CityFirstScreen3110";
+import { CitySupplyProofGate3110 } from "@/components/CitySupplyProofGate3110";
 import { FromRateCity2410 } from "@/components/FromRateCity2410";
 import { TrackedLink } from "@/components/TrackedLink";
 import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
@@ -67,47 +68,47 @@ const COPY: Record<RecruitLang, Copy> = {
   fr: {
     kicker: (c) => c.region,
     h1: (c) => `Pet sitter à ${c.name} : garde de chien, chat et promenades`,
-    heroLead: (c) => `Des gardiens et promeneurs près de chez vous à ${c.name}. Vous publiez votre demande, vous choisissez, vous ne payez qu'à la réservation.`,
+    heroLead: (c) => `Des gardiens et promeneurs près de chez toi à ${c.name}. Tu publies ta demande, tu choisis, tu ne paies qu'à la réservation.`,
     proofs: ["Paiement sécurisé", "Chat avant de réserver", "Annulation gratuite 72 h"],
     heroCta: "Publier ma demande",
     heroCtaNote: "Gratuit · sans compte pour commencer · 2 minutes",
     heroAppLink: "Ou télécharger l'app HoPetSit →",
     heroSecondary: "Voir les gardiens près de chez moi →",
     intro: (c) =>
-      `Week-end, vacances, journées de travail à rallonge : à ${c.name}, HoPetSit vous met en relation avec des gardiens et promeneurs près de chez vous. Vous publiez votre demande gratuitement, vous comparez les profils, vous discutez par chat et vous ne payez que si vous réservez.`,
-    servicesTitle: "Les services près de chez vous",
+      `Week-end, vacances, journées de travail à rallonge : à ${c.name}, HoPetSit te met en relation avec des gardiens et promeneurs près de chez toi. Tu publies ta demande gratuitement, tu compares les profils, tu discutes par chat et tu ne paies que si tu réserves.`,
+    servicesTitle: "Les services près de chez toi",
     services: [
-      { icon: "🏠", t: "Garde à domicile", p: "Votre animal reste chez vous, dans ses habitudes. Le gardien vient dormir ou passe plusieurs fois par jour." },
+      { icon: "🏠", t: "Garde à domicile", p: "Ton animal reste chez toi, dans ses habitudes. Le gardien vient dormir ou passe plusieurs fois par jour." },
       { icon: "🐾", t: "Visites pour chats", p: "Nourriture, litière, câlins et une photo à chaque passage : idéal pour les chats qui n'aiment pas bouger." },
-      { icon: "🚶", t: "Promenades de chien", p: "Une sortie en semaine, à l'heure qui vous arrange, suivie en direct sur la carte du départ au retour." },
+      { icon: "🚶", t: "Promenades de chien", p: "Une sortie en semaine, à l'heure qui t'arrange, suivie en direct sur la carte du départ au retour." },
     ],
     whyTitle: "Pourquoi HoPetSit",
     why: [
       { icon: "✓", t: "Profils transparents", p: "Photo, tarifs et avis sur chaque profil. Le badge « Identité vérifiée » signale les gardiens dont l'identité a été contrôlée." },
       { icon: "🔒", t: "Paiement sécurisé", p: "L'argent est bloqué dans l'app et versé au gardien seulement une fois le service terminé." },
-      { icon: "📍", t: "Suivi en direct", p: "PawFollow vous montre la promenade en temps réel. Vous savez où est votre chien, tout le temps." },
-      { icon: "🗺️", t: "PawMap", p: "Les membres autour de vous, les lieux pet-friendly, leurs horaires et l'itinéraire pour y aller." },
+      { icon: "📍", t: "Suivi en direct", p: "PawFollow te montre la promenade en temps réel. Tu sais où est ton chien, tout le temps." },
+      { icon: "🗺️", t: "PawMap", p: "Les membres autour de toi, les lieux pet-friendly, leurs horaires et l'itinéraire pour y aller." },
     ],
     pricesTitle: (c) => `Combien coûte un pet sitter à ${c.name} ?`,
-    prices: (c) => `À ${c.name}, comptez ${c.dayRate} par jour pour une garde et ${c.walkRate} pour une promenade. Chaque gardien fixe ses tarifs : vous les voyez sur son profil avant de réserver, sans surprise.`,
+    prices: (c) => `À ${c.name}, comptez ${c.dayRate} par jour pour une garde et ${c.walkRate} pour une promenade. Chaque gardien fixe ses tarifs : tu les vois sur son profil avant de réserver, sans surprise.`,
     faqTitle: "Questions fréquentes",
     faq: (c) => [
-      { q: `Comment trouver un pet sitter de confiance à ${c.name} ?`, a: `Publiez votre demande dans l'app : les gardiens de ${c.name} vous répondent. Regardez les avis, discutez par chat, et réservez seulement quand vous êtes à l'aise.` },
+      { q: `Comment trouver un pet sitter de confiance à ${c.name} ?`, a: `Publie ta demande : les gardiens de ${c.name} te répondent avec leur prix. Regarde les avis, discute par chat, et réserve seulement quand tu es à l'aise.` },
       { q: "Le paiement est-il vraiment sécurisé ?", a: "Oui. Le montant est bloqué dans l'app à la réservation et versé au gardien après le service. En cas de problème, notre support intervient avant tout versement." },
       { q: "Puis-je suivre la promenade de mon chien ?", a: "Oui, avec PawFollow : le trajet s'affiche en direct sur la carte, du départ au retour, avec la distance et la durée." },
-      { q: "Combien coûte l'inscription ?", a: "Rien. Publier une demande et discuter avec les gardiens est gratuit. Vous payez uniquement la garde que vous réservez." },
+      { q: "Combien coûte l'inscription ?", a: "Rien. Publier une demande et discuter avec les gardiens est gratuit. Tu paies uniquement la garde que tu réserves." },
     ],
-    ctaTitle: (c) => `Trouvez votre gardien à ${c.name}`,
-    ctaText: "Publiez votre demande en deux minutes et recevez les réponses des gardiens près de chez vous.",
+    ctaTitle: (c) => `Trouve ton gardien à ${c.name}`,
+    ctaText: "Publie ta demande en une minute et reçois les réponses des gardiens près de chez toi, avec leur prix.",
     ctaBtn: "Publier ma demande gratuite",
-    recruitLink: (c) => `Vous aimez les animaux ? Devenez pet sitter à ${c.name} →`,
+    recruitLink: (c) => `Tu aimes les animaux ? Deviens pet sitter à ${c.name} →`,
     inLanguage: "fr",
     // 03/10 (GUS) — pages FR en 4e-6e place sur « garde de chien <ville> » (Lille, Avignon…) avec
     // 0 clic : la description était l'intro coupée à 155 caractères, au milieu d'une phrase.
     // Titre qui reprend la requête + le tarif déjà affiché sur la page ; description complète.
     metaTitle: (c) => `Garde de chien et chat à ${c.name} : ${c.dayRate}/jour`,
     metaDescription: (c) =>
-      `Pet sitters à ${c.name} : garde de chien à domicile, visites de chat, promenades. ${c.dayRate} par jour. Demande gratuite, vous payez à la réservation.`,
+      `Pet sitters à ${c.name} : garde de chien à domicile, visites de chat, promenades. ${c.dayRate} par jour. Demande gratuite, tu paies à la réservation.`,
   },
   en: {
     kicker: (c) => c.region,
@@ -546,10 +547,13 @@ export default function OwnerCityPage({
           Les arrondissements interrogent « Paris » : un gardien inscrit à
           Paris dessert le 11e comme le 15e. Le bloc disparaît s'il n'y a
           personne ou si le serveur ne répond pas. */}
-      <CitySupplyProof
-        city={city.name.replace(/\s+\d+\s*(er|e|ème|eme|th|st|nd|rd)?$/i, "").trim() || city.name}
-        lang={city.lang}
-      />
+      {/* 31/10 (LEO, décision BOB point 2) — masqué quand le premier écran dit « Devenir gardien » (même source). */}
+      <CitySupplyProofGate3110>
+        <CitySupplyProof
+          city={city.name.replace(/\s+\d+\s*(er|e|ème|eme|th|st|nd|rd)?$/i, "").trim() || city.name}
+          lang={city.lang}
+        />
+      </CitySupplyProofGate3110>
       {/* 24/10/2026 (LEO, ordre de BOB 23 h 10) — « Combien ça coûte à <ville> ? » : « à partir de
           X €/jour · d'après N gardiens » via la route publique de ZOE, puis « Vos dates ? » →
           estimation. Rien quand personne n'est inscrit autour (le bloc ne s'affiche pas). */}

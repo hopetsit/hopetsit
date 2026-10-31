@@ -1056,12 +1056,12 @@ const GUIDES_FR: Record<string, Guide> = {
       "En appartement sans jardin, la sortie du midi en semaine est souvent la plus dure à assurer : un dog sitter qui habite le même arrondissement peut passer à heure fixe pour la promenade.",
       "Pour un chat, les visites à domicile (cat sitting) évitent le transport et la pension : il garde ses repères. Une ou deux visites par jour selon son caractère.",
       "Pensez aux codes : digicode, interphone, étage, et un double des clés remis en main propre lors de la rencontre, jamais dans une annonce.",
-      "Toussaint, Noël, été : beaucoup de Parisiens partent aux mêmes dates. Publiez votre demande plusieurs semaines avant pour avoir le choix du petsitter.",
+      "Toussaint, Noël, été : beaucoup de Parisiens partent aux mêmes dates. Publie ta demande plusieurs semaines avant pour avoir le choix du petsitter.",
       "Dans le métro, les petits animaux voyagent dans un sac ou un panier ; pour un grand chien, les conditions de la RATP sont plus strictes : un pet sitter du quartier évite le trajet.",
     ],
     faq: {
       owner: [
-        { q: "Pet sitter, petsitter, dog sitter ou cat sitter à Paris : quelle différence ?", a: "Aucune sur HoPetSit : ce sont les mêmes gardiens. Le dog sitting regroupe la garde et la promenade de chien, le cat sitting les visites à domicile pour un chat. Vous précisez le service dans votre demande." },
+        { q: "Pet sitter, petsitter, dog sitter ou cat sitter à Paris : quelle différence ?", a: "Aucune sur HoPetSit : ce sont les mêmes gardiens. Le dog sitting regroupe la garde et la promenade de chien, le cat sitting les visites à domicile pour un chat. Tu précises le service dans ta demande." },
         { q: "Que donner au pet sitter avant une garde à Paris ?", a: "Le digicode, l'étage, un double des clés et la routine de l'animal (repas, sorties, vétérinaire habituel). Remettez les clés lors d'une rencontre avant la garde, après avoir discuté dans l'app." },
         { q: "Où promener son chien à Paris ?", a: "Dans les bois de Boulogne et de Vincennes, le long du canal Saint-Martin, et dans les parcs et jardins qui acceptent les chiens en laisse : le règlement est affiché à chaque entrée." },
       ],

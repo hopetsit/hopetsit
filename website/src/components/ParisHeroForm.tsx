@@ -41,6 +41,9 @@ const TXT = {
     done_notified: (n: number) => (n > 0 ? `${n} gardien${n > 1 ? "s" : ""} et promeneur${n > 1 ? "s" : ""} près de chez toi ${n > 1 ? "sont prévenus" : "est prévenu"}.` : "Les gardiens et promeneurs près de chez toi sont prévenus."),
     done_existing: "Ta demande était déjà en ligne : la voici.",
     done_link: "Voir ma demande", done_mail: "Un e-mail te permet de revenir ici sans mot de passe.",
+    pending_title: "Encore un clic : vérifie ta boîte mail",
+    pending_body: "Tu as déjà un compte HoPetSit avec cette adresse. Pour publier ta demande et prévenir les gardiens, clique sur le bouton de l'e-mail que tu viens de recevoir.",
+    pending_note: "Rien n'est publié tant que tu n'as pas cliqué. Pas d'e-mail ? Regarde les indésirables, ou connecte-toi avec ton mot de passe.",
     done_by_email: "Cette adresse a déjà un compte HoPetSit. Pour ouvrir ta demande, clique sur le lien de l'e-mail « ta demande est en ligne » (il ouvre ton espace sans mot de passe), ou connecte-toi.",
     done_login: "Me connecter",
     target_note: "Ta demande sera envoyée d'abord à ce gardien, puis aux autres près de chez toi.",
@@ -57,6 +60,9 @@ const TXT = {
     done_notified: (n: number) => (n > 0 ? `${n} sitter${n > 1 ? "s" : ""} and walker${n > 1 ? "s" : ""} near you ${n > 1 ? "have" : "has"} been notified.` : "Sitters and walkers near you have been notified."),
     done_existing: "Your request was already live: here it is.",
     done_link: "See my request", done_mail: "An email lets you come back here without a password.",
+    pending_title: "One more click: check your inbox",
+    pending_body: "You already have a HoPetSit account with this address. To publish your request and notify sitters, click the button in the email you just received.",
+    pending_note: "Nothing is published until you click. No email? Check your spam folder, or sign in with your password.",
     done_by_email: "This address already has a HoPetSit account. To open your request, click the link in the “your request is live” email (it opens your space without a password), or sign in.",
     done_login: "Sign in",
     target_note: "Your request goes to this sitter first, then to the others near you.",
@@ -103,7 +109,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState(false);
   const [touched, setTouched] = useState(false);
-  const [done, setDone] = useState<{ notified?: number; existing: boolean; sessionOpened: boolean } | null>(null);
+  const [done, setDone] = useState<{ notified?: number; existing: boolean; sessionOpened: boolean; pending?: boolean } | null>(null);
   // 31/10 16 h 40 (ZOE, mesuré à 375 px) : après « Publier ma demande » (bouton en bas du formulaire), la carte
   // « Ta demande est en ligne » remplaçait un bloc plus haut et finissait HORS ÉCRAN (haut à −280 px) : la personne
   // ne voyait que les badges des stores. On la ramène sous l'en-tête.
@@ -141,8 +147,8 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
         startDate: startDate || undefined, endDate: endDate || startDate || undefined, campaign, page, website,
         ...(target ? { targetProvider: target } : {}),
       });
-      trackSiteEvent("cta_click", { label: r.existing ? "hero_form_deja" : "hero_form_envoye" });
-      setDone({ notified: r.notified, existing: r.existing, sessionOpened: r.sessionOpened });
+      trackSiteEvent("cta_click", { label: r.pending ? "hero_form_a_confirmer" : r.existing ? "hero_form_deja" : "hero_form_envoye" });
+      setDone({ notified: r.notified, existing: r.existing, sessionOpened: r.sessionOpened, pending: !!r.pending });
     } catch (e) {
       const code = e instanceof ApiError && e.details && typeof e.details === "object" ? String((e.details as { code?: string }).code || "") : "";
       trackSiteEvent("cta_click", { label: `hero_form_refus_${(code || (e instanceof ApiError ? e.status : "x")).toString().toLowerCase()}` });
@@ -156,6 +162,17 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   const field = "mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-2.5 text-[15px] text-ink focus:border-owner focus:outline-none";
   const svcId = SERVICES.find((s) => s.id === service)?.svc || "";
 
+  if (done && done.pending) {
+    // 31/10 (BOB, sécurité) — un compte existe déjà avec cet e-mail : la demande est gardée en brouillon et
+    // ne sera publiée (gardiens prévenus) qu'au clic sur le lien reçu dans la boîte.
+    return (
+      <div ref={doneRef} className="mt-3 scroll-mt-24 rounded-3xl bg-white p-5 text-center md:mx-auto md:max-w-md" style={{ boxShadow: "0 0 0 2px #C92A12, 0 14px 30px -18px rgba(35,23,21,.5)" }} data-testid="hero-pending" data-hero-pending-3110="">
+        <p className="text-[22px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }}>✉ {t.pending_title}</p>
+        <p className="mt-2 text-[15px] font-semibold leading-snug text-ink">{t.pending_body}</p>
+        <p className="mt-3 text-[13px] leading-snug" style={{ color: "#6E4F48" }}>{t.pending_note}</p>
+      </div>
+    );
+  }
   if (done) {
     return (
       <div ref={doneRef} className="mt-3 scroll-mt-24 rounded-3xl bg-white p-5 text-center md:mx-auto md:max-w-md" style={{ boxShadow: "0 0 0 2px #15803D, 0 14px 30px -18px rgba(35,23,21,.5)" }} data-testid="hero-done" data-hero-done-3110="">
@@ -184,7 +201,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   }
 
   return (
-    <div className="mt-2 rounded-3xl border border-owner/20 bg-owner-light/60 p-4 md:mx-auto md:max-w-md" data-testid="hero-form" data-hero-form-3110={lang} onClickCapture={touch}>
+    <div id="publier" className="mt-2 scroll-mt-20 rounded-3xl border border-owner/20 bg-owner-light/60 p-4 md:mx-auto md:max-w-md" data-testid="hero-form" data-hero-form-3110={lang} onClickCapture={touch}>
       <p className="text-[15px] font-semibold leading-snug text-ink md:text-base">{lead}</p>
       {target && <p className="mt-1.5 rounded-xl bg-white px-3 py-1.5 text-[12px] font-bold" style={{ color: "#1E4FB0" }} data-hero-target={target.role}>{t.target_note}</p>}
 

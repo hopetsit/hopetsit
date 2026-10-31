@@ -18,6 +18,7 @@ import { ParisHeroForm } from "@/components/ParisHeroForm";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { API_BASE } from "@/lib/api";
 import { OWNER_PATH_PREFIX, RECRUIT_PATH_PREFIX, type RecruitCity } from "@/lib/recruit-cities";
+import { setCityFirstScreenMode } from "@/lib/cityFirstScreenStore3110";
 
 export const CITY_FORM_MIN_SITTERS = 3;
 
@@ -57,9 +58,12 @@ export function CityFirstScreen3110({ city }: { city: RecruitCity }) {
     return () => ctrl.abort();
   }, [city.name]);
   useEffect(() => {
-    if (faces == null) return;
+    if (faces == null) { setCityFirstScreenMode("loading"); return; }
+    setCityFirstScreenMode(faces >= CITY_FORM_MIN_SITTERS ? "form" : "recruit");
     trackSiteEvent("cta_click", { label: faces >= CITY_FORM_MIN_SITTERS ? "ville_ecran_formulaire" : "ville_ecran_gardien" });
   }, [faces]);
+  // Quitter la page : on remet « loading » pour la suivante.
+  useEffect(() => () => setCityFirstScreenMode("loading"), []);
 
   const t = TXT[lang];
   if (faces == null) {
@@ -81,7 +85,7 @@ export function CityFirstScreen3110({ city }: { city: RecruitCity }) {
     );
   }
   return (
-    <div className="mt-3 rounded-3xl border border-sitter/25 p-4 md:mx-auto md:max-w-md" style={{ background: "#E3EFFE" }} data-city-first-3110="recruit" data-city-faces={faces}>
+    <div id="publier" className="mt-3 scroll-mt-20 rounded-3xl border border-sitter/25 p-4 md:mx-auto md:max-w-md" style={{ background: "#E3EFFE" }} data-city-first-3110="recruit" data-city-faces={faces}>
       <p className="text-[17px] font-extrabold leading-snug" style={{ color: "#1E4FB0" }}>{t.few_title(city.name)}</p>
       <p className="mt-1.5 text-[14px] leading-snug text-ink">{t.few_body}</p>
       <Link

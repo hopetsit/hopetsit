@@ -116,10 +116,10 @@ export default function GardeAnimauxParisPage() {
             label="maillage"
             className="text-owner-dark underline-offset-4 hover:underline"
           >
-            🍂 Vacances de la Toussaint : qui garde votre animal ? →
+            🍂 Vacances de la Toussaint : qui garde ton animal ? →
           </TrackedLink>
         </p>
-        <h2 className="mt-8 font-display text-2xl font-extrabold text-ink">Votre arrondissement</h2>
+        <h2 className="mt-8 font-display text-2xl font-extrabold text-ink">Ton arrondissement</h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">
           Chaque arrondissement a sa page : les vétérinaires ouverts le week-end, les animaleries,
           les espaces canins et les gardiens HoPetSit du quartier.

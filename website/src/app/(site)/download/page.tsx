@@ -43,8 +43,8 @@ const PROMESSES: Record<string, Promesse> = {
   paris_app: {
     city: "Paris",
     lang: "fr",
-    title: "Des gardiens près de chez vous à Paris — dans l'app",
-    sub: "App gratuite : publiez votre demande en 1 minute, les gardiens près de chez vous répondent, paiement sécurisé dans l'app.",
+    title: "Des gardiens près de chez toi à Paris — dans l'app",
+    sub: "App gratuite : publie ta demande en 1 minute, les gardiens près de chez toi répondent, paiement sécurisé dans l'app.",
   },
 };
 
