@@ -19,6 +19,10 @@ import { AppIcon } from "@/components/AppIcon";
  *     n'apparaît plus qu'après avoir fait défiler le héro (≈ 420 px) : le
  *     visiteur a lu le titre, le rappel arrive ensuite, sans rien cacher.
  */
+const DL_KEY = "hps_dl_bandeau_ferme_3110";
+// Pages où l'on ne propose pas l'app : tout s'y fait sur le web.
+const NO_APP_PATH = /^\/(posts|application|pay|signup|login|verify-email|p|ad-leads|download)(\/|$)/;
+
 export function DownloadAppBanner() {
   const { t } = useT();
   const [shown, setShown] = useState(false);
@@ -26,6 +30,27 @@ export function DownloadAppBanner() {
   // recouvrait les cartes et « Choisir » ; on n'y propose pas l'app (on y paie sur le web).
   const pathname = usePathname() || "";
   const noFloat = /^\/(posts|application|pay)(\/|$)/.test(pathname);
+
+  // Bande bureau : décidée après le montage (mémoire du navigateur + présence du formulaire dans la page).
+  const [showBar, setShowBar] = useState(false);
+  useEffect(() => {
+    let closed = false;
+    try {
+      const at = Number(window.localStorage.getItem(DL_KEY) || 0);
+      closed = at > 0 && Date.now() - at < 30 * 24 * 3600 * 1000;
+    } catch { /* stockage bloqué : on affiche */ }
+    const noApp = NO_APP_PATH.test(pathname);
+    // Le formulaire 1 étape (accueil fr/en, Paris, New York, villes, « Réserver <prénom> ») : le parcours se fait sur le site.
+    const hasForm = () => !!document.querySelector("[data-hero-form-3110],[data-hero-done-3110],[data-hero-pending-3110]");
+    setShowBar(!closed && !noApp && !hasForm());
+    // Le formulaire peut arriver un peu après (chargement de la page) : on revérifie une fois.
+    const id = window.setTimeout(() => { if (hasForm()) setShowBar(false); }, 600);
+    return () => window.clearTimeout(id);
+  }, [pathname]);
+  function dismiss() {
+    setShowBar(false);
+    try { window.localStorage.setItem(DL_KEY, String(Date.now())); } catch { /* sans mémoire : fermé pour cette page */ }
+  }
 
   useEffect(() => {
     const onScroll = () => setShown(window.scrollY > 420);
@@ -36,21 +61,31 @@ export function DownloadAppBanner() {
 
   return (
     <>
-      {/* Desktop : barre fine en flux, sous le Header. */}
-      <div className="hidden w-full items-center justify-center gap-4 border-b border-ink/5 bg-ink px-4 py-2 text-white md:flex">
-        <span className="inline-flex items-center gap-2 text-sm font-medium"><AppIcon name="download" size={16} color="#fff" /> {t("dl_banner_title")}</span>
-        <Link
-          href="/download"
-          // v581 — Daniel : « sur le site, le Télécharger l'app, il y a du
-          // gris ». Du blanc à 15 % posé sur l'encre sombre redonne un gris
-          // (même piège que les interrupteurs de l'app). Le bouton prend donc
-          // la couleur PLEINE de la marque, comme les autres appels à
-          // l'action du site.
-          className="rounded-full bg-owner px-4 py-1.5 text-sm font-semibold text-white shadow-cta transition hover:bg-owner-dark max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center"
-        >
-          {t("nav_download")}
-        </Link>
-      </div>
+      {/* Bureau : 31/10 soir (LEO, passe 14 — Daniel : « plus joli, qu'on comprenne bien »). L'ancienne barre noire avec un
+          bouton orange plein concurrençait « Publier ma demande ». Maintenant : fine bande crème (36 px), texte au « tu »,
+          simple lien, fermable (mémorisé 30 jours dans ce navigateur), et absente des pages où tout se fait sans l'app
+          (candidats, paiement, demandes, inscription/connexion, et toute page qui porte le formulaire 1 étape). */}
+      {showBar && (
+        <div className="hidden w-full border-b border-[#F6D9CC] bg-[#FFF3EC] md:block" data-dl-bandeau-3110="">
+          <div className="relative mx-auto flex h-9 max-w-7xl items-center justify-center gap-3 px-12 text-[13px]">
+            <span className="inline-flex items-center gap-2 whitespace-nowrap font-semibold text-ink">
+              <AppIcon name="download" size={15} color="#9E1F0B" /> {t("dl_banner_title")}
+            </span>
+            <span aria-hidden="true" className="text-[#C9A79C]">·</span>
+            <Link href="/download" className="whitespace-nowrap font-bold text-owner-dark underline-offset-4 hover:underline">
+              {t("nav_download")} →
+            </Link>
+            <button
+              type="button"
+              onClick={dismiss}
+              aria-label={t("common_close") || "Close"}
+              className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#6E4F48] transition hover:bg-[#FBE3D8] hover:text-ink"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Mobile : bouton flottant en bas à droite, après le héro (jamais sur les candidats / le paiement). */}
       {!noFloat && <Link

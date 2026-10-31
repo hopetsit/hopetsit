@@ -2,7 +2,7 @@
 
 import Link from "@/components/SiteLink";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LogoWithText } from "./Logo";
 import { LangSwitcher } from "./LangSwitcher";
 import { useT } from "@/lib/i18n/LanguageProvider";
@@ -15,6 +15,12 @@ const PUBLISH: Partial<Record<string, { label: string; short: string; become: st
   fr: { label: "Publier ma demande", short: "Publier", become: "Devenir gardien", href: "/garde-animaux/paris" },
   en: { label: "Post my request", short: "Post", become: "Become a sitter", href: "/pet-sitting/new-york" },
 };
+
+// 31/10 soir (LEO, passe 14 — Daniel : « faire ça plus joli, qu'on comprenne bien ») — en-tête bureau sur UNE ligne :
+// logo · 4 liens au centre (+ « Plus » : PawPoints, Contact) · langue · Se connecter · Devenir gardien (contour) ·
+// Publier ma demande (seul bouton plein). Sous 1240 px : logo · langue · bouton principal · menu (rien ne se coupe).
+const MORE: Record<string, string> = { fr: "Plus", en: "More", es: "Más", de: "Mehr", it: "Altro", pt: "Mais", ko: "더보기", ja: "その他", pl: "Więcej" };
+const NAV_TXT = "text-[#6E4F48]"; // brun chaud plein (contraste 7,5:1 sur blanc) — jamais une encre à opacité réduite (= gris)
 
 export function Header() {
   const { t, lang } = useT();
@@ -35,6 +41,23 @@ export function Header() {
     { href: "/faq",          label: t("nav_faq") },
     { href: "/contact",      label: t("nav_contact") },
   ];
+  const mainLinks = links.filter((l) => l.href !== "/pawpoints-guide" && l.href !== "/contact");
+  const moreLinks = links.filter((l) => l.href === "/pawpoints-guide" || l.href === "/contact");
+  const isCurrent = (l: { href: string; also?: string[] }) =>
+    pathname === l.href || !!pathname?.startsWith(l.href + "/") || !!l.also?.includes(pathname || "");
+
+  // Menu « Plus » (bureau) : fermé au clic extérieur, à Échap et au changement de page.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (e: PointerEvent) => { if (!moreRef.current?.contains(e.target as Node)) setMoreOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMoreOpen(false); };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("pointerdown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [moreOpen]);
+  useEffect(() => { setMoreOpen(false); setOpen(false); }, [pathname]);
 
   function onLogout() {
     clearAuth();
@@ -61,31 +84,62 @@ export function Header() {
           logo. Mesure : nav 359 px + logo 103 px + boutons 274 px = 736 px pour
           736 px utiles. La version compacte (logo + langue + S'inscrire +
           menu) court donc maintenant jusqu'a 1024 px. */}
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex min-h-[44px] items-center" aria-label="HoPetSit">
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 min-[1240px]:h-16 min-[1240px]:gap-8 min-[1240px]:px-5">
+        <Link href="/" className="flex min-h-[44px] shrink-0 items-center" aria-label="HoPetSit">
           <LogoWithText />
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex">
-          {/* v562 — Daniel : page courante en orange pâle (pas de gris foncé). */}
-          {links.map((l) => {
-            const current = pathname === l.href || pathname?.startsWith(l.href + "/") || !!("also" in l && l.also?.includes(pathname || ""));
+        {/* Bureau (≥ 1240 px) : 4 liens au centre + « Plus ». Page courante en orange pâle (v562). */}
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 min-[1240px]:flex" data-entete-3110="nav">
+          {mainLinks.map((l) => {
+            const current = isCurrent(l);
             return (
               <Link
                 key={l.href}
                 href={l.href}
                 aria-current={current ? "page" : undefined}
-                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition ${
-                  current ? "bg-owner-light text-owner-dark" : "text-[#231715]/70 hover:bg-[#FAF1EC] hover:text-[#231715]"
+                className={`whitespace-nowrap rounded-full px-3 py-2 text-[14px] font-semibold transition ${
+                  current ? "bg-owner-light text-owner-dark" : `${NAV_TXT} hover:bg-[#FAF1EC] hover:text-ink`
                 }`}
               >
                 {l.label}
               </Link>
             );
           })}
+          <div ref={moreRef} className="relative">
+            <button
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((v) => !v)}
+              className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-2 text-[14px] font-semibold transition ${
+                moreOpen || moreLinks.some(isCurrent) ? "bg-owner-light text-owner-dark" : `${NAV_TXT} hover:bg-[#FAF1EC] hover:text-ink`
+              }`}
+            >
+              {MORE[lang] || MORE.en}
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" className={`transition-transform ${moreOpen ? "rotate-180" : ""}`}>
+                <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {moreOpen && (
+              <div role="menu" className="absolute left-1/2 top-full z-50 mt-2 w-52 -translate-x-1/2 overflow-hidden rounded-2xl border border-[#F1DED6] bg-white p-1.5 shadow-card">
+                {moreLinks.map((l) => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    role="menuitem"
+                    onClick={() => setMoreOpen(false)}
+                    className={`block whitespace-nowrap rounded-xl px-3 py-2.5 text-[14px] font-semibold ${isCurrent(l) ? "bg-owner-light text-owner-dark" : "text-ink hover:bg-[#FAF1EC]"}`}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2 min-[1240px]:ml-0 min-[1240px]:gap-3" data-entete-3110="actions">
           {/* v458 — Daniel : retirer le bouton « Ouvrir la PawMap » de la
               barre du haut pour l'instant (il reste dans le footer + les pages). */}
           <LangSwitcher />
@@ -101,7 +155,7 @@ export function Header() {
                   pleine couleur du rôle + ombre, au lieu d'une fine bordure. */}
               <Link
                 href="/dashboard"
-                className={`hidden items-center gap-2 rounded-full ${roleColor} px-4 py-2 text-sm font-semibold text-white shadow-cta transition hover:opacity-90 lg:inline-flex`}
+                className={`hidden items-center gap-2 whitespace-nowrap rounded-full ${roleColor} px-4 py-2 text-sm font-semibold text-white shadow-cta transition hover:opacity-90 min-[1240px]:inline-flex`}
                 title={user.email}
               >
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/25 text-xs font-bold text-white">
@@ -114,44 +168,43 @@ export function Header() {
               <button
                 type="button"
                 onClick={onLogout}
-                className="hidden rounded-full px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink lg:inline-block"
+                className={`hidden whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold ${NAV_TXT} hover:text-ink min-[1240px]:inline-block`}
               >
                 {t("dash_logout")}
               </button>
             </>
           ) : (
             <>
+              {/* Lien discret. */}
               <Link
                 href="/login"
-                className="hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-[#231715]/80 hover:text-[#231715] lg:inline-block"
+                className={`hidden whitespace-nowrap px-1.5 py-2 text-[14px] font-semibold ${NAV_TXT} transition hover:text-owner-dark min-[1240px]:inline-block`}
               >
                 {t("nav_login")}
               </Link>
-              {/* 31/10 (LEO, décision BOB, étape 3) — le bouton principal du menu = « Publier ma demande »
-                  (propriétaires d'abord : 37/39 n'ont pas l'app, 0 paiement) ; « Devenir gardien » reste en
-                  lien secondaire (menu). fr/en seulement ; les autres langues gardent « S'inscrire ». */}
+              {/* 31/10 16 h 40 (ZOE, mesuré en ligne) : « Devenir gardien / Become a sitter » → /signup (inscription classique).
+                  Passe 14 : bouton SECONDAIRE à contour, pour que « Publier ma demande » reste le seul bouton plein. */}
               {PUBLISH[lang] && (
                 <Link
-                  /* 31/10 16 h 40 (ZOE, mesuré en ligne) : ce lien « Devenir gardien / Become a sitter » (bureau) pointait
-                     vers la page PROPRIÉTAIRES Paris / New York ; le menu téléphone, lui, va bien à /signup. */
                   href="/signup"
-                  className="relative hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-[#231715]/80 hover:text-[#231715] lg:inline-block"
+                  className="hidden whitespace-nowrap rounded-full border-2 border-owner bg-white px-4 py-[7px] text-[14px] font-bold text-owner-dark transition hover:bg-owner-light min-[1240px]:inline-block"
+                  data-entete-3110="gardien"
                 >
                   {PUBLISH[lang]!.become}
                 </Link>
               )}
+              {/* 31/10 (LEO, décision BOB, étape 3) — bouton principal = « Publier ma demande » (propriétaires d'abord) ;
+                  fr/en seulement, les autres langues gardent « S'inscrire ». */}
               <Link
                 href={PUBLISH[lang] ? PUBLISH[lang]!.href : "/signup"}
-                /* v585 — pouce (Bob, 25/09) : la pastille mesurait 32 px de haut.
-                   Zone de toucher portée à 44 px par un calque invisible,
-                   pastille visuellement inchangée. */
-                className="relative rounded-full bg-owner px-4 py-1.5 text-[13px] font-semibold text-white transition after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] hover:bg-owner-dark"
+                /* v585 — pouce : zone de toucher portée à 44 px par un calque invisible. */
+                className="relative whitespace-nowrap rounded-full bg-owner px-4 py-1.5 text-[13px] font-semibold text-white shadow-cta transition after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] hover:bg-owner-dark min-[1240px]:px-5 min-[1240px]:py-[9px] min-[1240px]:text-[14px] min-[1240px]:font-bold"
                 data-nav-publish-3110={PUBLISH[lang] ? "1" : undefined}
               >
                 {PUBLISH[lang] ? (
                   <>
                     <span className="sm:hidden">{PUBLISH[lang]!.short}</span>
-                    <span className="hidden whitespace-nowrap sm:inline">{PUBLISH[lang]!.label}</span>
+                    <span className="hidden sm:inline">{PUBLISH[lang]!.label}</span>
                   </>
                 ) : t("nav_signup")}
               </Link>
@@ -160,12 +213,11 @@ export function Header() {
 
           <button
             type="button"
-            /* v583 — pouce (Bob, 22/09) : le bouton du menu mesurait
-               34 x 34 px, sous le minimum de 44 px. C'est LA navigation sur
-               telephone. Carre de 44 px, icone inchangee. lg:hidden : le
-               bureau n'est pas concerne. */
-            className="ml-1 flex h-11 w-11 items-center justify-center rounded-xl lg:hidden"
+            /* v583 — pouce : carré de 44 px. Passe 14 : le menu court jusqu'à 1240 px (avant 1024) pour que
+               rien ne se coupe entre 1024 et 1240 px. */
+            className="ml-1 flex h-11 w-11 items-center justify-center rounded-xl text-ink min-[1240px]:hidden"
             aria-label="Toggle menu"
+            aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -178,11 +230,11 @@ export function Header() {
       </div>
 
       {open && (
-        <nav className="border-t border-ink/5 bg-white px-4 py-2 lg:hidden">
+        <nav className="border-t border-[#F1DED6] bg-white px-4 py-2 min-[1240px]:hidden">
           {/* v458 — bouton « Ouvrir la PawMap » retiré du menu (barre du haut)
               pour l'instant. */}
           {links.map((l) => {
-            const current = pathname === l.href || pathname?.startsWith(l.href + "/") || !!("also" in l && l.also?.includes(pathname || ""));
+            const current = isCurrent(l);
             return (
               <Link
                 key={l.href}
@@ -219,14 +271,14 @@ export function Header() {
           ) : (
             <>
               {PUBLISH[lang] && (
-                <Link href="/signup" onClick={() => setOpen(false)} className="block px-2 py-3 text-sm font-medium text-ink">
+                <Link href="/signup" onClick={() => setOpen(false)} className="block px-3 py-3 text-sm font-medium text-ink">
                   {PUBLISH[lang]!.become}
                 </Link>
               )}
               <Link
                 href="/login"
                 onClick={() => setOpen(false)}
-                className="block px-2 py-3 text-sm font-medium text-ink"
+                className="block px-3 py-3 text-sm font-medium text-ink"
               >
                 {t("nav_login")}
               </Link>

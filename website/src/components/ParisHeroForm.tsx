@@ -205,8 +205,11 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   // 31/10 (Daniel) — « juste derrière le formulaire, le fond d'écran soit lisse » : carte 100 % opaque (crème #FFF7F3,
   // plus aucune patte qui transparaît), marge lisse unie de 20 px (28 px dès md) qui masque le motif autour, halo doux
   // qui fond dans le dégradé, puis ombre portée. Le dégradé + pattes reste sur le reste du héros.
+  // 31/10 soir (Daniel, via BOB) — « un cadre noir autour du formulaire » : 2 px #1C1917 posé en PREMIÈRE ombre (au bord
+  // de la carte, par-dessus la marge crème) ; aucune incidence sur la mise en page, donc rien ne peut déborder. Les états
+  // « vérifie ta boîte mail » / « en ligne » sont d'autres blocs avec leur propre cadre (orange / vert) : jamais deux cadres.
   return (
-    <div id="publier" className="mt-7 scroll-mt-20 rounded-3xl bg-[#FFF7F3] p-4 shadow-[0_0_0_20px_#FFF3EC,0_0_36px_32px_rgba(255,243,236,0.95),0_32px_56px_-24px_rgba(35,23,21,0.32)] md:mx-auto md:mt-10 md:max-w-md md:shadow-[0_0_0_28px_#FFF3EC,0_0_44px_40px_rgba(255,243,236,0.95),0_32px_56px_-24px_rgba(35,23,21,0.32)]" data-hero-card-lisse-3110="" data-testid="hero-form" data-hero-form-3110={lang} onClickCapture={touch}>
+    <div id="publier" className="mt-7 scroll-mt-20 rounded-3xl bg-[#FFF7F3] p-4 shadow-[0_0_0_2px_#1C1917,0_0_0_20px_#FFF3EC,0_0_36px_32px_rgba(255,243,236,0.95),0_32px_56px_-24px_rgba(35,23,21,0.32)] md:mx-auto md:mt-10 md:max-w-md md:shadow-[0_0_0_2px_#1C1917,0_0_0_28px_#FFF3EC,0_0_44px_40px_rgba(255,243,236,0.95),0_32px_56px_-24px_rgba(35,23,21,0.32)]" data-hero-card-lisse-3110="" data-testid="hero-form" data-hero-form-3110={lang} onClickCapture={touch}>
       <p className="text-[15px] font-semibold leading-snug text-ink md:text-base">{lead}</p>
       {target && <p className="mt-1.5 rounded-xl bg-white px-3 py-1.5 text-[12px] font-bold" style={{ color: "#1E4FB0" }} data-hero-target={target.role}>{t.target_note}</p>}
 

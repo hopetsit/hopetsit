@@ -1404,7 +1404,7 @@ export const t: Bundle = {
     nav_dashboard: "Mon espace",
     // v23.1.452 — PawMap CTA + bannière de téléchargement + message marketing.
     cta_open_pawmap: "OUVRIR LA PAW MAP",
-    dl_banner_title: "Téléchargez HoPetSit gratuitement",
+    dl_banner_title: "Télécharge HoPetSit gratuitement",
     dl_float: "Télécharger l'app",
     pawmap_msg_countries: "🐾 Plus de 177 pays couverts",
     pawmap_msg_live: "🐾 Signalements communautaires en direct",
