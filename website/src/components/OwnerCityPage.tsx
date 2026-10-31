@@ -3,6 +3,7 @@ import { GetAppButton } from "@/components/GetAppButton";
 import { OwnerSignupCta } from "@/components/OwnerSignupCta";
 import { OwnerStickyCta } from "@/components/OwnerStickyCta";
 import { CitySupplyProof } from "@/components/CitySupplyProof";
+import { CityFirstScreen3110 } from "@/components/CityFirstScreen3110";
 import { FromRateCity2410 } from "@/components/FromRateCity2410";
 import { TrackedLink } from "@/components/TrackedLink";
 import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
@@ -537,7 +538,9 @@ export default function OwnerCityPage({
           dont ~90 px de barre collée) → 0 choix de quartier sur 35 visiteurs
           de la pub en 24 h. Les autres villes gardent leur bouton plus bas.
           Retour arrière : supprimer cette ligne. */}
-      {heroCta}
+      {/* 31/10 (LEO, décision 3 de BOB) — villes fr/en sans premier écran imposé : formulaire 1 étape si
+          ≥ 3 gardiens réels avec photo autour (données), sinon « Devenir gardien » (CityFirstScreen3110). */}
+      {heroCta ?? ((city.lang === "fr" || city.lang === "en") ? <CityFirstScreen3110 city={city} /> : null)}
 
       {/* 22/09/2026 — preuve que l'offre existe vraiment (compte en direct).
           Les arrondissements interrogent « Paris » : un gardien inscrit à
