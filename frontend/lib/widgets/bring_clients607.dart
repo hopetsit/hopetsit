@@ -8,6 +8,8 @@
 //    affiche A4 avec QR. Aucun envoi automatique.
 //  · PioneerFicheBadge607 : pastille « Pionnier » sur la fiche publique.
 import 'package:flutter/material.dart';
+import 'package:hopetsit/views/shared/widgets/home_hero3110.dart';
+import 'package:hopetsit/views/shared/widgets/provider_home3110.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
@@ -103,66 +105,22 @@ class _BringClientsHomeCard607State extends State<BringClientsHomeCard607> {
       title = 'neo607_card_title'.tr;
       body = 'neo607_card_body'.tr;
     }
+    // PAM-B 3110 — rendu « Ramène tes clients » des maquettes du 31/10 (tuile
+    // 42, titre 15.5, 2 pills 42 px) ; mêmes actions, mêmes ValueKey.
+    final HomeTokens3110 t = link.role == 'walker' ? HomeTokens3110.walker : HomeTokens3110.sitter;
     return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 4),
-      child: Container(
+      padding: const EdgeInsets.only(top: 10, bottom: 0),
+      child: KeyedSubtree(
         key: ValueKey<String>(pioneer ? 'neo607_home_pioneer' : 'neo607_home_card'),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.2),
-          boxShadow: <BoxShadow>[
-            BoxShadow(color: accent.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            if (pioneer) ...<Widget>[
-              PioneerBadge607(accent: accent),
-              const SizedBox(height: 10),
-            ],
-            PoppinsText(
-              text: title,
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-            ),
-            const SizedBox(height: 6),
-            InterText(
-              text: body,
-              fontSize: 13.5,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary(context),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: _PillButton607(
-                    key: const ValueKey<String>('neo607_home_share'),
-                    label: 'neo607_share'.tr,
-                    icon: Icons.ios_share_rounded,
-                    accent: accent,
-                    filled: true,
-                    onTap: () => shareLink607(link),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _PillButton607(
-                    key: const ValueKey<String>('neo607_home_more'),
-                    label: 'neo607_home_more_btn'.tr,
-                    icon: Icons.qr_code_2_rounded,
-                    accent: accent,
-                    filled: false,
-                    onTap: () => MyLinkSheet607.show(context, link),
-                  ),
-                ),
-              ],
-            ),
-          ],
+        child: BringClientsCard3110(
+          tokens: t,
+          title: title,
+          body: pioneer ? body : 'pamb3110_bring_body'.tr,
+          shareLabel: 'neo607_share'.tr,
+          qrLabel: 'neo607_home_more_btn'.tr,
+          onShare: () => shareLink607(link),
+          onQr: () => MyLinkSheet607.show(context, link),
+          badge: pioneer ? PioneerBadge607(accent: accent) : null,
         ),
       ),
     );

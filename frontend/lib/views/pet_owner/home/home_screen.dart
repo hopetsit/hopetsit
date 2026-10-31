@@ -1,8 +1,7 @@
 import 'dart:io';
 
-import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
-import 'package:hopetsit/widgets/role_chip.dart';
+import 'package:flutter/rendering.dart' show SliverConstraints;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -24,6 +23,11 @@ import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/post_date_label.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/owner_home_kit.dart';
+import 'package:hopetsit/views/pet_owner/home/widgets/owner_home3110.dart';
+import 'package:hopetsit/views/shared/widgets/home_hero3110.dart';
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/utils/publish_draft600.dart' show profileCity600;
+import 'package:hopetsit/services/supply_city600.dart' show fetchSupplyTotal600;
 import 'package:hopetsit/views/pet_owner/home/widgets/sitter_card.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/walker_card.dart';
 import 'package:hopetsit/views/pet_owner/posts/edit_post_screen.dart';
@@ -38,9 +42,7 @@ import 'package:hopetsit/views/service_provider/service_provider_detail_screen.d
 import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
-import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
-import 'package:hopetsit/widgets/expandable_post_input.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
@@ -154,6 +156,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _storage.read(StorageKeys.userProfile) as Map<String, dynamic>?;
     _userId = userProfile?['id'] as String?;
 
+    // PAM-B 3110 — ligne « N gardiens … à <ville> » du hero (même source que
+    // l'ancien bandeau neo600 : /supply/city sur la ville du profil).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSupply3110());
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         await _postsController.refreshPosts();
@@ -163,6 +168,59 @@ class _HomeScreenState extends State<HomeScreen> {
         _maybeOpenSittersTabOnce();
       }
     });
+  }
+
+  // PAM-B 3110 — hero propriétaire (maquette « Accueil Owner v3 »).
+  int? _supplyTotal3110;
+  String _city3110 = '';
+
+  void _loadSupply3110() {
+    _city3110 = profileCity600();
+    if (_city3110.isEmpty) return;
+    fetchSupplyTotal600(_city3110).then((int? n) {
+      if (mounted && n != _supplyTotal3110) {
+        setState(() => _supplyTotal3110 = n);
+      }
+    });
+  }
+
+  String _availableText3110() {
+    final int? n = _supplyTotal3110;
+    if (n != null && n > 0 && _city3110.isNotEmpty) {
+      return 'neo600_home_first_sub_count'.tr
+          .replaceAll('{n}', '$n')
+          .replaceAll('{city}', _city3110);
+    }
+    return 'neo600_home_first_sub'.tr;
+  }
+
+  /// Hero : en-tête (avatar, nom, rôle, fusée, cloche) + champ de demande +
+  /// ligne « disponibles ». Mêmes actions qu'avant : fusée → boutique, cloche →
+  /// notifications, champ → « Publier ma demande ». À appeler DANS l'Obx.
+  Widget _buildHero3110(BuildContext context) {
+    final String name = _profileController.userName.value.isNotEmpty
+        ? _profileController.userName.value
+        : 'home_default_user_name'.tr;
+    return HomeHero3110(
+      role: 'owner',
+      name: name,
+      avatarUrl: _profileController.profileImageUrl.value,
+      unreadCount: _notificationsController.unreadCount.value,
+      onRocket: () => Get.to(() => const CoinShopScreen()),
+      onBell: () {
+        Get.to(() => const NotificationsScreen())?.then((_) {
+          _notificationsController.refreshUnreadCount();
+        });
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          HeroRequestField3110(onTap: () => _openPublishRequest()),
+          HeroAvailableLine3110(text: _availableText3110()),
+        ],
+      ),
+    );
   }
 
   /// v571 — une fois les annonces chargées : si le propriétaire n'en a AUCUNE,
@@ -266,10 +324,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Les deux grandes cartes d'action. Version basse dès qu'une annonce existe.
   Widget _buildActionCards(BuildContext context) {
-    return OwnerActionCards(
+    // PAM-B 3110 — cartes « Garde » / « Promenade » des maquettes ; mêmes
+    // actions, même règle « compacte dès qu'une annonce existe ».
+    return ServiceCards3110(
       compact: _myPostsCount() > 0,
-      sittingTitle: 'ownerhome571_action_sitting'.tr,
-      walkingTitle: 'ownerhome571_action_walking'.tr,
+      sittingSubtitle: 'ownerhome571_action_sitting'.tr,
+      walkingSubtitle: 'ownerhome571_action_walking'.tr,
       onSitting: () => _openPublishRequest(serviceType: kServiceSitting),
       onWalking: () => _openPublishRequest(serviceType: kServiceWalking),
     );
@@ -525,104 +585,22 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Actif : pill plein coloré (orange/bleu/vert) + texte blanc ;
   /// inactif : transparent + texte gris.
   Widget _buildTabBar(BuildContext context) {
-    final myCount = _myPostsCount();
-    return Container(
-      height: 52.h,
-      padding: EdgeInsets.all(6.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.divider(context), width: 1),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _tabPill(
-              context,
-              index: 0,
-              icon: Icons.article_rounded,
-              label: '${'my_posts_title'.tr} ($myCount)',
-              activeColor: AppColors.primaryColor,
-            ),
-          ),
-          SizedBox(width: 6.w),
-          Expanded(
-            child: _tabPill(
-              context,
-              index: 1,
-              icon: Icons.pets_rounded,
-              label: 'home_segment_sitters'.tr,
-              activeColor: _kSitterAccent,
-            ),
-          ),
-          SizedBox(width: 6.w),
-          Expanded(
-            child: _tabPill(
-              context,
-              index: 2,
-              icon: Icons.directions_walk_rounded,
-              label: 'home_segment_walkers'.tr,
-              activeColor: _kWalkerAccent,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _tabPill(
-    BuildContext context, {
-    required int index,
-    required IconData icon,
-    required String label,
-    required Color activeColor,
-  }) {
-    final selected = _selectedTabIndex == index;
-    final fg = selected ? AppColors.whiteColor : AppColors.textTertiary(context);
-    return GestureDetector(
-      onTap: () {
+    // PAM-B 3110 — chips des maquettes (« Mes annonces N » noir actif, autres
+    // blancs). Même état `_selectedTabIndex`, même gel de la bascule auto.
+    return FilterChips3110(
+      selectedIndex: _selectedTabIndex,
+      myCount: _myPostsCount(),
+      labels: <String>[
+        'my_posts_title'.tr,
+        'home_segment_sitters'.tr,
+        'home_segment_walkers'.tr,
+      ],
+      onSelected: (int index) {
         // v571 — un choix manuel gèle la bascule automatique vers « Gardiens ».
         _userPickedTab = true;
         if (_selectedTabIndex == index) return;
         setState(() => _selectedTabIndex = index);
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeInOut,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          color: selected ? activeColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(12.r),
-        ),
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.w),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 14.sp, color: fg),
-                SizedBox(width: 3.w),
-                // v561 — Daniel : « Mes annon… » coupé. Le libellé se réduit
-                // pour tenir dans la pilule au lieu d'être tronqué.
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: InterText(
-                      text: label,
-                      textAlign: TextAlign.center,
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w700,
-                      color: fg,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -1222,21 +1200,34 @@ class _HomeScreenState extends State<HomeScreen> {
         // conseil) laissait le nouveau propriétaire deviner quoi faire. On la
         // remplace par une carte d'accueil : les 3 étapes du parcours et UN
         // seul gros bouton qui ouvre la création d'annonce.
-        return SliverPadding(
-          padding: EdgeInsets.fromLTRB(20.w, 4.h, 20.w, 8.h),
-          sliver: SliverToBoxAdapter(
-            child: OwnerFirstPostCard(
-              accent: AppColors.primaryColor,
-              title: 'ownerhome571_first_title'.tr,
-              steps: <String>[
-                'ownerhome571_first_step1'.tr,
-                'ownerhome571_first_step2'.tr,
-                'ownerhome571_first_step3'.tr,
-              ],
-              ctaLabel: 'ownerhome571_first_cta'.tr,
-              onCta: _openPublishRequest,
-            ),
-          ),
+        // PAM-B 3110 — la carte prend la hauteur qui reste au-dessus du
+        // menu (flex:1 de la maquette) ; sur un petit écran elle garde sa
+        // hauteur naturelle et l'écran défile.
+        return SliverLayoutBuilder(
+          builder: (BuildContext context, SliverConstraints sc) {
+            final double bottom = 110 + appBottomInset(context);
+            final double remaining = sc.remainingPaintExtent - bottom - 6;
+            return SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: remaining.isFinite && remaining > 0 ? remaining : 0,
+                  ),
+                  child: FirstPostCard3110(
+                    title: 'ownerhome571_first_title'.tr,
+                    steps: <String>[
+                      'ownerhome571_first_step1'.tr,
+                      'ownerhome571_first_step2'.tr,
+                      'ownerhome571_first_step3'.tr,
+                    ],
+                    ctaLabel: 'ownerhome571_first_cta'.tr,
+                    onCta: _openPublishRequest,
+                  ),
+                ),
+              ),
+            );
+          },
         );
       }
 
@@ -1527,87 +1518,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Obx(
       () => Scaffold(
-        // v23.1 part 22 — bg blanc + surfaceTintColor + bottomSheetTheme
-        // explicit transparent. Material 3 surface tint OFF pour kill
-        // tout overlay teinté gris résiduel.
-        backgroundColor: AppColors.appBar(context),
-        // ignore: deprecated_member_use
-        // surfaceTintColor isn't on Scaffold — Material 3 tint reaches via
-        // the inner Material widget. We compensate by wrapping body inline.
+        // PAM-B 3110 — maquettes du 31/10 : fond uni de la page, plus
+        // d'AppBar (le hero porte nom, rôle, fusée et cloche), plus de motif
+        // à pattes. Même CustomScrollView, mêmes slivers de contenu.
+        backgroundColor: HomeTokens3110.owner.pageBackground(context),
         extendBody: false,
         extendBodyBehindAppBar: false,
-        // v23.1 part 221 — Daniel : "sur la page acceuil owner et sitter
-        // je veux que se soit comme la page de walker quand tu scroll tu
-        // scrolle tte la page pas avec le fix en haut bloquer". Avant :
-        // HomeHeader custom 70h en appBar (avec avatar + nom + notif +
-        // boost) qui prenait beaucoup d'espace fixe en haut. Maintenant :
-        // AppBar standard leger (comme walker) avec juste le titre + les
-        // actions essentielles. Le body a plus de place et scroll mieux.
-        appBar: AppBar(
-          elevation: 0,
-          backgroundColor: AppColors.appBar(context),
-          surfaceTintColor: Colors.transparent,
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: PoppinsText(
-                  text: _profileController.userName.value.isNotEmpty
-                      ? _profileController.userName.value
-                      : 'home_default_user_name'.tr,
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary(context),
-                ),
-              ),
-              SizedBox(width: 8.w),
-              // v569 — pastille de rôle à côté du nom (Daniel).
-              const RoleChip(role: 'owner', compact: true),
-            ],
-          ),
-          actions: [
-            const BoostQuickAction(role: 'owner'),
-            SizedBox(width: 4.w),
-            // v569 — cloche modernisée + nombre de non-lus.
-            Obx(() => NotificationBellAction(
-                  count: _notificationsController.unreadCount.value,
-                  role: 'owner',
-                  onTap: () {
-                    Get.to(() => const NotificationsScreen())?.then((_) {
-                      _notificationsController.refreshUnreadCount();
-                    });
-                  },
-                )),
-            SizedBox(width: 8.w),
-          ],
-        ),
-        // v23.1 part 27 — REVERT default SafeArea (bottom: true). Avec la pill
-        // flottante + extendBody: true, le body étend derrière la pill. SafeArea
-        // bottom protège le contenu pour qu'il ne soit pas caché.
-        // v23.1 part 230 — Daniel : "app lag sur Oppo + petit ecran".
-        // Root cause = v229 mit shrinkWrap:true + NeverScrollable sur les
-        // ListView.builder internes → Flutter doit construire TOUS les
-        // items d'un coup (50 sitters = 50 widgets cree + layout au boot
-        // de la page). Sur Oppo/low-end → lag impossible a scroller.
-        //
-        // REVERT v229 : on retire SingleChildScrollView et on revient
-        // au Column avec Expanded(ListView.builder) standard. Le ListView
-        // construit ses items paresseusement (seulement ce qui est
-        // visible) → fluide partout. Le QuickActionBar + Publication
-        // input + SegmentedControl restent fixes en haut, mais c'est
-        // un compromis necessaire pour la perf low-end.
-        // v23.1 part 240 — Daniel : "je veux que la page acceuil sur les
-        // 3 profil owner sitter et walker, soit scrolable pas le haut
-        // fixe". Refactor en CustomScrollView avec slivers : le header
-        // (QuickAction + PostInput + Segment + Slider) devient des
-        // SliverToBoxAdapter qui scrollent NATURELLEMENT avec la liste.
-        // Avantage perf : SliverList.builder garde le lazy build (pas de
-        // regression v229 shrinkWrap). Le top fly-away quand l'user
-        // descend dans la liste, comme demandé.
-        body: PawPatternBackground(
- color: AppColors.primaryColor,
- child: SafeArea(
-          child: NotificationListener<ScrollNotification>(
+        body: NotificationListener<ScrollNotification>(
             onNotification: (ScrollNotification n) {
               if (n.metrics.axis == Axis.vertical) {
                 final bool show = n.metrics.pixels > 260;
@@ -1622,18 +1539,19 @@ class _HomeScreenState extends State<HomeScreen> {
             // pour scroller fluide sur low-end (Oppo / petits ecrans).
             cacheExtent: 80,
             slivers: [
-              // ── Header bloc : actions rapides + input publication ──
+              // ── Hero (statut + champ de demande fusionnés) ──
+              SliverToBoxAdapter(child: _buildHero3110(context)),
+
+              // ── Bandeaux d'action urgents (payer, candidats, amis…) ──
+              // L'état neutre vit dans le hero : la bande ne rend alors rien.
               const SliverToBoxAdapter(
-                child: HomeQuickActionBar(role: 'owner'),
+                child: HomeQuickActionBar(role: 'owner', hideNeutral: true),
               ),
 
-              // ── v571 : les 2 grandes cartes d'action ──────────────────
-              // Le propriétaire est celui qui paie : les deux chemins vers
-              // une réservation sont la première chose qu'il voit. Version
-              // basse (56 dp) dès qu'il a publié au moins une annonce.
+              // ── Cartes services « Garde » / « Promenade » ──
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
                   child: _buildActionCards(context),
                 ),
               ),
@@ -1652,7 +1570,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     return const SizedBox.shrink();
                   }
                   return Padding(
-                    padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 0),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                     child: OwnerAddPetCard(
                       accent: AppColors.primaryColor,
                       title: 'ownerhome571_addpet_title'.tr,
@@ -1665,24 +1583,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }),
               ),
-              SliverToBoxAdapter(child: SizedBox(height: 12.h)),
+              // PAM-B 3110 — le composer « Publication » est fusionné dans le
+              // champ du hero (même destination : « Publier ma demande »).
+              const SliverToBoxAdapter(child: SizedBox(height: 14)),
 
-              // v426 — le composer "Publication" n'apparaît que sur l'onglet
-              // "Mes publications" (absent des maquettes 50/51 prestataires).
-              if (_selectedTabIndex == 0) ...[
-                const SliverToBoxAdapter(child: ExpandablePostInput()),
-                SliverToBoxAdapter(child: SizedBox(height: 12.h)),
-              ] else
-                SliverToBoxAdapter(child: SizedBox(height: 12.h)),
-
-              // ── Tabs (Mes publications / Pet-sitters / Promeneurs) ──
+              // ── Chips (Mes annonces / Pet-sitters / Promeneurs) ──
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _buildTabBar(context),
                 ),
               ),
-              SliverToBoxAdapter(child: SizedBox(height: 12.h)),
+              const SliverToBoxAdapter(child: SizedBox(height: 14)),
 
               // ── Header recherche premium (sitters/walkers tabs only) ──
               if (_selectedTabIndex != 0) ...[
@@ -1737,9 +1649,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          ),
         ),
-),
         // v23.1 — FAB compact bottom-right : icône + uniquement, gradient,
         // taille discrète pour ne pas masquer le contenu.
         // v471 — Daniel : « remonter encore un peu » le bouton + de l'accueil

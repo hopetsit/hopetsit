@@ -328,6 +328,22 @@ LiveStateDecision liveStateDecision(Map<String, dynamic> state,
 /// décrit une session commencée AVANT mon arrêt (au plus 2 min après).
 const Duration kLiveStopGrace = Duration(seconds: 20);
 
+/// 631 — heure de début de MA balade : un départ voulu commence MAINTENANT ;
+/// seule la reprise d'une session persistée (app relancée pendant une balade)
+/// garde le début enregistré. Avant, un `kBgLiveActive` resté à vrai faisait
+/// hériter un vieux début, et un arrêt serveur plus récent que ce vieux début
+/// coupait la balade neuve (« Direct arrêté depuis ton autre téléphone »).
+DateTime pawLiveSessionStart631({
+  required bool resume,
+  required int? storedStartMs,
+  required DateTime now,
+}) {
+  if (resume && storedStartMs != null && storedStartMs > 0) {
+    return DateTime.fromMillisecondsSinceEpoch(storedStartMs);
+  }
+  return now;
+}
+
 bool liveActiveIsStaleAfterStop({
   required DateTime? localStopAt,
   required DateTime now,
@@ -445,6 +461,11 @@ class LiveMapService extends GetxService {
   /// serveur : `GET /friends/live-state`, puis `map:self-live`). Ce téléphone
   /// ne diffuse pas, mais la pilule le dit au lieu d'afficher « Direct » éteint.
   final RxBool liveElsewhere = false.obs;
+
+  /// 631 (PAM) — depuis quand mon direct tourne sur mon AUTRE téléphone
+  /// (`/friends/live-state` → `startedAt`, `map:self-live` → `at`) : la
+  /// feuille « En direct » le montre au lieu d'un simple « autre téléphone ».
+  final Rxn<DateTime> elsewhereSince = Rxn<DateTime>();
 
   /// v589 — nombre de personnes qui suivent MON direct (jamais leurs noms).
   final RxInt myFollowers = 0.obs;
@@ -834,6 +855,7 @@ class LiveMapService extends GetxService {
         city: city.isEmpty ? null : city,
         duration: duration,
         endsAt: until > 0 ? DateTime.fromMillisecondsSinceEpoch(until) : null,
+        resume: true, // 631 — la reprise garde son vrai début
       );
       debugPrint('[LiveMap] session persistée reprise (${duration.apiValue})');
     } catch (e) {
@@ -1046,6 +1068,7 @@ class LiveMapService extends GetxService {
         final started = DateTime.tryParse((raw['startedAt'] ?? '').toString());
         liveElsewhere.value =
             d.elsewhere && !_staleActive(serverStartedAt: started);
+        elsewhereSince.value = liveElsewhere.value ? started : null; // 631
       }
     } catch (e) {
       debugPrint('[LiveMap] live-state failed: $e');
@@ -1060,10 +1083,12 @@ class LiveMapService extends GetxService {
       // retard) : sinon « Balade arrêtée » restait « en direct ».
       if (!broadcasting.value && !_staleActive(serverStartedAt: at)) {
         liveElsewhere.value = true;
+        elsewhereSince.value = at ?? DateTime.now(); // 631
       }
       return;
     }
     liveElsewhere.value = false;
+    elsewhereSince.value = null; // 631
     if (!broadcasting.value && _storage.read(kBgLiveActive) != true) return;
     stopBroadcasting(notifyServer: false);
     if (announce) {
@@ -1096,7 +1121,10 @@ class LiveMapService extends GetxService {
         liveElsewhere.value = false;
         return;
       }
-      if (!broadcasting.value) liveElsewhere.value = true;
+      if (!broadcasting.value) {
+        liveElsewhere.value = true;
+        elsewhereSince.value = at ?? DateTime.now(); // 631
+      }
       return;
     }
     if ((map['keepDeviceId'] ?? '').toString() == mine) return;
@@ -1274,6 +1302,7 @@ class LiveMapService extends GetxService {
     String? city,
     LiveShareDuration duration = LiveShareDuration.untilStop,
     DateTime? endsAt,
+    bool resume = false,
   }) {
     if (broadcasting.value) return;
     // v604 — nouveau départ voulu : l'arrêt précédent ne filtre plus rien.
@@ -1285,12 +1314,19 @@ class LiveMapService extends GetxService {
     _city = city;
     sessionDuration.value = duration;
     // v587 — reprise d'une session persistée : on garde son vrai début.
-    final keptStart = endsAt != null || _storage.read(kBgLiveActive) == true
-        ? (_storage.read(_kStartedAt) as num?)?.toInt()
-        : null;
-    sessionStartedAt.value = keptStart != null && keptStart > 0
-        ? DateTime.fromMillisecondsSinceEpoch(keptStart)
-        : DateTime.now();
+    // 631 (PAM, Daniel 31/10 : « je me mets en balade et ça se déconnecte
+    // seul ») — AVANT, un départ voulu reprenait l'ANCIENNE heure de début
+    // dès que `kBgLiveActive` traînait dans le stockage (balade précédente
+    // jamais arrêtée proprement : app tuée, arrêt fait depuis l'autre
+    // téléphone). Le serveur répondait alors « arrêté » avec une heure
+    // d'arrêt POSTÉRIEURE à ce vieux début → `liveStateDecision` coupait la
+    // balade neuve et affichait « Direct arrêté depuis ton autre téléphone ».
+    // Seule la REPRISE d'une session persistée ([resume]) garde son début.
+    sessionStartedAt.value = pawLiveSessionStart631(
+      resume: resume || endsAt != null,
+      storedStartMs: (_storage.read(_kStartedAt) as num?)?.toInt(),
+      now: DateTime.now(),
+    );
     try {
       _storage.write(_kStartedAt, sessionStartedAt.value!.millisecondsSinceEpoch);
     } catch (_) {/* stockage plein */}

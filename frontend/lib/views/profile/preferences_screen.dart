@@ -10,6 +10,7 @@ import 'package:hopetsit/services/map_prefs_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
 import 'package:hopetsit/views/profile/widgets/notification_prefs_tab.dart';
+import 'package:hopetsit/views/profile/widgets/prefs_open_on_3110.dart';
 import 'package:hopetsit/views/profile/widgets/profile_settings_host.dart';
 import 'package:hopetsit/views/profile/widgets/profile_settings_tabs.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
@@ -33,7 +34,8 @@ class ProfilePreferencesScreen extends StatefulWidget {
 }
 
 class _ProfilePreferencesScreenState extends State<ProfilePreferencesScreen> {
-  late int _tab = widget.initialTab.clamp(0, 1);
+  // 631 (PAM-C) — 3e onglet « Ouverture » (page d'ouverture + Balade rapide).
+  late int _tab = widget.initialTab.clamp(0, 2);
 
   @override
   void initState() {
@@ -55,7 +57,11 @@ class _ProfilePreferencesScreenState extends State<ProfilePreferencesScreen> {
           _Segmented(
             accent: accent,
             index: _tab,
-            labels: ['prefs_tab_general'.tr, 'prefs_tab_notifications'.tr],
+            labels: [
+              'prefs_tab_general'.tr,
+              'prefs_tab_notifications'.tr,
+              'pamc3110_tab'.tr,
+            ],
             onChanged: (i) => setState(() => _tab = i),
           ),
           SizedBox(height: 14.h),
@@ -93,8 +99,10 @@ class _ProfilePreferencesScreenState extends State<ProfilePreferencesScreen> {
                 ],
               );
             })
+          else if (_tab == 1)
+            NotificationPrefsTab(accent: accent)
           else
-            NotificationPrefsTab(accent: accent),
+            PrefsOpenOnTab3110(accent: accent),
         ],
       ),
     );

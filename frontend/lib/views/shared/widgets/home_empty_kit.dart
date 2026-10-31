@@ -22,6 +22,8 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/apply_distance617.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/paw_tab_bar.dart' show PawGlyph;
+import 'package:hopetsit/views/shared/widgets/home_hero3110.dart';
+import 'package:hopetsit/views/shared/widgets/provider_home3110.dart';
 
 /// Illustration de l'état vide : le logo PawMap posé dans un halo teinté à
 /// l'accent du rôle, avec une douce animation de respiration.
@@ -262,80 +264,48 @@ class HomeEmptyKit extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 12.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Center(child: HomeEmptyIllustration(accent: accent, size: 116.w)),
-          SizedBox(height: 16.h),
-          PoppinsText(
-            text: title ?? 'home571_empty_title'.tr,
-            fontSize: 16.sp,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary(context),
-            textAlign: TextAlign.center,
-            maxLines: 3,
+    // PAM-B 3110 — rendu « C'est calme autour de toi » des maquettes du 31/10 :
+    // mêmes clés, mêmes callbacks, mêmes ValueKey (tests 571 conservés).
+    final HomeTokens3110 t = _tokensFor(accent);
+    return QuietCard3110(
+      tokens: t,
+      title: title ?? 'home571_empty_title'.tr,
+      subtitle: body ?? 'home571_empty_body'.tr,
+      onRefresh: onRefresh,
+      rows: <QuietRow3110>[
+        if (onCompleteProfile != null)
+          QuietRow3110(
+            key: const ValueKey<String>('home_empty_profile'),
+            icon: Icons.person_outline_rounded,
+            title: 'home571_card_profile_title'.tr,
+            subtitle: 'home571_card_profile_sub'.tr,
+            onTap: onCompleteProfile!,
           ),
-          SizedBox(height: 6.h),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12.w),
-            child: InterText(
-              text: body ?? 'home571_empty_body'.tr,
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary(context),
-              textAlign: TextAlign.center,
-              maxLines: 4,
-            ),
+        if (onInvite != null)
+          QuietRow3110(
+            key: const ValueKey<String>('home_empty_invite'),
+            icon: Icons.person_add_alt_1_outlined,
+            title: 'home571_card_invite_title'.tr,
+            subtitle: 'home571_card_invite_sub'.tr,
+            onTap: onInvite!,
           ),
-          SizedBox(height: 18.h),
-          if (onCompleteProfile != null)
-            HomeEmptyActionCard(
-              key: const ValueKey<String>('home_empty_profile'),
-              accent: accent,
-              icon: Icons.person_rounded,
-              title: 'home571_card_profile_title'.tr,
-              subtitle: 'home571_card_profile_sub'.tr,
-              onTap: onCompleteProfile!,
-            ),
-          if (onInvite != null)
-            HomeEmptyActionCard(
-              key: const ValueKey<String>('home_empty_invite'),
-              accent: accent,
-              icon: Icons.person_add_alt_1_rounded,
-              title: 'home571_card_invite_title'.tr,
-              subtitle: 'home571_card_invite_sub'.tr,
-              onTap: onInvite!,
-            ),
-          if (onBoost != null)
-            HomeEmptyActionCard(
-              key: const ValueKey<String>('home_empty_boost'),
-              accent: accent,
-              icon: Icons.rocket_launch_rounded,
-              title: 'home571_card_boost_title'.tr,
-              subtitle: 'home571_card_boost_sub'.tr,
-              onTap: onBoost!,
-            ),
-          SizedBox(height: 8.h),
-          Center(
-            child: TextButton.icon(
-              key: const ValueKey<String>('home_empty_refresh'),
-              onPressed: onRefresh,
-              icon: Icon(Icons.refresh_rounded, color: accent, size: 18.sp),
-              label: Text(
-                'common_refresh'.tr,
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+        if (onBoost != null)
+          QuietRow3110(
+            key: const ValueKey<String>('home_empty_boost'),
+            icon: Icons.rocket_launch_outlined,
+            title: 'home571_card_boost_title'.tr,
+            subtitle: 'home571_card_boost_sub'.tr,
+            onTap: onBoost!,
           ),
-        ],
-      ),
+      ],
     );
+  }
+
+  static HomeTokens3110 _tokensFor(Color accent) {
+    final HSLColor h = HSLColor.fromColor(accent);
+    if (h.hue >= 190 && h.hue <= 260) return HomeTokens3110.sitter;
+    if (h.hue >= 90 && h.hue < 190) return HomeTokens3110.walker;
+    return HomeTokens3110.owner;
   }
 }
 

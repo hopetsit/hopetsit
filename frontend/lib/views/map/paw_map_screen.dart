@@ -109,6 +109,8 @@ import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dar
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/pawmap_header_badge.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/quick_walk_button_3110.dart'; // 631 (PAM-C)
+import 'package:hopetsit/services/open_on_prefs_3110.dart' show OpenOnPrefs3110, QuickWalkSide3110; // 631
 import 'package:hopetsit/views/map/widgets/pawmap_signal.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_announcement.dart';
 import 'package:hopetsit/views/map/pawmap_camera605.dart';
@@ -6012,7 +6014,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     // œil barré (seul moi le vois : mes amis me voient normalement).
     // 625 — sans GPS (refusé, ColorOS) : « Moi » sur la position du profil.
     final myPos = _userPosition ?? _meFallback625;
-    if (myPos != null && _showLiveLayer.value) {
+    // 631 (PAM, Daniel 31/10 : « ça m'enlève mon point, mon petit rond ») —
+    // couper la couche PawFollow (amis en direct) ne retire plus JAMAIS mon
+    // rond : « Moi » est toujours visible pour moi, seule la couche des
+    // autres s'éteint. Qui me voit se règle avec l'œil (Tous / Amis / Masqué).
+    if (myPos != null) {
       try {
         final profile =
             GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile);
@@ -6348,7 +6354,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               ? _reqGroupOf622(g.cast<NearbyRequestPost>(), mine: reqMine, compact: true).box
               : boxForGroup622(g.cast<Map<String, dynamic>>(), compact: true),
           fixed: <PawPlacedBox>[
-            if (myPos != null && _showLiveLayer.value)
+            if (myPos != null)
               PawPlacedBox(px622(myPos), pawPinBox(PawMapLegend.meSize / 2 + 2)),
             for (final fp in _liveMap.friendPositions.values)
               if (fp.liveState != FriendLiveState.seen)
@@ -6448,7 +6454,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       final List<Offset> fixedPx = <Offset>[]; // Moi + amis (jamais regroupés)
       final List<double> fixedR = <double>[]; // 607 — leurs rayons dessinés
       final List<Rect> meRects = <Rect>[];
-      if (myPos != null && _showLiveLayer.value) {
+      if (myPos != null) {
         final c = pxOf(myPos);
         fixedPx.add(c);
         // 607 — + 6 : l'étiquette « Moi » dépasse sous la photo.
@@ -6492,7 +6498,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       //   B. pastilles et membres seuls (position floutée ~1 km) quittent
       //      « Moi », les amis et les ronds déjà posés.
       // Les ronds sont DÉPLACÉS (position), leur image ne change pas.
-      final Offset? meAt = (myPos != null && _showLiveLayer.value) ? pxOf(myPos) : null;
+      final Offset? meAt = (myPos != null) ? pxOf(myPos) : null;
       final Rect meBox = pawPinBox(PawMapLegend.meSize / 2 + 2,
           labelW: PawMapPinPainter.photoLabelWidth('pawmap_me_label'.tr) - 8,
           labelH: 16.3,
@@ -7345,7 +7351,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       px,
       boxOf: boxOf,
       fixed: <PawPlacedBox>[
-        if (myPos != null && _showLiveLayer.value)
+        if (myPos != null)
           PawPlacedBox(
               pawScreenDelta(
                   pawMercatorPx(myPos.latitude, myPos.longitude, _zoomLevel) - cam,
@@ -8151,6 +8157,28 @@ class _PawMapScreenState extends State<PawMapScreen>
                     ),
                   ],
                 )),
+              );
+            }),
+
+            // ── 631 (PAM-C, monté par PAM-A) — BOUTON « BALADE RAPIDE » ──
+            // Rond vert en bas, à portée du pouce, côté choisi dans
+            // Profil › Préférences › Ouverture. Les deux barres occupent les
+            // coins bas (alignées sur le menu, v589) : le bouton se pose À CÔTÉ
+            // de la barre de son bord (largeur mesurée, 622), jamais dessus,
+            // jamais sur « Publier » ; il s'efface comme les barres pendant
+            // un placement ou quand la feuille est montée.
+            Obx(() {
+              final picking = _pickingSpotPos.value ||
+                  _pickingReportPos.value ||
+                  _pickingRoutePos.value;
+              if (picking || _sheetUp.value) return const SizedBox.shrink();
+              final bool leftSide =
+                  OpenOnPrefs3110.quickWalkSide.value == QuickWalkSide3110.left;
+              final double railW =
+                  leftSide ? _railRect622.width : _capsuleRect622.width;
+              return QuickWalkButton3110.positioned(
+                context,
+                sideInset: pawQuickWalkSideInset631(railWidth: railW),
               );
             }),
 
@@ -14737,6 +14765,22 @@ class _RectReporter607State extends State<_RectReporter607> {
 
 /// 607 — halo violet d'un ami : seulement quand son épingle est posée
 /// (pastille Amis allumée, ami en direct ou « signal perdu », pas « vu il y a »).
+/// 631 (PAM-A) — distance au bord du bouton « Balade rapide » : à côté de la
+/// barre (rail gauche / capsule droite) qui occupe ce coin, 8 pt d'air, et la
+/// marge de 16 quand la barre est repliée ou pas encore mesurée (largeur ≤ 4).
+double pawQuickWalkSideInset631({
+  required double railWidth,
+  double margin = kQuickWalkSideMargin3110,
+  double gap = 8,
+  double screenWidth = double.infinity,
+}) {
+  if (!(railWidth > 4)) return margin;
+  final double inset = margin + railWidth + gap;
+  // Jamais au-delà du tiers de l'écran : la barre ne peut pas être si large.
+  final double cap = screenWidth.isFinite ? screenWidth / 3 : inset;
+  return inset > cap ? cap : inset;
+}
+
 bool pawFriendHaloShown({required bool showFriends, required FriendLiveState state}) =>
     showFriends && state != FriendLiveState.seen;
 

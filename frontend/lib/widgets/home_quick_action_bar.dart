@@ -26,6 +26,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hopetsit/widgets/banner_confirm3110.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/applications_controller.dart';
@@ -79,7 +80,12 @@ import 'package:hopetsit/utils/booking_date_format.dart';
 
 class HomeQuickActionBar extends StatefulWidget {
   final String role; // 'owner' | 'sitter' | 'walker'
-  const HomeQuickActionBar({super.key, required this.role});
+  // PAM-B 3110 — les 3 accueils portent désormais l'état neutre (« Publie ta
+  // première demande » / « Pas de demande en attente ») DANS leur hero : la
+  // bande ne rend alors rien. Les bandeaux d'action (payer, candidats, amis…)
+  // restent exactement les mêmes.
+  final bool hideNeutral;
+  const HomeQuickActionBar({super.key, required this.role, this.hideNeutral = false});
 
   @override
   State<HomeQuickActionBar> createState() => _HomeQuickActionBarState();
@@ -862,7 +868,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       // v569 — même gabarit pour tous les états, transition douce d'un état à
       // l'autre (fondu + léger glissement, 200 ms) et hauteur stable.
       final Widget child;
-      if (action == null) {
+      if (action == null && widget.hideNeutral) {
+        _syncPulse(false);
+        child = const SizedBox.shrink(key: ValueKey<String>('band-hidden-3110'));
+      } else if (action == null) {
         // Neutral fallback : rien d'urgent → barre soft "tout est à jour".
         _syncPulse(false);
         final bool first = _ownerFirstRequest600();
@@ -889,11 +898,16 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           onDismiss: (a.kind == _Kind.ownerPay ||
                   a.kind == _Kind.providerPaid ||
                   a.kind == _Kind.providerReleased)
-              ? () => _dismissBannerMulti(
+              // 631 (PAM-B, point BOB) — confirmation avant de fermer : le
+              // bandeau ne disparaît plus sur un toucher malheureux.
+              ? () async {
+                  if (!await confirmBannerClose3110(context) || !mounted) return;
+                  _dismissBannerMulti(
                     a.allBookingIds.isNotEmpty
                         ? a.allBookingIds
                         : <String>[a.booking.id],
-                  )
+                  );
+                }
               : null,
         );
       }
@@ -2298,6 +2312,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       await _refuseFamilyInvitation(a);
       return;
     }
+    // 631 (PAM-B, point BOB) — le ✗ du bandeau refusait en UN tap : on
+    // demande confirmation avant d'appeler le serveur.
+    if (!mounted || !await confirmBannerRefuse3110(context) || !mounted) return;
     // v23.1 — bug #2 fix : really call POST /bookings/:id/respond reject.
     await _respondToBooking(a, 'reject');
   }

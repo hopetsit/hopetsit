@@ -32,7 +32,6 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/pet_sitter/home/sitter_homescreen.dart';
-import 'package:hopetsit/views/shared/widgets/around_me_search_bar.dart';
 import 'package:hopetsit/views/shared/widgets/home_empty_kit.dart';
 
 import 'package:hopetsit/utils/apply_distance617.dart';
@@ -75,7 +74,7 @@ Future<void> _profileAtCenter(String role) async {
 
 /// Le curseur de la barre « Autour de moi ».
 Slider _slider(WidgetTester tester) =>
-    tester.widget<Slider>(find.descendant(of: find.byType(AroundMeSearchBar), matching: find.byType(Slider)));
+    tester.widget<Slider>(find.byKey(const ValueKey<String>('around_me_radius_slider')));
 
 void main() {
   group('accueil gardien — plafond de candidature 200 km', () {

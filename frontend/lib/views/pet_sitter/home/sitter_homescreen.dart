@@ -2,9 +2,7 @@ import 'package:hopetsit/widgets/notif_nudge622.dart';
 import 'dart:async';
 import 'package:hopetsit/widgets/bring_clients607.dart';
 import 'package:hopetsit/models/pet_model.dart';
-import 'package:hopetsit/widgets/paw_pattern_background.dart';
 import 'package:flutter/material.dart';
-import 'package:hopetsit/widgets/role_chip.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/commission_rate.dart';
@@ -39,9 +37,10 @@ import 'package:hopetsit/views/service_provider/owner_profile_view_screen.dart';
 import 'package:hopetsit/utils/home_radius_prefs.dart';
 import 'package:hopetsit/utils/search_radius.dart';
 import 'package:hopetsit/utils/apply_distance617.dart';
-import 'package:hopetsit/views/shared/widgets/around_me_search_bar.dart';
 import 'package:hopetsit/views/shared/widgets/city_picker_sheet.dart';
 import 'package:hopetsit/views/shared/widgets/home_empty_kit.dart';
+import 'package:hopetsit/views/shared/widgets/home_hero3110.dart';
+import 'package:hopetsit/views/shared/widgets/provider_home3110.dart';
 // v571 — actions de l'état vide : profil du rôle, invitation, boutique.
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/tabs/friends_ui.dart'
@@ -49,7 +48,6 @@ import 'package:hopetsit/views/friends/tabs/friends_ui.dart'
 import 'package:hopetsit/views/pet_sitter/profile/edit_sitter_profile_screen.dart';
 import 'package:hopetsit/views/pet_walker/profile/edit_walker_profile_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 // v575 — audit P0-1 / P1-6 : bornes de durée de promenade partagées.
@@ -340,20 +338,15 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   /// v441 — barre « Autour de moi » + rayon (widget partagé). Le slider pilote
   /// le rayon du filtre distance ; le tap localisation ouvre le picker de
   /// ville. Accent = couleur du rôle (vert walker / bleu sitter).
-  Widget _buildAroundMeBar(BuildContext context) {
-    return AroundMeSearchBar(
-      accent: _accent,
-      cityLabel: _anchorCityLabel(),
+  /// PAM-B 3110 — carte « Rayon de recherche » (maquettes) : mêmes bornes,
+  /// même `_applyRadius` au relâchement que la barre « Autour de moi ».
+  Widget _buildRadiusCard3110(BuildContext context) {
+    return RadiusCard3110(
+      tokens: HomeTokens3110.forRole(_isWalkerViewer ? 'walker' : 'sitter'),
       radiusKm: _radiusKm,
       minRadiusKm: _kMinRadiusKm,
       maxRadiusKm: _kMaxRadiusKm,
-      onTapCity: () => _showAroundMeCityPicker(context),
-      // Glissement : la barre affiche la valeur toute seule (état local du
-      // widget) — AUCUN setState ici : avant le lot D, tout l'écran (et ses
-      // dizaines de cartes) était reconstruit à chaque pixel = les mini-lags.
       onRadiusChanged: (_) {},
-      // Relâchement : on applique la valeur (le feed se re-filtre une fois)
-      // et on la mémorise pour ce rôle.
       onRadiusCommit: _applyRadius,
     );
   }
@@ -749,67 +742,18 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         ? Get.find<NotificationsController>()
         : Get.put(NotificationsController(), permanent: true);
 
+    final String viewerRole = Get.isRegistered<AuthController>()
+        ? (Get.find<AuthController>().userRole.value ?? 'sitter')
+        : 'sitter';
+    final HomeTokens3110 tokens3110 = HomeTokens3110.forRole(viewerRole);
+
     return Obx(
       () => Scaffold(
-        // v23.1 — bg blanc (au lieu de scaffold lightGrey) pour éliminer
-        // tout grey leak derrière la nav bar (cas Accueil tab).
-        backgroundColor: AppColors.appBar(context),
-        // v23.1 part 221 — Daniel : "sur la page acceuil owner et sitter
-        // je veux que se soit comme la page de walker". Remplacement du
-        // HomeHeader custom 70h par un AppBar standard leger (cf note
-        // dans home_screen.dart owner).
-        appBar: AppBar(
-          elevation: 0,
-          backgroundColor: AppColors.appBar(context),
-          surfaceTintColor: Colors.transparent,
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: PoppinsText(
-                  text: profileController.userName.value.isNotEmpty
-                      ? profileController.userName.value
-                      : 'common_user'.tr,
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary(context),
-                ),
-              ),
-              SizedBox(width: 8.w),
-              // v569 — pastille de rôle à côté du nom (Daniel).
-              RoleChip(
-                role: Get.isRegistered<AuthController>()
-                    ? (Get.find<AuthController>().userRole.value ?? 'sitter')
-                    : 'sitter',
-                compact: true,
-              ),
-            ],
-          ),
-          actions: [
-            Obx(() {
-              final role = Get.isRegistered<AuthController>()
-                  ? (Get.find<AuthController>().userRole.value ?? 'sitter')
-                  : 'sitter';
-              return BoostQuickAction(role: role);
-            }),
-            SizedBox(width: 4.w),
-            // v569 — cloche modernisée + nombre de non-lus.
-            Obx(() => NotificationBellAction(
-                  count: notificationsController.unreadCount.value,
-                  role: Get.isRegistered<AuthController>() ? (Get.find<AuthController>().userRole.value ?? 'sitter') : 'sitter',
-                  onTap: () {
-                    Get.to(() => const NotificationsScreen())?.then((_) {
-                      notificationsController.refreshUnreadCount();
-                    });
-                  },
-                )),
-            SizedBox(width: 8.w),
-          ],
-        ),
-        body: PawPatternBackground(
- color: _accent,
- child: SafeArea(
-          child: RefreshIndicator(
+        // PAM-B 3110 — maquettes du 31/10 : fond uni de la page, plus
+        // d'AppBar (le hero porte nom, rôle, fusée et cloche), plus de motif
+        // à pattes. Même RefreshIndicator, même flux de cartes dessous.
+        backgroundColor: tokens3110.pageBackground(context),
+        body: RefreshIndicator(
             onRefresh: () async {
               // v20.0.19 — also reload rates so the "Estimation" block on
               // post cards updates when the sitter just saved new rates in
@@ -829,19 +773,59 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               // v468 — dégage le bas au-dessus du menu pleine largeur
               padding: EdgeInsets.fromLTRB(
-                16.w,
-                16.w,
-                16.w,
-                110.h + appBottomInset(context),
+                0,
+                0,
+                0,
+                // ~100 pt libres pour la tab bar (76 + encoche) comme la maquette.
+                84 + appBottomInset(context),
               ),
               child: Column(
                 children: [
+                  // ── Hero : en-tête + bloc statut + ligne lieu ──
+                  HomeHero3110(
+                    role: viewerRole,
+                    bottomPadding: 20,
+                    name: profileController.userName.value.isNotEmpty
+                        ? profileController.userName.value
+                        : 'common_user'.tr,
+                    avatarUrl: profileController.profileImageUrl.value,
+                    unreadCount: notificationsController.unreadCount.value,
+                    onRocket: () => Get.to(() => const CoinShopScreen()),
+                    onBell: () {
+                      Get.to(() => const NotificationsScreen())?.then((_) {
+                        notificationsController.refreshUnreadCount();
+                      });
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        HeroStatusBlock3110(
+                          primary: tokens3110.primary,
+                          title: 'quick_action_title_provider'.tr,
+                          subtitle: _isWalkerViewer
+                              ? 'pamb3110_status_sub_walker'.tr
+                              : 'pamb3110_status_sub_sitter'.tr,
+                        ),
+                        HeroLocationLine3110(
+                          city: _anchorCityLabel(),
+                          radiusKm: _radiusKm.round(),
+                          onChange: () => _showAroundMeCityPicker(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                    child: Column(
+                      children: [
                   // v21.1.1 — Quick action bar. Le rôle EST détecté au
                   // runtime depuis GetStorage : SitterHomescreen est aussi
                   // utilisé par WalkerNavWrapper (feed partagé), donc on
                   // ne peut pas hardcoder 'sitter' sinon le walker charge
                   // les bookings du sitter (vides) et la barre reste muette.
                   HomeQuickActionBar(
+                    hideNeutral: true,
                     role: () {
                       final r = (GetStorage().read(StorageKeys.userRole) ?? '')
                           .toString()
@@ -959,14 +943,16 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                         // slider : SOURCE UNIQUE du rayon + de l'ancre de
                         // recherche du feed. Accent vert (walker) / bleu
                         // (sitter).
-                        _buildAroundMeBar(context),
-                        SizedBox(height: 10.h),
-                        // Compteur « 🎯 Autour de moi · N résultats trouvés ».
-                        _buildAroundMeResults(context, sortedFeed.length),
-                        // v442 — #100 : anciens filtres avancés + bouton « Trier »
-                        // RETIRÉS (redondants avec la barre « Autour de moi » +
-                        // rayon ci-dessus, source unique du périmètre du feed).
-                        SizedBox(height: 12.h),
+                        // PAM-B 3110 — la ville est dans le hero (« Changer »),
+                        // le rayon dans sa carte ; même logique de curseur.
+                        const SizedBox(height: 10),
+                        _buildRadiusCard3110(context),
+                        const SizedBox(height: 10),
+                        if (sortedFeed.isNotEmpty) ...<Widget>[
+                          // Compteur « 🎯 Autour de moi · N résultats trouvés ».
+                          _buildAroundMeResults(context, sortedFeed.length),
+                          SizedBox(height: 12.h),
+                        ],
                         if (sortedFeed.isEmpty)
                           // v571 — plus jamais d'écran vide et triste : soit on
                           // propose les annonces les plus proches hors rayon,
@@ -991,12 +977,13 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                       ],
                     );
                   }),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-        ),
-),
       ),
     );
   }
@@ -1065,6 +1052,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             HomeTooFarCard617(accent: _accent),
             HomeEmptyKit(
               accent: _accent,
+              body: 'pamb3110_in_radius'.tr.replaceAll('{n}', '0'),
               onRefresh: () => postsController.refreshPosts(),
               onCompleteProfile: _openMyProfileEditor,
               onInvite: shareFriendsInvite,
@@ -1075,6 +1063,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       }
       return HomeEmptyKit(
         accent: _accent,
+        body: 'pamb3110_in_radius'.tr.replaceAll('{n}', '0'),
         onRefresh: () => postsController.refreshPosts(),
         onCompleteProfile: _openMyProfileEditor,
         onInvite: shareFriendsInvite,

@@ -492,6 +492,16 @@ class ProfileCategories extends StatelessWidget {
             color: accent,
             onTap: () => Get.to(() => ProfilePreferencesScreen(host: host, accent: accent, initialTab: 1)),
           ),
+          // 631 (PAM-C) — « Ouverture » : page d'ouverture de l'app + bouton
+          // Balade rapide de la carte (3e segment de l'écran Préférences).
+          ProfileRow(
+            key: const ValueKey<String>('profile_row_open_on_3110'),
+            icon: PawIcon.home,
+            title: 'pamc3110_tab'.tr,
+            subtitle: 'pamc3110_row_sub'.tr,
+            color: accent,
+            onTap: () => Get.to(() => ProfilePreferencesScreen(host: host, accent: accent, initialTab: 2)),
+          ),
           // v575 — Daniel : « il y a déjà "Langue de l'app", et dans "À propos
           // de moi" il y a "Langue" : ce n'est pas clair ». Cette ligne ouvre
           // bien la LANGUE D'AFFICHAGE : elle porte désormais le même nom

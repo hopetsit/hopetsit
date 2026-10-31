@@ -24,6 +24,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -156,9 +157,67 @@ class PawCatchCelebration {
     if (!pawCatchCanShowNow613(state)) {
       _pending.add(win);
       _savePending();
+      // 631 (PAM, vocal de Daniel 14 h 22) — téléphone verrouillé pendant la
+      // balade : la peluche est attrapée sans regarder l'écran → vibration,
+      // son et notification locale « Peluche attrapée ! » tout de suite ; la
+      // fête habituelle rejoue au déverrouillage (`flushPending`).
+      backgroundFeedback631(win);
       return;
     }
     show(context, win);
+  }
+
+  /// 631 — retour SANS écran. Remplaçable en test.
+  static Future<void> Function(PawPlushWin win)? backgroundNotifierForTests;
+  static int backgroundFeedbackCount631 = 0;
+
+  static void backgroundFeedback631(PawPlushWin win) {
+    backgroundFeedbackCount631++;
+    final hook = backgroundNotifierForTests;
+    if (hook != null) {
+      unawaited(hook(win));
+      return;
+    }
+    if (silentForTests) return;
+    try {
+      _haptics();
+    } catch (_) {/* pas de vibreur */}
+    unawaited(_sound());
+    unawaited(_localNotification631(win));
+  }
+
+  static Future<void> _localNotification631(PawPlushWin win) async {
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      final title = 'plush631_notif_title'.tr;
+      final body = 'plush631_notif_body'.trParams({'points': '${win.points}'});
+      const details = NotificationDetails(
+        android: AndroidNotificationDetails(
+          'hopetsit_plush_631',
+          'HoPetSit — peluches',
+          channelDescription: 'Peluche attrapée pendant une balade.',
+          importance: Importance.high,
+          priority: Priority.high,
+          playSound: true,
+          enableVibration: true,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentSound: true,
+          presentBadge: false,
+          threadIdentifier: 'plush631',
+        ),
+      );
+      await plugin.show(
+        631000 + (DateTime.now().millisecondsSinceEpoch % 1000),
+        title,
+        body,
+        details,
+        payload: 'hopetsit://pawpoints',
+      );
+    } catch (e) {
+      debugPrint('[plush631] notification locale impossible : $e');
+    }
   }
 
   /// Au retour dans l'app : joue les fêtes gardées (la plus récente, avec le

@@ -39,7 +39,6 @@ import 'package:hopetsit/utils/search_radius.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/pet_owner/home/home_screen.dart';
 import 'package:hopetsit/views/pet_sitter/home/sitter_homescreen.dart';
-import 'package:hopetsit/views/shared/widgets/around_me_search_bar.dart';
 import 'package:hopetsit/views/shared/widgets/home_empty_kit.dart';
 
 import 'lotd_harness.dart';
@@ -94,7 +93,7 @@ Future<void> _profileAtCenter(String role) async {
 
 /// Le curseur de la barre « Autour de moi ».
 Slider _slider(WidgetTester tester) =>
-    tester.widget<Slider>(find.descendant(of: find.byType(AroundMeSearchBar), matching: find.byType(Slider)));
+    tester.widget<Slider>(find.byKey(const ValueKey<String>('around_me_radius_slider')));
 
 /// Simule un choix de rayon (glissement puis relâchement). Le propriétaire
 /// recharge ses listes en passant par le GPS (6 s de délai sans plugin en
@@ -112,10 +111,13 @@ Future<void> _setRadius(WidgetTester tester, double km) async {
 Finder _results(int n) => find.text('home_results_found'.trParams({'count': '$n'}));
 
 String? _shownRadius(WidgetTester tester) {
-  final f = find.descendant(
-    of: find.byKey(const ValueKey<String>('around_me_radius_value')),
-    matching: find.byType(Text),
-  );
+  // PAM-B 3110 : la valeur est désormais le Text qui porte la clé lui-même
+  // (carte « Rayon de recherche »).
+  final k = find.byKey(const ValueKey<String>('around_me_radius_value'));
+  if (k.evaluate().isEmpty) return null;
+  final Widget w = tester.widget(k.first);
+  if (w is Text) return w.data;
+  final f = find.descendant(of: k, matching: find.byType(Text));
   if (f.evaluate().isEmpty) return null;
   return tester.widget<Text>(f.first).data;
 }
@@ -174,7 +176,9 @@ void main() {
       // sa pastille de distance et la carte « Élargir ».
       await _setRadius(tester, 30);
       expect(_shownRadius(tester), '30 km');
-      expect(_results(0), findsOneWidget);
+      // PAM-B 3110 : la ligne « N résultats » n'est affichée que quand le flux
+      // a des résultats ; à vide, c'est la section « Les plus proches » qui parle.
+      expect(_results(0), findsNothing);
       expect(find.byType(HomeRadiusHintCard), findsOneWidget);
       expect(find.byType(HomeDistancePill), findsNWidgets(2)); // 40 et 60 km
 
@@ -300,7 +304,7 @@ void main() {
       await lotdSettle(tester, frames: 8);
       expect(find.textContaining('Annonce m0'), findsWidgets);
 
-      final sliderFinder = find.descendant(of: find.byType(AroundMeSearchBar), matching: find.byType(Slider));
+      final sliderFinder = find.byKey(const ValueKey<String>('around_me_radius_slider'));
       final rect = tester.getRect(sliderFinder);
       final start = Offset(rect.left + rect.width * 0.2, rect.center.dy);
       int bodyBuilds = 0;

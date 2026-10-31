@@ -104,6 +104,10 @@ class DeepLinkService {
   /// On les rejoue via [flushPending] au premier frame.
   final List<Uri> _pendingUris = <Uri>[];
 
+  /// 631 (PAM-C) — un lien attend d'être rejoué : la « page d'ouverture »
+  /// choisie dans les préférences s'efface devant lui.
+  bool get hasPendingLink3110 => _pendingUris.isNotEmpty;
+
   /// v23.1 part 146 — true une fois que `MyApp` a fait son premier frame et
   /// que `Get.context` est utilisable. Mis à true par [flushPending].
   bool _navigatorReady = false;

@@ -234,8 +234,13 @@ class _PawLiveSheetState extends State<PawLiveSheet> {
       final rows = <Widget>[];
       if (meLive) {
         final dur = pawLiveDurationLabel(live.sessionStartedAt.value, now);
+        // 631 — « sur ton autre téléphone · 12 min » : depuis quand.
+        final since = elsewhere
+            ? pawLiveDurationLabel(live.elsewhereSince.value, now)
+            : '';
         final sub = <String>[
           if (elsewhere) 'pm605_live_elsewhere'.tr,
+          if (elsewhere && since.isNotEmpty) since,
           if (dur.isNotEmpty && !elsewhere) dur,
           pawLiveFollowersLabel(followers, const <String>[]),
         ].join(' · ');
@@ -597,7 +602,9 @@ class _LiveRow extends StatelessWidget {
                   SizedBox(height: 2.h),
                   Text(
                     subtitle,
-                    maxLines: 2,
+                    // 631 (ZOE) : « sur ton autre téléphone · 0 min » tenait
+                    // sur 3 lignes à côté du bouton Arrêter (coupé « 0 … »).
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: PawMapTheme.font(
                         size: 12.sp,

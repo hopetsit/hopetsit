@@ -25,6 +25,10 @@ import 'package:hopetsit/widgets/promo_code_sheet.dart';
 import 'package:hopetsit/utils/ios_store_rules606.dart';
 // v570 — rendu de la barre (handoff hi-fi « PawMap Tab Bar » variante 12d).
 import 'package:hopetsit/widgets/paw_tab_bar.dart';
+// 631 (PAM-C) — « L'app s'ouvre sur » (Profil › Préférences › Ouverture).
+import 'package:hopetsit/services/open_on_prefs_3110.dart';
+import 'package:hopetsit/services/deep_link_service.dart';
+import 'package:get_storage/get_storage.dart';
 
 /// v462 — NOUVEAU MENU (maquette Claude Design) appliqué AU VRAI wrapper de
 /// navigation (celui réellement monté). Barre flottante blanche arrondie +
@@ -53,9 +57,61 @@ class StackedNavigationWrapper extends StatefulWidget {
       _StackedNavigationWrapperState();
 }
 
-class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
+class _StackedNavigationWrapperState extends State<StackedNavigationWrapper>
+    with WidgetsBindingObserver {
   /// Nombre de wrappers de navigation actuellement montés (voir initState).
   static int _mountedWrappers = 0;
+
+  /// 631 (PAM-C) — la page d'ouverture ne s'applique qu'UNE fois par
+  /// lancement à froid (un changement de rôle remonte un menu : pas un
+  /// lancement), puis au retour depuis l'arrière-plan après plus de 30 min.
+  static bool _openOnAppliedAtLaunch = false;
+
+  /// 631 (PAM-C) — applique « L'app s'ouvre sur » si rien de plus prioritaire
+  /// n'est en cours (lien, notification, écran poussé, carte demandée).
+  void _applyOpenOn3110() {
+    if (!mounted) return;
+    OpenOnPrefs3110.load();
+    bool deepLinkPending = DeepLinkService.instance.hasPendingLink3110;
+    try {
+      deepLinkPending = deepLinkPending ||
+          (GetStorage().read('pending_deep_route') ?? '').toString().isNotEmpty;
+    } catch (_) {/* stockage indisponible : on ne bloque pas */}
+    final explicitAt = pawMapExplicitOpenAt;
+    final bool mapRequested = pawMapOpenOnMount ||
+        requestedTab.value >= 0 ||
+        (explicitAt != null &&
+            DateTime.now().difference(explicitAt) < const Duration(seconds: 10));
+    final bool routeOnTop = !(ModalRoute.of(context)?.isCurrent ?? true);
+    final int? target = openOnDecide3110(
+      choice: OpenOnPrefs3110.openOn.value,
+      lastTab: OpenOnPrefs3110.lastTab(),
+      deepLinkPending: deepLinkPending,
+      routeOnTop: routeOnTop,
+      mapRequested: mapRequested,
+      currentTab: _currentIndex,
+      tabCount: widget.screens.length,
+    );
+    if (target != null) {
+      pawMap603Log('OPEN_ON_3110 → onglet $target');
+      _onTap(target);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      OpenOnPrefs3110.markPaused();
+    } else if (state == AppLifecycleState.resumed) {
+      final pausedAt = OpenOnPrefs3110.pausedAt();
+      OpenOnPrefs3110.clearPaused();
+      if (openOnResumeCounts3110(pausedAt, DateTime.now())) {
+        // Un lien ou une notification qui a réveillé l'app arrive dans la
+        // foulée : on lui laisse le temps de pousser son écran.
+        Future.delayed(const Duration(milliseconds: 700), _applyOpenOn3110);
+      }
+    }
+  }
 
   int _currentIndex = 0;
   // v597 — Daniel (27/09) : « mini-lag au démarrage ». La PawMap (vue Google
@@ -109,6 +165,15 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // 631 (PAM-C)
+    if (!_openOnAppliedAtLaunch) {
+      _openOnAppliedAtLaunch = true;
+      // 631 (PAM-C) — lancement à froid : après la 1re image de l'accueil, et
+      // après le rejeu des liens en attente (splash → flushPending).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 450), _applyOpenOn3110);
+      });
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // 606 (refus Apple 2.1) — arrivée sur l'accueil (connexion, inscription,
       // relance) : fenêtre de suivi publicitaire d'Apple, juste après la
@@ -190,6 +255,7 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // 631 (PAM-C)
     _tabRequestWorker?.dispose();
     _mountedWrappers = (_mountedWrappers - 1).clamp(0, 99);
     navWrapperMounted.value = _mountedWrappers > 0;
@@ -224,6 +290,9 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   }
 
   void _onTap(int index) {
+    // 631 (PAM-C) — « Dernière page visitée » (Accueil, Chat, PawMap,
+    // Réservations ; le Profil n'est pas mémorisé).
+    OpenOnPrefs3110.rememberTab(index);
     // v599 — un seul ami en balade : l'onglet PawMap ouvre la carte SUR lui
     // (vol doux, fiche courte, suivi), uniquement en arrivant d'un autre
     // onglet ; sinon l'onglet se comporte comme d'habitude.
