@@ -93,8 +93,12 @@ export default function GardeAnimauxParisPage() {
         <>
           <ParisHeroForm
             city={PARIS.name}
-            lead="Dites-nous ce qu'il vous faut : les gardiens et promeneurs de Paris reçoivent votre demande et vous répondent."
-            note="Gratuit · sans compte pour commencer · vous choisissez ensuite, sans engagement"
+            lead="Des gardiens vérifiés près de chez toi à Paris te répondent par e-mail, avec leur prix. Donne tes dates, sans créer de compte : ta demande est publiée tout de suite."
+            note="Gratuit · sans compte · tu choisis et tu paies ensuite, annulation gratuite jusqu'à 72 h avant"
+            lang="fr"
+            country="FR"
+            campaign="paris_owners"
+            page="/garde-animaux/paris"
           />
           {/* 1617 — preuve sociale réelle (demandes ouvertes de vrais propriétaires) ; absente si 0. */}
           <RequestsPulse1617 city="Paris" lang="fr" className="mt-3" />

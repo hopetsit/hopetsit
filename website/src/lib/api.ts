@@ -210,6 +210,23 @@ export type AdLeadSummary = {
 export async function getAdLead(id: string): Promise<AdLeadSummary> {
   return request<AdLeadSummary>(`/ad-leads/${encodeURIComponent(id)}`);
 }
+// 31/10/2026 (LEO, feu vert BOB) — page d'arrivée : demande publiée en 1 étape, sans compte ni mot de
+// passe (POST /ad-leads/site : compte propriétaire créé non vérifié, demande publiée, gardiens prévenus,
+// e-mail « ta demande est en ligne »). La session renvoyée est enregistrée comme après une connexion.
+export type SiteLeadInput = {
+  email: string; firstName?: string; service: "garde" | "promenade" | "visites"; animal?: "chien" | "chat" | "autre";
+  postalCode?: string; city?: string; country: string; lang: "fr" | "en"; startDate?: string; endDate?: string;
+  visitsPerDay?: 1 | 2; lieu?: "at_owner" | "at_sitter"; campaign?: string; page?: string; website?: string;
+};
+export async function publishSiteLead(input: SiteLeadInput) {
+  const data = await request<{ id: string; postId: string | null; token: string; user: AuthUser; notified?: number; existing: boolean }>(
+    "/ad-leads/site",
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  persistAuth(data.token, { ...data.user, role: "owner" });
+  return data;
+}
+
 export async function confirmAdLead(id: string, lieu?: "at_owner" | "at_sitter") {
   const data = await request<{ token: string; user: AuthUser; postId: string | null; notified?: number }>(
     `/ad-leads/${encodeURIComponent(id)}/confirm`,

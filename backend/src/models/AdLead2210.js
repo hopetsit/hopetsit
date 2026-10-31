@@ -40,6 +40,13 @@ const adLeadSchema = new mongoose.Schema(
     clickedAt: { type: Date }, // 27/10 (SAM) — 1er VRAI clic (navigateur ou app) sur le lien de l'e-mail
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Owner' },
     postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
+    // 31/10 (LEO, feu vert BOB) — contact venu du SITE (page d'arrivée, POST /ad-leads/site) : jamais
+    // compté dans la dépense pub (leads_suivi.py lit Meta ; les stats admin séparent `site`).
+    source: { type: String, enum: ['meta', 'site'], default: 'meta', index: true },
+    campaign: { type: String, default: '' },
+    page: { type: String, default: '' },
+    postalCode: { type: String, default: '' },
+    siteEmailAt: { type: Date }, // e-mail « ta demande est en ligne » envoyé (une fois)
     createdAt: { type: Date, default: Date.now, expires: 60 * 24 * 3600 },
   },
   { versionKey: false },

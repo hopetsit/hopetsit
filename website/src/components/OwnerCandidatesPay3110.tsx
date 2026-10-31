@@ -127,6 +127,8 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
   const [pay, setPay] = useState<PayInfo | null>(null);
   const [payError, setPayError] = useState("");
   const [fallbackReady, setFallbackReady] = useState(false);
+  // 31/10 (ZOE) — l'encart carte est réellement affiché (iframe mesurée) : le petit « Préparation… » disparaît.
+  const [cardReady, setCardReady] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const datesRef = useRef<HTMLDivElement | null>(null);
   const seenRef = useRef("");
@@ -180,7 +182,19 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     if (step !== "card" || !pay) return;
     let cancelled = false;
     confirmedRef.current = false;
-    const timer = window.setTimeout(() => { if (!cancelled) setFallbackReady(true); }, 7000);
+    // 31/10 (réserve de ZOE, feu vert BOB) — `el.on("ready")` n'arrive pas avec elements.bundle : le repli
+    // s'affichait SOUS un formulaire de carte déjà prêt. L'encart est « prêt » dès que l'iframe du Drop-in a
+    // une hauteur > 0 (mesurée toutes les 300 ms) ou que `onReady` arrive ; le repli n'apparaît QUE si
+    // l'encart n'est vraiment pas là après 7 s (ou en cas d'erreur sans encart).
+    let ready = false;
+    const markReady = () => { ready = true; if (!cancelled) { setFallbackReady(false); setCardReady(true); } };
+    const probe = window.setInterval(() => {
+      const f = document.querySelector<HTMLIFrameElement>("#awx-dropin-3110 iframe");
+      if (f && f.getBoundingClientRect().height > 40) { markReady(); window.clearInterval(probe); }
+    }, 300);
+    const timer = window.setTimeout(() => { if (!cancelled && !ready) setFallbackReady(true); }, 7000);
+    const winReady = () => markReady();
+    window.addEventListener("onReady", winReady);
     const onSuccess = async () => {
       if (confirmedRef.current) return;
       confirmedRef.current = true;
@@ -193,7 +207,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     const onError = (e: unknown) => {
       const msg = (e && typeof e === "object" && "detail" in e && (e as { detail?: { message?: string } }).detail?.message) || "";
       setPayError(msg ? `${c3110(lang, "pay_error")} (${msg})` : c3110(lang, "pay_error"));
-      setFallbackReady(true);
+      if (!ready) setFallbackReady(true);
       trackSiteEvent("cta_click", { label: "cand_payer_echec" });
     };
     const winSuccess = () => { void onSuccess(); };
@@ -219,7 +233,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
         elementRef.current = el;
         el.on?.("success", () => { void onSuccess(); });
         el.on?.("error", (e) => onError(e));
-        el.on?.("ready", () => { if (!cancelled) { window.clearTimeout(timer); setFallbackReady(false); } });
+        el.on?.("ready", () => markReady());
         el.mount("awx-dropin-3110");
       } catch {
         if (!cancelled) setFallbackReady(true);
@@ -228,6 +242,8 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      window.clearInterval(probe);
+      window.removeEventListener("onReady", winReady);
       window.removeEventListener("onSuccess", winSuccess);
       window.removeEventListener("onError", winError);
       try { elementRef.current?.destroy?.(); } catch { /* déjà détruit */ }
@@ -323,6 +339,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     setErrors((e) => ({ ...e, [id]: "" }));
     setPayError("");
     setFallbackReady(false);
+    setCardReady(false);
     setPay({ intentId: "", secret: "", currency, amount: total ?? 0, bookingId: "", name, appId: id });
     setStep("accepting");
     try {
@@ -468,7 +485,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
                 )}
                 {step === "card" && (
                   <>
-                    {!fallbackReady && (
+                    {!fallbackReady && !cardReady && (
                       <div className="mb-2 flex items-center gap-2 text-[12px] font-bold" style={{ color: "#8A6B64" }} data-cand3110-card-loading="">
                         <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />{c3110(lang, "preparing")}
                       </div>

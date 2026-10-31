@@ -165,7 +165,8 @@ adminRouter.get('/stats', requireAdmin, async (req, res) => {
     const t0 = dayStartIn2410(tz, now);
     const since = new Date(now.getTime() - days * DAY);
     const from = new Date(Math.min(since.getTime(), t0.getTime() - DAY));
-    const rows = await AdLead.find({ createdAt: { $gte: from } }).select('createdAt city country lat lng postId startText endText confirmedAt').lean();
+    // 31/10 (LEO) — les contacts venus du site (source 'site') ne comptent pas dans la pub : comptés à part.
+    const rows = await AdLead.find({ createdAt: { $gte: from }, source: { $ne: 'site' } }).select('createdAt city country lat lng postId startText endText confirmedAt').lean();
     const { datesFor } = require('../utils/adLeadDates2310');
     const out = { days, timeZone: tz, generatedAt: now, today: 0, yesterday: 0, d7: 0, byCity: { paris: 0, nyc: 0, other: 0 }, published: 0, withDates: 0, confirmed: 0, total: 0 };
     for (const l of rows) {
@@ -181,7 +182,8 @@ adminRouter.get('/stats', requireAdmin, async (req, res) => {
       try { dd = datesFor(l, now); } catch (_) { dd = null; }
       if (dd && dd.source === 'form') out.withDates += 1;
     }
-    out.total = await AdLead.countDocuments({});
+    out.total = await AdLead.countDocuments({ source: { $ne: 'site' } });
+    out.site = await AdLead.countDocuments({ source: 'site', createdAt: { $gte: since } });
     return res.json(out);
   } catch (e) {
     logger.error('[adLeads2210] stats failed', e);
@@ -192,6 +194,8 @@ adminRouter.get('/stats', requireAdmin, async (req, res) => {
 // ── public : résumé + confirmation ───────────────────────────────────────────
 const router = express.Router();
 const ID_RE = /^[a-f0-9]{32}$/;
+// 31/10 (LEO, feu vert BOB) — POST /ad-leads/site : demande publiée en 1 étape depuis la page d'arrivée.
+router.use(require('./adLeadsSite3110'));
 
 router.get('/:id', async (req, res) => {
   if (!ID_RE.test(req.params.id)) return res.status(404).json({ error: 'not_found' });
@@ -461,3 +465,4 @@ adminRouter.post('/:id/publish', requireAdmin, async (req, res) => {
 module.exports = router;
 module.exports.adminRouter = adminRouter;
 module.exports.postInputFor = postInputFor;
+module.exports.publishLead = publishLead; // 31/10 (LEO) — réutilisé par adLeadsSite3110
