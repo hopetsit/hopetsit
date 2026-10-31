@@ -20,6 +20,13 @@ const PUBLISH: Partial<Record<string, { label: string; short: string; become: st
 // logo · 4 liens au centre (+ « Plus » : PawPoints, Contact) · langue · Se connecter · Devenir gardien (contour) ·
 // Publier ma demande (seul bouton plein). Sous 1240 px : logo · langue · bouton principal · menu (rien ne se coupe).
 const MORE: Record<string, string> = { fr: "Plus", en: "More", es: "Más", de: "Mehr", it: "Altro", pt: "Mais", ko: "더보기", ja: "その他", pl: "Więcej" };
+function UserIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5c0-3.6 3.4-6 7.5-6s7.5 2.4 7.5 6" />
+    </svg>
+  );
+}
 const NAV_TXT = "text-[#6E4F48]"; // brun chaud plein (contraste 7,5:1 sur blanc) — jamais une encre à opacité réduite (= gris)
 
 export function Header() {
@@ -84,7 +91,7 @@ export function Header() {
           logo. Mesure : nav 359 px + logo 103 px + boutons 274 px = 736 px pour
           736 px utiles. La version compacte (logo + langue + S'inscrire +
           menu) court donc maintenant jusqu'a 1024 px. */}
-      <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 min-[1240px]:h-16 min-[1240px]:gap-8 min-[1240px]:px-5">
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-3 sm:gap-3 sm:px-4 min-[1240px]:h-16 min-[1240px]:gap-8 min-[1240px]:px-5">
         <Link href="/" className="flex min-h-[44px] shrink-0 items-center" aria-label="HoPetSit">
           <LogoWithText />
         </Link>
@@ -139,60 +146,77 @@ export function Header() {
           </div>
         </nav>
 
-        <div className="ml-auto flex shrink-0 items-center gap-2 min-[1240px]:ml-0 min-[1240px]:gap-3" data-entete-3110="actions">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 min-[1240px]:ml-0 min-[1240px]:gap-3" data-entete-3110="actions">
           {/* v458 — Daniel : retirer le bouton « Ouvrir la PawMap » de la
               barre du haut pour l'instant (il reste dans le footer + les pages). */}
           <LangSwitcher />
 
-          {/* Until we've read localStorage, render a placeholder of the same
-              footprint to avoid CLS / a flash of "Login + Sign up" buttons
-              for users who are actually authenticated. */}
+          {/* 31/10 soir (Daniel via BOB) — « Se connecter » doit se voir et se comprendre : « je me connecte à mon compte ».
+              Pilule blanche à contour sombre #1C1917 + icône personne (dès 768 px) ; sur téléphone, l'icône seule,
+              toujours visible dans la barre. Connecté : « 👤 <Prénom> » → mon espace. « Devenir gardien » passe en simple lien,
+              pour ne jamais avoir deux boutons identiques côte à côte ; « Publier ma demande » reste le seul bouton plein. */}
           {!ready ? (
-            <div aria-hidden="true" className="h-9 w-[150px]" />
+            <div aria-hidden="true" className="h-10 w-10 min-[1240px]:w-[150px]" />
           ) : user ? (
             <>
-              {/* v402 — Daniel : bouton « Mon compte » plus visible. Pilule
-                  pleine couleur du rôle + ombre, au lieu d'une fine bordure. */}
               <Link
                 href="/dashboard"
-                className={`hidden items-center gap-2 whitespace-nowrap rounded-full ${roleColor} px-4 py-2 text-sm font-semibold text-white shadow-cta transition hover:opacity-90 min-[1240px]:inline-flex`}
+                className="hidden items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] border-[#1C1917] bg-white py-[5px] pl-[5px] pr-4 text-[14px] font-bold text-[#1C1917] transition hover:bg-[#FAF1EC] md:inline-flex"
                 title={user.email}
+                data-entete-3110="compte"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/25 text-xs font-bold text-white">
-                  {initial}
+                <span className={`flex h-7 w-7 items-center justify-center rounded-full ${roleColor} text-white`}>
+                  <UserIcon size={15} />
                 </span>
-                <span className="max-w-[140px] truncate">
-                  {user.name?.split(" ")[0] || t("nav_dashboard")}
-                </span>
+                <span className="max-w-[140px] truncate">{user.name?.split(" ")[0] || t("nav_dashboard")}</span>
               </Link>
               <button
                 type="button"
                 onClick={onLogout}
-                className={`hidden whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold ${NAV_TXT} hover:text-ink min-[1240px]:inline-block`}
+                className={`hidden whitespace-nowrap rounded-full px-2 py-1.5 text-sm font-semibold ${NAV_TXT} hover:text-ink min-[1240px]:inline-block`}
               >
                 {t("dash_logout")}
               </button>
+              <Link
+                href="/dashboard"
+                aria-label={user.name?.split(" ")[0] || t("nav_dashboard")}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${roleColor} text-white md:hidden`}
+                data-entete-3110="compte-icone"
+              >
+                <UserIcon size={19} />
+              </Link>
             </>
           ) : (
             <>
-              {/* Lien discret. */}
-              <Link
-                href="/login"
-                className={`hidden whitespace-nowrap px-1.5 py-2 text-[14px] font-semibold ${NAV_TXT} transition hover:text-owner-dark min-[1240px]:inline-block`}
-              >
-                {t("nav_login")}
-              </Link>
-              {/* 31/10 16 h 40 (ZOE, mesuré en ligne) : « Devenir gardien / Become a sitter » → /signup (inscription classique).
-                  Passe 14 : bouton SECONDAIRE à contour, pour que « Publier ma demande » reste le seul bouton plein. */}
+              {/* « Devenir gardien » : simple lien (orange foncé), plus un bouton. */}
               {PUBLISH[lang] && (
                 <Link
                   href="/signup"
-                  className="hidden whitespace-nowrap rounded-full border-2 border-owner bg-white px-4 py-[7px] text-[14px] font-bold text-owner-dark transition hover:bg-owner-light min-[1240px]:inline-block"
+                  className="hidden whitespace-nowrap px-1.5 py-2 text-[14px] font-semibold text-owner-dark underline-offset-4 transition hover:underline min-[1240px]:inline-block"
                   data-entete-3110="gardien"
                 >
                   {PUBLISH[lang]!.become}
                 </Link>
               )}
+              {/* « Se connecter » : pilule blanche, contour sombre, icône personne. */}
+              <Link
+                href="/login"
+                className="hidden items-center gap-1.5 whitespace-nowrap rounded-full border-[1.5px] border-[#1C1917] bg-white py-[7px] pl-3 pr-4 text-[14px] font-bold text-[#1C1917] transition hover:bg-[#FAF1EC] md:inline-flex"
+                data-entete-3110="connexion"
+              >
+                <UserIcon size={17} />
+                {t("nav_login")}
+              </Link>
+              {/* Téléphone (< 768 px) : l'icône seule, dans la barre (cible 44 px par calque invisible). */}
+              <Link
+                href="/login"
+                aria-label={t("nav_login")}
+                title={t("nav_login")}
+                className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[#1C1917] bg-white text-[#1C1917] after:absolute after:-inset-0.5 after:content-[''] md:hidden"
+                data-entete-3110="connexion-icone"
+              >
+                <UserIcon size={19} />
+              </Link>
               {/* 31/10 (LEO, décision BOB, étape 3) — bouton principal = « Publier ma demande » (propriétaires d'abord) ;
                   fr/en seulement, les autres langues gardent « S'inscrire ». */}
               <Link
@@ -215,7 +239,7 @@ export function Header() {
             type="button"
             /* v583 — pouce : carré de 44 px. Passe 14 : le menu court jusqu'à 1240 px (avant 1024) pour que
                rien ne se coupe entre 1024 et 1240 px. */
-            className="ml-1 flex h-11 w-11 items-center justify-center rounded-xl text-ink min-[1240px]:hidden"
+            className="flex h-11 w-10 items-center justify-center rounded-xl text-ink min-[1240px]:hidden"
             aria-label="Toggle menu"
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}

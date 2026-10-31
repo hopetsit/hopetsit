@@ -102,7 +102,7 @@ export function LangSwitcher() {
         ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`lang-switch inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-sm font-medium text-ink transition-[color,border-color,box-shadow] duration-150 max-lg:min-h-[44px] ${
+        className={`lang-switch inline-flex items-center gap-1.5 rounded-full border bg-white px-2.5 py-1.5 text-sm font-medium text-ink sm:px-3 transition-[color,border-color,box-shadow] duration-150 max-lg:min-h-[44px] ${
           open ? "border-ink/30 bg-bg-soft" : "border-ink/10 hover:border-ink/30"
         }`}
         aria-haspopup="listbox"
@@ -113,7 +113,7 @@ export function LangSwitcher() {
         <span className="hidden sm:inline">{current.code.toUpperCase()}</span>
         <svg
           width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"
-          className={`transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+          className={`hidden transition-transform duration-150 sm:block ${open ? "rotate-180" : ""}`}
         >
           <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.6" fill="none" />
         </svg>
