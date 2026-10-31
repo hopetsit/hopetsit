@@ -276,6 +276,9 @@ export function PostCandidates1610({
         setEditingDates(true);
       } else if (code === "TOO_FAR") {
         msg = fill(t("c1610_too_far"), { km: String(d.limitKm || 200) });
+      } else if (code === "PRICE_TO_CONFIRM") {
+        // 3110 (FLO) — message du serveur, déjà dans la langue du propriétaire.
+        msg = e instanceof Error && e.message ? e.message : msg;
       } else if (e instanceof ApiError && e.status === 409) {
         msg = t("c1610_already");
       } else if (e instanceof ApiError && e.status === 401) {
@@ -343,7 +346,7 @@ export function PostCandidates1610({
   // 2910 (SAM) — même règle pour l'encart et pour « Choisir » sur une carte : la fenêtre du navigateur
   // (sans prix) faisait renoncer (cand_choisir_annule 1, cand_choisir 0) ; une carte payable ouvre l'encart.
   function fastFor(a: ApplicationItem | undefined) {
-    if (!a || tbd || a.status !== "pending" || a.pricing?.stale === true || a.pricing?.indicative === true) return null;
+    if (!a || tbd || a.status !== "pending" || a.pricing?.stale === true || a.pricing?.priceToConfirm === true || a.pricing?.indicative === true) return null;
     const total = a.pricing?.totalPrice ?? null;
     const rate = a.pricing?.appliedRate ?? null;
     if (total == null || !(total > 0) || (rate != null && rate > 0 && total + 0.001 < rate)) return null;
@@ -439,7 +442,11 @@ export function PostCandidates1610({
           // 620 — indicatif (dates à prévoir) : « 12 €/visite » au lieu d'un total.
           const indicative = a.pricing?.indicative === true || (tbd && !(total != null && total > 0));
           // 620b — « tarif à venir » : aucun montant, Choisir bloqué avec l'explication.
-          const stale = a.pricing?.stale === true;
+          // 3110 (FLO, alerte prix de BOB) — total suspect (< 10 sur plusieurs jours, ou ×5 loin des autres
+          // candidats) : aucun montant affiché, « prix à confirmer par le gardien », Choisir bloqué.
+          const toConfirm = a.pricing?.priceToConfirm === true;
+          const toConfirmLabel = a.pricing?.priceToConfirmLabel || "Prix à confirmer par le gardien";
+          const stale = a.pricing?.stale === true || toConfirm;
           // 2610 (ZOE, ordre de Daniel) — jamais un total incohérent à l'écran : un total absent,
           // nul ou INFÉRIEUR au tarif unitaire n'est affiché ni comme total ni comme tarif.
           const rawRate = a.pricing?.appliedRate ?? null;
@@ -545,12 +552,12 @@ export function PostCandidates1610({
                 ) : (
                   <>
                     <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#8A6B64" }}>{c2610(lang, "rate")}</span>
-                    <span className="text-[14px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }} data-stale-620="">{c2610(lang, "stale_short")}</span>
+                    <span className="text-[14px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }} data-stale-620="" data-price-to-confirm-3110={toConfirm ? "" : undefined}>{toConfirm ? toConfirmLabel : c2610(lang, "stale_short")}</span>
                   </>
                 )}
               </div>}
               {/* « Tarif à venir » toujours expliqué ; un total incohérent (ZOE) n'affiche rien du tout. */}
-              {stale && a.status === "pending" && (
+              {stale && !toConfirm && a.status === "pending" && (
                 <p className="mt-1.5 text-[11.5px] font-semibold leading-snug" style={{ color: "#9E1F0B" }} data-stale-hint-620="">
                   {d620(lang, "cand_stale_hint")}
                 </p>
@@ -584,7 +591,7 @@ export function PostCandidates1610({
                         price={priceLabel || undefined}
                         loading={busyId === id}
                         disabled={(busyId !== null && busyId !== id) || stale}
-                        disabledReason={stale ? d620(lang, "cand_stale_hint") : undefined}
+                        disabledReason={toConfirm ? toConfirmLabel : stale ? d620(lang, "cand_stale_hint") : undefined}
                         onClick={() => { if (stale) return; if (tbd) { trackSiteEvent("cta_click", { label: "cand_dates" }); setPickId(id); setEditingDates(true); sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; } if (fastFor(a)) { trackSiteEvent("cta_click", { label: "cand_encart" }); setPickId(id); sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; } void respond(a, "accept"); }}
                         ariaLabel={`${t("c1610_choose")} ${firstName}`}
                       />

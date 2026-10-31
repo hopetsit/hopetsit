@@ -770,6 +770,32 @@ const createApplication = async (req, res) => {
   }
 };
 
+async function annotatePriceChecks(apps, ownerId) {
+  const sanity = require('../utils/priceSanity3110');
+  const Post = require('../models/Post');
+  const ids = [...new Set(apps.map((a) => a && a.postId).filter(Boolean).map(String))];
+  if (!ids.length) return apps;
+  const [posts, sibs, owner] = await Promise.all([
+    Post.find({ _id: { $in: ids } }).select('startDate endDate dateMode').lean(),
+    Application.find({ postId: { $in: ids } }).select('_id postId status pricing.totalPrice pricing.indicative pricing.stale').lean(),
+    ownerId ? Owner.findById(ownerId).select('appLocale language').lean() : null,
+  ]);
+  const postById = new Map(posts.map((p) => [String(p._id), p]));
+  const sibsByPost = new Map();
+  for (const s of sibs) {
+    const k = String(s.postId);
+    if (!sibsByPost.has(k)) sibsByPost.set(k, []);
+    sibsByPost.get(k).push(s);
+  }
+  const label = sanity.priceToConfirmLabel(require('../utils/applicationCurrency1610').localeOf(owner || {}) || 'fr');
+  return apps.map((a) => {
+    if (!a || !a.postId || !a.pricing || typeof a.pricing !== 'object') return a;
+    const chk = sanity.checkApplication(a, postById.get(String(a.postId)), sibsByPost.get(String(a.postId)) || []);
+    if (!chk.toVerify) return a;
+    return { ...a, pricing: { ...a.pricing, priceToConfirm: true, priceCheckReason: chk.reason, priceToConfirmLabel: label } };
+  });
+}
+
 const listApplications = async (req, res) => {
   try {
     // Check if this is a "my" endpoint request (user authenticated)
@@ -829,7 +855,18 @@ const listApplications = async (req, res) => {
     };
     const ordered = userRole === 'owner' ? applications.slice().sort((x, y) => boosted(y) - boosted(x)) : applications;
 
-    res.json({ applications: ordered.map(sanitizeApplication) });
+    // 3110 (FLO, alerte prix de BOB) — côté propriétaire, un total suspect est marqué
+    // `pricing.priceToConfirm` (+ raison et libellé « prix à confirmer par le gardien ») ;
+    // l'acceptation le refuse (409 PRICE_TO_CONFIRM). Aucun prix stocké n'est modifié.
+    let out = ordered.map(sanitizeApplication);
+    if (userRole === 'owner' && out.length) {
+      try {
+        out = await annotatePriceChecks(out, req.user && req.user.id);
+      } catch (e) {
+        logger.warn(`[listApplications] garde-fou prix 3110 : ${e?.message || e}`);
+      }
+    }
+    res.json({ applications: out });
   } catch (error) {
     logger.error('Fetch applications error', error);
     res.status(500).json({ error: 'Unable to fetch applications. Please try again later.' });
@@ -972,6 +1009,30 @@ const respondToApplication = async (req, res) => {
           unit,
           postId: application.postId ? String(application.postId) : null,
         });
+      }
+      // 3110 (FLO, alerte prix de BOB du 31/10) — GARDE-FOU : un total < 10 sur au moins 2 jours,
+      // ou plus de 5 fois sous (ou au-dessus de) la médiane des autres candidats, n'est PAS payable.
+      // Rien n'est écrit, aucun prix ni commission modifiés : 409 PRICE_TO_CONFIRM, « prix à
+      // confirmer par le gardien » dans la langue du propriétaire (utils/priceSanity3110.js).
+      if (!application.bookingId && application.postId) {
+        try {
+          const sanity = require('../utils/priceSanity3110');
+          const pS = await require('../models/Post').findById(application.postId).select('startDate endDate dateMode').lean();
+          const sibs = pS ? await Application.find({ postId: application.postId }).select('_id status pricing.totalPrice pricing.indicative pricing.stale').lean() : [];
+          const chk = pS ? sanity.checkApplication(application, pS, sibs) : { toVerify: false };
+          if (chk.toVerify) {
+            const loc = require('../utils/applicationCurrency1610').localeOf(application.ownerId);
+            logger.info(`[respondToApplication] acceptation refusée : prix à confirmer (${chk.reason}) candidature ${id} total ${application.pricing && application.pricing.totalPrice}`);
+            return res.status(409).json({
+              error: sanity.priceToConfirmMessage(loc),
+              code: 'PRICE_TO_CONFIRM',
+              reason: chk.reason,
+              postId: String(application.postId),
+            });
+          }
+        } catch (e) {
+          logger.warn(`[respondToApplication] garde-fou prix 3110 : ${e?.message || e}`);
+        }
       }
       application.status = 'accepted';
 

@@ -1406,6 +1406,10 @@ export type ApplicationItem = {
     ownerUnitRate?: number | null;
     /** 26/10 (ZOE 2610b) — le tarif semaine du prestataire a été appliqué au total. */
     weeklyApplied?: boolean;
+    /** 31/10 (FLO 3110) — total suspect : « prix à confirmer par le gardien », non payable (409 PRICE_TO_CONFIRM). */
+    priceToConfirm?: boolean;
+    priceCheckReason?: string;
+    priceToConfirmLabel?: string;
   } | null;
 };
 
