@@ -55,7 +55,13 @@ const config = {
   apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain:        _effectiveAuthDomain,
   projectId:         _projectId,
-  appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  // 01/11/2026 (BOB) — sur Vercel, NEXT_PUBLIC_FIREBASE_APP_ID contient la clé API au lieu
+  // de l'identifiant d'app (Vercel refuse de l'éditer : variable « Secret »). L'identifiant
+  // d'app Web Firebase est public par conception ; on prend la valeur du projet si l'env
+  // n'a pas le bon format « 1:<n°>:web:<hex> ».
+  appId: /^1:\d+:web:[0-9a-f]+$/i.test(process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "")
+    ? process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+    : "1:470089536255:web:7c80dc3fa0be835d34b2ca",
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
 };
 
