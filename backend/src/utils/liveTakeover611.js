@@ -66,6 +66,17 @@ function isDisplaced(userId, deviceId) {
 function noteDevice(session, deviceId) {
   const id = _clean(deviceId);
   if (session && id && !session.deviceId) session.deviceId = id;
+  // 632 (contrôle ZOE, 01/11) — `deviceId` reste le 1er appareil (règles de
+  // reprise 611) ; `lastDeviceId` = celui qui DIFFUSE en ce moment. Sans lui,
+  // un téléphone A dont l'arrêt s'était perdu se croyait encore maître d'une
+  // balade relancée sur B (même session RAM) et la coupait.
+  if (session && id) session.lastDeviceId = id;
+}
+
+/** 632 — l'appareil qui tient la balade : le dernier qui a diffusé. */
+function holderDevice(session) {
+  if (!session) return '';
+  return _clean(session.lastDeviceId || session.deviceId || '');
 }
 
 function clearFor(ids = []) {
@@ -119,6 +130,7 @@ async function takeOver({ userId, role, deviceId, now = Date.now() }) {
     if (role) s.role = String(role).toLowerCase();
   }
   s.deviceId = newId;
+  s.lastDeviceId = newId; // 632 (contrôle ZOE) — la reprise désigne aussi le maître actuel
   s.displaced = [...displaced];
   s.personIds = ids;
   s.takenOverAt = now;
@@ -174,6 +186,7 @@ module.exports = {
   deviceIdOfReq,
   isDisplaced,
   noteDevice,
+  holderDevice,
   clearFor,
   takeOver,
   rearmFromSession,

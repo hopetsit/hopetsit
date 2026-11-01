@@ -167,8 +167,16 @@ async function markStartedByUser(userId, { role, now = new Date() } = {}) {
 }
 
 /** Annonce aux autres appareils qu'un direct vient de démarrer. */
-function announceStarted(docs, { role, userId, at = new Date() } = {}) {
-  emitSelfLive(docs, { active: true, at: at.toISOString(), role: role || null, fromId: userId ? String(userId) : null });
+function announceStarted(docs, { role, userId, deviceId, at = new Date() } = {}) {
+  // 632 (PAM) — `deviceId` : l'appareil qui diffuse. Le téléphone qui reçoit
+  // son PROPRE départ ne se croit plus « en direct sur un autre téléphone ».
+  emitSelfLive(docs, {
+    active: true,
+    at: at.toISOString(),
+    role: role || null,
+    fromId: userId ? String(userId) : null,
+    deviceId: deviceId ? String(deviceId) : '',
+  });
   // v604 (ZOE) — les conversations où je suis le partageur d'une demande
   // acceptée passent « en direct » tout de suite (pilule d'en-tête).
   if (userId) {
@@ -226,10 +234,30 @@ async function getMyLiveState(userId) {
     fromId: session ? String(session.userId) : null,
     dbActive,
     session: described,
+    // 632 (PAM, 01/11) — Daniel : « En direct · autre téléphone » alors
+    // qu'aucun autre téléphone ne diffusait. L'app décidait « ailleurs » dès
+    // que le serveur avait une session et que CE téléphone ne diffusait pas,
+    // sans savoir QUEL appareil la tenait : sa propre balade restée ouverte
+    // côté serveur (arrêt perdu sur un réseau faible, app relancée) passait
+    // pour un autre téléphone. L'appareil de la session (611) est renvoyé ;
+    // vide = inconnu (ancienne app).
+    // Contrôle ZOE : le DERNIER appareil qui diffuse, pas le premier.
+    deviceId: require('./liveTakeover611').holderDevice(session),
   };
 }
 
+/**
+ * 632 (contrôle ZOE) — l'appareil qui tient la balade de la personne (tous
+ * profils), '' si aucune session ou appareil inconnu.
+ */
+async function liveHolderDevice(userId) {
+  const g = await groupOf(userId);
+  const session = require('../sockets/mapSocket').getLiveSessionForIds(g.ids);
+  return require('./liveTakeover611').holderDevice(session);
+}
+
 module.exports = {
+  liveHolderDevice,
   STOPPED_FIELD,
   isForegroundRequest,
   stopEverywhere,

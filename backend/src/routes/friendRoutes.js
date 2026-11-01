@@ -197,6 +197,29 @@ router.get('/live-state', requireAuth, async (req, res) => {
   }
 });
 
+// 632 (PAM) — travail d'après-réponse de /live-position, par personne : un
+// arrêt l'attend (3 s au plus) pour ne jamais être écrasé par lui.
+const _liveWork632 = new Map();
+function trackLiveWork632(userId, p) {
+  const id = String(userId);
+  const prev = _liveWork632.get(id) || Promise.resolve();
+  const next = Promise.all([prev, p]).then(() => undefined, () => undefined);
+  _liveWork632.set(id, next);
+  next.then(() => { if (_liveWork632.get(id) === next) _liveWork632.delete(id); });
+}
+async function waitLiveWork632(userId) {
+  // Les 3 profils de la personne (contrôle ZOE) : un arrêt envoyé depuis un
+  // autre profil attend aussi le travail en cours.
+  let ids = [String(userId)];
+  try {
+    const g = await identityGroup(userId);
+    if (g && Array.isArray(g.ids) && g.ids.length) ids = g.ids.map(String);
+  } catch (_) { /* profil seul */ }
+  const ps = ids.map((id) => _liveWork632.get(id)).filter(Boolean);
+  if (!ps.length) return undefined;
+  return Promise.race([Promise.all(ps), new Promise((r) => { const t = setTimeout(r, 3000); if (t.unref) t.unref(); })]);
+}
+
 router.post('/live-position', requireAuth, async (req, res) => {
   try {
     const { relayLivePosition, getLiveSession, describeLiveSession } = require('../sockets/mapSocket');
@@ -204,6 +227,21 @@ router.post('/live-position', requireAuth, async (req, res) => {
     const { lat, lng, city, offline, duration, heartbeat } = req.body || {};
     const liveDevices = require('../utils/liveDevices589');
     if (offline === true || offline === 'true') {
+      // 632 (contrôle ZOE) — arrêt CONDITIONNEL (relance tardive, balade
+      // orpheline, renvoi « vestige ») : ignoré si la balade est tenue par
+      // un AUTRE téléphone de la personne, pour ne pas couper sa vraie balade.
+      const b = req.body || {};
+      if (b.onlyIfMine === true || b.onlyIfMine === 'true') {
+        const reqDev = require('../utils/liveTakeover611').deviceIdOfReq(req);
+        const holder = await liveDevices.liveHolderDevice(u.id);
+        if (reqDev && holder && holder !== reqDev) {
+          return res.json({ ok: true, offline: false, ignored: true, heldElsewhere: true });
+        }
+      }
+      // 632 — le travail d'après-réponse d'une position encore en cours
+      // (« balade commencée » en base, relais) se termine AVANT l'arrêt :
+      // sinon il pouvait réécrire « en cours » par-dessus l'arrêt.
+      await waitLiveWork632(u.id);
       // v589 — arrêt VOULU : coupe les 3 profils et prévient les autres
       // appareils (avant : seul le profil actif, et Android le relançait).
       await liveDevices.stopEverywhere(u.id);
@@ -223,38 +261,49 @@ router.post('/live-position', requireAuth, async (req, res) => {
     if (!foreground && await liveDevices.isStoppedByUser(u.id)) {
       return res.json({ ok: true, ignored: true, stopped: true });
     }
-    let started = null;
-    const hadSession = !!getLiveSession(u.id);
-    if (foreground) started = await liveDevices.markStartedByUser(u.id, { role: u.role });
+    // 632 (PAM, 01/11/2026) — Daniel (Condado de Alhama, vidéos 13 h 59-
+    // 14 h 04) : pilule « Connexion… » plus d'une minute, puis retombée en
+    // pleine balade. Mesuré en production (+testwalker, 5 amis) : 2,1-2,6 s
+    // par position, dont ~1,5 s de base (3 profils, écriture de la position,
+    // liste des amis à prévenir, une requête « famille » PAR ami). Le temps
+    // grandit avec le nombre d'amis et la qualité du réseau. La session RAM
+    // fait foi pour la confirmation : on la touche, on RÉPOND, puis on écrit
+    // la base et on prévient les amis sans faire attendre le téléphone.
     const la = Number(lat);
     const ln = Number(lng);
     const hasPos = Number.isFinite(la) && Number.isFinite(ln) && !(la === 0 && ln === 0);
-    if (!hasPos && (heartbeat === true || heartbeat === 'true')) {
-      const listeners = await relayLivePosition({
-        userId: u.id, role: u.role, duration, heartbeat: true,
-      });
-      return res.json({
-        ok: true,
-        heartbeat: true,
-        listeners,
-        session: describeLiveSession(getLiveSession(u.id)),
-      });
-    }
-    if (!hasPos) {
+    const isHeartbeat = heartbeat === true || heartbeat === 'true';
+    if (!hasPos && !isHeartbeat) {
       return res.status(400).json({ error: 'lat and lng are required.' });
     }
-    const listeners = await relayLivePosition({
-      userId: u.id, role: u.role, lat: la, lng: ln, city, duration,
-    });
-    takeover611.noteDevice(getLiveSession(u.id), deviceId); // 611
-    if (started && (started.restarted || !hadSession)) {
-      liveDevices.announceStarted(started.docs, { role: u.role, userId: u.id });
-    }
-    return res.json({
-      ok: true,
-      listeners,
-      session: describeLiveSession(getLiveSession(u.id)),
-    });
+    const hadSession = !!getLiveSession(u.id);
+    // Le relais touche la session RAM de façon SYNCHRONE (avant son 1er
+    // `await`) : elle existe dès le retour de cet appel.
+    const relayP = hasPos
+      ? relayLivePosition({ userId: u.id, role: u.role, lat: la, lng: ln, city, duration })
+      : relayLivePosition({ userId: u.id, role: u.role, duration, heartbeat: true });
+    // Rejet capturé TOUT DE SUITE : une promesse rejetée sans gestionnaire
+    // ferait tomber le processus Node pendant l'attente ci-dessous.
+    const relayDone = relayP.then(() => null, (e) => e);
+    if (hasPos) takeover611.noteDevice(getLiveSession(u.id), deviceId); // 611
+    const session = describeLiveSession(getLiveSession(u.id));
+    res.json(hasPos ? { ok: true, session } : { ok: true, heartbeat: true, session });
+    // Après la réponse : début du direct en base + annonce aux autres
+    // appareils (avec l'appareil qui diffuse, 632) + relais aux amis.
+    const work = Promise.resolve()
+      .then(async () => {
+        const started = foreground
+          ? await liveDevices.markStartedByUser(u.id, { role: u.role })
+          : null;
+        const relayErr = await relayDone;
+        if (relayErr) logger.error('[friends/live-position] relais', relayErr);
+        if (hasPos && started && (started.restarted || !hadSession)) {
+          liveDevices.announceStarted(started.docs, { role: u.role, userId: u.id, deviceId });
+        }
+      })
+      .catch((e) => logger.error('[friends/live-position] après réponse', e));
+    trackLiveWork632(u.id, work);
+    return undefined;
   } catch (e) {
     logger.error('[friends/live-position]', e);
     return res.status(500).json({ error: 'Unable to relay live position.' });

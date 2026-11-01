@@ -22,6 +22,7 @@ const liveSessionSchema = new mongoose.Schema(
     trail: { type: [[Number]], default: [] },
     // 611 (PAM) — reprise d'appareil (utils/liveTakeover611.js).
     deviceId: { type: String, default: '' },
+    lastDeviceId: { type: String, default: '' }, // 632 — appareil qui diffuse en dernier
     displaced: { type: [String], default: [] },
     personIds: { type: [String], default: [] },
     // Purge automatique : 24 h après le dernier signal (= LIVE_RAM_TTL_MS).

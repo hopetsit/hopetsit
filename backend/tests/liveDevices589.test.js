@@ -91,7 +91,14 @@ function call(fn, { user, body = {}, headers = {} }) {
 }
 const ANDROID_BG = { user: { id: 'dO', role: 'owner' }, headers: {} };
 const IPHONE = { user: { id: 'dS', role: 'sitter' }, headers: { 'x-app-version': '23.1.578+589' } };
-const post = (who, body) => call(route('post', '/live-position'), { ...who, body });
+// 632 — la route répond AVANT d'écrire la base et de prévenir les amis : on
+// laisse le travail d'après-réponse se terminer avant de vérifier.
+const settle = () => new Promise((r) => setTimeout(r, 25));
+const post = async (who, body) => {
+  const r = await call(route('post', '/live-position'), { ...who, body });
+  await settle();
+  return r;
+};
 const liveState = (who) => call(route('get', '/live-state'), who);
 const selfLiveEvents = () => emitToUser.mock.calls.filter((c) => c[2] === 'map:self-live');
 

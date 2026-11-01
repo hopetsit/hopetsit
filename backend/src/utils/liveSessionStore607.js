@@ -38,6 +38,7 @@ function toDoc(s) {
     trail: Array.isArray(s.trail) ? s.trail.slice(-240) : [],
     // 611 (PAM) — reprise d'appareil : appareil qui diffuse, appareils écartés.
     deviceId: s.deviceId || '',
+    lastDeviceId: s.lastDeviceId || '', // 632 (contrôle ZOE) — survit au redémarrage
     displaced: Array.isArray(s.displaced) ? s.displaced.map(String) : [],
     personIds: Array.isArray(s.personIds) ? s.personIds.map(String) : [],
     purgeAt: new Date(Number(s.lastSeenAt || Date.now()) + TTL_MS),
@@ -59,20 +60,34 @@ function fromDoc(d) {
     lastStillActiveNoticeAt: d.lastStillActiveNoticeAt || d.lastSeenAt,
     trail: Array.isArray(d.trail) ? d.trail.map((p) => [Number(p[0]), Number(p[1]), Number(p[2])]) : [],
     deviceId: d.deviceId || '', // 611
+    lastDeviceId: d.lastDeviceId || '', // 632
     displaced: Array.isArray(d.displaced) ? d.displaced.map(String) : [],
     personIds: Array.isArray(d.personIds) ? d.personIds.map(String) : [],
   };
 }
+
+// 632 (PAM, 01/11) — écritures en cours par personne : un effacement (arrêt)
+// attend la fin de l'écriture partie juste avant, sinon l'upsert arrivé
+// APRÈS le deleteOne recréait la ligne et la balade revenait au redémarrage.
+const _inflight = new Map();
 
 async function flush(userId) {
   _timers.delete(userId);
   const s = _pending.get(userId);
   _pending.delete(userId);
   if (!s || !_enabled || !_ready()) return;
+  const p = (async () => {
+    try {
+      await _model().updateOne({ userId }, { $set: toDoc(s) }, { upsert: true });
+    } catch (e) {
+      logger.warn(`[liveStore] écriture ${userId} : ${e.message}`);
+    }
+  })();
+  _inflight.set(userId, p);
   try {
-    await _model().updateOne({ userId }, { $set: toDoc(s) }, { upsert: true });
-  } catch (e) {
-    logger.warn(`[liveStore] écriture ${userId} : ${e.message}`);
+    await p;
+  } finally {
+    if (_inflight.get(userId) === p) _inflight.delete(userId);
   }
 }
 
@@ -100,7 +115,8 @@ function remove(userId) {
   _timers.delete(id);
   _pending.delete(id);
   if (!_enabled || !_ready()) return Promise.resolve();
-  return _model().deleteOne({ userId: id }).catch((e) => {
+  const before = _inflight.get(id) || Promise.resolve(); // 632
+  return before.then(() => _model().deleteOne({ userId: id })).catch((e) => {
     logger.warn(`[liveStore] effacement ${id} : ${e.message}`);
   });
 }

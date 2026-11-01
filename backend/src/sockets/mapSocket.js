@@ -666,6 +666,11 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline, durati
     return 0;
   }
 
+  // 632 (PAM, 01/11) — la session RAM est touchée AVANT les écritures en
+  // base (synchrone, avant le 1er `await`) : la route HTTP peut confirmer la
+  // Balade tout de suite, sans attendre la base ni la liste des amis.
+  const session = touchLiveSession({ userId, role: r, lat, lng, city, duration });
+
   try {
     // v532 — on remplaçait TOUT le sous-document `location`. Deux dégâts à
     // chaque position reçue : `locationType` ('large_city') repassait à
@@ -688,8 +693,8 @@ async function relayLivePosition({ userId, role, lat, lng, city, offline, durati
     logger.warn(`[relayLivePosition] persist failed : ${e.message}`);
   }
 
-  // v565 (contrat §8) — dernière position gardée en RAM 24 h + durée choisie.
-  const session = touchLiveSession({ userId, role: r, lat, lng, city, duration });
+  // v565 (contrat §8) — dernière position gardée en RAM 24 h + durée choisie
+  // (touchée plus haut depuis 632).
 
   const listeners = await listPositionListeners(userId, r);
   // v599 — nom + photo dans l'événement : le rond du direct n'est plus vide
@@ -785,7 +790,7 @@ function registerMapHandlers(io, socket) {
               const hadSession = !!getLiveSession(identity.userId);
               const st = await liveDevices.markStartedByUser(identity.userId, { role: identity.role });
               if (st.restarted || !hadSession) {
-                liveDevices.announceStarted(st.docs, { role: identity.role, userId: identity.userId });
+                liveDevices.announceStarted(st.docs, { role: identity.role, userId: identity.userId, deviceId: payload.deviceId }); // 632
               }
             } catch (e) {
               logger.warn(`[mapSocket:position-update] live start sync failed : ${e.message}`);
