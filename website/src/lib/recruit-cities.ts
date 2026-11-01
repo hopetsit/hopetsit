@@ -481,7 +481,7 @@ export const PARIS_CITY: RecruitCity = {
   region: "Paris & Île-de-France",
   lang: "fr",
   local:
-    "De Montmartre au parc Montsouris, Paris compte plus de 100 000 chiens et des centaines de milliers de chats dans des appartements sans jardin. Promenade du midi, visite quotidienne pendant les vacances, garde de week-end : la demande est constante toute l'année, et elle se joue à l'échelle du quartier."
+    "De Montmartre au parc Montsouris, à Paris, la plupart des chiens et des chats vivent en appartement, sans jardin. Promenade du midi, visite quotidienne pendant les vacances, garde de week-end : la demande est constante toute l'année, et elle se joue à l'échelle du quartier."
 };
 
 /** Communes de la petite couronne qui touchent chaque arrondissement (slugs
