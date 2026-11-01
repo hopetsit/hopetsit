@@ -153,6 +153,10 @@ describe('3. Parcours réel (routes) : cas d\'Égly rejoué, aucun prix ni commi
     S.pet = await Pet.create({ ownerId: S.owner._id, petName: 'Rex', petType: 'dog' });
     S.fred = await Sitter.create({ ...fr, name: 'Fred Test', email: 'flo3110+fred@example.test', ...FREDERIC, visitRate: 0 });
     S.agnes = await Sitter.create({ ...fr, name: 'Agnes Test', email: 'flo3110+agnes@example.test', dailyRate: 60, weeklyRate: 300, monthlyRate: 2000 });
+    // 0111 (ADA) — l'e-mail « candidature reçue » (applicationEmail2610) part APRÈS la réponse, sans être
+    // attendu : celui du test précédent pouvait tomber pendant le comptage « 0 e-mail » (1 fois sur 3).
+    // Observé sans remplacement pour être attendu avant de compter.
+    S.appEmailSpy = jest.spyOn(require('../src/services/applicationEmail2610'), 'onApplicationCreated');
     app = express();
     app.use(express.json());
     app.use('/posts', require('../src/routes/postRoutes'));
@@ -209,6 +213,8 @@ describe('3. Parcours réel (routes) : cas d\'Égly rejoué, aucun prix ni commi
     expect(ag.status).toBe('rejected'); // refusée automatiquement quand frederic a été choisi
     await Application.updateOne({ _id: ag._id }, { $set: { 'pricing.totalPrice': 2.7 } });
     const ADMIN = { 'x-test-user': String(new mongoose.Types.ObjectId()), 'x-test-role': 'admin' };
+    expect(S.appEmailSpy).toHaveBeenCalled();
+    await Promise.allSettled(S.appEmailSpy.mock.results.map((r) => r.value));
     const before = { n: await Notification.countDocuments({}), m: MAILS.length, p: PUSHES.length };
     const dry = await request(app).post(`/admin/reprice-620/posts/${ag.postId}?dryRun=1&silent=1&includeRejected=1`).set(ADMIN).send({}).expect(200);
     expect(dry.body.repriced).toEqual([String(ag._id)]);
