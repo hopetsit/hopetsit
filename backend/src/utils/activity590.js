@@ -127,17 +127,56 @@ async function activitySummary({ days = 30, limit = 500 } = {}) {
       .select('name email status').lean();
     for (const d of docs) names[String(d._id)] = d;
   }
-  return rows.map((r) => ({
+  const profiles = rows.map((r) => ({
     userId: r._id, role: r.role, lastAt: r.lastAt, sessions: r.sessions,
     platform: r.platform, appVersion: r.appVersion, city: r.city, country: r.country,
     name: (names[r._id] && names[r._id].name) || '', email: (names[r._id] && names[r._id].email) || '',
     status: (names[r._id] && names[r._id].status) || 'deleted',
   }));
+  return byPerson(profiles);
+}
+
+/**
+ * 0111 (ADA, règle de Daniel du 31/10 « toujours les 3 profils ») — UNE ligne par PERSONNE :
+ * les profils propriétaire / gardien / promeneur au même e-mail (person3110) sont fusionnés.
+ * lastAt = la plus récente tous profils confondus (ville, appareil et version de CETTE session) ;
+ * sessions = somme ; roles = rôles de la personne ; userIds = ses profils vus dans la période.
+ * Un profil supprimé (sans e-mail lisible) reste une ligne à lui seul.
+ */
+async function byPerson(profiles) {
+  const { personGroups } = require('./person3110');
+  let groups = new Map();
+  try { groups = await personGroups(profiles.map((p) => ({ role: p.role, id: String(p.userId) }))); } catch (e) { logger.warn(`[activity] personne : ${e?.message || e}`); }
+  const out = new Map();
+  for (const p of profiles) { // déjà triés du plus récent au plus ancien
+    const g = groups.get(`${p.role}:${p.userId}`);
+    const key = g && g.allIds.length ? [...g.allIds].sort().join(',') : `${p.role}:${p.userId}`;
+    const roles = g ? ['owner', 'sitter', 'walker'].filter((r) => g.ids[r].length) : [p.role];
+    const cur = out.get(key);
+    if (!cur) {
+      out.set(key, { ...p, roles: roles.length ? roles : [p.role], userIds: [String(p.userId)] });
+    } else {
+      cur.sessions += p.sessions;
+      cur.userIds.push(String(p.userId));
+      if (cur.status === 'deleted' && p.status !== 'deleted') { cur.status = p.status; cur.name = cur.name || p.name; cur.email = cur.email || p.email; }
+    }
+  }
+  return [...out.values()];
 }
 
 async function userSessions(userId, limit = 30) {
   const ActivityEvent = require('../models/ActivityEvent');
-  return ActivityEvent.find({ userId: String(userId) }).sort({ at: -1 }).limit(limit).lean();
+  // 0111 (ADA) — les sessions de la PERSONNE (ses 3 profils), pas du seul profil cliqué.
+  let ids = [String(userId)];
+  try {
+    const last = await ActivityEvent.findOne({ userId: String(userId) }).sort({ at: -1 }).select('role').lean();
+    if (last && last.role) {
+      const { personOf } = require('./person3110');
+      const g = await personOf(last.role, String(userId));
+      if (g && g.allIds.length) ids = [...new Set([String(userId), ...g.allIds])];
+    }
+  } catch (e) { logger.warn(`[activity] sessions personne : ${e?.message || e}`); }
+  return ActivityEvent.find({ userId: { $in: ids } }).sort({ at: -1 }).limit(limit).lean();
 }
 
-module.exports = { recordActivity, touchLastSeen, activitySummary, userSessions, isNewSession, SESSION_GAP_MS, _seen };
+module.exports = { recordActivity, touchLastSeen, activitySummary, byPerson, userSessions, isNewSession, SESSION_GAP_MS, _seen };

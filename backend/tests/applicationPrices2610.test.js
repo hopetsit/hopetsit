@@ -100,6 +100,11 @@ beforeAll(async () => {
   S.imane = await Walker.create({ ...fr, name: 'Imane Test', email: 'zoe2610+imane@example.test', walkRates: [{ durationMinutes: 30, basePrice: 12, currency: 'EUR', enabled: true }] });
   S.nieheem = await Sitter.create({ ...us, name: 'Nieheem Test', email: 'zoe2610+nieheem@example.test', dailyRate: 100 });
 
+  // 0111 (ADA) — l'e-mail « X peut garder ton chien · total » (applicationEmail2610) part APRÈS la
+  // réponse de la candidature, sans être attendu. Le test « silent=1 » comptait les e-mails AVANT/APRÈS
+  // pendant que celui de la dernière candidature US était encore en route → 1 fois sur 3, +1 e-mail.
+  // On observe ces envois (sans les remplacer) pour les attendre avant de compter.
+  S.appEmailSpy = jest.spyOn(require('../src/services/applicationEmail2610'), 'onApplicationCreated');
   app = express();
   app.use(express.json());
   app.use('/posts', require('../src/routes/postRoutes'));
@@ -174,6 +179,9 @@ describe('2. Recalcul admin des candidatures déjà faussées : reconnues, corri
     expect(dry.body.details[0]).toMatchObject({ totalBefore: 2.7, total: null, rate: 18, indicative: true });
     expect((await Application.findById(tbdApp._id).lean()).pricing.totalPrice).toBe(2.7); // rien écrit
 
+    // Les e-mails « candidature reçue » des tests précédents doivent être partis AVANT de compter.
+    expect(S.appEmailSpy).toHaveBeenCalled();
+    await Promise.allSettled(S.appEmailSpy.mock.results.map((r) => r.value));
     const before = { notif: await Notification.countDocuments({}), mails: MAILS.length, pushes: PUSHES.length };
     const runs = {};
     for (const p of [S.postTbd, S.postWalk, S.postOneDay, S.postGarde]) {

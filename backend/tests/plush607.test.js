@@ -325,7 +325,10 @@ describe('API réelle', () => {
     const pk = String(fay._id);
     const types = ['teddy', 'bunny', 'kitty', 'puppy'];
     for (let i = 0; i < 4; i += 1) {
-      await PawPlush.create({ cityKey: 'coltest', day: `2026-01-0${i + 1}`, slot: 0, type: types[i], caughtByPerson: pk, caughtBy: { userId: pk, at: new Date() }, location: fx(PARIS, i) });
+      // 0111 (ADA) — capturées le jour de leur `day` (janvier), pas « maintenant » : depuis le 01/11/2026
+      // la collection DU MOIS (618) compte `caughtBy.at` ; datées d'aujourd'hui elles ajoutaient un 2e
+      // +500 (collector_month) et le test échouait à coup sûr depuis minuit le 1er novembre.
+      await PawPlush.create({ cityKey: 'coltest', day: `2026-01-0${i + 1}`, slot: 0, type: types[i], caughtByPerson: pk, caughtBy: { userId: pk, at: new Date(`2026-01-0${i + 1}T12:00:00Z`) }, location: fx(PARIS, i) });
     }
     const today = plush.dayKeyFor(PARIS.lng);
     const last = await PawPlush.create({ cityKey: 'coltest', day: today, slot: 1, type: 'fox', location: fx(PARIS, 9) });

@@ -727,7 +727,10 @@ router.get('/sitters', requireAdmin, async (req, res) => {
       .limit(Number(limit))
       .lean();
     const total = await Sitter.countDocuments(filter);
-    res.json({ sitters: sitters.map(_withPlainEmail), total, page: Number(page), limit: Number(limit) });
+    // 0111 (ADA) — `person` : appareils, rôles et « vérifié » de la PERSONNE (3 profils, même e-mail).
+    const { withPerson } = require('../utils/personAdmin0111');
+    const rows = await withPerson(sitters, () => 'sitter').catch(() => sitters);
+    res.json({ sitters: rows.map(_withPlainEmail), total, page: Number(page), limit: Number(limit) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -744,7 +747,9 @@ router.get('/owners', requireAdmin, async (req, res) => {
       .limit(Number(limit))
       .lean();
     const total = await Owner.countDocuments();
-    res.json({ owners: owners.map(_withPlainEmail), total, page: Number(page), limit: Number(limit) });
+    const { withPerson } = require('../utils/personAdmin0111'); // 0111 (ADA) — faits de la PERSONNE
+    const rows = await withPerson(owners, () => 'owner').catch(() => owners);
+    res.json({ owners: rows.map(_withPlainEmail), total, page: Number(page), limit: Number(limit) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -863,7 +868,9 @@ router.get('/walkers', requireAdmin, async (req, res) => {
       .limit(Number(limit))
       .lean();
     const total = await Walker.countDocuments(filter);
-    res.json({ walkers: walkers.map(_withPlainEmail), total, page: Number(page), limit: Number(limit) });
+    const { withPerson } = require('../utils/personAdmin0111'); // 0111 (ADA) — faits de la PERSONNE
+    const rows = await withPerson(walkers, () => 'walker').catch(() => walkers);
+    res.json({ walkers: rows.map(_withPlainEmail), total, page: Number(page), limit: Number(limit) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -1564,22 +1571,29 @@ router.get('/users/search', requireAdmin, async (req, res) => {
       Sitter.find({ $or: [{ email: regex }, { name: regex }] }).select(sel).limit(20).lean(),
       Walker.find({ $or: [{ email: regex }, { name: regex }] }).select(sel).limit(20).lean(),
     ]);
-    const shape = (u, role) => ({
-      ...u, role, email: _plainEmail(u.email),
-      devices: Array.isArray(u.fcmTokens) ? u.fcmTokens.length : 0,
-      // v565 — plateformes connues des jetons (ios/android), pour le diagnostic push.
-      platforms: Array.isArray(u.fcmDevices)
+    // 0111 (ADA, règle Daniel 31/10 « toujours les 3 profils ») : `devices` / `platforms` = ceux de
+    // la PERSONNE (jetons distincts de ses profils au même e-mail) ; le compte du seul profil reste
+    // dans `profileDevices`.
+    const { personFacts } = require('../utils/personAdmin0111');
+    const all = [...owners.map((u) => [u, 'owner']), ...sitters.map((u) => [u, 'sitter']), ...walkers.map((u) => [u, 'walker'])];
+    const facts = await personFacts(all.map(([u, role]) => ({ role, id: String(u._id) }))).catch(() => new Map());
+    const shape = (u, role) => {
+      const own = Array.isArray(u.fcmTokens) ? u.fcmTokens.length : 0;
+      const ownPlatforms = Array.isArray(u.fcmDevices)
         ? [...new Set(u.fcmDevices.filter((d) => (u.fcmTokens || []).includes(d.token)).map((d) => d.platform).filter(Boolean))]
-        : [],
-      fcmTokens: undefined,
-    });
-    res.json({
-      results: [
-        ...owners.map(o => shape(o, 'owner')),
-        ...sitters.map(s => shape(s, 'sitter')),
-        ...walkers.map(w => shape(w, 'walker')),
-      ],
-    });
+        : [];
+      const p = facts.get(`${role}:${u._id}`);
+      return {
+        ...u, role, email: _plainEmail(u.email),
+        devices: p ? p.devices : own,
+        profileDevices: own,
+        // v565 — plateformes connues des jetons (ios/android), pour le diagnostic push.
+        platforms: p ? p.platforms : ownPlatforms,
+        roles: p ? p.roles : [role],
+        fcmTokens: undefined, fcmDevices: undefined,
+      };
+    };
+    res.json({ results: all.map(([u, role]) => shape(u, role)) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

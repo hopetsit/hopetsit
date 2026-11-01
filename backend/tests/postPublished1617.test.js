@@ -25,6 +25,7 @@ const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const { publishedText, TEXTS, LANGS, TYPE } = require('../src/utils/postPublished1617');
 
+let spyOwner;
 let mongo; let Post; let Owner; let Sitter; let Notification; let postController;
 let ownerId; let ownerEn; let sitterTest;
 const mockRes = () => { const res = {}; res.status = jest.fn(() => res); res.json = jest.fn((b) => { res.body = b; return res; }); return res; };
@@ -36,13 +37,17 @@ const publish = async (who, over = {}) => {
     body: { body: 'Garde de Rex', serviceTypes: ['pet_sitting'], startDate: '2026-11-20T09:00:00.000Z', endDate: '2026-11-22T09:00:00.000Z',
       location: { city: 'Zone test', lat: -35, lng: -30 }, ...over },
   }, res);
-  // L'envoi au propriétaire suit la réponse (setImmediate) : on attend la cloche (3 s au plus).
-  for (let i = 0; i < 30; i += 1) {
+  // L'envoi au propriétaire suit la réponse (setImmediate). 0111 (ADA) — test instable 1 fois sur 3 :
+  // on n'attendait que la CLOCHE, alors que le téléphone part APRÈS elle (préférences + jetons lus
+  // en base) ; selon la vitesse de la machine le push n'était pas encore parti à l'assertion.
+  // On attend désormais la FIN de notifyOwnerPublished (cloche + socket + push), 3 s au plus pour
+  // qu'il soit appelé ; s'il ne l'est jamais (republication déjà prévenue), rien n'est attendu de plus.
+  const before = spyOwner.mock.results.length;
+  for (let i = 0; i < 30 && spyOwner.mock.results.length === before; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     await wait(100);
-    // eslint-disable-next-line no-await-in-loop
-    if (await Notification.countDocuments({ recipientId: who, type: TYPE })) break;
   }
+  if (spyOwner.mock.results.length > before) await spyOwner.mock.results[before].value.catch(() => {});
   return res;
 };
 
@@ -52,6 +57,8 @@ beforeAll(async () => {
   Post = require('../src/models/Post'); Owner = require('../src/models/Owner'); Sitter = require('../src/models/Sitter');
   Notification = require('../src/models/Notification');
   postController = require('../src/controllers/postController');
+  // Même module que celui appelé par postController (require au moment de l'appel) : on observe sans remplacer.
+  spyOwner = jest.spyOn(require('../src/utils/postPublished1617'), 'notifyOwnerPublished');
   ownerId = (await Owner.collection.insertOne({ name: 'Nicola', email: 'nicola-pub1617@example.test', appLocale: 'fr', status: 'active', verified: true, fcmTokens: ['tok-owner-1'], location: { type: 'Point', coordinates: [-30, -35], city: 'Zone test' } })).insertedId.toString();
   ownerEn = (await Owner.collection.insertOne({ name: 'Jane', email: 'jane-pub1617@example.test', appLocale: 'en', status: 'active', verified: true, notificationPrefs: { sound: 'frog', categories: { bookings: false } }, fcmTokens: ['tok-jane'], location: { type: 'Point', coordinates: [-30, -35], city: 'Zone test' } })).insertedId.toString();
   // Un gardien (compte neutre) dans la zone fictive : prévenu → N = 1.
@@ -75,6 +82,7 @@ test('publication avec 1 gardien autour : cloche « 1 gardien … prévenu », s
   const res = await publish(ownerId);
   expect(res.status).toHaveBeenCalledWith(201);
   expect(res.body.notified).toBe(1);
+  expect(spyOwner).toHaveBeenCalled(); // l'attente porte bien sur l'envoi complet
   const bell = await Notification.findOne({ recipientRole: 'owner', recipientId: ownerId, type: TYPE }).lean();
   expect(bell).toBeTruthy();
   expect(bell.title).toBe('Ta demande est publiée');

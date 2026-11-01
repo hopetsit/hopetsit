@@ -8506,12 +8506,16 @@ function walkerRatesLabel(w) {
   return '<div style="line-height:1.5">' + rateGridRow('Balade', rows.join(' · ')) + extra + '</div>';
 }
 
+// 0111 (ADA, règle Daniel 31/10 « toujours les 3 profils ») — « vérifié » = vrai si l'un des profils
+// de la PERSONNE (même e-mail) l'est, comme la synchro serveur markVerifiedAcrossRoles. Le serveur
+// renvoie `person` sur /admin/owners|sitters|walkers ; repli sur le profil seul si absent.
+function adaPersonVerified(u) { return u && u.person ? u.person.verified === true : !!(u && u.verified); }
 function renderSitters() {
   const search = (document.getElementById('sitter-search')?.value || '').toLowerCase();
   const vf = document.getElementById('sitter-verified-filter')?.value || '';
   const filtered = allSitters.filter(s => {
     const match = !search || s.name?.toLowerCase().includes(search) || s.email?.toLowerCase().includes(search);
-    const v = !vf || String(s.verified) === vf;
+    const v = !vf || String(adaPersonVerified(s)) === vf;
     return match && v;
   });
   if (!filtered.length) { document.getElementById('sitters-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🐕</div><div>Aucun pet-sitter trouvé.</div></div>'; return; }
@@ -8535,12 +8539,12 @@ function renderSitters() {
         <td style="font-size:12px">${zoneLabel(s)}</td>
         <td style="font-size:12px">${sitterRatesLabel(s)}</td>
         <td style="font-size:12px">${services}</td>
-        <td>${s.verified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
+        <td>${adaPersonVerified(s) ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
         <td>${boosted ? `<span class="badge badge-orange">🔥 ${escapeHtml(s.boostTier||'boost')} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td><span class="badge badge-blue">${payoutMethodLabel(s.payoutMethod)}</span></td>
         <td>${s.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
-          ${!s.verified ? `<button class="action-btn btn-verify" onclick="verifySitter('${s._id}')">✓ Verify</button>` : ''}
+          ${!adaPersonVerified(s) ? `<button class="action-btn btn-verify" onclick="verifySitter('${s._id}')">✓ Verify</button>` : ''}
           <button class="action-btn" style="background:${s.isStaff?'#6E4F48':'#16A34A'};color:#fff" onclick="toggleStaff('sitter','${s._id}',${!s.isStaff})">${s.isStaff?'Retirer Staff ⭐':'Activer Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteSitter('${s._id}')">Supprimer</button>
         </td>
       </tr>
@@ -8793,13 +8797,16 @@ async function loadActivity() {
       <div class="stat-card"><div class="stat-value">${in24}</div><div class="stat-label">${t('activity_stat_24h')}</div></div>
       <div class="stat-card"><div class="stat-value">${sessions}</div><div class="stat-label">${t('activity_stat_sessions')}</div></div>`;
     if (!list.length) { el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:12px">${t('activity_empty')}</div>`; return; }
+    // 0111 (ADA, règle Daniel 31/10) — le serveur renvoie UNE ligne par PERSONNE (3 profils au même
+    // e-mail) : ses rôles, la dernière connexion tous profils confondus, les sessions additionnées.
     const rows = list.map((u, i) => {
-      const b = _ROLE_BADGE[u.role] || _ROLE_BADGE.owner;
+      const roles = Array.isArray(u.roles) && u.roles.length ? u.roles : [u.role];
+      const badges = roles.map(r => { const b = _ROLE_BADGE[r] || _ROLE_BADGE.owner; return `<span style="background:${b.color};color:#fff;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">${b.icon} ${b.label}</span>`; }).join(' ');
       const when = new Date(u.lastAt);
       const place = [u.city, u.country].filter(Boolean).join(', ') || '—';
       const gone = u.status === 'deleted' ? ` <span style="color:var(--text-muted);font-size:11px">(${t('activity_deleted')})</span>` : (u.status === 'banned' ? ' ⛔' : '');
       return `<tr style="cursor:pointer" onclick="showActivityDetail(${i})">
-        <td><span style="background:${b.color};color:#fff;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700">${b.icon} ${b.label}</span></td>
+        <td style="display:flex;gap:4px;flex-wrap:wrap">${badges}</td>
         <td><strong>${escapeHtml(u.name || '-')}</strong>${gone}</td>
         <td style="color:var(--text-muted)">${escapeHtml(u.email || '-')}</td>
         <td>${when.toLocaleDateString()} <strong>${when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong><br><span style="color:var(--text-muted);font-size:11px">${_ago(u.lastAt)}</span></td>
@@ -8924,8 +8931,10 @@ function renderOwners() {
       const b = _ROLE_BADGE[u._role] || _ROLE_BADGE.owner;
       // v565 — point 5 (diagnostic notifications Apple) : nombre d'appareils
       // (fcmTokens) + plateformes ( / 🤖) via fcmDevices (v565).
-      const dev = Array.isArray(u.fcmTokens) ? u.fcmTokens.length : (u.devices != null ? u.devices : null);
-      const plat = Array.isArray(u.platforms) && u.platforms.length ? ' ' + u.platforms.map(p => p === 'ios' ? '' : p === 'android' ? '🤖' : p).join('') : '';
+      // 0111 (ADA) — appareils de la PERSONNE (jetons distincts de ses 3 profils), pas du seul profil.
+      const dev = u.person ? u.person.devices : (Array.isArray(u.fcmTokens) ? u.fcmTokens.length : (u.devices != null ? u.devices : null));
+      const platList = u.person ? u.person.platforms : u.platforms;
+      const plat = Array.isArray(platList) && platList.length ? ' ' + platList.map(p => p === 'ios' ? '' : p === 'android' ? '🤖' : p).join('') : '';
       const devCell = dev == null ? '<span style="color:var(--text-muted)">?</span>'
         : (dev ? `<span class="badge badge-green">📱 ${dev}${plat}</span>` : `<span class="badge badge-red" title="${t('no_device_title', 'Aucun jeton push : ce compte ne peut pas recevoir de notification')}">📵 0</span>`);
       return `
@@ -8998,9 +9007,9 @@ function renderWalkers() {
       w.name?.toLowerCase().includes(search) ||
       w.email?.toLowerCase().includes(search);
     let ok = true;
-    if (vf === 'verified') ok = !!w.verified;
-    else if (vf === 'pending') ok = w.verified === false && !!w.identityPhotoUrl;
-    else if (vf === 'unverified') ok = !w.verified && !w.identityPhotoUrl;
+    if (vf === 'verified') ok = adaPersonVerified(w);
+    else if (vf === 'pending') ok = !adaPersonVerified(w) && !!w.identityPhotoUrl;
+    else if (vf === 'unverified') ok = !adaPersonVerified(w) && !w.identityPhotoUrl;
     return match && ok;
   });
   if (!filtered.length) {
@@ -9028,12 +9037,12 @@ function renderWalkers() {
         <td style="font-size:12px;color:var(--text-muted)">${signupDate(w)}</td>
         <td>${rate}</td>
         <td style="font-size:12px">${coverage}</td>
-        <td>${w.verified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
+        <td>${adaPersonVerified(w) ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
         <td>${boosted ? `<span class="badge badge-orange">🔥 ${escapeHtml(w.boostTier||'boost')} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td><span class="badge badge-blue">${payoutMethodLabel(w.payoutMethod)}</span></td>
         <td>${w.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
-          ${!w.verified ? `<button class="action-btn btn-verify" onclick="verifyWalker('${w._id}')">✓ Verify</button>` : ''}
+          ${!adaPersonVerified(w) ? `<button class="action-btn btn-verify" onclick="verifyWalker('${w._id}')">✓ Verify</button>` : ''}
           <button class="action-btn" style="background:${w.isStaff?'#6E4F48':'#16A34A'};color:#fff" onclick="toggleStaff('walker','${w._id}',${!w.isStaff})">${w.isStaff?'Retirer Staff ⭐':'Activer Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteWalker('${w._id}')">Supprimer</button>
         </td>
       </tr>
