@@ -12,8 +12,8 @@ export const FOOTER_CITIES = [
 
 /** Derniers articles des 4 villes (titre dans la langue de l'article). À mettre à jour avec la rotation hebdo. */
 export const FOOTER_POSTS = [
-  { href: "/blog/faire-garder-son-animal-pendant-les-fetes-a-paris", label: "Paris : faire garder son animal pendant les fêtes" },
-  { href: "/blog/pet-sitting-new-york-holidays", label: "New York: pet sitting over the holidays" },
+  { href: "/blog/premier-chiot-a-paris", label: "Paris : premier chiot, propreté et premières sorties" },
+  { href: "/blog/dog-runs-in-nyc", label: "New York: dog runs, etiquette and borough picks" },
   { href: "/blog/seoul-pet-sitter-guide", label: "서울 반려견 산책·펫시터 가이드" },
   { href: "/blog/tokyo-pet-sitter-guide", label: "東京でペットシッターを頼むときのポイント" },
 ];

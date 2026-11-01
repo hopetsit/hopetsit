@@ -31,6 +31,9 @@ const PUBLIC_PATHS = [
   "/remboursement",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  // 2026-W44 (marketing hebdo) — rotation des 4 pôles : Paris + New York (propriétaires).
+  "/blog/premier-chiot-a-paris",
+  "/blog/dog-runs-in-nyc",
   // 31/10 (GUS) — consigne Daniel : 4 pôles (Paris, New York, Séoul, Tokyo), un article par ville.
   "/blog/faire-garder-son-animal-pendant-les-fetes-a-paris",
   "/blog/pet-sitting-new-york-holidays",

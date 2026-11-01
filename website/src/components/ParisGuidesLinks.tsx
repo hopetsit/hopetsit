@@ -8,6 +8,10 @@ import Link from "@/components/SiteLink";
 // pas vers eux. Ce bloc relie les 7 guides entre eux depuis chaque article.
 // Ne pas y ajouter de nouvelle page : uniquement des articles déjà en ligne.
 const GUIDES = [
+  // 2026-W44 (marketing hebdo) — premier chiot à Paris (propreté, premières sorties).
+  { href: "/blog/premier-chiot-a-paris", t: "Premier chiot à Paris : propreté et premières sorties" },
+  // 31/10 (GUS) — garde pendant les fêtes de fin d'année.
+  { href: "/blog/faire-garder-son-animal-pendant-les-fetes-a-paris", t: "Faire garder son animal pendant les fêtes à Paris" },
   // 28/10 (GUS) — guide « dog sitter à Paris » (demande Search Console FR).
   { href: "/blog/dog-sitter-paris", t: "Dog sitter à Paris : ce qu'il fait et comment en trouver un" },
   // 16/10 (SAM) — saisonnier Toussaint 2026 (17/10 → 2/11), relié aux guides existants.

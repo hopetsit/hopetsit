@@ -13,6 +13,22 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 2026-W44 (marketing hebdo, dimanche) — rotation des 4 pôles (sujets_4poles.md) :
+  // Paris (propriétaires, semaine paire) + New York (propriétaires).
+  {
+    slug: "premier-chiot-a-paris",
+    lang: "🇫🇷",
+    title: "Premier chiot à Paris : propreté en appartement et premières sorties",
+    excerpt:
+      "Apprendre la propreté à un chiot dans un appartement parisien, choisir le bon moment pour ses premières sorties et bien gérer la rue, l'ascenseur et les voisins.",
+  },
+  {
+    slug: "dog-runs-in-nyc",
+    lang: "🇺🇸",
+    title: "Dog Runs in NYC: Etiquette and How to Pick One in Your Borough",
+    excerpt:
+      "Off-leash dog runs across New York City: the unwritten etiquette, how to tell if one is right for your dog, and real dog runs in Manhattan, Brooklyn, Queens, the Bronx and Staten Island.",
+  },
   // 31/10 (GUS) — consigne Daniel : 4 pôles (Paris, New York, Séoul, Tokyo).
   {
     slug: "faire-garder-son-animal-pendant-les-fetes-a-paris",
