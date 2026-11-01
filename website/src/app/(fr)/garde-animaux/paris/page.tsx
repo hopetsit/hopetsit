@@ -108,17 +108,37 @@ export default function GardeAnimauxParisPage() {
       seasonalBanner={false}
     >
       <section className="mt-12">
-        {/* 16/10 (SAM) — lien saisonnier vers l'article Toussaint, sous la ligne de
-            flottaison (le premier écran / formulaire est mesuré : ne rien y ajouter). */}
-        <p className="text-sm font-semibold">
-          <TrackedLink
-            href="/blog/garde-animaux-toussaint-paris"
-            label="maillage"
-            className="text-owner-dark underline-offset-4 hover:underline"
-          >
-            🍂 Vacances de la Toussaint : qui garde ton animal ? →
-          </TrackedLink>
+        {/* 01/11 (GUS) — Search Console 28 j France : « dog sitter paris » 85 affichages
+            (14e), « dogsitting paris » 49, « dog sitting paris » 25 → 0 clic sur cette page.
+            Section « Dog sitter à Paris » sous la ligne de flottaison (le premier écran /
+            formulaire est mesuré : rien n'y est ajouté) + liens vers les 4 guides Paris.
+            Remplace le lien saisonnier Toussaint (vacances finies le 01/11) par celui des fêtes. */}
+        <h2 id="dog-sitter" className="scroll-mt-24 font-display text-2xl font-extrabold text-ink">Dog sitter à Paris</h2>
+        <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+          Un dog sitter garde ton chien chez toi, le promène pendant ta journée de travail ou
+          l&apos;accueille le temps d&apos;un week-end ou de tes vacances. Sur HoPetSit, tu publies ta
+          demande (dates, quartier, habitudes de ton chien) et les dog sitters de ton arrondissement
+          te répondent avec leur prix. Tu choisis, tu paies dans l&apos;app, et l&apos;annulation est
+          gratuite jusqu&apos;à 72 h avant. Même chose pour un chat : visites à domicile plutôt que pension.
         </p>
+        <ul className="mt-3 space-y-2 text-sm font-semibold">
+          {[
+            ["/blog/dog-sitter-paris", "Dog sitter à Paris : ce qu'il fait et comment en trouver un"],
+            ["/blog/tarif-promeneur-de-chien-paris", "Combien coûte un promeneur de chien à Paris ?"],
+            ["/blog/faire-garder-son-chat-a-paris", "Faire garder son chat à Paris : visites ou pension ?"],
+            ["/blog/faire-garder-son-animal-pendant-les-fetes-a-paris", "🎄 Noël et jour de l'an : faire garder son chien ou son chat"],
+          ].map(([href, label]) => (
+            <li key={href}>
+              <TrackedLink
+                href={href}
+                label="maillage"
+                className="text-owner-dark underline-offset-4 hover:underline max-lg:inline-block max-lg:py-1"
+              >
+                {label}{" →"}
+              </TrackedLink>
+            </li>
+          ))}
+        </ul>
         <h2 id="quartiers" className="mt-8 scroll-mt-24 font-display text-2xl font-extrabold text-ink">Ton arrondissement</h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">
           Chaque arrondissement a sa page : les vétérinaires ouverts le week-end, les animaleries,
