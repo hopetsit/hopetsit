@@ -705,6 +705,8 @@ tr.ada-late td { background: #FFF1EE; }
 .rq-card:hover { border-color: var(--rq-apricot2); }
 .rq-top { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
 .rq-city { font-size: 16px; font-weight: 800; color: var(--rq-ink); letter-spacing: -0.01em; }
+.rq-date { align-self: center; font-size: 13px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.rq-date.today { color: #16A34A; }
 .rq-pill { margin-left: auto; font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 999px; color: #fff; white-space: nowrap; }
 .rq-pill.online { background: #2563EB; } .rq-pill.applied { background: #1F9D55; } .rq-pill.accepted { background: #7C3AED; }
 .rq-pill.paid { background: #0E7A4A; } .rq-pill.expired { background: #E08A0A; } .rq-pill.removed { background: #C92A12; } .rq-pill.done { background: #146C3A; }
@@ -6322,6 +6324,16 @@ function rqOwnerSignals(it) {
     + '<div class="rq-line ada-2910-src"><span class="rq-k">Dernier retour</span><span class="rq-v">' + last + '</span>'
     + '<span class="rq-k">Vues des candidats</span><span class="rq-v">' + views + '</span></div>';
 }
+// 02/11 (BOB, Daniel) — date de publication à côté de la ville : « aujourd'hui 14:18 », « hier 15:35 » ou « 31/10 15:35 ».
+function rqPubDate(at) {
+  if (!at) return '';
+  const d = new Date(at); if (isNaN(d)) return '';
+  const day = function (x) { return x.toLocaleDateString(adminLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' }); };
+  const now = new Date(); const y = new Date(now.getTime() - 86400000);
+  const hm = d.toLocaleTimeString(adminLocale(), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const when = day(d) === day(now) ? '<span>aujourd\'hui</span> ' + hm : day(d) === day(y) ? '<span>hier</span> ' + hm : rjWhen(at);
+  return '<span class="rq-date' + (day(d) === day(now) ? ' today' : '') + '" title="' + escapeHtml(d.toLocaleString(adminLocale())) + '">🗓️ <span>publiée</span> ' + when + '</span>';
+}
 function rqCard(it) {
   const st = it.stages; const state = rqState(it);
   // 24/10 (ADA, Daniel « plus pro, lisible ») — même titre clair que l'accueil (rjTitle), candidats avec
@@ -6330,7 +6342,7 @@ function rqCard(it) {
   const tbd = it.dateMode === 'tbd';
   const vis = v.state === 'online' ? '<span class="rj-read yes">● <span>en ligne</span></span>' : '<span class="rj-read no">○ <span>retirée</span></span>' + (v.deleteAt ? ' · <span>suppression le</span> ' + rjWhen(v.deleteAt) : '');
   return '<div class="rq-card' + (RQ.focus === String(it.postId) ? ' ada-focus' : '') + '" id="rq-card-' + escapeHtml(String(it.postId)) + '">'
-    + '<div class="rq-top"><span class="rq-city">' + rjPlace(it) + '</span>' + rjKind(it.owner.kind) + (tbd && state === 'online' ? '<span class="rq-pill tbd"><span>Dates à prévoir</span></span>' : '<span class="rq-pill ' + state + '"><span>' + RQ_STATE_LBL[state] + '</span></span>') + '</div>'
+    + '<div class="rq-top"><span class="rq-city">' + rjPlace(it) + '</span>' + rqPubDate(st.published.at) + rjKind(it.owner.kind) + (tbd && state === 'online' ? '<span class="rq-pill tbd"><span>Dates à prévoir</span></span>' : '<span class="rq-pill ' + state + '"><span>' + RQ_STATE_LBL[state] + '</span></span>') + '</div>'
     + rjTitle(it, false)
     + '<div class="rq-line"><span class="rq-k">Propriétaire</span><span class="rq-v">' + escapeHtml(it.owner.name || '?') + '</span><span class="rq-k">Publiée</span><span class="rq-v">' + rjWhen(st.published.at) + '</span><span class="rq-k">Prévenus</span><span class="rq-v">' + st.notified.count + '</span><span class="rq-k">Ont ouvert</span><span class="rq-v">' + st.opened.count + '</span><span class="rq-k">Candidatures</span><span class="rq-v">' + st.applications.count + '</span></div>'
     + rqOwnerBack(it)

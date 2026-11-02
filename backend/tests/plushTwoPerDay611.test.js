@@ -43,6 +43,7 @@ beforeAll(async () => {
   }
 }, 60000);
 afterAll(async () => { await mongoose.disconnect(); if (mongo) await mongo.stop(); });
+afterEach(() => jest.restoreAllMocks());
 
 let n = 0;
 async function person() {
@@ -64,8 +65,18 @@ test('barème public : 2 par jour', async () => {
 });
 
 test('2 captures le même jour (+20 chacune), la 3e : DAILY_LIMIT ; liste vide après la 2e', async () => {
+  // 02/11 (BOB) : le jour de la dorée de la ville de test, il ne reste que
+  // 2 peluches ordinaires → on avance l'horloge jusqu'à un jour sans dorée.
+  const realNow = Date.now.bind(Date);
+  let shift = 0;
+  jest.spyOn(Date, 'now').mockImplementation(() => realNow() + shift);
   const a = await person();
-  walk(a, C);
+  for (let k = 0; k < 8; k += 1) {
+    walk(a, C);
+    const all = (await list(a)).body.plushies;
+    if (!all.some((p) => p.golden)) break;
+    shift += 86400000;
+  }
   plushies = (await list(a)).body.plushies.filter((p) => !p.golden);
   expect(plushies.length).toBeGreaterThanOrEqual(3);
   const [p1, p2, p3] = plushies;

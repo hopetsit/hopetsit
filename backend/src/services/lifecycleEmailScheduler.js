@@ -134,6 +134,25 @@ const personEmailVerified = async (user, role) => {
   return found.some(Boolean);
 };
 
+/**
+ * 02/11 (BOB, cas Agnès D.) — « un compte, trois profils » : une gardienne au profil complet
+ * recevait « ton profil n'est pas encore visible » parce que son profil PROMENEUR, lui, n'avait
+ * pas de présentation. Raisonner par PERSONNE : si un autre profil prestataire de la même
+ * personne est complet, on n'envoie pas cet e-mail.
+ */
+const siblingProviderComplete = async (user, role) => {
+  const stored = String(user.email || '').toLowerCase().trim();
+  let plain = stored;
+  try { plain = String(decrypt(user.email || '') || '').toLowerCase().trim(); } catch (_) { plain = stored; }
+  const emails = [...new Set([stored, plain].filter(Boolean))];
+  if (!emails.length) return false;
+  const other = role === 'sitter' ? Walker : role === 'walker' ? Sitter : null;
+  if (!other) return false;
+  const docs = await other.find({ email: { $in: emails } })
+    .select('avatar bio hourlyRate dailyRate walkRates').lean();
+  return docs.some(providerProfileComplete);
+};
+
 const bookingCountFor = (role, id) =>
   Booking.countDocuments(role === 'owner' ? { ownerId: id } : role === 'sitter' ? { sitterId: id } : { walkerId: id });
 
@@ -248,7 +267,7 @@ async function runLifecycleOnce({ max = Number(process.env.LIFECYCLE_MAX_PER_RUN
         await consider(u, role, isProvider ? 'welcome_provider_d1' : 'welcome_owner_d1', async () => true);
       }
       if (isProvider && age >= 3 * DAY_MS && age < 30 * DAY_MS) {
-        await consider(u, role, 'profile_incomplete_d3', async () => !providerProfileComplete(u));
+        await consider(u, role, 'profile_incomplete_d3', async () => !providerProfileComplete(u) && !(await siblingProviderComplete(u, role)));
       }
       if (isProvider && age >= 7 * DAY_MS && age < 60 * DAY_MS) {
         // 22/09/2026 — cet e-mail dit « partage ton profil » depuis toujours,
