@@ -61,6 +61,18 @@ const CITIES = [
   { slug: "honolulu", name: "Honolulu" },
   { slug: "cincinnati", name: "Cincinnati" },
   { slug: "naples-fl", name: "Naples, FL" },
+  // 02/11/2026 (GUS) — villes où Google nous montre déjà sur « cat sitter <ville> »
+  // (position 14-26, 0 clic, Search Console 04/10-31/10) : liens depuis ce guide,
+  // la page la plus affichée du site sur le cat sitting.
+  { slug: "irving", name: "Irving" },
+  { slug: "arlington-tx", name: "Arlington, TX" },
+  { slug: "fort-worth", name: "Fort Worth" },
+  { slug: "frisco", name: "Frisco" },
+  { slug: "detroit", name: "Detroit" },
+  { slug: "st-louis", name: "St. Louis" },
+  { slug: "columbus", name: "Columbus" },
+  { slug: "decatur-ga", name: "Decatur, GA" },
+  { slug: "colorado-springs", name: "Colorado Springs" },
 ];
 
 export default function ArticleWhatIsCatSitting() {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "@/components/SiteLink";
 import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
@@ -10,6 +11,7 @@ const URL = "https://www.hopetsit.com/blog/premier-chiot-a-paris";
 const TITLE = "Premier chiot à Paris : propreté en appartement et premières sorties";
 const DESCRIPTION =
   "Apprendre la propreté à un chiot dans un appartement parisien, choisir le bon moment pour ses premières sorties et bien gérer la rue, l'ascenseur et les voisins. Le guide pratique.";
+const COVER_ALT = "Chien et chat à la maison, couverture du guide « Premier chiot à Paris »";
 const HEADLINE = "Premier chiot à Paris : propreté en appartement et premières sorties";
 
 export const metadata: Metadata = {
@@ -23,7 +25,7 @@ export const metadata: Metadata = {
     type: "article",
     locale: "fr_FR",
     siteName: "HoPetSit",
-    images: [{ url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630, alt: "HoPetSit" }],
+    images: [{ url: "https://www.hopetsit.com/blog/premier-chiot-a-paris.jpg", width: 1200, height: 630, alt: "Chien et chat à la maison, couverture du guide « Premier chiot à Paris »" }],
   },
 };
 
@@ -80,7 +82,7 @@ export default function ArticlePremierChiotParis() {
         inLanguage: "fr-FR",
         mainEntityOfPage: URL,
         datePublished: "2026-11-01",
-        image: { "@type": "ImageObject", url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630 },
+        image: { "@type": "ImageObject", url: "https://www.hopetsit.com/blog/premier-chiot-a-paris.jpg", width: 1200, height: 630 },
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: {
           "@type": "Organization",
@@ -103,6 +105,15 @@ export default function ArticlePremierChiotParis() {
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
         Premier chiot à Paris : propreté en appartement et premières sorties
       </h1>
+      <Image
+        src="/blog/premier-chiot-a-paris.jpg"
+        alt={COVER_ALT}
+        width={1200}
+        height={630}
+        priority
+        sizes="(max-width: 768px) 100vw, 768px"
+        className="mt-6 h-auto w-full rounded-2xl"
+      />
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         Accueillir un chiot dans un 25 m² du 11e ou un deux-pièces en étage avec ascenseur capricieux,
         ce n'est pas tout à fait comme l'accueillir dans une maison avec jardin. Pas de panique : des

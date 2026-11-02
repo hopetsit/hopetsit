@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "@/components/SiteLink";
 
 // 2026-W44 (weekly marketing routine, Sunday) — next unchecked topic from
@@ -9,6 +10,7 @@ const URL = "https://www.hopetsit.com/blog/dog-runs-in-nyc";
 const TITLE = "Dog Runs in NYC: Etiquette and How to Pick One in Your Borough";
 const DESCRIPTION =
   "Off-leash dog runs across New York City: the unwritten etiquette, how to tell if one is right for your dog, and real dog runs to check out in Manhattan, Brooklyn, Queens, the Bronx and Staten Island.";
+const COVER_ALT = "Curly puppy on a leash, cover of the NYC dog runs guide";
 const HEADLINE = "Dog runs in NYC: etiquette and how to pick one in your borough";
 
 export const metadata: Metadata = {
@@ -22,7 +24,7 @@ export const metadata: Metadata = {
     type: "article",
     locale: "en_US",
     siteName: "HoPetSit",
-    images: [{ url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630, alt: "HoPetSit" }],
+    images: [{ url: "https://www.hopetsit.com/blog/dog-runs-in-nyc.jpg", width: 1200, height: 630, alt: "Curly puppy on a leash, cover of the NYC dog runs guide" }],
   },
 };
 
@@ -88,7 +90,7 @@ export default function ArticleDogRunsNyc() {
         inLanguage: "en-US",
         mainEntityOfPage: URL,
         datePublished: "2026-11-01",
-        image: { "@type": "ImageObject", url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630 },
+        image: { "@type": "ImageObject", url: "https://www.hopetsit.com/blog/dog-runs-in-nyc.jpg", width: 1200, height: 630 },
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com", logo: { "@type": "ImageObject", url: "https://www.hopetsit.com/logo.png" } },
       },
@@ -103,6 +105,15 @@ export default function ArticleDogRunsNyc() {
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
         Dog runs in NYC: etiquette and how to pick one in your borough
       </h1>
+      <Image
+        src="/blog/dog-runs-in-nyc.jpg"
+        alt={COVER_ALT}
+        width={1200}
+        height={630}
+        priority
+        sizes="(max-width: 768px) 100vw, 768px"
+        className="mt-6 h-auto w-full rounded-2xl"
+      />
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         No yard, strict leash laws almost everywhere else, and a dog that needs to actually run: that
         is exactly what New York&apos;s fenced dog runs are for. There are dozens scattered across the
