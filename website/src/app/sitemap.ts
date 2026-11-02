@@ -101,6 +101,9 @@ const PUBLIC_PATHS = [
   // n'avait aucune page dédiée (404). Relie Paris + les 17 grandes villes
   // françaises déjà en ligne.
   "/devenir-petsitter",
+  // 02/11 (Bob, semaine 45) — même hub, côté anglais : « become a pet sitter »
+  // (sans ville) 404ait alors que 113 pages EN/USA sont déjà indexées.
+  "/become-a-pet-sitter",
   // v575 — page d'atterrissage de la pub Meta « Paris · Propriétaires » et hub
   // vers les 20 arrondissements (src/app/garde-animaux/paris/page.tsx).
   // Elle n'est pas produite par ownerPaths() : son slug n'est pas dans
@@ -132,7 +135,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (path.startsWith("/blog") || path === "/villes" || path === "/download" || path === "/pawmap") return 0.8;
     // 26/10 (Bob, semaine 44) — hub national : priorité légèrement au-dessus
     // des pages ville, juste sous l'accueil.
-    if (path === "/devenir-petsitter") return 0.9;
+    if (path === "/devenir-petsitter" || path === "/become-a-pet-sitter") return 0.9;
     if (path.startsWith("/devenir-petsitter/") || path.startsWith("/garde-animaux/")) return 0.8;
     const m = path.match(/^\/(become-a-pet-sitter|pet-sitting)\/([^/]+)$/);
     if (m) return US.has(m[2]) ? 0.8 : 0.4;
