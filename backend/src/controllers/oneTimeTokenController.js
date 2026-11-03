@@ -207,6 +207,21 @@ const exchangeApplicationLink = async (req, res) => {
     if (account.status && account.status !== 'active') {
       return res.status(401).json({ error: 'Account not active.', status: account.status, code: 'LINK_INVALID' });
     }
+    // 03/11 — ce lien n'existe QUE dans nos e-mails « candidats » : l'ouvrir depuis un vrai
+    // navigateur ou l'app PROUVE la boîte (même règle que le lien de la pub, Daniel 27/10).
+    // Sans ça, le propriétaire non vérifié arrivait sur la page « choisir → payer » et le
+    // paiement répondait 403 EMAIL_NOT_VERIFIED (/bookings/:id/create-payment-intent).
+    // L'échange est un POST lancé par le JS de la page : un scanner d'e-mails ne le déclenche pas.
+    if (account.verified !== true) {
+      const { classifyOrigin, isRealOrigin } = require('../utils/ownerReturn2610');
+      const origin = classifyOrigin(req);
+      if (isRealOrigin(origin)) {
+        const { markVerifiedAcrossRoles } = require('./authController');
+        await markVerifiedAcrossRoles(account.email, `applink_${origin}`);
+        account.verified = true;
+        logger.info({ userId: String(account._id) }, `[application-link] e-mail prouvé par le lien (${origin}) → compte vérifié`);
+      }
+    }
     const newJwt = signAuthToken({ id: account._id, role: 'owner' });
     logger.info({ userId: String(account._id), applicationId: String(chk.application._id) }, '[application-link] session ouverte par lien signé');
     return res.json({ token: newJwt, role: 'owner', user: sanitizeUser(account.toObject(), { includeEmail: true }), applicationId: String(chk.application._id), postId: chk.application.postId ? String(chk.application.postId) : null });

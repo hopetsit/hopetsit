@@ -176,3 +176,25 @@ describe('POST /auth/application-link : ouverture de session', () => {
     await Post.collection.updateOne({ _id: S.post }, { $set: { status: 'open', closedAt: null } });
   });
 });
+
+// 03/11 — ouvrir le lien « candidats » depuis un vrai navigateur prouve la boîte → compte vérifié
+// (sinon le paiement répondait 403 EMAIL_NOT_VERIFIED) ; un script ne prouve rien.
+describe('POST /auth/application-link : preuve de la boîte e-mail', () => {
+  const MOZ = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1';
+  test('script (sans navigateur) → session ouverte, compte NON vérifié', async () => {
+    await Owner.updateOne({ _id: S.owner._id }, { $set: { verified: false, emailProvenAt: null } });
+    const t = L.signApplicationLink(S.owner._id, S.app, { postId: S.post });
+    const r = await request(app).post('/auth/application-link').set('User-Agent', 'python-requests/2.31').send({ token: t, applicationId: String(S.app) });
+    expect(r.status).toBe(200);
+    expect((await Owner.findById(S.owner._id).lean()).verified).toBe(false);
+  });
+  test('vrai navigateur → compte vérifié + preuve datée (source applink_web)', async () => {
+    const t = L.signApplicationLink(S.owner._id, S.app, { postId: S.post });
+    const r = await request(app).post('/auth/application-link').set('User-Agent', MOZ).send({ token: t, applicationId: String(S.app) });
+    expect(r.status).toBe(200);
+    const o = await Owner.findById(S.owner._id).lean();
+    expect(o.verified).toBe(true);
+    expect(o.emailProofSource).toBe('applink_web');
+    expect(o.emailProvenAt).toBeTruthy();
+  });
+});
