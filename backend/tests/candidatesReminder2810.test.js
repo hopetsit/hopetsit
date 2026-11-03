@@ -148,3 +148,56 @@ describe('relance « candidats non consultés » 2810', () => {
     delete process.env.CANDIDATES_REMINDER_2810;
   });
 });
+
+// 0311 (Daniel : « oui, ajoute-la ») — relance J-10 : la date approche, un e-mail de plus, hors plafond.
+describe('relance J-10 (0311)', () => {
+  const reset = async (start, mode = 'exact') => {
+    await Reminder.deleteMany({}); await CandidatesView.deleteMany({});
+    await Post.collection.updateOne({ _id: S.real.postId }, { $set: { status: 'open', dateMode: mode, startDate: start }, $unset: { reservedBy: '' } });
+  };
+
+  test('part même si les candidats ont été ouverts et que les 3 relances sont faites ; objet « commence dans N jours » ; une seule fois', async () => {
+    await reset(at(30 + 5 * 24));
+    await CandidatesView.create({ postId: String(S.real.postId), ownerId: String(S.real.owner._id), origin: 'web', channel: 'web' });
+    for (const [slot, h] of [['e1', -200], ['e2', -150], ['e3', -100]]) {
+      // eslint-disable-next-line no-await-in-loop
+      await Reminder.create({ postId: S.real.postId, slot, ownerId: S.real.owner._id, candidates: 1, createdAt: at(h) });
+    }
+    SENT.length = 0;
+    const sim = await run(30, { dryRun: true });
+    expect(sim.wouldSend).toEqual([expect.objectContaining({ slot: 'j10', daysLeft: 5 })]);
+    const r = await run(30);
+    expect(r.sent).toEqual([expect.objectContaining({ postId: String(S.real.postId), slot: 'j10' })]);
+    expect(JSON.stringify(SENT[0])).toContain('Votre garde commence dans 5 jours');
+    const again = await run(30 + 48);
+    expect(again.sent).toHaveLength(0);
+    expect(await Reminder.countDocuments({ postId: S.real.postId, slot: 'j10' })).toBe(1);
+  });
+
+  test('rien : date dans plus de 10 jours, dans moins de 24 h, « dates à prévoir », ou autre relance il y a moins de 24 h', async () => {
+    const onlyJ10 = (r) => (r.sent || []).filter((x) => x.slot === 'j10');
+    await reset(at(30 + 12 * 24));
+    await CandidatesView.create({ postId: String(S.real.postId), ownerId: String(S.real.owner._id), origin: 'web', channel: 'web' });
+    expect(onlyJ10(await run(30))).toHaveLength(0);
+    await reset(at(30 + 12));
+    await CandidatesView.create({ postId: String(S.real.postId), ownerId: String(S.real.owner._id), origin: 'web', channel: 'web' });
+    expect(onlyJ10(await run(30))).toHaveLength(0);
+    await reset(at(30 + 5 * 24), 'tbd');
+    await CandidatesView.create({ postId: String(S.real.postId), ownerId: String(S.real.owner._id), origin: 'web', channel: 'web' });
+    expect(onlyJ10(await run(30))).toHaveLength(0);
+    await reset(at(30 + 5 * 24));
+    await Reminder.create({ postId: S.real.postId, slot: 'dates', ownerId: S.real.owner._id, candidates: 1, createdAt: at(20) });
+    await CandidatesView.create({ postId: String(S.real.postId), ownerId: String(S.real.owner._id), origin: 'web', channel: 'web' });
+    expect(onlyJ10(await run(30))).toHaveLength(0);
+    expect(onlyJ10(await run(50))).toHaveLength(1); // 11 h à Paris, plus de 24 h après « dates »
+  });
+
+  test('j10Due : jours restants arrondis, null hors fenêtre', () => {
+    const { j10Due } = svc();
+    const now = at(0);
+    expect(j10Due({ startDate: at(9.5 * 24), dateMode: 'exact' }, at(-30), now, [])).toBe(10);
+    expect(j10Due({ startDate: at(30), dateMode: 'approx' }, at(-30), now, [])).toBe(2);
+    expect(j10Due({ startDate: at(11 * 24) }, at(-30), now, [])).toBeNull();
+    expect(j10Due({ startDate: at(5 * 24) }, at(-2), now, [])).toBeNull(); // candidature trop récente
+  });
+});

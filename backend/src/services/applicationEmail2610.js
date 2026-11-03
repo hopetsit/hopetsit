@@ -61,7 +61,7 @@ async function cardsFor(apps, post) {
  * Envoie l'e-mail pour une liste de candidatures (déjà réservées dans le registre).
  * @returns {Promise<{sent:boolean, reason?:string}>}
  */
-async function sendFor({ post, ownerId, apps, send }) {
+async function sendFor({ post, ownerId, apps, send, j10Days }) {
   const Application = require('../models/Application');
   const Owner = require('../models/Owner');
   const pending = apps.filter((a) => a && a.status === 'pending');
@@ -113,7 +113,7 @@ async function sendFor({ post, ownerId, apps, send }) {
     applicationId: String(newest[0]._id),
     postId: String(post._id),
     candidates: String(Math.max(1, totalPending)),
-    ...text.buildEmailData({ lang, post, cards, newCount: pending.length, totalPending }),
+    ...text.buildEmailData({ lang, post, cards, newCount: pending.length, totalPending, j10Days }),
   };
   const sender = typeof send === 'function' ? send : require('./notificationSender').sendEmailOnly;
   const r = await sender({ userId: String(ownerId), role: 'owner', type: 'application_new', templateType: TEMPLATE, data });

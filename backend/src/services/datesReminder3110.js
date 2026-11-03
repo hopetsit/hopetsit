@@ -132,7 +132,8 @@ const runDatesReminders = async (opts = {}) => {
       };
       if (dryRun) report.byPost.push({ postId: line.postId, candidates: apps.length, remindersBefore: all.length });
       if (all.some((s) => s.slot === SLOT)) { skip('already'); continue; }
-      if (all.length >= MAX_TOTAL) { skip('max_3'); continue; }
+      // 0311 — la place j10 (relance J-10 approuvée par Daniel) ne compte pas dans le plafond de 3.
+      if (all.filter((s) => s.slot !== 'j10').length >= MAX_TOTAL) { skip('max_3'); continue; }
       if (all.some((s) => now.getTime() - new Date(s.createdAt).getTime() < GAP)) { skip('recent_other'); continue; }
       if (now.getTime() - new Date(apps[0].createdAt).getTime() < MIN_AGE) { skip('not_due'); continue; }
       // Pas deux e-mails le même jour : l'e-mail « candidats reçus » 2610 de la demande a-t-il moins de 24 h ?
@@ -163,7 +164,7 @@ const runDatesReminders = async (opts = {}) => {
       }
       // Course avec la relance 2810 : recompte APRÈS la réservation, on rend la place si > 3.
       // eslint-disable-next-line no-await-in-loop
-      if (await Reminder.countDocuments({ postId: post._id }) > MAX_TOTAL) {
+      if (await Reminder.countDocuments({ postId: post._id, slot: { $ne: 'j10' } }) > MAX_TOTAL) {
         // eslint-disable-next-line no-await-in-loop
         await Reminder.deleteOne({ _id: claim._id });
         skip('max_3'); continue;

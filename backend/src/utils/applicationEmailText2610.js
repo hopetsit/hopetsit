@@ -236,7 +236,21 @@ function freeCancel72(post, now = Date.now()) {
   return Number.isFinite(t) && t - now > 72 * 3600 * 1000;
 }
 
-function buildEmailData({ lang, post, cards, newCount, totalPending }) {
+// 0311 (Daniel : « oui, ajoute-la ») — relance « J-10 » : la date approche, il faut choisir.
+// Objet préfixé + bandeau en tête des cartes, 9 langues. N = jours restants (1 à 10).
+const J10 = {
+  fr: { subject: (n) => (n > 1 ? `Votre garde commence dans ${n} jours` : 'Votre garde commence demain'), line: 'Les gardiens se réservent vite : choisissez le vôtre maintenant pour être sûr d’être couvert.' },
+  en: { subject: (n) => (n > 1 ? `Your pet care starts in ${n} days` : 'Your pet care starts tomorrow'), line: 'Sitters get booked fast: choose yours now to be sure you are covered.' },
+  es: { subject: (n) => (n > 1 ? `Tu cuidado empieza en ${n} días` : 'Tu cuidado empieza mañana'), line: 'Los cuidadores se reservan rápido: elige el tuyo ahora para asegurarte.' },
+  de: { subject: (n) => (n > 1 ? `Deine Betreuung beginnt in ${n} Tagen` : 'Deine Betreuung beginnt morgen'), line: 'Sitter sind schnell ausgebucht: Wähle jetzt deinen, damit du sicher versorgt bist.' },
+  it: { subject: (n) => (n > 1 ? `Il tuo servizio inizia tra ${n} giorni` : 'Il tuo servizio inizia domani'), line: 'I pet sitter si prenotano in fretta: scegli il tuo ora per essere sicuro.' },
+  pt: { subject: (n) => (n > 1 ? `O seu serviço começa daqui a ${n} dias` : 'O seu serviço começa amanhã'), line: 'Os pet sitters são reservados depressa: escolha o seu agora para ter a certeza.' },
+  ko: { subject: (n) => (n > 1 ? `돌봄이 ${n}일 후에 시작돼요` : '돌봄이 내일 시작돼요'), line: '펫시터는 금방 예약돼요. 지금 선택해 확실히 맡기세요.' },
+  ja: { subject: (n) => (n > 1 ? `お世話の開始まであと${n}日です` : 'お世話は明日からです'), line: 'シッターはすぐに埋まります。今のうちに選んで確実に予約しましょう。' },
+  pl: { subject: (n) => (n > 1 ? `Twoja opieka zaczyna się za ${n} dni` : 'Twoja opieka zaczyna się jutro'), line: 'Opiekunowie szybko się rezerwują: wybierz swojego teraz, aby mieć pewność.' },
+};
+
+function buildEmailData({ lang, post, cards, newCount, totalPending, j10Days }) {
   const l = lang2(lang);
   const L = T[l];
   const service = (Array.isArray(post && post.serviceTypes) ? post.serviceTypes[0] : post && post.serviceTypes) || '';
@@ -248,12 +262,15 @@ function buildEmailData({ lang, post, cards, newCount, totalPending }) {
   } else {
     subjectLine = manyPhrase(l, { count: newCount, service, post });
   }
+  const j10 = Number.isFinite(Number(j10Days)) && Number(j10Days) > 0 ? J10[l] : null;
+  if (j10) subjectLine = `${j10.subject(Number(j10Days))} · ${subjectLine}`;
   const others = Math.max(0, Number(totalPending || 0) - cards.length);
   const tbd = String((post && post.dateMode) || '').toLowerCase() === 'tbd'
     || (!(post && post.startDate) && !(post && post.endDate) && !(post && post.dateMode));
   return {
     subjectLine,
-    candidatesHtml2610: cardsHtml(l, cards)
+    candidatesHtml2610: (j10 ? `<p style="margin:0 0 12px;padding:10px 12px;background:#FFF4D6;border-radius:10px;font-size:14px;font-weight:700;line-height:1.5;color:#7A4B00">${esc(j10.line)}</p>` : '')
+      + cardsHtml(l, cards)
       + (others > 0 ? `<p style="margin:4px 0 0;font-size:14px;color:#6E4F48">${esc(L.others(others))}</p>` : '')
       + (tbd ? `<p style="margin:12px 0 0;padding:10px 12px;background:#FBE9E5;border-radius:10px;font-size:14px;font-weight:600;color:#9E1F0B">${esc(L.dates)}</p>` : '')
       // 2910 (BOB, ordre de Daniel « lancer la machine ») — garanties RÉELLES : annulation gratuite
@@ -266,4 +283,4 @@ function buildEmailData({ lang, post, cards, newCount, totalPending }) {
   };
 }
 
-module.exports = { LANGS, T, lang2, esc, serviceFamily, petKey, onePhrase, manyPhrase, priceLabel, cardsHtml, buildEmailData, cityOfPost };
+module.exports = { LANGS, T, lang2, esc, serviceFamily, petKey, onePhrase, manyPhrase, priceLabel, cardsHtml, buildEmailData, cityOfPost, J10 };

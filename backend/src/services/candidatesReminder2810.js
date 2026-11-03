@@ -15,6 +15,11 @@
  * lien direct « Choisir » qui ouvre la session sans mot de passe quand c'est permis ; ligne
  * « posez vos dates » pour une demande sans dates), dans la langue du propriétaire.
  *
+ * 0311 (Daniel : « oui, ajoute-la », après la mesure : 44 demandes sur 47 ont des candidats, 0 choisi,
+ * dates à ~48 jours en moyenne) — place `j10` : UN e-mail par demande quand la date de début
+ * approche (entre 10 jours et 24 h avant), MÊME si le propriétaire a déjà ouvert ses candidats,
+ * HORS du plafond de 3 ; candidature en attente depuis ≥ 24 h, aucun autre e-mail de relance dans
+ * les 24 h, jamais la nuit ; demande à dates (jamais « dates à prévoir »).
  * ACTIVÉ PAR DÉFAUT depuis le 28/10 (accord de Daniel) : CANDIDATES_REMINDER_2810=off pour tout couper.
  * La simulation (dryRun) liste ce qui partirait, sans rien écrire ni envoyer.
  */
@@ -31,6 +36,25 @@ const MAX_TOTAL = 3; // 3110 — toutes relances e-mail confondues (2810 + « po
 const TICK_MS = 30 * 60 * 1000;
 const HARD_STAFF_EMAILS = ['dadaciao84@gmail.com', 'hopetsit@gmail.com'];
 const NOT_A_PERSON_RE = /@invalid\.example$/i;
+const J10_WINDOW = 10 * DAY;
+
+/**
+ * 0311 — jours restants si la relance J-10 est due pour cette demande, sinon null.
+ * @param {object} post  demande (startDate, dateMode)
+ * @param {Date} firstAppAt  1re candidature en attente
+ * @param {Date} now
+ * @param {{slot:string, createdAt:Date}[]} all  relances déjà faites (toutes places)
+ */
+const j10Due = (post, firstAppAt, now, all) => {
+  if (!post || !post.startDate || String(post.dateMode || '').toLowerCase() === 'tbd') return null;
+  if ((all || []).some((s) => s.slot === 'j10')) return null;
+  const t = now.getTime();
+  const left = new Date(post.startDate).getTime() - t;
+  if (!Number.isFinite(left) || left < DAY || left > J10_WINDOW) return null;
+  if (!firstAppAt || t - new Date(firstAppAt).getTime() < DAY) return null;
+  if ((all || []).some((s) => t - new Date(s.createdAt).getTime() < DAY)) return null;
+  return Math.max(1, Math.ceil(left / DAY));
+};
 
 // ACTIVÉ le 28/10/2026 sur ordre écrit de Daniel (« oui, faut les relancer ») ; CANDIDATES_REMINDER_2810=off pour couper.
 const enabled = () => String(process.env.CANDIDATES_REMINDER_2810 || 'on').toLowerCase() !== 'off';
@@ -97,16 +121,22 @@ const runCandidatesReminders = async (opts = {}) => {
       const apps = await Application.find({ postId: post._id, status: 'pending' }).sort({ createdAt: 1 }).lean();
       if (!apps.length) { skip('no_candidate'); continue; }
       // eslint-disable-next-line no-await-in-loop
-      if (await ownerOpened(post._id)) { skip('owner_opened'); continue; }
-      // eslint-disable-next-line no-await-in-loop
-      const all = await Reminder.find({ postId: post._id }).select('slot createdAt').lean();
-      // 3110 (ADA) — registre COMMUN avec la relance « posez vos dates » : 3 e-mails AU TOTAL par demande
-      // (règle de Daniel du 28/10), et jamais deux relances à moins de 24 h d'écart.
-      if (all.length >= MAX_TOTAL) { skip('max_3'); continue; }
-      if (all.some((s) => s.slot === 'dates' && now.getTime() - new Date(s.createdAt).getTime() < DAY)) { skip('recent_other'); continue; }
-      const sent = all.filter((s) => s.slot !== 'dates');
-      const slot = dueSlot(apps[0].createdAt, now, sent);
-      if (!slot) { skip(sent.length >= 3 ? 'max_3' : 'not_due'); continue; }
+      const allRows = await Reminder.find({ postId: post._id }).select('slot createdAt').lean();
+      // 0311 — J-10 d'abord : elle passe même si les candidats ont été ouverts et hors plafond.
+      const j10Days = j10Due(post, apps[0].createdAt, now, allRows);
+      let slot = j10Days ? 'j10' : null;
+      if (!slot) {
+        // eslint-disable-next-line no-await-in-loop
+        if (await ownerOpened(post._id)) { skip('owner_opened'); continue; }
+        // 3110 (ADA) — registre COMMUN avec la relance « posez vos dates » : 3 e-mails AU TOTAL par demande
+        // (règle de Daniel du 28/10), et jamais deux relances à moins de 24 h d'écart. La place j10 n'y compte pas.
+        const all = allRows.filter((s) => s.slot !== 'j10');
+        if (all.length >= MAX_TOTAL) { skip('max_3'); continue; }
+        if (allRows.some((s) => (s.slot === 'dates' || s.slot === 'j10') && now.getTime() - new Date(s.createdAt).getTime() < DAY)) { skip('recent_other'); continue; }
+        const sent = all.filter((s) => s.slot !== 'dates');
+        slot = dueSlot(apps[0].createdAt, now, sent);
+        if (!slot) { skip(sent.length >= 3 ? 'max_3' : 'not_due'); continue; }
+      }
       // eslint-disable-next-line no-await-in-loop
       const owner = await Owner.findById(post.ownerId).select('email status isStaff location country').lean();
       if (!owner) { skip('no_owner'); continue; }
@@ -116,7 +146,7 @@ const runCandidatesReminders = async (opts = {}) => {
       if (owner.status && owner.status !== 'active') { skip('inactive'); continue; }
       const tz = r615.ownerTimeZone(post, owner);
       if (r615.isNight(tz, now.getTime())) { skip('night'); continue; }
-      const line = { postId: String(post._id), slot, candidates: apps.length, dateMode: post.dateMode || '' };
+      const line = { postId: String(post._id), slot, candidates: apps.length, dateMode: post.dateMode || '', ...(j10Days ? { daysLeft: j10Days } : {}) };
       if (dryRun) { report.wouldSend.push(line); continue; }
       let claim;
       try {
@@ -128,13 +158,13 @@ const runCandidatesReminders = async (opts = {}) => {
       }
       // 3110 — course avec l'autre balayage : recompte APRÈS la réservation, on rend la place si > 3.
       // eslint-disable-next-line no-await-in-loop
-      if (await Reminder.countDocuments({ postId: post._id }) > MAX_TOTAL) {
+      if (slot !== 'j10' && await Reminder.countDocuments({ postId: post._id, slot: { $ne: 'j10' } }) > MAX_TOTAL) {
         // eslint-disable-next-line no-await-in-loop
         await Reminder.deleteOne({ _id: claim._id });
         skip('max_3'); continue;
       }
       // eslint-disable-next-line no-await-in-loop
-      const r = await email2610.sendFor({ post, ownerId: post.ownerId, apps, send: opts.send });
+      const r = await email2610.sendFor({ post, ownerId: post.ownerId, apps, send: opts.send, j10Days });
       if (r && r.sent) {
         report.sent.push(line);
         logger.info(`[relance2810] ${slot} envoyé : demande ${post._id}, ${apps.length} candidat(s)`);
@@ -178,5 +208,5 @@ const startCandidatesReminderScheduler = (opts = {}) => {
 const stopCandidatesReminderScheduler = () => { if (timer) { clearInterval(timer); timer = null; } };
 
 module.exports = {
-  enabled, dueSlot, runCandidatesReminders, startCandidatesReminderScheduler, stopCandidatesReminderScheduler, FIRST_DELAY, FOLLOW_UPS, MAX_TOTAL,
+  enabled, dueSlot, j10Due, runCandidatesReminders, startCandidatesReminderScheduler, stopCandidatesReminderScheduler, FIRST_DELAY, FOLLOW_UPS, MAX_TOTAL,
 };
