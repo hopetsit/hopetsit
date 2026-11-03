@@ -3900,6 +3900,15 @@ function showPage(name, el) {
   if (!navEl) { try { navEl = event && event.currentTarget; } catch (_) { navEl = null; } }
   if (navEl && navEl.classList && navEl.classList.contains('nav-item')) navEl.classList.add('active');
   try { target.scrollTop = 0; if (target.parentElement) target.parentElement.scrollTop = 0; } catch (_) {}
+  // 03/11 (Daniel : « ça ouvre la page au milieu ») — c'est la FENÊTRE qui défile (menu collant) :
+  // elle gardait la position de la page précédente. Retour en haut à chaque ouverture, puis une
+  // 2e fois à l'image suivante (au cas où le navigateur restaure la position).
+  try {
+    window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0;
+    const mc = document.querySelector('.main-content'); if (mc) mc.scrollTop = 0;
+    const _top = () => { if (target.classList.contains('active')) window.scrollTo(0, 0); };
+    requestAnimationFrame(_top);
+  } catch (_) {}
   // v23.1 part 105 — chaque tab refresh les data quand on clique dessus
   // (avant : les tabs Bookings/Sitters/Owners/Dashboard ne re-chargeaient
   // jamais après le 1er chargement à _enterApp → données obsolètes).
