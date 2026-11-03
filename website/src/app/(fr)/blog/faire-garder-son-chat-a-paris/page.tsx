@@ -5,9 +5,9 @@ import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 // v535 — SEO Paris : garde de chat (audience énorme, souvent oubliée des
 // contenus « chien »).
 export const metadata: Metadata = {
-  title: "Faire garder son chat à Paris : visites à domicile ou pension ?",
+  title: "Garde de chat à Paris : cat sitter à domicile et prix",
   description:
-    "Votre chat déteste bouger ? Visites à domicile 8-15 €, garde chez un cat sitter parisien : les options comparées, les prix et la check-list avant de partir.",
+    "Garde de chat à domicile à Paris : un cat sitter vient nourrir, câliner et changer la litière. Visites 8-15 €, garde complète, check-list avant de partir.",
   alternates: { canonical: "https://www.hopetsit.com/blog/faire-garder-son-chat-a-paris" },
 };
 
@@ -36,7 +36,7 @@ export default function ArticleGarderChatParis() {
     "@graph": [
       {
         "@type": "Article",
-        headline: "Faire garder son chat à Paris : visites à domicile ou pension ?",
+        headline: "Garde de chat à Paris : cat sitter à domicile et prix",
         inLanguage: "fr",
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com" },
@@ -57,7 +57,7 @@ export default function ArticleGarderChatParis() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <p className="text-sm font-semibold text-owner">Guide chat · Paris</p>
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
-        Faire garder son chat à Paris : le guide sans stress
+        Garde de chat à Paris : faire garder son chat sans stress
       </h1>
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         Les chats détestent deux choses : les valises et les changements. Bonne
