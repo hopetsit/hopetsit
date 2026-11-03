@@ -121,7 +121,7 @@ const runCandidatesReminders = async (opts = {}) => {
       const apps = await Application.find({ postId: post._id, status: 'pending' }).sort({ createdAt: 1 }).lean();
       if (!apps.length) { skip('no_candidate'); continue; }
       // eslint-disable-next-line no-await-in-loop
-      const allRows = await Reminder.find({ postId: post._id }).select('slot createdAt').lean();
+      const allRows = await Reminder.find({ postId: post._id, status: { $ne: 'failed' } }).select('slot createdAt').lean(); // 03/11 : un échec ne consomme pas de place
       // 0311 — J-10 d'abord : elle passe même si les candidats ont été ouverts et hors plafond.
       const j10Days = j10Due(post, apps[0].createdAt, now, allRows);
       let slot = j10Days ? 'j10' : null;
@@ -151,6 +151,10 @@ const runCandidatesReminders = async (opts = {}) => {
       let claim;
       try {
         // eslint-disable-next-line no-await-in-loop
+        // 03/11 — une place en échec (ex. e-mail bloqué) se rejoue : on retire l'ancienne ligne.
+        // eslint-disable-next-line no-await-in-loop
+        await Reminder.deleteOne({ postId: post._id, slot: slot, status: 'failed' });
+        // eslint-disable-next-line no-await-in-loop
         claim = await Reminder.create({ postId: post._id, slot, ownerId: post.ownerId, candidates: apps.length, createdAt: now });
       } catch (e) {
         if (e && e.code === 11000) { skip('already'); continue; }
@@ -158,7 +162,7 @@ const runCandidatesReminders = async (opts = {}) => {
       }
       // 3110 — course avec l'autre balayage : recompte APRÈS la réservation, on rend la place si > 3.
       // eslint-disable-next-line no-await-in-loop
-      if (slot !== 'j10' && await Reminder.countDocuments({ postId: post._id, slot: { $ne: 'j10' } }) > MAX_TOTAL) {
+      if (slot !== 'j10' && await Reminder.countDocuments({ postId: post._id, slot: { $ne: 'j10' }, status: { $ne: 'failed' } }) > MAX_TOTAL) {
         // eslint-disable-next-line no-await-in-loop
         await Reminder.deleteOne({ _id: claim._id });
         skip('max_3'); continue;

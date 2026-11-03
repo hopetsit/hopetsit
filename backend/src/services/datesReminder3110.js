@@ -125,7 +125,7 @@ const runDatesReminders = async (opts = {}) => {
       const apps = await Application.find({ postId: post._id, status: 'pending' }).sort({ createdAt: 1 }).lean();
       if (!apps.length) { skip('no_candidate'); continue; }
       // eslint-disable-next-line no-await-in-loop
-      const all = await Reminder.find({ postId: post._id }).select('slot createdAt').lean();
+      const all = await Reminder.find({ postId: post._id, status: { $ne: 'failed' } }).select('slot createdAt').lean(); // 03/11 : un échec ne consomme pas de place
       const line = {
         postId: String(post._id), slot: SLOT, candidates: apps.length,
         remindersBefore: all.length, slotsBefore: all.map((s) => s.slot).sort(),
@@ -157,6 +157,10 @@ const runDatesReminders = async (opts = {}) => {
       let claim;
       try {
         // eslint-disable-next-line no-await-in-loop
+        // 03/11 — une place en échec (ex. e-mail bloqué) se rejoue : on retire l'ancienne ligne.
+        // eslint-disable-next-line no-await-in-loop
+        await Reminder.deleteOne({ postId: post._id, slot: SLOT, status: 'failed' });
+        // eslint-disable-next-line no-await-in-loop
         claim = await Reminder.create({ postId: post._id, slot: SLOT, ownerId: post.ownerId, candidates: apps.length, createdAt: now });
       } catch (e) {
         if (e && e.code === 11000) { skip('already'); continue; }
@@ -164,7 +168,7 @@ const runDatesReminders = async (opts = {}) => {
       }
       // Course avec la relance 2810 : recompte APRÈS la réservation, on rend la place si > 3.
       // eslint-disable-next-line no-await-in-loop
-      if (await Reminder.countDocuments({ postId: post._id, slot: { $ne: 'j10' } }) > MAX_TOTAL) {
+      if (await Reminder.countDocuments({ postId: post._id, slot: { $ne: 'j10' }, status: { $ne: 'failed' } }) > MAX_TOTAL) {
         // eslint-disable-next-line no-await-in-loop
         await Reminder.deleteOne({ _id: claim._id });
         skip('max_3'); continue;

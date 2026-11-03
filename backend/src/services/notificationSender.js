@@ -724,8 +724,15 @@ const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtr
   // de demande (près de chez vous / adressée) passent le garde-fou 619 ; 19 prestataires
   // sur 104 ne recevaient rien hors de l'app. Les autres types restent bloqués.
   // Coupe-circuit : REQUEST_ALERT_EMAIL_UNVERIFIED=off.
-  const requestAlertBypass = UNVERIFIED_BYPASS_TYPES.has(type)
-    && process.env.REQUEST_ALERT_EMAIL_UNVERIFIED !== 'off';
+  // 03/11 — même logique que la règle de Daniel du 27/10 (pub Meta) : un propriétaire qui a
+  // PUBLIÉ une demande et reçoit des candidats revient par ces e-mails pour choisir et payer.
+  // Constaté : un propriétaire de Paris (4 candidats, sans l'app) n'en recevait AUCUN. Seul le
+  // type « candidats » (application_new, propriétaire) passe ; le lien ouvert prouve la boîte.
+  // Coupe-circuit : OWNER_CANDIDATES_EMAIL_UNVERIFIED=off.
+  const ownerCandidatesBypass = role === 'owner' && String(type) === 'application_new'
+    && process.env.OWNER_CANDIDATES_EMAIL_UNVERIFIED !== 'off';
+  const requestAlertBypass = (UNVERIFIED_BYPASS_TYPES.has(type)
+    && process.env.REQUEST_ALERT_EMAIL_UNVERIFIED !== 'off') || ownerCandidatesBypass;
   if (email && !requestAlertBypass && await unverifiedEmailBlocked(user, role)) {
     emailBlocked = 'unverified';
     logger.info(`[notif.email.skip] compte jamais vérifié → aucun e-mail type=${type} role=${role} userId=${userId}`);

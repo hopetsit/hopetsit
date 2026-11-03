@@ -201,3 +201,30 @@ describe('relance J-10 (0311)', () => {
     expect(j10Due({ startDate: at(5 * 24) }, at(-2), now, [])).toBeNull(); // candidature trop récente
   });
 });
+
+// 03/11 — propriétaire NON vérifié (hors pub) : l'e-mail « candidats » part quand même ; une relance
+// en échec ne consomme plus de place et se rejoue.
+describe('propriétaire non vérifié (0311)', () => {
+  test('sendEmailOnly application_new passe le garde-fou ; un autre type reste bloqué', async () => {
+    const o = await Owner.create({ name: 'Simon Test', email: 'simon.nonverif0311@example.org', password: PASS, city: 'Paris', country: 'FR', currency: 'EUR', verified: false, acceptedTerms: true, appLocale: 'fr', location: { type: 'Point', coordinates: [2.35, 48.85] } });
+    const ns = require('../src/services/notificationSender');
+    MAILS.length = 0;
+    const ok = await ns.sendEmailOnly({ userId: String(o._id), role: 'owner', type: 'application_new', templateType: 'application_new_2610', data: { postId: String(S.real.postId) } });
+    expect(ok.sent).toBe(true);
+    expect(MAILS.map((m) => m.to)).toContain('simon.nonverif0311@example.org');
+    const no = await ns.sendEmailOnly({ userId: String(o._id), role: 'owner', type: 'booking_paid', data: {} });
+    expect(no.sent).toBe(false);
+  });
+
+  test('une place « failed » ne compte pas dans le plafond et se rejoue', async () => {
+    await Reminder.deleteMany({}); await CandidatesView.deleteMany({});
+    await Post.collection.updateOne({ _id: S.real.postId }, { $set: { status: 'open', dateMode: 'tbd' }, $unset: { reservedBy: '', startDate: '' } });
+    for (const slot of ['e1', 'e2', 'e3']) {
+      // eslint-disable-next-line no-await-in-loop
+      await Reminder.create({ postId: S.real.postId, slot, ownerId: S.real.owner._id, candidates: 1, createdAt: at(-100), status: 'failed' });
+    }
+    const r = await run(3);
+    expect(r.sent).toEqual([expect.objectContaining({ postId: String(S.real.postId), slot: 'e1' })]);
+    expect(await Reminder.countDocuments({ postId: S.real.postId, slot: 'e1', status: 'sent' })).toBe(1);
+  });
+});
