@@ -1,7 +1,7 @@
 'use strict';
 /**
  * 3110 (ADA, ordre de Daniel 31/10 via BOB) — UN rappel « ta demande attend ta confirmation » aux contacts
- * (pub Meta et site) restés en BROUILLON 24 h après l'e-mail « confirme », puis plus rien.
+ * (pub Meta et site) restés en BROUILLON 3 h (03/11, avant : 24 h) après l'e-mail « confirme », puis plus rien.
  *  - jamais la nuit : heure locale du contact (FR → Europe/Paris, US → America/New_York, sinon Paris) entre 9 h et 20 h ;
  *  - langue du contact (lead.lang) ;
  *  - comptes de test / internes exclus (TEST_LEAD_RE) ;
@@ -11,7 +11,10 @@
 const logger = require('../utils/logger');
 
 const DAY = 86400000;
-const DELAY_MS = 24 * 3600 * 1000;
+// 03/11 (BOB, Daniel « qu'il y ait de vraies annonces ») — rappel à +3 h au lieu de +24 h : la personne
+// vient de remplir le formulaire et pense encore à sa garde ; le lendemain, elle a souvent oublié.
+// Réglable sans republier : AD_LEAD_CONFIRM_REMINDER_DELAY_H (heures, 24 = ancien comportement).
+const DELAY_MS = Math.max(1, Number(process.env.AD_LEAD_CONFIRM_REMINDER_DELAY_H) || 3) * 3600 * 1000;
 const MAX_AGE_MS = 10 * DAY;
 const TICK_MS = 30 * 60 * 1000;
 const TZ_BY_COUNTRY = { FR: 'Europe/Paris', BE: 'Europe/Brussels', CH: 'Europe/Zurich', LU: 'Europe/Luxembourg', US: 'America/New_York', CA: 'America/Toronto', GB: 'Europe/London', ES: 'Europe/Madrid', DE: 'Europe/Berlin', IT: 'Europe/Rome', PT: 'Europe/Lisbon' };

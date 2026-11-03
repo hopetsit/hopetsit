@@ -124,7 +124,7 @@ test('+test : brouillon refusé (403), aucun compte, aucun e-mail', async () => 
   expect(mailsTo('dadaciao84+testlead3110@gmail.com')).toHaveLength(0);
 });
 
-test('rappel +24 h : une seule fois, en journée seulement, langue du contact ; +test jamais', async () => {
+test('rappel +3 h : une seule fois, en journée seulement, langue du contact ; +test jamais', async () => {
   // Repère temporel du test : demain 15 h UTC (16 h Paris, 10-11 h New York) ; les âges sont relatifs à ce repère.
   const day = new Date(); day.setUTCHours(15, 0, 0, 0); day.setUTCDate(day.getUTCDate() + 1);
   const night = new Date(day.getTime() + 11 * H); // 02 h UTC le lendemain = 03 h Paris, 21-22 h New York : nuit des deux côtés
@@ -136,7 +136,7 @@ test('rappel +24 h : une seule fois, en journée seulement, langue du contact ; 
   };
   const fr = await mk({}, 25 * H);
   const en = await mk({ lang: 'en', country: 'US', city: 'Zone test' }, 26 * H);
-  const tooSoon = await mk({}, 5 * H);
+  const tooSoon = await mk({}, 1 * H); // 03/11 : rappel à +3 h
   const r0t = await register({ email: 'dadaciao84+testrappel3110@gmail.com' });
   await AdLead.updateOne({ _id: r0t.body.id }, { $set: { pendingConfirm: true, confirmEmailAt: new Date(day.getTime() - 30 * H) } });
   const frEmail = (await AdLead.findById(fr).lean()).email; const enEmail = (await AdLead.findById(en).lean()).email;

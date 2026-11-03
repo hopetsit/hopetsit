@@ -171,7 +171,7 @@ adminRouter.get('/stats', requireAdmin, async (req, res) => {
     const rows = await AdLead.find({ createdAt: { $gte: from }, source: { $ne: 'site' } }).select('createdAt city country lat lng postId startText endText confirmedAt pendingConfirm clickedAt confirmEmailAt confirmReminderAt').lean();
     const { datesFor } = require('../utils/adLeadDates2310');
     // 3110 (ADA, ordre de Daniel) — awaitingConfirm = brouillons (e-mail « confirme » parti, pas encore cliqué) ;
-    // confirmedClick = contacts qui ont VRAIMENT cliqué (clickedAt) ; reminded = rappels +24 h envoyés.
+    // confirmedClick = contacts qui ont VRAIMENT cliqué (clickedAt) ; reminded = rappels (+3 h depuis le 03/11, +24 h avant) envoyés.
     const out = { days, timeZone: tz, generatedAt: now, today: 0, yesterday: 0, d7: 0, byCity: { paris: 0, nyc: 0, other: 0 }, published: 0, withDates: 0, confirmed: 0, awaitingConfirm: 0, confirmedClick: 0, reminded: 0, total: 0 };
     for (const l of rows) {
       const t = l.createdAt ? new Date(l.createdAt).getTime() : 0;
@@ -256,7 +256,7 @@ const escHtml = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').re
 /**
  * 3110 (ADA, ordre de Daniel 31/10) — e-mail « confirme ta demande pour la publier » (lien /posts/confirmer?l=…,
  * dont le clic vérifie l'e-mail ET publie). variant : 'new' (contact neuf : pub Meta ou site), 'existing'
- * (compte déjà inscrit, texte de LEO), 'reminder' (UN rappel à +24 h). Jamais aux adresses de test.
+ * (compte déjà inscrit, texte de LEO), 'reminder' (UN rappel à +3 h depuis le 03/11). Jamais aux adresses de test.
  * Retourne true si l'e-mail est parti.
  */
 async function sendConfirmEmail(lead, variant = 'new') {
