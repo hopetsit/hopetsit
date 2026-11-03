@@ -303,6 +303,15 @@ async function endLiveSessionByDuration(s) {
     duration: s.duration,
     at: new Date().toISOString(),
   });
+  // 633 — prévenu seulement s'il était VRAIMENT en direct (signal < 10 min) :
+  // un téléphone muet depuis des heures (arrêt perdu) ne reçoit pas
+  // « Partage en direct terminé » pour une balade qu'il ne faisait plus.
+  if (!require('../utils/liveTickNotify633').shouldNotifySessionEnded633({
+    now: Date.now(), lastSeenAt: s.lastSeenAt,
+  })) {
+    logger.info(`[live] fin de durée pour ${s.userId} sans notification (plus de signal depuis > 10 min)`);
+    return;
+  }
   try {
     const { sendNotification } = require('../services/notificationSender');
     const { BASE_URL } = require('../utils/emailLinkBuilder');
@@ -341,7 +350,16 @@ async function tickLiveShare() {
         ended += 1;
         continue;
       }
-      if (now - s.lastStillActiveNoticeAt >= LIVE_STILL_ACTIVE_MS) {
+      // 633 — « toujours actif » seulement si le téléphone donne encore
+      // signe de vie (< 10 min, même règle que « En direct · autre
+      // téléphone ») : une session orpheline (arrêt perdu) n'envoie plus
+      // « Tu partages ta position depuis N h » à quelqu'un qui ne partage
+      // plus rien. Le rappel dû pendant un silence part au retour du signal.
+      if (require('../utils/liveTickNotify633').shouldNotifyStillActive633({
+        now, lastSeenAt: s.lastSeenAt,
+        lastStillActiveNoticeAt: s.lastStillActiveNoticeAt,
+        dueMs: LIVE_STILL_ACTIVE_MS,
+      })) {
         s.lastStillActiveNoticeAt = now; // posé AVANT l'envoi : jamais deux fois
         const hours = Math.max(1, Math.round((now - s.startedAt) / (60 * 60 * 1000)));
         try {
