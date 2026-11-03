@@ -9,10 +9,12 @@ const mongoose = require('mongoose');
 const bugReportSchema = new mongoose.Schema(
   {
     // Reporter identity (authenticated user).
-    userId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    // 03/11 — formulaire PUBLIC du site (« Signaler un bug », pied de page) : un visiteur sans
+    // compte n'a ni userId ni rôle → `visitor`, e-mail saisi dans le formulaire.
+    userId: { type: mongoose.Schema.Types.ObjectId, default: null },
     userRole: {
       type: String,
-      enum: ['owner', 'sitter', 'walker'],
+      enum: ['owner', 'sitter', 'walker', 'visitor'],
       required: true,
     },
     userName: { type: String, default: '' },

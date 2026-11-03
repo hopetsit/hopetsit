@@ -3406,6 +3406,30 @@ export async function sendFeedback(opts: {
   });
 }
 
+// 03/11/2026 — « Signaler un bug » du pied de page : POST /bug-reports/public, ouvert aux
+// visiteurs (e-mail saisi) et aux connectés (rattaché au compte). Même page admin › Bugs.
+export async function sendPublicBugReport(opts: {
+  kind: FeedbackKind;
+  description: string;
+  email?: string;
+  name?: string;
+  screen?: string;
+  website?: string; // champ piège anti-robot, toujours vide pour un humain
+}): Promise<{ ok: boolean; reportId?: string }> {
+  return request<{ ok: boolean; reportId?: string }>("/bug-reports/public", {
+    method: "POST",
+    body: JSON.stringify({
+      kind: opts.kind,
+      description: opts.description.trim().slice(0, 4000),
+      title: opts.description.trim().slice(0, 60),
+      email: (opts.email || "").trim(),
+      name: (opts.name || "").trim(),
+      screen: (opts.screen || "web:/bug-report").slice(0, 120),
+      website: opts.website || "",
+    }),
+  });
+}
+
 // 25/09/2026 (PawMap 585, lot 2 — bug 15) — préférences de la PawMap sur le
 // COMPTE (GET/PATCH /users/me/map-prefs, backend mapPrefsController, suivies
 // sur les 3 profils et l'app). Calques connus : friends, pawspots, premium…

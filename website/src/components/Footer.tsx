@@ -1,5 +1,6 @@
 "use client";
 
+import { bug0311 } from "@/lib/i18n/bug0311";
 import Link from "@/components/SiteLink";
 import { LogoWithText } from "./Logo";
 import { PawMapCTA } from "./PawMapCTA";
@@ -64,7 +65,7 @@ const BLOCKS: Record<"fr" | "en", {
       { href: "/blog/devenir-pet-sitter-combien-ca-rapporte", label: "Combien ça rapporte ?" }, { href: "/download", label: "Télécharger l'app" }, { href: "/villes", label: "Toutes les villes" } ] },
     brand: { title: "HoPetSit", links: [
       { href: "/contact", label: "Contact" }, { href: "/faq", label: "FAQ" }, { href: "/terms", label: "Conditions d'utilisation" }, { href: "/privacy", label: "Confidentialité" },
-      { href: "/refund", label: "Remboursements" }, { href: "/delete-account", label: "Supprimer mon compte" }, { href: "/imprint", label: "Mentions légales" } ] },
+      { href: "/refund", label: "Remboursements" }, { href: "/delete-account", label: "Supprimer mon compte" }, { href: "/imprint", label: "Mentions légales" }, { href: "/bug-report", label: "Signaler un bug" } ] },
     seo: "Villes & guides",
   },
   en: {
@@ -74,7 +75,7 @@ const BLOCKS: Record<"fr" | "en", {
       { href: "/become-a-pet-sitter/dallas", label: "Become a pet sitter in Dallas" }, { href: "/download", label: "Get the app" }, { href: "/villes", label: "All cities" } ] },
     brand: { title: "HoPetSit", links: [
       { href: "/contact", label: "Contact" }, { href: "/faq", label: "FAQ" }, { href: "/terms", label: "Terms of use" }, { href: "/privacy", label: "Privacy" },
-      { href: "/refund", label: "Refunds" }, { href: "/delete-account", label: "Delete my account" }, { href: "/imprint", label: "Legal notice" } ] },
+      { href: "/refund", label: "Refunds" }, { href: "/delete-account", label: "Delete my account" }, { href: "/imprint", label: "Legal notice" }, { href: "/bug-report", label: "Report a bug" } ] },
     seo: "Cities & guides",
   },
 };
@@ -101,6 +102,8 @@ export function Footer() {
         { href: "/faq",      label: t("nav_faq") },
         { href: "/contact",  label: t("nav_contact") },
         { href: "/download", label: t("nav_download") },
+        // 03/11 — « Signaler un bug » (formulaire public → admin › Bugs).
+        { href: "/bug-report", label: bug0311(lang).link },
       ],
     },
     {
