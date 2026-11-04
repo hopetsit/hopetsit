@@ -4040,6 +4040,22 @@ router.patch('/users/:role/:id/email', requireAdmin, async (req, res) => {
   }
 });
 
+// 04/11 (BOB) — Daniel : « voir et modifier e-mail et mot de passe ». Le mot de passe
+// est chiffré : on ne peut que le REMPLACER, sur les 3 profils de la personne.
+// Corps : { password } (8 caractères minimum). Le mot de passe n'est jamais journalisé.
+router.post('/users/:role/:id/password', requireAdmin, auditAdmin, async (req, res) => {
+  try {
+    const { setPassword } = require('../services/adminCredentials0411');
+    const r = await setPassword(req.params.role, req.params.id, (req.body || {}).password);
+    logger.info(`[admin] ${req.params.role} ${req.params.id} mot de passe remplacé (${JSON.stringify(r.profiles)})`);
+    res.json(r);
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error('[admin/users/password]', e);
+    res.status(500).json({ error: 'Impossible de changer le mot de passe.' });
+  }
+});
+
 // v20 — Loyalty stats for the admin "Avantages" tab.
 // Returns counts + top lists for: owners with isPremium (10+ bookings),
 // sitters with isTopSitter (20+ completed + 4.5 rating), walkers with isTopWalker.

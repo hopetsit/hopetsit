@@ -8678,7 +8678,7 @@ function renderRecentSignups() {
       <td><span style="background:${b.color};color:#fff;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">${b.icon} ${b.label}</span></td>
       <td><strong>${escapeHtml(u.name || '-')}</strong></td>
       <td>${adaStaffCell(u)}</td>
-      <td style="color:var(--text-muted)">${escapeHtml(u.email || '-')}</td>
+      <td>${adaCredCell(u)}</td>
       <td>${adaEmailCell(u)}<div class="ada-rv-last">${adaRvLastCell(u)}</div></td>
       <td style="white-space:nowrap">${zoneLabel(u)}</td>
       <td style="white-space:nowrap">${fmtDate(signupTs(u), true)}</td>
@@ -8964,7 +8964,7 @@ function renderOwners() {
         <td><span style="background:${b.color};color:#fff;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700">${b.icon} ${b.label}</span></td>
         <td><strong>${escapeHtml(u.name||'-')}</strong></td>
         <td>${adaStaffCell(u)}</td>
-        <td style="color:var(--text-muted)">${escapeHtml(u.email||'-')}</td>
+        <td>${adaCredCell(u)}</td>
         <td>${adaEmailCell(u)}<div class="ada-rv-last">${adaRvLastCell(u)}</div></td>
         <td>${escapeHtml(u.mobile||'-')}</td>
         <td style="font-size:12px">${zoneLabel(u)}</td>
@@ -11493,6 +11493,46 @@ async function changeUserEmail(role, userId, current) {
     try { await api('/auth/resend-code?email=' + encodeURIComponent(r.email), 'POST'); codeSent = true; } catch (_) {}
     showToast(t('users_email_done', 'Adresse corrigée : ') + r.email + (codeSent ? t('users_email_code', ' · code de vérification envoyé') : ''), 'success');
     loadOwners();
+  } catch (e) {
+    showToast(t('error_prefix') + e.message, 'error');
+  }
+}
+// 04/11 (BOB) — Daniel : « voir et modifier e-mail et mot de passe ». Les deux boutons sont
+// SOUS l'adresse (le « ✉️ E-mail » de la colonne Actions était hors de l'écran). Le mot de
+// passe est chiffré sur le serveur : personne ne peut le lire, on ne peut que le REMPLACER,
+// sur les 3 profils de la personne. Un mot de passe est proposé, modifiable, à transmettre.
+function adaCredCell(u) {
+  const em = escapeHtml(u.email || '');
+  return `<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">`
+    + `<span style="color:var(--text-muted)">${em || '-'}</span>`
+    + `<div style="display:flex;gap:4px;flex-wrap:wrap">`
+    + `<button class="action-btn" style="white-space:nowrap" onclick="changeUserEmail('${u._role}','${u._id}','${em}')" title="Corriger l'adresse e-mail (3 profils) et renvoyer un code de vérification">✉️ Modifier l'e-mail</button>`
+    + `<button class="action-btn" style="white-space:nowrap" onclick="changeUserPassword('${u._role}','${u._id}')" title="Le mot de passe est chiffré : on ne peut pas le voir, seulement le remplacer (3 profils)">🔑 Nouveau mot de passe</button>`
+    + `</div></div>`;
+}
+function adaSuggestPassword() {
+  const abc = 'abcdefghjkmnpqrstuvwxyz', dig = '23456789';
+  const r = new Uint32Array(8); crypto.getRandomValues(r);
+  let s = 'Hps-';
+  for (let i = 0; i < 4; i++) s += abc[r[i] % abc.length];
+  s += '-';
+  for (let i = 4; i < 8; i++) s += dig[r[i] % dig.length];
+  return s;
+}
+async function changeUserPassword(role, userId) {
+  const u = (allOwners || []).find(x => x._id === userId) || {};
+  const who = (u.name || userId) + (u.email ? ' (' + u.email + ')' : '');
+  const pwd = prompt('Nouveau mot de passe pour ' + who + ' :\n\n'
+    + 'Le mot de passe actuel est chiffré : personne ne peut le voir, même l\'admin. '
+    + 'Celui-ci le REMPLACE sur ses 3 profils (propriétaire, gardien, promeneur). '
+    + 'Note-le et transmets-le à la personne (8 caractères minimum).', adaSuggestPassword());
+  if (pwd === null) return;
+  if (pwd.length < 8) { showToast('8 caractères minimum.', 'error'); return; }
+  try {
+    const r = await api('/admin/users/' + role + '/' + userId + '/password', 'POST', { password: pwd });
+    const p = (r && r.profiles) || {};
+    const n = (p.owner || 0) + (p.sitter || 0) + (p.walker || 0);
+    showToast('Mot de passe remplacé — profils mis à jour : ' + n, 'success');
   } catch (e) {
     showToast(t('error_prefix') + e.message, 'error');
   }
