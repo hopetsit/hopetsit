@@ -33,14 +33,14 @@ uniques et locaux, reliés à la page pilier de la ville et à « Publier ma dem
 ## Séoul (ko) — page pilier `/pet-sitting-korea/seoul#districts`
 - [x] 서울 반려견 산책·펫시터 가이드 (31/10/2026, GUS)
 - [ ] 명절(추석·설날)에 반려동물 맡기기: 서울에서 미리 준비할 것
-- [ ] 서울 아파트에서 고양이 돌봄: 방문 돌봄과 위탁 비교
+- [x] 서울 아파트에서 고양이 돌봄: 방문 돌봄과 위탁 비교 (04/11/2026, GUS — /blog/seoul-cat-sitter-guide)
 - [ ] 한강공원 반려견 산책 에티켓
 - [ ] 겨울철 서울 반려견 산책: 추위와 제설제
 - [ ] 반려동물 등록 방법과 펫시터에게 전달할 정보
 
 ## Tokyo (ja) — page pilier `/pet-sitting-japan/tokyo#districts`
 - [x] 東京でペットシッターを頼むときのポイント (31/10/2026, GUS)
-- [ ] 年末年始に犬・猫を預けるには：東京での準備
+- [x] 年末年始に犬・猫を預けるには：東京での準備 (04/11/2026, GUS — /blog/tokyo-new-year-pet-care)
 - [ ] 東京のマンションで猫を飼う：訪問シッターと預かりの比較
 - [ ] 東京のドッグラン：利用マナーと選び方
 - [ ] 夏の東京で犬の散歩：熱中症とアスファルトの温度
