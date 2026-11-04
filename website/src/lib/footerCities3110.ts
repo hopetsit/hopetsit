@@ -14,8 +14,8 @@ export const FOOTER_CITIES = [
 export const FOOTER_POSTS = [
   { href: "/blog/premier-chiot-a-paris", label: "Paris : premier chiot, propreté et premières sorties" },
   { href: "/blog/dog-runs-in-nyc", label: "New York: dog runs, etiquette and borough picks" },
-  { href: "/blog/seoul-pet-sitter-guide", label: "서울 반려견 산책·펫시터 가이드" },
-  { href: "/blog/tokyo-pet-sitter-guide", label: "東京でペットシッターを頼むときのポイント" },
+  { href: "/blog/seoul-cat-sitter-guide", label: "서울 아파트 고양이 돌봄 : 방문 캣시터와 탁묘" },
+  { href: "/blog/tokyo-new-year-pet-care", label: "年末年始に犬・猫を預けるには" },
 ];
 
 export const FOOTER_CITY_TXT: Record<Lang, { cities: string; all: string; blog: string; allPosts: string }> = {

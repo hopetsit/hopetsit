@@ -206,6 +206,11 @@ export default function ArticleTokyoPetSitterGuide() {
       <p className="mt-4 leading-relaxed text-ink-muted">
         お盆や年末年始、ゴールデンウィークは、シッターを探す人が一度に増える時期です。日程が決まったら
         早めに依頼を出し、はじめてのシッターなら連休の前に一度短いお世話を頼んでみるのもよい方法です。
+        年末年始の準備は{" "}
+        <Link href="/blog/tokyo-new-year-pet-care" className="font-semibold text-owner underline">
+          年末年始に犬・猫を預けるには
+        </Link>
+        で詳しくまとめています。
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">シッターに渡すものチェックリスト</h2>

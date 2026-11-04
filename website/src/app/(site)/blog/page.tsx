@@ -42,6 +42,19 @@ const POSTS = [
     title: "Pet Sitting in New York over Thanksgiving & the Holidays",
     excerpt: "When to book, overnights vs drop-ins, rock salt, fireworks and what to leave your sitter in NYC.",
   },
+  // 04/11 (GUS, mercredi) — articles ko + ja de la semaine (règle Daniel du 01/11).
+  {
+    slug: "seoul-cat-sitter-guide",
+    lang: "🇰🇷",
+    title: "서울 아파트 고양이 돌봄 : 방문 캣시터와 탁묘",
+    excerpt: "방문 돌봄·탁묘·우리 집 돌봄 비교, 아파트에서 집을 비우기 전 점검할 것, 캣시터에게 남길 메모.",
+  },
+  {
+    slug: "tokyo-new-year-pet-care",
+    lang: "🇯🇵",
+    title: "年末年始に犬・猫を預けるには",
+    excerpt: "早めの予約、動物病院の休診への備え、お正月の食べ物の注意点、シッターに渡すメモ。",
+  },
   {
     slug: "seoul-pet-sitter-guide",
     lang: "🇰🇷",

@@ -264,6 +264,14 @@ export default function ArticleSeoulPetSitterGuide() {
         를 읽어 보세요.
       </p>
 
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        고양이와 함께 산다면{" "}
+        <Link href="/blog/seoul-cat-sitter-guide" className="font-semibold text-owner underline">
+          서울 아파트 고양이 돌봄 : 방문 캣시터와 탁묘 비교
+        </Link>
+        도 함께 읽어 보세요.
+      </p>
+
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">자주 묻는 질문</h2>
       <div className="mt-6 space-y-4">
         {FAQ.map((f) => (
