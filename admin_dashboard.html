@@ -750,6 +750,8 @@ tr.ada-late td { background: #FFF1EE; }
 .rq-stp::before { content: ''; position: absolute; top: 10px; left: -50%; width: 100%; height: 3px; background: var(--rq-apricot2); }
 .rq-stp:first-child::before { display: none; }
 .rq-stp.done::before { background: #1F9D55; }
+.rq-stp.skip .rq-dot { background: #E7E2DE; border: 2.5px solid #CFC7C0; color: #8A7F77; }
+.rq-stp.skip::before, .rq-stp.skip + .rq-stp.done::before { background: #1F9D55; }
 .rq-card .rq-actions { display: flex; gap: 8px; margin-top: 2px; }
 .rq-btn { border: 2px solid var(--rq-apricot2); background: var(--rq-cream); color: var(--rq-ink); border-radius: 999px; padding: 6px 12px; font: inherit; font-weight: 800; font-size: 12.5px; cursor: pointer; }
 .rq-empty { background: var(--rq-cream); border: 2px dashed var(--rq-apricot2); border-radius: 18px; padding: 18px; text-align: center; font-weight: 700; color: #7A4A2A; }
@@ -5880,7 +5882,8 @@ function rjSteps(it) {
   out.push(rjStep(true, 'blue', '1', 'Publiée', rjWhen(st.published.at)));
   out.push(rjStep(st.notified.count > 0, '', '2', 'Prestataires prévenus', String(st.notified.count)));
   out.push(rjStep(st.opened.count > 0, '', '3', 'Ont ouvert', String(st.opened.count)));
-  out.push(rjStep(st.contacts.count > 0, 'violet', '4', 'Contacts', String(st.contacts.count)));
+  // 05/11 (BOB) — 0 message de chat mais déjà des candidats : l'étape est sautée, pas manquée.
+  out.push(rjStep(st.contacts.count > 0, 'violet', '4', 'Contacts', st.contacts.count > 0 ? String(st.contacts.count) : (st.applications.count > 0 ? '0 · pas de message, candidature directe' : '0')));
   const who = (st.applications.who || []).map(function (w) { return escapeHtml(w.name || '?'); }).join(', ');
   out.push(rjStep(st.applications.count > 0, '', '5', 'Candidatures', String(st.applications.count) + (who ? ' (' + who + ')' : '')));
   const d = st.decision;
@@ -6210,9 +6213,14 @@ function rqFrise(it) {
   const leak = (last < 7 && it.status !== 'completed' && it.status !== 'cancelled') ? last + 1 : -1;
   // « Contacts » est un lien indirect : jamais désigné comme la fuite
   const leakIdx = leak === 3 ? 4 : leak;
+  // 05/11 (BOB, Daniel : « pourquoi Contacts saute, pas vert ») — « Contacts » = un prestataire a ÉCRIT dans
+  // le chat au propriétaire. Une candidature part en un tap, sans message : on peut donc avoir des candidats
+  // sans contact. Quand une étape suivante est faite, l'étape 4 est « sautée » (gris plein, « – »), pas un trou.
   return '<div class="rq-frise">' + steps.map(function (s, i) {
-    const cls = s[1] ? 'done ' + s[2] : (i === leakIdx ? 'leak' : '');
-    return '<div class="rq-stp ' + cls + '"><div class="rq-dot">' + (i + 1) + '</div><div class="rq-stl"><span>' + s[0] + '</span></div></div>';
+    const skip = (i === 3 && !s[1] && last > 3);
+    const cls = s[1] ? 'done ' + s[2] : (skip ? 'skip' : (i === leakIdx ? 'leak' : ''));
+    const tip = skip ? ' title="Aucun message de chat : les prestataires ont postulé directement (une candidature ne passe pas par le chat)"' : '';
+    return '<div class="rq-stp ' + cls + '"' + tip + '><div class="rq-dot">' + (skip ? '–' : (i + 1)) + '</div><div class="rq-stl"><span>' + s[0] + '</span>' + (skip ? '<br><small style="font-weight:600;opacity:.8">pas de message</small>' : '') + '</div></div>';
   }).join('') + '</div>';
 }
 // ── 26/10 (ADA, décision de Daniel — proposition C de SAM) — le propriétaire revient-il VRAIMENT ?
