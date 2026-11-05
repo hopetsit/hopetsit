@@ -357,11 +357,18 @@ const versionedRoutes = [
   // 22/10 (SAM, accord Daniel) — contacts de la pub à formulaire : enregistrement
   // (admin) puis confirmation en un clic depuis l'e-mail (public, jeton aléatoire).
   { path: '/admin/ad-leads', mw: [], router: require('./routes/adLeads2210').adminRouter },
+  // 0511 (SAM, décision de Daniel 05/11) — page de remerciement Meta → demande publiée sans passer par la boîte
+  // mail (POST /ad-leads/thanks/confirm). Monté AVANT /ad-leads : sinon « thanks » serait pris pour un :id (404).
+  { path: '/ad-leads/thanks', mw: [sensitiveLimiter], router: require('./routes/adLeadsThanks0511') },
   { path: '/ad-leads', mw: [sensitiveLimiter], router: require('./routes/adLeads2210') },
   { path: '/admin/review-requests-617', mw: [], router: require('./routes/adminReviewRequests617') }, // 617 (ADA) — registre des demandes d'avis, lecture seule
   // 613 (ADA, 04/10) — parcours d'une demande (prévenus → ouverts → contacts → candidatures →
   // validée → payée → fin), lecture seule, comptes +test / staff signalés.
   { path: '/admin/requests613', mw: [], router: require('./routes/adminRequestJourney613') },
+  // 0511 (BOB, plan validé par Daniel) — « qu'est-ce qui vous retient ? » en 1 clic (public, lien signé)
+  // + lien/réponses côté admin (requireAdmin dans le routeur).
+  { path: '/owner-why', mw: [sensitiveLimiter], router: require('./routes/ownerWhy0511') },
+  { path: '/admin/owner-why', mw: [], router: require('./routes/ownerWhy0511').adminRouter },
   // 616 (ZOE, 08/10) — rattrapage : centre de la ville pour les profils sans position
   // (simulation ?dryRun=1, aucun e-mail, aucune notification). requireAdmin dans le routeur.
   { path: '/admin/positions-from-city', mw: [], router: require('./routes/adminPositionsFromCity616') },

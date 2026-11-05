@@ -39,8 +39,12 @@ async function cardsFor(apps, post) {
     const Model = role === 'walker' ? Walker : Sitter;
     // eslint-disable-next-line no-await-in-loop
     const p = await Model.findById(idOf(role === 'walker' ? a.walkerId : a.sitterId))
-      .select('name firstName avatar rating averageRating reviewsCount location city').lean();
+      .select('name firstName avatar rating averageRating reviewsCount location city kycStatus identityVerification ibanVerified').lean();
     if (!p) continue;
+    // 0511 (BOB, plan validé par Daniel « tout ») — signaux de confiance RÉELS sur la carte : identité
+    // vérifiée (même règle que la carte et l'admin : mapVisibility.isKycVerified) et IBAN vérifié.
+    let identityVerified = false;
+    try { identityVerified = require('../utils/mapVisibility').isKycVerified(p) === true; } catch (_) { identityVerified = false; }
     let km = null;
     try { km = DIST.distanceKm(post, p); } catch (_) { km = null; }
     out.push({
@@ -52,6 +56,8 @@ async function cardsFor(apps, post) {
       km: Number.isFinite(Number(km)) ? Number(km) : null,
       rating: Number(p.averageRating) || Number(p.rating) || 0,
       reviews: Number(p.reviewsCount) || 0,
+      identityVerified,
+      ibanVerified: p.ibanVerified === true,
     });
   }
   return out;
@@ -69,6 +75,7 @@ async function sendFor({ post, ownerId, apps, send, j10Days }) {
   const totalPending = await Application.countDocuments({ postId: post._id, status: 'pending' });
   const newest = pending.slice().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   // 2910 (BOB) — les candidats au PawBoost actif ont leur carte en premier (tri stable).
+  let boostedIds = new Set();
   try {
     const Sitter = require('../models/Sitter');
     const Walker = require('../models/Walker');
@@ -80,10 +87,16 @@ async function sendFor({ post, ownerId, apps, send, j10Days }) {
       wIds.length ? Walker.find({ _id: { $in: wIds }, boostExpiry: { $gt: now } }).select('_id').lean() : [],
     ]);
     const boosted = new Set([...bs, ...bw].map((d) => String(d._id)));
+    boostedIds = boosted;
     const isB = (a) => (boosted.has(String(idOf(a.walkerId || a.sitterId))) ? 1 : 0);
     if (boosted.size) newest.sort((x, y) => isB(y) - isB(x));
   } catch (_) { /* ordre par date */ }
-  const cards = await cardsFor(newest.slice(0, MAX_CARDS), post);
+  // 0511 (BOB) — on lit jusqu'à 6 candidats pour pouvoir montrer d'abord ceux dont l'identité est vérifiée
+  // (tri stable : boost, puis identité vérifiée, puis date), et on garde MAX_CARDS cartes.
+  const pool = newest.slice(0, MAX_CARDS * 2);
+  let cards = await cardsFor(pool, post);
+  const boostOf = (c) => { const a = pool.find((x) => String(x._id) === String(c.applicationId)); return a && boostedIds.has(String(idOf(a.walkerId || a.sitterId))) ? 1 : 0; };
+  cards = cards.map((c, i) => ({ c, i, b: boostOf(c) })).sort((x, y) => (y.b - x.b) || (Number(!!y.c.identityVerified) - Number(!!x.c.identityVerified)) || (x.i - y.i)).map((x) => x.c).slice(0, MAX_CARDS);
   if (!cards.length) return { sent: false, reason: 'no_provider' };
   // 2710 (SAM) — lien direct de chaque carte : /application/<id>?from=email&choose=1, passé par
   // la page qui ouvre la session sans mot de passe pour un propriétaire venu de la pub (même

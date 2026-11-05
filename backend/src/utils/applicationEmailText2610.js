@@ -58,6 +58,7 @@ const T = {
     weekly: 'tarif semaine appliqué',
     guar: ['Annulation gratuite jusqu\'à 72 h avant, remboursement intégral', 'Votre argent n\'est versé qu\'une fois le service terminé'],
     // 0511 (BOB, ordre de Daniel) — pas à pas en langage simple (cas Jeanne V. : « je ne sais pas faire »)
+    badges: { identity: 'Identité vérifiée', iban: 'IBAN vérifié' }, // 0511 (BOB) — confiance réelle sur la carte
     how: ['Comment faire, pas à pas :', 'Appuyez sur « Choisir » sous la personne qui vous plaît (vous pouvez d\'abord regarder son profil et ses avis).', 'Une page s\'ouvre avec les dates et le prix.', 'Entrez votre carte bancaire sur cette page et validez : pas de mot de passe, pas d\'application à installer.', 'C\'est réservé : la personne est prévenue et vous pouvez vous écrire pour organiser la garde.', 'Si quelque chose vous bloque, répondez à cet e-mail en disant ce que vous voyez à l\'écran : on vous aide.'],
   },
   en: {
@@ -73,6 +74,7 @@ const T = {
     cta: 'See my candidates',
     weekly: 'weekly rate applied',
     guar: ['Free cancellation up to 72 h before, full refund', 'Your money is only released once the service is done'],
+    badges: { identity: 'ID verified', iban: 'Bank account verified' },
     how: ['How it works, step by step:', 'Tap "Choose" under the person you like (you can look at their profile and reviews first).', 'A page opens with the dates and the price.', 'Enter your bank card on that page and confirm: no password, no app to install.', 'Booked: the person is notified and you can message each other to organise the stay.', 'If something blocks you, reply to this email and tell us what you see on your screen: we\'ll help.'],
   },
   es: {
@@ -215,10 +217,14 @@ function cardsHtml(lang, cards) {
     const rating = Number(c.rating) || 0;
     const stars = reviews > 0 && rating > 0 ? `★ ${rating.toFixed(1).replace('.', lang2(lang) === 'fr' ? ',' : '.')} · ${esc(L.reviews(reviews))}` : esc(L.noReviews);
     const meta = [esc(L.role[c.role === 'walker' ? 'walker' : 'sitter']), Number.isFinite(Number(c.km)) && c.km != null ? `~${Math.max(1, Math.round(Number(c.km)))} km` : '', stars].filter(Boolean).join(' · ');
+    // 0511 (BOB, plan validé par Daniel) — badges de confiance réels (fr/en), jamais inventés : identité
+    // vérifiée (KYC / validation admin) et IBAN vérifié. Rien n'est affiché quand ce n'est pas le cas.
+    const badges = L.badges ? [c.identityVerified ? L.badges.identity : '', c.ibanVerified ? L.badges.iban : ''].filter(Boolean)
+      .map((b) => `<span style="display:inline-block;margin:6px 6px 0 0;padding:2px 8px;border-radius:999px;background:#EAF6EE;color:#15803D;font-size:12px;font-weight:700">✓ ${esc(b)}</span>`).join('') : '';
     const price = priceLabel(lang, c.pricing);
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:0 0 10px;background:#FFF6F2;border-radius:14px"><tr>`
       + `<td width="68" style="padding:12px 0 12px 12px;vertical-align:middle">${avatar}</td>`
-      + `<td style="padding:12px;vertical-align:middle"><div style="font-size:17px;font-weight:700;color:#231715">${name}</div><div style="font-size:13px;color:#6E4F48;line-height:1.4">${meta}</div></td>`
+      + `<td style="padding:12px;vertical-align:middle"><div style="font-size:17px;font-weight:700;color:#231715">${name}</div><div style="font-size:13px;color:#6E4F48;line-height:1.4">${meta}</div>${badges}</td>`
       + (price ? `<td style="padding:12px 14px 12px 0;vertical-align:middle;text-align:right;white-space:nowrap;font-size:16px;font-weight:800;color:#9E1F0B">${esc(price)}${c.pricing && c.pricing.weeklyApplied === true ? `<div style="font-size:11px;font-weight:700;color:#15803D">${esc(L.weekly)}</div>` : ''}</td>` : '')
       + '</tr>'
       // 2710 (SAM, ordre de Daniel « que les propriétaires valident et paient ») — bouton DIRECT
