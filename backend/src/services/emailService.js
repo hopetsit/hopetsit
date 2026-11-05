@@ -48,16 +48,19 @@ const transporter = (() => {
   return t;
 })();
 
-const fromAddress = () => {
+const fromAddress = (fromName) => {
   const raw = process.env.SMTP_FROM || process.env.SMTP_USER;
   if (!raw) return `${BRAND_NAME} <noreply@hopetsit.app>`;
+  // 05/11 (BOB, Daniel) — nom d'expéditeur choisi par l'appelant (e-mails candidats :
+  // « Daniel de HoPetSit »), même adresse vérifiée. Guillemets retirés par sécurité.
+  const name = fromName ? String(fromName).replace(/["<>\r\n]/g, '').trim() : '';
   // v23.1.328 — Daniel : "mets HoPetSit dans le mail". On FORCE le nom
   // d'expediteur "HoPetSit" quel que soit le format de SMTP_FROM. Si la var
   // contenait "hopetsit <...>" (minuscule du compte Gmail), le destinataire
   // voyait "hopetsit". On extrait juste l'adresse et on remet "HoPetSit".
   const m = raw.match(/<([^>]+)>/);
   const email = (m ? m[1] : raw).trim();
-  return `${BRAND_NAME} <${email}>`;
+  return `${name ? `"${name}"` : BRAND_NAME} <${email}>`;
 };
 
 // v18.9 — adresse Reply-To no-reply pour toutes les notifs sortantes.
@@ -91,7 +94,7 @@ const sendEmail = async (email, subject, text, html, opts = {}) => {
   try {
     const info = await transporter.sendMail({
       to: email,
-      from: fromAddress(),
+      from: fromAddress(opts && opts.fromName),
       // v18.9 — Reply-To no-reply par défaut (privacy). v402 — override possible
       // pour les campagnes promo.
       replyTo,

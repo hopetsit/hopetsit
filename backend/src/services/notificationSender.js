@@ -1096,7 +1096,17 @@ const sendEmailOnly = async ({ userId, role, type, templateType = null, data = {
   if (prepared.emailBlocked) return { sent: false, reason: `email_blocked:${prepared.emailBlocked}` };
   const to = prepared.email;
   if (!to || to.length < 4) return { sent: false, reason: 'no_email' };
-  await sendEmail(to, prepared.emailSubject || prepared.title, prepared.emailText, prepared.emailBody);
+  // 05/11 (BOB, Daniel « fais les 3 ») — e-mails « candidats » (2610, relances 2810, rappel 3110) :
+  // le propriétaire peut RÉPONDRE (réponse sur contact@hopetsit.com au lieu du no-reply) et
+  // l'expéditeur affiché est « Daniel de HoPetSit ». Réglables sur Render sans republier :
+  // CANDIDATES_REPLY_TO / CANDIDATES_FROM_NAME ('off' = ancien comportement).
+  const envOr = (k, d) => { const v = process.env[k]; if (v === undefined) return d; return /^(off|none|)$/i.test(v.trim()) ? '' : v.trim(); };
+  const replyTo = envOr('CANDIDATES_REPLY_TO', 'contact@hopetsit.com');
+  const fromName = envOr('CANDIDATES_FROM_NAME', 'Daniel de HoPetSit');
+  await sendEmail(to, prepared.emailSubject || prepared.title, prepared.emailText, prepared.emailBody, {
+    ...(replyTo ? { replyTo } : {}),
+    ...(fromName ? { fromName } : {}),
+  });
   logger.info(`[notif.channel] email ok for ${templateType || type} (e-mail seul) role=${role} userId=${userId}`);
   return { sent: true, subject: prepared.emailSubject, html: prepared.emailBody, locale: prepared.locale };
 };
