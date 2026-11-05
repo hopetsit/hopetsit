@@ -513,6 +513,65 @@ router.get('/board', requireAdmin, async (req, res) => {
   }
 });
 
+// 05/11 (BOB, Daniel : « vérifie que les proprios reçoivent bien les candidatures ») — LECTURE SEULE.
+// Pour chaque candidature sur une demande (N derniers jours, propriétaires réels seulement) :
+// cloche écrite (Notification application_new), lue ou non ; push possible (le propriétaire a un
+// jeton = l'app) ; e-mail (registre ApplicationEmail2610 : envoyé / en attente du regroupement /
+// absent). Aucune adresse renvoyée : prénom seulement.
+router.get('/owner-alerts', requireAdmin, async (req, res) => {
+  try {
+    const { Application, Owner, Notification } = M();
+    const AppEmail = require('../models/ApplicationEmail2610');
+    const days = Math.min(60, Math.max(1, Number(req.query.days) || 14));
+    const since = new Date(Date.now() - days * 86400000);
+    const apps = await Application.find({ createdAt: { $gte: since }, postId: { $ne: null } })
+      .select('_id postId ownerId createdAt status').sort({ createdAt: -1 }).limit(1000).lean();
+    const ownerIds = [...new Set(apps.map((a) => String(a.ownerId)).filter(isId))];
+    const owners = new Map((await Owner.find({ _id: { $in: ownerIds.map(oid) } })
+      .select('name email isStaff fcmTokens').lean()).map((o) => [String(o._id), o]));
+    const appIds = apps.map((a) => String(a._id));
+    const notifs = await Notification.find({ recipientRole: 'owner', type: 'application_new', 'data.applicationId': { $in: appIds } })
+      .select('data.applicationId readAt createdAt').lean();
+    const bell = new Map(notifs.map((n) => [String(n.data && n.data.applicationId), n]));
+    const regs = await AppEmail.find({ postId: { $in: [...new Set(apps.map((a) => String(a.postId)))].filter(isId).map(oid) } }).lean();
+    const reg = new Map(regs.map((r) => [String(r.postId), r]));
+    const items = [];
+    const sum = { applications: 0, bell: 0, bellRead: 0, pushPossible: 0, emailSent: 0, emailQueued: 0, emailMissing: 0, skippedNotReal: 0 };
+    for (const a of apps) {
+      const o = owners.get(String(a.ownerId));
+      if (!o || kindOf(o) !== 'real') { sum.skippedNotReal += 1; continue; }
+      const id = String(a._id);
+      const n = bell.get(id) || null;
+      const r = reg.get(String(a.postId)) || null;
+      const has = (arr) => (arr || []).some((x) => String(x) === id);
+      const email = r && has(r.sentIds) ? 'sent' : (r && has(r.queuedIds) ? 'queued' : 'missing');
+      const push = Array.isArray(o.fcmTokens) && o.fcmTokens.length > 0;
+      sum.applications += 1;
+      if (n) sum.bell += 1;
+      if (n && n.readAt) sum.bellRead += 1;
+      if (push) sum.pushPossible += 1;
+      sum[email === 'sent' ? 'emailSent' : email === 'queued' ? 'emailQueued' : 'emailMissing'] += 1;
+      items.push({
+        applicationId: id,
+        postId: String(a.postId),
+        at: a.createdAt,
+        status: a.status,
+        owner: String(o.name || '').split(' ')[0],
+        bell: !!n,
+        bellRead: !!(n && n.readAt),
+        pushPossible: push,
+        email,
+        emailLastSentAt: r ? r.lastSentAt : null,
+        emailLastResult: r ? r.lastResult || '' : '',
+      });
+    }
+    res.json({ days, summary: sum, items });
+  } catch (e) {
+    logger.error('[admin/requests613/owner-alerts]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/:postId/journey', requireAdmin, async (req, res) => {
   try {
     const { postId } = req.params;
