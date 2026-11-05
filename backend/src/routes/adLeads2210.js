@@ -254,6 +254,29 @@ const TEST_LEAD_RE = /\+test|^hopetsit@|^dadaciao84@|^probe-|@invalid\.example$|
 const escHtml = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /**
+ * 0511 (BOB) — HTML de l'e-mail « confirme » à partir de son texte brut : chaque paragraphe est rendu
+ * (plus seulement les 2 premiers), le paragraphe qui porte le lien devient le gros bouton, une suite de
+ * lignes « 1. … » devient une liste numérotée. Valeurs échappées.
+ */
+function confirmEmailHtml({ text, link, cta }) {
+  const blocks = String(text || '').split('\n\n').map((b) => b.trim()).filter(Boolean);
+  const body = blocks.map((b, i) => {
+    if (b.includes(link)) {
+      return `<p style="text-align:center;margin:24px 0"><a href="${link}" style="display:inline-block;background:#C92A12;color:#fff;text-decoration:none;font-weight:800;font-size:17px;padding:16px 30px;border-radius:999px">${escHtml(cta)}</a></p>`;
+    }
+    const lines = b.split('\n');
+    const items = lines.filter((l) => /^\d+\.\s/.test(l));
+    if (items.length >= 2) {
+      const head = lines.filter((l) => !/^\d+\.\s/.test(l)).join(' ');
+      return `${head ? `<p style="margin:16px 0 6px;font-weight:700">${escHtml(head)}</p>` : ''}<ol style="margin:0 0 16px;padding-left:22px">${items.map((l) => `<li style="margin:4px 0">${escHtml(l.replace(/^\d+\.\s/, ''))}</li>`).join('')}</ol>`;
+    }
+    const last = i === blocks.length - 1;
+    return `<p style="margin:0 0 14px${last ? ';color:#6E4F48' : ''}">${escHtml(b)}</p>`;
+  }).join('');
+  return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#231715;font-size:16px;line-height:1.55">${body}</div>`;
+}
+
+/**
  * 3110 (ADA, ordre de Daniel 31/10) — e-mail « confirme ta demande pour la publier » (lien /posts/confirmer?l=…,
  * dont le clic vérifie l'e-mail ET publie). variant : 'new' (contact neuf : pub Meta ou site), 'existing'
  * (compte déjà inscrit, texte de LEO), 'reminder' (UN rappel à +3 h depuis le 03/11). Jamais aux adresses de test.
@@ -269,28 +292,41 @@ async function sendConfirmEmail(lead, variant = 'new') {
   const link = `${BASE_URL}/posts/confirmer?l=${lead._id}&utm_source=${src}&utm_medium=${src === 'meta' ? 'paid' : 'email'}&utm_campaign=${encodeURIComponent(campaign)}&utm_content=${content}`;
   const p = lead.firstName || '';
   const fr = lead.lang !== 'en';
+  // 0511 (BOB, ordre de Daniel « fais tout ce qui est possible ») — textes réécrits en langage simple
+  // après le cas de Jeanne V. (05/11 : « je ne comprends pas, je ne sais pas faire ») : un seul geste,
+  // rien à payer / rien à installer, les 4 étapes de ce qui se passe après, « réponds-moi si tu bloques ».
+  // Objets inchangés (tests). Le texte = paragraphes séparés par une ligne vide ; une ligne « 1. … »
+  // devient une liste numérotée ; la ligne qui porte le lien devient le bouton.
+  const hello = fr ? (p ? `Bonjour ${p},` : 'Bonjour,') : (p ? `Hi ${p},` : 'Hi,');
+  const steps = fr
+    ? `Ensuite, tout se fait tout seul :\n1. Ta demande est publiée.\n2. Les gardiens proches de chez toi sont prévenus.\n3. Ceux qui sont intéressés te proposent leur prix, et tu les reçois par e-mail.\n4. Tu choisis celui ou celle qui te plaît. Rien n'est payé avant que tu aies choisi.`
+    : `Then everything happens by itself:\n1. Your request is published.\n2. Sitters near you are notified.\n3. The ones who are interested send you their price, and you get them by email.\n4. You pick the one you like. Nothing is paid before you choose.`;
+  const free = fr ? 'Rien à installer, rien à payer pour publier ta demande.' : 'Nothing to install, nothing to pay to publish your request.';
+  const help = fr
+    ? 'Si le bouton ne fait rien ou si quelque chose te bloque, réponds simplement à cet e-mail en me disant ce que tu vois à l\'écran : je t\'aide pas à pas.'
+    : 'If the button does nothing or something blocks you, just reply to this email and tell me what you see on your screen: I\'ll help you step by step.';
+  const sign = fr ? 'L\'équipe HoPetSit' : 'The HoPetSit team';
   let subject; let text; let cta;
   if (variant === 'existing') {
     subject = fr ? `${p ? `${p}, confirme` : 'Confirme'} ta demande pour la publier` : `${p ? `${p}, confirm` : 'Confirm'} your request to publish it`;
-    text = fr
-      ? `${p ? `Bonjour ${p},` : 'Bonjour,'}\n\nQuelqu'un vient de préparer une demande de garde avec ton adresse e-mail sur hopetsit.com. Si c'est toi, clique pour la publier : les gardiens près de chez toi seront prévenus et tu recevras leurs prix par e-mail.\n\nPublier ma demande : ${link}\n\nSi ce n'est pas toi, ignore cet e-mail : rien ne sera publié.\n\nHoPetSit`
-      : `${p ? `Hi ${p},` : 'Hi,'}\n\nSomeone just prepared a pet-sitting request with your email address on hopetsit.com. If it was you, click to publish it: sitters near you will be notified and you'll get their prices by email.\n\nPublish my request: ${link}\n\nIf it wasn't you, ignore this email: nothing will be published.\n\nHoPetSit`;
     cta = fr ? 'Publier ma demande' : 'Publish my request';
+    text = fr
+      ? `${hello}\n\nQuelqu'un vient de préparer une demande de garde avec ton adresse e-mail sur hopetsit.com. Si c'est toi, il n'y a qu'un seul geste à faire : appuyer sur le bouton ci-dessous.\n\n${cta} : ${link}\n\n${steps}\n\n${free}\n\nSi ce n'est pas toi, ignore cet e-mail : rien ne sera publié.\n\n${sign}`
+      : `${hello}\n\nSomeone just prepared a pet-sitting request with your email address on hopetsit.com. If it was you, there is only one thing to do: press the button below.\n\n${cta}: ${link}\n\n${steps}\n\n${free}\n\nIf it wasn't you, ignore this email: nothing will be published.\n\n${sign}`;
   } else if (variant === 'reminder') {
     subject = fr ? `${p ? `${p}, ta` : 'Ta'} demande attend ta confirmation` : `${p ? `${p}, your` : 'Your'} request is waiting for your confirmation`;
-    text = fr
-      ? `${p ? `Bonjour ${p},` : 'Bonjour,'}\n\nTa demande de garde est prête mais pas encore publiée : il manque un clic pour confirmer ton adresse e-mail. Dès que c'est fait, les gardiens près de chez toi sont prévenus et tu reçois leurs prix par e-mail.\n\nConfirmer et publier : ${link}\n\nC'est le dernier rappel : si tu n'as plus besoin de garde, ignore simplement cet e-mail.\n\nHoPetSit`
-      : `${p ? `Hi ${p},` : 'Hi,'}\n\nYour pet-sitting request is ready but not published yet: one click is missing to confirm your email address. Once done, sitters near you are notified and you get their prices by email.\n\nConfirm and publish: ${link}\n\nThis is the last reminder: if you no longer need a sitter, just ignore this email.\n\nHoPetSit`;
     cta = fr ? 'Confirmer et publier' : 'Confirm and publish';
+    text = fr
+      ? `${hello}\n\nTa demande de garde est bien enregistrée, mais les gardiens ne la voient pas encore. Pour qu'ils la voient, il nous faut juste une chose : que tu nous confirmes que cette adresse e-mail est bien la tienne.\n\nPour ça, il n'y a qu'un seul geste à faire : appuyer sur le bouton ci-dessous.\n\n${cta} : ${link}\n\n${steps}\n\n${free}\n\n${help}\n\nSi tu n'as plus besoin de garde, ignore simplement cet e-mail : c'est le dernier rappel.\n\n${sign}`
+      : `${hello}\n\nYour pet-sitting request is saved, but sitters can't see it yet. For them to see it, we just need one thing: that you confirm this email address is yours.\n\nFor that, there is only one thing to do: press the button below.\n\n${cta}: ${link}\n\n${steps}\n\n${free}\n\n${help}\n\nIf you no longer need a sitter, just ignore this email: this is the last reminder.\n\n${sign}`;
   } else {
     subject = fr ? `${p ? `${p}, un` : 'Un'} clic pour publier ta demande` : `${p ? `${p}, one` : 'One'} click to publish your request`;
-    text = fr
-      ? `${p ? `Bonjour ${p},` : 'Bonjour,'}\n\nMerci pour ta demande sur HoPetSit ! Pour la publier, confirme ton adresse e-mail d'un clic : les gardiens et promeneurs près de chez toi seront prévenus et tu recevras leurs prix par e-mail. Gratuit, sans mot de passe.\n\nConfirmer et publier : ${link}\n\nTu choisis ensuite ton gardien et tu paies par carte : annulation gratuite jusqu'à 72 h avant, l'argent n'est versé au gardien qu'une fois la garde terminée.\n\nHoPetSit`
-      : `${p ? `Hi ${p},` : 'Hi,'}\n\nThanks for your request on HoPetSit! To publish it, confirm your email address with one click: sitters and walkers near you will be notified and you'll get their prices by email. Free, no password.\n\nConfirm and publish: ${link}\n\nYou then choose your sitter and pay by card: free cancellation up to 72 h before, the sitter is only paid once the stay is over.\n\nHoPetSit`;
     cta = fr ? 'Confirmer et publier' : 'Confirm and publish';
+    text = fr
+      ? `${hello}\n\nMerci pour ta demande sur HoPetSit ! Elle est bien enregistrée. Pour que les gardiens la voient, il nous faut juste une chose : que tu nous confirmes que cette adresse e-mail est bien la tienne.\n\nPour ça, il n'y a qu'un seul geste à faire : appuyer sur le bouton ci-dessous.\n\n${cta} : ${link}\n\n${steps}\n\n${free} Et si tu réserves : tu paies par carte sur une page simple, l'argent est gardé par HoPetSit et n'est versé au gardien qu'après la garde, annulation gratuite jusqu'à 72 h avant.\n\n${help}\n\n${sign}`
+      : `${hello}\n\nThanks for your request on HoPetSit! It is saved. For sitters to see it, we just need one thing: that you confirm this email address is yours.\n\nFor that, there is only one thing to do: press the button below.\n\n${cta}: ${link}\n\n${steps}\n\n${free} And if you book: you pay by card on one simple page, HoPetSit holds the money and only pays the sitter after the stay, free cancellation up to 72 h before.\n\n${help}\n\n${sign}`;
   }
-  const parts = text.split('\n\n');
-  const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#231715;line-height:1.5"><p>${escHtml(parts[0])}</p><p>${escHtml(parts[1])}</p><p style="text-align:center;margin:24px 0"><a href="${link}" style="display:inline-block;background:#C92A12;color:#fff;text-decoration:none;font-weight:800;padding:14px 26px;border-radius:999px">${cta}</a></p><p style="font-size:13px;color:#6E4F48">${escHtml(parts[3] || '')}</p></div>`;
+  const html = confirmEmailHtml({ text, link, cta });
   await sendEmail(lead.email, subject, text, html);
   if (variant === 'reminder') lead.confirmReminderAt = new Date();
   else lead.confirmEmailAt = new Date();

@@ -57,6 +57,8 @@ const T = {
     cta: 'Voir mes candidats',
     weekly: 'tarif semaine appliqué',
     guar: ['Annulation gratuite jusqu\'à 72 h avant, remboursement intégral', 'Votre argent n\'est versé qu\'une fois le service terminé'],
+    // 0511 (BOB, ordre de Daniel) — pas à pas en langage simple (cas Jeanne V. : « je ne sais pas faire »)
+    how: ['Comment faire, pas à pas :', 'Appuyez sur « Choisir » sous la personne qui vous plaît (vous pouvez d\'abord regarder son profil et ses avis).', 'Une page s\'ouvre avec les dates et le prix.', 'Entrez votre carte bancaire sur cette page et validez : pas de mot de passe, pas d\'application à installer.', 'C\'est réservé : la personne est prévenue et vous pouvez vous écrire pour organiser la garde.', 'Si quelque chose vous bloque, répondez à cet e-mail en disant ce que vous voyez à l\'écran : on vous aide.'],
   },
   en: {
     choose: (n) => `Choose ${n}`, // 2710 (SAM) — bouton direct de chaque carte
@@ -71,6 +73,7 @@ const T = {
     cta: 'See my candidates',
     weekly: 'weekly rate applied',
     guar: ['Free cancellation up to 72 h before, full refund', 'Your money is only released once the service is done'],
+    how: ['How it works, step by step:', 'Tap "Choose" under the person you like (you can look at their profile and reviews first).', 'A page opens with the dates and the price.', 'Enter your bank card on that page and confirm: no password, no app to install.', 'Booked: the person is notified and you can message each other to organise the stay.', 'If something blocks you, reply to this email and tell us what you see on your screen: we\'ll help.'],
   },
   es: {
     choose: (n) => `Elegir a ${n}`, // 2710 (SAM) — bouton direct de chaque carte
@@ -276,6 +279,9 @@ function buildEmailData({ lang, post, cards, newCount, totalPending, j10Days }) 
       // 2910 (BOB, ordre de Daniel « lancer la machine ») — garanties RÉELLES : annulation gratuite
       // (self-cancel jusqu'à 72 h avant, seulement si le début est à plus de 72 h) et séquestre.
       + (!tbd && L.guar ? `<p style="margin:12px 0 0;padding:10px 12px;background:#EAF6EE;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;color:#15803D">${freeCancel72(post) ? `✓ ${esc(L.guar[0])}<br>` : ''}✓ ${esc(L.guar[1])}</p>` : '')
+      // 0511 (BOB, ordre de Daniel « fais tout ce qui est possible ») — pas à pas en langage simple
+      // (fr/en ; les autres langues gardent l'e-mail tel quel), après le cas de Jeanne V. le 05/11.
+      + (!tbd && Array.isArray(L.how) && L.how.length > 1 ? `<p style="margin:14px 0 4px;font-size:14px;font-weight:700;color:#231715">${esc(L.how[0])}</p><ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.5;color:#231715">${L.how.slice(1, -1).map((s) => `<li style="margin:3px 0">${esc(s)}</li>`).join('')}</ol><p style="margin:8px 0 0;font-size:13px;color:#6E4F48">${esc(L.how[L.how.length - 1])}</p>` : '')
       // 3110 (ADA, ordre de Daniel via BOB) — dates qui touchent le 15/12 → 06/01 : « Les gardiens se
       // réservent tôt pour les fêtes » (9 langues, utils/datesReminderText3110 ; require tardif : dépendance circulaire).
       + require('./datesReminderText3110').holidayHtml(l, post),
