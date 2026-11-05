@@ -15,6 +15,14 @@
 // Repères : cand_vus, cand_encart, cand_choix_ok, cand_payer, cand_paye_ok (+ cand_payer_echec).
 // Zéro gris : encres brunes de la charte (#231715, #6E4F48), orange #C92A12.
 // Tous les hooks sont en tête, AVANT tout retour conditionnel (piège du 20/09).
+// 05/11/2026 (LEO, plan B1 de BOB — ordre de Daniel « je veux réussir mes transactions ») : mesure sur 14 j =
+// 15 propriétaires ont ouvert leurs candidats, 0 ont payé ; on demandait 240 à 900 € sans jamais avoir pu parler
+// au gardien. → sur CHAQUE carte, AVANT de payer, « Poser une question à <prénom> » : 3 questions prêtes + champ
+// libre, envoi = conversation créée ou retrouvée (POST /conversations/start, même route que l'app, gratuite en
+// phase de lancement) + message (POST /conversations/:id/messages → push + e-mail différé au prestataire, comme
+// tout message) ; le propriétaire voit « Question envoyée · la réponse arrive par e-mail » + « Voir la
+// conversation ». Aucune page à part, aucun mot de passe (session ouverte par le lien de l'e-mail).
+// Repères : cand_question_ouvrir, cand_question_envoyer, cand_question_ok, cand_question_echec, cand_question_conv.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -44,6 +52,7 @@ import {
   getStoredUser,
   postId as postIdOf,
   respondToApplication,
+  sendMessage as sendChatMessage,
   startProviderConversation,
 } from "@/lib/api";
 
@@ -129,6 +138,13 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
   const [fallbackReady, setFallbackReady] = useState(false);
   // 31/10 (ZOE) — l'encart carte est réellement affiché (iframe mesurée) : le petit « Préparation… » disparaît.
   const [cardReady, setCardReady] = useState(false);
+  // 05/11 — « Poser une question » : carte dont la zone est ouverte, texte saisi, envoi en cours,
+  // et conversation créée par carte (candidature → id de conversation) pour « Voir la conversation ».
+  const [askId, setAskId] = useState<string | null>(null);
+  const [askText, setAskText] = useState("");
+  const [askBusy, setAskBusy] = useState(false);
+  const [askSent, setAskSent] = useState<Record<string, string>>({});
+  const askRef = useRef<HTMLTextAreaElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const datesRef = useRef<HTMLDivElement | null>(null);
   const seenRef = useRef("");
@@ -333,6 +349,58 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     );
   }
 
+  /** 05/11 — les 3 questions prêtes : expérience avec mon animal (garde / promenade), le rencontrer avant, les dates. */
+  function questionsFor(a: ApplicationItem): string[] {
+    const { role } = applicationProvider(a);
+    const kind = String(post?.animalTypes?.[0] || post?.pets?.[0]?.category || "").toLowerCase();
+    const animalKey = kind.startsWith("dog") || kind === "chien" ? "animal_dog" : kind.startsWith("cat") || kind === "chat" ? "animal_cat" : "animal_other";
+    const animal = c3110(lang, animalKey);
+    return [
+      c3110(lang, role === "walker" ? "q_exp_walk" : "q_exp", { animal }),
+      c3110(lang, "q_meet"),
+      c3110(lang, tbd ? "q_dates_tbd" : "q_dates"),
+    ];
+  }
+
+  /** 05/11 — ouvre la zone de question sous la carte (une seule à la fois) et place le curseur. */
+  function askOpen(a: ApplicationItem) {
+    const id = applicationId(a);
+    setAskId(id);
+    setAskText("");
+    setErrors((er) => ({ ...er, [id]: "" }));
+    trackSiteEvent("cta_click", { label: "cand_question_ouvrir" });
+    window.setTimeout(() => { try { askRef.current?.focus({ preventScroll: true }); } catch { /* sans focus */ } }, 60);
+  }
+
+  /** 05/11 — envoie la question : conversation créée ou retrouvée (même route que l'app), puis le message
+   *  (notification habituelle du prestataire : push + e-mail différé). La réponse arrive au propriétaire par e-mail. */
+  async function askSend(a: ApplicationItem) {
+    const id = applicationId(a);
+    const text = askText.trim();
+    if (!text || askBusy) return;
+    const { role, who } = applicationProvider(a);
+    const providerId = String(who?.id || who?._id || "");
+    if (!providerId) return;
+    setAskBusy(true);
+    setErrors((er) => ({ ...er, [id]: "" }));
+    trackSiteEvent("cta_click", { label: "cand_question_envoyer" });
+    try {
+      const conv = askSent[id] || (await startProviderConversation(role, providerId));
+      if (!conv) throw new Error("conversation");
+      await sendChatMessage(conv, text);
+      setAskSent((m) => ({ ...m, [id]: conv }));
+      setAskId(null);
+      setAskText("");
+      trackSiteEvent("cta_click", { label: "cand_question_ok" });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) { router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`); return; }
+      trackSiteEvent("cta_click", { label: "cand_question_echec" });
+      setErrors((er) => ({ ...er, [id]: c3110(lang, "ask_error") }));
+    } finally {
+      setAskBusy(false);
+    }
+  }
+
   async function onDatesSaved(updated: RequestPost) {
     setPost(updated);
     setEditingDates(false);
@@ -487,7 +555,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
               </p>
               <p className="mt-1 text-[14px] leading-snug" style={{ color: "#231715" }}>{c3110(lang, "paid_sub", { name: pay.name })}</p>
               <div className="mt-3">
-                <SignatureButton tone="sitter" icon="chat" label={c3110(lang, "paid_chat", { name: pay.name })} onClick={() => { const a = items.find((x) => applicationId(x) === pay.appId); if (a) void write(a); }} />
+                <SignatureButton tone="sitter" icon="chat" label={c3110(lang, "paid_chat", { name: pay.name })} loading={writingId !== null} onClick={() => { const a = items.find((x) => applicationId(x) === pay.appId); if (a) void write(a); }} />
               </div>
               <p className="mt-2 text-center text-[12px] font-semibold" style={{ color: "#6E4F48" }}>
                 <Link href="/bookings" className="underline underline-offset-2">{t("bookings_title")}</Link>
@@ -662,10 +730,44 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
                         />
                       </>
                     )}
+                    {/* 05/11 — « Poser une question à <prénom> » AVANT de payer : bouton → zone sous la carte (3 questions prêtes +
+                        champ libre) → « Question envoyée · la réponse arrive par e-mail » + « Voir la conversation ». */}
+                    {!(bk?.paid || chosenHere) && (askId === id ? (
+                      <div className="mt-2 rounded-xl p-3" style={{ background: tone.pale }} data-ask-3110="open">
+                        <p className="text-[13px] font-extrabold leading-snug" style={{ color: tone.dark }}>{c3110(lang, "ask_title", { name: firstName })}</p>
+                        <p className="mt-0.5 text-[11px] font-semibold leading-snug" style={{ color: "#6E4F48" }}>{c3110(lang, "ask_hint", { name: firstName })}</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5" data-ask-3110-questions="">
+                          {questionsFor(a).map((q) => (
+                            <button key={q} type="button" className="rounded-full bg-white px-2.5 py-1 text-left text-[12px] font-bold leading-snug" style={{ color: tone.dark, boxShadow: askText === q ? `0 0 0 2px ${tone.dark}` : `inset 0 0 0 1px ${tone.dark}` }} onClick={() => { setAskText(q); try { askRef.current?.focus({ preventScroll: true }); } catch { /* sans focus */ } }}>
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                        <textarea ref={askRef} value={askText} onChange={(e) => setAskText(e.target.value)} rows={2} maxLength={1000} placeholder={c3110(lang, "ask_placeholder")} aria-label={c3110(lang, "ask_title", { name: firstName })}
+                          className="mt-2 w-full resize-none rounded-xl bg-white px-3 py-2 text-[14px] leading-snug outline-none placeholder:text-[#8A6B64]" style={{ color: "#231715", boxShadow: `inset 0 0 0 1px ${tone.dark}` }} data-ask-3110-input="" />
+                        <div className="mt-2 flex items-center gap-3">
+                          <div className="min-w-0 flex-1">
+                            <SignatureButton tone={role} icon="chat" label={askBusy ? c3110(lang, "ask_sending") : c3110(lang, "ask_send")} loading={askBusy} disabled={!askText.trim() || askBusy} onClick={() => void askSend(a)} />
+                          </div>
+                          <button type="button" className="min-h-[36px] shrink-0 text-[12px] font-bold underline-offset-2 hover:underline" style={{ color: "#6E4F48" }} onClick={() => { setAskId(null); setAskText(""); }}>{c3110(lang, "ask_close")}</button>
+                        </div>
+                      </div>
+                    ) : askSent[id] ? (
+                      <div className="mt-2 rounded-xl px-3 py-2" style={{ background: "#DCEFE3" }} data-ask-3110="sent">
+                        <p className="flex items-start gap-1.5 text-[12px] font-bold leading-snug" style={{ color: "#15803D" }}>
+                          <AppIcon name="check" size={14} color="#15803D" /><span>{c3110(lang, "ask_sent")}</span>
+                        </p>
+                        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] font-bold" style={{ color: tone.dark }}>
+                          <Link href={`/chat?c=${encodeURIComponent(askSent[id])}`} className="min-h-[32px] leading-[32px] underline underline-offset-2" onClick={() => trackSiteEvent("cta_click", { label: "cand_question_conv" })}>{c3110(lang, "ask_see")}</Link>
+                          <button type="button" className="min-h-[32px] underline-offset-2 hover:underline" onClick={() => askOpen(a)}>{c3110(lang, "ask_again")}</button>
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="mt-2" data-ask-3110="btn">
+                        <SignatureButton tone={role} kind="secondary" icon="chat" label={c3110(lang, "ask_btn", { name: firstName })} disabled={askBusy} onClick={() => askOpen(a)} />
+                      </div>
+                    ))}
                     <div className="mt-2 flex items-center justify-center gap-4 text-[12px] font-bold" style={{ color: tone.dark }}>
-                      <button type="button" className="min-h-[36px] underline-offset-2 hover:underline disabled:opacity-60" disabled={writingId !== null} onClick={() => void write(a)}>
-                        {writingId === id ? c3110(lang, "opening") : `${c3110(lang, "write")} · ${firstName}`}
-                      </button>
                       {pid && <a href={`/p/${role}/${pid}`} target="_blank" rel="noopener" className="min-h-[36px] leading-[36px] underline-offset-2 hover:underline" onClick={() => trackSiteEvent("cta_click", { label: "cand_profil" })}>{c3110(lang, "profile")}</a>}
                     </div>
                     {err && <p className="mt-2 rounded-xl px-3 py-2 text-[12px] font-bold" style={{ background: "#FBE9E5", color: "#9E1F0B" }} role="alert">{err}</p>}
