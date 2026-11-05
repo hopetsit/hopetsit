@@ -160,6 +160,10 @@ app.post(
   handleAirwallexWebhook,
 );
 
+// 0511 (BOB, ordre de Daniel) — Meta « leadgen » : contact de la pub créé à la seconde (routes/metaLeadgen0511).
+// express.json avec le corps brut gardé pour la signature X-Hub-Signature-256 (si un secret est configuré).
+app.use('/webhooks/meta-leadgen', express.json({ limit: '1mb', verify: (req, res, buf) => { req.rawBody = buf; } }), require('./routes/metaLeadgen0511'));
+
 // v23.1 part 36 — Persona KYC webhook. Same pattern : raw body for HMAC verify.
 // v503 — Apple App Store Server Notifications V2 (renouvellements /
 // remboursements des abonnements IAP iOS). Body JSON { signedPayload } : le
@@ -368,6 +372,7 @@ const versionedRoutes = [
   // 0511 (BOB, plan validé par Daniel) — « qu'est-ce qui vous retient ? » en 1 clic (public, lien signé)
   // + lien/réponses côté admin (requireAdmin dans le routeur).
   { path: '/owner-why', mw: [sensitiveLimiter], router: require('./routes/ownerWhy0511') },
+  { path: '/admin/meta-leadgen', mw: [], router: require('./routes/metaLeadgen0511').adminRouter },
   { path: '/admin/owner-why', mw: [], router: require('./routes/ownerWhy0511').adminRouter },
   // 616 (ZOE, 08/10) — rattrapage : centre de la ville pour les profils sans position
   // (simulation ?dryRun=1, aucun e-mail, aucune notification). requireAdmin dans le routeur.

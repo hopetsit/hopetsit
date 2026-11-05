@@ -1318,6 +1318,7 @@ input[type="file"] { font-size: 13px; color: var(--ink-2); }
       <div class="nav-section" style="margin-top:8px">🌅 <span>Aujourd'hui</span></div>
       <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard', this)"><span class="nav-icon">📊</span> <span data-i18n="nav_dashboard">Tableau de bord</span></div>
       <div class="nav-item" data-page="requests1610" onclick="showPage('requests1610', this)"><span class="nav-icon">📨</span> <span>Demandes publiées</span></div>
+      <div class="nav-item" data-page="ownerwhy" onclick="showPage('ownerwhy', this)"><span class="nav-icon">🤔</span> <span>Pourquoi pas ?</span></div>
       <div class="nav-item" data-page="queue" onclick="showPage('queue', this)"><span class="nav-icon">🚨</span> <span>À traiter</span><span class="nav-count" id="nav-count-queue" style="display:none"></span></div>
 
       <div class="nav-section">👥 <span>Utilisateurs</span></div>
@@ -2312,6 +2313,19 @@ input[type="file"] { font-size: 13px; color: var(--ink-2); }
         </div>
         <p class="page-desc" data-i18n="blocked_desc">Un profil bloqué ne peut plus se connecter ni utiliser l'app ou le site (spam, robots, abus). Le blocage s'applique à tous les profils de la personne (même e-mail). Rien n'est supprimé : « Débloquer » lui rend l'accès.</p>
         <div class="table-wrap"><div id="blocked-list"><div class="loading"><div class="spinner"></div></div></div></div>
+      </div>
+
+      <!-- POURQUOI PAS ? (0511, BOB — Daniel : « je les verrai où, les réponses ? ») — les propriétaires qui ont
+           ouvert leurs candidats sans choisir reçoivent un e-mail à 1 question (4 réponses, 1 clic).
+           Source : GET /admin/owner-why (routes/ownerWhy0511.js) + GET /admin/requests613/board pour la ville. -->
+      <div id="page-ownerwhy" class="page">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+          <div class="section-title" style="margin:0">🤔 <span>Pourquoi pas ?</span></div>
+          <button class="action-btn btn-primary" onclick="loadOwnerWhy()">↻ <span data-i18n="refresh">Actualiser</span></button>
+        </div>
+        <p class="page-desc">Les propriétaires qui ont regardé leurs candidats sans en choisir reçoivent un e-mail avec une seule question : « qu'est-ce qui vous retient ? ». Quatre réponses possibles, un clic, sans mot de passe. Chaque ligne = une demande ; si la personne reclique, la dernière réponse remplace l'ancienne (l'historique est gardé). Envoi : <code>owner_why_send_0511.py</code> (une fois par demande, 9 h – 20 h).</p>
+        <div class="stats-grid" id="ownerwhy-stats"></div>
+        <div class="table-wrap"><div id="ownerwhy-list"><div class="loading"><div class="spinner"></div></div></div></div>
       </div>
 
       <div id="page-deletions" class="page">
@@ -3946,6 +3960,7 @@ function showPage(name, el) {
   if (name === 'promotions') loadPromotions();
   if (name === 'announcements') loadAnnouncements();
   if (name === 'deletions') loadAccountDeletions();
+  if (name === 'ownerwhy') loadOwnerWhy();
   if (name === 'blocked') loadBlockedUsers();
   if (name === 'activity') loadActivity();
   if (name === 'traffic') loadSiteTraffic();
@@ -4096,6 +4111,7 @@ function refreshActivePageI18n() {
     else if (name === 'pawspot') loadPawSpotSubs();
     else if (name === 'promotions') loadPromotions();
     else if (name === 'deletions') loadAccountDeletions();
+    else if (name === 'ownerwhy') loadOwnerWhy();
     else if (name === 'blocked') loadBlockedUsers();
     else if (name === 'activity') loadActivity();
     else if (name === 'traffic') loadSiteTraffic();
@@ -4136,6 +4152,45 @@ function delReasonLabel(id) {
   // remplace si elle existe (traductions ajoutables plus tard).
   return fr ? t('del_reason_' + id, fr) : id;
 }
+// 0511 (BOB) — « Pourquoi pas ? » : réponses en 1 clic des propriétaires qui n'ont pas choisi.
+async function loadOwnerWhy() {
+  const stats = document.getElementById('ownerwhy-stats');
+  const box = document.getElementById('ownerwhy-list');
+  if (!box) return;
+  box.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const LABEL = { price: 'Trop cher', dates: 'Dates pas sûres', talk: 'Veut parler au gardien d\'abord', done: 'N\'a plus besoin de garde' };
+  try {
+    const d = await api('/admin/owner-why');
+    let byPost = {};
+    try {
+      const b = await api('/admin/requests613/board');
+      (b.items || []).forEach(function (it) { byPost[it.postId] = it; });
+    } catch (e) { byPost = {}; }
+    const rows = d.rows || [];
+    const counts = d.counts || {};
+    if (stats) {
+      stats.innerHTML = ['price', 'dates', 'talk', 'done'].map(function (k) {
+        return '<div class="stat-card"><div class="stat-label">' + escapeHtml(LABEL[k]) + '</div><div class="stat-value">' + (counts[k] || 0) + '</div></div>';
+      }).join('') + '<div class="stat-card"><div class="stat-label">Réponses</div><div class="stat-value">' + (d.total || 0) + '</div></div>';
+    }
+    if (!rows.length) { box.innerHTML = '<div class="empty-state">Aucune réponse pour l\'instant. Les e-mails partent entre 9 h et 20 h aux propriétaires qui ont ouvert leurs candidats sans choisir.</div>'; return; }
+    box.innerHTML = '<table class="data-table"><thead><tr><th>Répondu le</th><th>Réponse</th><th>Demande</th><th>Ville</th><th>Propriétaire</th><th>Candidats</th><th>Historique</th></tr></thead><tbody>' +
+      rows.map(function (r) {
+        const it = byPost[r.postId] || {};
+        const owner = it.owner || {};
+        const ap = (it.stages && it.stages.applications) || {};
+        const when = r.answeredAt ? new Date(r.answeredAt).toLocaleString(adminLocale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+        const hist = (r.history || []).map(function (h) { return escapeHtml(LABEL[h.answer] || h.answer); }).join(' → ');
+        return '<tr><td>' + when + '</td><td><strong>' + escapeHtml(LABEL[r.answer] || r.answer) + '</strong></td>' +
+          '<td><a href="#" onclick="showPage(\'requests1610\', document.querySelector(\'[data-page=requests1610]\'));return false">' + escapeHtml(String(r.postId).slice(-6)) + '</a></td>' +
+          '<td>' + escapeHtml(it.city || '—') + (it.country ? ' (' + escapeHtml(it.country) + ')' : '') + '</td>' +
+          '<td>' + escapeHtml(owner.name || '—') + '</td><td>' + (ap.count != null ? ap.count : '—') + '</td><td style="color:var(--text-muted)">' + hist + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  } catch (e) {
+    box.innerHTML = '<div class="empty-state">Erreur : ' + escapeHtml(e && e.message ? e.message : String(e)) + '</div>';
+  }
+}
+
 async function loadAccountDeletions() {
   const stats = document.getElementById('del-stats');
   const reasonsBox = document.getElementById('del-reasons');
@@ -6665,6 +6720,7 @@ const ADA_PAGE_DESC = {
   walkers: 'La liste des promeneurs.',
   activity: 'Qui s\'est connecté, quand, et dans quelle ville.',
   deletions: 'Les comptes supprimés et pourquoi les gens partent.',
+  ownerwhy: 'Ce qui retient les propriétaires qui ont vu leurs candidats sans choisir (réponses en 1 clic).',
   blocked: 'Les profils bloqués.',
   identity: 'Les vérifications d\'identité des prestataires.',
   pets: 'Tous les animaux enregistrés et leur propriétaire.',
