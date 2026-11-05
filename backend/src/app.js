@@ -233,7 +233,7 @@ const ADMIN_BUILD = 'v635'; // 635 (03/11) : accueils — carte « première ann
 const _ADMIN_BUILD_612 = 'v612'; // 612 (PAM, 04/10) : admin — rangs Chiot → Légende à la place des anciens badges
 // 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à
 // redéployer quand seul admin_dashboard.html a bougé (ADMIN_BUILD reste celui de l'app).
-const ADMIN_DEPLOYED_AT = '2026-10-31T18:40'; // 31/10 soir (ADA) : tuile « Propriétaires revenus », « A l'app » par personne, relance « posez vos dates » ; avant 26/10 (ADA, décision de Daniel) : « vrai dernier retour du propriétaire » (scripts exclus), « a ouvert ses candidats », « a l'app » dans Demandes publiées
+const ADMIN_DEPLOYED_AT = '2026-11-05T02:30'; // 05/11 (BOB) : frise des demandes droite (étapes 4 « sautée » et 2) ; 31/10 soir (ADA) : tuile « Propriétaires revenus », « A l'app » par personne, relance « posez vos dates » ; avant 26/10 (ADA, décision de Daniel) : « vrai dernier retour du propriétaire » (scripts exclus), « a ouvert ses candidats », « a l'app » dans Demandes publiées
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
