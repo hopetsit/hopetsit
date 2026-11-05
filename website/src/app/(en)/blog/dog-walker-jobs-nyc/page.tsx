@@ -11,9 +11,12 @@ import Link from "@/components/SiteLink";
 // (15 % badge Top), libération portefeuille à la confirmation ou 48 h après.
 
 const URL = "https://www.hopetsit.com/blog/dog-walker-jobs-nyc";
-const TITLE = "Dog Walker Jobs in NYC: How to Start in New York";
+// 05/11/2026 (GUS) : Google montre surtout cet article sur « how to become a
+// dog walker » (pos. 8,8) et « … in nyc » (pos. 10) avec 0 clic : titre et
+// description réécrits sur ces requêtes, contenu inchangé.
+const TITLE = "How to Become a Dog Walker in NYC: Step-by-Step Guide";
 const DESCRIPTION =
-  "How to become a dog walker in New York: what owners expect, the leash and park rules to know, where the work is in each borough, and how to get your first clients. Free to join.";
+  "How to become a dog walker in NYC, step by step: what owners expect, leash and park rules, where the walks are in each borough and how to find your first clients.";
 const HEADLINE = "Dog walker jobs in NYC: how to become a dog walker in New York";
 
 export const metadata: Metadata = {
