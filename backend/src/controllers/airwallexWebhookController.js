@@ -290,6 +290,9 @@ const handleAirwallexWebhook = async (req, res) => {
           `✅ [airwallex.webhook] booking ${booking._id} marked as paid (PI ${piId})` +
           (wasAlreadyPaid ? ' [already paid → notifs suppressed]' : ''),
         );
+        // 0611 (SAM, ordre de Daniel) — Meta Conversions API : « Purchase » UNE fois, quand la réservation
+        // passe en payée (eventId = id de la réservation, dédoublonné avec le pixel du site). Jamais bloquant.
+        if (!wasAlreadyPaid) { try { void require('../services/metaCapi0611').bookingPaid(booking, { amount: data?.amount, currency: data?.currency }); } catch (_) { /* jamais bloquant */ } }
 
         // v23.1 part 68 — Daniel correction : "ancinne publication sefface
         // apres le booking FINI" (pas payé). On ne ferme PAS le post au

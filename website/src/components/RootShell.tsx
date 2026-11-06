@@ -19,6 +19,8 @@ import { DownloadAppBanner } from "@/components/DownloadAppBanner";
 import DraftReminder2909 from "@/components/DraftReminder2909";
 import { AppLinkOpener } from "@/components/AppLinkOpener";
 import SiteAnalytics from "@/components/SiteAnalytics";
+// 06/11 (SAM, ordre de Daniel) — pixel Meta après consentement (bandeau fr/en, choix mémorisé).
+import MetaPixel from "@/components/MetaPixel";
 import { RoleWallpaper } from "@/components/RoleWallpaper";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
@@ -207,6 +209,9 @@ export function RootShell({
               stores. Sans cookie, sans stockage local, sans donnée
               personnelle → aucun bandeau de consentement requis. */}
           <SiteAnalytics />
+          {/* 06/11 (SAM) — pixel Meta : RIEN ne se charge avant « Accepter » (bandeau ConsentBanner) ;
+              « Refuser » = rien, la mesure maison ci-dessus continue. */}
+          <MetaPixel />
           {/* 25/09 — LOT D : fond « à mon animal » (rôle + espèce → globals.css). */}
           <RoleWallpaper />
           <main>{children}</main>

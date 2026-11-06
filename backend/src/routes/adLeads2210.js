@@ -393,8 +393,11 @@ router.post('/:id/confirm', async (req, res) => {
     const lead = await AdLead.findById(req.params.id);
     if (!lead) return res.status(404).json({ error: 'not_found' });
     const lieu = req.body && req.body.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner';
+    const hadPost0611 = !!lead.postId;
     const r = await publishLead(lead, lieu);
     if (r.status !== 200) return res.status(r.status).json(r.body);
+    // 0611 (SAM) — Meta Conversions API : « Lead » quand la demande vient d'être publiée (jamais au 2e clic). Jamais bloquant.
+    if (!hadPost0611 && r.postId) { try { void require('../services/metaCapi0611').leadPublished(lead, req); } catch (_) { /* jamais bloquant */ } }
     // 27/10 (SAM, décision de Daniel) — le lien n'existe QUE dans nos e-mails : un clic venu d'un
     // vrai navigateur ou de l'app PROUVE la boîte → compte vérifié (3 profils) + emailProvenAt.
     // Nos scripts (X-HPS-Script, Python, navigateur sans tête) ne prouvent rien.

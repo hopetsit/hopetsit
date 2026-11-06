@@ -97,6 +97,8 @@ router.post('/confirm', async (req, res) => {
 
     const r = await publishLead(lead, 'at_owner');
     if (r.status !== 200) return res.status(r.status).json(r.body);
+    // 0611 (SAM) — Meta Conversions API : « Lead » (demande publiée depuis la page merci). Jamais bloquant.
+    if (r.postId) { try { void require('../services/metaCapi0611').leadPublished(lead, req); } catch (_) { /* jamais bloquant */ } }
 
     // Décision de Daniel (05/11) : pour un contact Meta, l'appui sur ce bouton vaut confirmation de la boîte.
     const { markVerifiedAcrossRoles } = require('../controllers/authController');

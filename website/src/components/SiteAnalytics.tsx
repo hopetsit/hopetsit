@@ -15,7 +15,12 @@
  *     d'utilisateur) et le NOM D'HÔTE du referrer (jamais l'URL complète) ;
  *   - côté serveur, l'IP et le user-agent ne servent qu'à une empreinte
  *     anonyme qui change chaque jour, et ne sont jamais stockés.
- * Conséquence : aucun bandeau de consentement à ajouter.
+ * Conséquence : aucun bandeau de consentement à ajouter POUR CETTE MESURE.
+ *
+ * 06/11/2026 (SAM, ordre de Daniel) — le site porte aussi un PIXEL META, lui soumis à consentement
+ * (components/MetaPixel.tsx + ConsentBanner.tsx, lib/metaPixel0611.ts). trackSiteEvent reste la
+ * seule porte : après la mesure maison, il traduit QUATRE repères en événements Meta (Lead,
+ * ViewContent, InitiateCheckout, Purchase) — et rien ne part vers Meta sans « Accepter ».
  *
  * Ne ralentit pas la page : zéro dépendance, envoi via navigator.sendBeacon
  * (hors du chemin critique) programmé sur requestIdleCallback.
@@ -24,6 +29,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { API_BASE } from "@/lib/api";
+import { pixelFromSiteEvent } from "@/lib/metaPixel0611";
 
 const ENDPOINT = `${API_BASE}/site-events`;
 
@@ -39,6 +45,12 @@ type Extra = {
   label?: string;
   /** Chemin forcé (défaut : la page courante). */
   path?: string;
+  /** 06/11 (SAM) — POUR LE PIXEL META SEULEMENT, jamais envoyés à notre serveur :
+   *  montant et devise (Purchase) et identifiant de l'objet (réservation / contact) = eventID,
+   *  la même valeur que la Conversions API côté serveur pour dédoublonner. */
+  value?: number;
+  currency?: string;
+  eventId?: string;
 };
 
 // ── Mémoire de visite (variable de module — PAS de stockage navigateur) ──────
@@ -260,6 +272,9 @@ export function trackSiteEvent(type: SiteEventType, extra: Extra = {}) {
   const path = (() => {
     try { return cleanPath(extra.path); } catch { return "/"; }
   })();
+  // 06/11 (SAM) — pixel Meta (consentement + hôte réel vérifiés dans la lib) : avant le garde-fou
+  // ci-dessous, qui ne concerne que la mesure maison (DNT, hôtes de test).
+  pixelFromSiteEvent(type, path, { label: extra.label, value: extra.value, currency: extra.currency, eventId: extra.eventId });
   if (!measurable(path)) return;
   const c = readCampaign();
   const body: Record<string, string> = { t: type, p: path, l: langOfPage() };

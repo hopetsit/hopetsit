@@ -45,6 +45,9 @@ const configSchema = new mongoose.Schema({
   appSecretEnc: { type: String, default: '' },
   verifyToken: { type: String, default: '' },
   forms: { type: Map, of: String, default: {} }, // form_id → 'paris' | 'nyc'
+  // 0611 (SAM) — Conversions API : id du pixel (public) + jeton système pub (chiffré). Lus par services/metaCapi0611.js.
+  pixelId: { type: String, default: '' },
+  capiTokenEnc: { type: String, default: '' },
   updatedAt: { type: Date, default: Date.now },
 }, { collection: 'metaleadgenconfig0511' });
 const Config = mongoose.models.MetaLeadgenConfig0511 || mongoose.model('MetaLeadgenConfig0511', configSchema);
@@ -183,19 +186,22 @@ adminRouter.put('/config', requireAdmin, async (req, res) => {
   if (b.pageToken) set.pageTokenEnc = encrypt(String(b.pageToken));
   if (b.appSecret) set.appSecretEnc = encrypt(String(b.appSecret));
   if (b.verifyToken) set.verifyToken = String(b.verifyToken).slice(0, 80);
+  // 0611 (SAM) — Conversions API (PUT { pixelId, capiToken }) : seulement la config, rien d'autre ne change ici.
+  if (b.pixelId !== undefined) set.pixelId = String(b.pixelId || '').replace(/\D/g, '').slice(0, 30);
+  if (b.capiToken) set.capiTokenEnc = encrypt(String(b.capiToken));
   if (b.forms && typeof b.forms === 'object') {
     const forms = {};
     for (const [k, v] of Object.entries(b.forms)) if (/^\d+$/.test(k) && VILLES[v]) forms[k] = v;
     set.forms = forms;
   }
   const cfg = await Config.findOneAndUpdate({ key: 'main' }, { $set: set, $setOnInsert: { key: 'main' } }, { upsert: true, new: true }).lean();
-  return res.json({ ok: true, configured: !!cfg.pageTokenEnc, hasSecret: !!cfg.appSecretEnc, hasVerifyToken: !!cfg.verifyToken, forms: cfg.forms || {} });
+  return res.json({ ok: true, configured: !!cfg.pageTokenEnc, hasSecret: !!cfg.appSecretEnc, hasVerifyToken: !!cfg.verifyToken, forms: cfg.forms || {}, capi: { pixelId: cfg.pixelId || '', configured: !!(cfg.pixelId && cfg.capiTokenEnc) } });
 });
 adminRouter.get('/status', requireAdmin, async (req, res) => {
   const cfg = await getConfig();
   const events = await Event.find({}).sort({ at: -1 }).limit(50).lean();
   const counts = {}; for (const e of await Event.find({ at: { $gte: new Date(Date.now() - 7 * 86400000) } }).select('status').lean()) counts[e.status] = (counts[e.status] || 0) + 1;
-  return res.json({ enabled: enabled(), configured: !!(cfg && cfg.pageTokenEnc), hasSecret: !!(cfg && cfg.appSecretEnc), hasVerifyToken: !!(cfg && cfg.verifyToken), forms: (cfg && cfg.forms) || {}, counts7d: counts, events });
+  return res.json({ enabled: enabled(), configured: !!(cfg && cfg.pageTokenEnc), hasSecret: !!(cfg && cfg.appSecretEnc), hasVerifyToken: !!(cfg && cfg.verifyToken), forms: (cfg && cfg.forms) || {}, counts7d: counts, events, capi: { pixelId: (cfg && cfg.pixelId) || '', configured: !!(cfg && cfg.pixelId && cfg.capiTokenEnc), enabled: String(process.env.META_CAPI_0611 || '').toLowerCase() !== 'off' } });
 });
 
 module.exports = router;
@@ -205,3 +211,5 @@ module.exports.fieldsOf = fieldsOf;
 module.exports.Config = Config;
 module.exports.Event = Event;
 module.exports.VILLES = VILLES;
+/** 0611 (SAM) — lecture seule pour services/metaCapi0611.js : { pixelId, token } (jeton déchiffré, jamais journalisé). */
+module.exports.getCapiConfig = async () => { const cfg = await getConfig(); return { pixelId: (cfg && cfg.pixelId) || '', token: dec(cfg && cfg.capiTokenEnc) }; };
