@@ -7,9 +7,13 @@ export const metadata: Metadata = {
   // 01/10/2026 — GUS : 197 impressions sur « dog sitting » en position 6,7
   // et 0 clic en 28 j. Titre et description réécrits pour répondre à la
   // requête (prix, comment choisir) au lieu de l'ancien titre « Finding… ».
-  title: "Dog Sitting in Austin, TX: 2026 Rates & Tips",
+  // 06/11/2026 — GUS : « daily rate for dog sitting » 33 affichages en
+  // position 8,5 (page 1), 0 clic ; « 24 hour pet sitting rates » 20 aff.
+  // Titre + description reprennent les mots de la recherche et les chiffres
+  // du tableau (jour / nuit / balade), rien d'autre ne change.
+  title: "Dog Sitting Daily Rate in Austin, TX (2026): Day & Overnight",
   description:
-    "Dog sitting in Austin costs $30–55 a day and $15–25 a walk. How to vet a sitter, what to ask at the meet-and-greet, and how to pay safely. A 5-minute read.",
+    "Daily rate for dog sitting in Austin: $30–45 for daytime sitting, $40–55 overnight, $15–25 a walk. How to vet a sitter, what to ask, and how to pay safely.",
   alternates: {
     canonical: "https://www.hopetsit.com/blog/finding-a-pet-sitter-in-austin",
   },
@@ -83,7 +87,7 @@ export default function ArticleFindingSitterAustin() {
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
-        What a sitter costs in Austin
+        Daily rate for dog sitting in Austin
       </h2>
       <div className="mt-5 overflow-x-auto rounded-2xl border border-ink/5 bg-white shadow-card">
         <table className="w-full text-left text-sm">
