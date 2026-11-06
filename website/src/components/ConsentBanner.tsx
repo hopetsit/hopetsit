@@ -7,20 +7,35 @@
  * Tant que rien n'est choisi : aucun cookie, aucun script Meta. La mesure maison (SiteAnalytics, sans
  * cookie) ne dépend pas de ce choix. Rendu : barre en bas, 375 px et bureau.
  * Règle des hooks : tous AVANT le premier return conditionnel.
+ *
+ * 06/11 soir (SAM) — mesuré à 375 px en ligne : la barre en bas (131 px, z 60) RECOUVRAIT la barre
+ * collante « Publier ma demande gratuite » (z 40) et « Télécharger l'app », et son bouton orange
+ * ressemblait au bouton principal. Désormais :
+ *  - bandeau compact (une ligne) collé SOUS l'en-tête, jamais en bas : aucune barre d'action masquée ;
+ *  - deux boutons neutres de même poids (l'orange reste réservé à « Publier ») ;
+ *  - jamais affiché sur les pages où l'on agit (publier, confirmer, payer, candidature) : le Lead et
+ *    le Purchase y partent de toute façon par le serveur (Conversions API), sans le navigateur.
  */
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+
+/** Pages d'action : rien ne doit se poser par-dessus le bouton qui compte. */
+const PAGES_SANS_BANDEAU = [
+  "/posts/merci", "/posts/confirmer", "/posts/create", "/post", "/application",
+  "/pay", "/book", "/bookings", "/checkout", "/login", "/signup", "/verify-email",
+];
 import { CONSENT_EVENT, readConsent, writeConsent } from "@/lib/metaPixel0611";
 
 const TXT = {
   fr: {
-    text: "HoPetSit utilise un pixel Meta pour mesurer l'efficacité de ses publicités (demandes publiées, réservations). Aucun autre traceur.",
-    more: "En savoir plus",
+    text: "Pixel Meta pour mesurer nos pubs, aucun autre traceur.",
+    more: "Détails",
     yes: "Accepter",
     no: "Refuser",
   },
   en: {
-    text: "HoPetSit uses a Meta pixel to measure its ads (requests published, bookings). No other tracker.",
-    more: "Learn more",
+    text: "Meta pixel to measure our ads, no other tracker.",
+    more: "Details",
     yes: "Accept",
     no: "Decline",
   },
@@ -39,49 +54,44 @@ function uiLang(): "fr" | "en" {
 export default function ConsentBanner() {
   const [show, setShow] = useState(false);
   const [lang, setLang] = useState<"fr" | "en">("fr");
+  const [top, setTop] = useState(56);
+  const pathname = usePathname() || "/";
 
   useEffect(() => {
     // Après l'hydratation seulement (localStorage + langue affichée).
     setLang(uiLang());
     setShow(readConsent() === "");
+    try {
+      // Juste sous l'en-tête fixe (57 px sur mobile), quelle que soit sa hauteur.
+      const h = document.querySelector("header")?.getBoundingClientRect().bottom;
+      if (h && h > 0 && h < 160) setTop(Math.round(h));
+    } catch { /* garde 56 */ }
     const onChoice = () => setShow(false);
     window.addEventListener(CONSENT_EVENT, onChoice);
     return () => window.removeEventListener(CONSENT_EVENT, onChoice);
   }, []);
 
-  if (!show) return null;
+  const nu = pathname.replace(/^\/[a-z]{2}(?=\/)/, ""); // /en/posts/merci → /posts/merci
+  const pageAction = PAGES_SANS_BANDEAU.some((p) => nu === p || nu.startsWith(p + "/"));
+  if (!show || pageAction) return null;
   const t = TXT[lang];
+  const btn = "min-h-[32px] rounded-lg border border-[#D9C3BC] bg-white px-3 text-[13px] font-semibold text-[#4A3B37]";
   return (
     <div
       role="dialog"
       aria-live="polite"
       aria-label={t.text}
       data-consent-0611=""
-      className="fixed inset-x-0 bottom-0 z-[60] border-t border-[#F1D9D2] bg-white/95 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur"
-      style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+      className="fixed inset-x-0 z-[60] border-b border-[#F1D9D2] bg-white/95 px-3 py-1.5 shadow-[0_2px_8px_rgba(0,0,0,0.06)] backdrop-blur"
+      style={{ top }}
     >
-      <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center">
-        <p className="m-0 flex-1 text-[13px] leading-snug text-[#4A3B37]">
+      <div className="mx-auto flex max-w-3xl items-center gap-2">
+        <p className="m-0 min-w-0 flex-1 text-[12px] leading-tight text-[#4A3B37]">
           {t.text}{" "}
-          <a href="/privacy" className="underline underline-offset-2" style={{ color: "#C92A12" }}>{t.more}</a>
+          <a href="/privacy" className="underline underline-offset-2" style={{ color: "#4A3B37" }}>{t.more}</a>
         </p>
-        <div className="flex shrink-0 gap-2">
-          <button
-            type="button"
-            onClick={() => writeConsent("no")}
-            className="min-h-[40px] flex-1 rounded-xl border border-[#E6CFC8] bg-white px-4 text-[14px] font-semibold text-[#4A3B37] sm:flex-none"
-          >
-            {t.no}
-          </button>
-          <button
-            type="button"
-            onClick={() => writeConsent("yes")}
-            className="min-h-[40px] flex-1 rounded-xl px-4 text-[14px] font-bold text-white sm:flex-none"
-            style={{ background: "linear-gradient(90deg, #C92A12, #E8502A)" }}
-          >
-            {t.yes}
-          </button>
-        </div>
+        <button type="button" onClick={() => writeConsent("no")} className={btn}>{t.no}</button>
+        <button type="button" onClick={() => writeConsent("yes")} className={btn}>{t.yes}</button>
       </div>
     </div>
   );
