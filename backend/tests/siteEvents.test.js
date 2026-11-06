@@ -415,6 +415,30 @@ describe('agrégat admin', () => {
     expect(JSON.stringify(clics)).not.toContain('_v');
   });
 
+  test('06/11 (FLO) : les pages /application/<id> sont regroupées et byLabel totalise chaque bouton', () => {
+    const a1 = '/application/6aedae78827dbd8730dee00c';
+    const a2 = '/application/6aedae78827dbd8730deebe2';
+    const out = buildAnalytics([
+      ev({ visitor: 'a', path: a1 }),
+      ev({ visitor: 'a', type: 'cta_click', label: 'cand_vus', path: a1 }),
+      ev({ visitor: 'a', type: 'cta_click', label: 'cand_choisir_payer', path: a1 }),
+      ev({ visitor: 'b', path: a2, utmCampaign: 'paris_owners' }),
+      ev({ visitor: 'b', type: 'cta_click', label: 'cand_choisir_payer', path: a2, utmCampaign: 'paris_owners' }),
+      ev({ visitor: 'c', type: 'cta_click', label: 'cand_vus', path: '/posts' }),
+      ev({ visitor: 'd', path: '/p/sitter/6aedae78827dbd8730dee00c' }),
+    ], { days: 7, now: NOW });
+    expect(out.topPages.find((p) => p.path === '/application/:id')).toMatchObject({ pageviews: 2, visitors: 2 });
+    expect(out.topPages.find((p) => p.path === '/p/sitter/:id')).toMatchObject({ pageviews: 1 });
+    expect(out.topPages.some((p) => p.path === a1 || p.path === a2)).toBe(false);
+    expect(out.byCta.find((c) => c.label === 'cand_choisir_payer')).toEqual({ path: '/application/:id', label: 'cand_choisir_payer', clicks: 2, fromAds: 1, visitors: 2 });
+    expect(out.byLabel.find((c) => c.label === 'cand_vus')).toEqual({ label: 'cand_vus', clicks: 2, fromAds: 0, visitors: 2, pages: 2 });
+    expect(out.byLabel[0]).toMatchObject({ clicks: 2 });
+    expect(Object.keys(out.byLabel[0]).sort()).toEqual(['clicks', 'fromAds', 'label', 'pages', 'visitors']);
+    expect(siteEventRoutes.groupPath('/application/6aedae78827dbd8730dee00c/x')).toBe('/application/:id/x');
+    expect(siteEventRoutes.groupPath('/garde-animaux/paris')).toBe('/garde-animaux/paris');
+    expect(buildAnalytics([], { days: 7, now: NOW }).byLabel).toEqual([]);
+  });
+
   test('sans aucun événement, la réponse garde la même forme', () => {
     const empty = buildAnalytics([], { days: 30, now: NOW });
     expect(empty.days).toBe(30);

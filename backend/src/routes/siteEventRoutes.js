@@ -174,9 +174,15 @@ function buildAnalytics(events, { days = 7, now = new Date() } = {}) {
     .map(finish)
     .sort((a, b) => b.visitors - a.visitors || b.pageviews - a.pageviews);
 
+  // 06/11/2026 (FLO, demande de Daniel « pourquoi ça ne valide pas ») — les pages à identifiant
+  // (/application/<id> : « mes candidats → payer », /p/<rôle>/<id>, /posts/<id>, /chat/<id>) sont
+  // UNE page chacune : éclatées par id, aucune n'atteignait le top 15/30 et les clics
+  // « Choisir et payer » (cand_choisir_payer, cand_payer, cand_erreur_*) étaient invisibles dans
+  // l'admin. On regroupe par page type (`/application/:id`) et on ajoute `byLabel` : le total de
+  // chaque bouton, toutes pages confondues.
   const topPages = [...group(
     current.filter((e) => e.path),
-    (e) => e.path,
+    (e) => groupPath(e.path),
     'path',
   ).values()]
     .map(finish)
@@ -208,8 +214,9 @@ function buildAnalytics(events, { days = 7, now = new Date() } = {}) {
   for (const ev of current) {
     if (ev.type !== 'cta_click' && ev.type !== 'store_click') continue;
     const label = ev.type === 'store_click' ? 'store' : (ev.label || '—');
-    const k = `${ev.path || '/'}\u0000${label}`;
-    if (!clicks.has(k)) clicks.set(k, { path: ev.path || '/', label, clicks: 0, fromAds: 0, _v: new Set() });
+    const gp = groupPath(ev.path || '/');
+    const k = `${gp}\u0000${label}`;
+    if (!clicks.has(k)) clicks.set(k, { path: gp, label, clicks: 0, fromAds: 0, _v: new Set() });
     const c = clicks.get(k);
     c.clicks += 1;
     if (ev.utmCampaign) c.fromAds += 1;
@@ -219,6 +226,21 @@ function buildAnalytics(events, { days = 7, now = new Date() } = {}) {
     .map(({ _v, ...c }) => ({ ...c, visitors: _v.size }))
     .sort((x, y) => y.clicks - x.clicks)
     .slice(0, 30);
+  const labels = new Map();
+  for (const ev of current) {
+    if (ev.type !== 'cta_click' && ev.type !== 'store_click') continue;
+    const label = ev.type === 'store_click' ? 'store' : (ev.label || '—');
+    if (!labels.has(label)) labels.set(label, { label, clicks: 0, fromAds: 0, _v: new Set(), _p: new Set() });
+    const c = labels.get(label);
+    c.clicks += 1;
+    if (ev.utmCampaign) c.fromAds += 1;
+    if (ev.visitor) c._v.add(ev.visitor);
+    c._p.add(groupPath(ev.path || '/'));
+  }
+  const byLabel = [...labels.values()]
+    .map(({ _v, _p, ...c }) => ({ ...c, visitors: _v.size, pages: _p.size }))
+    .sort((x, y) => y.clicks - x.clicks)
+    .slice(0, 80);
 
   // 04/10/2026 (SAM, mission BOB « la pub amène des gens qui ne restent pas ») —
   // PAR PUBLICITÉ (utm_campaign + utm_content) : combien arrivent sur une page
@@ -272,8 +294,18 @@ function buildAnalytics(events, { days = 7, now = new Date() } = {}) {
     byDevice,
     byLang,
     byCta,
+    byLabel,
     byAd,
   };
+}
+
+/** Page type : `/application/<id>` → `/application/:id` (idem /p/<rôle>/<id>, /posts/<id>, /chat/<id>, /s/<id>). */
+function groupPath(path) {
+  const p = String(path || '/');
+  return p
+    .replace(/^\/application\/[a-f0-9]{24}(?=\/|$)/i, '/application/:id')
+    .replace(/^\/p\/(sitter|walker|owner)\/[a-f0-9]{24}(?=\/|$)/i, '/p/$1/:id')
+    .replace(/^\/(posts|chat|s|bookings)\/[a-f0-9]{24}(?=\/|$)/i, '/$1/:id');
 }
 
 // ── GET /admin/site-analytics ────────────────────────────────────────────────
@@ -297,6 +329,7 @@ adminRouter.get('/', requireAdmin, async (req, res) => {
 module.exports = router;
 module.exports.adminRouter = adminRouter;
 module.exports.buildAnalytics = buildAnalytics;
+module.exports.groupPath = groupPath;
 module.exports.rateLimitAllow = rateLimitAllow;
 module.exports.rateLimitReset = rateLimitReset;
 module.exports.RATE_MAX = RATE_MAX;
