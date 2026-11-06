@@ -295,6 +295,8 @@ const versionedRoutes = [
   // POURQUOI un user est bloque (chaque step du bypass + verdict final).
   // Aussi /diagnostic/version pour confirmer quel commit est deploye.
   { path: '/diagnostic', mw: [], router: require('./routes/diagnosticRoutes') },
+  // 0611 (LEO, ordre de Daniel) — lien par e-mail SANS mot de passe pour un propriétaire sans session (routes/ownerMagicLink0611). Monté AVANT /auth (sinon authRateLimit compterait la demande).
+  { path: '/auth/owner-link', mw: [sensitiveLimiter], router: require('./routes/ownerMagicLink0611') },
   { path: '/auth', mw: [authRateLimit], router: authRoutes },
   { path: '/users', mw: [], router: userRoutes },
   { path: '/pets', mw: [], router: petRoutes },

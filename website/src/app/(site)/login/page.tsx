@@ -2,10 +2,12 @@
 
 import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { ApiError, login } from "@/lib/api";
 import { SocialButtons } from "@/components/SocialButtons";
+import { MagicLinkBox0611 } from "@/components/MagicLinkBox0611";
+import type { Lang } from "@/lib/i18n/langs";
 
 // 26/10 — « Mot de passe oublié ? » dans les 9 langues du site.
 const FORGOT = { fr: "Mot de passe oublié ?", en: "Forgot password?", es: "¿Olvidaste tu contraseña?", de: "Passwort vergessen?", it: "Password dimenticata?", pt: "Esqueceste-te da palavra-passe?", ko: "비밀번호를 잊으셨나요?", ja: "パスワードをお忘れですか？", pl: "Nie pamiętasz hasła?" } as const;
@@ -18,6 +20,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy]         = useState(false);
   const [err, setErr]           = useState("");
+  // 06/11 (LEO, mesure de FLO) — un propriétaire renvoyé ici depuis « mes candidats » (/application/<id>)
+  // ou /posts n'a souvent PAS de mot de passe (compte créé par la pub) : l'encart « Reçois ton lien par
+  // e-mail » passe EN PREMIER, le formulaire mot de passe reste dessous, replié (« J'ai un mot de passe »
+  // ou ?pwd=1 l'ouvre). Lu côté navigateur (pas de useSearchParams : Suspense au build).
+  const [magicNext, setMagicNext] = useState("");
+  const [showPwd, setShowPwd]     = useState(true);
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const r = q.get("redirect") || "";
+      if (r.startsWith("/application/") || r.startsWith("/posts")) {
+        setMagicNext(r);
+        setShowPwd(q.get("pwd") === "1");
+      }
+    } catch { /* adresse exotique : formulaire classique */ }
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,9 +75,16 @@ export default function LoginPage() {
       </h1>
       <p className="mt-3 text-center text-sm text-ink-muted">{t("login_sub")}</p>
 
+      {magicNext && (
+        <div className="mt-8" data-login-magic0611="">
+          <MagicLinkBox0611 next={magicNext} lang={lang as Lang} onHasPassword={showPwd ? undefined : () => setShowPwd(true)} />
+        </div>
+      )}
+
       <form
         onSubmit={onSubmit}
-        className="mt-10 space-y-4 rounded-3xl border border-ink/5 bg-white p-7 shadow-card"
+        className={`${magicNext ? "mt-6" : "mt-10"} space-y-4 rounded-3xl border border-ink/5 bg-white p-7 shadow-card ${magicNext && !showPwd ? "hidden" : ""}`}
+        data-login-form0611={magicNext && !showPwd ? "replie" : "ouvert"}
       >
         <SocialButtons />
         <Field label={t("login_email")} value={email} onChange={setEmail} type="email" required autoComplete="email" />

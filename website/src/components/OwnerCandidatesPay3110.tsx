@@ -35,6 +35,7 @@ import { d620, unitShort620 } from "@/lib/i18n/dates620";
 import { dateModeOf620 } from "@/lib/services620";
 import { c3110 } from "@/lib/i18n/cand3110";
 import { markCandidatesViewed } from "@/lib/candidatesView2610";
+import { MagicLinkBox0611 } from "@/components/MagicLinkBox0611";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { countryForCurrency3110, kmOf3110, pickPostId3110, point3110, sortCandidates3110, totalOf3110 } from "@/lib/cand3110";
 import {
@@ -144,6 +145,9 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
   const [askText, setAskText] = useState("");
   const [askBusy, setAskBusy] = useState(false);
   const [askSent, setAskSent] = useState<Record<string, string>>({});
+  // 06/11 (LEO, mesure de FLO) — pas de session (adresse tapée, favori, jeton périmé) : au lieu de renvoyer
+  // vers le mot de passe, on montre ICI l'encart « Pas de mot de passe ? Reçois ton lien par e-mail ».
+  const [needLink, setNeedLink] = useState("");
   const askRef = useRef<HTMLTextAreaElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const datesRef = useRef<HTMLDivElement | null>(null);
@@ -157,7 +161,8 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     const u = getStoredUser();
     if (!u) {
       const here = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/posts";
-      router.replace(`/login?redirect=${encodeURIComponent(here)}`);
+      setNeedLink(here);
+      setLoading(false);
       return;
     }
     if (u.role !== "owner") { router.replace("/posts"); return; }
@@ -172,7 +177,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         const here = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/posts";
-        router.replace(`/login?redirect=${encodeURIComponent(here)}`);
+        setNeedLink(here);
         return;
       }
       setLoadError(e instanceof Error && e.message ? e.message : c3110(lang, "error"));
@@ -510,6 +515,19 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
       setErrors((er) => ({ ...er, [id]: c3110(lang, "error") }));
       setWritingId(null);
     }
+  }
+
+  if (needLink) {
+    return (
+      <div className="mx-auto w-full max-w-md px-4 pb-20 pt-6 md:pt-10" data-cand3110-magic="" style={{ colorScheme: "light" }}>
+        <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight md:text-[30px]" style={{ color: "#231715" }}>
+          {c3110(lang, "title")}
+        </h1>
+        <div className="mt-4">
+          <MagicLinkBox0611 next={needLink} lang={lang} onHasPassword={() => router.push(`/login?redirect=${encodeURIComponent(needLink)}&pwd=1`)} />
+        </div>
+      </div>
+    );
   }
 
   if (loading) {

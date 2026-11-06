@@ -122,6 +122,8 @@ http.createServer(async (req, res) => {
   else if (p === "/posts/my" || p === "/posts/requests") body = { posts: [] };
   else if (p === "/map-reports/nearby") body = { reports: [] };
   else if (p === "/friends/request") body = { ok: true };
+  // 0611 (LEO) — lien par e-mail sans mot de passe : MOCK_MAGIC=429 simule « déjà demandé », 500 une panne.
+  else if (p === "/auth/owner-link") { const code = Number(process.env.MOCK_MAGIC || 200); if (code !== 200) { res.writeHead(code, { ...cors, "Content-Type": "application/json" }); return res.end(JSON.stringify({ error: code === 429 ? "TOO_MANY" : "boom", code: code === 429 ? "TOO_MANY" : "ERR" })); } body = { ok: true }; }
   else if (p === "/users/me/map-prefs") body = req.method === "GET" ? { hideFromMap: false, pawMap: { layers: global.__layers || {} } } : (global.__layers = { ...(global.__layers || {}), ...((JSON.parse(Buffer.concat(chunks).toString() || "{}").pawMap || {}).layers || {}) }, { ok: true });
   else if (p === "/sitters/s-lea") body = { sitter };
   else if (p === "/walkers/w-ines") body = { walker };
