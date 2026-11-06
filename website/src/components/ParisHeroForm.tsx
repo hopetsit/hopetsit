@@ -6,11 +6,18 @@ import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { EstimateLine620 } from "@/components/DateMode620";
 import { ApiError, publishSiteLead } from "@/lib/api";
 import { PlaceMapConfirm3110, PlacePicker3110, type PlacePick } from "@/components/PlacePicker3110";
+// 06/11/2026 (NEO, ordre de Daniel « dates obligatoires ») — plus de « laisse vide » : dates de début et de fin
+// obligatoires (balade : la date), même refus côté serveur (400 DATES_REQUIRED). Mesure de FLO (14 j) : 19 demandes
+// sur 45 avec candidats « à prévoir » → aucun prix total, jamais de bouton « Payer », 0 paiement.
+import { dr } from "@/lib/i18n/datesRequired0611";
+import { f2 } from "@/lib/i18n/formulaire2etapes1110";
+import { d620 } from "@/lib/i18n/dates620";
+import { c2610 } from "@/lib/i18n/cand2610";
 
 // 12/10/2026 (SAM) — le PREMIER ÉCRAN de la page où arrive la pub EST le formulaire (956 arrivées →
 // 8 clics sur un bouton seul : 99 % ne cliquaient jamais).
 // 31/10/2026 (LEO, feu vert BOB 14 h 20, ordre de Daniel « paiement plus simple ») — UNE SEULE ÉTAPE :
-// service · dates (ou « dates à prévoir ») · code postal · prénom · e-mail · animal → « Publier ma
+// service · dates (OBLIGATOIRES depuis le 06/11, NEO) · code postal · prénom · e-mail · animal → « Publier ma
 // demande — gratuit » → POST /ad-leads/site (compte propriétaire créé sans mot de passe, demande
 // publiée, gardiens prévenus, e-mail « ta demande est en ligne ») → écran « Ta demande est en ligne »
 // sur place, rien d'autre à faire (pas d'app imposée). Avant : « Continuer » → /posts/create?etape=2
@@ -31,7 +38,7 @@ const ANIMALS: { id: "chien" | "chat" | "autre"; fr: string; en: string }[] = [
 ];
 const TXT = {
   fr: {
-    from: "Du", to: "Au", dates_hint: "Pas encore de dates ? Laisse vide : tu les poseras ensuite.",
+    from: "Du", to: "Au",
     postal: "Code postal", first: "Prénom", email: "E-mail", animal: "Animal", city: "Ville",
     cta: "Publier ma demande", busy: "Publication…",
     need_service: "Choisis un service.", need_place: "Choisis ta ville dans la liste ou indique ton code postal.", need_email: "Indique un e-mail valide : c'est là que les candidats arrivent, avec leur prix.",
@@ -51,7 +58,7 @@ const TXT = {
     terms: "En publiant, tu acceptes les", terms_link: "conditions d'utilisation",
   },
   en: {
-    from: "From", to: "To", dates_hint: "No dates yet? Leave empty: you'll set them later.",
+    from: "From", to: "To",
     postal: "ZIP code", first: "First name", email: "Email", animal: "Pet", city: "City",
     cta: "Post my request", busy: "Posting…",
     need_service: "Pick a service.", need_place: "Pick your city from the list or enter your ZIP code.", need_email: "Enter a valid email: that's where candidates arrive, with their price.",
@@ -137,6 +144,9 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   async function submit() {
     setErr("");
     if (!service) { trackSiteEvent("cta_click", { label: "hero_form_sans_service" }); return setErr(t.need_service); }
+    // 0611 (NEO) — dates OBLIGATOIRES : balade = la date ; sinon début et fin, début ≤ fin.
+    if (!startDate || (!isWalk && !endDate)) { trackSiteEvent("cta_click", { label: "hero_form_sans_dates" }); return setErr(isWalk ? dr(lang, "walk_required") : f2(lang, "dates_required")); }
+    if (!isWalk && endDate < startDate) return setErr(d620(lang, "dates_order"));
     if (!postalCode.trim() && !place) { trackSiteEvent("cta_click", { label: "hero_form_sans_lieu" }); return setErr(t.need_place); }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { trackSiteEvent("cta_click", { label: "hero_form_sans_email" }); return setErr(t.need_email); }
     trackSiteEvent("cta_click", { label: "signup_web_hero" });
@@ -146,7 +156,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
         email: email.trim(), firstName: firstName.trim(), service, animal, postalCode: postalCode.trim(), city: (place ? place.city : cityValue.trim()) || city,
         country: (place && place.countryCode) || country, lang,
         ...(place ? { lat: place.lat, lng: place.lng } : {}),
-        startDate: startDate || undefined, endDate: endDate || startDate || undefined, campaign, page, website,
+        startDate, endDate: isWalk ? startDate : endDate, campaign, page, website,
         ...(target ? { targetProvider: target } : {}),
       });
       trackSiteEvent("cta_click", { label: r.pending ? "hero_form_a_confirmer" : r.existing ? "hero_form_deja" : "hero_form_envoye" });
@@ -154,7 +164,8 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
     } catch (e) {
       const code = e instanceof ApiError && e.details && typeof e.details === "object" ? String((e.details as { code?: string }).code || "") : "";
       trackSiteEvent("cta_click", { label: `hero_form_refus_${(code || (e instanceof ApiError ? e.status : "x")).toString().toLowerCase()}` });
-      setErr(code === "TEST_ACCOUNT" ? t.err_test : code === "TOO_MANY" ? t.err_many : code === "EMAIL_INVALID" ? t.need_email : t.err);
+      setErr(code === "TEST_ACCOUNT" ? t.err_test : code === "TOO_MANY" ? t.err_many : code === "EMAIL_INVALID" ? t.need_email
+        : code === "DATES_REQUIRED" ? (isWalk ? dr(lang, "walk_required") : f2(lang, "dates_required")) : code === "DATES_INVALID" ? d620(lang, "dates_order") : t.err);
     } finally {
       setBusy(false);
     }
@@ -163,6 +174,8 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   const bias = country === "US" ? { lat: 40.7128, lng: -74.006 } : country === "FR" ? { lat: 48.8566, lng: 2.3522 } : null;
   const field = "mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-2.5 text-[15px] text-ink focus:border-owner focus:outline-none";
   const svcId = SERVICES.find((s) => s.id === service)?.svc || "";
+  const isWalk = service === "promenade";
+  const today = new Date().toISOString().slice(0, 10);
 
   if (done && done.pending) {
     // 31/10 (BOB, sécurité) — un compte existe déjà avec cet e-mail : la demande est gardée en brouillon et
@@ -223,19 +236,28 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
         ))}
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <label className="block text-xs font-semibold text-ink">{t.from}
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={field} data-testid="hero-start" />
-        </label>
-        <label className="block text-xs font-semibold text-ink">{t.to}
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={field} data-testid="hero-end" />
-        </label>
-      </div>
-      <p className="mt-1 text-[11px] text-ink-muted">{t.dates_hint}</p>
+      {isWalk ? (
+        <div className="mt-3 grid grid-cols-2 gap-2" data-testid="hero-dates-walk-0611">
+          <label className="block text-xs font-semibold text-ink">{c2610(lang, "date_label")} *
+            <input type="date" required min={today} value={startDate} onChange={(e) => { setStartDate(e.target.value); setEndDate(e.target.value); }} className={field} data-testid="hero-start" />
+          </label>
+        </div>
+      ) : (
+        <div className="mt-3 grid grid-cols-2 gap-2" data-testid="hero-dates-0611">
+          <label className="block text-xs font-semibold text-ink">{t.from} *
+            <input type="date" required min={today} value={startDate} onChange={(e) => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate < v)) setEndDate(v); }} className={field} data-testid="hero-start" />
+          </label>
+          <label className="block text-xs font-semibold text-ink">{t.to} *
+            <input type="date" required min={startDate || today} value={endDate} onChange={(e) => setEndDate(e.target.value)} className={field} data-testid="hero-end" />
+          </label>
+        </div>
+      )}
+      {/* 0611 (NEO, texte dicté par Daniel) — pourquoi les dates sont obligatoires. */}
+      <p className="mt-1 text-[11px] font-semibold text-ink" data-testid="hero-dates-hint-0611">{dr(lang, "hint")}</p>
 
       {svcId && (
         <div className="mt-3">
-          <EstimateLine620 lang={lang} service={svcId} dateMode={startDate && endDate ? "exact" : "tbd"} startDate={startDate} endDate={endDate}
+          <EstimateLine620 lang={lang} service={svcId} dateMode={startDate && (isWalk || endDate) ? "exact" : "tbd"} startDate={startDate} endDate={isWalk ? startDate : endDate}
             visitsPerDay={1} venue={svcId === "house_sitting" ? "owners_home" : null} currency={country === "US" ? "USD" : "EUR"} location={{ city: place ? place.city : (cityEditable ? cityValue : city) }} />
         </div>
       )}

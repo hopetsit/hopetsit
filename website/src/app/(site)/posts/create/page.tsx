@@ -21,9 +21,16 @@ import PublishedConfirmation1617, { type PublishedInfo } from "@/components/Publ
 import { p1617 } from "@/lib/i18n/publier1617";
 // 620 (LEO, 24/10, ordre de Daniel) — 4 services depuis le catalogue serveur, « Quand ? »
 // en 3 cartes (précises / approximative / à prévoir), visites par jour, estimation.
-import { DateModeCards620, EstimateLine620, VisitsPerDay620 } from "@/components/DateMode620";
+import { EstimateLine620, VisitsPerDay620 } from "@/components/DateMode620";
 import { d620, serviceLabel620 } from "@/lib/i18n/dates620";
 import { LEGACY_SERVICES_620, readProviderRates620, type DateMode620, type ProviderRates620, type ServiceDef620 } from "@/lib/services620";
+// 06/11/2026 (NEO, ordre de Daniel « dates obligatoires ») — plus d'option « dates à prévoir » pour une
+// NOUVELLE demande : mesure de FLO (14 j), 19 demandes sur 45 avec candidats étaient « à prévoir » → aucun
+// prix total, jamais de bouton « Payer » (409 DATES_REQUIRED), 0 paiement. Dates de début et de fin
+// obligatoires ; pour une balade : date + heure. Les demandes existantes ne changent pas.
+import { dr, walkEndIso0611, walkStartIso0611 } from "@/lib/i18n/datesRequired0611";
+import { c2610 } from "@/lib/i18n/cand2610";
+import { AppIcon } from "@/components/AppIcon";
 import {
   API_BASE,
   ApiError,
@@ -84,6 +91,8 @@ export default function CreatePostPage() {
   // dates, visites par jour (visite à domicile), tarifs du prestataire ciblé.
   const [catalog, setCatalog] = useState<ServiceDef620[] | null>(null);
   const [dateMode, setDateMode] = useState<DateMode620>("exact");
+  // 0611 (NEO) — balade : une date + une heure (heure locale du propriétaire), fin = début + 60 min.
+  const [walkTime, setWalkTime] = useState("10:00");
   const [visitsPerDay, setVisitsPerDay] = useState(1);
   const [targetRates, setTargetRates] = useState<ProviderRates620 | null>(null);
   const preRef = useRef("");
@@ -257,7 +266,9 @@ export default function CreatePostPage() {
       if (typeof d.budget === "string") setBudget(d.budget);
       if (typeof d.startDate === "string") setStartDate(d.startDate);
       if (typeof d.endDate === "string") setEndDate(d.endDate);
-      if (d.dateMode === "exact" || d.dateMode === "approx" || d.dateMode === "tbd") setDateMode(d.dateMode);
+      // 0611 (NEO) — un brouillon « à prévoir » repart en « dates précises » : l'option n'existe plus.
+      if (d.dateMode === "exact" || d.dateMode === "approx") setDateMode(d.dateMode);
+      if (typeof d.walkTime === "string" && /^\d{2}:\d{2}$/.test(d.walkTime)) setWalkTime(d.walkTime);
       if (d.visitsPerDay === 2) setVisitsPerDay(2);
       if (typeof d.postalCode === "string") setPostalCode(d.postalCode);
       if (typeof d.notes === "string") setNotes(d.notes);
@@ -343,6 +354,14 @@ export default function CreatePostPage() {
   }
 
   const service = services[0] || "";
+  const isWalk = service === "dog_walking";
+  /** 0611 (NEO) — dates OBLIGATOIRES : balade = date + heure ; sinon début et fin, début ≤ fin. */
+  function datesError(): string {
+    if (isWalk) return startDate && /^\d{2}:\d{2}$/.test(walkTime) ? "" : dr(lang, "walk_required");
+    if (!startDate || !endDate) return f2(lang, "dates_required");
+    if (endDate < startDate) return d620(lang, "dates_order");
+    return "";
+  }
   const needsVenue = services.includes("house_sitting");
   // Le serveur exige encore houseSittingVenue pour la garde à domicile : il se
   // déduit du lieu choisi (chez moi = owners_home, chez le gardien = sitters_home).
@@ -356,13 +375,9 @@ export default function CreatePostPage() {
       setErr(t("posts_error_body"));
       return;
     }
-    if (mode620 !== "tbd" && (!startDate || !endDate)) { // 23/10 (BOB) — dates obligatoires (620 : sauf « à prévoir »)
-      setErr(f2(lang, "dates_required"));
-      return;
-    }
-    if (mode620 !== "tbd" && endDate < startDate) {
-      setErr(d620(lang, "dates_order"));
-      return;
+    { // 23/10 (BOB) — dates obligatoires ; 0611 (NEO) — plus d'exception « à prévoir »
+      const de = datesError();
+      if (de) { setErr(de); return; }
     }
     if (!city.trim()) {
       setErr(t("signup_city_required"));
@@ -474,7 +489,7 @@ export default function CreatePostPage() {
     try {
       window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
         body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
-        dateMode, visitsPerDay,
+        dateMode, visitsPerDay, walkTime,
         animalCount, animalTypes, city, postalCode, budget, targetProvider: target,
         ...(cityCoords ? { cityLat: cityCoords.lat, cityLng: cityCoords.lng, cityLabel } : {}),
         ...extra,
@@ -500,10 +515,11 @@ export default function CreatePostPage() {
       houseSittingVenue: needsVenue ? venue : undefined,
       serviceLocation: service ? locationToSend(service, svcLocation) : undefined,
       meetingPoint: svcLocation === "meeting_point" ? meetingPoint.trim() : undefined,
-      startDate: mode620 !== "tbd" && startDate ? new Date(startDate).toISOString() : undefined,
-      endDate: mode620 !== "tbd" && endDate ? new Date(endDate).toISOString() : undefined,
-      // 620 — mode de dates + visites par jour (rien envoyé sur un serveur d'avant le 620).
-      dateMode: catalog ? mode620 : undefined,
+      // 0611 (NEO) — toujours des dates ; balade : date + heure locale → ISO, fin = début + 60 min.
+      startDate: isWalk ? walkStartIso0611(startDate, walkTime) || undefined : startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: isWalk ? walkEndIso0611(walkStartIso0611(startDate, walkTime)) || undefined : endDate ? new Date(endDate).toISOString() : undefined,
+      // 620 — mode de dates + visites par jour (rien envoyé sur un serveur d'avant le 620). Jamais « tbd » (0611).
+      dateMode: catalog ? (isWalk ? "exact" : mode620) : undefined,
       visitsPerDay: catalog && service === "home_visit" ? visitsPerDay : undefined,
       notes: notes.trim() || undefined,
       animalCount: animalCount > 0 ? animalCount : undefined,
@@ -623,9 +639,8 @@ export default function CreatePostPage() {
     if (!body.trim()) return setErr(f2(lang, "body_required"));
     if (!service) return setErr(f2(lang, "service_required"));
     // 23/10 (BOB, demande de Daniel) — dates OBLIGATOIRES : sans dates, les gardiens ne peuvent pas répondre.
-    // 620 — « Dates à prévoir » : aucune date exigée ; sinon début ≤ fin.
-    if (mode620 !== "tbd" && (!startDate || !endDate)) return setErr(f2(lang, "dates_required"));
-    if (mode620 !== "tbd" && endDate < startDate) return setErr(d620(lang, "dates_order"));
+    // 0611 (NEO, ordre de Daniel) — plus d'exception « à prévoir » ; balade = date + heure.
+    { const de = datesError(); if (de) return setErr(de); }
     if (!city.trim()) return setErr(t("signup_city_required"));
     if (postalCode.trim().length < 3) return setErr(t("signup_postal_required"));
     if (!locationComplete(service, svcLocation, meetingPoint)) {
@@ -821,10 +836,68 @@ export default function CreatePostPage() {
           />
         )}
 
-        {/* 620 — « Quand ? » : 3 cartes (serveur 620 seulement). */}
-        {catalog && <DateModeCards620 lang={lang} value={dateMode} onChange={setDateMode} />}
+        {/* 620 — « Quand ? » ; 0611 (NEO, ordre de Daniel) : 2 cartes seulement (précises / approximative),
+            « dates à prévoir » n'existe plus pour une nouvelle demande. Balade : date + heure, pas de carte. */}
+        {catalog && !isWalk && (
+          <div data-testid="date-mode-0611">
+            <p className="block text-sm font-medium text-ink">{d620(lang, "when_title")}</p>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label={d620(lang, "when_title")}>
+              {(["exact", "approx"] as const).map((m) => {
+                const on = mode620 === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    data-mode={m}
+                    onClick={() => setDateMode(m)}
+                    className="flex min-h-[56px] items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition"
+                    style={on ? { borderColor: "#C92A12", background: "#FBE9E5" } : { borderColor: "rgba(35,23,21,0.15)", background: "#fff" }}
+                  >
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: on ? "#C92A12" : "#FBE9E5" }}>
+                      <AppIcon name={m === "exact" ? "calendar" : "clock"} size={16} color={on ? "#fff" : "#9E1F0B"} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold leading-tight" style={{ color: on ? "#9E1F0B" : "#231715" }}>{d620(lang, `mode_${m}`)}</span>
+                      <span className="block text-xs leading-snug text-[#6E4F48]">{d620(lang, `mode_${m}_sub`)}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-        {mode620 !== "tbd" && (
+        <div data-testid="dates-block-0611">
+        {isWalk ? (
+        <div className="grid grid-cols-2 gap-3" data-testid="dates-walk-0611">
+          <div>
+            <label htmlFor="walk-date-0611" className="block text-sm font-medium text-ink">{c2610(lang, "date_label")} *</label>
+            <input
+              id="walk-date-0611"
+              type="date"
+              required
+              min={new Date().toISOString().slice(0, 10)}
+              value={startDate}
+              onChange={(e) => { setStartDate(e.target.value); setEndDate(e.target.value); }}
+              className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
+            />
+          </div>
+          <div>
+            <label htmlFor="walk-time-0611" className="block text-sm font-medium text-ink">{c2610(lang, "time_label")} *</label>
+            <input
+              id="walk-time-0611"
+              type="time"
+              required
+              step={900}
+              value={walkTime}
+              onChange={(e) => setWalkTime(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
+            />
+          </div>
+        </div>
+        ) : (
         <div className="grid grid-cols-2 gap-3" data-testid="dates-620">
           <div>
             <label className="block text-sm font-medium text-ink">{mode620 === "approx" ? d620(lang, "approx_from") : t("posts_start_label")} *</label>
@@ -833,7 +906,7 @@ export default function CreatePostPage() {
               required
               min={new Date().toISOString().slice(0, 10)}
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate < v)) setEndDate(v); }}
               className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
             />
           </div>
@@ -850,6 +923,9 @@ export default function CreatePostPage() {
           </div>
         </div>
         )}
+        {/* 0611 (NEO, texte dicté par Daniel) — pourquoi les dates sont obligatoires, sous le champ. */}
+        <p data-testid="dates-hint-0611" className="mt-2 text-xs leading-snug text-[#6E4F48]">{dr(lang, "hint")}</p>
+        </div>
 
         {/* 620 — visites par jour (visite à domicile) + estimation (même calcul que l'app). */}
         {catalog && service === "home_visit" && (
@@ -859,9 +935,9 @@ export default function CreatePostPage() {
           <EstimateLine620
             lang={lang}
             service={service}
-            dateMode={dateMode}
+            dateMode={isWalk ? "exact" : mode620}
             startDate={startDate}
-            endDate={endDate}
+            endDate={isWalk ? startDate : endDate}
             visitsPerDay={visitsPerDay}
             venue={needsVenue ? venue : null}
             services={catalog}

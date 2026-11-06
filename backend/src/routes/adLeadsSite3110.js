@@ -8,8 +8,9 @@
  * stats admin) ne le compte jamais dans la dépense pub.
  *
  * Entrée : { email, firstName, service: garde|promenade|visites, animal: chien|chat|autre,
- *            postalCode, city?, country: FR|US|…, lang: fr|en, startDate?, endDate? (AAAA-MM-JJ, sinon
- *            « dates à prévoir »), visitsPerDay?, lieu?: at_owner|at_sitter, campaign?, page?,
+ *            postalCode, city?, country: FR|US|…, lang: fr|en, startDate, endDate (AAAA-MM-JJ, OBLIGATOIRES
+ *            depuis le 06/11 — NEO, ordre de Daniel : 400 DATES_REQUIRED / DATES_INVALID ; coupe-circuit
+ *            SITE_DATES_REQUIRED_0611=off → « dates à prévoir » comme avant), visitsPerDay?, lieu?: at_owner|at_sitter, campaign?, page?,
  *            website (champ piège : doit rester vide) }
  * Garde-fous : limiteur par IP (sensitiveLimiter, monté sur /ad-leads) + par e-mail (3 / 10 min),
  * champ piège, e-mail valide, jamais +test / staff, dédoublonnage par e-mail (contact déjà publié et
@@ -79,6 +80,34 @@ async function geocodePostal(code, country) {
 }
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+/** « 2026-11-20 » est-il un vrai jour du calendrier ? */
+function isRealDay(d) {
+  if (!DAY_RE.test(String(d || ''))) return false;
+  const [y, m, dd] = String(d).split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, dd));
+  return !Number.isNaN(dt.getTime()) && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === dd;
+}
+/**
+ * 06/11/2026 (NEO, ordre de Daniel « dates obligatoires ») — mesure de FLO (14 j) : 19 demandes sur 45 avec
+ * candidats étaient « dates à prévoir » → aucun prix total, jamais de bouton « Payer » (409 DATES_REQUIRED),
+ * 0 paiement. Toute NOUVELLE demande du site porte des dates : début et fin (AAAA-MM-JJ, fin = début si absente),
+ * jamais avant hier (fuseaux), début ≤ fin. Renvoie null si tout va bien, sinon { status, body } (message traduit).
+ * Coupe-circuit : SITE_DATES_REQUIRED_0611=off remet le comportement d'avant (« à prévoir »).
+ */
+const DATES_MSG = {
+  required: { fr: 'Indique les dates de début et de fin : les gardiens en ont besoin pour répondre.', en: 'Enter the start and end dates: sitters need them to reply.' },
+  order: { fr: 'La fin doit être après le début.', en: 'The end must be after the start.' },
+};
+function datesRequired0611(b, lang) {
+  if (String(process.env.SITE_DATES_REQUIRED_0611 || '').toLowerCase() === 'off') return null;
+  const start = String(b.startDate || '').trim();
+  const end = String(b.endDate || start).trim();
+  const l = lang === 'en' ? 'en' : 'fr';
+  if (!isRealDay(start) || !isRealDay(end)) return { status: 400, body: { error: DATES_MSG.required[l], code: 'DATES_REQUIRED' } };
+  const yesterday = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
+  if (start < yesterday || end < start) return { status: 400, body: { error: DATES_MSG.order[l], code: 'DATES_INVALID' } };
+  return null;
+}
 function textDate(d, lang) {
   // adLeadDates2310 lit startText/endText écrits « à la main » : on lui donne un format sûr (JJ/MM/AAAA ou MM/DD/YYYY).
   if (!DAY_RE.test(String(d || ''))) return '';
@@ -101,6 +130,9 @@ router.post('/site', async (req, res) => {
     if (!service) return res.status(400).json({ error: 'SERVICE_REQUIRED', code: 'SERVICE_REQUIRED' });
     const country = String(b.country || 'FR').trim().toUpperCase().slice(0, 2);
     const lang = b.lang === 'en' ? 'en' : 'fr';
+    // 0611 (NEO, ordre de Daniel) — DATES OBLIGATOIRES avant tout le reste (rien créé, aucun e-mail).
+    const datesErr = datesRequired0611(b, lang);
+    if (datesErr) return res.status(datesErr.status).json(datesErr.body);
     const postalCode = String(b.postalCode || '').trim().slice(0, 12);
     const cityIn = String(b.city || '').trim().slice(0, 80);
     if (!postalCode && !cityIn) return res.status(400).json({ error: 'PLACE_REQUIRED', code: 'PLACE_REQUIRED' });
@@ -220,3 +252,4 @@ router.post('/site', async (req, res) => {
 
 module.exports = router;
 module.exports._resetForTest = () => { recent.clear(); geoCache.clear(); };
+module.exports.datesRequired0611 = datesRequired0611; // 0611 — testable à part

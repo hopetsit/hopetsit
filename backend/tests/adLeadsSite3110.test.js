@@ -31,9 +31,11 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 let mongo; let app; let Owner; let Post; let AdLead;
 const ADMIN = { 'x-test-user': String(new mongoose.Types.ObjectId()), 'x-test-role': 'admin' };
 const ZONE = { lat: -35, lng: -30 };
+/** J+n en AAAA-MM-JJ (0611 : les dates sont obligatoires et jamais dans le passé). */
+const D = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const BASE = {
   email: 'camille.site3110@example.test', firstName: 'Camille', service: 'garde', animal: 'chien',
-  city: 'Zone test', lat: -35, lng: -30, country: 'FR', lang: 'fr', startDate: '2026-11-20', endDate: '2026-11-23',
+  city: 'Zone test', lat: -35, lng: -30, country: 'FR', lang: 'fr', startDate: D(14), endDate: D(17),
   campaign: 'paris_owners', page: '/garde-animaux/paris',
 };
 const post = (body) => request(app).post('/ad-leads/site').send(body);
@@ -97,8 +99,8 @@ test('création : compte propriétaire NON vérifié, BROUILLON (202), rien publ
   expect(p.status).toBe('open');
   expect(p.serviceTypes).toEqual(['house_sitting']);
   expect(p.location && p.location.city).toBe('Zone test');
-  expect(new Date(p.startDate).toISOString().slice(0, 10)).toBe('2026-11-20');
-  expect(new Date(p.endDate).toISOString().slice(0, 10)).toBe('2026-11-23');
+  expect(new Date(p.startDate).toISOString().slice(0, 10)).toBe(D(14));
+  expect(new Date(p.endDate).toISOString().slice(0, 10)).toBe(D(17));
   expect(MAILS.filter((m) => m.to === BASE.email)).toHaveLength(1);
 });
 
@@ -168,17 +170,59 @@ test('limiteur par e-mail : au-delà de 3 envois en 10 min → 429', async () =>
   expect(r.body.code).toBe('TOO_MANY');
 });
 
-test('sans dates → demande « dates à prévoir » ; promenade / visites → bons services ; EN New York → anglais', async () => {
-  const a0 = await post({ ...BASE, email: 'tbd.site3110@example.test', startDate: '', endDate: '', service: 'promenade' }).expect(202);
+test('0611 (NEO, ordre de Daniel) : SANS dates → 400 DATES_REQUIRED (message traduit fr/en), rien créé, aucun e-mail ; fin avant début → 400 DATES_INVALID ; date illisible → 400', async () => {
+  const mailsBefore = MAILS.length;
+  const r1 = await post({ ...BASE, email: 'tbd.site3110@example.test', startDate: '', endDate: '', service: 'promenade' }).expect(400);
+  expect(r1.body.code).toBe('DATES_REQUIRED');
+  expect(r1.body.error).toBe('Indique les dates de début et de fin : les gardiens en ont besoin pour répondre.');
+  const r1en = await post({ ...BASE, email: 'tbd.site3110@example.test', startDate: '', endDate: '', lang: 'en', country: 'US' }).expect(400);
+  expect(r1en.body.error).toBe('Enter the start and end dates: sitters need them to reply.');
+  const r2 = await post({ ...BASE, email: 'tbd.site3110@example.test', startDate: D(17), endDate: D(14) }).expect(400);
+  expect(r2.body.code).toBe('DATES_INVALID');
+  const r3 = await post({ ...BASE, email: 'tbd.site3110@example.test', startDate: '20/11/2026', endDate: '23/11/2026' }).expect(400);
+  expect(r3.body.code).toBe('DATES_REQUIRED');
+  const r4 = await post({ ...BASE, email: 'tbd.site3110@example.test', startDate: '2026-02-30', endDate: '2026-02-30' }).expect(400);
+  expect(r4.body.code).toBe('DATES_REQUIRED');
+  const r5 = await post({ ...BASE, email: 'tbd.site3110@example.test', startDate: '2020-01-01', endDate: '2020-01-02' }).expect(400);
+  expect(r5.body.code).toBe('DATES_INVALID');
+  expect(await AdLead.countDocuments({ email: 'tbd.site3110@example.test' })).toBe(0);
+  expect(await Owner.countDocuments({ email: 'tbd.site3110@example.test' })).toBe(0);
+  expect(MAILS.length).toBe(mailsBefore);
+});
+
+test('0611 : fin absente → fin = début (un seul jour) ; coupe-circuit SITE_DATES_REQUIRED_0611=off → « dates à prévoir » comme avant', async () => {
+  const far = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
+  const a0 = await post({ ...BASE, email: 'unjour.site3110@example.test', startDate: far, endDate: '' }).expect(202);
+  const a = await confirm(a0.body.id);
+  const pa = await Post.findById(a.postId).lean();
+  expect(pa.dateMode).not.toBe('tbd');
+  expect(new Date(pa.startDate).toISOString().slice(0, 10)).toBe(far);
+  expect(new Date(pa.endDate).toISOString().slice(0, 10)).toBe(far);
+  process.env.SITE_DATES_REQUIRED_0611 = 'off';
+  try {
+    const b0 = await post({ ...BASE, email: 'coupe.site3110@example.test', startDate: '', endDate: '' }).expect(202);
+    const b = await confirm(b0.body.id);
+    const pb = await Post.findById(b.postId).lean();
+    expect(pb.dateMode).toBe('tbd');
+  } finally {
+    delete process.env.SITE_DATES_REQUIRED_0611;
+  }
+});
+
+test('avec dates : promenade / visites → bons services, dates précises (jamais « à prévoir ») ; EN New York → anglais', async () => {
+  const a0 = await post({ ...BASE, email: 'walk.site3110@example.test', service: 'promenade' }).expect(202);
   const a = { body: await confirm(a0.body.id) };
   const pa = await Post.findById(a.body.postId).lean();
-  expect(pa.dateMode).toBe('tbd');
+  expect(pa.dateMode).not.toBe('tbd');
+  expect(new Date(pa.startDate).toISOString().slice(0, 10)).toBe(D(14));
+  expect(new Date(pa.endDate).toISOString().slice(0, 10)).toBe(D(17));
   expect(pa.serviceTypes).toEqual(['dog_walking']);
   const b0 = await post({ ...BASE, email: 'ny.site3110@example.test', service: 'visites', visitsPerDay: 2, country: 'US', lang: 'en', city: 'Zone test', campaign: 'nyc_owners', page: '/pet-sitting/new-york' }).expect(202);
   const b = { body: await confirm(b0.body.id) };
   const pb = await Post.findById(b.body.postId).lean();
   expect(pb.serviceTypes).toEqual(['home_visit']);
   expect(pb.visitsPerDay).toBe(2);
+  expect(pb.dateMode).not.toBe('tbd');
   const ob = await Owner.findOne({ email: 'ny.site3110@example.test' }).lean();
   expect(ob.currency).toBe('USD');
   const m = MAILS.find((x) => x.to === 'ny.site3110@example.test');
