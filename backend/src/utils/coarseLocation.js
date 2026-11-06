@@ -64,6 +64,37 @@ function coarsenLocation(location, idStr, isSelf) {
 
 
 /**
+ * 0611 (BOB) — ANNEAU AUTOUR D'UN CENTRE-VILLE. Rayon 0,3 à 1 km et angle tirés
+ * d'un hash stable de l'identifiant : deux membres « au centre de Paris » ne
+ * tombent plus au même endroit, et le point reste dans l'imprécision annoncée
+ * (WORLD_APPROX_KM). Renvoie [lng, lat].
+ */
+const SPREAD_MIN_KM = 0.3;
+const SPREAD_MAX_KM = 1.0;
+function spreadAroundCenter(lat, lng, idStr) {
+  const [a, b] = jitterKm(`${idStr}|ring`); // deux uniformes dans [-0,2 ; 0,2]
+  const u1 = a / 0.4 + 0.5;
+  const u2 = b / 0.4 + 0.5;
+  const r = SPREAD_MIN_KM + (SPREAD_MAX_KM - SPREAD_MIN_KM) * u1;
+  const theta = 2 * Math.PI * u2;
+  const cosLat = Math.max(0.05, Math.cos((lat * Math.PI) / 180));
+  const outLat = lat + (r * Math.sin(theta)) / KM_PER_DEG_LAT;
+  const outLng = lng + (r * Math.cos(theta)) / (KM_PER_DEG_LAT * cosLat);
+  return [Math.round(outLng * 1e5) / 1e5, Math.round(outLat * 1e5) / 1e5];
+}
+
+/**
+ * 0611 — position « bidon » de l'émulateur Android (Googleplex, Mountain View) :
+ * 19 profils en base, dont 14 déclarés à Paris, y étaient posés. Pour un profil
+ * dont la ville n'est pas Mountain View, cette position ne vaut rien.
+ */
+function isEmulatorDefault(lat, lng, city) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  if (Math.abs(lat - 37.422) > 0.01 || Math.abs(lng + 122.084) > 0.01) return false;
+  return !/mountain\s*view/i.test(String(city || ''));
+}
+
+/**
  * v585 (25/09) — Daniel : « regarde, il est dans l'eau ». Un point flouté
  * pouvait tomber en mer (membre sur la côte : l'arrondi à 1 km + le décalage
  * partaient au large). Quand on connaît le centre de la ville du membre
@@ -80,7 +111,6 @@ function blurTowardAnchor(lat, lng, idStr, anchor) {
   const cosLat = Math.max(0.05, Math.cos((lat * Math.PI) / 180));
   const toKm = (dLat, dLng) => [dLat * KM_PER_DEG_LAT, dLng * KM_PER_DEG_LAT * cosLat];
   const [kx, ky] = jitterKm(String(idStr || ''));
-  const small = (v) => v * 0.25; // ±0,05 km : ne sert qu'à ne pas empiler
   const [dyC, dxC] = toKm(anchor.lat - lat, anchor.lng - lng);
   const distCenter = Math.hypot(dyC, dxC);
   // Loin de toute ville connue (> 30 km) : l'ancre ne veut rien dire ici.
@@ -88,8 +118,11 @@ function blurTowardAnchor(lat, lng, idStr, anchor) {
   let outLat;
   let outLng;
   if (distCenter <= 1) {
-    outLat = anchor.lat + small(ky) / KM_PER_DEG_LAT;
-    outLng = anchor.lng + small(kx) / (KM_PER_DEG_LAT * cosLat);
+    // 0611 (BOB) — Daniel : « 29 profils à cet endroit, à Paris aussi ». Les
+    // profils posés au CENTRE-VILLE (position tirée de la ville, 616) se
+    // retrouvaient tous à ±50 m du même point : la carte les empilait. Anneau
+    // déterministe autour du centre (0,3 à 1 km) : toujours flou, jamais empilé.
+    return spreadAroundCenter(anchor.lat, anchor.lng, idStr);
   } else {
     const stepLat = WORLD_APPROX_KM / KM_PER_DEG_LAT;
     const stepLng = WORLD_APPROX_KM / (KM_PER_DEG_LAT * cosLat);
@@ -99,10 +132,12 @@ function blurTowardAnchor(lat, lng, idStr, anchor) {
     const d = Math.hypot(dy, dx);
     const move = Math.min(0.8, d);
     const f = d > 0 ? move / d : 0;
-    outLat = gLat + (dy * f + small(ky)) / KM_PER_DEG_LAT;
-    outLng = gLng + (dx * f + small(kx)) / (KM_PER_DEG_LAT * cosLat);
+    // 0611 — décalage plein (±0,2 km, comme blurLngLat) : plusieurs membres du
+    // même nœud de grille ne se superposent plus (±0,05 km les empilait).
+    outLat = gLat + (dy * f + ky) / KM_PER_DEG_LAT;
+    outLng = gLng + (dx * f + kx) / (KM_PER_DEG_LAT * cosLat);
   }
   return [Math.round(outLng * 1e5) / 1e5, Math.round(outLat * 1e5) / 1e5];
 }
 
-module.exports = { WORLD_APPROX_KM, KM_PER_DEG_LAT, jitterKm, blurLngLat, blurTowardAnchor, coarsenLocation };
+module.exports = { WORLD_APPROX_KM, KM_PER_DEG_LAT, jitterKm, blurLngLat, blurTowardAnchor, coarsenLocation, spreadAroundCenter, isEmulatorDefault, SPREAD_MIN_KM, SPREAD_MAX_KM };

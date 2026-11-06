@@ -414,7 +414,7 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       'boostExpiry kycStatus identityVerification.status availableDates ' +
       'unavailableDates availableTimeSlots availableDays '
       // v585 — position de profil + fraîcheur (utils/personMapPosition.js).
-      + '+homeLocation city updatedAt createdAt '
+      + '+homeLocation +positionFromCity city updatedAt createdAt '
       // v604 (PAM) — Daniel : « vérifie que les doubles et triples bulles
       // s'affichent avec les prix ». Cette couche (membres abonnés proches)
       // PRIME sur la couche monde et ne renvoyait AUCUN tarif : un gardien +
@@ -545,6 +545,17 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
       const { d, role } = pos.entry;
       const idStr = String(d._id);
       const ids = entries.map((e) => String(e.d._id));
+      // 0611 (BOB) — position tirée de la VILLE (centre-ville, 616) : anneau
+      // déterministe autour du centre, comme la couche monde, sinon tous les
+      // abonnés « Paris » sans adresse s'empilent au même point.
+      const fromCity = pos.source === 'city' || entries.some((e) => {
+        const c = e.d.positionFromCity && e.d.positionFromCity.coordinates;
+        return Array.isArray(c) && c.length >= 2
+          && Math.abs(Number(c[0]) - pos.coordinates[0]) < 1e-6 && Math.abs(Number(c[1]) - pos.coordinates[1]) < 1e-6;
+      });
+      const shownCoords = fromCity
+        ? require('../utils/coarseLocation').spreadAroundCenter(pos.coordinates[1], pos.coordinates[0], idStr)
+        : pos.coordinates;
       const anyStaff = flags.some((f) => f.staff);
       const ordered = [pos.entry, ...entries.filter((e) => e !== pos.entry)];
       members.push({
@@ -572,7 +583,8 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
           : require('../utils/publicName2809').publicNameFields(d).name,
         avatar: avatarUrl(d.avatar) || avatarUrl(d.profilePicture)
           || entries.map((e) => avatarUrl(e.d.avatar) || avatarUrl(e.d.profilePicture)).find(Boolean) || '',
-        location: { coordinates: pos.coordinates },
+        location: { coordinates: shownCoords },
+        ...(fromCity ? { approx: true, approxKm: WORLD_APPROX_KM } : {}),
         positionSource: pos.source,
         // couronne 👑 si Premium/staff ; anneau/halo rose pour tous les membres.
         isPremium: flags.some((f) => f.premiumSub) || anyStaff,

@@ -195,9 +195,38 @@ describe('floutage tiré vers le centre-ville (« il est dans l\'eau »)', () =>
     expect(anch).not.toEqual([coast.lng, coast.lat]);
     expect(kmBetween(anch, [coast.lng, coast.lat])).toBeLessThan(1.5);
   });
-  test('à moins de 1 km du centre : le centre-ville lui-même', () => {
-    const r = blurTowardAnchor(-35.004, -30.003, 'x', { lat: -35.0, lng: -30.0 });
-    expect(kmBetween(r, [-30.0, -35.0])).toBeLessThan(0.1);
+  test('0611 — à moins de 1 km du centre : un anneau autour du centre-ville, jamais empilé', () => {
+    const center = { lat: -35.0, lng: -30.0 };
+    const pts = [];
+    for (let i = 0; i < 29; i += 1) pts.push(blurTowardAnchor(-35.004, -30.003, `id${i}`, center));
+    for (const r of pts) {
+      const d = kmBetween(r, [-30.0, -35.0]);
+      expect(d).toBeGreaterThanOrEqual(0.29);
+      expect(d).toBeLessThanOrEqual(1.01);
+    }
+    // Deux membres au même centre ne se superposent pas (règle « empilé » = 40 m).
+    let far = 0;
+    for (let i = 0; i < pts.length; i += 1) for (let j = i + 1; j < pts.length; j += 1) far = Math.max(far, kmBetween(pts[i], pts[j]));
+    expect(far).toBeGreaterThan(0.5);
+    // Déterministe.
+    expect(blurTowardAnchor(-35.004, -30.003, 'id1', center)).toEqual(pts[1]);
+  });
+  test('0611 — même nœud de grille, loin du centre : décalage plein ±0,2 km, pas ±0,05', () => {
+    const center = { lat: -35.0, lng: -30.0 };
+    const a = blurTowardAnchor(-35.03, -30.06, '6aedee1e9fc7154299569403', center);
+    const b = blurTowardAnchor(-35.03, -30.06, '6aededc69fc7154299568b29', center);
+    expect(kmBetween(a, b)).toBeGreaterThan(0.04);
+  });
+  test('0611 — Googleplex (émulateur Android) pour un profil « Paris » = pas de position de profil', () => {
+    const { isEmulatorDefault } = require('../src/utils/coarseLocation');
+    expect(isEmulatorDefault(37.422, -122.08406, 'Paris')).toBe(true);
+    expect(isEmulatorDefault(37.422, -122.08406, 'Mountain View')).toBe(false);
+    expect(isEmulatorDefault(48.85, 2.35, 'Paris')).toBe(false);
+    const doc = { _id: 'e1', city: 'Paris', updatedAt: new Date(), homeLocation: { coordinates: [-122.08406, 37.422], at: new Date() } };
+    expect(P.homeOf(doc)).toBeNull();
+    const pos = P.pickPersonPosition([{ d: doc, role: 'owner' }], { cityAnchor: (c) => (c === 'Paris' ? { lat: 48.8566, lng: 2.3522 } : null) });
+    expect(pos.source).toBe('city');
+    expect(kmBetween(pos.coordinates, [2.3522, 48.8566])).toBeLessThan(0.01);
   });
 });
 

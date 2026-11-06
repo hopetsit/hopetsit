@@ -50,7 +50,11 @@ function isLiveNow(doc, now = new Date()) {
 function homeOf(doc) {
   if (!doc) return null;
   const h = doc.homeLocation;
-  if (h && validLngLat(h.coordinates)) {
+  // 0611 — Googleplex (défaut de l'émulateur Android) pour un profil « Paris » :
+  // pas une position de profil → centre de sa ville.
+  const { isEmulatorDefault } = require('./coarseLocation');
+  const bogus = (c) => validLngLat(c) && isEmulatorDefault(Number(c[1]), Number(c[0]), cityOf(doc));
+  if (h && validLngLat(h.coordinates) && !bogus(h.coordinates)) {
     return {
       coordinates: [Number(h.coordinates[0]), Number(h.coordinates[1])],
       city: h.city || (doc.location && doc.location.city) || doc.city || '',
@@ -60,7 +64,7 @@ function homeOf(doc) {
   const loc = doc.location;
   // Comptes antérieurs à v585 : un `location` sans `updatedAt` n'a jamais été
   // écrit par un partage — c'est celui du formulaire.
-  if (loc && validLngLat(loc.coordinates) && !loc.updatedAt) {
+  if (loc && validLngLat(loc.coordinates) && !loc.updatedAt && !bogus(loc.coordinates)) {
     return {
       coordinates: [Number(loc.coordinates[0]), Number(loc.coordinates[1])],
       city: loc.city || doc.city || '',
@@ -151,7 +155,9 @@ function pickPersonPosition(entries, { now = new Date(), cityAnchor = null } = {
     }
   }
 
-  const last = list.filter((e) => e.d.location && validLngLat(e.d.location.coordinates))
+  const { isEmulatorDefault } = require('./coarseLocation');
+  const last = list.filter((e) => e.d.location && validLngLat(e.d.location.coordinates)
+    && !isEmulatorDefault(Number(e.d.location.coordinates[1]), Number(e.d.location.coordinates[0]), cityOf(e.d)))
     .sort((a, b) => _t(b.d.location.updatedAt) - _t(a.d.location.updatedAt));
   if (last.length) {
     return { entry: last[0], coordinates: last[0].d.location.coordinates.map(Number), source: 'last', city: cityOf(last[0].d) };
