@@ -11,6 +11,7 @@ import { CityBreadcrumb, CityLinks } from "@/components/CityLinks";
 import OwnerPageEngagement from "@/components/OwnerPageEngagement";
 import UsLocalGuide, { usFaq, usGuide } from "@/components/UsLocalGuide";
 import CityDistricts3110 from "@/components/CityDistricts3110";
+import FrOwnerBlocks0711 from "@/components/FrOwnerBlocks0711";
 import type { RecruitCity, RecruitLang } from "@/lib/recruit-cities";
 import { cityMedian } from "@/lib/recruit-cities";
 
@@ -609,6 +610,9 @@ export default function OwnerCityPage({
 
       {/* 01/10 (SAM) — guide local réel (New York, San Francisco, Dallas). */}
       <UsLocalGuide slug={city.slug} lang={city.lang} name={city.name} mode="owner" />
+
+      {/* 07/11 (GUS) — blocs « Garde de chat / Garde de chien à <ville> » sur les pages FR hors Paris. */}
+      {city.lang === "fr" && !paris && <FrOwnerBlocks0711 city={city} />}
 
       {/* 31/10 (GUS) — quartiers réels (OSM) des pages piliers New York / Séoul / Tokyo. */}
       <CityDistricts3110 slug={city.slug} lang={city.lang} name={city.name} />
