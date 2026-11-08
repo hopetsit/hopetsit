@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:developer';
 
 import 'package:get/get.dart';
@@ -9,6 +10,7 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
+import 'package:hopetsit/services/meta_events_636.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/airwallex_error_translator.dart';
@@ -328,6 +330,16 @@ class AirwallexPaymentController extends GetxController {
       AppLogger.logUserAction(
         'Payment Confirmed',
         data: {'bookingId': booking.id, 'paymentIntentId': paymentIntentId},
+      );
+      // 636 — réservation PAYÉE côté propriétaire → Meta `fb_mobile_purchase`
+      // (montant + devise, pour l'optimisation ROAS). Non bloquant.
+      unawaited(
+        MetaEvents636.instance.logBookingPaid(
+          amount: totalAmount,
+          currency: currency,
+          bookingId: booking.id,
+          paymentIntentId: paymentIntentId,
+        ),
       );
 
       // v23.1 part 24 — fix Daniel : après confirmPayment, recharger

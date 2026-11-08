@@ -139,7 +139,9 @@ class MetaEventsService {
     final allowed =
         adTrackingAllowed(isIOS: Platform.isIOS, status: status);
     try {
-      await _fb.setAdvertiserTracking(enabled: allowed, collectId: allowed);
+      // 636 — SDK v19 : setAdvertiserTracking est déprécié (iOS lit lui-même la
+      // réponse ATT) ; seule la collecte de l'identifiant publicitaire se règle.
+      await _fb.setAdvertiserIdCollectionEnabled(allowed);
       await _fb.setAutoLogAppEventsEnabled(allowed);
     } catch (e) {
       debugPrint('MetaEventsService._applyTracking error: $e');

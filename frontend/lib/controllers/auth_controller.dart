@@ -19,7 +19,7 @@ import 'package:hopetsit/services/firebase_analytics_service.dart';
 // v532 — nécessaire pour couper le suivi GPS en direct au logout.
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/services/live_tracking_bg.dart';
-import 'package:hopetsit/services/meta_events_service.dart';
+import 'package:hopetsit/services/meta_events_636.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -730,7 +730,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         if (!existingUser) {
           // v529 — signale l'inscription à Meta (optimisation campagnes install).
           unawaited(
-            MetaEventsService.instance.logCompletedRegistration(method: 'google'),
+            MetaEvents636.instance.logRegistrationCompleted(method: 'google'),
           );
           // v532 — même signal vers Google Ads via Firebase Analytics, pour que
           // l'algo optimise sur les inscriptions réelles et non sur les installs.
@@ -1098,7 +1098,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         if (!existingUser) {
           // v529 — signale l'inscription à Meta (optimisation campagnes install).
           unawaited(
-            MetaEventsService.instance.logCompletedRegistration(method: 'apple'),
+            MetaEvents636.instance.logRegistrationCompleted(method: 'apple'),
           );
           // v532 — même signal vers Google Ads via Firebase Analytics, pour que
           // l'algo optimise sur les inscriptions réelles et non sur les installs.

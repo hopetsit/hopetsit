@@ -37,6 +37,7 @@ import 'package:hopetsit/utils/paw_menu_theme.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/services/firebase_analytics_service.dart';
+import 'package:hopetsit/services/meta_events_636.dart';
 import 'package:hopetsit/services/meta_events_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
@@ -211,6 +212,9 @@ void main() async {
     // in-app (sign_up). Sans lui, Google n'optimise que sur le volume d'installs.
     await FirebaseAnalyticsService.instance.init();
     await MetaEventsService.instance.init();
+    // 636 — activation Meta de cette session (iOS seulement, si ATT autorisé ;
+    // Android : journal automatique du SDK).
+    unawaited(MetaEvents636.instance.logActivateApp());
     // ignore: discarded_futures
     MetaEventsService.instance.requestTrackingAfterEntry();
   });

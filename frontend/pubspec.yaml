@@ -1,7 +1,7 @@
 name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 23.1.598+631
+version: 23.1.601+636
 
 environment:
   sdk: ^3.9.2
@@ -124,7 +124,7 @@ dependencies:
   # que le detour Trafic->site). App Meta ID 27796356886626061. init dans
   # main.dart. iOS exige le consentement ATT avant le tracking pub -> couple
   # avec app_tracking_transparency (popup Apple obligatoire).
-  facebook_app_events: ^0.20.1
+  facebook_app_events: ^0.32.0
   app_tracking_transparency: ^2.0.6
   firebase_analytics: ^12.4.6
   record: ^6.2.1

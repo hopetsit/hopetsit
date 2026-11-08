@@ -216,6 +216,87 @@ class DeepLinkService {
     return (id: id, choose: uri.queryParameters['choose'] == '1');
   }
 
+  /// 636 — jeton signé `k=` d'un lien candidature (`/application/<id>?k=…`,
+  /// format serveur `base64url.base64url`, cf. utils/applicationLink3110).
+  /// `null` si le lien ne vise pas une candidature ou si `k` est absent /
+  /// mal formé. Pure.
+  static String? applicationLinkToken636(Uri uri) {
+    if (applicationTarget627(uri) == null) return null;
+    final k = uri.queryParameters['k']?.trim() ?? '';
+    if (k.isEmpty || k.length > 2048) return null;
+    if (!RegExp(r'^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+$').hasMatch(k)) return null;
+    return k;
+  }
+
+  /// 636 — le même lien sans son jeton `k` (il est à usage serveur ; la route
+  /// mémorisée et rejouée après la session garde `choose`). Pure.
+  static Uri withoutLinkToken636(Uri uri) {
+    if (!uri.queryParameters.containsKey('k')) return uri;
+    final q = Map<String, String>.from(uri.queryParameters)..remove('k');
+    return uri.replace(queryParameters: q.isEmpty ? null : q);
+  }
+
+  /// 636 — route mémorisée (lien reçu sans session) à viser dans l'e-mail
+  /// « ton lien » (POST /auth/owner-link `next`) : seulement /application/…
+  /// ou /posts…, sinon `/posts`.
+  static String pendingRouteForOwnerLink636() {
+    String? route;
+    try {
+      route = GetStorage().read(_pendingRouteKey) as String?;
+    } catch (_) {
+      route = null;
+    }
+    return ownerLinkNext636(route);
+  }
+
+  /// 636 — `next` accepté par le serveur : /application/… ou /posts…. Pure.
+  static String ownerLinkNext636(String? route) {
+    final r = (route ?? '').trim();
+    if (r.startsWith('/application/') || r.startsWith('/posts')) return r;
+    return '/posts';
+  }
+
+  /// 636 — ouvre la session depuis un lien `k=` (compte sans mot de passe).
+  /// La route (sans `k`) est mémorisée D'ABORD : après la session,
+  /// `replayPendingRoute` ouvre la candidature avec `choose` ; si le serveur
+  /// refuse (401 LINK_INVALID…), l'écran de connexion s'affiche et la route
+  /// attend la connexion — exactement le comportement d'avant.
+  Future<void> _openSessionFromApplicationLink636(Uri uri, String token) async {
+    final t = applicationTarget627(uri);
+    if (t == null) return;
+    _rememberPendingRoute(withoutLinkToken636(uri));
+    try {
+      if (!Get.isRegistered<ApiClient>() || !Get.isRegistered<AuthController>()) {
+        AppLogger.logWarning('DeepLink k= : ApiClient/AuthController absents → connexion.');
+        return;
+      }
+      final response = await Get.find<ApiClient>().post(
+        '/auth/application-link',
+        body: <String, dynamic>{'token': token, 'applicationId': t.id},
+      );
+      if (response is! Map) {
+        AppLogger.logWarning('DeepLink k= : réponse inattendue → connexion.');
+        return;
+      }
+      final ok = await Get.find<AuthController>()
+          .applyExchangedSession(Map<String, dynamic>.from(response));
+      if (!ok) {
+        AppLogger.logWarning('DeepLink k= : session non appliquée → connexion.');
+        return;
+      }
+      AppLogger.logInfo('DeepLink k= : session ouverte par lien signé, candidature ${t.id}.');
+      // Déjà déclenché par l'enregistrement du profil ; sans effet si la route
+      // a été consommée (la clé est retirée au premier passage).
+      unawaited(replayPendingRoute());
+    } on ApiException catch (e) {
+      AppLogger.logWarning(
+        'DeepLink k= refusé (${e.statusCode}) → écran de connexion, route mémorisée.',
+      );
+    } catch (e) {
+      AppLogger.logWarning('DeepLink k= : échec $e → écran de connexion, route mémorisée.');
+    }
+  }
+
   /// 627 (PAM) — lien de session sans mot de passe des comptes venus de la
   /// pub (`/posts/confirmer?l=…`) : il appartient au site, jamais à l'app. Pure.
   static bool isLeadConfirmLink627(Uri uri) {
@@ -325,6 +406,17 @@ class DeepLinkService {
     // par le préfixe « /post » et ouvrait l'accueil, la preuve était perdue).
     if (isLeadConfirmLink627(uri)) {
       await _openInBrowser627(uri);
+      return;
+    }
+
+    // 636 (BOB / FLO, 08/11) — lien signé `k=` des e-mails « candidats »
+    // (`/application/<id>?choose=1&k=…`) reçu SANS session : le compte vient
+    // du site (pas de mot de passe). L'AASA ouvre l'app → on ouvre la session
+    // par le serveur (POST /auth/application-link) puis la candidature visée.
+    // Lien invalide → écran de connexion actuel, route mémorisée (inchangé).
+    final k636 = applicationLinkToken636(uri);
+    if (k636 != null && !_hasSession()) {
+      await _openSessionFromApplicationLink636(uri, k636);
       return;
     }
 

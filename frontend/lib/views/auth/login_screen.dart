@@ -16,6 +16,7 @@ import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/micro_anims.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/auth/forgot_flow/forgot_password_email_screen.dart';
+import 'package:hopetsit/views/auth/owner_link636.dart';
 import 'package:hopetsit/views/auth/sign_up_as.dart';
 import 'package:hopetsit/widgets/paw_pattern_background.dart';
 
@@ -410,6 +411,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
+                  ),
+                  SizedBox(height: 12.h),
+
+                  // ── 636 : compte créé par le site (sans mot de passe) →
+                  // lien par e-mail qui ouvre les candidats dans l'app ──
+                  OwnerLinkCard636(
+                    emailOf: () => controller.emailController.text,
+                    muted: mutedColor,
                   ),
                   SizedBox(height: 10.h),
 

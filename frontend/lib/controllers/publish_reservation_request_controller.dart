@@ -16,6 +16,7 @@ import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
+import 'package:hopetsit/services/meta_events_636.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/publish_draft600.dart';
@@ -1403,6 +1404,19 @@ class PublishReservationRequestController extends GetxController {
       _draftReady = false;
       clearPublishDraft600();
       snoozePromoPopup600();
+      // 636 — événement Meta personnalisé `demande_publiee` (pub optimisée sur
+      // les propriétaires qui publient). Non bloquant, sans donnée personnelle.
+      unawaited(
+        MetaEvents636.instance.logDemandePubliee(
+          requestId: createdPostId617(created),
+          serviceType: selectedServiceType.value,
+          city: city,
+          country: ownerCountry,
+          budget: budgetAmount,
+          currency: budgetCurrency,
+          notified: notifiedCount636(created),
+        ),
+      );
 
       // Session v15 — refresh the feeds BEFORE popping the screen so the user
       // lands back on "Mes publications" with the freshly-published request
@@ -1472,6 +1486,17 @@ class PublishReservationRequestController extends GetxController {
   /// 617 (§D.2) — vrai quand le serveur a RÉPONDU « 0 prévenu » (clé
   /// présente, valeur 0) : personne près de chez le propriétaire. Un serveur
   /// muet (clé absente) ne vaut pas zéro.
+  /// 636 — nombre de prestataires prévenus renvoyé par le serveur (`null` si
+  /// absent), même lecture que [nobodyNotified617].
+  static int? notifiedCount636(Map<String, dynamic> res) {
+    Object? v = res['notified'] ?? res['notifiedCount'];
+    if (v == null && res['post'] is Map) {
+      final post = res['post'] as Map;
+      v = post['notified'] ?? post['notifiedCount'];
+    }
+    return v is num ? v.toInt() : null;
+  }
+
   static bool nobodyNotified617(Map<String, dynamic> res) {
     Object? v = res['notified'] ?? res['notifiedCount'];
     if (v == null && res['post'] is Map) {

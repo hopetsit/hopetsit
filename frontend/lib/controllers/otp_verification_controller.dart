@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -7,6 +8,7 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
+import 'package:hopetsit/services/meta_events_636.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/pending_signup_photo.dart';
 import 'package:hopetsit/utils/rate_grid620.dart';
@@ -341,6 +343,11 @@ class OtpVerificationController extends GetxController
       // d'arriver sur l'accueil/profil. Best-effort : ne throw jamais.
       await _uploadPendingSignupPhotoIfAny();
       await pushPendingRateGrid620(); // 620
+      // 636 — inscription TERMINÉE (code e-mail vérifié, jeton reçu) → Meta
+      // `fb_mobile_complete_registration`. Non bloquant.
+      unawaited(
+        MetaEvents636.instance.logRegistrationCompleted(method: 'email'),
+      );
 
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,

@@ -2,35 +2,30 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>HoPetSit</string>
-	<!-- v23.1 part 146 — enregistre le scheme custom `hopetsit://` côté iOS.
-	     Auparavant absent → les liens hopetsit://pay/xxx envoyés dans les
-	     emails ouvraient une page d'erreur Safari sur iPhone. Sur Android
-	     c'était OK grâce à l'intent-filter du manifest. Universal Links
-	     (configuration Associated Domains) sont aussi nécessaires pour
-	     les liens https://hopetsit.com/pay/xxx ; cf Runner.entitlements. -->
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLName</key>
-			<string>com.hopetsit.app.deeplink</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>hopetsit</string>
-			</array>
-		</dict>
-	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>fr</string>
+		<string>es</string>
+		<string>de</string>
+		<string>it</string>
+		<string>pt</string>
+		<string>ko</string>
+		<string>ja</string>
+		<string>pl</string>
+	</array>
 	<key>CFBundleName</key>
 	<string>HoPetSit</string>
 	<key>CFBundlePackageType</key>
@@ -39,10 +34,132 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.cardellihermanos.hopetsit.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>hopetsit</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google-sign-in</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.470089536255-sedqnlp3c54m3jv0g21mcoq7a23i6487</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>facebook-app-events</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fb27796356886626061</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>FacebookAppID</key>
+	<string>27796356886626061</string>
+	<key>FacebookClientToken</key>
+	<string>e049d5910b49cbe5a989073f9979ab7f</string>
+	<key>FacebookDisplayName</key>
+	<string>HoPetSit</string>
+	<key>FacebookAutoLogAppEventsEnabled</key>
+	<false/>
+	<key>FacebookAdvertiserIDCollectionEnabled</key>
+	<false/>
+	<!-- 636 — SDK v19 : pas de collecte du titre d'écran ni des URL entrantes/sortantes
+	     (liens magiques, OAuth) avec les événements. -->
+	<key>FacebookAutoLogMetaDataEnabled</key>
+	<false/>
+	<key>GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_STORAGE</key>
+	<false/>
+	<key>GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_USER_DATA</key>
+	<false/>
+	<key>GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_PERSONALIZATION_SIGNALS</key>
+	<false/>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>fbapi</string>
+		<string>fb-messenger-share-api</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>HoPetSit uses the camera to take pet and profile photos and to verify your identity (ID document and selfie).</string>
+	<key>NSContactsUsageDescription</key>
+	<string>HopeTSIT uses contacts to help you find friends using the app.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>HopeTSIT uses Face ID for secure and fast login.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>HopeTSIT tracks walks in the background so owners can follow their pet in real time.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>HopeTSIT uses your location to show pet sitters near you.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>HopeTSIT uses your location to show pet sitters near you.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>HoPetSit uses the microphone for voice and video messages and for identity verification.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>HopeTSIT needs permission to save photos to your library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HopeTSIT needs access to your photos to upload pet and profile images.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>HoPetSit uses this to measure ad performance and show you more relevant offers.</string>
+	<key>SKAdNetworkItems</key>
+	<array>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>v9wttpbfk9.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>n38lu8286q.skadnetwork</string>
+		</dict>
+	</array>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+		<string>location</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -60,32 +177,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>HopeTSIT uses your location to show pet sitters near you.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>HopeTSIT uses your location to show pet sitters near you.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>HopeTSIT tracks walks in the background so owners can follow their pet in real time.</string>
-		<key>UIBackgroundModes</key>
-		<array>
-			<string>location</string>
-			<string>fetch</string>
-			<string>remote-notification</string>
-		</array>
-	<key>NSCameraUsageDescription</key>
-	<string>HopeTSIT needs camera access to upload pet photos and profile pictures.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>HopeTSIT needs access to your photos to upload pet and profile images.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>HopeTSIT needs permission to save photos to your library.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>HopeTSIT needs microphone access for video messages.</string>
-	<key>NSContactsUsageDescription</key>
-	<string>HopeTSIT uses contacts to help you find friends using the app.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>HopeTSIT uses Face ID for secure and fast login.</string>
-	<key>NSUserTrack
+</dict>
+</plist>

@@ -108,7 +108,10 @@ Future<void> _setRadius(WidgetTester tester, double km) async {
 }
 
 /// « N résultats trouvés » du flux gardien/promeneur.
-Finder _results(int n) => find.text('home_results_found'.trParams({'count': '$n'}));
+// 635 / ZOE 04-11 : singulier « 1 résultat trouvé » (clé home635_results_found_one).
+Finder _results(int n) => find.text(n == 1
+    ? 'home635_results_found_one'.tr
+    : 'home_results_found'.trParams({'count': '$n'}));
 
 String? _shownRadius(WidgetTester tester) {
   // PAM-B 3110 : la valeur est désormais le Text qui porte la clé lui-même
