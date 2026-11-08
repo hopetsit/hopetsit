@@ -30,6 +30,8 @@ const AdLead = require('../models/AdLead2210');
 const Owner = require('../models/Owner');
 
 const router = express.Router();
+// 0811 (NEO, ordre de Daniel 08/11) — code reçu par e-mail tapé sur la page /demande : POST /ad-leads/code/send|check.
+router.use('/code', require('./demandeCode0811'));
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const TEST_RE = /\+test|^hopetsit@|^dadaciao84@|^probe-|@invalid\.example$|staff@hopetsit/i;
 const CITY_ANCHORS = {
@@ -130,6 +132,9 @@ router.post('/site', async (req, res) => {
     if (!service) return res.status(400).json({ error: 'SERVICE_REQUIRED', code: 'SERVICE_REQUIRED' });
     const country = String(b.country || 'FR').trim().toUpperCase().slice(0, 2);
     const lang = b.lang === 'en' ? 'en' : 'fr';
+    // 0811 (NEO, ordre de Daniel 08/11) — page /demande : la preuve de la boîte est un CODE tapé sur la page même
+    // (e-mail « ton code » avec, en filet, le même bouton « Confirmer et publier » qu'aujourd'hui).
+    const codeFlow = b.codeFlow === true || b.codeFlow === 'true';
     // 0611 (NEO, ordre de Daniel) — DATES OBLIGATOIRES avant tout le reste (rien créé, aucun e-mail).
     const datesErr = datesRequired0611(b, lang);
     if (datesErr) return res.status(datesErr.status).json(datesErr.body);
@@ -201,6 +206,13 @@ router.post('/site', async (req, res) => {
         ...([1, 2].includes(Number(b.visitsPerDay)) ? { visitsPerDay: Number(b.visitsPerDay) } : {}),
         ...(() => { const tp = b.targetProvider && typeof b.targetProvider === 'object' ? b.targetProvider : null; const role = tp && String(tp.role || '').toLowerCase(); const id = tp && String(tp.id || ''); return role && ['sitter', 'walker'].includes(role) && /^[a-f0-9]{24}$/i.test(id) ? { targetRole: role, targetId: id } : {}; })(),
       });
+      if (codeFlow) {
+        // 0811 — compte déjà existant : même brouillon, mais l'e-mail porte le code (+ le bouton en filet).
+        const { startCodeFlow } = require('./demandeCode0811');
+        const c = await startCodeFlow(draft);
+        if (c.emailSent) { draft.siteEmailAt = new Date(); await draft.save(); }
+        return res.status(202).json({ id: draft._id, pending: true, existing: false, session: 'email', code: c.emailSent });
+      }
       // 3110 (ADA) — texte « Quelqu'un vient de préparer… » (LEO) servi par le helper commun de adLeads2210.
       try {
         const { sendConfirmEmail } = require('./adLeads2210');
@@ -240,6 +252,13 @@ router.post('/site', async (req, res) => {
     // NOUVEAU compte : plus de publication immédiate. Compte propriétaire NON vérifié + brouillon + e-mail
     // « un clic pour publier ta demande » ; le clic (/ad-leads/:id/confirm) vérifie l'e-mail, publie et
     // prévient les gardiens. Réponse 202 { pending } : le site affiche « vérifie ta boîte mail ».
+    if (codeFlow) {
+      // 0811 — NOUVEAU compte (NON vérifié) + brouillon + e-mail « ton code » (code + bouton) ; rien publié avant le code.
+      const { startCodeFlow } = require('./demandeCode0811');
+      const c = await startCodeFlow(lead);
+      if (c.emailSent) { lead.siteEmailAt = new Date(); await lead.save(); }
+      return res.status(202).json({ id: lead._id, pending: true, existing: false, session: 'email', code: c.emailSent });
+    }
     const { draftLead } = require('./adLeads2210');
     const d = await draftLead(lead, { variant: 'new' });
     if (d.emailSent) { lead.siteEmailAt = new Date(); await lead.save(); }

@@ -79,10 +79,17 @@ const TXT = {
   },
 };
 
-export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", campaign = "paris_owners", page = "/garde-animaux/paris", cityEditable = false }: {
+/** 0811 — ce que la page /demande reçoit quand la demande est enregistrée (avant le code). */
+export type HeroLeadResult0811 = { id: string; email: string; pending: boolean; existing: boolean; postId: string | null; codeSent: boolean; sessionOpened: boolean; notified?: number };
+
+export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", campaign = "paris_owners", page = "/garde-animaux/paris", cityEditable = false, codeFlow = false, onLead }: {
   city: string; lead: string; note: string; lang?: Lang; country?: string; campaign?: string; page?: string;
   /** 31/10 (accueil, décision BOB) — la ville se saisit (Paris / New York proposées par défaut). */
   cityEditable?: boolean;
+  /** 0811 (NEO, ordre de Daniel) — page /demande : l'e-mail porte un code à taper sur la page ; la page parente
+   *  reprend la main après l'envoi (`onLead`) et le formulaire n'affiche pas ses écrans « vérifie ta boîte mail ». */
+  codeFlow?: boolean;
+  onLead?: (r: HeroLeadResult0811) => void;
 }) {
   const t = TXT[lang];
   const [cityValue, setCityValue] = useState(city);
@@ -158,8 +165,14 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
         ...(place ? { lat: place.lat, lng: place.lng } : {}),
         startDate, endDate: isWalk ? startDate : endDate, campaign, page, website,
         ...(target ? { targetProvider: target } : {}),
+        ...(codeFlow ? { codeFlow: true } : {}),
       });
       trackSiteEvent("cta_click", { label: r.pending ? "hero_form_a_confirmer" : r.existing ? "hero_form_deja" : "hero_form_envoye" });
+      if (onLead) {
+        // 0811 — la page /demande affiche le champ « code reçu par e-mail » à la place des écrans ci-dessous.
+        onLead({ id: r.id, email: email.trim(), pending: !!r.pending, existing: r.existing, postId: r.postId ?? null, codeSent: (r as { code?: boolean }).code === true, sessionOpened: r.sessionOpened, notified: r.notified });
+        return;
+      }
       setDone({ notified: r.notified, existing: r.existing, sessionOpened: r.sessionOpened, pending: !!r.pending });
     } catch (e) {
       const code = e instanceof ApiError && e.details && typeof e.details === "object" ? String((e.details as { code?: string }).code || "") : "";

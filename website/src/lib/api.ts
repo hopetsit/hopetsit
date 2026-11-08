@@ -221,6 +221,8 @@ export type SiteLeadInput = {
   targetProvider?: { role: "sitter" | "walker"; id: string };
   /** 31/10 (Daniel) — position choisie sur la carte : décide des gardiens prévenus et de la distance affichée. */
   lat?: number; lng?: number;
+  /** 0811 (NEO, ordre de Daniel) — page /demande : l'e-mail porte un CODE à taper sur la page (publie + vérifie d'un coup). */
+  codeFlow?: boolean;
 };
 export async function publishSiteLead(input: SiteLeadInput) {
   // 31/10 16 h 40 (ZOE) — le serveur ne renvoie un jeton QUE pour un compte créé par cet appel ; un compte
@@ -232,6 +234,20 @@ export async function publishSiteLead(input: SiteLeadInput) {
   );
   if (data.token && data.user) persistAuth(data.token, { ...data.user, role: "owner" });
   return { ...data, sessionOpened: !!(data.token && data.user) };
+}
+
+// 0811 (NEO, ordre de Daniel 08/11) — page /demande : renvoyer le code, puis le vérifier. Le code juste publie la
+// demande (même chemin que le clic de l'e-mail) et ouvre la session comme après une connexion.
+export async function sendDemandeCode0811(id: string) {
+  return request<{ ok: boolean; sent: boolean; retryAfter: number }>("/ad-leads/code/send", { method: "POST", body: JSON.stringify({ id }) });
+}
+export async function checkDemandeCode0811(id: string, code: string) {
+  const data = await request<{ token: string; user: AuthUser; postId: string | null; published: boolean; notified?: number; link?: string }>(
+    "/ad-leads/code/check",
+    { method: "POST", body: JSON.stringify({ id, code }) },
+  );
+  persistAuth(data.token, { ...data.user, role: "owner" });
+  return data;
 }
 
 export async function confirmAdLead(id: string, lieu?: "at_owner" | "at_sitter") {
