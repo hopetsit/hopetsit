@@ -78,7 +78,7 @@ export function loadPixel(): boolean {
   return true;
 }
 
-export type PixelEvent = "PageView" | "Lead" | "ViewContent" | "InitiateCheckout" | "Purchase";
+export type PixelEvent = "PageView" | "Lead" | "ViewContent" | "InitiateCheckout" | "Purchase" | "CompleteRegistration";
 
 /** Envoie un événement standard ; eventId = même valeur que le serveur (dédoublonnage CAPI). */
 export function pixelTrack(name: PixelEvent, params: Record<string, string | number> = {}, eventId?: string) {
@@ -109,7 +109,14 @@ export function pixelFromSiteEvent(type: string, path: string, extra: { label?: 
       return;
     }
     if (type !== "cta_click") return;
-    if (label === "lead_confirme") {
+    // 09/11 (BOB, ordre Daniel « optimiser la pub sur la demande publiée ») — page /demande et /request :
+    // demande_publiee → Lead avec le même eventId que le Lead CAPI serveur (id du contact) = dédoublonné ;
+    // demande_envoyee (formulaire envoyé, code pas encore tapé) → CompleteRegistration.
+    if (label === "demande_publiee") {
+      pixelTrack("Lead", { content_name: "demande_publiee", content_category: "demande_page" }, extra.eventId);
+    } else if (label === "demande_envoyee") {
+      pixelTrack("CompleteRegistration", { content_name: "demande_envoyee" }, extra.eventId);
+    } else if (label === "lead_confirme") {
       pixelTrack("Lead", { content_name: "demande_publiee" }, extra.eventId || leadIdFromUrl());
     } else if (label === "cand_choisir_payer") {
       pixelTrack("InitiateCheckout", { content_name: "choisir_payer" }, extra.eventId || idFromPath(path));

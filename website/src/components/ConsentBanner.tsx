@@ -22,6 +22,7 @@ import { usePathname } from "next/navigation";
 /** Pages d'action : rien ne doit se poser par-dessus le bouton qui compte. */
 const PAGES_SANS_BANDEAU = [
   "/posts/merci", "/posts/confirmer", "/posts/create", "/post", "/application",
+  "/demande", "/request", // 09/11 (BOB) : pages de pub — le bandeau recouvrait le titre à 375 px ; le Lead CAPI serveur suffit
   "/pay", "/book", "/bookings", "/checkout", "/login", "/signup", "/verify-email",
 ];
 import { CONSENT_EVENT, readConsent, writeConsent } from "@/lib/metaPixel0611";

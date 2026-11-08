@@ -86,7 +86,7 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
   }
 
   function onLead(r: HeroLeadResult0811) {
-    trackSiteEvent("cta_click", { label: "demande_envoyee" });
+    trackSiteEvent("cta_click", { label: "demande_envoyee", eventId: r.id });
     setLead(r);
     setCode("");
     setErr("");
@@ -117,7 +117,7 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
     try {
       const r = await checkDemandeCode0811(lead.id, c);
       trackSiteEvent("cta_click", { label: "demande_code_ok" });
-      if (r.published) trackSiteEvent("cta_click", { label: "demande_publiee" });
+      if (r.published) trackSiteEvent("cta_click", { label: "demande_publiee", eventId: lead.id });
       setDone({ postId: r.postId, notified: r.notified, link: r.link || "/posts", published: r.published });
     } catch (e) {
       const d = e instanceof ApiError && e.details && typeof e.details === "object" ? (e.details as { code?: string; left?: number }) : {};
