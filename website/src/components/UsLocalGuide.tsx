@@ -1034,6 +1034,117 @@ const GUIDES: Record<string, Guide> = {
       ],
     },
   },
+  // 08/11/2026 (GUS, ordre de Daniel : « SEO blog gratuit Hollande, j'ai des inscrits ») — les Pays-Bas
+  // deviennent le 5e pôle SEO. Mesuré ce jour : 10 inscrits NL (4 gardiens, 6 promeneurs, 0 propriétaire),
+  // Amsterdam 2, Rotterdam 2, Utrecht 2 ; Search Console 28 j Pays-Bas : 5 clics / 127 affichages.
+  // Règle du 20/09 : aucune page nouvelle — les 4 pages /pet-sitting/<ville> NL existaient déjà (v560, en
+  // anglais) mais sans guide local. Contenu vrai (parcs, quartiers, règles de laisse néerlandaises), aucun
+  // prix, aucun chiffre d'activité, aucune promesse de « gardiens à proximité » : 0 propriétaire NL inscrit.
+  amsterdam: {
+    hoods: ["De Pijp", "Oud-West", "Oud-Zuid", "the Jordaan", "Oost and Watergraafsmeer", "Amsterdam-Noord", "Westerpark", "Buitenveldert and the Zuidas"],
+    walks: [
+      { name: "Vondelpark", note: "the city's busiest park; dogs stay on the leash except in the marked off-leash zones" },
+      { name: "Amsterdamse Bos", note: "a huge forest park south of the city with large off-leash areas and the Bosbaan rowing lake — the classic weekend walk" },
+      { name: "Westerpark", note: "former gasworks turned park, the daily walk for dogs from the Jordaan and Westerpark neighbourhoods" },
+      { name: "Flevopark and Oosterpark", note: "Oost's two parks; Flevopark has a quiet off-leash area by the water" },
+      { name: "Rembrandtpark", note: "west side, with a designated off-leash field" },
+    ],
+    tips: [
+      "Many Amsterdam homes are canal-house or upstairs apartments with steep stairs and no garden: a midday walk on workdays is the most common request, and senior dogs may need help on the stairs.",
+      "Dutch rules in short: in built-up areas dogs are leashed unless a sign marks an off-leash area (losloopgebied), and owners pick up after their dog everywhere. Ask your sitter to follow the signs, not habit.",
+      "Bikes are everywhere. A sitter who walks your dog on the pavement side, away from the bike lane, and keeps a short leash at crossings is worth asking for in your request.",
+      "Dogs ride GVB trams and metros and NS trains (larger dogs need a dog ticket on NS), so a sitter without a car can still take your dog to the Amsterdamse Bos.",
+    ],
+    faq: {
+      owner: [
+        { q: "Can my dog run off-leash in Vondelpark?", a: "Only in the zones marked as off-leash areas; elsewhere in the park dogs stay leashed. For real running space, the Amsterdamse Bos has far more off-leash ground. Tell your sitter in the request whether your dog comes back reliably when called." },
+        { q: "I live in a canal-house apartment with no doorman. How does the sitter get in?", a: "The usual solutions are a spare key handed over at a first meeting, a trusted neighbour, or a lockbox. You chat with the sitter in the app before you book, so you can agree on the handover there. Only share access with a sitter whose identity has been verified." },
+      ],
+      recruit: [
+        { q: "Where do Amsterdam sitters and walkers find clients?", a: "In the apartment neighbourhoods where owners work long days or travel often: De Pijp, Oud-West, Oost, Westerpark and Noord. Set your service area around what you can reach by bike in ten or fifteen minutes." },
+        { q: "Do I need to speak Dutch?", a: "Most owners in Amsterdam are comfortable in English, and many are internationals themselves. Dutch helps for the neighbours and the vet, but it is not a requirement to start." },
+      ],
+    },
+  },
+  rotterdam: {
+    hoods: ["Kralingen", "Blijdorp", "Hillegersberg", "Delfshaven", "Kop van Zuid", "the Oude Noorden", "Centrum", "Prinsenland and Het Lage Land"],
+    walks: [
+      { name: "Kralingse Bos and Kralingse Plas", note: "the city's biggest green space, with large off-leash areas around the lake" },
+      { name: "Het Park, by the Euromast", note: "central lawns and river views; a leashed walk close to the centre" },
+      { name: "Vroesenpark", note: "Blijdorp's neighbourhood park, next to the zoo" },
+      { name: "Zuiderpark", note: "the large park of Rotterdam-Zuid, with an off-leash area" },
+      { name: "Bergse Plassen", note: "lakeside paths in Hillegersberg, quiet on weekday mornings" },
+    ],
+    tips: [
+      "Rotterdam is a commuter city: owners leave early for the port, the office towers or the Randstad, so a midday visit with a walk is the most requested service.",
+      "Kop van Zuid, the Wijnhaven and the centre are full of high-rise apartments: add the building's entry procedure (intercom, concierge, key fob) to your request so the first visit goes smoothly.",
+      "The wind off the Maas is real. On stormy days a shorter walk and a towel by the door are better than a long loop along the river.",
+      "Leash rules are the Dutch standard: on the leash in the streets, free only where a sign marks an off-leash area, and always clean up after the dog.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog run free in Rotterdam?", a: "The Kralingse Bos has the largest off-leash areas around the Kralingse Plas; the Zuiderpark has one too. In the streets and most smaller parks dogs stay leashed. Tell your sitter which places your dog already knows." },
+        { q: "Can a sitter look after my cat in a Kop van Zuid apartment?", a: "Yes. Post a request for drop-in visits: feeding, litter box, a bit of play and a photo in the app after each visit. Explain the building access in the request so the sitter can plan the key handover with you." },
+      ],
+      recruit: [
+        { q: "Which Rotterdam neighbourhoods have the most demand?", a: "Kralingen, Blijdorp, the Oude Noorden, Kop van Zuid and the centre: apartment areas with owners who work long days. Start with the streets you can reach on foot or by bike." },
+        { q: "What do Rotterdam owners expect?", a: "Punctual midday walks, a sitter who respects the leash signs and picks up after the dog, and a short update after each visit. HoPetSit shares the walk live on the map so the owner can see it." },
+      ],
+    },
+  },
+  utrecht: {
+    hoods: ["Wittevrouwen", "Oudwijk", "Lombok", "Tuindorp", "Oog in Al", "Leidsche Rijn", "Zuilen", "Hoograven and Lunetten"],
+    walks: [
+      { name: "Wilhelminapark", note: "the east side's favourite park, a short walk from Oudwijk and Wittevrouwen" },
+      { name: "Griftpark", note: "north of the centre, with an off-leash field" },
+      { name: "Máximapark", note: "Leidsche Rijn's very large park with long loops and off-leash sections" },
+      { name: "Amelisweerd and Rhijnauwen", note: "forest estates along the Kromme Rijn just outside the city — the classic long walk" },
+      { name: "Park Lepelenburg", note: "small central park along the Singel, handy for a quick evening round" },
+    ],
+    tips: [
+      "Utrecht is a university city: students are often available for midday walks and cat visits, and many owners here are young families who travel at school holidays.",
+      "The old centre around the Oudegracht is narrow and busy with bikes; a calm, short-leash walker matters more than a fast one.",
+      "Leidsche Rijn and Vleuten-De Meern are a long way from the centre: say which side of the Amsterdam-Rijnkanaal you live on so sitters nearby answer.",
+      "Dutch leash rules apply: leashed in the streets, free only in marked off-leash areas, and always pick up after the dog.",
+    ],
+    faq: {
+      owner: [
+        { q: "Where can my dog run off-leash in Utrecht?", a: "The Griftpark has an off-leash field, the Máximapark has off-leash sections, and the estates of Amelisweerd and Rhijnauwen are the place for a long walk. In the streets and the small central parks dogs stay leashed." },
+        { q: "Can a sitter visit my cat while I'm away for the school holidays?", a: "Yes. Post a request for drop-in visits with your dates and how many visits a day you want; sitters reply in the app, you chat first and book when you have found the right person." },
+      ],
+      recruit: [
+        { q: "Where do Utrecht sitters start?", a: "In their own neighbourhood: Wittevrouwen, Oudwijk, Lombok, Tuindorp or Leidsche Rijn. Set your service area around what you can reach by bike." },
+        { q: "Is there demand for cat visits in Utrecht?", a: "Owners in apartments and students' houses often ask for drop-in visits rather than boarding. Say on your profile that you do cat visits, with the times of day you can come." },
+      ],
+    },
+  },
+  "the-hague": {
+    hoods: ["Statenkwartier", "the Archipelbuurt", "Benoordenhout", "Scheveningen", "Bezuidenhout", "the Zeeheldenkwartier", "Vogelwijk and Duinoord", "Leidschenveen-Ypenburg"],
+    walks: [
+      { name: "Scheveningen beach", note: "dogs can run on the beach outside the summer bathing season; in summer only on the stretches and at the hours posted on the signs" },
+      { name: "Haagse Bos", note: "the old forest between the centre and Bezuidenhout, with an off-leash area" },
+      { name: "Westbroekpark", note: "between Scheveningen and the centre, lawns and the rose garden" },
+      { name: "Zuiderpark", note: "the large park of the south of the city, with off-leash fields" },
+      { name: "Meijendel dunes", note: "the dunes north of Scheveningen; dogs stay leashed on the trails" },
+      { name: "Clingendael", note: "estate park with the Japanese garden; a leashed walk" },
+    ],
+    tips: [
+      "The Hague is home to embassies, international courts and many expat households that travel constantly: overnight sitting and drop-in visits for cats are the most common requests.",
+      "Sea wind and sand: after a beach walk a rinse of the paws and a towel by the door save your floors. Ask your sitter to keep an eye on the beach signs, which change with the season.",
+      "Most owners here speak English, and many sitters do too; a Dutch-speaking sitter helps mainly with neighbours and the vet.",
+      "Dutch leash rules apply in the streets and parks: leashed unless a sign marks an off-leash area, and always clean up after the dog. Dogs ride HTM trams and buses.",
+    ],
+    faq: {
+      owner: [
+        { q: "Can my dog go to Scheveningen beach with the sitter?", a: "Yes, but the rules change with the season: outside the bathing season dogs are free on the beach, in summer only on certain stretches and hours. Ask your sitter to follow the signs on the beach entrances." },
+        { q: "I travel for work every month. Can I book the same sitter again?", a: "Yes. Once you have found a sitter you trust, you can book that person again from the app for your next trip, and chat with them directly." },
+      ],
+      recruit: [
+        { q: "Where is the demand in The Hague?", a: "In the international neighbourhoods — Statenkwartier, Archipelbuurt, Benoordenhout, Bezuidenhout — and around Scheveningen. Owners who travel often look for a sitter they can book again and again." },
+        { q: "What do owners in The Hague expect?", a: "Reliability above all: the same sitter each trip, a photo after each visit, respect for the beach and leash rules, and a clean house on return." },
+      ],
+    },
+  },
 };
 
 // 08/10/2026 — même remède pour les villes françaises touchées (rattachées par

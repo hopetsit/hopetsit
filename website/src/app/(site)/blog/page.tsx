@@ -13,6 +13,14 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 08/11 (GUS, ordre de Daniel : « SEO blog gratuit Hollande ») — 5e pôle : Pays-Bas, en anglais.
+  {
+    slug: "cat-sitting-amsterdam-holidays",
+    lang: "🇳🇱",
+    title: "Cat Sitting in Amsterdam Over the Holidays: Home Visits, Keys and Fireworks",
+    excerpt:
+      "Why an Amsterdam cat should stay home over Sinterklaas, Christmas and New Year, how to handle keys in a canal-house apartment, what a visit covers, and the fireworks plan for 31 December.",
+  },
   // 2026-W45 (marketing hebdo, dimanche) — rotation des 4 pôles (sujets_4poles.md) :
   // Paris + New York, propriétaires de chats d'appartement.
   {

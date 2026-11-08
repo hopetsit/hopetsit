@@ -1,6 +1,6 @@
-# Banque de sujets — 4 pôles SEO (consigne de Daniel du 31/10/2026)
+# Banque de sujets — 5 pôles SEO (consigne de Daniel du 31/10/2026, + Pays-Bas le 08/11/2026)
 
-Pôles, par ordre : **1. Paris + Europe** · **2. USA + New York** · **3. Corée + Séoul** · **4. Japon + Tokyo**.
+Pôles, par ordre : **1. Paris + Europe** · **2. USA + New York** · **3. Corée + Séoul** · **4. Japon + Tokyo** · **5. Pays-Bas + Amsterdam** (en anglais, pages `/pet-sitting/amsterdam|rotterdam|utrecht|the-hague`).
 Règle du 20/09 maintenue : aucune nouvelle page ville, aucune nouvelle langue ; des ARTICLES utiles,
 uniques et locaux, reliés à la page pilier de la ville et à « Publier ma demande ». Plafond : 3 articles/semaine.
 
@@ -51,3 +51,12 @@ uniques et locaux, reliés à la page pilier de la ville et à « Publier ma dem
 - [ ] Cuidador de perros en Madrid: cómo elegir (es)
 - [ ] Pet sitter a Milano: come sceglierlo (it)
 - [ ] Finding a pet sitter in London (en-GB)
+
+## Pays-Bas (en) — pages `/pet-sitting/amsterdam`, `/pet-sitting/rotterdam`, `/pet-sitting/utrecht`, `/pet-sitting/the-hague`
+Ordre de Daniel du 08/11/2026. En anglais (pas de néerlandais sur le site). Jamais de prix, jamais « des gardiens près de chez
+toi » tant qu'il n'y a pas de propriétaire ni d'annonce NL (08/11 : 10 inscrits gardiens/promeneurs, 0 propriétaire).
+- [x] Cat sitting in Amsterdam over the holidays: home visits, keys and fireworks (08/11/2026 — /blog/cat-sitting-amsterdam-holidays)
+- [ ] Dog walking in Rotterdam: off-leash areas, the Maas wind and midday walks
+- [ ] Pet sitting in The Hague for expats who travel: booking the same sitter every month
+- [ ] Students as cat sitters in Utrecht: how it works, what to agree on
+- [ ] Taking the train with your dog in the Netherlands (NS, GVB, RET, HTM): what the sitter needs to know

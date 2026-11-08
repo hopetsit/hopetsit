@@ -31,6 +31,8 @@ const PUBLIC_PATHS = [
   "/remboursement",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  // 08/11 (GUS, ordre de Daniel) — 5e pôle : Pays-Bas (en anglais).
+  "/blog/cat-sitting-amsterdam-holidays",
   // 2026-W45 (marketing hebdo) — rotation des 4 pôles : Paris + New York (propriétaires, chats d'appartement).
   "/blog/chat-dappartement-paris",
   "/blog/cat-sitting-nyc-apartment",

@@ -8,6 +8,8 @@ export const FOOTER_CITIES = [
   { href: "/pet-sitting/new-york#districts", name: { ko: "뉴욕 New York", ja: "ニューヨーク New York" } , def: "New York" },
   { href: "/pet-sitting-korea/seoul#districts", name: { fr: "서울 Séoul", ko: "서울 Seoul" }, def: "서울 Seoul" },
   { href: "/pet-sitting-japan/tokyo#districts", name: { ja: "東京 Tokyo" }, def: "東京 Tokyo" },
+  // 08/11 (GUS, ordre de Daniel) — 5e pôle : Pays-Bas (pages en anglais, guide local sur la page).
+  { href: "/pet-sitting/amsterdam#us-local-guide", name: {}, def: "Amsterdam" },
 ] as { href: string; name: Partial<Record<Lang, string>>; def?: string }[];
 
 /** Derniers articles des 4 villes (titre dans la langue de l'article). À mettre à jour avec la rotation hebdo. */
@@ -16,6 +18,7 @@ export const FOOTER_POSTS = [
   { href: "/blog/cat-sitting-nyc-apartment", label: "New York: cat sitting, drop-ins, keys and doormen" },
   { href: "/blog/seoul-cat-sitter-guide", label: "서울 아파트 고양이 돌봄 : 방문 캣시터와 탁묘" },
   { href: "/blog/tokyo-new-year-pet-care", label: "年末年始に犬・猫を預けるには" },
+  { href: "/blog/cat-sitting-amsterdam-holidays", label: "Amsterdam: cat sitting over the holidays" },
 ];
 
 export const FOOTER_CITY_TXT: Record<Lang, { cities: string; all: string; blog: string; allPosts: string }> = {
