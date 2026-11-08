@@ -17,7 +17,7 @@ uniques et locaux, reliés à la page pilier de la ville et à « Publier ma dem
 ## Paris (fr) — page pilier `/garde-animaux/paris#quartiers`
 - [x] Faire garder son chien ou son chat pendant les fêtes à Paris (31/10/2026, GUS)
 - [x] Premier chiot à Paris : apprendre la propreté en appartement et les premières sorties (2026-W44)
-- [ ] Chat d'appartement à Paris : visites à domicile ou garde chez le gardien ?
+- [x] Chat d'appartement à Paris : visites à domicile ou garde chez le gardien ? (2026-W45 — /blog/chat-dappartement-paris)
 - [ ] Les jardins parisiens ouverts aux chiens : règles et bonnes pratiques
 - [ ] Partir au ski avec ou sans son chien : organiser la garde depuis Paris
 - [ ] Chien et transports à Paris : métro, bus, taxi — ce qu'il faut savoir
@@ -25,7 +25,7 @@ uniques et locaux, reliés à la page pilier de la ville et à « Publier ma dem
 ## New York (en) — page pilier `/pet-sitting/new-york#districts`
 - [x] Pet sitting in New York over Thanksgiving & the holidays (31/10/2026, GUS)
 - [x] Dog runs in NYC: etiquette and how to pick one in your borough (2026-W44)
-- [ ] Cat sitting in a New York apartment: drop-ins, keys and doormen
+- [x] Cat sitting in a New York apartment: drop-ins, keys and doormen (2026-W45 — /blog/cat-sitting-nyc-apartment)
 - [ ] Walking your dog in a NYC winter: salt, cold and short walks
 - [ ] Summer in NYC with a dog: heat, hot pavement and midday walks
 - [ ] Getting a dog license in New York City: what owners should know

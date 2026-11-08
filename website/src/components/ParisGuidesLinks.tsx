@@ -8,6 +8,8 @@ import Link from "@/components/SiteLink";
 // pas vers eux. Ce bloc relie les 7 guides entre eux depuis chaque article.
 // Ne pas y ajouter de nouvelle page : uniquement des articles déjà en ligne.
 const GUIDES = [
+  // 2026-W45 (marketing hebdo) — chat d'appartement à Paris (visite ou garde ailleurs).
+  { href: "/blog/chat-dappartement-paris", t: "Chat d'appartement à Paris : visite ou garde ailleurs ?" },
   // 2026-W44 (marketing hebdo) — premier chiot à Paris (propreté, premières sorties).
   { href: "/blog/premier-chiot-a-paris", t: "Premier chiot à Paris : propreté et premières sorties" },
   // 31/10 (GUS) — garde pendant les fêtes de fin d'année.

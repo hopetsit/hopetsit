@@ -31,6 +31,9 @@ const PUBLIC_PATHS = [
   "/remboursement",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  // 2026-W45 (marketing hebdo) — rotation des 4 pôles : Paris + New York (propriétaires, chats d'appartement).
+  "/blog/chat-dappartement-paris",
+  "/blog/cat-sitting-nyc-apartment",
   // 2026-W44 (marketing hebdo) — rotation des 4 pôles : Paris + New York (propriétaires).
   "/blog/premier-chiot-a-paris",
   "/blog/dog-runs-in-nyc",

@@ -13,6 +13,22 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 2026-W45 (marketing hebdo, dimanche) — rotation des 4 pôles (sujets_4poles.md) :
+  // Paris + New York, propriétaires de chats d'appartement.
+  {
+    slug: "chat-dappartement-paris",
+    lang: "🇫🇷",
+    title: "Chat d'appartement à Paris : visite à domicile ou garde ailleurs ?",
+    excerpt:
+      "Comment décider entre visite à domicile et garde chez un sitter pour un chat qui ne sort jamais de l'appartement, et comment organiser l'accès (digicode, clés, voisin).",
+  },
+  {
+    slug: "cat-sitting-nyc-apartment",
+    lang: "🇺🇸",
+    title: "Cat Sitting in a New York Apartment: Drop-Ins, Keys and Doormen",
+    excerpt:
+      "Why most NYC apartment cats are better off at home, how to solve building access (doorman, keys, lockbox), and what a drop-in visit should cover.",
+  },
   // 2026-W44 (marketing hebdo, dimanche) — rotation des 4 pôles (sujets_4poles.md) :
   // Paris (propriétaires, semaine paire) + New York (propriétaires).
   {
