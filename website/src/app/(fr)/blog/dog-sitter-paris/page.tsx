@@ -9,10 +9,12 @@ import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 // ni les formules qu'il recouvre. Texte vrai, aucun tarif inventé : chaque gardien fixe
 // son prix dans l'app, et les fourchettes de prix restent dans les guides déjà en ligne.
 const URL = "https://www.hopetsit.com/blog/dog-sitter-paris";
-const TITLE = "Dog sitter à Paris : ce qu'il fait et comment en trouver un";
+// 08/11/2026 (GUS) — retitré sur « dogsitter » (en un mot) : 66 affichages en 9e place, 2 clics,
+// et « dog sitter » 46 affichages en 9e-10e place (28 j, France) ; le titre ne contenait pas le mot.
+const TITLE = "Dogsitter à Paris : trouver un dog sitter de confiance";
 const DESCRIPTION =
-  "Un dog sitter garde ou promène votre chien quand vous n'êtes pas là. Garde chez lui ou chez vous, visites, promenades : les 4 formules à Paris et comment choisir un dog sitter de confiance près de chez vous.";
-const HEADLINE = "Dog sitter à Paris : ce qu'il fait, les 4 formules et comment en trouver un";
+  "Dogsitter (ou dog sitter) à Paris : garde chez lui ou chez vous, visites, promenades. Les 4 formules et comment trouver un dogsitter de confiance près de chez vous.";
+const HEADLINE = "Dogsitter à Paris : ce que fait un dog sitter, les 4 formules et comment en trouver un";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -107,10 +109,10 @@ export default function ArticleDogSitterParis() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <p className="text-sm font-semibold text-owner">Guide pratique · Paris</p>
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
-        Dog sitter à Paris : ce qu'il fait, les 4 formules et comment en trouver un
+        {HEADLINE}
       </h1>
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
-        À Paris, on dit souvent « dog sitter » plutôt que « gardien de chien ». Derrière ce mot se
+        À Paris, on dit souvent « dog sitter » (ou « dogsitter », en un mot) plutôt que « gardien de chien ». Derrière ce mot se
         cachent pourtant des services assez différents : garder votre chien plusieurs jours, venir
         le nourrir, ou simplement le sortir à midi. Voici ce que fait un dog sitter, quelle formule
         choisir selon votre situation, et comment trouver quelqu'un de confiance près de chez vous.
