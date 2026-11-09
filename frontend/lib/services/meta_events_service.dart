@@ -30,7 +30,9 @@ bool attPromptAllowed({
   required bool appActive,
   required TrackingStatus status,
 }) =>
-    hasSession &&
+    // 637 (refus Apple 2.1 du 09/11/2026 : « unable to locate the ATT permission
+    // request » — l'examinateur n'ouvre pas de compte) : la fenêtre est posée dès
+    // le 1er lancement, avec ou sans session. [hasSession] n'est plus une condition.
     !notificationFlowBusy &&
     appActive &&
     status == TrackingStatus.notDetermined;
@@ -59,11 +61,11 @@ Future<TrackingStatus?> runAttPromptWhenReady({
   await Future<void>.delayed(initialDelay);
   final deadline = DateTime.now().add(maxWait);
   while (true) {
-    if (!hasSession()) return null;
+    // 637 — plus d'attente d'une session : premier lancement = fenêtre ATT.
     final status = await readStatus();
     if (status != TrackingStatus.notDetermined) return null;
     if (attPromptAllowed(
-      hasSession: true,
+      hasSession: hasSession(),
       notificationFlowBusy: notificationFlowBusy(),
       appActive: appActive(),
       status: status,

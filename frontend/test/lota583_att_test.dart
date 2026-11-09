@@ -46,8 +46,8 @@ void main() {
       expect(ok(), isTrue);
     });
 
-    test('tout premier lancement, sans compte → non (pas avant l\'inscription)', () {
-      expect(ok(hasSession: false), isFalse);
+    test('tout premier lancement, sans compte → OUI (637, refus Apple 2.1 du 09/11 : l\'examinateur n\'a pas de compte)', () {
+      expect(ok(hasSession: false), isTrue);
     });
 
     test('question « notifications » EN COURS → non (l\'ATT passe juste après)', () {
@@ -79,7 +79,9 @@ void main() {
       var status = TrackingStatus.notDetermined;
       var requests = 0;
       final events = <String>[];
-      // Démarrage sans compte : pas de fenêtre, rien de consommé.
+      // 637 — démarrage sans compte : la fenêtre ATT est posée tout de suite
+      // (refus Apple 2.1 du 09/11). On simule un examinateur qui refuse, puis on
+      // remet l'état « jamais demandé » pour dérouler la suite du scénario.
       final first = await runAttPromptWhenReady(
         hasSession: () => session,
         notificationFlowBusy: () => busy,
@@ -87,13 +89,14 @@ void main() {
         readStatus: () async => status,
         request: () async {
           requests++;
-          return status = TrackingStatus.authorized;
+          return TrackingStatus.denied;
         },
         initialDelay: fast,
         poll: fast,
       );
-      expect(first, isNull);
-      expect(requests, 0);
+      expect(first, TrackingStatus.denied);
+      expect(requests, 1);
+      requests = 0;
 
       // Connexion : la question « notifications » est en cours.
       session = true;
