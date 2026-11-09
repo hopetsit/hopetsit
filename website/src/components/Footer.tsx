@@ -144,6 +144,10 @@ export function Footer() {
         // 02/11/2026 (Bob, semaine 45) : même logique que /devenir-petsitter le
         // 26/10 — hub national anglais relié depuis les pages déjà indexées.
         { href: "/become-a-pet-sitter", label: "Become a pet sitter" },
+        // 09/11/2026 (Bob, semaine 46) : même logique, hubs allemand et
+        // espagnol (priorité n° 2, 20/09 : Allemagne/Autriche/Suisse + Espagne).
+        { href: "/tiersitter-werden", label: "Tiersitter werden" },
+        { href: "/ser-cuidador-de-mascotas", label: "Ser cuidador de mascotas" },
         // 01/10/2026 (SAM, demandé par BOB) : push USA gratuit, New York et
         // San Francisco reliés depuis toutes les pages déjà indexées.
         { href: "/pet-sitting/new-york", label: "Pet sitters in New York" },
