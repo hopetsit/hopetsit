@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "@/components/SiteLink";
 import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
@@ -8,11 +9,25 @@ import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 // ici, la question posée par le propriétaire d'un chat d'appartement — visite ou
 // garde ailleurs — et la logistique d'accès (digicode, clés, voisin). Aucun prix
 // inventé : on renvoie vers le guide existant pour les tarifs.
+const URL = "https://www.hopetsit.com/blog/chat-dappartement-paris";
+const COVER = "https://www.hopetsit.com/blog/chat-dappartement-paris.jpg";
+const COVER_ALT = "Chat d'appartement près d'une fenêtre, couverture du guide « Chat d'appartement à Paris »";
+
 export const metadata: Metadata = {
   title: "Chat d'appartement à Paris : visite à domicile ou garde ailleurs ?",
   description:
     "Chat qui ne bouge pas de son appartement parisien : comment décider entre visites à domicile et garde chez un sitter, et comment organiser l'accès (digicode, clés, voisin).",
-  alternates: { canonical: "https://www.hopetsit.com/blog/chat-dappartement-paris" },
+  alternates: { canonical: URL },
+  openGraph: {
+    title: "Chat d'appartement à Paris : visite à domicile ou garde ailleurs ?",
+    description:
+      "Chat qui ne bouge pas de son appartement parisien : comment décider entre visites à domicile et garde chez un sitter, et comment organiser l'accès (digicode, clés, voisin).",
+    url: URL,
+    type: "article",
+    locale: "fr_FR",
+    siteName: "HoPetSit",
+    images: [{ url: COVER, width: 1200, height: 630, alt: COVER_ALT }],
+  },
 };
 
 const FAQ = [
@@ -46,6 +61,9 @@ export default function ArticleChatAppartementParis() {
         "@type": "Article",
         headline: "Chat d'appartement à Paris : visite à domicile ou garde ailleurs ?",
         inLanguage: "fr",
+        mainEntityOfPage: URL,
+        datePublished: "2026-11-08",
+        image: { "@type": "ImageObject", url: COVER, width: 1200, height: 630 },
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com" },
       },
@@ -67,6 +85,15 @@ export default function ArticleChatAppartementParis() {
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
         Chat d&apos;appartement à Paris : visite à domicile ou garde ailleurs ?
       </h1>
+      <Image
+        src="/blog/chat-dappartement-paris.jpg"
+        alt={COVER_ALT}
+        width={1200}
+        height={630}
+        priority
+        sizes="(max-width: 768px) 100vw, 768px"
+        className="mt-6 h-auto w-full rounded-2xl"
+      />
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         Un chat qui vit en appartement à Paris n&apos;a souvent connu que ces
         quelques pièces depuis des années. Avant de partir, la vraie question

@@ -21,7 +21,7 @@ const GUIDES = [
   { href: "/blog/faire-garder-son-chat-a-paris", t: "Faire garder son chat à Paris : visites à domicile ou pension ?" },
   { href: "/blog/promener-son-chien-a-paris", t: "Promener son chien à Paris : parcs, bois et bons plans" },
   { href: "/blog/chien-seul-toute-la-journee-paris", t: "Chien seul toute la journée à Paris : la promenade de midi" },
-  { href: "/blog/tarif-promeneur-de-chien-paris", t: "Combien coûte un promeneur de chien à Paris ?" },
+  { href: "/blog/tarif-promeneur-de-chien-paris", t: "Promeneur de chien à Paris : combien coûte une promenade ?" },
   { href: "/blog/choisir-un-pet-sitter-de-confiance-a-paris", t: "Comment choisir un pet sitter de confiance à Paris" },
   { href: "/blog/faire-garder-son-chien-le-week-end-a-paris", t: "Faire garder son chien le week-end à Paris" },
   { href: "/blog/faire-garder-son-chien-pendant-les-vacances", t: "Faire garder son chien pendant les vacances" },

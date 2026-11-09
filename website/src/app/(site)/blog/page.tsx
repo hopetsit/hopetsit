@@ -272,7 +272,7 @@ const POSTS = [
   {
     slug: "tarif-promeneur-de-chien-paris",
     lang: "🇫🇷",
-    title: "Combien coûte un promeneur de chien à Paris en 2026 ?",
+    title: "Promeneur de chien à Paris : tarif d'une promenade en 2026",
     excerpt:
       "12 à 20 € la balade, forfaits dégressifs : les prix réels à Paris et comment vérifier que la balade a vraiment eu lieu.",
   },

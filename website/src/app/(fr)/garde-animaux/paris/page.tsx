@@ -124,7 +124,7 @@ export default function GardeAnimauxParisPage() {
         <ul className="mt-3 space-y-2 text-sm font-semibold">
           {[
             ["/blog/dog-sitter-paris", "Dog sitter à Paris : ce qu'il fait et comment en trouver un"],
-            ["/blog/tarif-promeneur-de-chien-paris", "Combien coûte un promeneur de chien à Paris ?"],
+            ["/blog/tarif-promeneur-de-chien-paris", "Promeneur de chien à Paris : combien coûte une promenade ?"],
             ["/blog/faire-garder-son-chat-a-paris", "Faire garder son chat à Paris : visites ou pension ?"],
             ["/blog/faire-garder-son-animal-pendant-les-fetes-a-paris", "🎄 Noël et jour de l'an : faire garder son chien ou son chat"],
           ].map(([href, label]) => (

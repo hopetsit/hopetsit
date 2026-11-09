@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "@/components/SiteLink";
 
 // 2026-W45 (weekly marketing routine, Sunday) — next unchecked topic from
@@ -9,12 +10,23 @@ const URL = "https://www.hopetsit.com/blog/cat-sitting-nyc-apartment";
 const TITLE = "Cat Sitting in a New York Apartment: Drop-Ins, Keys and Doormen";
 const DESCRIPTION =
   "Cat sitting in a NYC apartment: why most cats are better off staying home, how to solve building access (doorman, keys, lockbox), and what a drop-in visit should cover.";
+const COVER = "https://www.hopetsit.com/blog/cat-sitting-nyc-apartment.jpg";
+const COVER_ALT = "A dog and a cat at home by the window, cover of the guide to cat sitting in a New York apartment";
 const HEADLINE = "Cat sitting in a New York apartment: drop-ins, keys and doormen";
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: URL },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: URL,
+    type: "article",
+    locale: "en_US",
+    siteName: "HoPetSit",
+    images: [{ url: COVER, width: 1200, height: 630, alt: COVER_ALT }],
+  },
 };
 
 const FAQ = [
@@ -51,6 +63,7 @@ export default function ArticleCatSittingNycApartment() {
         inLanguage: "en-US",
         mainEntityOfPage: URL,
         datePublished: "2026-11-08",
+        image: { "@type": "ImageObject", url: COVER, width: 1200, height: 630 },
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com" },
       },
@@ -65,6 +78,15 @@ export default function ArticleCatSittingNycApartment() {
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
         Cat sitting in a New York apartment: drop-ins, keys and doormen
       </h1>
+      <Image
+        src="/blog/cat-sitting-nyc-apartment.jpg"
+        alt={COVER_ALT}
+        width={1200}
+        height={630}
+        priority
+        sizes="(max-width: 768px) 100vw, 768px"
+        className="mt-6 h-auto w-full rounded-2xl"
+      />
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         No yard, no litter box in the hallway, and a cat that has never lived
         anywhere else: that is most cats in New York City apartments. Before

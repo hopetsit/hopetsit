@@ -4,9 +4,12 @@ import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
 // v535 — SEO Paris : tarifs promeneur de chien (requête transactionnelle).
 export const metadata: Metadata = {
-  title: "Combien coûte un promeneur de chien à Paris en 2026 ?",
+  // 09/11 (GUS) — Search Console 28 j : « promeneur de chien paris » 70 affichages (21e place),
+  // « promeneur(s) de chien(s) paris » 58 de plus (28e-31e), 0 clic ; le titre ne parlait que du
+  // coût. Titre et H1 reprennent la requête, « tarif » (déjà 6e) gardé.
+  title: "Promeneur de chien à Paris : tarif d'une promenade en 2026",
   description:
-    "Promenade de chien à Paris : 12 à 20 € la balade de 30 min à 1 h, forfaits dégressifs à la semaine. Ce qui fait varier les prix et comment payer en sécurité.",
+    "Trouver un promeneur de chien à Paris et savoir combien coûte une balade de 30 min à 1 h : forfaits à la semaine, ce qui fait varier le tarif et comment payer en sécurité.",
   alternates: { canonical: "https://www.hopetsit.com/blog/tarif-promeneur-de-chien-paris" },
 };
 
@@ -35,7 +38,7 @@ export default function ArticleTarifPromeneurParis() {
     "@graph": [
       {
         "@type": "Article",
-        headline: "Combien coûte un promeneur de chien à Paris en 2026 ?",
+        headline: "Promeneur de chien à Paris : tarif d'une promenade en 2026",
         inLanguage: "fr",
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com" },
@@ -56,7 +59,7 @@ export default function ArticleTarifPromeneurParis() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <p className="text-sm font-semibold text-owner">Guide tarifs · Paris · 2026</p>
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
-        Combien coûte un promeneur de chien à Paris ?
+        Promeneur de chien à Paris : combien coûte une promenade ?
       </h1>
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         Journées longues au bureau, imprévus, canicule : faire promener son
