@@ -214,7 +214,7 @@ export async function getAdLead(id: string): Promise<AdLeadSummary> {
 // passe (POST /ad-leads/site : compte propriétaire créé non vérifié, demande publiée, gardiens prévenus,
 // e-mail « ta demande est en ligne »). La session renvoyée est enregistrée comme après une connexion.
 export type SiteLeadInput = {
-  email: string; firstName?: string; service: "garde" | "promenade" | "visites"; animal?: "chien" | "chat" | "autre";
+  email: string; firstName?: string; service: "garde" | "journee" | "promenade" | "visites"; animal?: "chien" | "chat" | "autre";
   postalCode?: string; city?: string; country: string; lang: "fr" | "en"; startDate?: string; endDate?: string;
   visitsPerDay?: 1 | 2; lieu?: "at_owner" | "at_sitter"; campaign?: string; page?: string; website?: string;
   /** 31/10 — « Réserver <prénom> » : prestataire prévenu en premier (validé par le serveur). */
@@ -223,6 +223,8 @@ export type SiteLeadInput = {
   lat?: number; lng?: number;
   /** 0811 (NEO, ordre de Daniel) — page /demande : l'e-mail porte un CODE à taper sur la page (publie + vérifie d'un coup). */
   codeFlow?: boolean;
+  /** 1011 (LEO, CONTRAT_1011) — précisions facultatives : horaires "HH:MM", budget (devise du pays), sans voiture. */
+  timeFrom?: string; timeTo?: string; noCar?: boolean; budget?: number;
 };
 export async function publishSiteLead(input: SiteLeadInput) {
   // 31/10 16 h 40 (ZOE) — le serveur ne renvoie un jeton QUE pour un compte créé par cet appel ; un compte
@@ -545,6 +547,8 @@ export type UserProfile = {
   service?: string;
   rating?: number;
   reviewsCount?: number;
+  /** 1011 (CONTRAT_1011) — gardien/promeneur véhiculé : true | false | null (jamais renseigné). */
+  hasVehicle?: boolean | null;
 };
 
 /**
@@ -1396,6 +1400,8 @@ export type ApplicationProvider = {
   totalReviews?: number;
   identityVerified?: boolean;
   location?: { lat?: number; lng?: number; city?: string } | null;
+  /** 1011 (CONTRAT_1011) — véhiculé : true | false | null (jamais renseigné). */
+  hasVehicle?: boolean | null;
 };
 
 export type ApplicationItem = {
@@ -2083,6 +2089,10 @@ export type RequestPost = {
   budgetCurrency?: string;
   /** 24/10 (620) — exact | approx | tbd ; absent sur une ancienne demande (lire par dateModeOf620). */
   dateMode?: string | null;
+  /** 1011 (CONTRAT_1011) — horaires "HH:MM" et « sans voiture » ; absents sur une ancienne demande. */
+  timeFrom?: string | null;
+  timeTo?: string | null;
+  ownerNoCar?: boolean | null;
   /** 24/10 (620) — visites par jour (home_visit) : 1 | 2 | null. */
   visitsPerDay?: number | null;
 };
@@ -2114,6 +2124,10 @@ export type CreatePostInput = {
   dateMode?: "exact" | "approx" | "tbd";
   /** 24/10 (620) — visites par jour (home_visit seulement) : 1 | 2. */
   visitsPerDay?: number;
+  /** 1011 (LEO, CONTRAT_1011) — horaires "HH:MM" (facultatifs) et « je n'ai pas de voiture ». */
+  timeFrom?: string;
+  timeTo?: string;
+  ownerNoCar?: boolean;
 };
 
 // Canonical service keys (match the app + backend filtering: dog_walking is
@@ -2172,6 +2186,9 @@ export async function createPostWithMediaMeta(input: CreatePostInput, files: Fil
   if (input.endDate) fd.append("endDate", input.endDate);
   if (input.dateMode) fd.append("dateMode", input.dateMode); // 620 — dates à prévoir
   if (input.visitsPerDay) fd.append("visitsPerDay", String(input.visitsPerDay)); // 620 — visites par jour
+  if (input.timeFrom) fd.append("timeFrom", input.timeFrom); // 1011 — horaires
+  if (input.timeTo) fd.append("timeTo", input.timeTo);
+  if (input.ownerNoCar) fd.append("ownerNoCar", "true"); // 1011 — sans voiture
   if (input.notes) fd.append("notes", input.notes);
   if (input.postalCode) fd.append("postalCode", input.postalCode); // 23/10 (BOB) — position au code postal
   if (input.animalCount) fd.append("animalCount", String(input.animalCount));

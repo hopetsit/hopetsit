@@ -1040,6 +1040,18 @@ const respondToApplication = async (req, res) => {
           logger.warn(`[respondToApplication] garde-fou prix 3110 : ${e?.message || e}`);
         }
       }
+      // 1011 (BOB, constat ZOE) — les autres candidats restent en attente jusqu'au paiement ;
+      // si la demande a déjà un gardien PAYÉ, on ne choisit plus personne d'autre.
+      const siblings1011 = require('../services/siblings1011');
+      if (siblings1011.enabled()) {
+        try {
+          if (await siblings1011.hasPaidChoice(application)) {
+            return res.status(409).json({ error: 'This request is already paid.', code: 'ALREADY_PAID' });
+          }
+        } catch (e) {
+          logger.warn(`[respondToApplication] contrôle « déjà payé » 1011 : ${e?.message || e}`);
+        }
+      }
       application.status = 'accepted';
 
       // Move accepted application into booking flow so owner can pay.
@@ -1169,7 +1181,10 @@ const respondToApplication = async (req, res) => {
       // was assigned to someone else. Best-effort — failures are logged but
       // do not roll back the accept.
       try {
-        if (application.postId) {
+        if (siblings1011.enabled()) {
+          // 1011 — rien n'est fermé au choix. Seul un ANCIEN choix non payé est libéré.
+          await siblings1011.releasePreviousChoices(application, { ownerId, notify: sendNotification });
+        } else if (application.postId) {
           const otherApps = await Application.find({
             postId: application.postId,
             _id: { $ne: application._id },

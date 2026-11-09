@@ -41,7 +41,7 @@ let mongo; let app; let Owner; let Post; let AdLead;
 const D = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const LEAD = {
   email: 'lea.lead0811@example.test', firstName: 'Léa', service: 'garde', animal: 'chien',
-  city: 'Zone test', lat: -35, lng: -30, country: 'FR', lang: 'fr', startDate: D(12), endDate: D(14),
+  city: 'Zone test', postalCode: '75015', lat: -35, lng: -30, country: 'FR', lang: 'fr', startDate: D(12), endDate: D(14),
   campaign: 'paris_owners', page: '/demande',
 };
 const BROWSER = { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1' };

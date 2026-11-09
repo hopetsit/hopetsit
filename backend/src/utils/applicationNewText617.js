@@ -102,8 +102,11 @@ const enrichPrice620 = (data, locale) => {
   if (!amount) { d.priceText = ''; return d; }
   const words = UNIT_WORDS[String(locale || '').slice(0, 2)] || UNIT_WORDS.en;
   const unit = String(d.priceUnit || '');
-  if (d.priceIndicative === '1') d.priceText = words[unit] ? ` · ${amount}/${words[unit]}` : ` · ${amount}`;
-  else d.priceText = ` · ${amount} ${words.total}`;
+  // 1011 (BOB, constat ZOE) — à partir du 2ᵉ candidat, le prix affiché est celui du DERNIER candidat :
+  // on écrit son prénom devant (« · Myriam : 24 € au total »), sinon on le lisait comme un total de tous.
+  const who = Number(d.candidates) > 1 && d.candidateName && d.candidateName !== 'HoPetSit' ? `${d.candidateName} : ` : '';
+  if (d.priceIndicative === '1') d.priceText = words[unit] ? ` · ${who}${amount}/${words[unit]}` : ` · ${who}${amount}`;
+  else d.priceText = ` · ${who}${amount} ${words.total}`;
   return d;
 };
 

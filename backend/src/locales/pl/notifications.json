@@ -43,7 +43,7 @@
   },
   "application_accepted": {
     "title": "Wniosek zaakceptowany",
-    "body": "Twoje zgłoszenie zostało zaakceptowane.",
+    "body": "Twoje zgłoszenie zostało zaakceptowane. Rezerwacja zostanie potwierdzona, gdy właściciel zapłaci.",
     "emailSubject": "Twoje zgłoszenie zostało przyjęte — HoPetSit",
     "emailBody": "<p>Twoje zgłoszenie zostało zaakceptowane. Otwórz aplikację, aby zobaczyć szczegóły.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Otwórz w aplikacji</a></p>"
   },

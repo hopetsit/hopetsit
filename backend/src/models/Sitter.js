@@ -136,6 +136,8 @@ const sitterSchema = new mongoose.Schema(
     // Sprint 5 step 2 — where the sitter accepts to work.
     canServiceAtOwner: { type: Boolean, default: true },
     canServiceAtSitter: { type: Boolean, default: true },
+    // 1011 (BOB) — « J'ai un véhicule (je peux venir chercher l'animal) » ; null = pas répondu.
+    hasVehicle: { type: Boolean, default: null },
     // Coin Boost — profile boosting system
     boostExpiry: { type: Date, default: null },
     boostTier: { type: String, enum: [null, 'bronze', 'silver', 'gold', 'platinum'], default: null },

@@ -1107,6 +1107,7 @@ const updateSitterProfile = async (req, res) => {
       avatar,
       canServiceAtOwner,
       canServiceAtSitter,
+      hasVehicle,
       // v426 — synchro inscription↔profil : champs additifs collectés par le
       // wizard 5 étapes (date de naissance, animaux acceptés, expérience, rayon
       // d'intervention). Édités désormais aussi depuis « Modifier le profil ».
@@ -1128,6 +1129,8 @@ const updateSitterProfile = async (req, res) => {
     // Sprint 5 step 2 — sitter service capability.
     if (typeof canServiceAtOwner === 'boolean') updateData.canServiceAtOwner = canServiceAtOwner;
     if (typeof canServiceAtSitter === 'boolean') updateData.canServiceAtSitter = canServiceAtSitter;
+    // 1011 — « J'ai un véhicule » : booléen, ou null pour effacer la réponse.
+    if (typeof hasVehicle === 'boolean' || hasVehicle === null) updateData.hasVehicle = hasVehicle;
 
     // Update name — v575 : « prénom » + « nom ». `name` reste la source
     // d'affichage et est recalculé depuis firstName/lastName quand l'app les

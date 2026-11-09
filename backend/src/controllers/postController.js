@@ -13,6 +13,7 @@ const { isValidWalkDuration } = require('../utils/walkDuration');
 const { resolveServiceLocation } = require('../utils/serviceLocation587');
 // v587 (budget, option A de Daniel) — « Mon budget » facultatif.
 const { resolveBudget, publicBudget } = require('../utils/postBudget587');
+const { resolveExtras, publicExtras } = require('../utils/postExtras1011');
 const { resolveTargetProvider } = require('../utils/targetProvider2809');
 
 /** v573 — retire d'une liste d'annonces celles du spectateur gardien/promeneur. */
@@ -622,6 +623,8 @@ const createPost = async (req, res) => {
     }));
     // v587 — budget facultatif (devise du propriétaire par défaut).
     Object.assign(postPayload, resolveBudget(req.body, owner && owner.currency));
+    // 1011 — heures et « sans voiture », facultatifs.
+    Object.assign(postPayload, resolveExtras(req.body));
     // 28/09 (NEO) — « Demander à <prénom> » : prestataire ciblé, facultatif ;
     // rôle inconnu ou id inexistant → ignoré, la demande part quand même.
     {
@@ -1002,6 +1005,7 @@ const getPublicRequestPosts = async (req, res) => {
         // 620 — mode de dates (exact | approx | tbd) et visites par jour.
         dateMode: require('../utils/pricingEngine620').effectiveDateMode(p),
         visitsPerDay: p.visitsPerDay || null,
+        ...publicExtras(p), // 1011 — heures, sans voiture
         // v575 — audit P1-7 : durée de promenade voulue par le propriétaire.
         walkDurationMinutes:
           typeof p.walkDurationMinutes === 'number' ? p.walkDurationMinutes : null,
@@ -1428,6 +1432,7 @@ const getNearbyRequestPosts = async (req, res) => {
       // 620 — mode de dates (exact | approx | tbd) et visites par jour.
       dateMode: require('../utils/pricingEngine620').effectiveDateMode(post),
       visitsPerDay: post.visitsPerDay || null,
+      ...publicExtras(post), // 1011 — heures, sans voiture
       // v575 — audit P1-7 : durée de promenade voulue par le propriétaire.
       walkDurationMinutes:
         typeof post.walkDurationMinutes === 'number' ? post.walkDurationMinutes : null,
@@ -2025,6 +2030,8 @@ const createPostWithMedia = async (req, res) => {
       }));
       // v587 — budget facultatif, aussi avec photo.
       Object.assign(postPayload, resolveBudget(req.body, owner && owner.currency));
+      // 1011 — heures et « sans voiture », aussi avec photo.
+      Object.assign(postPayload, resolveExtras(req.body));
       // 28/09 (NEO) — prestataire ciblé (chaîne JSON en multipart).
       const tp = await resolveTargetProvider(req.body?.targetProvider);
       if (tp) postPayload.targetProvider = tp;
@@ -2258,6 +2265,8 @@ const updatePost = async (req, res) => {
         post.budgetCurrency = b.budgetCurrency;
       }
     }
+    // 1011 — heures et « sans voiture » : envoyé = modifié, absent = inchangé.
+    Object.assign(post, resolveExtras(req.body));
 
     // v441 — toggle « Afficher le caractère des animaux ».
     if (showAnimalCharacter !== undefined) {

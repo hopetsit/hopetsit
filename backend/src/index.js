@@ -169,12 +169,15 @@ async function startServer() {
     require('./services/applicationEmail2610').startApplicationEmailScheduler();
     // 2810 (BOB) — relance « candidats non consultés » (e1 +2 h, e2 J+2, e3 J+5), ACTIVE depuis le 28/10 (accord de Daniel), CANDIDATES_REMINDER_2810=off pour couper.
     require('./services/candidatesReminder2810').startCandidatesReminderScheduler();
+    require('./services/sitterFree1011').startSitterFreeScheduler();
     // 3110 (ADA, ordre de Daniel via BOB) — relance « posez vos dates » (1 e-mail, registre commun avec 2810 : 3 au total), DATES_REMINDER_3110=off pour couper.
     require('./services/datesReminder3110').startDatesReminderScheduler();
     // 2910 (BOB, Daniel : « les achats doivent suivre les 3 profils ») — boosts recopiés sur les 3 profils de la personne, toutes les 10 min. BOOST_SYNC=off pour couper.
     require('./services/boostSync2910').startBoostSyncScheduler();
     // 2910 (BOB, Daniel « qu'ils paient ») — relance de paiement : réservation choisie mais non payée → r1 +1 h, r2 +24 h. PAYMENT_REMINDER_2910=off pour couper.
     require('./services/paymentReminder2910').startPaymentReminderScheduler();
+    // 1011 (BOB, constat ZOE) — les autres candidats restent en attente jusqu'au paiement, puis sont prévenus. SIBLINGS_KEEP_1011=off pour revenir à l'ancien comportement.
+    require('./services/siblings1011').startSiblingsScheduler();
     // 3110 (ADA, ordre de Daniel 31/10) — contacts pub en brouillon : UN rappel « confirme ta demande » à +24 h.
     require('./services/adLeadConfirmReminder3110').startAdLeadConfirmReminderScheduler();
   } catch (error) {

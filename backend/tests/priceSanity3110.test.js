@@ -210,8 +210,10 @@ describe('3. Parcours réel (routes) : cas d\'Égly rejoué, aucun prix ni commi
 
   test('recalcul silencieux avec includeRejected : la candidature REFUSÉE à 2,70 € repasse au tarif actuel, 0 notification, 0 e-mail', async () => {
     const ag = await Application.findOne({ sitterId: S.agnes._id }).lean();
-    expect(ag.status).toBe('rejected'); // refusée automatiquement quand frederic a été choisi
-    await Application.updateOne({ _id: ag._id }, { $set: { 'pricing.totalPrice': 2.7 } });
+    // 1011 — les autres candidats restent « en attente » jusqu'au paiement (siblings1011) ;
+    // ils ne sont refusés qu'une fois la réservation payée. On reproduit ici cet état final.
+    expect(ag.status).toBe('pending');
+    await Application.updateOne({ _id: ag._id }, { $set: { status: 'rejected', 'pricing.totalPrice': 2.7 } });
     const ADMIN = { 'x-test-user': String(new mongoose.Types.ObjectId()), 'x-test-role': 'admin' };
     expect(S.appEmailSpy).toHaveBeenCalled();
     await Promise.allSettled(S.appEmailSpy.mock.results.map((r) => r.value));

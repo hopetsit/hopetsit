@@ -24,7 +24,7 @@ const SERVICE_NAMES = {
   dog_walking: { fr: 'Promenade de chien', en: 'Dog walking', es: 'Paseo de perros', de: 'Gassi gehen', it: 'Passeggiata con il cane', pt: 'Passeio de cães', ko: '반려견 산책', ja: '犬のお散歩', pl: 'Spacer z psem' },
   pet_sitting: { fr: 'Garde d’animaux', en: 'Pet sitting', es: 'Cuidado de mascotas', de: 'Tierbetreuung', it: 'Pet sitting', pt: 'Pet sitting', ko: '펫시팅', ja: 'ペットシッティング', pl: 'Opieka nad zwierzęciem' },
   house_sitting: { fr: 'Garde à domicile', en: 'House sitting', es: 'Cuidado a domicilio', de: 'Betreuung zu Hause', it: 'Custodia a domicilio', pt: 'Cuidado ao domicílio', ko: '방문 돌봄', ja: '在宅ペットシッティング', pl: 'Opieka w domu' },
-  day_care: { fr: 'Garderie de jour', en: 'Day care', es: 'Guardería de día', de: 'Tagesbetreuung', it: 'Asilo diurno', pt: 'Creche de dia', ko: '주간 돌봄', ja: '日中のお預かり', pl: 'Opieka dzienna' },
+  day_care: { fr: 'Garde en journée', en: 'Day care', es: 'Guardería de día', de: 'Tagesbetreuung', it: 'Asilo diurno', pt: 'Creche de dia', ko: '주간 돌봄', ja: '日中のお預かり', pl: 'Opieka dzienna' },
   home_visit: { fr: 'Visite à domicile', en: 'Home visit', es: 'Visita a domicilio', de: 'Hausbesuch', it: 'Visita a domicilio', pt: 'Visita ao domicílio', ko: '방문 서비스', ja: '訪問ケア', pl: 'Wizyta domowa' },
   overnight_stay: { fr: 'Garde de nuit', en: 'Overnight stay', es: 'Cuidado nocturno', de: 'Übernachtungsbetreuung', it: 'Custodia notturna', pt: 'Estadia noturna', ko: '숙박 돌봄', ja: 'お泊まり', pl: 'Opieka nocna' },
 };

@@ -1656,7 +1656,7 @@ export const t: Bundle = {
     posts_body_ph: "Décris ce dont tu as besoin pour ton animal…",
     posts_services_label: "Services",
     posts_svc_house_sitting: "Garde à domicile",
-    posts_svc_day_care: "Garderie de jour",
+    posts_svc_day_care: "Garde en journée",
     posts_svc_dog_walking: "Promenade",
     bk569_svc_pet_sitting: "Pet sitting",
     bk569_svc_long_term_care: "Garde à long terme",

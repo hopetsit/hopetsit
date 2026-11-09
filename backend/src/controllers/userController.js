@@ -277,6 +277,8 @@ const updateProfile = async (req, res) => {
     ]) {
       if (_b[k] !== undefined) update[k] = _b[k];
     }
+    // 1011 (BOB) — « J'ai un véhicule » (gardien / promeneur ; ignoré par le schéma propriétaire).
+    if (typeof _b.hasVehicle === 'boolean' || _b.hasVehicle === null) update.hasVehicle = _b.hasVehicle;
     // v586 (25/09/2026) — CAUSE de « masquer / visible par tous n'est pas
     // synchro avec la PawMap » et du « Mon fond » qui ne tient pas : ce
     // bloc écrivait `preferences` EN ENTIER, sur le SEUL profil du rôle

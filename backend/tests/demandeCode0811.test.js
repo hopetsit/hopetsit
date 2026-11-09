@@ -32,7 +32,7 @@ let mongo; let app; let Owner; let Post; let AdLead; let VerificationCode;
 const D = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const BASE = {
   email: 'lea.demande0811@example.test', firstName: 'Léa', service: 'garde', animal: 'chat',
-  city: 'Zone test', lat: -35, lng: -30, country: 'FR', lang: 'fr', startDate: D(10), endDate: D(12),
+  city: 'Zone test', postalCode: '75015', lat: -35, lng: -30, country: 'FR', lang: 'fr', startDate: D(10), endDate: D(12),
   campaign: 'paris_owners', page: '/demande', codeFlow: true,
 };
 const site = (body) => request(app).post('/ad-leads/site').send(body);

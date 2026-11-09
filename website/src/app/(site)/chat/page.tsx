@@ -134,6 +134,8 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // 1011 (ZOE) — conversation déjà placée en bas une première fois (sans animation).
+  const firstScrollDone1011 = useRef<string | null>(null);
   // v565 (point 36/18) — réponse à un message + drapeaux admin du chat.
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [features, setFeatures] = useState<ChatFeatures>({ media: true, voice: true, reply: true });
@@ -171,7 +173,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!user) {
-      router.replace("/login");
+      router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
       return;
     }
     refresh();
@@ -196,7 +198,7 @@ export default function ChatPage() {
       setConversations(list);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
-        router.replace("/login");
+        router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
         return;
       }
       setError(e instanceof Error ? e.message : "Failed to load conversations");
@@ -263,7 +265,17 @@ export default function ChatPage() {
 
   // Auto-scroll vers le bas quand de nouveaux messages arrivent.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // 1011 (ZOE point 2) — scrollIntoView faisait défiler TOUTE la page jusqu'au pied de page et
+    // cachait le champ de saisie. Seul le fil défile ; le cadre (borné à l'écran) reste visible.
+    const end = messagesEndRef.current;
+    const box = end?.parentElement;
+    if (!end || !box) return;
+    // Premier affichage : on se place en bas sans animation ; ensuite, défilement doux.
+    const key = String(activeId || "");
+    const mode: ScrollBehavior = firstScrollDone1011.current === key ? "smooth" : "auto";
+    if (messages.length > 0) firstScrollDone1011.current = key;
+    box.scrollTo({ top: box.scrollHeight, behavior: mode });
+    end.closest("[data-chat-panel]")?.scrollIntoView({ behavior: mode, block: "nearest" });
   }, [messages]);
 
   // v23.1 part 146 — listener socket pour les nouveaux messages temps réel.
@@ -846,7 +858,8 @@ export default function ChatPage() {
         <div
           className={`${
             activeId ? "block" : "hidden md:flex md:items-center md:justify-center"
-          } flex min-h-[400px] w-full min-w-0 flex-col rounded-2xl border border-ink/5 bg-white shadow-card md:min-h-[600px]`}
+          } flex max-h-[calc(100dvh-6rem)] min-h-[400px] w-full min-w-0 flex-col rounded-2xl border border-ink/5 bg-white shadow-card md:min-h-[600px]`}
+          data-chat-panel=""
         >
           {!activeId ? (
             <div className="p-12 text-center text-sm text-ink-muted">
@@ -933,7 +946,7 @@ export default function ChatPage() {
                   </div>
                 );
               })()}
-              <div className="flex-1 space-y-2 overflow-y-auto p-4">
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
                 {loadingMessages ? (
                   <div className="text-center text-sm text-ink-muted">{t("common_loading")}</div>
                 ) : messages.length === 0 ? (

@@ -90,3 +90,35 @@ test('bug signalé : open → in_progress ; fixed reste fixed ; id inconnu = env
   const row = await SupportReply.findOne({ bugReportId: open._id }).lean();
   expect(row).toMatchObject({ bugStatusBefore: 'open', bugStatusAfter: 'in_progress' });
 });
+
+// 1011 (BOB) — les 15 e-mails du 09/11 portaient un lien « /application/<id>?choose=1 » NON signé : le
+// propriétaire tombait sur la page de connexion. La route signe désormais ces liens quand le destinataire
+// est bien le propriétaire de la candidature ; le journal garde le texte SANS la clé.
+test('lien « mes candidats » : signé pour le propriétaire de la candidature, jamais pour un autre, journal sans clé', async () => {
+  const Owner = require('../src/models/Owner'); const Application = require('../src/models/Application');
+  const { verifyApplicationLink } = require('../src/utils/applicationLink3110');
+  const owner = await Owner.create({ name: 'Jeanne Test', email: 'jeanne.lien1011@example.org', password: 'x'.repeat(24), acceptedTerms: true });
+  const autre = await Owner.create({ name: 'Autre Test', email: 'autre.lien1011@example.org', password: 'x'.repeat(24), acceptedTerms: true });
+  const a = await Application.create({ ownerId: owner._id, sitterId: new mongoose.Types.ObjectId() });
+  const lien = `https://hopetsit.com/application/${a._id}?choose=1`;
+  const texte = `Bonjour Jeanne,\nvoici votre gardienne : ${lien}.\nÀ bientôt`;
+
+  const r = await post({ to: 'jeanne.lien1011@example.org', subject: 'Votre gardienne', text: texte });
+  expect(r.status).toBe(200); expect(r.body.signedLinks).toBe(1);
+  const m = SENT[0].text.match(/application\/[a-f0-9]{24}\?choose=1&k=([A-Za-z0-9_.-]+)/);
+  expect(m).not.toBeNull();
+  expect(SENT[0].text).toMatch(/&k=[A-Za-z0-9_.-]+\.\nÀ bientôt/); // le point final de la phrase reste après le lien
+  const v = verifyApplicationLink(m[1].replace(/\.$/, ''));
+  expect(v).toMatchObject({ ok: true, ownerId: String(owner._id), applicationId: String(a._id) });
+  const row = await SupportReply.findOne({ to: 'jeanne.lien1011@example.org' }).lean();
+  expect(row.text).toContain(lien); expect(row.text).not.toMatch(/[?&]k=/);
+
+  // Même lien envoyé à un AUTRE propriétaire, ou à une adresse sans compte : jamais de clé.
+  SENT.length = 0;
+  const r2 = await post({ to: 'autre.lien1011@example.org', subject: 's', text: texte });
+  expect(r2.body.signedLinks).toBe(0); expect(SENT[0].text).not.toMatch(/[?&]k=/);
+  SENT.length = 0;
+  const r3 = await post({ to: 'inconnu.lien1011@example.org', subject: 's', text: texte });
+  expect(r3.body.signedLinks).toBe(0); expect(SENT[0].text).not.toMatch(/[?&]k=/);
+  expect(String(autre._id)).not.toBe(String(owner._id));
+});

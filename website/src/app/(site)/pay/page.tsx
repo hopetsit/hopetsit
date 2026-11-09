@@ -24,6 +24,9 @@ import Link from "@/components/SiteLink";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { PromoCodeBox } from "@/components/PromoCodeBox";
+import { useAuth } from "@/lib/useAuth";
+import { ApiError, createBookingPaymentIntent } from "@/lib/api";
+import { l1011 } from "@/lib/i18n/liens1011";
 
 // Allow `Airwallex` global from the loaded script.
 declare global {
@@ -67,7 +70,14 @@ function ensureAirwallexScript(): Promise<void> {
 }
 
 export default function PayPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const { user, ready } = useAuth();
+  // 1011 (ZOE point 4) — `/pay?bookingId=` (bouton des e-mails « réservation à payer ») : au lieu
+  // d'une impasse, un bouton « Payer maintenant » qui prépare le paiement de CETTE réservation.
+  // Toujours sur un clic du propriétaire, jamais tout seul (une carte enregistrée serait débitée).
+  const [payBookingId, setPayBookingId] = useState("");
+  const [payBusy, setPayBusy] = useState(false);
+  const [payMsg, setPayMsg] = useState("");
   const [status, setStatus] = useState<"loading" | "redirecting" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState<string>("");
   // v565 (point 29) — `/pay?bookingId=` est la route « thème » des e-mails
@@ -130,6 +140,8 @@ export default function PayPage() {
       setStatus("error");
       const fromEmail = !!(params.get("bookingId") || bookingParam);
       setBookingHint(fromEmail);
+      const bid = params.get("bookingId") || bookingParam;
+      if (/^[A-Za-z0-9_-]{6,64}$/.test(bid)) setPayBookingId(bid);
       setErrorMsg(fromEmail ? "" : "Missing payment parameters.");
       return;
     }
@@ -162,6 +174,30 @@ export default function PayPage() {
     })();
   }, []);
 
+  async function payThisBooking() {
+    if (!payBookingId || payBusy) return;
+    setPayBusy(true);
+    setPayMsg("");
+    try {
+      const intent = await createBookingPaymentIntent(payBookingId);
+      if (!intent.clientSecret || !intent.paymentIntentId) throw new Error(intent.savedCardError || l1011(lang, "pay_error"));
+      const bk = intent.booking;
+      const currency = (intent.currency || bk?.pricing?.currency || bk?.currency || "EUR").toUpperCase();
+      const qs = new URLSearchParams({ intent: intent.paymentIntentId, secret: intent.clientSecret, currency, purpose: "booking", booking: payBookingId });
+      // `intent.amount` est en centimes : on n'affiche que le prix de la réservation quand il est connu.
+      const amt = bk?.pricing?.totalPrice ?? bk?.totalAmount ?? 0;
+      if (amt > 0) qs.set("amount", String(amt));
+      window.location.assign(`/pay?${qs.toString()}`);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        window.location.assign(`/login?redirect=${encodeURIComponent(`/pay?bookingId=${payBookingId}`)}`);
+        return;
+      }
+      setPayMsg(e instanceof ApiError && e.status === 409 ? l1011(lang, "pay_done") : l1011(lang, "pay_error"));
+      setPayBusy(false);
+    }
+  }
+
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center px-6 text-center">
       <div className="mt-8 mb-6">
@@ -183,7 +219,36 @@ export default function PayPage() {
         </>
       ) : (
         <>
-          {bookingHint ? (
+          {bookingHint && payBookingId && ready ? (
+            <div data-pay-booking-1011="" className="flex w-full max-w-sm flex-col items-center">
+              <p className="text-xl font-extrabold text-ink">{l1011(lang, "pay_title")}</p>
+              <p className="mt-2 text-sm font-semibold" style={{ color: "#15803D" }}>{l1011(lang, "pay_sub")}</p>
+              {user ? (
+                <button
+                  type="button"
+                  onClick={payThisBooking}
+                  disabled={payBusy}
+                  className="mt-5 inline-flex min-h-[52px] w-full items-center justify-center rounded-full bg-[#C92A12] px-6 py-3 text-base font-extrabold text-white transition hover:bg-[#9E1F0B] disabled:opacity-70"
+                >
+                  {payBusy ? l1011(lang, "pay_wait") : l1011(lang, "pay_btn")}
+                </button>
+              ) : (
+                <>
+                  <Link
+                    href={`/login?redirect=${encodeURIComponent(`/pay?bookingId=${payBookingId}`)}`}
+                    className="mt-5 inline-flex min-h-[52px] w-full items-center justify-center rounded-full bg-[#C92A12] px-6 py-3 text-base font-extrabold text-white transition hover:bg-[#9E1F0B]"
+                  >
+                    {l1011(lang, "pay_login")}
+                  </Link>
+                  <p className="mt-2 text-xs text-ink-muted">{l1011(lang, "pay_login_sub")}</p>
+                </>
+              )}
+              {payMsg && <p role="alert" className="mt-3 text-sm font-bold" style={{ color: "#9E1F0B" }}>{payMsg}</p>}
+              <Link href="/bookings" className="mt-4 text-sm font-semibold underline" style={{ color: "#6E4F48" }}>
+                {t("pay_open_bookings")} →
+              </Link>
+            </div>
+          ) : bookingHint ? (
             <>
               <p className="max-w-sm text-lg font-semibold text-ink">{t("pay_booking_hint")}</p>
               <Link

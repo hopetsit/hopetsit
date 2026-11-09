@@ -167,6 +167,11 @@ const postSchema = new mongoose.Schema(
     // saisi par le propriétaire dans sa devise (utils/postBudget587.js).
     budget: { type: Number, min: 0, default: null },
     budgetCurrency: { type: String, trim: true, uppercase: true, default: '' },
+    // 1011 (BOB) — précisions facultatives (utils/postExtras1011.js) : heures « HH:MM »
+    // et « je n'ai pas de voiture » (le gardien vient chercher l'animal).
+    timeFrom: { type: String, trim: true, maxlength: 5, default: '' },
+    timeTo: { type: String, trim: true, maxlength: 5, default: '' },
+    ownerNoCar: { type: Boolean, default: false },
 
     // Session avril 2026 — moderation fields for the admin Annonces tab.
     // Soft-delete only so the historical dataset is preserved (same policy

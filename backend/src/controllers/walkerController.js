@@ -445,6 +445,8 @@ const updateMyWalkerProfile = async (req, res) => {
         update[key] = req.body[key];
       }
     }
+    // 1011 (BOB) — « J'ai un véhicule » : booléen, ou null pour effacer ; autre valeur ignorée.
+    if (typeof req.body.hasVehicle === 'boolean' || req.body.hasVehicle === null) update.hasVehicle = req.body.hasVehicle;
 
     // v575 — « prénom » + « nom » : `name` reste la source d'affichage et est
     // recalculé depuis firstName/lastName ; une ancienne app qui n'envoie que

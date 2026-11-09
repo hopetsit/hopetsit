@@ -43,7 +43,7 @@
   },
   "application_accepted": {
     "title": "Candidatura accettata",
-    "body": "La tua candidatura è stata accettata.",
+    "body": "La tua candidatura è stata accettata. La prenotazione è confermata appena il proprietario avrà pagato.",
     "emailSubject": "La tua candidatura è stata accettata — HoPetSit",
     "emailBody": "<p>La tua candidatura è stata accettata. Apri l'app per vedere i dettagli.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Apri nell'app</a></p>"
   },

@@ -28,6 +28,8 @@ import Link from "@/components/SiteLink";
 import { useEffect, useMemo, useState } from "react";
 // v576 — mesure d'audience : clics vers les stores depuis la page de repli.
 import StoreBadges from "@/components/StoreBadges";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { l1011 } from "@/lib/i18n/liens1011";
 
 // v23.1.317 — Daniel (audit) : l'ID App Store était un placeholder (id6740000000)
 // → lien cassé 404. L'app iOS n'est pas encore publiée : on pointe vers la page
@@ -40,7 +42,10 @@ const PLAY_STORE_URL =
 // Map du chemin web → page liste équivalente quand disponible. Permet à
 // l'utilisateur desktop de "continuer sur le web" sans atterrir sur une
 // page vide.
-function webFallbackFor(path: string): { href: string; label: string } | null {
+// 1011 (ZOE point 3) — `direct` : le site sait ouvrir CETTE page précise (une conversation).
+// Le visiteur y est conduit tout seul (tout de suite sur ordinateur, après la tentative
+// d'ouverture de l'app sur téléphone) au lieu de rester devant les boutons des stores.
+function webFallbackFor(path: string): { href: string; label: string; direct?: boolean } | null {
   // Strip trailing slash + query.
   const clean = path.split("?")[0].split("#")[0].replace(/\/$/, "");
   const segments = clean.split("/").filter(Boolean);
@@ -49,6 +54,9 @@ function webFallbackFor(path: string): { href: string; label: string } | null {
     case "bookings":
       return { href: "/bookings", label: "Voir mes réservations" };
     case "chat":
+      if (segments[1] && /^[A-Za-z0-9_-]{6,64}$/.test(segments[1])) {
+        return { href: `/chat?c=${encodeURIComponent(segments[1])}`, label: "Ouvrir la conversation", direct: true };
+      }
       return { href: "/chat", label: "Voir mes messages" };
     case "book":
     case "post":
@@ -115,6 +123,7 @@ export default function CatchAllPage({
   const path = useMemo(() => "/" + (params?.slug ?? []).join("/"), [
     params?.slug,
   ]);
+  const { lang } = useT();
   const [search, setSearch] = useState<string>("");
   const [hasTriedOpen, setHasTriedOpen] = useState(false);
   const [platform, setPlatform] = useState<"ios" | "android" | "desktop">(
@@ -141,7 +150,13 @@ export default function CatchAllPage({
     // produit une alerte ou un écran figé, et si l'app est installée elle
     // s'ouvre sur une route inconnue (= écran de démarrage). Un visiteur perdu
     // à chaque fois.
-    if (detected !== "desktop" && webFallbackFor(path)) {
+    const fb = webFallbackFor(path);
+    if (detected === "desktop" && fb?.direct) {
+      // Ordinateur : pas d'app à ouvrir, on va droit à la conversation sur le site.
+      window.location.replace(fb.href);
+      return;
+    }
+    if (detected !== "desktop" && fb) {
       const link = buildAppDeepLink(path, window.location.search ?? "");
       // Iframe trick = pas de popup sur iOS si l'app n'est pas installée
       // (window.location ferait apparaître "page Web non disponible").
@@ -156,6 +171,8 @@ export default function CatchAllPage({
         } catch {
           /* noop */
         }
+        // Téléphone sans l'app (la page est toujours à l'écran) : la conversation s'ouvre sur le site.
+        if (fb.direct && !document.hidden) window.location.replace(fb.href);
       }, 1500);
       return () => clearTimeout(timer);
     } else {
@@ -203,6 +220,16 @@ export default function CatchAllPage({
             " Télécharge l'app pour continuer, ou poursuis ta navigation sur le web."}
         </p>
 
+        {fallback?.direct && (
+          <Link
+            href={fallback.href}
+            data-direct-web-1011=""
+            className="mb-3 block w-full rounded-xl bg-[#231715] py-3 font-semibold text-white transition-colors hover:bg-black"
+          >
+            {l1011(lang, "open_conv")}
+          </Link>
+        )}
+
         {platform !== "desktop" && hasTriedOpen && fallback && (
           <button
             type="button"
@@ -221,7 +248,7 @@ export default function CatchAllPage({
           <StoreBadges center />
         </div>
 
-        {fallback && (
+        {fallback && !fallback.direct && (
           <Link
             href={fallback.href}
             className="block text-orange-600 hover:text-orange-700 text-sm font-medium underline pt-3 border-t border-ink-line"

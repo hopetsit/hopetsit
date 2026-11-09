@@ -20,6 +20,17 @@ const PUBLISH: Partial<Record<string, { label: string; short: string; become: st
 // logo · 4 liens au centre (+ « Plus » : PawPoints, Contact) · langue · Se connecter · Devenir gardien (contour) ·
 // Publier ma demande (seul bouton plein). Sous 1240 px : logo · langue · bouton principal · menu (rien ne se coupe).
 const MORE: Record<string, string> = { fr: "Plus", en: "More", es: "Más", de: "Mehr", it: "Altro", pt: "Mais", ko: "더보기", ja: "その他", pl: "Więcej" };
+// 1011 (ZOE point 8) — sur la page d'arrivée de la pub (/demande, /request), « Publier » faisait QUITTER la page
+// vers /garde-animaux/paris alors que le formulaire est sous les yeux. Il ramène maintenant au formulaire.
+export const AD_PAGES_1011 = ["/demande", "/request"];
+export function stayOnForm1011(e: { preventDefault: () => void }) {
+  e.preventDefault();
+  try {
+    const el = document.getElementById("publier") || document.querySelector("[data-testid^='demande-']");
+    if (el) (el as HTMLElement).scrollIntoView({ behavior: "smooth", block: "start" });
+    else window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch { /* rien */ }
+}
 function UserIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
@@ -34,6 +45,7 @@ export function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, ready } = useAuth();
+  const onAdPage1011 = AD_PAGES_1011.includes((pathname || "").replace(/\/$/, ""));
   const [open, setOpen] = useState(false);
 
   const links = [
@@ -220,7 +232,8 @@ export function Header() {
               {/* 31/10 (LEO, décision BOB, étape 3) — bouton principal = « Publier ma demande » (propriétaires d'abord) ;
                   fr/en seulement, les autres langues gardent « S'inscrire ». */}
               <Link
-                href={PUBLISH[lang] ? PUBLISH[lang]!.href : "/signup"}
+                href={onAdPage1011 ? "#publier" : PUBLISH[lang] ? PUBLISH[lang]!.href : "/signup"}
+                onClick={onAdPage1011 ? stayOnForm1011 : undefined}
                 /* v585 — pouce : zone de toucher portée à 44 px par un calque invisible. */
                 className="relative whitespace-nowrap rounded-full bg-owner px-4 py-1.5 text-[13px] font-semibold text-white shadow-cta transition after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] hover:bg-owner-dark min-[1240px]:px-5 min-[1240px]:py-[9px] min-[1240px]:text-[14px] min-[1240px]:font-bold"
                 data-nav-publish-3110={PUBLISH[lang] ? "1" : undefined}

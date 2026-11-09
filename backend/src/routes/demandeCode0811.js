@@ -203,7 +203,8 @@ router.post('/check', async (req, res) => {
     // même chemin que le clic de l'e-mail (publishLead → createPost → gardiens prévenus ; idempotent).
     const { publishLead } = require('./adLeads2210');
     const hadPost = !!lead.postId;
-    const lieu = b.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner';
+    // 1011 (BOB) — lieu explicite dans la requête, sinon celui choisi dans le formulaire (gardé sur le contact).
+    const lieu = b.lieu === 'at_sitter' || b.lieu === 'at_owner' ? b.lieu : (lead.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner');
     const r = await publishLead(lead, lieu);
     if (r.status !== 200) return res.status(r.status).json(r.body);
     const { markVerifiedAcrossRoles, signAuthToken } = require('../controllers/authController');

@@ -21,6 +21,7 @@ import { SignatureButton } from "@/components/SignatureButton";
 import { RankProgress611 } from "@/components/Rank611";
 import { PinChips1910 } from "@/components/Pins1910";
 import { RatesGrid620 } from "@/components/RatesGrid620";
+import { VehicleToggle1011 } from "@/components/VehicleToggle1011";
 import { parsePins1910, type Pins1910 } from "@/lib/pins1910";
 import { parseRank611, type Rank611 } from "@/lib/ranks611";
 import { d620 } from "@/lib/i18n/dates620";
@@ -742,6 +743,8 @@ export default function DashboardPage() {
           )}
 
           {isProvider && <RatesGrid620 role={role as "sitter" | "walker"} lang={lang} />}
+          {/* 1011 — « J'ai un véhicule » (badge « Véhiculé » côté propriétaire). */}
+          {isProvider && <VehicleToggle1011 role={role as "sitter" | "walker"} lang={lang} className="mt-3" />}
 
           {/* PawMap : la raison de venir sur grand écran (une seule carte, pas de doublon du menu). */}
           <Link href="/map" className={`group mt-4 flex items-center gap-4 rounded-[24px] bg-[#FAF1EC] p-4 text-[#231715] transition md:p-5 ${tint.hoverBg}`}>

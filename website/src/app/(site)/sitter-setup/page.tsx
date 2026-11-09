@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { SelectMenu } from "@/components/SelectMenu";
 import BackLink from "@/components/BackLink";
+import { VehicleToggle1011 } from "@/components/VehicleToggle1011";
 import {
   ApiError,
   Availability,
@@ -30,7 +31,7 @@ import {
 } from "@/lib/api";
 
 export default function SitterSetupPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -323,6 +324,9 @@ export default function SitterSetupPage() {
           </button>
         </form>
       </section>
+
+      {/* 1011 — « J'ai un véhicule » (badge « Véhiculé » côté propriétaire). */}
+      <VehicleToggle1011 role={roleColor} lang={lang} className="mt-6" />
 
       {/* ── IBAN ─────────────────────────────────────────────── */}
       <section className="mt-6 rounded-2xl border border-ink/5 bg-white p-6 shadow-card">

@@ -237,7 +237,7 @@ const ADMIN_BUILD = 'v637'; // 637 (09/11) : fenêtre ATT dès le 1er lancement,
 const _ADMIN_BUILD_612 = 'v612'; // 612 (PAM, 04/10) : admin — rangs Chiot → Légende à la place des anciens badges
 // 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à
 // redéployer quand seul admin_dashboard.html a bougé (ADMIN_BUILD reste celui de l'app).
-const ADMIN_DEPLOYED_AT = '2026-11-05T02:30'; // 05/11 (BOB) : frise des demandes droite (étapes 4 « sautée » et 2) ; 31/10 soir (ADA) : tuile « Propriétaires revenus », « A l'app » par personne, relance « posez vos dates » ; avant 26/10 (ADA, décision de Daniel) : « vrai dernier retour du propriétaire » (scripts exclus), « a ouvert ses candidats », « a l'app » dans Demandes publiées
+const ADMIN_DEPLOYED_AT = '2026-11-09T23:30'; // 09/11 (ADA) : demandes pub (entonnoir 8 étapes + liste), pastille « Véhiculé », bloc « gardien libre → payer », horaires / sans voiture dans le parcours ; 05/11 (BOB) : frise des demandes droite (étapes 4 « sautée » et 2) ; 31/10 soir (ADA) : tuile « Propriétaires revenus », « A l'app » par personne, relance « posez vos dates » ; avant 26/10 (ADA, décision de Daniel) : « vrai dernier retour du propriétaire » (scripts exclus), « a ouvert ses candidats », « a l'app » dans Demandes publiées
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -362,6 +362,8 @@ const versionedRoutes = [
   { path: '/admin/requests0410', mw: [], router: require('./routes/adminRequests0410') },
   // 22/10 (SAM, accord Daniel) — contacts de la pub à formulaire : enregistrement
   // (admin) puis confirmation en un clic depuis l'e-mail (public, jeton aléatoire).
+  // 1011 (BOB, ordre de Daniel) — liste des demandes pub / site avec l'étape où chacune attend (lecture seule, sans e-mail).
+  { path: '/admin/ad-leads-1011', mw: [], router: require('./routes/adminAdLeadsList1011') },
   { path: '/admin/ad-leads', mw: [], router: require('./routes/adLeads2210').adminRouter },
   // 0511 (SAM, décision de Daniel 05/11) — page de remerciement Meta → demande publiée sans passer par la boîte
   // mail (POST /ad-leads/thanks/confirm). Monté AVANT /ad-leads : sinon « thanks » serait pris pour un :id (404).
@@ -382,6 +384,8 @@ const versionedRoutes = [
   // 620b (ZOE, 24/10) — rejouer le recalcul des candidatures d'une demande requalifiée (garde → visites). requireAdmin dans le routeur.
   { path: '/admin/reprice-620', mw: [], router: require('./routes/adminReprice620') },
   { path: '/admin/candidates-reminder-2810', mw: [], router: require('./routes/adminCandidatesReminder2810') },
+  { path: '/sitter-free', mw: [sensitiveLimiter], router: require('./routes/sitterFree1011') },
+  { path: '/admin/sitter-free-1011', mw: [], router: require('./routes/adminSitterFree1011') },
   { path: '/admin/dates-reminder-3110', mw: [], router: require('./routes/adminDatesReminder3110') }, // 3110 (ADA) — relance « posez vos dates » (simulation)
   // 1610 (SAM, 16/10) — « Partagez votre fiche » : registre + passage à la main (testOnly par défaut). requireAdmin dans le routeur.
   { path: '/admin/sitter-invite-1610', mw: [], router: require('./routes/adminSitterInvite1610') },

@@ -32,6 +32,13 @@ const { countryToCurrency } = require('../utils/countryCurrency');
 const requireAdmin = [requireAuth, requireRole('admin'), auditAdmin];
 const TERMS_VERSION = process.env.TERMS_VERSION || 'v1.0';
 
+/** 1011 (BOB) — lieu de la garde : celui envoyé à la confirmation s'il est explicite, sinon celui choisi dans le formulaire. */
+function lieuFor(body, lead) {
+  const v = body && body.lieu;
+  if (v === 'at_sitter' || v === 'at_owner') return v;
+  return lead && lead.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner';
+}
+
 /** Demande telle que le site la publierait (cf. website posts/create). */
 function postInputFor(lead, lieu) {
   const fr = lead.lang === 'fr';
@@ -39,19 +46,33 @@ function postInputFor(lead, lieu) {
     : lead.animal === 'chat' ? (fr ? 'mon chat' : 'my cat') : (fr ? 'mon animal' : 'my pet');
   const quoi = lead.service === 'promenade' ? (fr ? 'des promenades pour' : 'dog walks for')
     : lead.service === 'visites' ? (fr ? 'des visites à domicile pour' : 'drop-in visits for')
-      : (fr ? 'une garde pour' : 'a pet sitter for');
+      : lead.service === 'journee' ? (fr ? 'une garde en journée pour' : 'daytime care for')
+        : (fr ? 'une garde pour' : 'a pet sitter for');
   const quand = { bientot: fr ? ' dans les 15 jours' : ' within 2 weeks',
     fetes: fr ? " pendant les fêtes de fin d'année" : ' over the holidays' }[lead.quand] || '';
+  // 1011 (BOB) — horaires et « pas de voiture » écrits EN CLAIR dans le texte : une ancienne app les lit aussi.
+  const { extrasSentence, cleanTime } = require('../utils/postExtras1011');
+  const tf = cleanTime(lead.timeFrom) || '';
+  const tt = cleanTime(lead.timeTo) || '';
+  const precisions = extrasSentence({ timeFrom: tf, timeTo: tt, noCar: lead.noCar === true }, fr ? 'fr' : 'en');
+  const cp = require('../utils/geocodePostal2310').cleanCode(lead.postalCode);
   const input = {
-    body: `${fr ? 'Je cherche' : "I'm looking for"} ${quoi} ${qui}${quand}.`,
+    body: `${fr ? 'Je cherche' : "I'm looking for"} ${quoi} ${qui}${quand}.${precisions ? ` ${precisions}` : ''}`,
     language: lead.lang,
     animalCount: 1,
     animalTypes: [{ chien: 'dog', chat: 'cat' }[lead.animal] || 'other'],
     // 23/10 (BOB, demande de Daniel) — les dates : réponses du formulaire, sinon déduites du choix « quand ».
     ...(() => { const d = require('../utils/adLeadDates2310').datesFor(lead); return d ? { startDate: d.startDate.toISOString(), endDate: d.endDate.toISOString() } : {}; })(),
+    // 1011 — le code postal suit la demande (43 demandes sur 46 n'en avaient pas). Posé dans `location`, pas en
+    // `postalCode` de requête : la position du contact (carte ou code postal déjà géocodé) n'est pas recalculée.
     location: Number.isFinite(lead.lat) && Number.isFinite(lead.lng)
-      ? { city: lead.city, lat: lead.lat, lng: lead.lng } : { city: lead.city },
+      ? { city: lead.city, lat: lead.lat, lng: lead.lng, ...(cp ? { postalCode: cp } : {}) }
+      : { city: lead.city, ...(cp ? { postalCode: cp } : {}) },
   };
+  if (tf) input.timeFrom = tf;
+  if (tt) input.timeTo = tt;
+  if (lead.noCar === true) input.ownerNoCar = true;
+  if (Number.isFinite(lead.budget) && lead.budget > 0) input.budget = lead.budget;
   // 620 (ZOE) — sans dates lisibles, la demande est « dates à prévoir » (tbd) : les
   // gardiens candidatent au tarif unitaire, le propriétaire pose ses dates ensuite.
   if (!input.startDate) input.dateMode = 'tbd';
@@ -66,8 +87,10 @@ function postInputFor(lead, lieu) {
     input.serviceLocation = 'at_owner';
     input.visitsPerDay = [1, 2].includes(Number(lead.visitsPerDay)) ? Number(lead.visitsPerDay) : 1;
   } else {
-    const chezGardien = lead.service === 'garde' && lieu === 'at_sitter';
-    input.serviceTypes = ['house_sitting'];
+    // 1011 — garde en journée : service `day_care` (prix à la journée), même choix de lieu que la garde.
+    const journee = lead.service === 'journee';
+    const chezGardien = (lead.service === 'garde' || journee) && lieu === 'at_sitter';
+    input.serviceTypes = [journee ? 'day_care' : 'house_sitting'];
     input.houseSittingVenue = chezGardien ? 'sitters_home' : 'owners_home';
     input.serviceLocation = chezGardien ? 'at_sitter' : 'at_owner';
   }
@@ -392,7 +415,7 @@ router.post('/:id/confirm', async (req, res) => {
     if (!ID_RE.test(req.params.id)) return res.status(404).json({ error: 'not_found' });
     const lead = await AdLead.findById(req.params.id);
     if (!lead) return res.status(404).json({ error: 'not_found' });
-    const lieu = req.body && req.body.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner';
+    const lieu = lieuFor(req.body, lead);
     const hadPost0611 = !!lead.postId;
     const r = await publishLead(lead, lieu);
     if (r.status !== 200) return res.status(r.status).json(r.body);
@@ -591,7 +614,7 @@ adminRouter.post('/:id/publish', requireAdmin, async (req, res) => {
     const lead = await AdLead.findById(req.params.id);
     if (!lead) return res.status(404).json({ error: 'not_found' });
     const already = !!lead.postId;
-    const lieu = req.body && req.body.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner';
+    const lieu = lieuFor(req.body, lead);
     const r = await publishLead(lead, lieu);
     if (r.status !== 200) return res.status(r.status).json(r.body);
     return res.status(200).json({
@@ -612,3 +635,4 @@ module.exports.draftLead = draftLead; // 3110 (ADA) — brouillon + e-mail « co
 module.exports.sendConfirmEmail = sendConfirmEmail;
 module.exports.ensureLeadOwner = ensureLeadOwner;
 module.exports.TEST_LEAD_RE = TEST_LEAD_RE;
+module.exports.lieuFor = lieuFor; // 1011

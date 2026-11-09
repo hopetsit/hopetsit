@@ -14,7 +14,8 @@
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 
-const SERVICES = ['garde', 'promenade', 'visites'];
+// 1011 (BOB) — « journee » = garde en journée (service day_care, prix à la journée).
+const SERVICES = ['garde', 'journee', 'promenade', 'visites'];
 const ANIMALS = ['chien', 'chat', 'autre'];
 const WHENS = ['bientot', 'fetes', 'plus_tard'];
 
@@ -36,6 +37,13 @@ const adLeadSchema = new mongoose.Schema(
     endText: { type: String, default: '', trim: true },
     // 620 (ZOE) — service « visites » : visites par jour lues dans le formulaire (1 | 2), sinon 1.
     visitsPerDay: { type: Number, enum: [1, 2, null], default: null },
+    // 1011 (BOB, accord de Daniel) — précisions du formulaire : lieu choisi (jusqu'ici calculé puis perdu),
+    // horaires « HH:MM », « je n'ai pas de voiture », budget. Tout est facultatif.
+    lieu: { type: String, enum: ['at_owner', 'at_sitter'], default: 'at_owner' },
+    timeFrom: { type: String, default: '', trim: true, maxlength: 5 },
+    timeTo: { type: String, default: '', trim: true, maxlength: 5 },
+    noCar: { type: Boolean, default: false },
+    budget: { type: Number, default: null },
     confirmedAt: { type: Date }, // demande publiée (par le clic OU par le suivi automatique) — n'est PAS une preuve
     clickedAt: { type: Date }, // 27/10 (SAM) — 1er VRAI clic (navigateur ou app) sur le lien de l'e-mail
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Owner' },

@@ -69,7 +69,10 @@ export default function PostsPage() {
   useEffect(() => {
     const u = getStoredUser();
     if (!u) {
-      router.replace("/login");
+      // 1011 (ZOE) — le lien « candidats » d'un e-mail doit revenir ici après la connexion.
+      let back = "/posts";
+      try { back = "/posts" + (window.location.search || ""); } catch { /* ignore */ }
+      router.replace(`/login?redirect=${encodeURIComponent(back)}`);
       return;
     }
     setRole(u.role);

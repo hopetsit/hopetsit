@@ -69,7 +69,7 @@ const SERVICE_META = Object.freeze({
   day_care: {
     unit: 'day',
     order: 3,
-    label: { fr: 'Garderie de jour', en: 'Day care', es: 'Guardería de día', de: 'Tagesbetreuung', it: 'Asilo diurno', pt: 'Creche de dia', ko: '주간 돌봄', ja: '日中のお預かり', pl: 'Opieka dzienna' },
+    label: { fr: 'Garde en journée', en: 'Day care', es: 'Guardería de día', de: 'Tagesbetreuung', it: 'Asilo diurno', pt: 'Creche de dia', ko: '주간 돌봄', ja: '日中のお預かり', pl: 'Opieka dzienna' },
     desc: { fr: 'Votre animal est gardé en journée. Prix par jour.', en: 'Your pet is looked after during the day. Price per day.', es: 'Tu mascota está cuidada durante el día. Precio por día.', de: 'Dein Tier wird tagsüber betreut. Preis pro Tag.', it: 'Il tuo animale è accudito di giorno. Prezzo al giorno.', pt: 'O seu animal fica guardado durante o dia. Preço por dia.', ko: '낮 시간 동안 반려동물을 돌봅니다. 1일 단위 요금.', ja: '日中にペットをお預かりします。1日単位の料金。', pl: 'Opieka nad zwierzakiem w ciągu dnia. Cena za dzień.' },
     unitLabel: { fr: 'jour', en: 'day', es: 'día', de: 'Tag', it: 'giorno', pt: 'dia', ko: '일', ja: '日', pl: 'dzień' },
   },

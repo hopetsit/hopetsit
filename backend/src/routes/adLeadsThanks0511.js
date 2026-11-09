@@ -95,7 +95,7 @@ router.post('/confirm', async (req, res) => {
       }
     }
 
-    const r = await publishLead(lead, 'at_owner');
+    const r = await publishLead(lead, lead.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner'); // 1011 — lieu choisi dans le formulaire
     if (r.status !== 200) return res.status(r.status).json(r.body);
     // 0611 (SAM) — Meta Conversions API : « Lead » (demande publiée depuis la page merci). Jamais bloquant.
     if (r.postId) { try { void require('../services/metaCapi0611').leadPublished(lead, req); } catch (_) { /* jamais bloquant */ } }

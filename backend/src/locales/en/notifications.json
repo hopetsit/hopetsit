@@ -43,7 +43,7 @@
   },
   "application_accepted": {
     "title": "Application accepted",
-    "body": "Your application was accepted.",
+    "body": "Your application was accepted. The booking is confirmed as soon as the owner has paid.",
     "emailSubject": "Your application was accepted — HoPetSit",
     "emailBody": "<p>Your application was accepted. Open the app to see the details.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   },

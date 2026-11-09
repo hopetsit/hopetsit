@@ -12,7 +12,7 @@ export const DATES620: Record<Lang, D> = {
   fr: {
     svc_house_sitting: "Garde à domicile",
     svc_home_visit: "Visite à domicile",
-    svc_day_care: "Garderie de jour",
+    svc_day_care: "Garde en journée",
     svc_dog_walking: "Promenade",
     unit_long_day: "par jour",
     unit_long_night: "par nuit",
@@ -100,7 +100,7 @@ export const DATES620: Record<Lang, D> = {
     rates_30: "30 min",
     rates_60: "1 h",
     rates_120: "2 h",
-    rates_daycare: "Garderie de jour",
+    rates_daycare: "Garde en journée",
     rates_daycare_hint: "Par jour · même tarif que la garde",
     rates_walk: "Promenade",
     rates_walk_hint: "Par balade, selon la durée",

@@ -43,7 +43,7 @@
   },
   "application_accepted": {
     "title": "Bewerbung akzeptiert",
-    "body": "Deine Bewerbung wurde akzeptiert.",
+    "body": "Deine Bewerbung wurde akzeptiert. Die Buchung ist bestätigt, sobald der Besitzer bezahlt hat.",
     "emailSubject": "Deine Bewerbung wurde akzeptiert — HoPetSit",
     "emailBody": "<p>Deine Bewerbung wurde akzeptiert. Öffne die App, um die Details zu sehen.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">In der App öffnen</a></p>"
   },

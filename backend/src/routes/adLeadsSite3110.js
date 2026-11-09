@@ -10,7 +10,7 @@
  * Entrée : { email, firstName, service: garde|promenade|visites, animal: chien|chat|autre,
  *            postalCode, city?, country: FR|US|…, lang: fr|en, startDate, endDate (AAAA-MM-JJ, OBLIGATOIRES
  *            depuis le 06/11 — NEO, ordre de Daniel : 400 DATES_REQUIRED / DATES_INVALID ; coupe-circuit
- *            SITE_DATES_REQUIRED_0611=off → « dates à prévoir » comme avant), visitsPerDay?, lieu?: at_owner|at_sitter, campaign?, page?,
+ *            SITE_DATES_REQUIRED_0611=off → « dates à prévoir » comme avant), visitsPerDay?, lieu?: at_owner|at_sitter, (1011 : service « journee », postalCode OBLIGATOIRE, timeFrom?, timeTo?, noCar?, budget?) campaign?, page?,
  *            website (champ piège : doit rester vide) }
  * Garde-fous : limiteur par IP (sensitiveLimiter, monté sur /ad-leads) + par e-mail (3 / 10 min),
  * champ piège, e-mail valide, jamais +test / staff, dédoublonnage par e-mail (contact déjà publié et
@@ -100,6 +100,11 @@ const DATES_MSG = {
   required: { fr: 'Indique les dates de début et de fin : les gardiens en ont besoin pour répondre.', en: 'Enter the start and end dates: sitters need them to reply.' },
   order: { fr: 'La fin doit être après le début.', en: 'The end must be after the start.' },
 };
+// 1011 (BOB) — message du code postal obligatoire (le site l'affiche tel quel).
+const POSTAL_MSG = {
+  fr: 'Indique ton code postal : il sert à te proposer les gardiens les plus proches de chez toi.',
+  en: 'Enter your ZIP / postal code: we use it to show you the sitters closest to you.',
+};
 function datesRequired0611(b, lang) {
   if (String(process.env.SITE_DATES_REQUIRED_0611 || '').toLowerCase() === 'off') return null;
   const start = String(b.startDate || '').trim();
@@ -141,9 +146,24 @@ router.post('/site', async (req, res) => {
     const postalCode = String(b.postalCode || '').trim().slice(0, 12);
     const cityIn = String(b.city || '').trim().slice(0, 80);
     if (!postalCode && !cityIn) return res.status(400).json({ error: 'PLACE_REQUIRED', code: 'PLACE_REQUIRED' });
+    // 1011 (BOB, accord de Daniel) — CODE POSTAL OBLIGATOIRE : 43 demandes sur 46 n'en avaient pas, et une ville choisie
+    // dans la liste place la demande au centre-ville (gardiens proposés à 8-10 km). Coupe-circuit : SITE_POSTAL_REQUIRED_1011=off.
+    if (!postalCode && String(process.env.SITE_POSTAL_REQUIRED_1011 || '').toLowerCase() !== 'off') {
+      return res.status(400).json({ error: POSTAL_MSG[lang === 'en' ? 'en' : 'fr'], code: 'POSTAL_REQUIRED' });
+    }
     if (!emailAllowed(canonical)) return res.status(429).json({ error: 'TOO_MANY', code: 'TOO_MANY' });
 
     const lieu = b.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner';
+    // 1011 — précisions facultatives du formulaire (« ＋ Préciser ») : jamais une erreur, l'illisible est ignoré.
+    const { cleanTime, toBool } = require('../utils/postExtras1011');
+    const budgetN = Number(String(b.budget == null ? '' : b.budget).replace(/\s/g, '').replace(',', '.'));
+    const extras1011 = {
+      lieu,
+      timeFrom: cleanTime(b.timeFrom) || '',
+      timeTo: cleanTime(b.timeTo) || '',
+      noCar: toBool(b.noCar) === true,
+      ...(Number.isFinite(budgetN) && budgetN > 0 ? { budget: Math.round(Math.min(budgetN, 100000) * 100) / 100 } : {}),
+    };
     const Post = require('../models/Post');
     // 3110 — plus aucun jeton de session renvoyé par cette route : la session s'ouvre par le lien de l'e-mail.
 
@@ -199,6 +219,7 @@ router.post('/site', async (req, res) => {
         source: 'site', campaign, page: String(b.page || '').trim().slice(0, 120), postalCode,
         positionSource: picked ? 'map' : geo ? 'postal' : cityIn ? 'city' : 'anchor',
         pendingConfirm: true,
+        ...extras1011,
         email, firstName: String(b.firstName || '').trim().slice(0, 60) || String(existingOwner.name || '').split(' ')[0] || '',
         city: place.city, ...(Number.isFinite(place.lat) && Number.isFinite(place.lng) ? { lat: place.lat, lng: place.lng } : {}),
         country, lang, service, animal: AdLead.ANIMALS.includes(b.animal) ? b.animal : 'autre', quand: 'plus_tard',
@@ -239,6 +260,7 @@ router.post('/site', async (req, res) => {
       country,
       lang,
       service,
+      ...extras1011,
       animal: AdLead.ANIMALS.includes(b.animal) ? b.animal : 'autre',
       quand: 'plus_tard',
       startText: textDate(b.startDate, lang),

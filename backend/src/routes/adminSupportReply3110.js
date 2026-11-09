@@ -13,6 +13,10 @@
  * - si `bugReportId` existe : le bug passe en `in_progress`, sauf s'il est déjà `fixed`
  *   (ou done / wontfix / duplicate : on ne rouvre pas un bug classé).
  * Aucun e-mail n'est envoyé sans appel explicite de l'admin.
+ *
+ * 1011 (BOB) — un lien https://hopetsit.com/application/<id>… écrit dans le texte part SIGNÉ (clé `k`, 14 jours, cf.
+ * utils/applicationLink3110) quand le destinataire est le propriétaire de cette candidature : il arrive connecté sur la
+ * page de paiement, sans mot de passe. Sinon le lien reste tel quel. Le journal garde le texte SANS la clé.
  */
 const express = require('express');
 const mongoose = require('mongoose');
@@ -29,6 +33,37 @@ const REPLY_TO = process.env.SUPPORT_REPLY_TO || 'contact@hopetsit.com';
 const SIGNATURE = "\n\n— L'équipe HoPetSit\ncontact@hopetsit.com";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const KEEP_STATUS = new Set(['fixed', 'done', 'wontfix', 'duplicate']);
+
+const APP_LINK_RE = /https?:\/\/(?:www\.)?hopetsit\.com\/application\/[a-f0-9]{24}(?:\?[^\s<>"')\]]*)?/gi;
+
+/**
+ * 1011 — signe les liens de candidature du texte pour le propriétaire `to`. Jamais bloquant : au moindre doute
+ * (adresse inconnue, candidature d'un autre, base indisponible) le texte part inchangé. Renvoie { text, signed }.
+ */
+async function signApplicationLinks(to, text) {
+  try {
+    const found = String(text || '').match(APP_LINK_RE);
+    if (!found) return { text, signed: 0 };
+    const Owner = require('../models/Owner');
+    const owner = await Owner.findOne({ email: String(to || '').toLowerCase() }).select('_id').lean();
+    if (!owner) return { text, signed: 0 };
+    const Application = require('../models/Application');
+    const { withSignedApplicationLink } = require('../utils/applicationLink3110');
+    let out = text; let signed = 0;
+    for (const raw of [...new Set(found)]) {
+      const link = raw.replace(/[.,;:!?]+$/, '');
+      const id = (link.match(/\/application\/([a-f0-9]{24})/i) || [])[1];
+      const appDoc = id ? await Application.findById(id).select('ownerId').lean() : null;
+      if (!appDoc || String(appDoc.ownerId || '') !== String(owner._id)) continue;
+      const s = await withSignedApplicationLink('owner', String(owner._id), link);
+      if (s && s !== link) { out = out.split(link).join(s); signed += 1; }
+    }
+    return { text: out, signed };
+  } catch (e) {
+    logger.warn(`[admin/support-reply] lien non signé : ${e && e.message}`);
+    return { text, signed: 0 };
+  }
+}
 
 /** Pur : valide le corps de la requête. Retourne { error } ou { to, subject, text, bugReportId }. */
 function validateSupportReply(body) {
@@ -59,7 +94,8 @@ router.post('/', requireAdmin, async (req, res) => {
     if (bugReportId) bug = await BugReport.findById(bugReportId);
 
     const fullText = `${text}${SIGNATURE}`;
-    const info = await emailService.sendEmail(to, subject, fullText, null, { replyTo: REPLY_TO });
+    const signedOut = await signApplicationLinks(to, fullText);
+    const info = await emailService.sendEmail(to, subject, signedOut.text, null, { replyTo: REPLY_TO });
     const sent = !(info && info.skipped);
 
     let bugStatusBefore = ''; let bugStatusAfter = '';
@@ -79,7 +115,7 @@ router.post('/', requireAdmin, async (req, res) => {
     });
     logger.info(`[admin/support-reply] sent=${sent} id=${row._id} bug=${bug ? bug._id : '-'} admin=${row.adminId}`);
     return res.json({
-      ok: true, id: String(row._id), to, sent, skipped: sent ? null : (info && info.reason) || null,
+      ok: true, id: String(row._id), to, sent, signedLinks: signedOut.signed, skipped: sent ? null : (info && info.reason) || null,
       bugReportId: bug ? String(bug._id) : null, bugFound: !!bug || (bugReportId ? false : null), bugStatus: bugStatusAfter || null,
     });
   } catch (e) {
@@ -90,3 +126,4 @@ router.post('/', requireAdmin, async (req, res) => {
 
 module.exports = router;
 module.exports.validateSupportReply = validateSupportReply;
+module.exports.signApplicationLinks = signApplicationLinks;

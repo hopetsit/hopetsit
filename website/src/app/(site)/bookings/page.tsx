@@ -25,6 +25,7 @@ import {
 import { ServiceConfirmationCard } from "@/components/ServiceConfirmation";
 import { useSocketEvent } from "@/lib/useSocket";
 import { localizedTimeSlot } from "@/lib/timeSlot";
+import { l1011 } from "@/lib/i18n/liens1011";
 
 // v569 — la carte affichait la valeur TECHNIQUE du backend (« house_sitting »),
 // une date formatée dans la locale du NAVIGATEUR (et non celle du site) et un
@@ -284,10 +285,18 @@ function BookingCard({
 }) {
   const { t, lang } = useT();
   const meta = STATUS_META[booking.status];
-  const statusInfo = {
-    label: meta ? t(meta.key) : booking.status,
-    color: meta?.color || "bg-bg-panel text-ink-muted",
-  };
+  // 1011 (ZOE point 10) — une réservation convenue mais PAS payée s'affichait « Confirmée » : le
+  // propriétaire croyait avoir fini. Elle dit maintenant « À payer » (propriétaire) ou
+  // « En attente du paiement » (gardien / promeneur) tant que le paiement n'est pas fait.
+  const unpaidAgreed =
+    (booking.status === "agreed" || booking.status === "accepted") &&
+    (booking.paymentStatus || "").toLowerCase() !== "paid";
+  const statusInfo = unpaidAgreed
+    ? { label: l1011(lang, isOwner ? "to_pay" : "wait_pay"), color: "bg-amber-100 text-amber-800" }
+    : {
+        label: meta ? t(meta.key) : booking.status,
+        color: meta?.color || "bg-bg-panel text-ink-muted",
+      };
   const showActions = !isOwner && booking.status === "pending";
   // Owner peut payer une réservation convenue/acceptée tant qu'elle n'est pas
   // déjà payée (statuts alignés sur createBookingPaymentIntent backend).
@@ -327,6 +336,10 @@ function BookingCard({
               <>
                 {" · "}
                 {localDate(serviceDate, lang)}
+                {/* 1011 (ZOE point 10) — séjour de plusieurs jours : on montre aussi le dernier jour. */}
+                {booking.endDate && String(booking.endDate).slice(0, 10) > String(serviceDate).slice(0, 10) && (
+                  <> – {localDate(booking.endDate, lang)}</>
+                )}
               </>
             )}
             {booking.timeSlot && (

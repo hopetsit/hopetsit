@@ -5,6 +5,8 @@ import Link from "@/components/SiteLink";
 import { LogoWithText } from "./Logo";
 import { PawMapCTA } from "./PawMapCTA";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { usePathname } from "next/navigation";
+import { AD_PAGES_1011, stayOnForm1011 } from "./Header";
 import { FOOTER_CITIES, FOOTER_POSTS, FOOTER_CITY_TXT, footerCityName } from "@/lib/footerCities3110";
 
 // v402 — réseaux sociaux officiels HoPetSit (fournis par Daniel).
@@ -82,6 +84,8 @@ const BLOCKS: Record<"fr" | "en", {
 
 export function Footer() {
   const { t, lang } = useT();
+  const pathname1011 = usePathname();
+  const onAdPage1011 = AD_PAGES_1011.includes((pathname1011 || "").replace(/\/$/, ""));
   const year = new Date().getFullYear();
   const blocks = lang === "fr" || lang === "en" ? BLOCKS[lang] : null;
 
@@ -163,7 +167,7 @@ export function Footer() {
           <div className="mb-10 grid grid-cols-1 gap-6 md:grid-cols-3" data-footer-3110={lang}>
             <div className="rounded-3xl bg-white p-5" style={{ boxShadow: "inset 0 0 0 1.5px #F6D9CF" }}>
               <h4 className="text-[13px] font-extrabold uppercase tracking-wider" style={{ color: "#9E1F0B" }}>{blocks.owner.title}</h4>
-              <Link href={blocks.owner.ctaHref} className="mt-3 block rounded-full px-5 py-3 text-center text-[15px] font-extrabold text-white shadow-card" style={{ background: "linear-gradient(135deg,#C92A12,#9E1F0B)" }}>
+              <Link href={onAdPage1011 ? "#publier" : blocks.owner.ctaHref} onClick={onAdPage1011 ? stayOnForm1011 : undefined} className="mt-3 block rounded-full px-5 py-3 text-center text-[15px] font-extrabold text-white shadow-card" style={{ background: "linear-gradient(135deg,#C92A12,#9E1F0B)" }}>
                 {blocks.owner.cta}
               </Link>
               <ul className="mt-3 space-y-0">

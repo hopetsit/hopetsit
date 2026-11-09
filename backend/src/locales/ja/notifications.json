@@ -43,7 +43,7 @@
   },
   "application_accepted": {
     "title": "応募が承認されました",
-    "body": "応募が承認されました。",
+    "body": "応募が承認されました。飼い主の支払いが完了すると予約が確定します。",
     "emailSubject": "応募が承認されました — HoPetSit",
     "emailBody": "<p>応募が承認されました。アプリを開いて詳細をご確認ください。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">アプリで開く</a></p>"
   },

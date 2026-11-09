@@ -37,6 +37,7 @@ import { c3110 } from "@/lib/i18n/cand3110";
 import { markCandidatesViewed } from "@/lib/candidatesView2610";
 import { MagicLinkBox0611 } from "@/components/MagicLinkBox0611";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
+import { k1011 } from "@/lib/i18n/conclure1011";
 import { countryForCurrency3110, kmOf3110, pickPostId3110, point3110, sortCandidates3110, totalOf3110 } from "@/lib/cand3110";
 import {
   ApiError,
@@ -417,7 +418,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     } catch { /* la page se rechargera avec les totaux */ }
   }
 
-  /** Choisir et payer : accepte (le serveur refuse les autres), prend l'intention, monte l'encart carte. */
+  /** Choisir et payer : accepte (les autres candidats restent jusqu'au paiement, 1011), prend l'intention, monte l'encart carte. */
   async function chooseAndPay(a: ApplicationItem) {
     const id = applicationId(a);
     const name = nameOf(a);
@@ -452,7 +453,9 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
         const next = items.map((x) => {
           const xid = applicationId(x);
           if (xid === id) return { ...x, ...res.application, booking: res.booking || x.booking || null };
-          if (x.status === "pending") return { ...x, status: "rejected" };
+          // 1011 — le serveur GARDE les autres candidats jusqu'au paiement (siblings1011) : ils restent
+          // visibles. Seul un ancien choix non payé est libéré quand on choisit quelqu'un d'autre.
+          if (x.status === "accepted" && !linkedBooking(x)?.paid) return { ...x, status: "rejected" };
           return x;
         });
         setItems(next);
@@ -715,6 +718,18 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
                           <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "#DCEFE3", color: "#15803D" }}>
                             <AppIcon name="shield-check" size={11} color="#15803D" />{t("trust_id_title")}
                           </span>
+                        )}
+                        {/* 1011 — « Véhiculé » : seulement si le gardien l'a dit (true). Demande « sans voiture » → mis en avant. */}
+                        {who?.hasVehicle === true && (
+                          post?.ownerNoCar === true ? (
+                            <span data-vehicle-1011="pickup" className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold text-white" style={{ background: "#C92A12" }}>
+                              <span aria-hidden>🚗</span>{k1011(lang, "vehicle_pickup")}
+                            </span>
+                          ) : (
+                            <span data-vehicle-1011="badge" className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "#FFE9E2", color: "#9E1F0B" }}>
+                              <span aria-hidden>🚗</span>{k1011(lang, "vehicle_badge")}
+                            </span>
+                          )
                         )}
                         {isFocus && a.status === "pending" && <span className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{ background: "#C92A12" }}>{t("c1610_new")}</span>}
                       </div>

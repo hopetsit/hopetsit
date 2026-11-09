@@ -187,6 +187,8 @@ const walkerSchema = new mongoose.Schema(
 
     // Insurance (liability insurance is typically required for professional walkers).
     hasInsurance: { type: Boolean, default: false },
+    // 1011 (BOB) — « J'ai un véhicule (je peux venir chercher l'animal) » ; null = pas répondu.
+    hasVehicle: { type: Boolean, default: null },
     // Stored encrypted (AES-256-GCM) like identity documents. Never exposed raw.
     insuranceCertUrl: { type: String, default: '' },
     insuranceExpiresAt: { type: Date, default: null },

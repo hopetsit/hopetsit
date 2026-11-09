@@ -30,6 +30,7 @@ import { LEGACY_SERVICES_620, readProviderRates620, type DateMode620, type Provi
 // obligatoires ; pour une balade : date + heure. Les demandes existantes ne changent pas.
 import { dr, walkEndIso0611, walkStartIso0611 } from "@/lib/i18n/datesRequired0611";
 import { c2610 } from "@/lib/i18n/cand2610";
+import { k1011 } from "@/lib/i18n/conclure1011";
 import { AppIcon } from "@/components/AppIcon";
 import {
   API_BASE,
@@ -49,6 +50,7 @@ import {
 // existant POST /posts (owner only). Aucun impact app.
 /** Brouillon gardé le temps de l'inscription (ce navigateur seulement). */
 const DRAFT_KEY = "hopetsit_post_draft_v1";
+const HHMM_1011 = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export default function CreatePostPage() {
   const { t, lang } = useT();
@@ -80,6 +82,10 @@ export default function CreatePostPage() {
   // v587 (option A de Daniel) — « Mon budget », facultatif, devise du compte.
   const [budget, setBudget] = useState("");
   const [budgetCur, setBudgetCur] = useState("EUR");
+  // 1011 (contrat « conclure ») — horaires « HH:MM » et « je n'ai pas de voiture », facultatifs.
+  const [timeFrom, setTimeFrom] = useState("");
+  const [timeTo, setTimeTo] = useState("");
+  const [ownerNoCar, setOwnerNoCar] = useState(false);
   const budgetAmount = (() => {
     const n = Number(budget.replace(/\s/g, "").replace(",", "."));
     return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
@@ -264,6 +270,9 @@ export default function CreatePostPage() {
       else if (d.venue === "sitters_home") setSvcLocation("at_sitter");
       if (typeof d.meetingPoint === "string") setMeetingPoint(d.meetingPoint);
       if (typeof d.budget === "string") setBudget(d.budget);
+      if (typeof d.timeFrom === "string" && HHMM_1011.test(d.timeFrom)) setTimeFrom(d.timeFrom);
+      if (typeof d.timeTo === "string" && HHMM_1011.test(d.timeTo)) setTimeTo(d.timeTo);
+      if (d.ownerNoCar === true) setOwnerNoCar(true);
       if (typeof d.startDate === "string") setStartDate(d.startDate);
       if (typeof d.endDate === "string") setEndDate(d.endDate);
       // 0611 (NEO) — un brouillon « à prévoir » repart en « dates précises » : l'option n'existe plus.
@@ -490,7 +499,7 @@ export default function CreatePostPage() {
       window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
         body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
         dateMode, visitsPerDay, walkTime,
-        animalCount, animalTypes, city, postalCode, budget, targetProvider: target,
+        animalCount, animalTypes, city, postalCode, budget, timeFrom, timeTo, ownerNoCar, targetProvider: target,
         ...(cityCoords ? { cityLat: cityCoords.lat, cityLng: cityCoords.lng, cityLabel } : {}),
         ...extra,
       }));
@@ -531,6 +540,10 @@ export default function CreatePostPage() {
       // v587 — budget facultatif (rien envoyé sans montant).
       budget: budgetAmount > 0 ? budgetAmount : undefined,
       budgetCurrency: budgetAmount > 0 ? budgetCur : undefined,
+      // 1011 — horaires et « sans voiture » (rien envoyé si vide ; valeur invalide jamais envoyée).
+      timeFrom: HHMM_1011.test(timeFrom) ? timeFrom : undefined,
+      timeTo: HHMM_1011.test(timeTo) ? timeTo : undefined,
+      ownerNoCar: ownerNoCar ? true : undefined,
       // 28/09 — « Demander à <prénom> » : ce prestataire est prévenu en premier.
       targetProvider: target || undefined,
     };
@@ -1063,6 +1076,49 @@ export default function CreatePostPage() {
             />
             <span className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-sm font-extrabold text-[#C92A12]">{({ EUR: "€", USD: "$", GBP: "£", CHF: "CHF", KRW: "₩", JPY: "¥" } as Record<string, string>)[budgetCur] || budgetCur}</span>
           </div>
+        </div>
+
+        {/* 1011 (contrat « conclure ») — horaires + « je n'ai pas de voiture », facultatifs. */}
+        <div data-testid="horaires1011">
+          <p className="block text-sm font-medium text-ink">{k1011(lang, "time_title")}</p>
+          <p className="mt-0.5 text-xs leading-snug text-[#6E4F48]">{k1011(lang, "time_sub")}</p>
+          <div className="mt-1.5 grid grid-cols-2 gap-2">
+            <label className="block min-w-0">
+              <span className="block text-xs font-semibold text-[#6E4F48]">{k1011(lang, "time_from")}</span>
+              <input
+                type="time"
+                step={900}
+                value={timeFrom}
+                onChange={(e) => setTimeFrom(e.target.value)}
+                data-testid="time-from-1011"
+                className="mt-1 w-full min-w-0 rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm font-semibold text-ink focus:border-owner focus:outline-none max-lg:min-h-[44px]"
+              />
+            </label>
+            <label className="block min-w-0">
+              <span className="block text-xs font-semibold text-[#6E4F48]">{k1011(lang, "time_to")}</span>
+              <input
+                type="time"
+                step={900}
+                value={timeTo}
+                onChange={(e) => setTimeTo(e.target.value)}
+                data-testid="time-to-1011"
+                className="mt-1 w-full min-w-0 rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm font-semibold text-ink focus:border-owner focus:outline-none max-lg:min-h-[44px]"
+              />
+            </label>
+          </div>
+          <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 max-lg:min-h-[44px]">
+            <input
+              type="checkbox"
+              checked={ownerNoCar}
+              onChange={(e) => setOwnerNoCar(e.target.checked)}
+              data-testid="nocar-1011"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[#C92A12]"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-ink">{k1011(lang, "nocar")}</span>
+              <span className="block text-xs leading-snug text-[#6E4F48]">{k1011(lang, "nocar_sub")}</span>
+            </span>
+          </label>
         </div>
 
         <div>
