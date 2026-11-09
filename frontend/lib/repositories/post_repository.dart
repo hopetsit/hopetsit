@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/post_model.dart';
+import 'package:hopetsit/utils/conclure1011.dart';
 
 /// Handles post-related API interactions.
 class PostRepository {
@@ -221,6 +222,11 @@ class PostRepository {
     // v587 — budget : 0 = effacé, null = inchangé.
     double? budget,
     String? budgetCurrency,
+    // 1011 — horaires (« HH:MM », '' = effacé, null = inchangé) et « sans
+    // voiture » (null = inchangé).
+    String? timeFrom,
+    String? timeTo,
+    bool? ownerNoCar,
     // v600 NEO — espèce(s) + nombre d'une demande sans fiche animal
     // (envoyés tels quels ; le serveur ne les relit pas encore en édition).
     List<String> animalTypes = const <String>[],
@@ -247,6 +253,12 @@ class PostRepository {
     if (animalCount != null && animalCount > 0) {
       payload['animalCount'] = animalCount;
     }
+    payload.addAll(requestExtras1011(
+      timeFrom: timeFrom,
+      timeTo: timeTo,
+      ownerNoCar: ownerNoCar,
+      forUpdate: true,
+    ));
     if (budget != null) {
       payload['budget'] = budget > 0 ? budget : '';
       if (budget > 0 && (budgetCurrency ?? '').isNotEmpty) {

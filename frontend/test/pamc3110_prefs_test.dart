@@ -67,14 +67,19 @@ void main() {
       expect(OpenOnChoice3110.fromCode('n’importe quoi'), OpenOnChoice3110.home);
       expect(OpenOnChoice3110.fromCode(null), OpenOnChoice3110.home);
       expect(QuickWalkSide3110.fromCode('left'), QuickWalkSide3110.left);
+      // 634 — sans choix enregistré : UN rond, à droite ; « les deux » reste possible.
       expect(QuickWalkSide3110.fromCode(null), QuickWalkSide3110.right);
+      expect(QuickWalkSide3110.fromCode('both'), QuickWalkSide3110.both);
+      expect(QuickWalkSide3110.fromCode('right'), QuickWalkSide3110.right);
+      expect(QuickWalkSide3110.both.shows(QuickWalkSide3110.left), isTrue);
+      expect(QuickWalkSide3110.right.shows(QuickWalkSide3110.left), isFalse);
     });
   });
 
   test('i18n : 9 langues, mêmes clés', () {
     const langs = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl'];
     final ref = pamc3110I18n['en']!.keys.toSet();
-    expect(ref.length, 19);
+    expect(ref.length, 24); // 633 : + pamc3110_qw_both, + 4 textes du rond (live/offline/min/sec)
     for (final l in langs) {
       expect(pamc3110I18n[l]!.keys.toSet(), ref, reason: l);
       for (final v in pamc3110I18n[l]!.values) {

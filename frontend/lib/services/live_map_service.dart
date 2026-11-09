@@ -296,13 +296,18 @@ enum LiveShareStatus { off, active, lost }
 /// Un direct simplement absent (serveur redémarré, session RAM perdue) ne
 /// coupe JAMAIS le téléphone qui diffuse : seul un arrêt voulu le fait.
 class LiveStateDecision {
-  const LiveStateDecision({required this.stopLocal, required this.elsewhere});
+  const LiveStateDecision(
+      {required this.stopLocal, required this.elsewhere, this.ownOrphan = false});
   final bool stopLocal;
   final bool elsewhere;
+
+  /// 632 — le serveur tient encore une balade de CE téléphone alors qu'il ne
+  /// diffuse plus : à refermer (arrêt renvoyé), jamais « autre téléphone ».
+  final bool ownOrphan;
 }
 
 LiveStateDecision liveStateDecision(Map<String, dynamic> state,
-    {required bool broadcasting, DateTime? localStartedAt}) {
+    {required bool broadcasting, DateTime? localStartedAt, String? myDeviceId}) {
   final bool active = state['active'] == true;
   final bool stopped = state['stopped'] == true;
   if (broadcasting) {
@@ -315,8 +320,54 @@ LiveStateDecision liveStateDecision(Map<String, dynamic> state,
     return LiveStateDecision(
         stopLocal: stopped && !active && fresh, elsewhere: false);
   }
+  // 632 (PAM, 01/11) — Daniel : « En direct · autre téléphone » alors qu'il
+  // n'était en direct sur AUCUN autre téléphone. La session serveur peut être
+  // celle de CE téléphone (arrêt perdu sur un réseau faible, app relancée) :
+  // ce n'est pas « ailleurs ». Appareil inconnu (serveur ≤ 631) = ailleurs.
+  if (active && pawLiveSessionIsThisDevice632(state['deviceId'], myDeviceId)) {
+    return const LiveStateDecision(stopLocal: false, elsewhere: false, ownOrphan: true);
+  }
   return LiveStateDecision(stopLocal: false, elsewhere: active);
 }
+
+/// 632 — la session serveur est tenue par CE téléphone (même identifiant
+/// d'appareil 611, non vide). Pure, testée.
+bool pawLiveSessionIsThisDevice632(Object? serverDeviceId, String? myDeviceId) {
+  final a = (serverDeviceId ?? '').toString().trim();
+  final b = (myDeviceId ?? '').trim();
+  return a.isNotEmpty && a == b;
+}
+
+/// 632 (PAM, 01/11) — Daniel (vidéo 2, 14 h 03) : « En balade » retombait en
+/// « Connexion… » au premier envoi raté en pleine marche (réseau mobile
+/// faible). Une Balade CONFIRMÉE par le serveur le reste tant qu'un envoi a
+/// réussi depuis moins de [kLiveConfirmGrace632] ; au-delà, l'écran redit
+/// honnêtement « Connexion… ». Un refus explicite (`ignored`) coupe tout de
+/// suite. Pure, testée.
+const Duration kLiveConfirmGrace632 = Duration(seconds: 90);
+
+bool pawLiveStillConfirmed632({
+  required DateTime? lastOkAt,
+  required DateTime now,
+  Duration grace = kLiveConfirmGrace632,
+}) {
+  if (lastOkAt == null) return false;
+  return now.difference(lastOkAt) <= grace;
+}
+
+/// 632 — délais des nouveaux essais de l'ARRÊT (« offline ») quand le réseau
+/// ne passe pas : avant 3 essais en 18 s, puis plus rien — la balade restait
+/// ouverte côté serveur et le téléphone se voyait « en direct ailleurs ».
+const List<int> kLiveOfflineRetrySeconds632 = <int>[3, 6, 10, 20, 40, 60, 90];
+
+/// 632 (contrôle ZOE) — corps de l'arrêt : l'appareil qui l'envoie, et
+/// `onlyIfMine` quand il ne doit pas couper la balade d'un autre téléphone.
+Map<String, dynamic> pawLiveOfflineBody632({String? deviceId, bool onlyIfMine = false}) =>
+    <String, dynamic>{
+      'offline': true,
+      if (deviceId != null && deviceId.trim().isNotEmpty) 'deviceId': deviceId.trim(),
+      if (onlyIfMine) 'onlyIfMine': true,
+    };
 
 /// v604 — Daniel (30/09) : « Balade arrêter reste en direct ». Juste après
 /// un arrêt fait ICI, le serveur peut encore dire « actif » quelques
@@ -645,7 +696,7 @@ class LiveMapService extends GetxService {
     if (stale && !_staleOfflineResent) {
       // Le serveur croit encore au direct : on le lui redit, une fois.
       _staleOfflineResent = true;
-      unawaited(_postOfflineHttp());
+      unawaited(_postOfflineHttp(onlyIfMine: true)); // 632
     }
     return stale;
   }
@@ -816,6 +867,13 @@ class LiveMapService extends GetxService {
     } catch (e) {
       debugPrint('[LiveMap] onInit hook failed: $e');
     }
+    // 632 — horloge commune des durées de balade.
+    // 633 — à la SECONDE : le rond vert affiche les secondes (design de
+    // Daniel du 03/11) ; pilule, barre et rond lisent la même horloge.
+    _clockTicker?.cancel();
+    _clockTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (broadcasting.value || liveElsewhere.value) liveNow.value = DateTime.now();
+    });
     // v565 — « vu il y a X » et « signal perdu » se recalculent toutes les
     // 30 s même sans nouvel event socket.
     _staleTicker?.cancel();
@@ -1060,9 +1118,20 @@ class LiveMapService extends GetxService {
       followerList.assignAll(parseFollowerList610(raw['followerList']));
       final d = liveStateDecision(raw.cast<String, dynamic>(),
           broadcasting: broadcasting.value,
-          localStartedAt: sessionStartedAt.value);
+          localStartedAt: sessionStartedAt.value,
+          myDeviceId: liveDeviceId);
       if (d.stopLocal) {
         _applyRemoteLive(active: false, announce: true);
+      } else if (d.ownOrphan) {
+        // 632 — ma propre balade, restée ouverte côté serveur : « Direct
+        // off » ici, et l'arrêt est renvoyé (sauf si une reprise de balade
+        // persistée est en cours sur ce téléphone).
+        liveElsewhere.value = false;
+        elsewhereSince.value = null;
+        if (_storage.read(kBgLiveActive) != true && !_orphanOfflineSent) {
+          _orphanOfflineSent = true;
+          unawaited(_postOfflineHttp(onlyIfMine: true));
+        }
       } else {
         // v604 — un « actif » qui date de mon propre arrêt ne rallume rien.
         final started = DateTime.tryParse((raw['startedAt'] ?? '').toString());
@@ -1075,9 +1144,13 @@ class LiveMapService extends GetxService {
     }
   }
 
+  bool _orphanOfflineSent = false;
+
   void _applyRemoteLive(
-      {required bool active, bool announce = false, DateTime? at}) {
+      {required bool active, bool announce = false, DateTime? at, String? deviceId}) {
     if (active) {
+      // 632 — mon PROPRE départ (même appareil) n'est jamais « ailleurs ».
+      if (pawLiveSessionIsThisDevice632(deviceId, liveDeviceId)) return;
       // Mon propre démarrage revient aussi dans mon salon : rien à faire.
       // v604 — ni un démarrage antérieur à mon arrêt d'ici (événement en
       // retard) : sinon « Balade arrêtée » restait « en direct ».
@@ -1112,7 +1185,11 @@ class LiveMapService extends GetxService {
   void handleSelfLive611(Map<String, dynamic> map) {
     final at = DateTime.tryParse((map['at'] ?? '').toString());
     if ((map['reason'] ?? '').toString() != 'device_takeover') {
-      _applyRemoteLive(active: map['active'] == true, announce: true, at: at);
+      _applyRemoteLive(
+          active: map['active'] == true,
+          announce: true,
+          at: at,
+          deviceId: (map['deviceId'] ?? '').toString()); // 632
       return;
     }
     final mine = liveDeviceId;
@@ -1172,7 +1249,7 @@ class LiveMapService extends GetxService {
     // v604 — même garde que l'arrêt local : l'écho « actif » est ignoré.
     _localStopAt = DateTime.now();
     _staleOfflineResent = false;
-    await _postOfflineHttp();
+    await _postOfflineHttp(retriesOnlyIfMine: false); // 632 : arrêt voulu ailleurs
   }
 
   // v23.1.351 — garde anti-spam : 1 hydratation par session (attach() est
@@ -1308,6 +1385,9 @@ class LiveMapService extends GetxService {
     // v604 — nouveau départ voulu : l'arrêt précédent ne filtre plus rien.
     _localStopAt = null;
     _staleOfflineResent = false;
+    _orphanOfflineSent = false; // 632
+    _lastOkAt = null; // 632
+    liveNow.value = DateTime.now(); // 632
     broadcasting.value = true;
     liveElsewhere.value = false;
     liveStatus.value = LiveShareStatus.active;
@@ -1488,8 +1568,16 @@ class LiveMapService extends GetxService {
         last == null ||
         firstRealPos ||
         DateTime.now().difference(last) >= _httpConfirmedEvery;
-    if (due) {
+    // 632 — réseau lent : on n'empile pas un 2e envoi tant que le 1er
+    // n'a pas répondu (sauf s'il traîne depuis plus de 35 s).
+    final st = _httpStartedAt;
+    final bool stuck = _httpInFlight &&
+        st != null &&
+        DateTime.now().difference(st) < const Duration(seconds: 35);
+    if (due && !stuck) {
       unawaited(_postHttp(pos));
+    } else if (due) {
+      // envoi précédent encore en route : on attend sa réponse.
     } else {
       _setStatus(serverConfirmed.value && !_gpsSilent && pos != null
           ? LiveShareStatus.active
@@ -1531,6 +1619,19 @@ class LiveMapService extends GetxService {
   final RxBool serverConfirmed = false.obs;
   static const Duration _httpConfirmedEvery = Duration(seconds: 30);
 
+  /// 632 — dernier envoi accepté par le serveur (balade en cours).
+  DateTime? _lastOkAt;
+
+  /// 632 — début de l'envoi en cours (anti-empilement sur réseau lent).
+  DateTime? _httpStartedAt;
+
+  /// 632 (Daniel, vidéo 2 : pilule « 1 min », bouton rond « 2 min » au même
+  /// instant) — UNE horloge pour la pilule, le bouton Balade de la barre et
+  /// le bouton rond flottant : tous lisent [liveNow], rafraîchie toutes les
+  /// 5 s pendant une balade (ici ou sur un autre téléphone).
+  final Rx<DateTime> liveNow = DateTime.now().obs;
+  Timer? _clockTicker;
+
   /// 607 — test : rejoue la confirmation HTTP sans GPS ni socket.
   @visibleForTesting
   Future<void> postHttpForTest(LatLng? pos) => _postHttp(pos);
@@ -1539,6 +1640,7 @@ class LiveMapService extends GetxService {
 
   Future<void> _postHttp(LatLng? pos) async {
     _lastHttpAt = DateTime.now();
+    _httpStartedAt = _lastHttpAt; // 632
     _lastHttpHadPos = pos != null;
     _httpInFlight = true;
     try {
@@ -1565,12 +1667,25 @@ class LiveMapService extends GetxService {
         });
         return;
       }
-      if (broadcasting.value) serverConfirmed.value = confirmed;
-      _setStatus(!confirmed || _gpsSilent || pos == null
+      final bool refused = res is Map && res['ignored'] == true;
+      if (confirmed) _lastOkAt = DateTime.now(); // 632
+      if (broadcasting.value) {
+        // 632 — un refus explicite coupe ; une réponse sans session (serveur
+        // redémarré, battement sans position) garde la confirmation récente :
+        // la position suivante recrée la session.
+        serverConfirmed.value = confirmed ||
+            (!refused && pawLiveStillConfirmed632(lastOkAt: _lastOkAt, now: DateTime.now()));
+      }
+      _setStatus(!serverConfirmed.value || _gpsSilent || pos == null
           ? LiveShareStatus.lost
           : LiveShareStatus.active);
     } catch (e) {
-      if (broadcasting.value) serverConfirmed.value = false;
+      // 632 — réseau qui saute en marchant : la Balade confirmée il y a
+      // moins de 90 s reste « En balade » ; le prochain tick (10 s) réessaie.
+      if (broadcasting.value) {
+        serverConfirmed.value =
+            pawLiveStillConfirmed632(lastOkAt: _lastOkAt, now: DateTime.now());
+      }
       _setStatus(LiveShareStatus.lost);
       debugPrint('[LiveMap] HTTP heartbeat failed: $e');
     } finally {
@@ -1669,6 +1784,7 @@ class LiveMapService extends GetxService {
     } catch (_) {/* stockage plein */}
     liveStatus.value = LiveShareStatus.off;
     serverConfirmed.value = false; // 607
+    _lastOkAt = null; // 632
     // v532 — CE `return` RENDAIT L'ARRÊT IMPOSSIBLE APRÈS UN SWIPE-KILL.
     // `broadcasting` ne vit qu'en mémoire, alors que le service de fond, lui,
     // survit à la fermeture de l'app (START_STICKY). On coupe donc TOUJOURS
@@ -1713,20 +1829,33 @@ class LiveMapService extends GetxService {
     }
   }
 
-  Future<void> _postOfflineHttp({int attempt = 0}) async {
+  /// 632 (contrôle ZOE) — `onlyIfMine` : le serveur n'arrête la balade que
+  /// si c'est CE téléphone qui la tient (sinon il ignore l'arrêt). Un arrêt
+  /// voulu part sans condition au 1er envoi ; ses relances tardives, la
+  /// fermeture d'une balade orpheline et le renvoi « vestige » ne peuvent
+  /// plus couper une balade relancée entre-temps sur un autre téléphone.
+  /// `stopEverywhere` garde des relances sans condition (c'est son but).
+  Future<void> _postOfflineHttp(
+      {int attempt = 0, bool onlyIfMine = false, bool retriesOnlyIfMine = true}) async {
+    final bool conditional = attempt == 0 ? onlyIfMine : retriesOnlyIfMine;
     try {
       if (!Get.isRegistered<ApiClient>()) return;
       await Get.find<ApiClient>().post(
         '/friends/live-position',
-        body: {'offline': true},
+        body: pawLiveOfflineBody632(deviceId: liveDeviceId, onlyIfMine: conditional),
         requiresAuth: true,
       );
     } catch (e) {
       debugPrint('[LiveMap] offline HTTP failed: $e');
-      // 607 — l'arrêt doit arriver au serveur : 3 nouveaux essais (3, 6, 9 s).
-      if (attempt < 3 && !broadcasting.value) {
-        Timer(Duration(seconds: 3 * (attempt + 1)),
-            () => unawaited(_postOfflineHttp(attempt: attempt + 1)));
+      // 607 — l'arrêt doit arriver au serveur. 632 — 7 essais sur ~4 min
+      // (avant : 3 en 18 s, puis la balade restait ouverte côté serveur).
+      if (attempt < kLiveOfflineRetrySeconds632.length && !broadcasting.value) {
+        Timer(
+            Duration(seconds: kLiveOfflineRetrySeconds632[attempt]),
+            () => unawaited(_postOfflineHttp(
+                attempt: attempt + 1,
+                onlyIfMine: onlyIfMine,
+                retriesOnlyIfMine: retriesOnlyIfMine)));
       }
     }
   }
@@ -1749,6 +1878,7 @@ class LiveMapService extends GetxService {
   @override
   void onClose() {
     _staleTicker?.cancel();
+    _clockTicker?.cancel(); // 632
     _recountTimer?.cancel(); // v605 — oublié jusqu'ici
     _refreshTimer?.cancel();
     stopBroadcasting();

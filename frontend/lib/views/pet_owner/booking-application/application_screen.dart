@@ -457,6 +457,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
                 ? application.sitter.avatar.url
                 : null,
             sitterId: application.sitter.id,
+            hasVehicle: application.sitter.hasVehicle == true,
             isBlurred: true,
             cardType: ServiceProviderCardType.application,
             onAccept: null,
@@ -487,6 +488,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
           ? application.sitter.avatar.url
           : null,
       sitterId: application.sitter.id,
+      hasVehicle: application.sitter.hasVehicle == true,
       isBlurred: true,
       cardType: ServiceProviderCardType.application,
       onAccept: () async {

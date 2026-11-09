@@ -859,6 +859,8 @@ class SitterRepository {
     List<String>? experienceTags,
     List<String>? service,
     int? coverageRadiusKm,
+    // 1011 — « J'ai un véhicule » ; null = on n'envoie rien.
+    bool? hasVehicle,
   }) async {
     final payload = <String, dynamic>{
       'name': name,
@@ -914,6 +916,9 @@ class SitterRepository {
     }
     if (coverageRadiusKm != null) {
       payload['coverageRadiusKm'] = coverageRadiusKm;
+    }
+    if (hasVehicle != null) {
+      payload['hasVehicle'] = hasVehicle;
     }
 
     final response = await _apiClient.put(

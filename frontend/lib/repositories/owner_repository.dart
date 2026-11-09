@@ -10,6 +10,7 @@ import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/models/sitter_model.dart';
 import 'package:hopetsit/models/task_model.dart';
 import 'package:hopetsit/utils/commission_rate.dart';
+import 'package:hopetsit/utils/conclure1011.dart';
 import 'package:hopetsit/utils/logger.dart';
 
 /// Handles owner-related API interactions.
@@ -65,6 +66,10 @@ class OwnerRepository {
     // v587 — « Mon budget » facultatif (montant + devise du propriétaire).
     double? budget,
     String? budgetCurrency,
+    // 1011 — horaires souhaités (« HH:MM », 24 h) et « je n'ai pas de voiture ».
+    String? timeFrom,
+    String? timeTo,
+    bool? ownerNoCar,
     // v600 NEO — sans fiche animal : espèce(s) + nombre (clés du site).
     List<String> animalTypes = const <String>[],
     int? animalCount,
@@ -114,6 +119,7 @@ class OwnerRepository {
       if (budget != null && budget > 0) 'budget': budget,
       if (budget != null && budget > 0 && (budgetCurrency ?? '').isNotEmpty)
         'budgetCurrency': budgetCurrency,
+      ...requestExtras1011(timeFrom: timeFrom, timeTo: timeTo, ownerNoCar: ownerNoCar),
     };
 
     final response = await _apiClient.post(
@@ -169,6 +175,10 @@ class OwnerRepository {
     // v587 — « Mon budget » facultatif (montant + devise du propriétaire).
     double? budget,
     String? budgetCurrency,
+    // 1011 — horaires souhaités (« HH:MM », 24 h) et « je n'ai pas de voiture ».
+    String? timeFrom,
+    String? timeTo,
+    bool? ownerNoCar,
     required List<File> imageFiles,
     // v600 NEO — sans fiche animal : espèce(s) + nombre (multipart → texte,
     // le serveur relit le JSON et fait Number()).
@@ -221,6 +231,8 @@ class OwnerRepository {
       if (budget != null && budget > 0) 'budget': budget.toString(),
       if (budget != null && budget > 0 && (budgetCurrency ?? '').isNotEmpty)
         'budgetCurrency': budgetCurrency!,
+      ...requestExtras1011(timeFrom: timeFrom, timeTo: timeTo, ownerNoCar: ownerNoCar)
+          .map((k, v) => MapEntry(k, v.toString())),
     };
 
     final response = await _apiClient.postMultipart(

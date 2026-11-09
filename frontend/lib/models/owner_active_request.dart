@@ -1,6 +1,7 @@
 // v586 (point 9) — demande ACTIVE d'un propriétaire, lue par un gardien /
 // promeneur connecté (`GET /posts/requests/by-owner/:ownerId`). Ville seule,
 // distance arrondie au km : jamais d'adresse ni de coordonnées.
+import 'package:hopetsit/utils/conclure1011.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 
 class OwnerActiveRequestPet {
@@ -20,6 +21,10 @@ class OwnerActiveRequest {
   final int? distanceKm;
   final double budget;
   final String currency;
+  /// 1011 — horaires souhaités (« HH:MM », '' = aucun) et « sans voiture ».
+  final String timeFrom;
+  final String timeTo;
+  final bool ownerNoCar;
   final List<String> petIds;
   final List<OwnerActiveRequestPet> pets;
 
@@ -36,12 +41,18 @@ class OwnerActiveRequest {
     this.distanceKm,
     this.budget = 0,
     this.currency = 'EUR',
+    this.timeFrom = '',
+    this.timeTo = '',
+    this.ownerNoCar = false,
     this.petIds = const <String>[],
     this.pets = const <OwnerActiveRequestPet>[],
     this.myApplication,
   });
 
   String get budgetLabel => budget > 0 ? CurrencyHelper.formatCompact(currency, budget) : '';
+
+  /// 1011 — « 09:00 – 18:00 » ou vide sans horaire.
+  String get hoursLabel => hoursLabel1011(timeFrom, timeTo);
 
   factory OwnerActiveRequest.fromJson(Map<String, dynamic> j) {
     DateTime? d(dynamic v) => v == null ? null : DateTime.tryParse(v.toString());
@@ -68,6 +79,9 @@ class OwnerActiveRequest {
               ? j['budgetCurrency']
               : (j['currency'] ?? 'EUR'))
           .toString(),
+      timeFrom: cleanHm1011(j['timeFrom']),
+      timeTo: cleanHm1011(j['timeTo']),
+      ownerNoCar: parseBool1011(j['ownerNoCar']),
       petIds: ((j['petIds'] as List?) ?? const []).map((e) => e.toString()).where((e) => e.isNotEmpty).toList(),
       pets: pets,
       myApplication: (app == null || app.isEmpty) ? null : app,

@@ -1163,7 +1163,14 @@ class PawMapRequestSheet extends StatelessWidget {
     required this.onOwnerProfile,
     this.locationLabel = '',
     this.estimateLine,
+    this.hoursLabel = '',
+    this.ownerNoCar = false,
   });
+
+  /// 1011 — horaires souhaités (« 09:00 – 18:00 », '' = ligne masquée) et
+  /// « le propriétaire n'a pas de voiture » (ligne masquée si faux).
+  final String hoursLabel;
+  final bool ownerNoCar;
 
   /// 621 — « à partir de 12 €/visite · estimation ~86 € » sous le budget
   /// de MA demande (serveur 620b) ; null = rien.
@@ -1279,6 +1286,42 @@ class PawMapRequestSheet extends StatelessWidget {
                 Expanded(
                   child: Text(dateLabel,
                       maxLines: 2,
+                      style: PawMapTheme.fontOn(context,
+                          size: 12.5.sp, weight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ],
+          if (hoursLabel.isNotEmpty) ...[
+            SizedBox(height: 8.h),
+            Row(
+              key: const Key('pawmap_request_hours1011'),
+              children: [
+                Icon(Icons.schedule_rounded,
+                    size: 16.sp, color: AppColors.accentOn(context, PawMapLegend.owner)),
+                SizedBox(width: 6.w),
+                Expanded(
+                  child: Text(hoursLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: PawMapTheme.fontOn(context,
+                          size: 12.5.sp, weight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ],
+          if (ownerNoCar) ...[
+            SizedBox(height: 8.h),
+            Row(
+              key: const Key('pawmap_request_nocar1011'),
+              children: [
+                Icon(Icons.directions_car_rounded,
+                    size: 16.sp, color: AppColors.accentOn(context, PawMapLegend.owner)),
+                SizedBox(width: 6.w),
+                Expanded(
+                  child: Text('c1011_owner_no_car'.tr,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: PawMapTheme.fontOn(context,
                           size: 12.5.sp, weight: FontWeight.w700)),
                 ),

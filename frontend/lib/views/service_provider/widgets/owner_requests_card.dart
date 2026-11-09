@@ -137,6 +137,11 @@ class _RequestTile extends StatelessWidget {
         if (pets.isNotEmpty) _line(context, Icons.pets_rounded, pets),
         if (budget.isNotEmpty)
           _line(context, Icons.payments_rounded, 'pawmap586b_budget'.trParams({'amount': budget})),
+        // 1011 — horaires souhaités et « sans voiture » (lignes masquées si vides).
+        if (request.hoursLabel.isNotEmpty)
+          _line(context, Icons.schedule_rounded, request.hoursLabel),
+        if (request.ownerNoCar)
+          _line(context, Icons.directions_car_rounded, 'c1011_owner_no_car'.tr),
         if (place.isNotEmpty) _line(context, Icons.place_rounded, place),
         SizedBox(height: 10.h),
         PawSignatureButton(

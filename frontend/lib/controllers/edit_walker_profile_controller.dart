@@ -134,6 +134,22 @@ class EditWalkerProfileController extends GetxController {
   /// There's no atSitter option for walkers by design.
   final RxBool pickupAtOwner = true.obs;
 
+  /// 1011 — « J'ai un véhicule (je peux venir chercher l'animal) ».
+  /// Envoyé à l'enregistrement seulement si l'interrupteur a été touché ou si
+  /// le serveur avait déjà une valeur : un profil jamais renseigné reste null.
+  final RxBool hasVehicle = false.obs;
+  bool? hasVehicleServer1011;
+  bool hasVehicleTouched1011 = false;
+  void setHasVehicle1011(bool v) {
+    hasVehicleTouched1011 = true;
+    hasVehicle.value = v;
+  }
+
+  bool? get hasVehicleWire1011 =>
+      (hasVehicleTouched1011 || hasVehicleServer1011 != null)
+          ? hasVehicle.value
+          : null;
+
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -219,6 +235,8 @@ class EditWalkerProfileController extends GetxController {
       if (walker.coverageRadiusKm > 0) {
         coverageRadius.value = walker.coverageRadiusKm.toString();
       }
+      hasVehicleServer1011 = walker.hasVehicle;
+      if (!hasVehicleTouched1011) hasVehicle.value = walker.hasVehicle == true;
 
       if (walker.latitude != null) userLatitude.value = walker.latitude;
       if (walker.longitude != null) userLongitude.value = walker.longitude;
@@ -457,6 +475,9 @@ class EditWalkerProfileController extends GetxController {
       payload['service'] = selectedServices.toList();
       final radiusKm = int.tryParse(coverageRadius.value);
       if (radiusKm != null && radiusKm > 0) payload['coverageRadiusKm'] = radiusKm;
+      // 1011 — véhicule : même route que le rayon, jamais envoyé si inconnu.
+      final vehicle1011 = hasVehicleWire1011;
+      if (vehicle1011 != null) payload['hasVehicle'] = vehicle1011;
 
       // Walker pickup preference — keep it as a nested object so the backend
       // can ignore gracefully if the field isn't modeled yet.

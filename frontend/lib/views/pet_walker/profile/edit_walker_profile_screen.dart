@@ -355,6 +355,15 @@ class _EditWalkerProfileScreenState extends State<EditWalkerProfileScreen> {
                                 accent: accent,
                                 onChanged: (v) => controller.pickupAtOwner.value = v,
                               )),
+                          Obx(() => ProfileSwitchRow(
+                                key: const Key('c1011_has_vehicle_switch'),
+                                icon: Icons.directions_car_rounded,
+                                title: 'c1011_has_vehicle'.tr,
+                                subtitle: 'c1011_has_vehicle_sub'.tr,
+                                value: controller.hasVehicle.value,
+                                accent: accent,
+                                onChanged: controller.setHasVehicle1011,
+                              )),
                         ],
                       ),
 

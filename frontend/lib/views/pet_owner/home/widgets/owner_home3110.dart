@@ -370,26 +370,15 @@ class FirstPostCard3110 extends StatelessWidget {
         borderRadius: BorderRadius.circular(26),
         boxShadow: t.cardShadow(context),
       ),
+      // 635 (Daniel 03/11) — plus de rond décoratif coupé dans le coin, et
+      // hauteur naturelle (la colonne n'est plus étirée).
       child: Stack(
         children: <Widget>[
-          Positioned(
-            top: -80,
-            right: -50,
-            child: Container(
-              width: 160,
-              height: 160,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: t.tintDecoOn(context),
-              ),
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              mainAxisSize: MainAxisSize.max,
+              mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -522,21 +511,23 @@ class PrimaryPill3110 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(999),
-      elevation: 0,
-      child: Ink(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: shadow,
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
+    // 635 — l'ombre vit sur un DecoratedBox en pilule : posée dans un `Ink`,
+    // elle se dessinait en rectangle rose derrière le bouton (vu au simulateur).
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: shadow,
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: color,
+        shape: const StadiumBorder(),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           borderRadius: BorderRadius.circular(999),
           onTap: onTap,

@@ -1,4 +1,5 @@
 import 'package:hopetsit/models/booking_model.dart';
+import 'package:hopetsit/utils/conclure1011.dart';
 
 class ApplicationModel {
   final String id;
@@ -193,6 +194,9 @@ class ApplicationSitter {
   /// 628 — PawBoost actif (`isBoosted` posé par le serveur dans
   /// sanitizeApplication) : candidats boostés en tête, tri stable.
   final bool isBoosted;
+  /// 1011 — candidat véhiculé (`sitter.hasVehicle` / `walker.hasVehicle`) :
+  /// pastille « Véhiculé » seulement quand c'est `true` ; null = inconnu.
+  final bool? hasVehicle;
 
   ApplicationSitter({
     required this.id,
@@ -222,6 +226,7 @@ class ApplicationSitter {
     this.lng,
     this.identityVerified = false,
     this.isBoosted = false,
+    this.hasVehicle,
   });
 
   /// 624 — `location.lat/lng`, sinon `location.coordinates` = [lng, lat].
@@ -272,6 +277,7 @@ class ApplicationSitter {
       identityVerified:
           json['identityVerified'] == true || json['kycVerified'] == true,
       isBoosted: json['isBoosted'] == true,
+      hasVehicle: parseTriBool1011(json['hasVehicle']),
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
       avatar: ApplicationAvatar.fromJson(

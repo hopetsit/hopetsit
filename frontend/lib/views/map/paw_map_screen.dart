@@ -3007,6 +3007,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     _confirmWorker?.dispose();
     _confirmedWorker?.dispose();
     _confirmTimer?.cancel();
+    _plushRetryTimer632?.cancel(); // 632
     _plushTimer?.cancel();
     _plushHintTimer?.cancel();
     _plushHintFirstTimer?.cancel();
@@ -5950,8 +5951,21 @@ class _PawMapScreenState extends State<PawMapScreen>
         };
         PawSignal.show(context, PawSignalKind.error, msg, visibleFor: const Duration(seconds: 4));
       }
+      // 632 (Daniel, vidéo 2 : « on réessaie tout seul », jamais attrapée) —
+      // échec passager : on réessaie VRAIMENT, sans attendre un nouveau point
+      // GPS (immobile près de la peluche, le GPS n'en envoie plus).
+      if (_plush.lastRefusalRetryable) {
+        _plushRetryTimer632?.cancel();
+        _plushRetryTimer632 = Timer(kPlushRetryAfter632 + const Duration(milliseconds: 300), () {
+          if (!mounted || !_liveMap.broadcasting.value) return;
+          final at = _liveMap.myLivePosition.value ?? pos;
+          unawaited(_onPlushPosition(at));
+        });
+      }
     }
   }
+
+  Timer? _plushRetryTimer632;
 
   /// 607 — PARCOURS DE MESURE (build HPS_PROBE603 seulement) : démarre MA
   /// Balade comme le bouton, journalise les peluches reçues, la capture, puis
@@ -7648,6 +7662,9 @@ class _PawMapScreenState extends State<PawMapScreen>
         builder: (ctx, setSheet) => PawMapRequestSheet(
           ownerName: r.ownerName,
           ownerAvatar: r.ownerAvatar,
+          // 1011 — heures de la garde en journée + « propriétaire sans voiture ».
+          hoursLabel: r.hoursLabel,
+          ownerNoCar: r.ownerNoCar,
           walking: walking,
           city: r.city,
           distanceLabel: mine
@@ -8130,7 +8147,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                   // le compte (`pawMap.railCollapsed` / `capsuleCollapsed`).
                   children: [
                     if (!picking)
-                      PawCollapsibleBar(
+                      Padding(
+                       // 634 — barre ET sa flèche remontent au-dessus du rond.
+                       padding: EdgeInsets.only(
+                           bottom: _qwLift634(QuickWalkSide3110.left)),
+                       child: PawCollapsibleBar(
                         key: _railKey622, // 622 — mesuré : les bulles l'évitent
                         left: true,
                         collapsed: _prefs.railCollapsed,
@@ -8141,9 +8162,15 @@ class _PawMapScreenState extends State<PawMapScreen>
                         onToggle: () => _prefs.update(
                             {'railCollapsed': !_prefs.railCollapsed}),
                         child: _railScroller(_buildMapActionsColumn()),
-                      ),
+                      )),
                     const Spacer(),
-                    PawCollapsibleBar(
+                    Padding(
+                     // 634 — Daniel : « au-dessus du menu, à droite, en dessous
+                     // de la barre, que rien ne se touche » : barre + flèche
+                     // remontent au-dessus du rond.
+                     padding: EdgeInsets.only(
+                         bottom: _qwLift634(QuickWalkSide3110.right)),
+                     child: PawCollapsibleBar(
                       key: _capsuleKey622, // 622
                       left: false,
                       collapsed: _prefs.capsuleCollapsed,
@@ -8154,7 +8181,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       onToggle: () => _prefs.update(
                           {'capsuleCollapsed': !_prefs.capsuleCollapsed}),
                       child: _buildMapControlsStack(),
-                    ),
+                    )),
                   ],
                 )),
               );
@@ -8172,13 +8199,34 @@ class _PawMapScreenState extends State<PawMapScreen>
                   _pickingReportPos.value ||
                   _pickingRoutePos.value;
               if (picking || _sheetUp.value) return const SizedBox.shrink();
-              final bool leftSide =
-                  OpenOnPrefs3110.quickWalkSide.value == QuickWalkSide3110.left;
-              final double railW =
-                  leftSide ? _railRect622.width : _capsuleRect622.width;
-              return QuickWalkButton3110.positioned(
-                context,
-                sideInset: pawQuickWalkSideInset631(railWidth: railW),
+              // 633 (Daniel 01/11) — « Les deux » (par défaut) : un rond à
+              // gauche pour les gauchers, au-dessus du logo Google, et un à
+              // droite À LA MÊME HAUTEUR (même `bottom`).
+              final pref = OpenOnPrefs3110.quickWalkSide.value;
+              return Positioned.fill(
+                child: Stack(
+                  children: [
+                    for (final side in const [
+                      QuickWalkSide3110.left,
+                      QuickWalkSide3110.right,
+                    ])
+                      if (pref.shows(side))
+                        QuickWalkButton3110.positioned(
+                          context,
+                          side: side,
+                          // 634 — barre repliée : seule sa languette (≈ 24)
+                          // reste à l'écran ; la mesure 622 gardait la largeur
+                          // de la barre OUVERTE → les ronds se rejoignaient au
+                          // milieu de la carte (capture Daniel 03/11).
+                          // 634 — sous la barre de son bord, centré sur
+                          // elle, à la hauteur où la barre s'arrêtait.
+                          sideInset: _qwSideInset634(side),
+                          bottomOverride: _qwBottom634(context),
+                          // 632 — même geste que le bouton Balade de la barre.
+                          onTap: _onBaladeTap,
+                        ),
+                  ],
+                ),
               );
             }),
 
@@ -8387,7 +8435,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                                   _fading(Obx(() {
                                   final live = _liveMap.broadcasting.value;
+                                  // 632 — horloge commune (pilule, barre, rond).
+                                  final DateTime clock = _liveMap.liveNow.value;
                                   return PawMapDirectPill(
+                                    now: () => clock,
                                     key: const ValueKey<String>('pawmap_direct_pill'),
                                     live: live,
                                     followers: live ? _liveMap.myFollowers.value : 0,
@@ -8701,6 +8752,45 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v584 — ligne de base (depuis le bas) de la rangée des rails : au-dessus
   /// de la feuille glissante en position basse ; 284 pendant un placement
   /// (au-dessus de la carte Annuler/Valider). Une seule mise en page (25/09).
+  /// 634 — hauteur libérée sous une barre pour le rond « Balade » de ce bord
+  /// (0 si le rond n'y est pas). Lu dans un Obx : suit les préférences.
+  double _qwLift634(QuickWalkSide3110 side) {
+    OpenOnPrefs3110.load();
+    if (!OpenOnPrefs3110.quickWalkVisible.value) return 0;
+    // 634b (Daniel 03/11 : « la barre de gauche et la flèche de gauche ne
+    // sont pas en face ») — les DEUX barres remontent ensemble dès qu'un rond
+    // est posé, quel que soit son côté : barres et flèches restent alignées.
+    // 634 — Daniel : « que rien ne se touche » : la barre commence au-dessus
+    // du rond ET de ses feuilles/pattes (halo), plus 6 d'air.
+    final double top = _qwBottom634(context) +
+        kQuickWalkSize3110 +
+        kQuickWalkHalo0311 +
+        6;
+    return math.max(0.0, top - _railBottom(context, picking: false));
+  }
+
+  /// 634 — bas du rond : juste au-dessus de la pilule du menu, à la hauteur
+  /// du logo Google (le rond de gauche se pose au-dessus de lui
+  /// au-dessus du bord de la pilule, 40 : le logo fait ~18 pt). Hors onglets : au-dessus de la barre
+  /// système, comme les barres.
+  double _qwBottom634(BuildContext context) {
+    final double sys = _systemBottomInset(context);
+    if (_tabBarLift(context) > 0) return sys + 26;
+    return pawTabBarUsefulHeight(sys) + 40;
+  }
+
+  /// 634 — distance au bord : le rond est centré sous sa barre (barre
+  /// ouverte), sinon au bord comme les barres (12).
+  double _qwSideInset634(QuickWalkSide3110 side) {
+    final bool left = side == QuickWalkSide3110.left;
+    final bool collapsed =
+        left ? _prefs.railCollapsed : _prefs.capsuleCollapsed;
+    final double w = left ? _railRect622.width : _capsuleRect622.width;
+    final double edge = 12.w;
+    if (collapsed || !(w > 4) || w > 120) return edge;
+    return math.max(4.0, edge + (w - kQuickWalkSize3110) / 2);
+  }
+
   double _railBottom(BuildContext context, {required bool picking}) {
     if (picking) {
       return 284.h - _tabBarLift(context) + _systemBottomInset(context);
@@ -9075,10 +9165,12 @@ class _PawMapScreenState extends State<PawMapScreen>
             final live = _liveMap.broadcasting.value;
             final elsewhere = !live && _liveMap.liveElsewhere.value;
             if (!live && !elsewhere) return const SizedBox.shrink();
+            final DateTime clock = _liveMap.liveNow.value; // 632
             return PawWalkBadge(
               startedAt: _liveMap.sessionStartedAt.value,
               followers: live ? _liveMap.myFollowers.value : 0,
               elsewhere: elsewhere,
+              now: () => clock,
             );
           }),
         Padding(
@@ -9169,6 +9261,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           final elsewhere = !live && _liveMap.liveElsewhere.value;
           final n = live ? _liveMap.myFollowers.value : 0;
           final startedAt = _liveMap.sessionStartedAt.value;
+          // 632 — même horloge que la pilule et le bouton rond.
+          final DateTime clock = _liveMap.liveNow.value;
           // v605 — le bouton Balade = tableau de bord du direct : noir,
           // vert (je partage), violet (je suis quelqu'un), vert + pastille
           // violette (les deux).
@@ -9190,6 +9284,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     startedAt: startedAt,
                     followers: n,
                     elsewhere: elsewhere,
+                    now: () => clock, // 632
                   ),
                 ),
               Stack(
@@ -9224,6 +9319,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   child: live && _liveMap.serverConfirmed.value
                       ? PawWalkMinutesText(
                           startedAt: startedAt,
+                          now: clock, // 632
                           style: GoogleFonts.poppins(
                     fontSize: 9.5,
                     fontWeight: FontWeight.w700,

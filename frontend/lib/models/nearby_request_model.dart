@@ -6,6 +6,7 @@
 /// pets details, no photos) so the map stays fast. When the user taps a
 /// marker we navigate to the full request detail screen which will load the
 /// richer PostModel separately.
+import 'package:hopetsit/utils/conclure1011.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 
 class NearbyRequestPost {
@@ -29,6 +30,10 @@ class NearbyRequestPost {
   /// n'affiche alors que l'icône du service) et sa devise.
   final double budget;
   final String currency;
+  /// 1011 — horaires souhaités (« HH:MM », '' = aucun) et « sans voiture ».
+  final String timeFrom;
+  final String timeTo;
+  final bool ownerNoCar;
   /// 622 — vrai quand le serveur a donné une devise (budget ou propriétaire).
   /// Faux : `currency` vaut 'EUR' par défaut (mesuré le 25/10 : aucune des 22
   /// demandes ouvertes n'en porte) — l'estimation publique ne doit pas alors
@@ -64,6 +69,9 @@ class NearbyRequestPost {
     this.budget = 0,
     this.currency = 'EUR',
     this.currencyKnown = false,
+    this.timeFrom = '',
+    this.timeTo = '',
+    this.ownerNoCar = false,
     this.petIds = const <String>[],
     this.approx = false,
     this.dateMode = '',
@@ -79,6 +87,9 @@ class NearbyRequestPost {
     if (budget <= 0) return '';
     return CurrencyHelper.formatCompact(currency, budget);
   }
+
+  /// 1011 — « 09:00 – 18:00 » ou vide sans horaire.
+  String get hoursLabel => hoursLabel1011(timeFrom, timeTo);
 
   factory NearbyRequestPost.fromJson(Map<String, dynamic> j) {
     DateTime? parseDate(dynamic v) {
@@ -113,6 +124,9 @@ class NearbyRequestPost {
           .toString(),
       currencyKnown: (j['budgetCurrency'] ?? '').toString().isNotEmpty ||
           (j['currency'] ?? '').toString().isNotEmpty,
+      timeFrom: cleanHm1011(j['timeFrom']),
+      timeTo: cleanHm1011(j['timeTo']),
+      ownerNoCar: parseBool1011(j['ownerNoCar']),
       petIds: ((j['petIds'] as List?) ?? const [])
           .map((e) => e is Map ? (e['_id'] ?? e['id'] ?? '').toString() : e.toString())
           .where((e) => e.isNotEmpty)

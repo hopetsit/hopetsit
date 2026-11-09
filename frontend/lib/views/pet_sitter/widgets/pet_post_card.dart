@@ -88,6 +88,10 @@ class PetPostCard extends StatelessWidget {
   final String? meetingPoint;
   /// v587 (budget, option A de Daniel) — « 35 € » ou vide (jamais « 0 € »).
   final String budgetLabel;
+  /// 1011 — horaires souhaités (« 09:00 – 18:00 », '' = aucun) et « le
+  /// propriétaire n'a pas de voiture » (cellule masquée si faux).
+  final String hoursLabel;
+  final bool ownerNoCar;
   /// 621 — « à partir de 12 €/visite · estimation ~86 € » d'une demande
   /// OUVERTE (propriétaire, serveur 620b) ; vide = case absente.
   final String fromRateLabel;
@@ -165,6 +169,8 @@ class PetPostCard extends StatelessWidget {
     this.serviceLocation,
     this.meetingPoint,
     this.budgetLabel = '',
+    this.hoursLabel = '',
+    this.ownerNoCar = false,
     this.fromRateLabel = '',
     this.publishedLabel,
     this.distanceLabel,
@@ -1528,6 +1534,15 @@ class PetPostCard extends StatelessWidget {
       cells.add(_resCell(context, icon, label, value.trim()));
     }
 
+    // 1011 — horaires souhaités et « sans voiture » du propriétaire.
+    void addExtras1011() {
+      add(Icons.schedule_rounded, 'c1011_hours'.tr, hoursLabel);
+      if (ownerNoCar) {
+        add(Icons.directions_car_rounded, 'c1011_transport'.tr,
+            'c1011_no_car_short'.tr);
+      }
+    }
+
     // v443 — cellule « Service » : valeur colorée par type (bleu/vert) + petite
     // horloge sous le texte quand l'annonce porte une heure réelle.
     void addService(String value) {
@@ -1552,6 +1567,7 @@ class PetPostCard extends StatelessWidget {
       add(Icons.repeat_rounded, 'post_field_walk_frequency'.tr,
           _walkFrequencyLabel());
       add(Icons.payments_rounded, 'budget587_field'.tr, budgetLabel);
+      addExtras1011();
       return _gridWithTime(context, cells);
     }
 
@@ -1570,6 +1586,7 @@ class PetPostCard extends StatelessWidget {
         add(Icons.home_rounded, 'svc587_field'.tr, svcLoc);
       }
       add(Icons.payments_rounded, 'budget587_field'.tr, budgetLabel);
+      addExtras1011();
       return _gridWithTime(context, cells);
     }
 
@@ -1596,6 +1613,7 @@ class PetPostCard extends StatelessWidget {
 
     // v587 — budget du propriétaire (case absente sans budget).
     add(Icons.payments_rounded, 'budget587_field'.tr, budgetLabel);
+    addExtras1011();
     // 621 — « à partir de » (demande ouverte, tarif minimum du rayon).
     add(Icons.sell_rounded, 'dates620_from_rate_field'.tr, fromRateLabel);
     return _gridWithTime(context, cells);

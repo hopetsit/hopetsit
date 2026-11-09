@@ -275,6 +275,16 @@ class _PublishReservationRequestScreenState
                       child: _buildBudgetSection(),
                     )),
                 SizedBox(height: 14.h),
+                // ── Précisions (facultatif) — 1011 : horaires + sans voiture ──
+                Obx(() => _buildSectionCard(
+                      key: const Key('c1011_section'),
+                      optional: true,
+                      done: controller.extrasDone1011,
+                      icon: Icons.tune_rounded,
+                      title: 'c1011_title'.tr,
+                      child: _buildExtras1011(),
+                    )),
+                SizedBox(height: 14.h),
                 // ── 5. Détails (facultatif) ──────────────────────────────
                 _buildSectionCard(
                   step: 5,
@@ -482,6 +492,12 @@ class _PublishReservationRequestScreenState
           : estimateText620(est620, tbd: controller.isDatesTbd);
       final city = controller.cityText.value.trim();
       final photos = controller.imageFiles.length;
+      // 1011 — lectures réactives des précisions.
+      controller.timeFrom.value;
+      controller.timeTo.value;
+      controller.startTime.value;
+      controller.endTime.value;
+      final hours1011 = controller.hoursSummary1011;
       final location = controller.serviceLocationDone
           ? serviceLocationDisplay(controller.serviceLocationToSend,
               meetingPoint: controller.meetingPointText.value)
@@ -517,6 +533,12 @@ class _PublishReservationRequestScreenState
                     ? CurrencyHelper.formatCompact(
                         controller.budgetCurrency, controller.budgetAmount!)
                     : 'budget587_none'.tr),
+            // 1011 — horaires et « sans voiture », seulement s'ils sont remplis.
+            if (hours1011.isNotEmpty)
+              _summaryRow(Icons.schedule_rounded, 'c1011_hours'.tr, hours1011),
+            if (controller.ownerNoCar.value)
+              _summaryRow(Icons.directions_car_rounded, 'c1011_transport'.tr,
+                  'c1011_no_car_short'.tr),
             _summaryRow(
                 Icons.photo_library_rounded,
                 'publish_request_images_label'.tr,
@@ -750,6 +772,180 @@ class _PublishReservationRequestScreenState
         ),
       ],
     );
+  }
+
+  /// 1011 « conclure » — précisions facultatives : horaires souhaités
+  /// (« de … à … ») et « je n'ai pas de voiture ». Pas d'écran en plus.
+  Widget _buildExtras1011() {
+    final accent = AppColors.primaryColor;
+    final showHours = !controller.hoursComeFromDates1011;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showHours) ...[
+          InterText(
+            text: 'c1011_hours'.tr,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondaryStrong(context),
+          ),
+          SizedBox(height: 4.h),
+          InterText(
+            text: 'c1011_hours_sub'.tr,
+            fontSize: 12.sp,
+            color: AppColors.textSecondary(context),
+            maxLines: 3,
+          ),
+          SizedBox(height: 8.h),
+          Row(
+            children: [
+              Expanded(
+                child: _hourCell1011(
+                  key: const Key('c1011_time_from'),
+                  clearKey: const Key('c1011_time_from_clear'),
+                  label: 'c1011_from'.tr,
+                  value: controller.timeFrom.value,
+                  onTap: () => _pickHour1011(isFrom: true),
+                  onClear: () => controller.timeFrom.value = null,
+                ),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: _hourCell1011(
+                  key: const Key('c1011_time_to'),
+                  clearKey: const Key('c1011_time_to_clear'),
+                  label: 'c1011_to'.tr,
+                  value: controller.timeTo.value,
+                  onTap: () => _pickHour1011(isFrom: false),
+                  onClear: () => controller.timeTo.value = null,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 14.h),
+        ],
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => controller.ownerNoCar.toggle(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InterText(
+                      text: 'c1011_no_car'.tr,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(context),
+                      maxLines: 2,
+                    ),
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: 'c1011_no_car_sub'.tr,
+                      fontSize: 12.sp,
+                      color: AppColors.textSecondary(context),
+                      maxLines: 3,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(width: 10.w),
+            AppSwitch(
+              key: const Key('c1011_no_car_switch'),
+              value: controller.ownerNoCar.value,
+              onChanged: (v) => controller.ownerNoCar.value = v,
+              accent: accent,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Une case d'heure (« De 09:00 ») ; la croix l'efface.
+  Widget _hourCell1011({
+    required Key key,
+    required Key clearKey,
+    required String label,
+    required TimeOfDay? value,
+    required VoidCallback onTap,
+    required VoidCallback onClear,
+  }) {
+    final filled = value != null;
+    final accent = AppColors.primaryColor;
+    final text = filled
+        ? '$label ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}'
+        : label;
+    return GestureDetector(
+      key: key,
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 48.h,
+        padding: EdgeInsets.only(left: 14.w, right: filled ? 4.w : 14.w),
+        decoration: BoxDecoration(
+          color: AppColors.inputFill(context),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: filled
+                ? accent.withValues(alpha: 0.3)
+                : AppColors.divider(context),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.access_time_rounded,
+                size: 16.sp,
+                color: filled ? accent : AppColors.textSecondary(context)),
+            SizedBox(width: 8.w),
+            Expanded(
+              // Petit écran (320 px) : le texte rétrécit, il n'est jamais coupé.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: InterText(
+                  text: text,
+                  fontSize: 13.sp,
+                  fontWeight: filled ? FontWeight.w700 : FontWeight.w500,
+                  color: filled
+                      ? AppColors.textPrimary(context)
+                      : AppColors.textSecondary(context),
+                  maxLines: 1,
+                ),
+              ),
+            ),
+            if (filled)
+              IconButton(
+                key: clearKey,
+                tooltip: 'c1011_clear'.tr,
+                visualDensity: VisualDensity.compact,
+                constraints: BoxConstraints(minWidth: 40.w, minHeight: 40.w),
+                icon: Icon(Icons.close_rounded, size: 18.sp, color: accent),
+                onPressed: onClear,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickHour1011({required bool isFrom}) async {
+    final current = isFrom ? controller.timeFrom.value : controller.timeTo.value;
+    final picked = await _showTimePicker24(
+      current ?? TimeOfDay(hour: isFrom ? 9 : 18, minute: 0),
+    );
+    if (picked == null) return;
+    // 638 (contrôle ZOE) — une heure de fin avant l'heure de début est
+    // refusée avec le même message que les heures de l'étape 3.
+    if (!controller.setHour1011(isFrom: isFrom, picked: picked)) {
+      CustomSnackbar.showError(
+        title: 'send_request_invalid_time_title'.tr,
+        message: 'send_request_invalid_time_message'.tr,
+      );
+    }
   }
 
   Widget _buildSectionCard({
@@ -1605,19 +1801,9 @@ class _PublishReservationRequestScreenState
     controller.onDatesChanged();
   }
 
-  Future<void> _pickTime({required bool isStart}) async {
-    final now = TimeOfDay.now();
-    TimeOfDay initial =
-        (isStart ? controller.startTime.value : controller.endTime.value) ??
-        now;
-    final minEnd = controller.minEndTime;
-    if (!isStart && minEnd != null) {
-      final initialMinutes = initial.hour * 60 + initial.minute;
-      final minMinutes = minEnd.hour * 60 + minEnd.minute;
-      if (initialMinutes < minMinutes) initial = minEnd;
-    }
-
-    final picked = await showTimePicker(
+  /// Sélecteur d'heure 24 h aux couleurs de l'app (étape 3 et précisions 1011).
+  Future<TimeOfDay?> _showTimePicker24(TimeOfDay initial) {
+    return showTimePicker(
       context: context,
       initialTime: initial,
       initialEntryMode: TimePickerEntryMode.input,
@@ -1662,6 +1848,21 @@ class _PublishReservationRequestScreenState
         );
       },
     );
+  }
+
+  Future<void> _pickTime({required bool isStart}) async {
+    final now = TimeOfDay.now();
+    TimeOfDay initial =
+        (isStart ? controller.startTime.value : controller.endTime.value) ??
+        now;
+    final minEnd = controller.minEndTime;
+    if (!isStart && minEnd != null) {
+      final initialMinutes = initial.hour * 60 + initial.minute;
+      final minMinutes = minEnd.hour * 60 + minEnd.minute;
+      if (initialMinutes < minMinutes) initial = minEnd;
+    }
+
+    final picked = await _showTimePicker24(initial);
     if (picked == null) return;
     if (isStart) {
       controller.startTime.value = picked;

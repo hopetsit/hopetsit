@@ -377,6 +377,8 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           serviceLocation: post.serviceLocation,
           meetingPoint: post.meetingPoint,
           budgetLabel: post.budgetLabel,
+          hoursLabel: post.hoursLabel, // 1011
+          ownerNoCar: post.ownerNoCar, // 1011
           fromRateLabel: fromRate621,
           postBody: post.body,
           petName: petName,
@@ -461,6 +463,8 @@ isOwnerBoosted: post.isOwnerBoosted ||
         serviceLocation: post.serviceLocation,
         meetingPoint: post.meetingPoint,
         budgetLabel: post.budgetLabel,
+        hoursLabel: post.hoursLabel, // 1011
+        ownerNoCar: post.ownerNoCar, // 1011
         fromRateLabel: fromRate621,
         postBody: post.body,
         petName: post.pets.isNotEmpty ? post.pets.first.petName : null,

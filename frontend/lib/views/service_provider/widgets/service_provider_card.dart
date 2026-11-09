@@ -9,6 +9,7 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/boost_badge.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/vehicle_badge1011.dart';
 import 'package:hopetsit/views/reviews/widgets/rating_stars.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/pet_owner/booking-application/owner_booking_detail_screen.dart';
@@ -49,6 +50,9 @@ class ServiceProviderCard extends StatefulWidget {
   final bool isTopSitter;
   /// Coin boost — show 🔥 Boosted badge.
   final bool isBoosted;
+  /// 1011 — candidat véhiculé : pastille « Véhiculé » sur la carte de
+  /// candidature (jamais affichée quand la valeur est absente).
+  final bool hasVehicle;
   /// Estimated total cost for the owner's active post (optional).
   final double? estimatedCost;
   /// Number of days for the estimation.
@@ -84,6 +88,7 @@ class ServiceProviderCard extends StatefulWidget {
     this.identityVerified = false,
     this.isTopSitter = false,
     this.isBoosted = false,
+    this.hasVehicle = false,
     this.estimatedCost,
     this.estimatedDays,
   });
@@ -778,6 +783,13 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                     compact: true,
                                   ),
                                 ],
+                              ),
+                            ],
+                            if (widget.hasVehicle) ...[
+                              SizedBox(height: 4.h),
+                              VehicleBadge1011(
+                                key: const Key('c1011_vehicle_badge'),
+                                accent: accent,
                               ),
                             ],
                           ],

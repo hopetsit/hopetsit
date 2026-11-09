@@ -9,6 +9,7 @@ import 'package:hopetsit/controllers/applications_controller.dart';
 import 'package:hopetsit/models/application_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/action_banner_kit.dart';
+import 'package:hopetsit/widgets/vehicle_badge1011.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/service_location587.dart';
@@ -1148,6 +1149,12 @@ class _CandidateCard extends StatelessWidget {
                           _chip(context, 'identity_badge_verified'.tr, Icons.verified_user_rounded,
                               const Color(0xFF16A34A).withValues(alpha: 0.14),
                               AppColors.accentOn(context, const Color(0xFF15803D))),
+                        // 1011 — « Véhiculé » : seulement si le serveur dit true.
+                        if (app.sitter.hasVehicle == true)
+                          VehicleBadge1011(
+                            key: Key('c1011_vehicle_${app.id}'),
+                            accent: role,
+                          ),
                         if (highlighted)
                           _chip(context, 'cand2610_c1610_new'.tr, null, owner, Colors.white),
                       ],

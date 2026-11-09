@@ -52,7 +52,7 @@ void main() {
     expect(find.byKey(const ValueKey<String>('quick_walk_3110_right')), findsNothing);
   });
 
-  testWidgets('au repos : 1 toucher = démarrer (jamais arrêter), 62 pt', (t) async {
+  testWidgets('au repos : 1 toucher = démarrer (jamais arrêter), diamètre du design 633', (t) async {
     int starts = 0, stops = 0;
     await t.pumpWidget(host(QuickWalkButton3110(
       visible: true.obs,
@@ -64,9 +64,12 @@ void main() {
     await t.pump();
     final tap = find.byKey(const ValueKey<String>('quick_walk_3110_tap'));
     final size = t.getSize(tap);
-    expect(size.width, kQuickWalkSize3110);
-    expect(size.height, kQuickWalkSize3110);
-    expect(find.byKey(const ValueKey<String>('quick_walk_3110_chrono')), findsNothing);
+    expect(size.width, moreOrLessEquals(kQuickWalkSize3110, epsilon: 1e-6));
+    expect(size.height, moreOrLessEquals(kQuickWalkSize3110, epsilon: 1e-6));
+    // 633 : hors ligne = « HORS LIGNE », compteur « — », pas de secondes.
+    expect(_qwStatus(t), startsWith('pamc3110_qw_offline'.tr));
+    expect(t.widget<Text>(find.byKey(const ValueKey<String>('quick_walk_3110_chrono'))).data, '—');
+    expect(find.byKey(const ValueKey<String>('quick_walk_3110_secs')), findsNothing);
     await t.tap(tap);
     await t.pump();
     expect(starts, 1);
@@ -98,7 +101,8 @@ void main() {
     // La balade s'arrête (le service passe à faux) → retour au repos.
     broadcasting.value = false;
     await t.pump();
-    expect(chrono, findsNothing);
+    expect(t.widget<Text>(chrono).data, '—');
+    expect(find.byKey(const ValueKey<String>('quick_walk_3110_secs')), findsNothing);
     expect(t.takeException(), isNull);
   });
 
@@ -115,11 +119,46 @@ void main() {
     final tap = find.byKey(const ValueKey<String>('quick_walk_3110_tap'));
     final r = t.getRect(tap);
     final screen = t.getSize(find.byType(Scaffold));
-    expect(screen.width - r.right, kQuickWalkSideMargin3110);
-    expect(screen.height - r.bottom, greaterThanOrEqualTo(kQuickWalkAboveBar3110));
+    expect(screen.width - r.right, moreOrLessEquals(kQuickWalkSideMargin3110, epsilon: 1e-6));
+    expect(screen.height - r.bottom, greaterThanOrEqualTo(kQuickWalkAboveBar3110 - 1e-6));
     OpenOnPrefs3110.quickWalkSide.value = QuickWalkSide3110.left;
     await t.pump();
-    expect(t.getRect(tap).left, kQuickWalkSideMargin3110);
+    expect(t.getRect(tap).left, moreOrLessEquals(kQuickWalkSideMargin3110, epsilon: 1e-6));
+    expect(t.takeException(), isNull);
+  });
+
+  // 633 (Daniel 01/11) — « Les deux » : un rond à gauche (gauchers, au-dessus
+  // du logo Google) et un à droite, à la MÊME hauteur.
+  testWidgets('633 : les deux côtés à la même hauteur', (t) async {
+    lotdPhone(t, width: 393, height: 852);
+    OpenOnPrefs3110.quickWalkSide.value = QuickWalkSide3110.both;
+    await t.pumpWidget(lotdApp(Scaffold(
+      body: Builder(builder: (ctx) => Stack(children: [
+        const SizedBox.expand(),
+        for (final side in const [QuickWalkSide3110.left, QuickWalkSide3110.right])
+          if (OpenOnPrefs3110.quickWalkSide.value.shows(side))
+            QuickWalkButton3110.positioned(ctx, side: side),
+      ])),
+    )));
+    await t.pump();
+    final l = t.getRect(find.byKey(const ValueKey<String>('quick_walk_3110_left')));
+    final r = t.getRect(find.byKey(const ValueKey<String>('quick_walk_3110_right')));
+    final screen = t.getSize(find.byType(Scaffold));
+    expect(l.left, moreOrLessEquals(kQuickWalkSideMargin3110, epsilon: 1e-6));
+    expect(screen.width - r.right, moreOrLessEquals(kQuickWalkSideMargin3110, epsilon: 1e-6));
+    expect(l.bottom, r.bottom);
+    expect(screen.height - l.bottom, greaterThanOrEqualTo(kQuickWalkAboveBar3110 - 1e-6));
     expect(t.takeException(), isNull);
   });
 }
+
+/// 634 — le texte d'état vit dans la sémantique du rond (62 pt, plus de ligne
+/// « BALADE EN DIRECT » visible).
+String _qwStatus(WidgetTester t) => t
+    .widgetList<Semantics>(find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.button == true &&
+            (w.key is ValueKey<String>) &&
+            (w.key as ValueKey<String>).value.startsWith('quick_walk_3110_')))
+    .first
+    .properties
+    .label!;

@@ -1,3 +1,5 @@
+import 'package:hopetsit/utils/conclure1011.dart';
+
 class SitterModel {
   final String id;
   final String name;
@@ -44,6 +46,9 @@ class SitterModel {
 
   /// Sprint 5 step 7 — identity verification flag exposed publicly.
   final bool identityVerified;
+
+  /// 1011 — « J'ai un véhicule » : true / false, ou null si jamais renseigné.
+  final bool? hasVehicle;
 
   /// Sprint 7 step 2 — Top Sitter program.
   final bool isTopSitter;
@@ -112,6 +117,7 @@ class SitterModel {
     this.acceptedPetTypes = const <String>[],
     this.availableTimeSlots = const <dynamic>[],
     this.identityVerified = false,
+    this.hasVehicle,
     this.isTopSitter = false,
     this.completedServicesCount = 0,
     this.averageRating = 0.0,
@@ -203,6 +209,7 @@ class SitterModel {
           ? (json['availableTimeSlots'] as List)
           : const <dynamic>[],
       identityVerified: json['identityVerified'] == true,
+      hasVehicle: parseTriBool1011(json['hasVehicle']),
       isTopSitter: json['isTopSitter'] == true,
       isBoosted: json['isBoosted'] == true,
       boostTier: json['boostTier'] as String?,

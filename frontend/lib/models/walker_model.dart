@@ -1,3 +1,5 @@
+import 'package:hopetsit/utils/conclure1011.dart';
+
 /// Walker model — frontend mirror of backend src/models/Walker.js.
 ///
 /// A Walker is a dog walker (third role alongside Owner and Sitter) with a
@@ -54,6 +56,9 @@ class WalkerModel {
   final DateTime? insuranceExpiresAt;
   final String coverageCity;
   final int coverageRadiusKm;
+
+  /// 1011 — « J'ai un véhicule » : true / false, ou null si jamais renseigné.
+  final bool? hasVehicle;
 
   /// Availability calendar.
   final List<DateTime> availableDates;
@@ -130,6 +135,7 @@ class WalkerModel {
     this.insuranceExpiresAt,
     this.coverageCity = '',
     this.coverageRadiusKm = 3,
+    this.hasVehicle,
     this.availableDates = const <DateTime>[],
     this.unavailableDates = const <DateTime>[],
     this.availableTimeSlots = const <dynamic>[],
@@ -246,6 +252,7 @@ class WalkerModel {
       insuranceExpiresAt: parseDate(json['insuranceExpiresAt']),
       coverageCity: (json['coverageCity'] as String?) ?? '',
       coverageRadiusKm: (json['coverageRadiusKm'] as num?)?.toInt() ?? 3,
+      hasVehicle: parseTriBool1011(json['hasVehicle']),
       availableDates: ((json['availableDates'] as List?) ?? const [])
           .map((e) => DateTime.tryParse(e.toString()))
           .whereType<DateTime>()

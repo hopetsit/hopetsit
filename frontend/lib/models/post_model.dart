@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:hopetsit/models/pet_model.dart';
+import 'package:hopetsit/utils/conclure1011.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 
 class PostModel {
@@ -30,6 +31,11 @@ class PostModel {
   /// propriétaire (0 = aucun) et sa devise.
   final double budget;
   final String budgetCurrency;
+  /// 1011 — horaires souhaités (« HH:MM », 24 h ; '' = pas d'horaire) et
+  /// « je n'ai pas de voiture » (le gardien vient ou vient chercher l'animal).
+  final String timeFrom;
+  final String timeTo;
+  final bool ownerNoCar;
   final String? petId;
   /// v441 — ids des animaux sélectionnés pour l'annonce (multi-animaux). Sert
   /// au pré-remplissage du formulaire « Modifier » côté owner.
@@ -80,6 +86,9 @@ class PostModel {
           budgetCurrency.isNotEmpty ? budgetCurrency : 'EUR', budget)
       : '';
 
+  /// 1011 — « 09:00 – 18:00 » ou vide sans horaire.
+  String get hoursLabel => hoursLabel1011(timeFrom, timeTo);
+
   /// v441 — l'owner peut éditer son annonce tant qu'elle n'est pas payée.
   bool get isEditableByOwner => !isPaidLocked;
 
@@ -98,6 +107,9 @@ class PostModel {
     this.meetingPoint,
     this.budget = 0,
     this.budgetCurrency = '',
+    this.timeFrom = '',
+    this.timeTo = '',
+    this.ownerNoCar = false,
     this.petId,
     this.petIds = const <String>[],
     this.animalCount = 0,
@@ -205,6 +217,9 @@ class PostModel {
       meetingPoint: json['meetingPoint'] as String?,
       budget: (json['budget'] as num?)?.toDouble() ?? 0,
       budgetCurrency: (json['budgetCurrency'] ?? '').toString(),
+      timeFrom: cleanHm1011(json['timeFrom']),
+      timeTo: cleanHm1011(json['timeTo']),
+      ownerNoCar: parseBool1011(json['ownerNoCar']),
       petId: json['petId'] as String?,
       petIds: (json['petIds'] as List<dynamic>?)
               ?.map((e) => e.toString())
@@ -305,6 +320,9 @@ class PostModel {
       meetingPoint: meetingPoint,
       budget: budget,
       budgetCurrency: budgetCurrency,
+      timeFrom: timeFrom,
+      timeTo: timeTo,
+      ownerNoCar: ownerNoCar,
       petId: petId,
       petIds: petIds,
       animalCount: animalCount,

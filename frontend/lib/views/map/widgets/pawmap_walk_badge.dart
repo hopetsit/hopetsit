@@ -178,9 +178,14 @@ class _PawWalkBadgeState extends State<PawWalkBadge> {
 /// s'écrit SOUS le bouton Balade, à la place de « En direct », au lieu
 /// d'ajouter une ligne au-dessus. Se met à jour toutes les 20 s.
 class PawWalkMinutesText extends StatefulWidget {
-  const PawWalkMinutesText({super.key, required this.startedAt, required this.style});
+  const PawWalkMinutesText(
+      {super.key, required this.startedAt, required this.style, this.now});
   final DateTime? startedAt;
   final TextStyle style;
+
+  /// 632 — horloge commune (`LiveMapService.liveNow`) : même minute que la
+  /// pilule et le bouton rond. Absente = heure du téléphone.
+  final DateTime? now;
 
   @override
   State<PawWalkMinutesText> createState() => _PawWalkMinutesTextState();
@@ -205,7 +210,7 @@ class _PawWalkMinutesTextState extends State<PawWalkMinutesText> {
 
   @override
   Widget build(BuildContext context) => Text(
-        pawWalkBadgeMinutes(widget.startedAt, DateTime.now()),
+        pawWalkBadgeMinutes(widget.startedAt, widget.now ?? DateTime.now()),
         key: const ValueKey<String>('pawmap_walk_minutes'),
         maxLines: 1,
         softWrap: false,

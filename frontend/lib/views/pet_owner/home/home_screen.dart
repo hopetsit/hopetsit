@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show SliverConstraints;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -760,8 +759,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ? _homeController.walkers.length
           : _homeController.sitters.length;
       final leftText = _isWalkerTab
-          ? 'home_results_walkers'.trParams({'count': count.toString()})
-          : 'home_results_sitters'.trParams({'count': count.toString()});
+          ? (count == 1
+              ? 'home635_results_walker_one'.tr
+              : 'home_results_walkers'.trParams({'count': count.toString()}))
+          : (count == 1
+              ? 'home635_results_sitter_one'.tr
+              : 'home_results_sitters'.trParams({'count': count.toString()}));
       return Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -779,7 +782,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           SizedBox(width: 6.w),
           InterText(
-            text: 'home_results_found'.trParams({'count': count.toString()}),
+            text: count == 1
+                ? 'home635_results_found_one'.tr
+                : 'home_results_found'.trParams({'count': count.toString()}),
             fontSize: 12.sp,
             fontWeight: FontWeight.w600,
             color: _accent,
@@ -1200,34 +1205,23 @@ class _HomeScreenState extends State<HomeScreen> {
         // conseil) laissait le nouveau propriétaire deviner quoi faire. On la
         // remplace par une carte d'accueil : les 3 étapes du parcours et UN
         // seul gros bouton qui ouvre la création d'annonce.
-        // PAM-B 3110 — la carte prend la hauteur qui reste au-dessus du
-        // menu (flex:1 de la maquette) ; sur un petit écran elle garde sa
-        // hauteur naturelle et l'écran défile.
-        return SliverLayoutBuilder(
-          builder: (BuildContext context, SliverConstraints sc) {
-            final double bottom = 110 + appBottomInset(context);
-            final double remaining = sc.remainingPaintExtent - bottom - 6;
-            return SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: remaining.isFinite && remaining > 0 ? remaining : 0,
-                  ),
-                  child: FirstPostCard3110(
-                    title: 'ownerhome571_first_title'.tr,
-                    steps: <String>[
-                      'ownerhome571_first_step1'.tr,
-                      'ownerhome571_first_step2'.tr,
-                      'ownerhome571_first_step3'.tr,
-                    ],
-                    ctaLabel: 'ownerhome571_first_cta'.tr,
-                    onCta: _openPublishRequest,
-                  ),
-                ),
-              ),
-            );
-          },
+        // 635 (Daniel 03/11) — hauteur NATURELLE : la hauteur minimale
+        // calculée sur `remainingPaintExtent` grandissait à chaque défilement
+        // (carte blanche étirée, grand vide entre les étapes et le bouton).
+        return SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+            child: FirstPostCard3110(
+              title: 'ownerhome571_first_title'.tr,
+              steps: <String>[
+                'ownerhome571_first_step1'.tr,
+                'ownerhome571_first_step2'.tr,
+                'ownerhome571_first_step3'.tr,
+              ],
+              ctaLabel: 'ownerhome571_first_cta'.tr,
+              onCta: _openPublishRequest,
+            ),
+          ),
         );
       }
 
@@ -1247,6 +1241,9 @@ class _HomeScreenState extends State<HomeScreen> {
             return PetPostCard(
               userName: post.owner.name,
               userEmail: post.owner.email,
+              // 1011 — heures de la garde en journée + « propriétaire sans voiture ».
+              hoursLabel: post.hoursLabel,
+              ownerNoCar: post.ownerNoCar,
               userAvatar: post.owner.avatar.isNotEmpty
                   ? post.owner.avatar
                   : null,
@@ -1514,6 +1511,20 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  /// 635 — le « + » flottant n'apparaît qu'après défilement, et jamais quand
+  /// la carte « Publie ta première annonce » est à l'écran : elle porte déjà
+  /// le même bouton, et le rond la chevauchait.
+  bool _fabVisible635() {
+    if (!_showFab) return false;
+    if (_selectedTabIndex != 0 || _userId == null) return true;
+    final bool mineEmpty = _filterAndSortMyPosts(
+      media: _postsController.posts,
+      withoutMedia: _postsController.postsWithoutMedia,
+      userId: _userId!,
+    ).isEmpty;
+    return !mineEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(
@@ -1645,7 +1656,9 @@ class _HomeScreenState extends State<HomeScreen> {
               // v569 — `viewPadding.bottom` = 0 sur le Samsung de Daniel : le
               // dernier élément finissait sous la pilule + la barre système.
               SliverToBoxAdapter(
-                child: SizedBox(height: 110.h + appBottomInset(context)),
+                // 635 — + la hauteur du « + » flottant (52) et son écart :
+                // la dernière carte ne passe plus jamais dessous.
+                child: SizedBox(height: 180.h + appBottomInset(context)),
               ),
             ],
           ),
@@ -1655,11 +1668,11 @@ class _HomeScreenState extends State<HomeScreen> {
         // v471 — Daniel : « remonter encore un peu » le bouton + de l'accueil
         // owner. On le relève davantage (120) + l'inset Samsung.
         floatingActionButton: AnimatedScale(
-          scale: _showFab ? 1 : 0,
+          scale: _fabVisible635() ? 1 : 0,
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           child: IgnorePointer(
-            ignoring: !_showFab,
+            ignoring: !_fabVisible635(),
             child: Padding(
           padding: EdgeInsets.only(bottom: 120.h + appBottomInset(context)),
           child: Container(

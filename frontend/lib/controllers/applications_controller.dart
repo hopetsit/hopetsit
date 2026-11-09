@@ -23,6 +23,17 @@ String? ratePendingMessage627(ApiException error) {
   return 'dates620_stale_explain'.tr;
 }
 
+/// 638 (contrôle ZOE) — 409 `ALREADY_PAID` (lot 1011 : la demande a déjà un
+/// gardien payé, on ne choisit plus personne d'autre). Le serveur n'envoie
+/// qu'une phrase en anglais : on affiche la nôtre, traduite. `null` sinon.
+String? alreadyPaidMessage1011(ApiException error) {
+  final d = error.details;
+  final bool isAlreadyPaid = (d is Map && d['code']?.toString() == 'ALREADY_PAID') ||
+      error.message.contains('ALREADY_PAID') ||
+      (error.statusCode == 409 && error.message.trim() == 'This request is already paid.');
+  return isAlreadyPaid ? 'c1011_already_paid'.tr : null;
+}
+
 class ApplicationsController extends GetxController {
   ApplicationsController({OwnerRepository? ownerRepository})
     : _ownerRepository = ownerRepository ?? Get.find<OwnerRepository>();
@@ -139,6 +150,19 @@ class ApplicationsController extends GetxController {
         CustomSnackbar.showWarning(
           title: 'dates620_stale_label'.tr,
           message: ratePending,
+        );
+        try {
+          await loadApplications();
+        } catch (_) {}
+        return null;
+      }
+      // 638 — 409 ALREADY_PAID : phrase traduite (le serveur ne parle
+      // qu'anglais ici), puis la liste rechargée.
+      final String? alreadyPaid = alreadyPaidMessage1011(error);
+      if (alreadyPaid != null) {
+        CustomSnackbar.showWarning(
+          title: 'c1011_already_paid_title'.tr,
+          message: alreadyPaid,
         );
         try {
           await loadApplications();

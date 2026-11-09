@@ -130,6 +130,25 @@ PawPlush? pawPlushInReach(LatLng me, List<PawPlush> list, {double radiusM = kPaw
 /// Résultat d'une tentative de capture.
 enum PawPlushCatch { caught, dailyDone, taken, refused, none }
 
+/// 607 — délai avant de retenter la MÊME peluche après un refus du serveur.
+const Duration kPlushRetryCooldown = Duration(seconds: 20);
+
+/// 632 — après un échec passager (réseau, 5xx), on retente au bout de 5 s.
+const Duration kPlushRetryAfter632 = Duration(seconds: 5);
+
+/// 632 (contrôle ZOE) — au plus 3 relances rapides par peluche ; ensuite le
+/// délai normal reprend (une panne serveur durable ne fait pas tourner
+/// l'app en boucle toutes les 5 s).
+const int kPlushQuickRetryMax632 = 3;
+
+/// 632 — un refus est passager (à retenter vite) quand le serveur n'a pas
+/// donné de raison (réseau, délai, 5xx). TOO_FAR / TOO_FAST / WALK_REQUIRED
+/// sont des réponses claires. Pure, testée.
+bool pawPlushRetryable632({required String code, int? statusCode}) {
+  if (statusCode != null && statusCode >= 500) return true;
+  return code.isEmpty;
+}
+
 /// Détail d'une capture réussie (pour la pastille de confirmation).
 class PawPlushWin {
   const PawPlushWin({
@@ -320,6 +339,14 @@ class PawPlushLayer {
   String lastRefusal = '';
   int? lastRefusalMeters;
 
+  /// 632 (PAM, Daniel 01/11, vidéo 2 : « La peluche n'a pas pu être
+  /// attrapée : on réessaie tout seul », jamais attrapée) — le dernier échec
+  /// est passager (réseau, serveur qui ne répond pas) : l'écran réessaie
+  /// sans attendre un nouveau point GPS (immobile à 20 m, le GPS filtré à
+  /// 5 m n'en envoie plus), et la même peluche est retentée après
+  /// [kPlushRetryAfter632] au lieu de 20 s.
+  bool lastRefusalRetryable = false;
+
   /// 607 — la peluche la plus proche de [me] et sa distance (m), ou null.
   (PawPlush, double)? nearest(LatLng me) {
     (PawPlush, double)? best;
@@ -330,6 +357,23 @@ class PawPlushLayer {
     return best;
   }
 
+  /// 632 — relances rapides déjà faites, par peluche.
+  final Map<String, int> _quickRetries632 = <String, int>{};
+
+  /// 632 — échec passager : relance après [kPlushRetryAfter632], au plus
+  /// [kPlushQuickRetryMax632] fois ; au-delà, délai normal et pas de relance
+  /// automatique de l'écran.
+  void _quickRetry632(String id, DateTime t) {
+    final n = _quickRetries632[id] ?? 0;
+    if (n >= kPlushQuickRetryMax632) {
+      lastRefusalRetryable = false;
+      return; // _tried[id] = t : délai normal de 20 s
+    }
+    _quickRetries632[id] = n + 1;
+    lastRefusalRetryable = true;
+    _tried[id] = t.subtract(kPlushRetryCooldown - kPlushRetryAfter632);
+  }
+
   Future<(PawPlushCatch, int)> onPosition(LatLng me, {DateTime? now, double? accuracy}) async {
     if (_catching || caughtToday || !shown.value) return (PawPlushCatch.none, 0);
     // 611 — rayon + précision du point GPS (20 m au plus, comme le serveur).
@@ -337,11 +381,12 @@ class PawPlushLayer {
     if (p == null) return (PawPlushCatch.none, 0);
     final t = now ?? DateTime.now();
     final prev = _tried[p.id];
-    if (prev != null && t.difference(prev) < const Duration(seconds: 20)) {
+    if (prev != null && t.difference(prev) < kPlushRetryCooldown) {
       return (PawPlushCatch.none, 0);
     }
     _tried[p.id] = t;
     _catching = true;
+    lastRefusalRetryable = false; // 632
     try {
       final res = await _post('/plush/${p.id}/catch', <String, dynamic>{
         'lat': me.latitude,
@@ -349,6 +394,7 @@ class PawPlushLayer {
         if (accuracy != null && accuracy > 0) 'accuracy': accuracy, // 611
       });
       items.removeWhere((x) => x.id == p.id);
+      _quickRetries632.remove(p.id); // 632
       // 611 — 2 par jour : on continue tant que le maximum n'est pas atteint.
       caughtTodayCount611.value += 1;
       caughtToday = caughtTodayCount611.value >= dailyMax611;
@@ -383,8 +429,16 @@ class PawPlushLayer {
       }
       lastRefusal = code; // 607 — l'écran l'explique (plus d'échec muet)
       lastRefusalMeters = e.details is Map ? (e.details['distanceM'] as num?)?.toInt() : null;
+      // 632 — sans code (erreur serveur 5xx, réponse illisible) = passager.
+      if (pawPlushRetryable632(code: code, statusCode: e.statusCode)) {
+        _quickRetry632(p.id, t);
+      }
       return (PawPlushCatch.refused, 0); // trop loin / trop vite / pas en Balade
     } catch (_) {
+      // 632 — réseau coupé / délai dépassé : passager, on réessaie vite.
+      lastRefusal = '';
+      lastRefusalMeters = null;
+      _quickRetry632(p.id, t);
       return (PawPlushCatch.refused, 0);
     } finally {
       _catching = false;

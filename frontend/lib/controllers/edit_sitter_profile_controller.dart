@@ -16,6 +16,7 @@ import 'package:hopetsit/utils/profile_completion.dart'
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/profile/widgets/phone_prefix_helper.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/conclure1011.dart';
 import 'package:hopetsit/utils/server_error_message.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/services/location_service.dart';
@@ -85,6 +86,22 @@ class EditSitterProfileController extends GetxController {
   final RxList<String> selectedServices = <String>[].obs;
   final RxList<String> experienceTags = <String>[].obs;
   final RxString coverageRadius = '20'.obs;
+
+  /// 1011 — « J'ai un véhicule (je peux venir chercher l'animal) ».
+  /// Envoyé à l'enregistrement seulement si l'interrupteur a été touché ou si
+  /// le serveur avait déjà une valeur : un profil jamais renseigné reste null.
+  final RxBool hasVehicle = false.obs;
+  bool? hasVehicleServer1011;
+  bool hasVehicleTouched1011 = false;
+  void setHasVehicle1011(bool v) {
+    hasVehicleTouched1011 = true;
+    hasVehicle.value = v;
+  }
+
+  bool? get hasVehicleWire1011 =>
+      (hasVehicleTouched1011 || hasVehicleServer1011 != null)
+          ? hasVehicle.value
+          : null;
 
   // Observable state
   final Rx<File?> profileImage = Rx<File?>(null);
@@ -266,6 +283,8 @@ class EditSitterProfileController extends GetxController {
           : (svc is String && svc.isNotEmpty ? [svc] : []);
       final radius = profileData['coverageRadiusKm'];
       if (radius is num && radius > 0) coverageRadius.value = radius.toInt().toString();
+      hasVehicleServer1011 = parseTriBool1011(profileData['hasVehicle']);
+      if (!hasVehicleTouched1011) hasVehicle.value = hasVehicleServer1011 == true;
 
       // Some backends may return skills/language as a List, which .toString()
       // turns into a bracketed string (e.g. [Pet Sitting]). To avoid the
@@ -638,6 +657,7 @@ class EditSitterProfileController extends GetxController {
         experienceTags: experienceTags.toList(),
         service: selectedServices.toList(),
         coverageRadiusKm: int.tryParse(coverageRadius.value),
+        hasVehicle: hasVehicleWire1011,
       );
 
       // v20.0.19 — Ne plus appeler setMyRates depuis l'écran Modifier profil.

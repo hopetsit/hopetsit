@@ -22,7 +22,12 @@ const Map<String, Map<String, String>> pamc3110I18n =
     'pamc3110_qw_side': "Côté du bouton",
     'pamc3110_qw_right': "Droite",
     'pamc3110_qw_left': "Gauche (gauchers)",
+    'pamc3110_qw_both': "Les deux", // 633
     'pamc3110_qw_stop_hint': "Balade en cours · toucher pour arrêter",
+    'pamc3110_qw_live': "Balade en direct", // 633
+    'pamc3110_qw_offline': "Hors ligne", // 633
+    'pamc3110_qw_min': "min", // 633
+    'pamc3110_qw_sec': "s", // 633
   },
   'en': <String, String>{
     'pamc3110_row_sub': "Start screen, Quick walk button",
@@ -43,7 +48,12 @@ const Map<String, Map<String, String>> pamc3110I18n =
     'pamc3110_qw_side': "Button side",
     'pamc3110_qw_right': "Right",
     'pamc3110_qw_left': "Left (left-handed)",
+    'pamc3110_qw_both': "Both", // 633
     'pamc3110_qw_stop_hint': "Walk in progress · tap to stop",
+    'pamc3110_qw_live': "Live walk", // 633
+    'pamc3110_qw_offline': "Offline", // 633
+    'pamc3110_qw_min': "min", // 633
+    'pamc3110_qw_sec': "s", // 633
   },
   'es': <String, String>{
     'pamc3110_row_sub': "Pantalla de inicio, botón Paseo rápido",
@@ -64,7 +74,12 @@ const Map<String, Map<String, String>> pamc3110I18n =
     'pamc3110_qw_side': "Lado del botón",
     'pamc3110_qw_right': "Derecha",
     'pamc3110_qw_left': "Izquierda (zurdos)",
+    'pamc3110_qw_both': "Los dos", // 633
     'pamc3110_qw_stop_hint': "Paseo en curso · toca para detener",
+    'pamc3110_qw_live': "Paseo en directo", // 633
+    'pamc3110_qw_offline': "Sin conexión", // 633
+    'pamc3110_qw_min': "min", // 633
+    'pamc3110_qw_sec': "s", // 633
   },
   'de': <String, String>{
     'pamc3110_row_sub': "Startbildschirm, Knopf Schneller Spaziergang",
@@ -85,7 +100,12 @@ const Map<String, Map<String, String>> pamc3110I18n =
     'pamc3110_qw_side': "Seite des Knopfs",
     'pamc3110_qw_right': "Rechts",
     'pamc3110_qw_left': "Links (Linkshänder)",
+    'pamc3110_qw_both': "Beide", // 633
     'pamc3110_qw_stop_hint': "Spaziergang läuft · tippen zum Beenden",
+    'pamc3110_qw_live': "Live-Spaziergang", // 633
+    'pamc3110_qw_offline': "Offline", // 633
+    'pamc3110_qw_min': "Min", // 633
+    'pamc3110_qw_sec': "s", // 633
   },
   'it': <String, String>{
     'pamc3110_row_sub': "Schermata iniziale, pulsante Passeggiata rapida",
@@ -106,7 +126,12 @@ const Map<String, Map<String, String>> pamc3110I18n =
     'pamc3110_qw_side': "Lato del pulsante",
     'pamc3110_qw_right': "Destra",
     'pamc3110_qw_left': "Sinistra (mancini)",
+    'pamc3110_qw_both': "Entrambi", // 633
     'pamc3110_qw_stop_hint': "Passeggiata in corso · tocca per fermare",
+    'pamc3110_qw_live': "Passeggiata live", // 633
+    'pamc3110_qw_offline': "Offline", // 633
+    'pamc3110_qw_min': "min", // 633
+    'pamc3110_qw_sec': "s", // 633
   },
   'pt': <String, String>{
     'pamc3110_row_sub': "Ecrã inicial, botão Passeio rápido",
@@ -127,7 +152,12 @@ const Map<String, Map<String, String>> pamc3110I18n =
     'pamc3110_qw_side': "Lado do botão",
     'pamc3110_qw_right': "Direita",
     'pamc3110_qw_left': "Esquerda (canhotos)",
+    'pamc3110_qw_both': "Os dois", // 633
     'pamc3110_qw_stop_hint': "Passeio em curso · toca para parar",
+    'pamc3110_qw_live': "Passeio em direto", // 633
+    'pamc3110_qw_offline': "Offline", // 633
+    'pamc3110_qw_min': "min", // 633
+    'pamc3110_qw_sec': "s", // 633
   },
   'ko': <String, String>{
     'pamc3110_row_sub': "시작 화면, 빠른 산책 버튼",
@@ -148,7 +178,12 @@ const Map<String, Map<String, String>> pamc3110I18n =
     'pamc3110_qw_side': "버튼 위치",
     'pamc3110_qw_right': "오른쪽",
     'pamc3110_qw_left': "왼쪽 (왼손잡이)",
+    'pamc3110_qw_both': "양쪽", // 633
     'pamc3110_qw_stop_hint': "산책 중 · 눌러서 종료",
+    'pamc3110_qw_live': "실시간 산책", // 633
+    'pamc3110_qw_offline': "오프라인", // 633
+    'pamc3110_qw_min': "분", // 633
+    'pamc3110_qw_sec': "초", // 633
   },
   'ja': <String, String>{
     'pamc3110_row_sub': "起動画面、クイック散歩ボタン",
@@ -169,7 +204,12 @@ const Map<String, Map<String, String>> pamc3110I18n =
     'pamc3110_qw_side': "ボタンの位置",
     'pamc3110_qw_right': "右",
     'pamc3110_qw_left': "左（左利き）",
+    'pamc3110_qw_both': "両側", // 633
     'pamc3110_qw_stop_hint': "散歩中 · タップで終了",
+    'pamc3110_qw_live': "ライブ散歩", // 633
+    'pamc3110_qw_offline': "オフライン", // 633
+    'pamc3110_qw_min': "分", // 633
+    'pamc3110_qw_sec': "秒", // 633
   },
   'pl': <String, String>{
     'pamc3110_row_sub': "Ekran startowy, przycisk Szybki spacer",
@@ -190,6 +230,11 @@ const Map<String, Map<String, String>> pamc3110I18n =
     'pamc3110_qw_side': "Strona przycisku",
     'pamc3110_qw_right': "Prawa",
     'pamc3110_qw_left': "Lewa (leworęczni)",
+    'pamc3110_qw_both': "Obie", // 633
     'pamc3110_qw_stop_hint': "Spacer trwa · dotknij, aby zakończyć",
+    'pamc3110_qw_live': "Spacer na żywo", // 633
+    'pamc3110_qw_offline': "Offline", // 633
+    'pamc3110_qw_min': "min", // 633
+    'pamc3110_qw_sec': "s", // 633
   },
 };

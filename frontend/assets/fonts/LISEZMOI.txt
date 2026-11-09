@@ -9,3 +9,5 @@ google_fonts détecte ces fichiers par leur nom et ne télécharge plus rien pou
 typographie est juste DÈS la première image, même hors réseau (avant : police système au
 premier lancement sans réseau, « Failed to load font » dans Crashlytics). Les tests
 mesurent avec ces mêmes fichiers (test/flutter_test_config.dart).
+
+633 (03/11/2026) — Nunito ExtraBold (800) et Black (900) : bouton « Balade en direct » (design de Daniel). Fichiers officiels Google Fonts (fonts.gstatic.com, SHA-256 vérifiés = table de google_fonts 6.3.3). Licence OFL.

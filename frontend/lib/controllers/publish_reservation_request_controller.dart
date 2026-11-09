@@ -17,6 +17,7 @@ import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/services/meta_events_636.dart';
+import 'package:hopetsit/utils/conclure1011.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/publish_draft600.dart';
@@ -104,6 +105,71 @@ class PublishReservationRequestController extends GetxController {
   }
 
   void onBudgetChanged(String v) => budgetText.value = v;
+
+  // ── 1011 « conclure » — précisions facultatives ─────────────────────────
+  /// Horaires souhaités (« de … à … ») et « je n'ai pas de voiture ».
+  final Rxn<TimeOfDay> timeFrom = Rxn<TimeOfDay>();
+  final Rxn<TimeOfDay> timeTo = Rxn<TimeOfDay>();
+  final RxBool ownerNoCar = false.obs;
+
+  /// Dates précises d'une garde en journée ou d'une promenade : les heures de
+  /// l'étape 3 SONT déjà les horaires, on ne les redemande pas.
+  bool get hoursComeFromDates1011 {
+    final s = selectedServiceType.value;
+    return dateMode.value == DateMode620.exact &&
+        (s == 'day_care' || s == 'dog_walking');
+  }
+
+  /// Valeur envoyée pour `timeFrom` (« HH:MM » ou '').
+  String get timeFromWire {
+    if (!hoursComeFromDates1011) return _hm(timeFrom.value) ?? '';
+    if (selectedServiceType.value != 'day_care') return '';
+    return _hm(startTime.value) ?? '';
+  }
+
+  /// Valeur envoyée pour `timeTo` (« HH:MM » ou '').
+  String get timeToWire {
+    if (!hoursComeFromDates1011) return _hm(timeTo.value) ?? '';
+    if (selectedServiceType.value != 'day_care') return '';
+    return _hm(endTime.value) ?? '';
+  }
+
+  /// « 09:00 – 18:00 » pour le récapitulatif ('' sans horaire).
+  String get hoursSummary1011 => hoursLabel1011(timeFromWire, timeToWire);
+
+  /// Le bloc « Précisions » a quelque chose de rempli.
+  bool get extrasDone1011 =>
+      ownerNoCar.value || timeFrom.value != null || timeTo.value != null;
+
+  /// 638 (contrôle ZOE + BOB) — pose une heure souhaitée. Quand la demande
+  /// tient sur UN SEUL jour (début et fin le même jour), une heure de fin qui
+  /// n'est pas APRÈS l'heure de début est refusée (retour `false`, rien n'est
+  /// modifié) et une heure de début posée à la fin ou après efface la fin.
+  /// Sur plusieurs jours (ou sans dates), « 20:00 – 08:00 » est normal :
+  /// dépôt le soir du premier jour, reprise le matin du dernier — accepté,
+  /// comme sur le site et le serveur.
+  bool get hoursSameDay1011 {
+    final s = startDate.value, e = endDate.value;
+    return s != null && e != null &&
+        s.year == e.year && s.month == e.month && s.day == e.day;
+  }
+
+  bool setHour1011({required bool isFrom, required TimeOfDay picked}) {
+    int minutes(TimeOfDay t) => t.hour * 60 + t.minute;
+    final strict = hoursSameDay1011;
+    if (isFrom) {
+      timeFrom.value = picked;
+      final to = timeTo.value;
+      if (strict && to != null && minutes(to) <= minutes(picked)) {
+        timeTo.value = null;
+      }
+      return true;
+    }
+    final from = timeFrom.value;
+    if (strict && from != null && minutes(picked) <= minutes(from)) return false;
+    timeTo.value = picked;
+    return true;
+  }
   final addressController = TextEditingController();
 
   final Rxn<DateTime> startDate = Rxn<DateTime>();
@@ -531,7 +597,7 @@ class PublishReservationRequestController extends GetxController {
       startDate, endDate, startTime, endTime, selectedServiceType,
       selectedDuration, serviceLocation, animalTypes, animalCount,
       selectedPetIds, showAnimalCharacter, meetingPointText, budgetText,
-      cityText, dateMode, visitsPerDay,
+      cityText, dateMode, visitsPerDay, timeFrom, timeTo, ownerNoCar,
     ], (_) => _scheduleDraftSave()));
     notesController.addListener(_scheduleDraftSave);
   }
@@ -592,6 +658,9 @@ class PublishReservationRequestController extends GetxController {
         'postalCode': postalCodeController.text.trim(), // 619
         'notes': notesController.text.trim(),
         'budget': budgetText.value.trim(),
+        'timeFrom': _hm(timeFrom.value), // 1011
+        'timeTo': _hm(timeTo.value), // 1011
+        'ownerNoCar': ownerNoCar.value, // 1011
         'animalTypes': animalTypes.toList(),
         'animalCount': animalCount.value,
         'petIds': selectedPetIds.toList(),
@@ -650,6 +719,10 @@ class PublishReservationRequestController extends GetxController {
     final b = (d['budget'] ?? '').toString();
     budgetController.text = b;
     budgetText.value = b;
+    // 1011 — horaires souhaités et « sans voiture ».
+    timeFrom.value = _parseHm(d['timeFrom']);
+    timeTo.value = _parseHm(d['timeTo']);
+    ownerNoCar.value = d['ownerNoCar'] == true;
     final at = d['animalTypes'];
     if (at is List) {
       animalTypes.assignAll(at.map((e) => e.toString()).where(kAnimalSpecies600.contains));
@@ -736,6 +809,10 @@ class PublishReservationRequestController extends GetxController {
       budgetController.text = txt;
       budgetText.value = txt;
     }
+    // 1011 — horaires souhaités et « sans voiture » déjà enregistrés.
+    timeFrom.value = _parseHm(p.timeFrom);
+    timeTo.value = _parseHm(p.timeTo);
+    ownerNoCar.value = p.ownerNoCar;
 
     // Lieu de house-sitting legacy (owners_home / sitters_home).
     final venue = p.houseSittingVenue?.trim();
@@ -1301,6 +1378,10 @@ class PublishReservationRequestController extends GetxController {
           // v587 — 0 = budget effacé.
           budget: budgetAmount ?? 0,
           budgetCurrency: budgetCurrency,
+          // 1011 — en modification tout part : '' efface un horaire.
+          timeFrom: timeFromWire,
+          timeTo: timeToWire,
+          ownerNoCar: ownerNoCar.value,
           animalTypes: speciesToSend,
           animalCount: countToSend,
         );
@@ -1364,6 +1445,9 @@ class PublishReservationRequestController extends GetxController {
           walkDurationMinutes: walkMinutes,
           budget: budgetAmount,
           budgetCurrency: budgetCurrency,
+          timeFrom: timeFromWire, // 1011
+          timeTo: timeToWire, // 1011
+          ownerNoCar: ownerNoCar.value, // 1011
           animalTypes: speciesToSend,
           animalCount: countToSend,
         );
@@ -1393,6 +1477,9 @@ class PublishReservationRequestController extends GetxController {
           walkDurationMinutes: walkMinutes,
           budget: budgetAmount,
           budgetCurrency: budgetCurrency,
+          timeFrom: timeFromWire, // 1011
+          timeTo: timeToWire, // 1011
+          ownerNoCar: ownerNoCar.value, // 1011
           imageFiles: imageFiles.toList(),
           animalTypes: speciesToSend,
           animalCount: countToSend,

@@ -197,6 +197,18 @@ class PrefsOpenOnTab3110 extends StatelessWidget {
                             spacing: 8.w,
                             runSpacing: 8.h,
                             children: [
+                              // 633 — un rond de chaque côté (par défaut).
+                              PawChoicePill(
+                                key: const ValueKey<String>('pamc3110_qw_both'),
+                                label: 'pamc3110_qw_both'.tr,
+                                icon: Icons.swap_horiz_rounded,
+                                color: accent,
+                                selected: side == QuickWalkSide3110.both,
+                                onTap: side == QuickWalkSide3110.both
+                                    ? null
+                                    : () => OpenOnPrefs3110.setQuickWalkSide(
+                                        QuickWalkSide3110.both),
+                              ),
                               PawChoicePill(
                                 key: const ValueKey<String>('pamc3110_qw_right'),
                                 label: 'pamc3110_qw_right'.tr,

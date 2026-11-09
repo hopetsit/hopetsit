@@ -52,15 +52,34 @@ enum OpenOnChoice3110 {
 }
 
 /// Côté du bouton « Balade rapide » sur la carte.
+/// 633 (Daniel 01/11 : « pour les gauchers au-dessus du signe Google et au
+/// même niveau à droite ») — `both` = un rond de chaque côté, à la même
+/// hauteur ; c'est le réglage par défaut. Un choix déjà enregistré
+/// (`left` / `right`) est respecté.
 enum QuickWalkSide3110 {
   right('right'),
-  left('left');
+  left('left'),
+  both('both');
 
   const QuickWalkSide3110(this.code);
   final String code;
 
-  static QuickWalkSide3110 fromCode(Object? v) =>
-      (v ?? '').toString() == 'left' ? QuickWalkSide3110.left : QuickWalkSide3110.right;
+  static QuickWalkSide3110 fromCode(Object? v) {
+    switch ((v ?? '').toString()) {
+      case 'left':
+        return QuickWalkSide3110.left;
+      case 'right':
+        return QuickWalkSide3110.right;
+      case 'both':
+        return QuickWalkSide3110.both;
+      default:
+        // 634 (Daniel 03/11) — au début, UN seul rond, à droite.
+        return QuickWalkSide3110.right;
+    }
+  }
+
+  /// Le rond doit-il être posé du côté [side] (`left` ou `right`) ?
+  bool shows(QuickWalkSide3110 side) => this == both || this == side;
 }
 
 /// Décide quel onglet ouvrir, ou `null` pour ne rien changer. Pure.

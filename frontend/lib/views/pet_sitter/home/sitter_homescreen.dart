@@ -380,7 +380,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         ),
         SizedBox(width: 6.w),
         InterText(
-          text: 'home_results_found'.trParams({'count': count.toString()}),
+          // ZOE 04/11 — singulier quand il y a 1 résultat (« 1 résultats
+          // trouvés » vu au simulateur), comme l'accueil propriétaire (635).
+          text: count == 1
+              ? 'home635_results_found_one'.tr
+              : 'home_results_found'.trParams({'count': count.toString()}),
           fontSize: 12.sp,
           fontWeight: FontWeight.w600,
           color: _accent,
@@ -776,8 +780,10 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                 0,
                 0,
                 0,
-                // ~100 pt libres pour la tab bar (76 + encoche) comme la maquette.
-                84 + appBottomInset(context),
+                // 635 — le menu (pilule + patte) mesure ~100 pt : avec 84 le
+                // dernier élément finissait sous la patte. Même marge que
+                // l'accueil propriétaire.
+                150 + appBottomInset(context),
               ),
               child: Column(
                 children: [
@@ -1176,6 +1182,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       child: PetPostCard(
         userName: post.owner.name,
         userEmail: '',
+        // 1011 — heures de la garde en journée + « propriétaire sans voiture ».
+        hoursLabel: post.hoursLabel,
+        ownerNoCar: post.ownerNoCar,
         userAvatar: post.owner.avatar.isNotEmpty
             ? post.owner.avatar
             : null,
