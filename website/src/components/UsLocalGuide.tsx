@@ -1627,6 +1627,39 @@ export default function UsLocalGuide({ slug, lang, name, mode }: { slug: string;
           </p>
         </div>
       )}
+      {/* 10/11/2026 (GUS) — Search Console 28 j USA : 509 affichages sur « dog walker / dog walking
+          <ville> » pour les pages /pet-sitting/, 0 clic, 15e-27e place (Decatur 79, Plano 59,
+          Frisco 49, Irving 48, Arlington 46, Fort Worth 39, Detroit 36, Honolulu 28). La page ne
+          parlait de promenade qu'à travers la garde. Bloc propriétaire EN « Dog walking in <ville> »,
+          texte vrai (promeneurs du quartier, balade suivie en direct), aucun chiffre ni tarif inventé ;
+          les lieux viennent du guide local de la ville. À mesurer le 24/11 (base : 0 clic). */}
+      {!fr && mode === "owner" && (
+        <div className="mt-8" aria-labelledby="us-dog-walking">
+          <h2 id="us-dog-walking" className="font-display text-2xl font-extrabold text-ink">{`Dog walking in ${name}: a local dog walker, tracked live`}</h2>
+          <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+            {`Need a dog walker in ${name}? Dog walkers on HoPetSit live in your area, around ${g.hoods.slice(0, 3).join(", ")}, and pick your dog up at home for a walk on your schedule: a midday break on workdays, a longer outing at ${g.walks[0].name}, or a quick loop around the block. Every walk is shared live on the map, so you see the route and how long it lasted, and the walker can add a photo or a short note at the end.`}
+          </p>
+          <ul className="mt-3 space-y-2">
+            {[
+              "Say in your request how long the walk should be, how many walks a week you need, and whether your dog walks well on leash or pulls.",
+              "Mention anything the walker must know: a gate or door code, a dog that should not meet other dogs, or a park you would rather avoid.",
+              `Dog walkers near you in ${name} reply in the app with their price. You chat first, read reviews, and the amount stays in the app until the walk is done.`,
+            ].map((t) => (
+              <li key={t} className="flex gap-2 text-sm leading-relaxed text-ink-muted">
+                <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-owner" />
+                <span>{t}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+            What does a walk cost?{" "}
+            <Link href="/blog/how-much-does-a-dog-walker-cost" className="font-semibold text-owner underline">
+              How much a dog walker costs: real rates and tips
+            </Link>
+            .
+          </p>
+        </div>
+      )}
     </section>
   );
 }
