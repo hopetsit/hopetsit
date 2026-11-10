@@ -133,6 +133,17 @@ for (const publicSiteOrigin of ['https://hopetsit.com', 'https://www.hopetsit.co
   if (!allowedOrigins.includes(publicSiteOrigin)) allowedOrigins.push(publicSiteOrigin);
 }
 
+// 10/11 (BOB) — page « toujours libre ? » (routes/sitterFree1011) : c'est une page servie par CE serveur, dont le
+// bouton renvoie un formulaire au même serveur. Certains navigateurs (politique « no-referrer », navigateur intégré
+// d'une messagerie) envoient alors « Origin: null » : le filtre CORS ci-dessous répondait 500 et la réponse du
+// gardien était perdue. Le droit d'agir vient du jeton signé dans l'adresse (aucun cookie, aucune session) : sur ce
+// chemin seulement, une origine « null » est traitée comme une requête sans origine.
+const SITTER_FREE_PATH = /^(?:\/api\/v1)?\/sitter-free\//;
+app.use((req, res, next) => {
+  if (req.headers.origin === 'null' && SITTER_FREE_PATH.test(req.path)) delete req.headers.origin;
+  next();
+});
+
 app.use(cors({
   origin(origin, callback) {
     if (!origin) return callback(null, true);
@@ -237,7 +248,7 @@ const ADMIN_BUILD = 'v638'; // 638 (10/11) : app « conclure 1011 » — horaire
 const _ADMIN_BUILD_612 = 'v612'; // 612 (PAM, 04/10) : admin — rangs Chiot → Légende à la place des anciens badges
 // 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à
 // redéployer quand seul admin_dashboard.html a bougé (ADMIN_BUILD reste celui de l'app).
-const ADMIN_DEPLOYED_AT = '2026-11-10T03:59'; // 10/11 (BOB) : « toujours libre ? » aussi aux gardiens à l'e-mail non validé (accord Daniel) · 10/11 (BOB) : motif des envois « gardien libre » non partis ; 10/11 (ADA) : tableau de bord, demandes publiées, inscriptions redessinés ; 09/11 (ADA) : demandes pub (entonnoir 8 étapes + liste), pastille « Véhiculé », bloc « gardien libre → payer », horaires / sans voiture dans le parcours ; 05/11 (BOB) : frise des demandes droite (étapes 4 « sautée » et 2) ; 31/10 soir (ADA) : tuile « Propriétaires revenus », « A l'app » par personne, relance « posez vos dates » ; avant 26/10 (ADA, décision de Daniel) : « vrai dernier retour du propriétaire » (scripts exclus), « a ouvert ses candidats », « a l'app » dans Demandes publiées
+const ADMIN_DEPLOYED_AT = '2026-11-10T11:22'; // 10/11 (BOB) : bouton de la page « toujours libre ? » réparé (erreur à l'appui : origine « null » refusée) · 10/11 (BOB) : « toujours libre ? » aussi aux gardiens à l'e-mail non validé (accord Daniel) · 10/11 (BOB) : motif des envois « gardien libre » non partis ; 10/11 (ADA) : tableau de bord, demandes publiées, inscriptions redessinés ; 09/11 (ADA) : demandes pub (entonnoir 8 étapes + liste), pastille « Véhiculé », bloc « gardien libre → payer », horaires / sans voiture dans le parcours ; 05/11 (BOB) : frise des demandes droite (étapes 4 « sautée » et 2) ; 31/10 soir (ADA) : tuile « Propriétaires revenus », « A l'app » par personne, relance « posez vos dates » ; avant 26/10 (ADA, décision de Daniel) : « vrai dernier retour du propriétaire » (scripts exclus), « a ouvert ses candidats », « a l'app » dans Demandes publiées
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');

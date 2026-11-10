@@ -198,8 +198,11 @@ describe('3. Candidature indicative → 409 → dates posées → recalcul → 2
     expect(n[0].data.priceIndicative).toBe('1');
     const { renderNotificationContent } = require('../src/services/notificationSender');
     expect(renderNotificationContent('application_new', n[0].data, 'fr').body).toContain('14,40 €/visite'); // 2610 : frais compris
-    await wait(300);
-    expect(MAILS.some((m) => m.to === 'zoe620+owner@example.test' && m.text.includes('14,40 €/visite'))).toBe(true);
+    // 10/11 (BOB) — l'e-mail part en arrière-plan : on l'attend jusqu'à 6 s au lieu d'un délai fixe de 0,3 s
+    // (le test échouait une fois sur deux quand le Mac était chargé, avec ou sans changement du code).
+    const got620 = () => MAILS.some((m) => m.to === 'zoe620+owner@example.test' && m.text.includes('14,40 €/visite'));
+    for (let i = 0; i < 40 && !got620(); i += 1) await wait(150); // eslint-disable-line no-await-in-loop
+    expect(got620()).toBe(true);
   }, 60000);
   test('accepter avant les dates → 409 DATES_REQUIRED (message en français)', async () => {
     const r = await request(app).post(`/applications/${S.app._id}/respond`).set(hdr(S.owner._id, 'owner')).send({ action: 'accept' });

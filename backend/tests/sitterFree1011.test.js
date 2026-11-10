@@ -370,6 +370,19 @@ describe('« un gardien est libre et vous attend » 1011', () => {
     expect(MAILS).toHaveLength(6);
   });
 
+  test('10/11 — le bouton marche depuis un vrai navigateur : origine « null » ou origine du serveur acceptées sur cette page, et seulement là', async () => {
+    // Un navigateur envoie « Origin: null » sur un formulaire POST quand la page interdit le référent : c'était un 500.
+    const bad = 'abc.def';
+    const viaNull = await request(app).post(url(bad)).set('Origin', 'null').type('form').send('');
+    expect(viaNull.status).toBe(400);
+    expect(viaNull.headers['content-type']).toMatch(/html/);
+    const page = await request(app).get(url(bad));
+    expect(page.headers['referrer-policy']).toBe('same-origin');
+    // Ailleurs, une origine « null » reste refusée (rien n'est assoupli hors de cette page).
+    const elsewhere = await request(app).post('/api/v1/auth/login').set('Origin', 'null').send({});
+    expect(elsewhere.status).toBe(500);
+  });
+
   test('signature fausse, jeton d’un autre candidat, jeton expiré : refusés en GET comme en POST, rien ne change', async () => {
     clock(25);
     const la = linksOf(MAILS.find((m) => m.to === S.mail.a));
@@ -428,7 +441,8 @@ describe('« un gardien est libre et vous attend » 1011', () => {
     const la = linksOf(MAILS.find((m) => m.to === S.mail.a));
     const lb = linksOf(MAILS.find((m) => m.to === S.mail.b));
 
-    const first = await request(app).post(url(la.yes));
+    // 10/11 — comme un vrai navigateur : le bouton de la page envoie « Origin: null » (c'était un 500, réponse perdue)
+    const first = await request(app).post(url(la.yes)).set('Origin', 'null').type('form').send('');
     expect(first.status).toBe(200);
     expect(first.text).toContain('vous êtes libre pour cette demande');
     expect(first.text).toContain('Nous prévenons le propriétaire.');

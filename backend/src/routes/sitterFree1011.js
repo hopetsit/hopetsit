@@ -19,7 +19,11 @@ const LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl'];
 const noStore = (res) => {
   res.set('Cache-Control', 'no-store');
   res.set('X-Robots-Tag', 'noindex, nofollow');
-  res.set('Referrer-Policy', 'no-referrer');
+  // 10/11 (BOB) — « same-origin » et PAS « no-referrer » : avec « no-referrer » le navigateur envoie
+  // « Origin: null » quand on appuie sur le bouton (formulaire POST), le filtre CORS refusait et la
+  // personne voyait une erreur — aucun « oui » ne pouvait revenir. Le jeton ne sort toujours pas du site :
+  // « same-origin » n'envoie l'adresse de la page qu'à ce même serveur.
+  res.set('Referrer-Policy', 'same-origin');
 };
 const browserLang = (req) => {
   try { return req.acceptsLanguages(LANGS) || 'fr'; } catch (_) { return 'fr'; }
