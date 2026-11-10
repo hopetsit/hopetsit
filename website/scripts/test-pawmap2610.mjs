@@ -260,4 +260,36 @@ ok("passe : un rond de personne / un groupe glisse de 12 px au plus (sinon il re
   assert.ok(!s2 || Math.hypot(s2.dx, s2.dy) <= 12);
 });
 
+// 1011 — ami : même dessin que l'app (pastille + halo fuchsia + cœur), légende possible au-dessus.
+ok("ami : halo fuchsia + cœur, pas de fusée", () => {
+  const h = m.profilePinHtml2610({ roles: ["sitter", "walker"], friend: true });
+  assert.ok(h.includes("data-friend-2610"), "halo ami");
+  assert.ok(h.includes("data-heart-2610"), "cœur");
+  assert.ok(!h.includes("data-rocket-2610"), "pas de fusée");
+});
+ok("ami boosté : le halo boost garde la priorité, pas de cœur", () => {
+  const h = m.profilePinHtml2610({ roles: ["sitter"], friend: true, boosted: true });
+  assert.ok(h.includes("data-boost-2610"), "halo boost");
+  assert.ok(h.includes("data-rocket-2610"), "fusée");
+  assert.ok(!h.includes("data-heart-2610"), "pas de cœur");
+  assert.ok(!h.includes("data-friend-2610"), "pas de halo ami");
+});
+ok("non-ami : ni halo ami ni cœur", () => {
+  const h = m.profilePinHtml2610({ roles: ["walker"] });
+  assert.ok(!h.includes("data-friend-2610") && !h.includes("data-heart-2610"));
+});
+ok("légende au-dessus : posée par le bas (S + 8), jamais par le haut", () => {
+  const h = m.profilePinHtml2610({ roles: ["sitter"], friend: true, caption: "vu il y a 5 min", captionAbove: true });
+  const cap = h.match(/<span data-pin-extra=""[^>]*>vu il y a 5 min<\/span>/)?.[0] || "";
+  assert.ok(cap, "légende présente");
+  assert.ok(cap.includes(`bottom:${m.PIN_2610 + 8}px`), "bottom S+8");
+  assert.ok(!/[;"]top:/.test(cap), "pas de top");
+});
+ok("légende par défaut : toujours sous le rond (inchangé)", () => {
+  const h = m.profilePinHtml2610({ roles: ["sitter"], caption: "Léa" });
+  const cap = h.match(/<span data-pin-extra=""[^>]*>Léa<\/span>/)?.[0] || "";
+  assert.ok(cap.includes(`top:${m.PIN_2610 + 6}px`), "top S+6");
+  assert.ok(!cap.includes("bottom:"), "pas de bottom");
+});
+
 console.log(`\n${n}/${n} tests OK`);

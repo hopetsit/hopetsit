@@ -196,7 +196,16 @@ const reportIcon = (type: string, fresh: boolean) => {
 };
 // 26/10 (2610) puis 10/11 (639, pastilles v2) — pastille de profil 32 px, prix SEULEMENT sur le rond
 // sélectionné, autres ronds à 85 % pendant une sélection, décalage d'éclatement d'un groupe (`off`).
-function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], dark: boolean, o: { selected?: boolean; dim?: boolean; prices?: Price2610[]; live?: boolean; off?: { x: number; y: number } | null; rating?: string | null } = {}): L.DivIcon {
+/**
+ * 1011 — un AMI (hors partage en direct) se dessine comme dans l'app : la pastille de ses rôles,
+ * un halo fuchsia et un petit cœur, au lieu de l'ancienne photo cerclée de rose.
+ * Coupe-circuit : `false` = retour immédiat à l'ancien dessin (photo 50 px).
+ * Jumeau de `kPawFriendPastille639` côté app.
+ */
+const FRIEND_PASTILLE_639 = true;
+/** Rayon réservé à un ami à sa position de profil (halo 43 px, ou photo 50 px si coupe-circuit). */
+const FRIEND_R_639 = FRIEND_PASTILLE_639 ? 43 / 2 : 50 / 2;
+function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], dark: boolean, o: { selected?: boolean; dim?: boolean; prices?: Price2610[]; live?: boolean; off?: { x: number; y: number } | null; rating?: string | null; friend?: boolean; captionAbove?: boolean; premium?: boolean } = {}): L.DivIcon {
   const ox = Math.round(o.off?.x ?? 0);
   const oy = Math.round(o.off?.y ?? 0);
   // 27/10 — rond d'un groupe éclaté (≤ 12 px de sa vraie place) : « épinglé » dans la passe de mise en page.
@@ -204,21 +213,24 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
   const html = profilePinHtml2610({
       pop: popOnce2610(`m:${m.id}`, !!o.selected),
       roles: roles.map((r) => r.role),
-      premium: !!(m.isPremiumOnly ?? m.isPremium),
+      premium: o.premium ?? !!(m.isPremiumOnly ?? m.isPremium),
       live: !!o.live,
       // 26/10 (Daniel) — signes existants gardés, redessinés discrets sur l'Anneau.
       boosted: !!m.isBoosted,
       pawFollow: !!m.hasPawFollow,
+      // 1011 — ami : halo fuchsia + cœur (le halo boost ou PawFollow garde la priorité).
+      friend: !!o.friend,
       verified: !!m.identityVerified,
       online: m.approx ? null : m.isOnline !== false,
       // 639 (contrat §5) — point vert « disponible aujourd'hui » : seulement si le serveur a dit `true`.
       availableDot: m.availableDot === true,
       rating: o.rating ?? null,
       // 639 — pastille 32 px : la fusée occupe le coin haut gauche → le podium passe au milieu du bord gauche.
-      pinsHtml: pinsOnAvatarHtml(parsePins1910(m.pins), PIN_2610, { leftMiddle: !!m.isBoosted }),
+      pinsHtml: pinsOnAvatarHtml(parsePins1910(m.pins), PIN_2610, { leftMiddle: !!m.isBoosted || !!o.friend }),
       selected: !!o.selected,
       prices: o.prices,
       caption,
+      captionAbove: !!o.captionAbove,
       dark,
     });
   // 26/10 (bug « ça clignote ») — même dessin = même icône : aucune réécriture à chaque rendu.
@@ -1026,14 +1038,17 @@ export default function PoiMap({
     const meBox = pinBox(56 / 2 + 2, { labelW: meW, labelH: 16.3, labelGap: 3 });
     if (meAt) meRects.push(circleRect(meAt, 56 / 2 + 2), labelRect(meAt, 56 / 2, meW, "below", 16.3));
     const friendBox = pinBox(50 / 2 + 2.5);
+    // 1011 — ami à sa position de profil : pastille + halo (43 px) ; l'ami en direct garde sa photo (50 px).
+    const friendProfileBox = FRIEND_PASTILLE_639 ? pinBox(FRIEND_R_639 + 1) : friendBox;
     const entries: { items: NearbyMember[]; c: Px; r: number; friend: boolean }[] = [];
     for (const g of memberClusters) entries.push({ items: g.items, c: pxOf(g.center), r: g.items.length > 1 ? PIN_2610 / 2 + 2.5 : PIN_2610 / 2 + 1 + (showPrice ? 10 : 0), friend: false });
-    for (const m of friendMembers) { const p = pointOf(m); if (p) entries.push({ items: [m], c: pxOf(p), r: 50 / 2 + 2, friend: true }); }
+    for (const m of friendMembers) { const p = pointOf(m); if (p) entries.push({ items: [m], c: pxOf(p), r: FRIEND_R_639 + 2, friend: true }); }
     // A. Amis trop près de « Moi » : décalés en éventail (un trait rose relie leur vraie position).
     const friendIdx = entries.map((e, i) => (e.friend ? i : -1)).filter((i) => i >= 0);
     const fanAt: Px[] = [...friendPositions.map((fp) => pxOf([fp.lat, fp.lng])), ...friendIdx.map((i) => entries[i].c)];
-    const fanShift: Px[] = meAt ? repelBoxes(fanAt, fanAt.map(() => friendBox), [{ at: meAt, box: meBox }]) : fanAt.map(() => ({ x: 0, y: 0 }));
-    const fixedBoxes: PlacedBox[] = [...(meAt ? [{ at: meAt, box: meBox }] : []), ...fanAt.map((p, k) => ({ at: { x: p.x + fanShift[k].x, y: p.y + fanShift[k].y }, box: friendBox }))];
+    const fanBoxes = [...friendPositions.map(() => friendBox), ...friendIdx.map(() => friendProfileBox)];
+    const fanShift: Px[] = meAt ? repelBoxes(fanAt, fanBoxes, [{ at: meAt, box: meBox }]) : fanAt.map(() => ({ x: 0, y: 0 }));
+    const fixedBoxes: PlacedBox[] = [...(meAt ? [{ at: meAt, box: meBox }] : []), ...fanAt.map((p, k) => ({ at: { x: p.x + fanShift[k].x, y: p.y + fanShift[k].y }, box: fanBoxes[k] }))];
     // B. Pastilles et membres seuls (jamais un ami) : place libre la plus proche (prénom et bulle compris).
     const boxOf = (e: { items: NearbyMember[] }): Rect => {
       if (e.items.length > 1) {
@@ -1056,7 +1071,7 @@ export default function PoiMap({
       return pinBox(PIN_2610 / 2 + 1, { labelW: lw, bubbleW: bw });
     };
     const movable = entries.map((e) => !e.friend);
-    const moved = repelBoxes(entries.map((e) => e.c), entries.map((e) => (e.friend ? friendBox : boxOf(e))), fixedBoxes, movable);
+    const moved = repelBoxes(entries.map((e) => e.c), entries.map((e) => (e.friend ? friendProfileBox : boxOf(e))), fixedBoxes, movable);
     const shifts: Px[] = entries.map((e, i) => (e.friend ? fanShift[friendPositions.length + friendIdx.indexOf(i)] : moved[i]));
     entries.forEach((e, i) => { e.c = { x: e.c.x + shifts[i].x, y: e.c.y + shifts[i].y }; });
     /** Amis en direct décalés en éventail : nouvelle position (la personne suivie n'est jamais décalée, voir `trackedId`). */
@@ -1096,8 +1111,8 @@ export default function PoiMap({
       const i = indexOf.get(m);
       if (i === undefined) return "below";
       const w = textWidth(caption, "700 11px Inter, system-ui, sans-serif", 11) + 16 + 3;
-      const side = pickLabelSide({ center: entries[i].c, radius: 50 / 2, width: w, obstacles: obstaclesBut(i), allowAbove: !hasBubble });
-      if (side !== "none") placed.push(labelRect(entries[i].c, 50 / 2, w, side));
+      const side = pickLabelSide({ center: entries[i].c, radius: FRIEND_R_639, width: w, obstacles: obstaclesBut(i), allowAbove: !hasBubble });
+      if (side !== "none") placed.push(labelRect(entries[i].c, FRIEND_R_639, w, side));
       return side;
     };
     /** Position (lat, lng) d'un membre seul déplacé par la règle « Moi » ; null = inchangée. */
@@ -1520,9 +1535,23 @@ export default function PoiMap({
             const fSel = focus?.key === `p:${m.id}`;
             const fFit = lay.priceFit(m, memberBubble(roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fAlt, fUnit, fSel), memberDuo(shown, fSel));
             // 607 — dessous si libre, sinon dessus (sans bulle), sinon rien.
+            const fOpen = () => flyToFriend(m);
+            if (FRIEND_PASTILLE_639) {
+              // 1011 — même dessin que l'app : pastille des rôles + halo fuchsia + cœur ; le prix
+              // n'apparaît que sur l'ami touché, la légende « vu il y a … » ne monte pas sur la bulle.
+              // Sans photo, l'ami doit rester reconnaissable : au zoom rue (≥ 13) son prénom, comme tout le
+              // monde et comme l'app ; plus loin, la légende reste « vu il y a … » (memberCaption rend null).
+              const cap639 = memberCaption({ ...m, role: roles[0].role }) ?? rawCaption;
+              const side2 = lay.friendSide(m, cap639, fSel);
+              const caption2 = side2 === "none" ? null : cap639;
+              const fPrices = fSel ? selectedPrices2610(shown, m) : [];
+              const fVal = roles[0].rating ?? m.rating ?? 0;
+              const fCount = roles[0].reviewsCount ?? m.reviewsCount ?? 0;
+              const fRating = fSel && fPrices.length && fVal > 0 && fCount > 0 ? fVal.toFixed(1) : null;
+              return <Marker key={`friend-${m.id}`} position={lay.movedPos(m) ?? pt} icon={memberIcon(m, caption2, roles, dark, { selected: fSel, dim: !!focus && !fSel, prices: fPrices, rating: fRating, friend: true, captionAbove: side2 === "above", premium: prem })} zIndexOffset={fSel ? PIN_Z.me + 500 : PIN_Z.friend} eventHandlers={{ click: (e) => { const onBubble = !!(e.originalEvent?.target as Element | null)?.closest?.("[data-price-bubble-2610]"); if (fSel && onBubble) { fOpen(); return; } const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true, shown, fAlt, fUnit); if (f) tapFocus(f); else fOpen(); } }} />;
+            }
             const side = lay.friendSide(m, rawCaption, !!(fFit.bubble || fFit.duo));
             const caption = side === "none" ? null : rawCaption;
-            const fOpen = () => flyToFriend(m);
             return <Marker key={`friend-${m.id}`} position={lay.movedPos(m) ?? pt} icon={friendProfileIcon(m, prem, roles, caption, fFit.bubble, fFit.duo, side === "above")} zIndexOffset={PIN_Z.friend} eventHandlers={{ click: () => { const f = personFocus(m, roles[0].role, roles[0].priceFrom ?? m.priceFrom, roles[0].currency ?? m.currency, fOpen, true, shown, fAlt, fUnit); if (f) tapFocus(f); else fOpen(); } }} />;
           }
           const r0 = roles[0];

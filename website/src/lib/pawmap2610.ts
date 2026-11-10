@@ -112,6 +112,8 @@ export type ProfilePin2610 = {
   rating?: string | null;
   /** Prénom sous le rond (zoom rue, existant) — posé sous les mini-pastilles de rôles. */
   caption?: string | null;
+  /** 1011 — légende AU-DESSUS du rond (ami : « vu il y a 5 min » quand le bas est pris). */
+  captionAbove?: boolean;
   dark?: boolean;
 };
 export type Price2610 = { role: Role2610; amount: string; unit: string };
@@ -199,7 +201,7 @@ export function profilePinHtml2610(o: ProfilePin2610): string {
   const sf = surface2610(o.dark);
   const capTop = n > 1 ? CHIPS_BOTTOM_2610 + 4 : S + 6;
   const caption = o.caption
-    ? `<span data-pin-extra="" style="position:absolute;top:${capTop}px;left:50%;transform:translateX(-50%);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:10px;white-space:nowrap;max-width:160px;overflow:hidden;background:${sf.bg};color:${sf.ink};font:600 10.5px/1 Poppins,Inter,system-ui,sans-serif;box-shadow:0 2px 6px -1px rgba(0,0,0,.3);">${esc(o.caption)}</span>`
+    ? `<span data-pin-extra="" style="position:absolute;${o.captionAbove ? `bottom:${S + 8}px` : `top:${capTop}px`};left:50%;transform:translateX(-50%);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:10px;white-space:nowrap;max-width:160px;overflow:hidden;background:${sf.bg};color:${sf.ink};font:600 10.5px/1 Poppins,Inter,system-ui,sans-serif;box-shadow:0 2px 6px -1px rgba(0,0,0,.3);">${esc(o.caption)}</span>`
     : "";
   const bubble = o.selected && o.prices && o.prices.length
     ? priceBubbleHtml2610(o.prices, BUBBLE_BOTTOM_2610, { dark: o.dark, pop: o.pop !== false, rating: o.rating })
