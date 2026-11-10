@@ -305,6 +305,14 @@ export function rolesRingGradient(roles: string[] | null | undefined, fallback: 
 }
 /** 27/09 — halo ROSE d'un ami (un seul halo : PawBoost > PawFollow > ami). */
 export const FRIEND_GLOW = "box-shadow:0 0 0 4px rgba(227,90,154,.40),0 0 14px 4px rgba(227,90,154,.62),0 3px 8px rgba(23,20,31,.35);";
+/** 640 — halo rose NET d'un ami en photo (liseré blanc 3 px, anneau rose plein 4 px, lueur) — même rose que l'app (#FF5AD2). */
+export const FRIEND_GLOW_640 = "box-shadow:0 0 0 3px #fff,0 0 0 7px #ff5ad2,0 0 18px 6px rgba(255,90,210,.6),0 3px 8px rgba(23,20,31,.35);";
+const HEART_640 = '<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>';
+/** 640 — cœur d'un ami, coin haut gauche de sa photo (20 px, dégradé rose, liseré blanc). */
+export function friendHeartBadge640(size = 20): string {
+  const g = Math.round(size * 0.55);
+  return `<span data-heart-640="" style="position:absolute;left:-4px;top:-4px;width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#f73cc0,#d9159f);box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.3);z-index:2;pointer-events:none;"><svg viewBox="2 3 20 18.35" width="${g}" height="${Math.round(g * 0.92)}" fill="#fff" aria-hidden="true" style="display:block;">${HEART_640}</svg></span>`;
+}
 
 /**
  * Autre membre : LE plus visible de la carte (25/09, PawMap 584 — même règle
@@ -387,6 +395,10 @@ export type PhotoPinOptions = {
   captionAbove?: boolean;
   /** 19/10 (618 §B) — pins podium / « 1er Ambassadeur » (null = rien). */
   pins?: Pins1910 | null;
+  /** 640 — diamètre du rond (défaut : 56 pour « moi », 50 pour un ami). */
+  size?: number;
+  /** 640 — ami : halo rose net + cœur en haut à gauche (seulement si le halo est bien celui de l'ami). */
+  heart?: boolean;
 };
 
 function initials(name: string): string {
@@ -402,7 +414,9 @@ function initials(name: string): string {
 export function photoPinHtml(o: PhotoPinOptions): string {
   const key = roleKey(o.role);
   const color = ROLE_COLOR[key];
-  const size = o.me ? 56 : 50;
+  const size = o.size && o.size > 0 ? o.size : o.me ? 56 : 50;
+  // 640 — le cœur ne s'affiche que si le halo est celui de l'ami (jamais sur moi, ni sous un halo boost / PawFollow / suivi).
+  const heartOn = !!o.heart && !o.me && !o.followed && !o.boosted && !o.pawFollow;
   const ring = o.me ? color : FRIEND_PINK;
   const ringStyle = o.friendsOnly ? "dashed" : "solid";
   // 27/09 — UN seul halo. 30/09 (Daniel, « t'es pas violet ») : la personne
@@ -418,14 +432,16 @@ export function photoPinHtml(o: PhotoPinOptions): string {
         ? `box-shadow:0 0 0 3px #fff,0 0 0 8px ${PAWFOLLOW_VIOLET},0 0 24px 9px rgba(124,58,237,.7),0 3px 8px rgba(23,20,31,.35);`
         : o.me
           ? `box-shadow:0 3px 8px rgba(23,20,31,.35);`
-          : FRIEND_GLOW;
+          : heartOn
+            ? FRIEND_GLOW_640
+            : FRIEND_GLOW;
   // 18/10 (BOB, capture de Daniel) — photo introuvable (Cloudinary coupé :
   // « cloud_name … is disabled ») : le navigateur dessinait l'icône « image
   // cassée » dans le rond. Les initiales restent DESSOUS la photo et
   // reprennent la place dès que l'image échoue (onerror). Une adresse qui
   // n'est pas une URL http(s) ou un chemin du site est ignorée.
   const avatarUrl = typeof o.avatar === "string" && /^(https?:\/\/|\/)/.test(o.avatar) ? o.avatar : "";
-  const initialsSpan = `<span style="color:#fff;font:700 ${o.me ? 18 : 16}px/1 Inter,system-ui,sans-serif;">${escapeHtml(initials(o.name))}</span>`;
+  const initialsSpan = `<span style="color:#fff;font:700 ${Math.round((size * (o.me ? 18 : 16)) / (o.me ? 56 : 50))}px/1 Inter,system-ui,sans-serif;">${escapeHtml(initials(o.name))}</span>`;
   const inner = avatarUrl
     ? `${initialsSpan}<img src="${escapeHtml(avatarUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none'" />`
     : initialsSpan;
@@ -449,7 +465,7 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   const disc = o.friendsOnly
     ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};background-clip:padding-box;border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;position:relative;">${inner}</div>`
     : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${grad};padding:3px;${glow}box-sizing:border-box;"><div style="width:100%;height:100%;border-radius:50%;border:2px solid #fff;background:${ringGradient(key)};display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;position:relative;">${inner}</div></div>`;
-  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}${disc}${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? (o.me ? rocketBadge(20, -1) : rocketBadge(18)) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${pinsOnAvatarHtml(o.pins, size)}${label}${bubble}</div>`;
+  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}${disc}${o.premium ? crownBadge(o.me ? 24 : 22) : ""}${o.boosted ? (o.me ? rocketBadge(20, -1) : rocketBadge(18)) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? onlineDot(13, o.online) : ""}${heartOn ? friendHeartBadge640(20) : ""}${pinsOnAvatarHtml(o.pins, size, heartOn ? { leftMiddle: true } : undefined)}${label}${bubble}</div>`;
 }
 
 /** Couleur foncée d'un rôle (bas du dégradé 160°, même valeur que l'app). */

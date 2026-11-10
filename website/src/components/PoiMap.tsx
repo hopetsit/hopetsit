@@ -197,14 +197,19 @@ const reportIcon = (type: string, fresh: boolean) => {
 // 26/10 (2610) puis 10/11 (639, pastilles v2) — pastille de profil 32 px, prix SEULEMENT sur le rond
 // sélectionné, autres ronds à 85 % pendant une sélection, décalage d'éclatement d'un groupe (`off`).
 /**
- * 1011 — un AMI (hors partage en direct) se dessine comme dans l'app : la pastille de ses rôles,
- * un halo fuchsia et un petit cœur, au lieu de l'ancienne photo cerclée de rose.
- * Coupe-circuit : `false` = retour immédiat à l'ancien dessin (photo 50 px).
- * Jumeau de `kPawFriendPastille639` côté app.
+ * 640 (Daniel, 10/11 : « ma photo de profil grande comme celle de mes amis », « les cœurs amis
+ * s'affichent mal ») — un AMI se dessine en PHOTO, à la même taille que « moi » (56 px), avec un halo
+ * rose net et un cœur lisible en haut à gauche. Vaut pour sa position de profil ET pour le direct.
+ * Coupe-circuit : `false` = retour immédiat à la pastille du 10/11 (639) et à la photo 50 px en direct.
+ * Jumeau de `kPawFriendPhoto640` côté app.
  */
-const FRIEND_PASTILLE_639 = true;
-/** Rayon réservé à un ami à sa position de profil (halo 43 px, ou photo 50 px si coupe-circuit). */
-const FRIEND_R_639 = FRIEND_PASTILLE_639 ? 43 / 2 : 50 / 2;
+const FRIEND_PHOTO_640 = true;
+/** 1011 — pastille des rôles + halo fuchsia + petit cœur (dessin 639) : seulement si la photo 640 est coupée. */
+const FRIEND_PASTILLE_639 = !FRIEND_PHOTO_640;
+/** Diamètre de la photo d'un ami (56 = comme « moi » ; 50 = ancien dessin). */
+const FRIEND_PX_640 = FRIEND_PHOTO_640 ? 56 : 50;
+/** Rayon réservé à un ami à sa position de profil (photo 56 px, ou halo 43 px de la pastille). */
+const FRIEND_R_639 = FRIEND_PASTILLE_639 ? 43 / 2 : FRIEND_PX_640 / 2;
 function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], dark: boolean, o: { selected?: boolean; dim?: boolean; prices?: Price2610[]; live?: boolean; off?: { x: number; y: number } | null; rating?: string | null; friend?: boolean; captionAbove?: boolean; premium?: boolean } = {}): L.DivIcon {
   const ox = Math.round(o.off?.x ?? 0);
   const oy = Math.round(o.off?.y ?? 0);
@@ -241,10 +246,10 @@ function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[
   return L.divIcon({
     className: "hps-l-friend",
     // 25/09 (585, bug 11) — un ami boosté garde sa lueur turquoise + fusée.
-    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role), caption, captionAbove, priceBubble: bubble, priceDuo: duo ?? null, pins: parsePins1910(m.pins) }),
-    iconSize: [50, 50],
-    iconAnchor: [25, 25],
-    popupAnchor: [0, -28],
+    html: photoPinHtml({ role: roles[0]?.role || m.role, name: m.name, avatar: m.avatar, premium, boosted: !!m.isBoosted, roles: roles.map((r) => r.role), caption, captionAbove, priceBubble: bubble, priceDuo: duo ?? null, pins: parsePins1910(m.pins), online: m.approx ? null : m.isOnline !== false, size: FRIEND_PX_640, heart: FRIEND_PHOTO_640 }),
+    iconSize: [FRIEND_PX_640, FRIEND_PX_640],
+    iconAnchor: [FRIEND_PX_640 / 2, FRIEND_PX_640 / 2],
+    popupAnchor: [0, -(FRIEND_PX_640 / 2 + 3)],
   });
 }
 function meIcon(o: { role: string; name: string; avatar?: string | null; premium?: boolean; meLabel?: string; friendsOnly?: boolean; boosted?: boolean; pawFollow?: boolean }): L.DivIcon {
@@ -491,9 +496,9 @@ function LiveFriendMarker({ p, isFamily, isPremium, boosted, roles, followed, la
   const icon = useMemo(
     () => L.divIcon({
       className: "hps-l-friend",
-      html: photoPinHtml({ role: p.role, name: p.name, avatar: p.avatar, premium: isPremium, boosted, roles, pawFollow: isFamily && !followed, followed, lost, caption: lost ? labels?.lost : null, online: lost ? false : true }),
-      iconSize: [50, 50],
-      iconAnchor: [25, 25],
+      html: photoPinHtml({ role: p.role, name: p.name, avatar: p.avatar, premium: isPremium, boosted, roles, pawFollow: isFamily && !followed, followed, lost, caption: lost ? labels?.lost : null, online: lost ? false : true, size: FRIEND_PX_640, heart: FRIEND_PHOTO_640 }),
+      iconSize: [FRIEND_PX_640, FRIEND_PX_640],
+      iconAnchor: [FRIEND_PX_640 / 2, FRIEND_PX_640 / 2],
     }),
     [p.role, p.name, p.avatar, isPremium, boosted, (roles || []).join(","), isFamily, followed, lost, labels?.lost],
   );
@@ -1037,8 +1042,8 @@ export default function PoiMap({
     const meW = textWidth(meLabel || "Moi", "700 11px Inter, system-ui, sans-serif", 11) + 16;
     const meBox = pinBox(56 / 2 + 2, { labelW: meW, labelH: 16.3, labelGap: 3 });
     if (meAt) meRects.push(circleRect(meAt, 56 / 2 + 2), labelRect(meAt, 56 / 2, meW, "below", 16.3));
-    const friendBox = pinBox(50 / 2 + 2.5);
-    // 1011 — ami à sa position de profil : pastille + halo (43 px) ; l'ami en direct garde sa photo (50 px).
+    const friendBox = pinBox(FRIEND_PX_640 / 2 + 2.5);
+    // 640 — ami en photo 56 px (profil et direct) ; coupe-circuit : pastille + halo (43 px) au profil, photo 50 px en direct.
     const friendProfileBox = FRIEND_PASTILLE_639 ? pinBox(FRIEND_R_639 + 1) : friendBox;
     const entries: { items: NearbyMember[]; c: Px; r: number; friend: boolean }[] = [];
     for (const g of memberClusters) entries.push({ items: g.items, c: pxOf(g.center), r: g.items.length > 1 ? PIN_2610 / 2 + 2.5 : PIN_2610 / 2 + 1 + (showPrice ? 10 : 0), friend: false });

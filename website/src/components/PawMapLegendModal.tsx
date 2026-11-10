@@ -232,8 +232,8 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     { html: photoPinHtml({ role: "owner", name: "Moi", me: true, meLabel: t("legend_me_label") }), title: t("legend_me"), body: t("legend_me_body"), color: ROLE_COLOR.owner },
     // 27/09 — mon rond en « amis seulement » / « masqué » (pointillés + œil barré).
     { html: photoPinHtml({ role: "owner", name: "Moi", me: true, friendsOnly: true, meLabel: t("legend_me_label") }), title: t("priv2709_mefr_t"), body: t("priv2709_mefr_b"), color: "#17141F" },
-    // 1011 — ami : pastille aux couleurs de SES rôles + halo rose + cœur (comme l'app 639).
-    { html: profilePinHtml2610({ roles: ["sitter", "walker"], friend: true, online: true }), title: t("legend_friend"), body: t("legend_friend_body"), color: FRIEND_PINK },
+    // 640 — ami : sa PHOTO (56 px, comme « moi »), halo rose net + cœur ; le contour garde les couleurs de ses rôles.
+    { html: photoPinHtml({ role: "sitter", roles: ["sitter", "walker"], name: "Léa Martin", online: true, heart: true, size: 56 }), title: t("legend_friend"), body: t("legend_friend_body"), color: FRIEND_PINK },
     { html: profilePinHtml2610({ roles: ["owner"] }), title: t("legend_member_owner"), body: t("legend_member_owner_body"), color: ROLE_COLOR.owner },
     { html: profilePinHtml2610({ roles: ["sitter"] }), title: t("legend_member_sitter"), body: t("legend_member_sitter_body"), color: ROLE_COLOR.sitter },
     { html: profilePinHtml2610({ roles: ["walker"] }), title: t("legend_member_walker"), body: t("legend_member_walker_body"), color: ROLE_COLOR.walker },
