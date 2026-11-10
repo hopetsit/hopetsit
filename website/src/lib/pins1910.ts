@@ -22,7 +22,7 @@ export const PIN_STYLE = {
   2: { grad: "linear-gradient(160deg,#FFFFFF,#D9E2EC 45%,#8DA2B8)", ink: "#23364A", ring: "#5E7690", key: "p1910_pin_silver" },
   3: { grad: "linear-gradient(160deg,#F6C9A0,#CD7F32 50%,#8A4B14)", ink: "#4A2508", ring: "#7A4210", key: "p1910_pin_bronze" },
 } as const;
-/** « 1er Chef de meute » : violet du rang Chef de meute (ranks611 : #7A3FB8) + étoile or. */
+/** « 1er Ambassadeur » : violet du rang Ambassadeur (ranks611 : #7A3FB8) + étoile or. */
 export const FIRST_PACK_STYLE = { grad: "linear-gradient(160deg,#B58BEA,#7A3FB8 55%,#4E2381)", ink: "#FFFFFF", ring: "#4E2381", star: "#F4C04A", key: "p1910_pin_first" } as const;
 
 const STAR_PATH = "M12 2.6l2.8 6.1 6.6.7-5 4.5 1.4 6.5L12 17.1l-5.8 3.3 1.4-6.5-5-4.5 6.6-.7z";

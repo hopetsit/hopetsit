@@ -18,7 +18,9 @@
  *
  * Plus les petits drapeaux que la PawMap affiche sur une épingle :
  * `isBoosted` (PawBoost = lueur turquoise), `kycVerified` (identité vérifiée),
- * `availableToday` (idée 4 : filtre « Disponible aujourd'hui »).
+ * `availableToday` (idée 4 : filtre « Disponible aujourd'hui »),
+ * `availableDot` (639 : point vert « Disponible aujourd'hui », gardiens et
+ * promeneurs seulement, disponibilité déclarée ET présence récente).
  *
  * Fonctions PURES (sauf `friendIdsOf`, qui lit les amitiés) : testées sans base.
  */
@@ -210,8 +212,69 @@ function isAvailableToday(doc, now = new Date()) {
   return false;
 }
 
-/** Drapeaux d'épingle pour la PawMap. */
-function pinFlags(doc, now = new Date()) {
+/**
+ * 639 — pastille « Disponible aujourd'hui » (point vert de la PawMap).
+ *
+ * Vrai seulement si TOUT est vrai :
+ *   · le profil de l'épingle est un GARDIEN ou un PROMENEUR (jamais un
+ *     propriétaire) ;
+ *   · il a DÉCLARÉ être disponible aujourd'hui (`isAvailableToday`, donnée
+ *     réelle existante, inchangée) ;
+ *   · la personne a été vue il y a moins de N heures (`lastSeenAt`, écrit à
+ *     chaque requête authentifiée de l'app ou du site et à la déconnexion du
+ *     chat) — N = `PAWMAP_AVAILABLE_DOT_HOURS`, 48 par défaut ; `lastSeenAt`
+ *     absent ou illisible = faux (on ne promet rien qu'on ne sait pas) ;
+ *   · le coupe-circuit n'est pas tiré : `PAWMAP_AVAILABLE_DOT=off` → toujours
+ *     faux.
+ *
+ * `lastSeenAt` sert au CALCUL seulement : cette fonction ne le renvoie pas.
+ */
+const AVAILABLE_DOT_DEFAULT_HOURS = 48;
+const AVAILABLE_DOT_ROLES = ['sitter', 'walker'];
+
+function availableDotOn() {
+  return String(process.env.PAWMAP_AVAILABLE_DOT || '').toLowerCase() !== 'off';
+}
+
+function availableDotHours() {
+  const n = Number(process.env.PAWMAP_AVAILABLE_DOT_HOURS);
+  return Number.isFinite(n) && n > 0 ? n : AVAILABLE_DOT_DEFAULT_HOURS;
+}
+
+/** Dernière présence connue (ms) parmi une liste de dates ; 0 = inconnue. */
+function latestSeenMs(values) {
+  let best = 0;
+  for (const v of Array.isArray(values) ? values : [values]) {
+    if (!v) continue;
+    const t = new Date(v).getTime();
+    if (Number.isFinite(t) && t > best) best = t;
+  }
+  return best;
+}
+
+function isAvailableDot(doc, now = new Date(), opts = {}) {
+  if (!availableDotOn()) return false;
+  const role = String((opts && opts.role) || '').toLowerCase();
+  if (!AVAILABLE_DOT_ROLES.includes(role)) return false;
+  if (!isAvailableToday(doc, now)) return false;
+  // Présence de la PERSONNE : la plus récente de ses profils si l'appelant la
+  // fournit, sinon celle du profil de l'épingle.
+  const seen = latestSeenMs(
+    opts && opts.lastSeenAt !== undefined ? opts.lastSeenAt : (doc && doc.lastSeenAt)
+  );
+  if (!seen) return false;
+  const age = now.getTime() - seen;
+  return age < availableDotHours() * 60 * 60 * 1000;
+}
+
+/**
+ * Drapeaux d'épingle pour la PawMap.
+ * `opts.role` : rôle du profil de l'épingle ('owner' | 'sitter' | 'walker') ;
+ * `opts.lastSeenAt` : date (ou liste de dates) de dernière présence de la
+ * personne. Sans `opts`, `availableDot` vaut faux — les autres drapeaux sont
+ * inchangés.
+ */
+function pinFlags(doc, now = new Date(), opts = {}) {
   return {
     isBoosted: isBoosted(doc, now),
     kycVerified: isKycVerified(doc),
@@ -221,6 +284,8 @@ function pinFlags(doc, now = new Date()) {
     // un simple e-mail vérifié (`verified`).
     identityVerified: isKycVerified(doc),
     availableToday: isAvailableToday(doc, now),
+    // 639 — point vert : dispo déclarée + présence récente + gardien/promeneur.
+    availableDot: isAvailableDot(doc, now, opts),
   };
 }
 
@@ -302,6 +367,8 @@ module.exports = {
   isBoosted,
   isKycVerified,
   isAvailableToday,
+  isAvailableDot,
+  availableDotHours,
   pinFlags,
   applyPublicPrivacy,
   friendIdsOf,

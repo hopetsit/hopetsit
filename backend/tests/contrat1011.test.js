@@ -74,8 +74,8 @@ test('précisions : absent → rien à écrire ; invalide → ignoré ; vide →
   expect(resolveExtras({ timeFrom: '10:00', timeTo: '18h30', ownerNoCar: 'true' })).toEqual({ timeFrom: '10:00', timeTo: '18:30', ownerNoCar: true });
   expect(resolveExtras({ timeFrom: 'n importe quoi', ownerNoCar: 'bof' })).toEqual({});
   expect(resolveExtras({ timeFrom: '', ownerNoCar: false })).toEqual({ timeFrom: '', ownerNoCar: false });
-  expect(publicExtras(null)).toEqual({ timeFrom: '', timeTo: '', ownerNoCar: false });
-  expect(publicExtras({ timeFrom: '10:00', timeTo: 'xx', ownerNoCar: true })).toEqual({ timeFrom: '10:00', timeTo: '', ownerNoCar: true });
+  expect(publicExtras(null)).toEqual({ timeFrom: '', timeTo: '', ownerNoCar: false, foodProvided: null });
+  expect(publicExtras({ timeFrom: '10:00', timeTo: 'xx', ownerNoCar: true })).toEqual({ timeFrom: '10:00', timeTo: '', ownerNoCar: true, foodProvided: null });
 });
 
 test('phrase en clair (lisible par une ancienne app), en français et en anglais', () => {

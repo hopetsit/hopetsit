@@ -537,6 +537,9 @@ const sanitizePost = (postDoc) => {
     post.budget = Number.isFinite(n) && n > 0 ? n : 0;
     post.budgetCurrency = post.budget > 0 ? String(postDoc.budgetCurrency || '').toUpperCase() : '';
   }
+  // 639 — « nourriture fournie » : toujours true / false / null (null = non
+  // précisé, ancienne demande, ou coupe-circuit POST_FOOD_PROVIDED=off).
+  post.foodProvided = require('./postExtras1011').publicExtras(postDoc).foodProvided;
   // 28/09 (NEO) — prestataire ciblé par « Demander à <prénom> » ({ role, id } ou null).
   post.targetProvider = require('./targetProvider2809').publicTargetProvider(postDoc);
   // v404 — Daniel : nombre d'animaux + types (chien/chat/NAC…) sur l'annonce.

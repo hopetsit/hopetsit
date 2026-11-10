@@ -225,6 +225,8 @@ export type SiteLeadInput = {
   codeFlow?: boolean;
   /** 1011 (LEO, CONTRAT_1011) — précisions facultatives : horaires "HH:MM", budget (devise du pays), sans voiture. */
   timeFrom?: string; timeTo?: string; noCar?: boolean; budget?: number;
+  /** 639 (CONTRATS §1 et §3) — « Je fournis la nourriture » (absent = non précisé) et race facultative (≤ 60 car.). */
+  foodProvided?: boolean; breed?: string;
 };
 export async function publishSiteLead(input: SiteLeadInput) {
   // 31/10 16 h 40 (ZOE) — le serveur ne renvoie un jeton QUE pour un compte créé par cet appel ; un compte
@@ -794,11 +796,14 @@ export async function getMyPets(): Promise<Pet[]> {
 export async function createPet(
   input: Omit<Pet, "id" | "avatar">,
 ): Promise<Pet> {
-  const raw = await request<{ pet: Pet }>("/pets/create-pet-profile", {
+  const raw = await request<{ pet: Pet & { _id?: string } }>("/pets/create-pet-profile", {
     method: "POST",
     body: JSON.stringify({ pet: input }),
   });
-  return raw.pet;
+  // 639 (ZOE) — la création renvoie l'animal brut du serveur : `_id`, sans `id` (la liste et la
+  // modification renvoient bien `id`). Sans cette ligne, « Modifier », « Supprimer » et la photo de
+  // l'animal tout juste créé partaient vers /pets/undefined jusqu'au rechargement de la page.
+  return { ...raw.pet, id: String(raw.pet.id || raw.pet._id || "") };
 }
 
 export async function updatePet(
@@ -2093,6 +2098,8 @@ export type RequestPost = {
   timeFrom?: string | null;
   timeTo?: string | null;
   ownerNoCar?: boolean | null;
+  /** 639 (CONTRATS §1) — nourriture fournie : true | false ; null ou absent = non précisé (rien à afficher). */
+  foodProvided?: boolean | null;
   /** 24/10 (620) — visites par jour (home_visit) : 1 | 2 | null. */
   visitsPerDay?: number | null;
 };
@@ -2128,6 +2135,8 @@ export type CreatePostInput = {
   timeFrom?: string;
   timeTo?: string;
   ownerNoCar?: boolean;
+  /** 639 (CONTRATS §1) — « Je fournis la nourriture » : envoyé seulement si le propriétaire a touché l'interrupteur. */
+  foodProvided?: boolean;
 };
 
 // Canonical service keys (match the app + backend filtering: dog_walking is
@@ -2189,6 +2198,7 @@ export async function createPostWithMediaMeta(input: CreatePostInput, files: Fil
   if (input.timeFrom) fd.append("timeFrom", input.timeFrom); // 1011 — horaires
   if (input.timeTo) fd.append("timeTo", input.timeTo);
   if (input.ownerNoCar) fd.append("ownerNoCar", "true"); // 1011 — sans voiture
+  if (typeof input.foodProvided === "boolean") fd.append("foodProvided", String(input.foodProvided)); // 639 — nourriture
   if (input.notes) fd.append("notes", input.notes);
   if (input.postalCode) fd.append("postalCode", input.postalCode); // 23/10 (BOB) — position au code postal
   if (input.animalCount) fd.append("animalCount", String(input.animalCount));
@@ -2633,6 +2643,9 @@ export type NearbyMember = {
   /** 24/09/2026 — légende : PawBoost (lueur turquoise) et « Identité vérifiée ». */
   isBoosted?: boolean;
   identityVerified?: boolean;
+  /** 639 (contrat §5) — « disponible aujourd'hui » (déclaré par le prestataire ET vu récemment), calculé par le
+   *  serveur. Le point vert de la carte n'est dessiné que si ce champ vaut exactement `true`. */
+  availableDot?: boolean;
   /** v585 (serveur) — une PERSONNE = UN point : tous ses profils. Couche
    *  monde : note/prix par rôle ; couche proches : {id, role} seulement.
    *  Absents sur un ancien serveur (lib/memberPersons.ts gère le repli). */
@@ -2642,7 +2655,7 @@ export type NearbyMember = {
   isFriend?: boolean;
   /** v585 — 'live' | 'home' | 'city' | 'last' (d'où vient la position). */
   positionSource?: string;
-  /** 611 — rang de la personne (Chiot → Légende), absent sur un ancien serveur. Lire par parseRank611. */
+  /** 611 — rang de la personne (Découvreur → Légende), absent sur un ancien serveur. Lire par parseRank611. */
   rank?: unknown;
   /** 19/10 (618 §B) — pins { podium, firstPackLeader } ; lire par parsePins1910 (absent = rien). */
   pins?: unknown;
@@ -2727,6 +2740,9 @@ export type PublicProvider = {
   /** PawBoost (profil ou carte) → lueur turquoise. */
   boosted: boolean;
   availableToday: boolean;
+  /** 639 (contrat §5) — point vert « disponible aujourd'hui » de la carte : vrai UNIQUEMENT si le serveur a
+   *  renvoyé `availableDot: true`. Champ absent (ancien serveur, route sans le drapeau) = false = pas de point. */
+  availableDot: boolean;
 };
 
 type RawProvider = {
@@ -2749,6 +2765,8 @@ type RawProvider = {
   isBoosted?: boolean;
   isMapBoosted?: boolean;
   availableDates?: string[];
+  /** 639 — drapeau serveur (mapVisibility.pinFlags) ; absent sur un ancien serveur. */
+  availableDot?: boolean;
   /** 24/10 (620) — le serveur renvoie priceFrom + priceUnit selon le service demandé. */
   priceFrom?: number | null;
   priceUnit?: string | null;
@@ -2797,6 +2815,7 @@ function normalizeProvider(r: RawProvider, role: "sitter" | "walker"): PublicPro
     identityVerified: r.identityVerified === true,
     boosted: r.isBoosted === true || r.isMapBoosted === true,
     availableToday: Array.isArray(r.availableDates) && r.availableDates.some((d) => String(d).slice(0, 10) === today),
+    availableDot: r.availableDot === true,
   };
 }
 
@@ -3117,7 +3136,7 @@ export type MyPawPoints = {
   levels: PawLevel[];
   earnRules: PawEarnRule[];
   claimedRewardKeys: string[];
-  /** 611 — mon rang (Chiot → Légende), lire par parseRank611 ; absent sur un ancien serveur. */
+  /** 611 — mon rang (Découvreur → Légende), lire par parseRank611 ; absent sur un ancien serveur. */
   rank?: unknown;
   rankSeenLevel?: number;
   /** 19/10 (618 §B) — mes pins ; lire par parsePins1910 (absent = rien). */
@@ -3810,7 +3829,7 @@ export function ppText(texts: Pp607Texts | undefined, lang: string): string {
   if (!texts) return "";
   return texts[lang] || texts.en || texts.fr || "";
 }
-/** 19/10 (618 §B) — podium public + « 1er Chef de meute » (GET /pawpoints/pins, public, cache 60 s).
+/** 19/10 (618 §B) — podium public + « 1er Ambassadeur » (GET /pawpoints/pins, public, cache 60 s).
  *  Brut : lire par parsePublicPins1910. Route absente (serveur d'avant le 618) → null. */
 export async function getPublicPins1910(): Promise<unknown | null> {
   try {

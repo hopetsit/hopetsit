@@ -35,7 +35,7 @@ export function PpTitle({ children, sub }: { children: ReactNode; sub?: ReactNod
 }
 
 // 04/10 (611) — l'ancienne frise des 7 paliers (LevelsLadder) est retirée :
-// les rangs (Chiot → Légende) sont dessinés par components/Rank611.tsx.
+// les rangs (Découvreur → Légende) sont dessinés par components/Rank611.tsx.
 
 // ─── COMMENT GAGNER ───────────────────────────────────────────────────────
 export function EarnGrid({ earn, lang, t, fmt }: { earn: Pp607Earn[]; lang: string; t: (k: string) => string; fmt: (n: number) => string }) {

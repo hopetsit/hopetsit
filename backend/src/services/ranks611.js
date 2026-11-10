@@ -1,7 +1,10 @@
 /**
  * 611 (PAM, 04/10/2026) — RANGS façon Waze (idée de Cam, décision BOB).
  *
- *   Chiot → Jeune chien → Chien adulte → Chef de meute → Légende
+ *   Découvreur → Explorateur → Guide → Ambassadeur → Légende
+ *   (639, Daniel 10/11/2026 : NOMS affichés seulement — anciens noms Chiot →
+ *   Jeune chien → Chien adulte → Chef de meute. Clés internes `puppy`,
+ *   `young_dog`, `adult_dog`, `pack_leader`, `legend`, seuils et logique inchangés.)
  *
  * RÈGLE : le rang se calcule sur `pawPoints` = PawPoints GAGNÉS DEPUIS
  * TOUJOURS (ne baisse pas quand on dépense ; seule une contribution supprimée
@@ -16,9 +19,9 @@
  *   · usage actif (Balade + peluche chaque jour, séries) ≈ 70 pts / jour
  *     (35 × 7 + série 50 + série peluches 200 ≈ 495 / semaine) ;
  *   · usage modéré (Balade seule) ≈ 15 pts / jour + 50 / semaine.
- *   Jeune chien   150 : profil complet + 2 Balades, ou ~5 jours de Balades.
- *   Chien adulte  800 : ~2 semaines actives, ~1 mois modéré.
- *   Chef de meute 3000 : ~6 semaines actives, ~4 mois modérés.
+ *   Explorateur   150 : profil complet + 2 Balades, ou ~5 jours de Balades.
+ *   Guide         800 : ~2 semaines actives, ~1 mois modéré.
+ *   Ambassadeur  3000 : ~6 semaines actives, ~4 mois modérés.
  *   Légende     10000 : ~5 mois actifs tous les jours. Rare.
  */
 
@@ -27,19 +30,19 @@ const LANGS = Object.freeze(['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl
 const RANKS = Object.freeze([
   {
     level: 1, key: 'puppy', min: 0, color: '#E0A045',
-    texts: { fr: 'Chiot', en: 'Puppy', es: 'Cachorro', de: 'Welpe', it: 'Cucciolo', pt: 'Cachorrinho', ko: '강아지', ja: '子犬', pl: 'Szczeniak' },
+    texts: { fr: 'Découvreur', en: 'Newcomer', es: 'Descubridor', de: 'Entdecker', it: 'Scopritore', pt: 'Descobridor', ko: '새내기', ja: 'ビギナー', pl: 'Odkrywca' },
   },
   {
     level: 2, key: 'young_dog', min: 150, color: '#E07A2E',
-    texts: { fr: 'Jeune chien', en: 'Young dog', es: 'Perro joven', de: 'Junghund', it: 'Cane giovane', pt: 'Cão jovem', ko: '청소년견', ja: '若犬', pl: 'Młody pies' },
+    texts: { fr: 'Explorateur', en: 'Explorer', es: 'Explorador', de: 'Erkunder', it: 'Esploratore', pt: 'Explorador', ko: '탐험가', ja: '探検家', pl: 'Eksplorator' },
   },
   {
     level: 3, key: 'adult_dog', min: 800, color: '#C9442A',
-    texts: { fr: 'Chien adulte', en: 'Grown dog', es: 'Perro adulto', de: 'Erwachsener Hund', it: 'Cane adulto', pt: 'Cão adulto', ko: '성견', ja: '成犬', pl: 'Dorosły pies' },
+    texts: { fr: 'Guide', en: 'Guide', es: 'Guía', de: 'Wegweiser', it: 'Guida', pt: 'Guia', ko: '가이드', ja: 'ガイド', pl: 'Przewodnik' },
   },
   {
     level: 4, key: 'pack_leader', min: 3000, color: '#7A3FB8',
-    texts: { fr: 'Chef de meute', en: 'Pack leader', es: 'Líder de la manada', de: 'Rudelführer', it: 'Capobranco', pt: 'Líder da matilha', ko: '무리의 리더', ja: '群れのリーダー', pl: 'Przywódca stada' },
+    texts: { fr: 'Ambassadeur', en: 'Ambassador', es: 'Embajador', de: 'Botschafter', it: 'Ambasciatore', pt: 'Embaixador', ko: '앰배서더', ja: 'アンバサダー', pl: 'Ambasador' },
   },
   {
     level: 5, key: 'legend', min: 10000, color: '#C9961A',
@@ -55,15 +58,15 @@ const TEXTS = Object.freeze({
     pt: 'As patentes', ko: '등급', ja: 'ランク', pl: 'Rangi',
   },
   explainer: {
-    fr: 'Tu commences Chiot et tu montes avec les PawPoints gagnés depuis ton inscription : Jeune chien, Chien adulte, Chef de meute, puis Légende. Échanger tes points ne te fait jamais redescendre.',
-    en: 'You start as a Puppy and move up with the PawPoints you have earned since you joined: Young dog, Grown dog, Pack leader, then Legend. Spending points never moves you down.',
-    es: 'Empiezas como Cachorro y subes con los PawPoints ganados desde que te registraste: Perro joven, Perro adulto, Líder de la manada y Leyenda. Canjear tus puntos nunca te hace bajar.',
-    de: 'Du startest als Welpe und steigst mit den PawPoints auf, die du seit deiner Anmeldung verdient hast: Junghund, Erwachsener Hund, Rudelführer, dann Legende. Punkte einlösen lässt dich nie absteigen.',
-    it: 'Inizi come Cucciolo e sali con i PawPoints guadagnati dall\'iscrizione: Cane giovane, Cane adulto, Capobranco e poi Leggenda. Spendere i punti non ti fa mai scendere.',
-    pt: 'Começas como Cachorrinho e sobes com os PawPoints ganhos desde a inscrição: Cão jovem, Cão adulto, Líder da matilha e depois Lenda. Trocar os teus pontos nunca te faz descer.',
-    ko: '처음엔 강아지로 시작해서, 가입 후 모은 PawPoints로 청소년견, 성견, 무리의 리더, 그리고 전설까지 올라가요. 포인트를 사용해도 등급은 내려가지 않아요.',
-    ja: '最初は子犬からスタート。登録してから貯めたPawPointsで、若犬、成犬、群れのリーダー、そしてレジェンドへと上がります。ポイントを使ってもランクは下がりません。',
-    pl: 'Zaczynasz jako Szczeniak i awansujesz dzięki PawPoints zdobytym od rejestracji: Młody pies, Dorosły pies, Przywódca stada, a potem Legenda. Wymiana punktów nigdy nie obniża rangi.',
+    fr: 'Tu commences Découvreur et tu montes avec les PawPoints gagnés depuis ton inscription : Explorateur, Guide, Ambassadeur, puis Légende. Échanger tes points ne te fait jamais redescendre.',
+    en: 'You start as a Newcomer and move up with the PawPoints you have earned since you joined: Explorer, Guide, Ambassador, then Legend. Spending points never moves you down.',
+    es: 'Empiezas como Descubridor y subes con los PawPoints ganados desde que te registraste: Explorador, Guía, Embajador y Leyenda. Canjear tus puntos nunca te hace bajar.',
+    de: 'Du startest als Entdecker und steigst mit den PawPoints auf, die du seit deiner Anmeldung verdient hast: Erkunder, Wegweiser, Botschafter, dann Legende. Punkte einlösen lässt dich nie absteigen.',
+    it: 'Inizi come Scopritore e sali con i PawPoints guadagnati dall\'iscrizione: Esploratore, Guida, Ambasciatore e poi Leggenda. Spendere i punti non ti fa mai scendere.',
+    pt: 'Começas como Descobridor e sobes com os PawPoints ganhos desde a inscrição: Explorador, Guia, Embaixador e depois Lenda. Trocar os teus pontos nunca te faz descer.',
+    ko: '처음엔 새내기로 시작해서, 가입 후 모은 PawPoints로 탐험가, 가이드, 앰배서더, 그리고 전설까지 올라가요. 포인트를 사용해도 등급은 내려가지 않아요.',
+    ja: '最初はビギナーからスタート。登録してから貯めたPawPointsで、探検家、ガイド、アンバサダー、そしてレジェンドへと上がります。ポイントを使ってもランクは下がりません。',
+    pl: 'Zaczynasz jako Odkrywca i awansujesz dzięki PawPoints zdobytym od rejestracji: Eksplorator, Przewodnik, Ambasador, a potem Legenda. Wymiana punktów nigdy nie obniża rangi.',
   },
   noMoney: {
     fr: 'Le rang est honorifique : il ne donne aucun avantage payant et ne vaut pas d\'argent.',

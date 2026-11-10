@@ -367,6 +367,12 @@ const findNearbySitters = async (req, res) => {
         identityVerified:
           sitter.kycStatus === 'verified' ||
           sitter.identityVerification?.status === 'verified',
+        // 639 (ZOE) — point vert « Disponible aujourd'hui » de la carte publique
+        // du site : MÊME règle que la PawMap (mapVisibility.isAvailableDot :
+        // gardien + dispo déclarée aujourd'hui + vu il y a moins de 48 h,
+        // coupe-circuit PAWMAP_AVAILABLE_DOT=off). `lastSeenAt` sert au
+        // calcul et ne sort jamais de cette réponse.
+        availableDot: mapVisibility.isAvailableDot(sitter, now, { role: 'sitter' }),
         bio: sitter.bio || '',
         location: {
           coordinates: displayCoords,

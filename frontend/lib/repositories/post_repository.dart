@@ -227,6 +227,8 @@ class PostRepository {
     String? timeFrom,
     String? timeTo,
     bool? ownerNoCar,
+    // 639 — « Je fournis la nourriture » (null = inchangé, rien n'est envoyé).
+    bool? foodProvided,
     // v600 NEO — espèce(s) + nombre d'une demande sans fiche animal
     // (envoyés tels quels ; le serveur ne les relit pas encore en édition).
     List<String> animalTypes = const <String>[],
@@ -257,6 +259,7 @@ class PostRepository {
       timeFrom: timeFrom,
       timeTo: timeTo,
       ownerNoCar: ownerNoCar,
+      foodProvided: foodProvided,
       forUpdate: true,
     ));
     if (budget != null) {

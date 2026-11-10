@@ -303,6 +303,8 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
       titleColor: PawMapLegend.ink,
     ));
     add('verified', c: PawMapLegend.sitter);
+    // 639 — point vert « disponible aujourd'hui », rangé avec les personnes.
+    add('available', c: const Color(0xFF0B7A3B));
     add('member_group');
     add('request', c: PawMapLegend.owner);
     return rows;
@@ -314,7 +316,8 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
     final byKey = {for (final e in entries) e.key: e};
     const peopleKeys = {
       'me', 'friend', 'friends_only', 'member_owner', 'member_sitter',
-      'member_walker', 'premium', 'boost', 'verified', 'member_group', 'request',
+      'member_walker', 'premium', 'boost', 'verified', 'available',
+      'member_group', 'request',
       'spot',
     };
     final role = _roleNow;

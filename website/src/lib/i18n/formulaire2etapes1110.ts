@@ -25,7 +25,7 @@ export const FORM_2_ETAPES: Record<Lang, D> = {
     next: "Continuer",
     back: "Modifier ma demande",
     details_toggle: "Ajouter des détails (facultatif)",
-    details_sub: "Budget, horaires, animaux, notes, photos",
+    details_sub: "Budget, infos pratiques, notes, photos",
   },
   en: {
     title: "Post my request — free",
@@ -39,7 +39,7 @@ export const FORM_2_ETAPES: Record<Lang, D> = {
     next: "Continue",
     back: "Edit my request",
     details_toggle: "Add details (optional)",
-    details_sub: "Budget, hours, pets, notes, photos",
+    details_sub: "Budget, practical info, notes, photos",
   },
   es: {
     title: "Publicar mi solicitud — gratis",
@@ -53,7 +53,7 @@ export const FORM_2_ETAPES: Record<Lang, D> = {
     next: "Continuar",
     back: "Modificar mi solicitud",
     details_toggle: "Añadir detalles (opcional)",
-    details_sub: "Presupuesto, horario, mascotas, notas, fotos",
+    details_sub: "Presupuesto, información práctica, notas, fotos",
   },
   de: {
     title: "Meine Anfrage veröffentlichen — kostenlos",
@@ -67,7 +67,7 @@ export const FORM_2_ETAPES: Record<Lang, D> = {
     next: "Weiter",
     back: "Anfrage ändern",
     details_toggle: "Details hinzufügen (optional)",
-    details_sub: "Budget, Uhrzeiten, Tiere, Notizen, Fotos",
+    details_sub: "Budget, praktische Infos, Notizen, Fotos",
   },
   it: {
     title: "Pubblica la mia richiesta — gratis",
@@ -81,7 +81,7 @@ export const FORM_2_ETAPES: Record<Lang, D> = {
     next: "Continua",
     back: "Modifica la richiesta",
     details_toggle: "Aggiungi dettagli (facoltativo)",
-    details_sub: "Budget, orari, animali, note, foto",
+    details_sub: "Budget, info pratiche, note, foto",
   },
   pt: {
     title: "Publicar o meu pedido — grátis",
@@ -95,7 +95,7 @@ export const FORM_2_ETAPES: Record<Lang, D> = {
     next: "Continuar",
     back: "Alterar o meu pedido",
     details_toggle: "Adicionar detalhes (opcional)",
-    details_sub: "Orçamento, horários, animais, notas, fotos",
+    details_sub: "Orçamento, informações práticas, notas, fotos",
   },
   ko: {
     title: "내 요청 올리기 — 무료",
@@ -109,7 +109,7 @@ export const FORM_2_ETAPES: Record<Lang, D> = {
     next: "계속",
     back: "요청 수정",
     details_toggle: "세부 정보 추가 (선택)",
-    details_sub: "예산, 시간, 반려동물, 메모, 사진",
+    details_sub: "예산, 실용 정보, 메모, 사진",
   },
   ja: {
     title: "リクエストを投稿 — 無料",
@@ -123,7 +123,7 @@ export const FORM_2_ETAPES: Record<Lang, D> = {
     next: "次へ",
     back: "リクエストを修正",
     details_toggle: "詳細を追加（任意）",
-    details_sub: "予算、時間帯、ペット、メモ、写真",
+    details_sub: "予算、実用情報、メモ、写真",
   },
   pl: {
     title: "Opublikuj moją prośbę — za darmo",
@@ -137,7 +137,7 @@ export const FORM_2_ETAPES: Record<Lang, D> = {
     next: "Dalej",
     back: "Zmień prośbę",
     details_toggle: "Dodaj szczegóły (opcjonalnie)",
-    details_sub: "Budżet, godziny, zwierzęta, notatki, zdjęcia",
+    details_sub: "Budżet, informacje praktyczne, notatki, zdjęcia",
   },
 };
 

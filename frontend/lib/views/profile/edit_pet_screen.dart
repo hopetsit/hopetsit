@@ -9,6 +9,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/date_slash_formatter.dart' show ageInYears;
 import 'package:hopetsit/utils/pet_species_color.dart';
 import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
+import 'package:hopetsit/views/profile/widgets/breed_suggestions639.dart';
 import 'package:hopetsit/views/profile/widgets/pet_form_widgets.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -273,13 +274,27 @@ class EditPetScreen extends StatelessWidget {
                                   .toList(),
                             );
                           }),
-                          ProfileInput(
-                            label: 'edit_pet_breed_label'.tr,
-                            hint: 'edit_pet_breed_hint'.tr,
-                            controller: controller.breedController,
-                            accent: accent,
-                            textInputAction: TextInputAction.next,
-                            textCapitalization: TextCapitalization.words,
+                          // 639 — race : champ libre FACULTATIF + suggestions
+                          // de races courantes selon l'espèce (chien / chat).
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ProfileInput(
+                                label: 'edit_pet_breed_label'.tr,
+                                hint: 'edit_pet_breed_hint'.tr,
+                                controller: controller.breedController,
+                                accent: accent,
+                                textInputAction: TextInputAction.next,
+                                textCapitalization: TextCapitalization.words,
+                              ),
+                              Obx(() => BreedSuggestions639(
+                                    species:
+                                        controller.selectedCategory.value ?? '',
+                                    controller: controller.breedController,
+                                    accent: accent,
+                                  )),
+                            ],
                           ),
                           // Sexe — deux pilules ♂ ♀.
                           PetFieldLabel('pet_gender'.tr),

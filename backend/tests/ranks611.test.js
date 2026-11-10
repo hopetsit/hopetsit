@@ -73,7 +73,7 @@ describe('611 — barème des rangs', () => {
         expect(String(r.texts[l] || '').length).toBeGreaterThan(1);
       }
     }
-    expect(ranks.RANKS.map((r) => r.texts.fr)).toEqual(['Chiot', 'Jeune chien', 'Chien adulte', 'Chef de meute', 'Légende']);
+    expect(ranks.RANKS.map((r) => r.texts.fr)).toEqual(['Découvreur', 'Explorateur', 'Guide', 'Ambassadeur', 'Légende']);
   });
 
   test('rankFor : forme {key, level, pointsEarned, nextAt, nextKey} et bornes', () => {
@@ -203,11 +203,14 @@ describe('611 — profil SANS champ pawPoints en base (vieux compte), lu comme 0
 });
 
 describe('611 — un seul système : plus aucun ancien niveau ni bonus', () => {
-  const OLD = /Explorateur|Explorer|Contributeur|Ambassadeur|PawMaster|Légendaire|Paw Legend|bonus_5|bonus_10|bonus_15/;
+  // 639 — « Explorateur » et « Ambassadeur » sont redevenus des noms de rang (série 1,
+  // décision de Daniel) : ils sortent donc de la liste des anciens niveaux interdits.
+  // Les marqueurs propres à l'ancien système (Contributeur, PawMaster, Légendaire, bonus) restent.
+  const OLD = /Contributeur|Contributor|PawMaster|Légendaire|Paw Legend|bonus_5|bonus_10|bonus_15/;
   test('catalogue public, /me : seuls les 5 rangs, bonus 0', async () => {
     const c = await request(app).get('/pawpoints/catalog');
     expect(JSON.stringify(c.body)).not.toMatch(OLD);
-    expect(c.body.catalog607.levels.map((l) => l.texts.fr)).toEqual(['Chiot', 'Jeune chien', 'Chien adulte', 'Chef de meute', 'Légende']);
+    expect(c.body.catalog607.levels.map((l) => l.texts.fr)).toEqual(['Découvreur', 'Explorateur', 'Guide', 'Ambassadeur', 'Légende']);
     expect(c.body.levels.map((l) => l.bonusPct)).toEqual([0, 0, 0, 0, 0]);
     const u = await person({ lifetime: 25000 });
     const me = await request(app).get('/pawpoints/me').set(as(u));

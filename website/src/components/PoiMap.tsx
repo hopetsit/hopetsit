@@ -118,7 +118,7 @@ import { PinChips1910 } from "@/components/Pins1910";
 import { clusterFromPrice622, normalizeMemberPrices622, type MapRequestPricing622 } from "@/lib/mapPrice622";
 import { RequestFromLine622, useFromText622, useRequestFromLabels622 } from "@/components/RequestFrom622";
 import { clusterIndex2710, clusterTapTarget2710, type ClusterIndex2710 } from "@/lib/pawmapGroups2710";
-import { PAWMAP_2610_CSS, SPIDER_MAX_2610, cachedIcon2610, popOnce2610, clusterHtml2610, priceBubbleHtml2610, profilePinHtml2610, role2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
+import { PAWMAP_2610_CSS, PIN_2610, SPIDER_MAX_2610, cachedIcon2610, popOnce2610, clusterHtml2610, priceBubbleHtml2610, profilePinHtml2610, role2610, splitPrice2610, visibleRoles2610, type Price2610, type Role2610 } from "@/lib/pawmap2610";
 
 export { clusterize } from "@/lib/mapCluster";
 
@@ -194,9 +194,9 @@ const reportIcon = (type: string, fresh: boolean) => {
   }
   return ic;
 };
-// 26/10 (2610, maquette de l'app « A · Anneau ») — rond de profil 50 px, prix SEULEMENT sur le rond
+// 26/10 (2610) puis 10/11 (639, pastilles v2) — pastille de profil 32 px, prix SEULEMENT sur le rond
 // sélectionné, autres ronds à 85 % pendant une sélection, décalage d'éclatement d'un groupe (`off`).
-function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], dark: boolean, o: { selected?: boolean; dim?: boolean; prices?: Price2610[]; live?: boolean; off?: { x: number; y: number } | null } = {}): L.DivIcon {
+function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], dark: boolean, o: { selected?: boolean; dim?: boolean; prices?: Price2610[]; live?: boolean; off?: { x: number; y: number } | null; rating?: string | null } = {}): L.DivIcon {
   const ox = Math.round(o.off?.x ?? 0);
   const oy = Math.round(o.off?.y ?? 0);
   // 27/10 — rond d'un groupe éclaté (≤ 12 px de sa vraie place) : « épinglé » dans la passe de mise en page.
@@ -211,14 +211,18 @@ function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[]
       pawFollow: !!m.hasPawFollow,
       verified: !!m.identityVerified,
       online: m.approx ? null : m.isOnline !== false,
-      pinsHtml: pinsOnAvatarHtml(parsePins1910(m.pins), 50),
+      // 639 (contrat §5) — point vert « disponible aujourd'hui » : seulement si le serveur a dit `true`.
+      availableDot: m.availableDot === true,
+      rating: o.rating ?? null,
+      // 639 — pastille 32 px : la fusée occupe le coin haut gauche → le podium passe au milieu du bord gauche.
+      pinsHtml: pinsOnAvatarHtml(parsePins1910(m.pins), PIN_2610, { leftMiddle: !!m.isBoosted }),
       selected: !!o.selected,
       prices: o.prices,
       caption,
       dark,
     });
   // 26/10 (bug « ça clignote ») — même dessin = même icône : aucune réécriture à chaque rendu.
-  return cachedIcon2610(`${className}|${ox},${oy}|${html.replace(/animation:hps2610-pop[^;]*;/, "")}`, () => L.divIcon({ className, html, iconSize: [50, 50], iconAnchor: [25 - ox, 25 - oy], popupAnchor: [0, -28] }));
+  return cachedIcon2610(`${className}|${ox},${oy}|${html.replace(/animation:hps2610-(pop|bub)[^;]*;/g, "")}`, () => L.divIcon({ className, html, iconSize: [PIN_2610, PIN_2610], iconAnchor: [PIN_2610 / 2 - ox, PIN_2610 / 2 - oy], popupAnchor: [0, -(PIN_2610 / 2 + 3)] }));
 }
 /** Ami à sa position de PROFIL (floutée) : photo, anneau rose, pas de direct. */
 function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[], caption?: string | null, bubble?: string | null, duo?: [string, string] | null, captionAbove = false): L.DivIcon {
@@ -242,13 +246,13 @@ function meIcon(o: { role: string; name: string; avatar?: string | null; premium
 }
 /** 622 — zoom à partir duquel les prix se montrent (pays). */
 const PRICE_ZOOM_COUNTRY_622 = 6;
-function requestIcon(r: MapRequest, mineLabel: string, fromLabel?: string | null, selected = false): L.DivIcon {
+function requestIcon(r: MapRequest, mineLabel: string, fromLabel?: string | null, selected = false, dark = false): L.DivIcon {
   // 622 — budget du propriétaire ; sans budget, « dès 10 €/jour » (estimation publique, jamais inventée).
   // 26/10 (2610, maquette de l'app : « par défaut, aucun prix sur la carte ») — le budget n'est plus écrit
   // sur la bulle de demande ; demande TOUCHÉE (gardien / promeneur) : bulle de prix 2610 au-dessus,
   // segment propriétaire (budget saisi, sinon « dès X »).
   const budget = !r.mine ? r.priceLabel || fromLabel || null : null;
-  const top = selected && budget ? `<span data-selected-2610="" style="position:absolute;left:0;right:0;bottom:0;height:34px;">${priceBubbleHtml2610([{ role: "owner", ...splitPrice2610(budget) }], 39)}</span>` : "";
+  const top = selected && budget ? `<span data-selected-2610="" style="position:absolute;left:0;right:0;bottom:0;height:34px;">${priceBubbleHtml2610([{ role: "owner", ...splitPrice2610(budget) }], 39, { dark })}</span>` : "";
   const html = `<div style="position:relative;">${requestBubbleHtml({ service: r.service, priceLabel: null, boosted: r.boosted, mine: r.mine, mineLabel })}${top}</div>`;
   // 26/10 (bug « ça clignote ») — même dessin = même icône.
   return cachedIcon2610(`req|${html}`, () => L.divIcon({
@@ -425,7 +429,7 @@ function MemberCluster({ center, items, onList, index, dark = false, shift }: { 
   const countsKey = `${counts.owner}/${counts.sitter}/${counts.walker}`;
   const sx = Math.round(shift?.x ?? 0);
   const sy = Math.round(shift?.y ?? 0);
-  const icon = useMemo(() => cachedIcon2610(`mgroup|${countsKey}|${count}|${dark ? 1 : 0}|${sx},${sy}`, () => L.divIcon({ className: "hps-l-mgroup", html: clusterHtml2610({ counts, total: count, dark, fromLabel: null }), iconSize: [48, 48], iconAnchor: [24 - sx, 24 - sy] })), [count, countsKey, dark, sx, sy]);
+  const icon = useMemo(() => cachedIcon2610(`mgroup|${countsKey}|${count}|${dark ? 1 : 0}|${sx},${sy}`, () => L.divIcon({ className: "hps-l-mgroup", html: clusterHtml2610({ counts, total: count, dark, fromLabel: null }), iconSize: [PIN_2610, PIN_2610], iconAnchor: [PIN_2610 / 2 - sx, PIN_2610 / 2 - sy] })), [count, countsKey, dark, sx, sy]);
   const onClick = () => {
     // Même règle que l'app (pawMapClusterIsStacked : 40 m, ou la même personne) : zoomer ne les séparerait pas.
     if (isStackedGroup(items, 40)) { onList(items); return; }
@@ -545,9 +549,9 @@ type Focus = {
   liveId?: string;
   /** 02/10 (609) — identité vérifiée : pastille « ✓ Vérifié ». */
   verified?: boolean;
-  /** 04/10 (611) — rang de la personne (Chiot → Légende) ; null = rien affiché. */
+  /** 04/10 (611) — rang de la personne (Découvreur → Légende) ; null = rien affiché. */
   rank?: Rank611 | null;
-  /** 19/10 (618) — pins podium / « 1er Chef de meute » ; null = rien affiché. */
+  /** 19/10 (618) — pins podium / « 1er Ambassadeur » ; null = rien affiché. */
   pins?: Pins1910 | null;
   open: () => void;
 };
@@ -1023,7 +1027,7 @@ export default function PoiMap({
     if (meAt) meRects.push(circleRect(meAt, 56 / 2 + 2), labelRect(meAt, 56 / 2, meW, "below", 16.3));
     const friendBox = pinBox(50 / 2 + 2.5);
     const entries: { items: NearbyMember[]; c: Px; r: number; friend: boolean }[] = [];
-    for (const g of memberClusters) entries.push({ items: g.items, c: pxOf(g.center), r: g.items.length > 1 ? 24 + 2.5 : 50 / 2 + 1 + (showPrice ? 10 : 0), friend: false });
+    for (const g of memberClusters) entries.push({ items: g.items, c: pxOf(g.center), r: g.items.length > 1 ? PIN_2610 / 2 + 2.5 : PIN_2610 / 2 + 1 + (showPrice ? 10 : 0), friend: false });
     for (const m of friendMembers) { const p = pointOf(m); if (p) entries.push({ items: [m], c: pxOf(p), r: 50 / 2 + 2, friend: true }); }
     // A. Amis trop près de « Moi » : décalés en éventail (un trait rose relie leur vraie position).
     const friendIdx = entries.map((e, i) => (e.friend ? i : -1)).filter((i) => i >= 0);
@@ -1033,8 +1037,8 @@ export default function PoiMap({
     // B. Pastilles et membres seuls (jamais un ami) : place libre la plus proche (prénom et bulle compris).
     const boxOf = (e: { items: NearbyMember[] }): Rect => {
       if (e.items.length > 1) {
-        // 2610 — « dès X » masqué tant que le groupe n'est pas touché : seul le rond (48 px) compte.
-        return pinBox(24 + 2.5);
+        // 2610 — « dès X » masqué tant que le groupe n'est pas touché : seul le rond (32 px, 639) compte.
+        return pinBox(PIN_2610 / 2 + 2.5);
       }
       const m = e.items[0];
       const wanted = rolesMatching(m, wantedRoles);
@@ -1049,7 +1053,7 @@ export default function PoiMap({
         const bubble = memberBubble(r0.role, r0.priceFrom ?? m.priceFrom, r0.currency ?? m.currency, r0.priceAlt ?? m.priceAlt, r0.priceUnit ?? m.priceUnit);
         if (duo || bubble) bw = bubbleW0(bubble, duo) + 4;
       }
-      return pinBox(46 / 2 + 1, { labelW: lw, bubbleW: bw });
+      return pinBox(PIN_2610 / 2 + 1, { labelW: lw, bubbleW: bw });
     };
     const movable = entries.map((e) => !e.friend);
     const moved = repelBoxes(entries.map((e) => e.c), entries.map((e) => (e.friend ? friendBox : boxOf(e))), fixedBoxes, movable);
@@ -1439,7 +1443,7 @@ export default function PoiMap({
           <Marker
             key={`req-${r.id}`}
             position={[r.lat, r.lng]}
-            icon={requestIcon(r, requestMineLabel, reqFromOf(r), focus?.key === `req:${r.id}`)}
+            icon={requestIcon(r, requestMineLabel, reqFromOf(r), focus?.key === `req:${r.id}`, dark)}
             zIndexOffset={PIN_Z.request + (r.mine ? 200 : 0)}
             eventHandlers={{
               click: (e) => {
@@ -1531,8 +1535,12 @@ export default function PoiMap({
           const dim = !!focus && !sel;
           const live = personIdsOf(m).some((x) => liveIdSet.has(x));
           const prices = sel ? selectedPrices2610(shown, m) : [];
+          // 639 — note sur la bulle : seulement une note RÉELLE (des avis existent), jamais inventée.
+          const rVal = r0.rating ?? m.rating ?? 0;
+          const rCount = r0.reviewsCount ?? m.reviewsCount ?? 0;
+          const rating = sel && prices.length && rVal > 0 && rCount > 0 ? rVal.toFixed(1) : null;
           return (
-            <Marker key={`member-${m.id}${spiderOff ? "-sp" : ""}`} position={pt} icon={memberIcon(m, spiderOff ? null : memberCaption({ ...m, role: r0.role }), roles, dark, { selected: sel, dim, prices, live, off: spiderOff })} zIndexOffset={sel ? PIN_Z.me + 500 : spiderOff ? PIN_Z.member + 800 : m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: (e) => { const onBubble = !!(e.originalEvent?.target as Element | null)?.closest?.("[data-price-bubble-2610]"); if (sel && onBubble) { open(); return; } const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt, pUnit); if (f) tapFocus(f); else open(); } }} />
+            <Marker key={`member-${m.id}${spiderOff ? "-sp" : ""}`} position={pt} icon={memberIcon(m, spiderOff ? null : memberCaption({ ...m, role: r0.role }), roles, dark, { selected: sel, dim, prices, live, off: spiderOff, rating })} zIndexOffset={sel ? PIN_Z.me + 500 : spiderOff ? PIN_Z.member + 800 : m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: (e) => { const onBubble = !!(e.originalEvent?.target as Element | null)?.closest?.("[data-price-bubble-2610]"); if (sel && onBubble) { open(); return; } const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt, pUnit); if (f) tapFocus(f); else open(); } }} />
           );
         })}
 
@@ -1962,7 +1970,7 @@ function RoleCard({ m, r, backBtn, closeBtn, labels, roleName, dist, friend, fri
             {roleName(k)}
             {friend && <span className="rounded-full bg-[#FDE7F0] px-2 py-0.5 text-[11px] font-bold text-[#9D174D]">{labels.friend}</span>}
           </p>
-          {/* 04/10 (611) — rang (Chiot → Légende), seulement si le serveur l'envoie. */}
+          {/* 04/10 (611) — rang (Découvreur → Légende), seulement si le serveur l'envoie. */}
           <RankPill611 rank={parseRank611(m.rank)} className="mt-1" />
           {/* 19/10 (618) — pins, seulement si le serveur les envoie. */}
           <PinChips1910 pins={parsePins1910(m.pins)} className="mt-1" />

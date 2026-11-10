@@ -9664,7 +9664,7 @@ for (const code of Object.keys(RULES610) as Lang[]) Object.assign(t[code], RULES
 // 04/10/2026 — LEO (611) : animal perdu / trouvé gratuit pour tous (textes de ZOE).
 import { ALERTS611 } from "./alerts611";
 for (const code of Object.keys(ALERTS611) as Lang[]) Object.assign(t[code], ALERTS611[code]);
-// 04/10/2026 — LEO (611) : RANGS Chiot → Légende (textes de PAM). Fusionné EN DERNIER :
+// 04/10/2026 — LEO (611) : RANGS Découvreur → Légende (textes de PAM). Fusionné EN DERNIER :
 // remplace aussi les phrases de l'ancien système à 7 niveaux (Explorateur … Paw Legend).
 import { RANKS611 } from "./ranks611";
 for (const code of Object.keys(RANKS611) as Lang[]) Object.assign(t[code], RANKS611[code]);
@@ -9688,3 +9688,6 @@ for (const code of Object.keys(CANDIDATS1610) as Lang[]) Object.assign(t[code], 
 // 19/10/2026 — LEO : build 618 sur le site (collection du mois, pins, ×2 Premium ; clés p1910_*).
 import { SITE1910 } from "./site1910";
 for (const code of Object.keys(SITE1910) as Lang[]) Object.assign(t[code], SITE1910[code]);
+// 10/11/2026 — LEO (build 639, lot C) : légende du point vert « Disponible aujourd'hui ». Fusionné EN DERNIER.
+import { BUILD639 } from "./build639";
+for (const code of Object.keys(BUILD639) as Lang[]) Object.assign(t[code], BUILD639[code]);

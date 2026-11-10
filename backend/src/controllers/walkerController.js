@@ -327,6 +327,12 @@ const findNearbyWalkers = async (req, res) => {
         isMapBoosted: Boolean(isMapBoosted),
         mapBoostTier: isMapBoosted ? (w.mapBoostTier || null) : null,
         pawSpotLabel: customCoords ? (w.mapBoostLocation?.label || '') : null,
+        // 639 (ZOE) — point vert « Disponible aujourd'hui » de la carte publique
+        // du site : MÊME règle que la PawMap (mapVisibility.isAvailableDot :
+        // promeneur + dispo déclarée aujourd'hui + vu il y a moins de 48 h,
+        // coupe-circuit PAWMAP_AVAILABLE_DOT=off). Calculé sur le document
+        // d'origine `w` ; aucun autre champ n'est ajouté à la réponse.
+        availableDot: mapVisibility.isAvailableDot(w, now, { role: 'walker' }),
         // v23.1 part 240 — Daniel : "barre deconne ... sa met nimporte
         // quoi". Le sitter endpoint exposait `distance` (km) + `distanceInMeters`
         // mais le walker endpoint NE LES EXPOSAIT PAS → la WalkerCard tombait

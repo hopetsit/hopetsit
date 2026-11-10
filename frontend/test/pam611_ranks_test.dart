@@ -1,9 +1,9 @@
 // 611 (PAM, 04/10/2026) — RANGS façon Waze (idée de Cam, décision BOB) :
-// Chiot → Jeune chien → Chien adulte → Chef de meute → Légende, calculés par
+// Découvreur → Explorateur → Guide → Ambassadeur → Légende (noms 639), calculés par
 // le serveur sur les PawPoints GAGNÉS depuis toujours. Ce fichier rejoue :
 //   1. lecture du rang serveur (forme {key, level, pointsEarned, nextAt}) ;
 //   2. pastille (9 langues, ko/ja naturels), clair ET sombre sans gris ;
-//   3. barre « encore N points pour Chien adulte » (écran PawPoints) ;
+//   3. barre « encore N points pour Guide » (écran PawPoints) ;
 //   4. message de passage de rang : UNE fois, noté au serveur ;
 //   5. fiche d'une personne sur la PawMap (carte focus + fiche membre) ;
 //   6. ligne « Les rangs » dans « Comprendre la PawMap ».
@@ -109,8 +109,8 @@ void main() {
         }
       }
     }
-    expect(ranks611I18n['ko']!['rank611_puppy'], '강아지');
-    expect(ranks611I18n['ja']!['rank611_adult_dog'], '成犬');
+    expect(ranks611I18n['ko']!['rank611_puppy'], '새내기');
+    expect(ranks611I18n['ja']!['rank611_adult_dog'], 'ガイド');
     // variables jamais traduites
     for (final l in ranks611I18n.keys) {
       expect(ranks611I18n[l]!['rank611_to_next'], allOf(contains('@n'), contains('@rank')), reason: l);
@@ -127,24 +127,24 @@ void main() {
   });
 
   for (final mode in [ThemeMode.light, ThemeMode.dark]) {
-    testWidgets('2c. pastille « Jeune chien » (${mode.name})', (t) async {
+    testWidgets('2c. pastille « Explorateur » (${mode.name})', (t) async {
       await t.pumpWidget(_app(PawRankPill611(rank: PawRank611.fromJson(_young)!), mode: mode));
       await t.pump();
-      expect(find.text('Jeune chien'), findsOneWidget);
+      expect(find.text('Explorateur'), findsOneWidget);
       expect(t.takeException(), isNull);
     });
   }
 
-  testWidgets('2d. japonais : 若犬', (t) async {
+  testWidgets('2d. japonais : 探検家', (t) async {
     await t.pumpWidget(_app(PawRankPill611(rank: PawRank611.fromJson(_young)!), locale: const Locale('ja')));
     await t.pump();
-    expect(find.text('若犬'), findsOneWidget);
+    expect(find.text('探検家'), findsOneWidget);
   });
 
-  testWidgets('3. écran PawPoints : « Encore 650 points pour Chien adulte »', (t) async {
+  testWidgets('3. écran PawPoints : « Encore 650 points pour Guide »', (t) async {
     await t.pumpWidget(_app(PawRankProgress611(rank: PawRank611.fromJson(_young)!)));
     await t.pump();
-    expect(find.text('Encore 650 points pour Chien adulte'), findsOneWidget);
+    expect(find.text('Encore 650 points pour Guide'), findsOneWidget);
     await t.pumpWidget(_app(PawRankProgress611(
         rank: PawRank611.fromJson(<String, dynamic>{'key': 'legend', 'level': 5, 'pointsEarned': 12000})!)));
     await t.pump();
@@ -178,7 +178,7 @@ void main() {
     )));
     await t.pump(const Duration(milliseconds: 400));
     expect(find.byKey(const ValueKey<String>('pawmap_focus_rank')), findsOneWidget);
-    expect(find.text('Jeune chien'), findsOneWidget);
+    expect(find.text('Explorateur'), findsOneWidget);
   });
 
   testWidgets('5b. fiche membre de la PawMap : pastille de rang', (t) async {
@@ -197,7 +197,7 @@ void main() {
     )));
     await t.pump();
     expect(find.byKey(const ValueKey<String>('member_rank')), findsOneWidget);
-    expect(find.text('Jeune chien'), findsOneWidget);
+    expect(find.text('Explorateur'), findsOneWidget);
   });
 
   for (final c in <List<dynamic>>[
@@ -210,7 +210,7 @@ void main() {
       await t.pump();
       expect(find.text('Toi'), findsOneWidget);
       expect(find.text(c[1] as String), findsOneWidget);
-      expect(find.text('Chiot'), findsOneWidget);
+      expect(find.text('Découvreur'), findsOneWidget);
     });
   }
 }

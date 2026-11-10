@@ -1,30 +1,45 @@
-// 26/10/2026 (LEO) — ordre de Daniel via BOB : la PawMap du SITE prend la maquette de l'app
-// (~/hopetsit-social/design_pawmap_2610/ : README.md fait foi, valeurs de
-// code/pawmap-markers.tsx et de « PawMap - Bulles HD.dc.html », style retenu « A · Anneau »).
+// 26/10/2026 (LEO) — ordre de Daniel via BOB : la PawMap du SITE prend la maquette de l'app.
+// 10/11/2026 (LEO, build 639) — PASTILLES v2 (maquette « design_handoff_pawmap_pastilles_v2 », README
+// = spécification visuelle ; contrats du build 639 §5 et §6) : pastille 32 px PLEINE à la couleur du
+// rôle (plus d'anneau ni de bord blanc), filet + ombre courte, icône 17, halos PawBoost turquoise /
+// PawFollow violet (onde) / Ami fuchsia (cœur), couronne Premium visible, point vert « disponible
+// aujourd'hui », groupes 32 px, bulle de prix claire. Couleurs vives SUR LA CARTE SEULEMENT.
 //
-// Périmètre STRICT : ronds de profil, groupes, bulles de prix (au clic seulement), éclatement
-// d'un groupe, couleur des 4 boutons du haut à droite. Rien d'autre.
+// Périmètre STRICT : dessin des ronds de profil, des groupes et de la bulle de prix. La logique
+// (regroupement, éclatement, règle des prix, données, fiche au clic, confidentialité) ne change pas.
 //
 // Module PUR (aucun DOM, aucun Leaflet) : du HTML en chaînes que les cartes posent dans un
 // L.divIcon. Testé par scripts/test-pawmap2610.mjs.
 
 export type Role2610 = "owner" | "sitter" | "walker";
 
-/** Couleurs pleines, vives (README §Couleurs) — pas de dégradé ni reflet. */
-export const ROLE_2610: Record<Role2610, { color: string; glow: string }> = {
-  // 30/10 (LEO, Daniel : « le bleu n'est pas assez voyant ») — lueur de rôle sous le rond plus franche.
-  owner: { color: "#f23b16", glow: "rgba(242,59,22,0.75)" },
-  sitter: { color: "#1a6cff", glow: "rgba(26,108,255,0.8)" },
-  walker: { color: "#12b350", glow: "rgba(18,179,80,0.75)" },
+/** Couleurs de rôle de la CARTE (contrat 639 §6) : `color` pleine, `light` = départ du dégradé des
+ *  pastilles d'icône de la bulle, `glow` = lueur des boutons du haut. Partout ailleurs sur le site,
+ *  les couleurs de marque (pawmapLegend.ROLE_COLOR) ne changent pas. */
+export const ROLE_2610: Record<Role2610, { color: string; light: string; glow: string }> = {
+  owner: { color: "#ff3a0f", light: "#ff7a52", glow: "rgba(255,58,15,0.75)" },
+  sitter: { color: "#0f62ff", light: "#5ea0ff", glow: "rgba(15,98,255,0.8)" },
+  walker: { color: "#00c24a", light: "#3fd476", glow: "rgba(0,194,74,0.75)" },
 };
 export const GOLD_2610 = "#f6b400";
-export const GOLD_ICON_2610 = "#7a4500";
+export const GOLD_ICON_2610 = "#6b3a00";
 export const LIVE_2610 = "#e8452f";
-/** Signes existants gardés (Daniel, 26/10) — couleurs de la légende du site / de l'app 623. */
-export const BOOST_2610 = "#06B6D4";
+/** Halos de la carte (contrat 639 §6). */
+export const BOOST_2610 = "#12d8c9";
+export const FOLLOW_2610 = "#8f5cff";
+export const FRIEND_2610 = "#ff5ad2";
+/** Point « disponible aujourd'hui » (contrat 639 §5). */
+export const AVAILABLE_2610 = "#1fe074";
 export const VERIFIED_2610 = "#2F6FE0";
 export const ONLINE_2610 = "#16A34A";
 export const OFFLINE_2610 = "#C2410C";
+
+/** Surfaces de la bulle et du groupe (maquette §7) : clair / sombre. */
+export function surface2610(dark?: boolean): { bg: string; ink: string; muted: string; line: string; sep: string } {
+  return dark
+    ? { bg: "#262123", ink: "#f6efec", muted: "#a99c9e", line: "rgba(255,255,255,.22)", sep: "rgba(255,255,255,.18)" }
+    : { bg: "#ffffff", ink: "#1d1719", muted: "#7a6f71", line: "rgba(0,0,0,.07)", sep: "rgba(0,0,0,.14)" };
+}
 
 export function role2610(r: string | null | undefined): Role2610 {
   const k = (r || "").toLowerCase();
@@ -41,6 +56,10 @@ const ICON: Record<Role2610, string> = {
 const ROCKET = '<path d="M14.5 2.5c3.3 0 6.4 1.6 7 4-3.2 6.4-6.7 9.6-9.7 11.2l-3.5-3.5C10 11.2 11.3 6 14.5 2.5zM8 14.7 4.4 13c1-2.2 2.4-3.9 4.1-5.1zM9.3 16 11 19.6c2.2-1 3.9-2.4 5.1-4.1zM4 20c1.1-2.6 2.2-3.5 3.6-3.6.2 1.4-.9 2.5-3.6 3.6zM15 7a1.6 1.6 0 1 0 0 3.2A1.6 1.6 0 0 0 15 7z"/>';
 /** Couronne (Font Awesome « crown », viewBox 576×512). */
 const CROWN = '<path d="M309 106c11.4-7 19-19.7 19-34c0-22.1-17.9-40-40-40s-40 17.9-40 40c0 14.4 7.6 27 19 34L209.7 220.6c-9.1 18.2-32.7 23.4-48.6 10.7L72 160c5-6.7 8-15 8-24c0-22.1-17.9-40-40-40S0 113.9 0 136s17.9 40 40 40c.2 0 .5 0 .7 0L86.4 427.4c5.5 30.4 32 52.6 63 52.6H426.6c30.9 0 57.4-22.1 63-52.6L535.3 176c.2 0 .5 0 .7 0c22.1 0 40-17.9 40-40s-17.9-40-40-40s-40 17.9-40 40c0 9 3 17.3 8 24l-89.1 71.3c-15.9 12.7-39.5 7.5-48.6-10.7L309 106z"/>';
+/** Cœur (Material « favorite ») cadré au plus juste : viewBox 2 3 20 18.35. */
+const HEART = '<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>';
+/** Étoile (Material « star »). */
+const STAR = '<path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>';
 
 function icon(role: Role2610, size: number, color: string): string {
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${color}" aria-hidden="true" style="display:block;">${ICON[role]}</svg>`;
@@ -70,12 +89,17 @@ export type ProfilePin2610 = {
   roles: (string | null | undefined)[];
   premium?: boolean;
   live?: boolean;
-  /** 26/10 (Daniel : « pawboost pawspot etc faut laisser ») — signes existants, redessinés discrets. */
+  /** Halos : UN seul à la fois, priorité inchangée (PawBoost > PawFollow > ami). */
   boosted?: boolean;
   pawFollow?: boolean;
+  /** 639 — ami : halo fuchsia + badge cœur (seulement si aucun halo PawBoost / PawFollow). */
+  friend?: boolean;
   verified?: boolean;
   /** true = en ligne (point vert), false = hors ligne (point orange), null = rien. Le direct passe devant. */
   online?: boolean | null;
+  /** 639 (contrat §5) — point vert « disponible aujourd'hui » en bas à gauche. À passer UNIQUEMENT quand
+   *  le serveur a renvoyé `availableDot === true` ; ignoré pour un profil sans rôle gardien / promeneur. */
+  availableDot?: boolean;
   /** Pins du classement (HTML déjà prêt, coin haut gauche). */
   pinsHtml?: string;
   selected?: boolean;
@@ -84,115 +108,141 @@ export type ProfilePin2610 = {
   pop?: boolean;
   /** Prix à montrer (rond SÉLECTIONNÉ seulement, règle visiblePrices appliquée par l'appelant). */
   prices?: Price2610[];
-  /** Prénom sous le rond (zoom rue, existant) — posé sous les pastilles de rôles. */
+  /** 639 — note à poser sur la bulle de prix (« 4,9 »), seulement si la donnée existe déjà. */
+  rating?: string | null;
+  /** Prénom sous le rond (zoom rue, existant) — posé sous les mini-pastilles de rôles. */
   caption?: string | null;
   dark?: boolean;
 };
 export type Price2610 = { role: Role2610; amount: string; unit: string };
 
-/** Taille du rond (README §1 : 50 pt). */
-export const PIN_2610 = 50;
-/** Hauteur réservée sous le rond par les pastilles de rôles d'un profil multi-rôle (42 + 17). */
-export const CHIPS_BOTTOM_2610 = 59;
+/** Taille de la pastille (maquette v2 §4 : 32 pt). */
+export const PIN_2610 = 32;
+/** Bas des mini-pastilles de rôles d'un profil multi-rôle (27 + 12). */
+export const CHIPS_BOTTOM_2610 = 39;
+/** Distance entre le BAS du conteneur 32 px et le bas de la boîte de la bulle : la pointe arrive à
+ *  21 px au-dessus du CENTRE de la pastille (16 + 21 = 37, + 1 px : la pointe dépasse sa boîte d'1 px). */
+export const BUBBLE_BOTTOM_2610 = 38;
+
+const HALO_2610: Record<"boost" | "follow" | "friend", { color: string; rgb: string }> = {
+  boost: { color: BOOST_2610, rgb: "18,216,201" },
+  follow: { color: FOLLOW_2610, rgb: "143,92,255" },
+  friend: { color: FRIEND_2610, rgb: "255,90,210" },
+};
+const WHITE_EDGE = "box-shadow:0 0 0 1.5px #fff;";
 
 /**
- * Marqueur profil — style A « Anneau ». Ancre = centre du rond (le conteneur fait 50 × 50).
- * Rond 50, fond blanc, liseré 1 px, ombre courte + halo du rôle ; anneau 5 px à 5,5 px du bord ;
- * centre 32 px plein + icône blanche 20. Multi-rôle : anneau découpé (écart 6°), centre en
- * camembert + `pets`, pastilles 17 px sous le rond. Couronne 17 px (haut-droite), point « en
- * direct » 10 px (bas-droite, pulsé). Sélectionné : 1,18 avec rebond.
+ * Pastille de profil v2. Ancre = centre exact de la pastille (le conteneur fait 32 × 32).
+ * Rond 32 PLEIN à la couleur du rôle, filet 0,5 px + ombre courte, icône blanche 17. Multi-rôle :
+ * camembert en parts égales + `pets`, mini-pastilles 12 px sous le rond. Halo 43 px derrière (un
+ * seul), couronne 14 px (haut-droite), fusée 13 px ou cœur 15 px (haut-gauche), point « disponible »
+ * 8 px (bas-gauche), point « en direct » 7 px (bas-droite, pulsé). Sélectionné : 1,18 avec rebond
+ * + pointe à la couleur du rôle (mono-rôle).
  */
 export function profilePinHtml2610(o: ProfilePin2610): string {
   const roles = uniqueRoles2610(o.roles);
   const n = roles.length;
   const S = PIN_2610;
   const C = S / 2;
-  const gap = n > 1 ? 6 : 0;
   const main = ROLE_2610[roles[0]];
-  let svg = "";
-  if (n === 1) {
-    svg += `<circle cx="${C}" cy="${C}" r="${C - 5.5}" stroke="${main.color}" stroke-width="5" fill="none"/>`;
-    svg += `<circle cx="${C}" cy="${C}" r="${C - 9}" fill="${main.color}"/>`;
-  } else {
-    roles.forEach((r, i) => {
-      const a0 = (i / n) * 360 + gap;
-      const a1 = ((i + 1) / n) * 360;
-      svg += `<path d="${arc2610(C, C, C - 5.5, a0, a1)}" stroke="${ROLE_2610[r].color}" stroke-width="5" fill="none"/>`;
-    });
-    roles.forEach((r, i) => {
-      svg += `<path d="${wedge(C, C - 9, (i / n) * 360, ((i + 1) / n) * 360 - 0.01)}" fill="${ROLE_2610[r].color}"/>`;
-    });
-  }
-  const glyph = n > 1 ? icon("owner", 20, "#fff") : icon(roles[0], 20, "#fff");
-  const crown = o.premium
-    ? `<span style="position:absolute;z-index:2;right:-4px;top:-4px;width:17px;height:17px;border-radius:50%;background:${GOLD_2610};box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 576 512" width="9" height="8" fill="${GOLD_ICON_2610}" aria-hidden="true" style="display:block;">${CROWN}</svg></span>`
+  const haloKind: "boost" | "follow" | "friend" | null = o.boosted ? "boost" : o.pawFollow ? "follow" : o.friend ? "friend" : null;
+  const ring = "position:absolute;left:-5.5px;top:-5.5px;width:43px;height:43px;border-radius:50%;box-sizing:border-box;pointer-events:none;";
+  const halo = haloKind
+    ? `<span data-${haloKind}-2610="" style="${ring}border:2px solid ${HALO_2610[haloKind].color};background:rgba(${HALO_2610[haloKind].rgb},.22);box-shadow:0 0 9px 1px rgba(${HALO_2610[haloKind].rgb},.75);${haloKind === "boost" ? "animation:hps2610-boost 2.4s ease-in-out infinite;" : ""}"></span>`
+      + (haloKind === "follow" ? `<span data-wave-2610="" style="${ring}border:2px solid ${FOLLOW_2610};animation:hps2610-wave 1.8s ease-out infinite;"></span>` : "")
     : "";
-  // Multi-rôle : les pastilles occupent le bas → le point remonte de 9 px (jamais sur une pastille).
+  const ground = `<span data-ground-2610="" style="position:absolute;left:7px;top:29px;width:18px;height:6px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.38),rgba(0,0,0,0));pointer-events:none;"></span>`;
+  // Pointe de sélection : carré 9 px tourné à 45°, DERRIÈRE le rond, dépasse d'environ 4 px. Mono-rôle seulement.
+  const selTail = o.selected && n === 1
+    ? `<span data-seltail-2610="" style="position:absolute;left:11.5px;top:25.5px;width:9px;height:9px;border-radius:2px;background:${main.color};transform:rotate(45deg);box-shadow:0 1px 2px rgba(0,0,0,.3);"></span>`
+    : "";
+  const edge = "box-shadow:0 0 0 .5px rgba(0,0,0,.25),0 1px 3px rgba(0,0,0,.35);";
+  const disc = n === 1
+    ? `<span data-disc-2610="" style="position:absolute;inset:0;border-radius:50%;background:${main.color};${edge}"></span>`
+    : `<span data-disc-2610="" style="position:absolute;inset:0;border-radius:50%;overflow:hidden;background:${main.color};${edge}"><svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" aria-hidden="true" style="display:block;">${roles
+        .map((r, i) => `<path d="${wedge(C, C, (i / n) * 360, ((i + 1) / n) * 360 - 0.01)}" fill="${ROLE_2610[r].color}"/>`)
+        .join("")}</svg></span>`;
+  const glyph = `<span style="position:absolute;left:${C - 8.5}px;top:${C - 8.5}px;width:17px;height:17px;">${icon(n > 1 ? "owner" : roles[0], 17, "#fff")}</span>`;
+  const badge = "position:absolute;border-radius:50%;display:flex;align-items:center;justify-content:center;";
+  const crown = o.premium
+    ? `<span data-crown-2610="" style="${badge}right:-5px;top:-5px;width:14px;height:14px;background:${GOLD_2610};box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.3);"><svg viewBox="0 0 576 512" width="8.4" height="7" fill="${GOLD_ICON_2610}" aria-hidden="true" style="display:block;">${CROWN}</svg></span>`
+    : "";
+  const rocket = haloKind === "boost"
+    ? `<span data-rocket-2610="" style="${badge}left:-5px;top:-5px;width:13px;height:13px;background:${BOOST_2610};box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.3);"><svg viewBox="0 0 24 24" width="9" height="9" fill="#003d38" aria-hidden="true" style="display:block;">${ROCKET}</svg></span>`
+    : "";
+  const heart = haloKind === "friend"
+    ? `<span data-heart-2610="" style="${badge}left:-6px;top:-6px;width:15px;height:15px;background:linear-gradient(160deg,#f73cc0,#d9159f);box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.3);"><svg viewBox="2 3 20 18.35" width="8" height="7.3" fill="#fff" aria-hidden="true" style="display:block;">${HEART}</svg></span>`
+    : "";
+  // Multi-rôle : les mini-pastilles occupent le bas → les points remontent sur les côtés (jamais sur une mini-pastille).
+  const lowLeft = n > 1 ? "left:-3px;bottom:9px;" : "left:-1px;bottom:-1px;";
+  const lowRight = n > 1 ? "right:-3px;bottom:9px;" : "right:-1px;bottom:-1px;";
+  // Contrat 639 §5 : uniquement gardiens et promeneurs, uniquement quand l'appelant a lu `availableDot === true`.
+  const available = o.availableDot === true && roles.some((r) => r !== "owner")
+    ? `<span data-available-2610="" style="position:absolute;${lowLeft}width:8px;height:8px;border-radius:50%;background:${AVAILABLE_2610};${WHITE_EDGE}"></span>`
+    : "";
   const live = o.live
-    ? `<span data-live-2610="" style="position:absolute;z-index:2;right:0;bottom:${n > 1 ? 9 : 0}px;width:10px;height:10px;border-radius:50%;background:${LIVE_2610};box-shadow:0 0 0 1.5px #fff;animation:hps2610-pulse 1.8s ease-out infinite;"></span>`
+    ? `<span data-live-2610="" style="position:absolute;${lowRight}width:7px;height:7px;border-radius:50%;background:${LIVE_2610};${WHITE_EDGE}animation:hps2610-pulse 1.8s ease-out infinite;"></span>`
     : o.online === true || o.online === false
       // Point « en ligne » : même place et même taille que le point direct, sans pulsation.
-      ? `<span data-online-2610="" style="position:absolute;z-index:2;right:0;bottom:${n > 1 ? 9 : 0}px;width:10px;height:10px;border-radius:50%;background:${o.online ? ONLINE_2610 : OFFLINE_2610};box-shadow:0 0 0 1.5px #fff;"></span>`
+      ? `<span data-online-2610="" style="position:absolute;${lowRight}width:7px;height:7px;border-radius:50%;background:${o.online ? ONLINE_2610 : OFFLINE_2610};${WHITE_EDGE}"></span>`
       : "";
-  // Coche « identité vérifiée » 15 px en bas à GAUCHE (même place que l'app 623 de PAM).
+  // Coche « identité vérifiée » 10 px : le bas gauche revient au point « disponible » → milieu du bord
+  // DROIT (mono-rôle) ; multi-rôle : haut, au centre (les côtés portent les points).
   const verified = o.verified
-    // Multi-rôle : le bas gauche est pris par les pastilles de rôles → milieu du bord DROIT.
-    ? `<span data-verified-2610="" style="position:absolute;z-index:2;${n > 1 ? "right:-6px;top:14px" : "left:-1px;bottom:-1px"};width:15px;height:15px;border-radius:50%;background:${VERIFIED_2610};box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block;"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>`
+    ? `<span data-verified-2610="" style="${badge}${n > 1 ? "left:11px;top:-5px" : "right:-5px;top:11px"};width:10px;height:10px;background:${VERIFIED_2610};box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.3);"><svg viewBox="0 0 24 24" width="7" height="7" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block;"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>`
     : "";
-  // Fusée PawBoost 15 px au milieu du bord gauche (le bas gauche est à la coche).
-  const rocket = o.boosted
-    ? `<span data-rocket-2610="" style="position:absolute;z-index:2;left:-6px;top:17.5px;width:15px;height:15px;border-radius:50%;background:${BOOST_2610};box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="9" height="9" fill="#fff" aria-hidden="true" style="display:block;">${ROCKET}</svg></span>`
-    : "";
-  // Halo discret sous le rond : PawBoost turquoise qui respire, sinon PawFollow violet fixe.
-  const halo = o.boosted
-    // 30/10 (LEO, Daniel : « halos pas assez voyants ») — liseré blanc 3 px, anneau PLEIN 5 px (turquoise PawBoost qui
-    // respire / violet PawFollow fixe), lueur large : visible sur fond clair comme sombre, à 375 px.
-    ? `<span data-boost-2610="" style="position:absolute;inset:0;border-radius:50%;animation:hps2610-boost 1.6s ease-in-out infinite;box-shadow:0 0 0 3px #fff,0 0 0 8px ${BOOST_2610},0 0 26px 10px rgba(6,182,212,.8);"></span>`
-    : o.pawFollow
-      ? `<span data-follow-2610="" style="position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 3px #fff,0 0 0 8px #7C3AED,0 0 22px 9px rgba(124,58,237,.7);"></span>`
-      : "";
   const chips = n > 1
-    ? `<span data-chips-2610="" style="position:absolute;left:50%;top:42px;transform:translateX(-50%);display:flex;gap:4px;">${roles
-        .map((r) => `<span style="width:17px;height:17px;border-radius:50%;background:${ROLE_2610[r].color};box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(0,0,0,.12),0 2px 3px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;">${icon(r, 10.5, "#fff")}</span>`)
+    ? `<span data-chips-2610="" style="position:absolute;left:50%;top:27px;transform:translateX(-50%);display:flex;gap:3px;">${roles
+        .map((r) => `<span style="width:12px;height:12px;border-radius:50%;background:${ROLE_2610[r].color};box-shadow:0 0 0 1.5px #fff,0 1px 2px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;flex:none;">${icon(r, 8, "#fff")}</span>`)
         .join("")}</span>`
     : "";
-  const capTop = n > 1 ? CHIPS_BOTTOM_2610 + 4 : S + 4;
+  const sf = surface2610(o.dark);
+  const capTop = n > 1 ? CHIPS_BOTTOM_2610 + 4 : S + 6;
   const caption = o.caption
-    ? `<span data-pin-extra="" style="position:absolute;top:${capTop}px;left:50%;transform:translateX(-50%);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:10px;white-space:nowrap;max-width:160px;overflow:hidden;background:${o.dark ? "#262123" : "#fff"};color:${o.dark ? "#f6efec" : "#1d1719"};font:600 10.5px/1 Poppins,Inter,system-ui,sans-serif;box-shadow:0 2px 6px -1px rgba(0,0,0,.3);">${esc(o.caption)}</span>`
+    ? `<span data-pin-extra="" style="position:absolute;top:${capTop}px;left:50%;transform:translateX(-50%);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:10px;white-space:nowrap;max-width:160px;overflow:hidden;background:${sf.bg};color:${sf.ink};font:600 10.5px/1 Poppins,Inter,system-ui,sans-serif;box-shadow:0 2px 6px -1px rgba(0,0,0,.3);">${esc(o.caption)}</span>`
     : "";
-  const bubble = o.selected && o.prices && o.prices.length ? priceBubbleHtml2610(o.prices, S + 5) : "";
+  const bubble = o.selected && o.prices && o.prices.length
+    ? priceBubbleHtml2610(o.prices, BUBBLE_BOTTOM_2610, { dark: o.dark, pop: o.pop !== false, rating: o.rating })
+    : "";
   const anim = o.selected ? `transform:scale(1.18);${o.pop === false ? "" : "animation:hps2610-pop .35s cubic-bezier(.3,1.6,.5,1);"}` : "";
   return `<div data-pin-2610="" ${o.selected ? 'data-selected-2610=""' : ""} style="position:relative;width:${S}px;height:${S}px;transform-origin:50% 50%;${anim}">`
-    + halo
-    + `<div style="position:absolute;inset:0;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.16),0 2px 3px rgba(0,0,0,.25),0 0 14px 3px ${main.glow};">`
-    + `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" aria-hidden="true" style="position:absolute;inset:0;z-index:0;display:block;">${svg}</svg>`
-    + `<span style="position:absolute;z-index:1;left:${C - 10}px;top:${C - 10}px;width:20px;height:20px;">${glyph}</span>`
-    + `${crown}${live}${verified}${rocket}${o.pinsHtml || ""}</div>${chips}${caption}${bubble}</div>`;
+    + ground + halo + selTail + disc + glyph
+    + `${crown}${rocket}${heart}${available}${live}${verified}${o.pinsHtml || ""}${chips}${caption}${bubble}</div>`;
 }
 
 /**
- * Bulle de prix (README §2) : pilule blanche (padding 2), un segment plein par rôle, icône 12 dans
- * un rond blanc 18, montant 12,5 gras + unité 9,5 medium blanc 88 %, pointe blanche 12 × 7, ombre
- * fine. `bottom` = distance entre le BAS du conteneur 50 px et la pointe (maquette : pointe à 30 px
- * au-dessus du CENTRE du rond = 25 + 30 = 55 px depuis le bas). La pilule porte
- * `data-bubble-2610` : la passe de mise en page la décale horizontalement pour la garder dans
- * l'écran, la pointe (`data-tail-2610`) reste sur le marqueur.
+ * Bulle de prix v2 (maquette §7) : UNE pilule claire de 28 px (fond de surface, liseré intérieur 1 px,
+ * padding horizontal 4). Par rôle : pastille d'icône 20 px en dégradé du rôle (160°) + icône blanche
+ * 13, puis à 5 px le montant 13 px très gras (texte principal) et l'unité 9,5 px demi-gras (texte
+ * secondaire), 8 px de marge à droite ; séparateur vertical 1 × 14 entre deux rôles. Pointe : carré
+ * 11 px tourné à 45° (coin 3 px), même fond, qui dépasse d'environ 6 px. `bottom` = distance entre le
+ * BAS du conteneur et le bas de la boîte de la bulle. La pilule porte `data-bubble-2610` : la passe
+ * de mise en page la décale horizontalement pour la garder dans l'écran (elle ne doit donc porter ni
+ * `translate` ni animation), la pointe (`data-tail-2610`) reste sur le marqueur. L'apparition
+ * (280 ms) est jouée sur l'ENVELOPPE, seulement quand `pop` est vrai.
  */
-export function priceBubbleHtml2610(prices: Price2610[], bottom: number): string {
+export function priceBubbleHtml2610(prices: Price2610[], bottom: number, opts: { dark?: boolean; pop?: boolean; rating?: string | null } = {}): string {
+  const sf = surface2610(opts.dark);
   const segs = prices
-    .map((p) => {
-      const c = ROLE_2610[p.role].color;
-      return `<span style="display:flex;align-items:center;gap:6px;height:24px;padding:0 10px 0 3px;border-radius:999px;background:${c};white-space:nowrap;">`
-        + `<span style="width:18px;height:18px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;">${icon(p.role, 12, c)}</span>`
-        + `<span style="display:flex;align-items:baseline;gap:1px;line-height:1;font-family:Poppins,Inter,system-ui,sans-serif;">`
-        + `<span style="font-size:12.5px;font-weight:700;color:#fff;letter-spacing:-.01em;">${esc(p.amount)}</span>`
-        + (p.unit ? `<span style="font-size:9.5px;font-weight:500;color:rgba(255,255,255,.88);">${esc(p.unit)}</span>` : "")
+    .map((p, i) => {
+      const c = ROLE_2610[p.role];
+      return (i > 0 ? `<span data-bubble-sep-2610="" style="width:1px;height:14px;background:${sf.sep};margin-right:4px;flex:none;"></span>` : "")
+        + `<span style="display:flex;align-items:center;margin-right:8px;white-space:nowrap;">`
+        + `<span style="width:20px;height:20px;border-radius:50%;background:linear-gradient(160deg,${c.light},${c.color});display:flex;align-items:center;justify-content:center;flex:none;">${icon(p.role, 13, "#fff")}</span>`
+        + `<span style="display:flex;align-items:baseline;gap:1px;margin-left:5px;line-height:1;font-family:Poppins,Inter,system-ui,sans-serif;">`
+        + `<span style="font-size:13px;font-weight:800;color:${sf.ink};letter-spacing:-.01em;">${esc(p.amount)}</span>`
+        + (p.unit ? `<span style="font-size:9.5px;font-weight:600;color:${sf.muted};">${esc(p.unit)}</span>` : "")
         + `</span></span>`;
     })
     .join("");
-  return `<span data-price-bubble-2610="" style="position:absolute;left:50%;bottom:${bottom}px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 0 .6px rgba(0,0,0,.4)) drop-shadow(0 2px 2px rgba(0,0,0,.22));cursor:pointer;">`
-    + `<span data-bubble-2610="" style="display:flex;gap:2px;padding:2px;border-radius:999px;background:#fff;box-shadow:0 0 0 .5px rgba(0,0,0,.08);">${segs}</span>`
-    + `<span data-tail-2610="" style="display:block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid #fff;margin-top:-1px;"></span></span>`;
+  // Étiquette de note : pilule dorée 16 px à cheval sur le bord supérieur, à 10 px du bord droit.
+  const rating = opts.rating
+    ? `<span data-bubble-rating-2610="" style="position:absolute;right:10px;top:-10px;height:16px;display:flex;align-items:center;gap:1px;padding:0 5px 0 3px;border-radius:999px;background:#ffc526;box-shadow:0 0 0 1.5px ${sf.bg};white-space:nowrap;"><svg viewBox="0 0 24 24" width="11" height="11" fill="#3d2600" aria-hidden="true" style="display:block;">${STAR}</svg><span style="font:800 10px/1 Poppins,Inter,system-ui,sans-serif;color:#3d2600;">${esc(opts.rating)}</span></span>`
+    : "";
+  const anim = opts.pop ? "transform-origin:50% 100%;animation:hps2610-bub .28s cubic-bezier(.3,1.5,.5,1) both;" : "";
+  return `<span data-price-bubble-2610="" style="position:absolute;left:50%;bottom:${bottom}px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 1px 1px rgba(0,0,0,.2)) drop-shadow(0 6px 9px rgba(0,0,0,.24));cursor:pointer;${anim}">`
+    + `<span data-bubble-2610="" style="position:relative;z-index:1;display:flex;align-items:center;height:28px;padding:0 4px;border-radius:999px;background:${sf.bg};box-shadow:inset 0 0 0 1px ${sf.line};">${segs}${rating}</span>`
+    + `<span data-tail-2610="" style="position:relative;z-index:0;display:block;width:11px;height:11px;border-radius:3px;background:${sf.bg};transform:rotate(45deg);margin-top:-5.5px;"></span></span>`;
 }
 
 /** Coupe « 20 €/jour » en montant « 20 € » + unité « /jour » (rien à couper = tout en montant). */
@@ -218,41 +268,42 @@ export function visiblePrices2610(viewer: string | null | undefined, profileRole
 }
 
 /**
- * Groupe (README §3) : rond 48, fond blanc (sombre #262123), contour blanc 2,5, anneau 7
- * segmenté proportionnellement aux rôles (écart 5°), nombre 15,5 extra-gras. « dès X » masqué,
- * montré seulement quand le groupe est touché (`fromLabel`).
+ * Groupe v2 (maquette §6) : rond 32, fond blanc (sombre #262123), PAS de contour blanc, même filet
+ * et même ombre que les pastilles, anneau 3,3 px partagé proportionnellement aux rôles (petit écart),
+ * nombre 13 px très gras. « dès X » masqué, montré seulement quand le groupe est touché (`fromLabel`) :
+ * pilule 24 px, point 7 px à la couleur du rôle, « dès » 10 px secondaire, prix 12 px très gras.
  */
 export function clusterHtml2610(o: { counts: Partial<Record<Role2610, number>>; total: number; dark?: boolean; fromLabel?: { from: string; amount: string; role: Role2610 } | null }): string {
-  const S = 48;
+  const S = PIN_2610;
   const C = S / 2;
+  const R = C - 2.2;
   const order: Role2610[] = ["walker", "owner", "sitter"];
   const parts = order.map((r) => [r, Math.max(0, o.counts[r] || 0)] as const).filter(([, v]) => v > 0);
   const tot = parts.reduce((s, [, v]) => s + v, 0);
   let acc = 0;
   let svg = "";
   if (parts.length === 1) {
-    svg = `<circle cx="${C}" cy="${C}" r="${C - 5}" stroke="${ROLE_2610[parts[0][0]].color}" stroke-width="7" fill="none"/>`;
+    svg = `<circle cx="${C}" cy="${C}" r="${R}" stroke="${ROLE_2610[parts[0][0]].color}" stroke-width="3.3" fill="none"/>`;
   } else {
     for (const [r, v] of parts) {
-      const a0 = (acc / tot) * 360 + 5;
+      const a0 = (acc / tot) * 360 + 8;
       acc += v;
       const a1 = (acc / tot) * 360;
-      svg += `<path d="${arc2610(C, C, C - 5, a0, a1)}" stroke="${ROLE_2610[r].color}" stroke-width="7" fill="none"/>`;
+      svg += `<path d="${arc2610(C, C, R, a0, Math.max(a0 + 1, a1))}" stroke="${ROLE_2610[r].color}" stroke-width="3.3" fill="none"/>`;
     }
   }
   const label = o.total > 99 ? "99+" : String(o.total);
-  const bg = o.dark ? "#262123" : "#fff";
-  const ink = o.dark ? "#f6efec" : "#1d1719";
-  const muted = o.dark ? "#a99c9e" : "#7a6f71";
+  const sf = surface2610(o.dark);
   const from = o.fromLabel
-    ? `<span data-cluster-from-2610="" style="position:absolute;left:50%;top:${C + 27}px;transform:translateX(-50%);display:flex;align-items:center;gap:3px;height:22px;padding:0 10px;border-radius:999px;background:${bg};box-shadow:0 4px 10px -4px rgba(0,0,0,.3),inset 0 0 0 1.5px ${ROLE_2610[o.fromLabel.role].color}55;white-space:nowrap;font-family:Poppins,Inter,system-ui,sans-serif;">`
-      + (o.fromLabel.from ? `<span style="font-size:10px;font-weight:600;color:${muted};">${esc(o.fromLabel.from)}</span>` : "")
-      + `<span style="font-size:12px;font-weight:800;color:${ROLE_2610[o.fromLabel.role].color};">${esc(o.fromLabel.amount)}</span></span>`
+    ? `<span data-cluster-from-2610="" style="position:absolute;left:50%;top:${S + 5}px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;height:24px;padding:0 10px 0 8px;border-radius:999px;background:${sf.bg};box-shadow:inset 0 0 0 1px ${sf.line},0 1px 1px rgba(0,0,0,.2),0 6px 9px -2px rgba(0,0,0,.24);white-space:nowrap;font-family:Poppins,Inter,system-ui,sans-serif;">`
+      + `<span style="width:7px;height:7px;border-radius:50%;background:${ROLE_2610[o.fromLabel.role].color};flex:none;"></span>`
+      + (o.fromLabel.from ? `<span style="font-size:10px;font-weight:600;color:${sf.muted};">${esc(o.fromLabel.from)}</span>` : "")
+      + `<span style="font-size:12px;font-weight:800;color:${sf.ink};">${esc(o.fromLabel.amount)}</span></span>`
     : "";
   return `<div data-cluster-2610="" ${o.fromLabel ? 'data-cluster-open-2610=""' : ""} style="position:relative;width:${S}px;height:${S}px;">`
-    + `<div style="position:absolute;inset:0;border-radius:50%;background:${bg};box-shadow:0 0 0 2.5px #fff,0 0 0 3.5px rgba(0,0,0,.18),0 3px 3px rgba(0,0,0,.25);">`
+    + `<div style="position:absolute;inset:0;border-radius:50%;background:${sf.bg};box-shadow:0 0 0 .5px rgba(0,0,0,.25),0 1px 3px rgba(0,0,0,.35);">`
     + `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" aria-hidden="true" style="position:absolute;inset:0;z-index:0;display:block;">${svg}</svg>`
-    + `<span style="position:absolute;z-index:1;inset:0;display:flex;align-items:center;justify-content:center;font:800 15.5px/1 Poppins,Inter,system-ui,sans-serif;letter-spacing:-.04em;color:${ink};">${label}</span>`
+    + `<span style="position:absolute;z-index:1;inset:0;display:flex;align-items:center;justify-content:center;font:800 ${label.length > 2 ? 10.5 : 13}px/1 Poppins,Inter,system-ui,sans-serif;letter-spacing:-.04em;color:${sf.ink};">${label}</span>`
     + `</div>${from}</div>`;
 }
 
@@ -298,16 +349,18 @@ export function popOnce2610(id: string, selected: boolean, now = Date.now()): bo
   return now - popAt2610 < 350;
 }
 
-/** Images clés (rebond de la sélection, point « en direct » pulsé) — mêmes courbes que la maquette. */
+/** Images clés (rebond de la sélection, apparition de la bulle, onde PawFollow, point « en direct » pulsé). */
 export const PAWMAP_2610_CSS = `
-@keyframes hps2610-boost { 0%,100% { box-shadow:0 0 0 3px #fff,0 0 0 8px #06B6D4,0 0 20px 8px rgba(6,182,212,.7); } 50% { box-shadow:0 0 0 3px #fff,0 0 0 10px #06B6D4,0 0 40px 16px rgba(6,182,212,.95); } }
+@keyframes hps2610-boost { 0%,100% { box-shadow:0 0 9px 1px rgba(18,216,201,.75); } 50% { box-shadow:0 0 15px 4px rgba(18,216,201,.95); } }
+@keyframes hps2610-wave { 0% { transform:scale(1); opacity:.75; } 100% { transform:scale(1.6); opacity:0; } }
 @keyframes hps2610-pop { 0% { transform:scale(1); } 100% { transform:scale(1.18); } }
+@keyframes hps2610-bub { 0% { opacity:0; transform:translateX(-50%) translateY(6px) scale(.7); } 100% { opacity:1; transform:translateX(-50%) translateY(0) scale(1); } }
 @keyframes hps2610-pulse { 0% { box-shadow:0 0 0 1.5px #fff,0 0 0 0 rgba(232,69,47,.55); } 70% { box-shadow:0 0 0 1.5px #fff,0 0 0 7px rgba(232,69,47,0); } 100% { box-shadow:0 0 0 1.5px #fff,0 0 0 0 rgba(232,69,47,0); } }
 .hps2610-dim { opacity:.85; }
 .hps2610-btn { transition: transform .15s; }
 .hps2610-btn:hover > span { transform: translateY(-1px); }
 .hps2610-btn:active > span { transform: scale(.94); }
-@media (prefers-reduced-motion: reduce) { [data-pin-2610] { animation:none !important; } [data-live-2610] { animation:none !important; } [data-boost-2610] { animation:none !important; } }
+@media (prefers-reduced-motion: reduce) { [data-pin-2610], [data-price-bubble-2610], [data-live-2610], [data-boost-2610] { animation:none !important; } [data-wave-2610] { display:none !important; } }
 `;
 
 /**

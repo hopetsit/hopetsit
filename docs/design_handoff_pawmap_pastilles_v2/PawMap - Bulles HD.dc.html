@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&amp;display=swap" rel="stylesheet" />
+<style>
+body{margin:0;background:#1a1617;font-family:'Poppins',system-ui,sans-serif;}
+a{color:#e0503a;} a:hover{color:#ff7a5c;}
+@keyframes toe{0%,70%,100%{transform:scale(1);}80%{transform:scale(1.5);}90%{transform:scale(.9);}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(232,69,47,.55);}70%{box-shadow:0 0 0 7px rgba(232,69,47,0);}100%{box-shadow:0 0 0 0 rgba(232,69,47,0);}}
+@keyframes bubIn{0%{opacity:0;transform:translateY(6px) scale(.7);}100%{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes haloPulse{0%{transform:scale(1);opacity:.75;}100%{transform:scale(1.6);opacity:0;}}
+@keyframes cardIn{0%{opacity:0;transform:translateY(-8px);}100%{opacity:1;transform:translateY(0);}}
+@media (prefers-reduced-motion:reduce){.bub-pop,.halo-pulse,.card-pop{animation:none!important;}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-wrap:wrap;justify-content:center;gap:48px;padding:40px 24px;box-sizing:border-box;">
+<div style="flex-basis:100%;display:flex;flex-direction:column;align-items:center;gap:10px;">
+  <div style="display:flex;gap:6px;padding:5px;border-radius:24px;background:#2a2325;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);">
+    <sc-for list="{{ roleTabs }}" as="rt" hint-placeholder-count="3">
+      <div onClick="{{ rt.onClick }}" style="cursor:pointer;display:flex;align-items:center;gap:7px;padding:8px 16px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;background:{{ rt.bg }};color:{{ rt.color }};"><span style="width:10px;height:10px;border-radius:50%;background:{{ rt.dot }};box-shadow:0 0 0 1.5px #fff;"></span>{{ rt.label }}</div>
+    </sc-for>
+  </div>
+  <div style="font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#f3ece8;">Style des marqueurs</div>
+  <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:5px;border-radius:24px;background:#2a2325;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);">
+    <sc-for list="{{ styles }}" as="st" hint-placeholder-count="5">
+      <div onClick="{{ st.onClick }}" style="cursor:pointer;padding:8px 16px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;background:{{ st.bg }};color:{{ st.color }};">{{ st.label }}</div>
+    </sc-for>
+  </div>
+</div>
+<div style="flex-basis:100%;margin-top:-30px;display:flex;flex-wrap:wrap;justify-content:center;gap:8px 18px;font-size:12px;font-weight:600;color:#f3ece8;">
+  <sc-for list="{{ legend }}" as="lg" hint-placeholder-count="4">
+    <div style="display:flex;align-items:center;gap:8px;"><span aria-hidden="true" style="width:13px;height:13px;border-radius:50%;box-sizing:border-box;background:{{ lg.fill }};border:2px solid {{ lg.c }};box-shadow:0 0 7px {{ lg.glow }};"></span>{{ lg.label }}</div>
+  </sc-for>
+</div>
+<sc-for list="{{ phones }}" as="ph" hint-placeholder-count="2">
+<div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+  <div style="font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#f3ece8;">{{ ph.label }}</div>
+  <div style="position:relative;width:390px;height:844px;border-radius:48px;overflow:hidden;background:{{ ph.t.base }};box-shadow:0 0 0 10px #0d0b0c,0 0 0 11px #3a3335,0 40px 80px -20px rgba(0,0,0,.7);">
+    <div onClick="{{ ph.clear }}" style="position:absolute;inset:0;transform-origin:0 0;transform:{{ ph.mapTf }};transition:transform .5s cubic-bezier(.2,.8,.2,1);">
+    <div style="position:absolute;left:-189px;top:-90px;width:768px;display:grid;grid-template-columns:repeat(3,256px);filter:{{ ph.t.mapFilter }};">
+      <sc-for list="{{ ph.tiles }}" as="tl" hint-placeholder-count="12"><div style="width:256px;height:256px;background-image:url({{ tl }});background-size:cover;"></div></sc-for>
+    </div>
+    </div>
+
+    <div style="position:absolute;inset:0;z-index:1;isolation:isolate;">
+    <sc-for list="{{ ph.markers }}" as="m" hint-placeholder-count="9">
+    <div onClick="{{ m.onTap }}" style="position:absolute;left:{{ m.x }}px;top:{{ m.y }}px;width:0;height:0;opacity:{{ m.op }};z-index:{{ m.z }};transform:scale({{ m.sc }});cursor:pointer;transition:left .5s cubic-bezier(.2,.8,.2,1),top .5s cubic-bezier(.2,.8,.2,1),opacity .3s,transform .35s cubic-bezier(.3,1.6,.5,1);">
+      <div style="position:absolute;left:-9px;top:-3px;width:18px;height:6px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.38),rgba(0,0,0,0));"></div>
+      <sc-if value="{{ m.showPrice }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:{{ m.bubDx }}px;bottom:{{ m.bubBottom }}px;transform:translateX(-50%);">
+        <div class="bub-pop" style="display:flex;flex-direction:column;align-items:center;transform-origin:50% 100%;animation:bubIn .28s cubic-bezier(.3,1.5,.5,1) both;filter:drop-shadow(0 1px 1px rgba(0,0,0,.2)) drop-shadow(0 6px 9px rgba(0,0,0,.24));">
+          <div style="position:relative;z-index:1;display:flex;align-items:center;height:28px;padding:0 4px;border-radius:999px;background:{{ ph.t.pillSolid }};box-shadow:inset 0 0 0 1px {{ ph.t.bubEdge }};">
+            <sc-if value="{{ m.hasRating }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;right:10px;top:-10px;display:flex;align-items:center;gap:1px;height:16px;padding:0 6px 0 4px;border-radius:999px;background:#ffc526;box-shadow:0 0 0 1.5px {{ ph.t.pillSolid }};font-size:10px;font-weight:800;line-height:1;color:#3d2600;white-space:nowrap;"><span class="material-symbols-rounded" aria-hidden="true" style="font-size:11px;line-height:1;font-variation-settings:'FILL' 1,'wght' 700;">star</span>{{ m.rating }}</div>
+            </sc-if>
+            <sc-for list="{{ m.segs }}" as="sg" hint-placeholder-count="1">
+              <div style="display:flex;align-items:center;white-space:nowrap;">
+                <span style="width:{{ sg.sep }}px;height:14px;margin-right:{{ sg.sepGap }}px;border-radius:1px;background:{{ ph.t.bubLine }};"></span>
+                <span style="width:20px;height:20px;flex-shrink:0;border-radius:50%;background:{{ sg.grad }};box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 1px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;"><span class="material-symbols-rounded" aria-hidden="true" style="font-size:13px;line-height:1;color:#fff;font-variation-settings:'FILL' 1,'wght' 600,'GRAD' 0,'opsz' 24;-webkit-font-smoothing:antialiased;">{{ sg.icon }}</span></span>
+                <span style="display:flex;align-items:baseline;gap:1px;line-height:1;margin-left:5px;padding-right:8px;">
+                  <span style="font-size:13px;font-weight:800;color:{{ ph.t.text }};letter-spacing:-.02em;">{{ sg.amount }}</span>
+                  <span style="font-size:9.5px;font-weight:600;color:{{ ph.t.muted }};">{{ sg.unit }}</span>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="width:11px;height:11px;margin-top:-7px;border-radius:0 0 3px 0;transform:translateX({{ m.tailDx }}px) rotate(45deg);background:{{ ph.t.pillSolid }};box-shadow:inset -1px -1px 0 {{ ph.t.bubEdge }};"></div>
+        </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ m.isCluster }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:-16px;top:-16px;width:32px;height:32px;border-radius:50%;background:{{ ph.t.clusterIn }};box-shadow:0 0 0 .5px rgba(0,0,0,.25),0 1px 3px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;">
+          <div style="position:absolute;inset:0;border-radius:50%;background:{{ m.ring }};-webkit-mask:radial-gradient(circle,transparent 12.3px,#000 12.7px);mask:radial-gradient(circle,transparent 12.3px,#000 12.7px);"></div>
+          <div style="display:none;-webkit-mask:radial-gradient(circle,transparent 16.5px,#000 17px);mask:radial-gradient(circle,transparent 16.5px,#000 17px);"></div>
+          <div style="position:relative;width:24px;height:24px;border-radius:50%;background:{{ ph.t.clusterIn }};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;letter-spacing:-.04em;color:{{ ph.t.text }};">{{ m.count }}</div>
+        </div>
+        <sc-if value="{{ m.showPrice }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:0;top:21px;transform:translateX(-50%);display:flex;align-items:center;gap:5px;height:24px;padding:0 10px 0 8px;border-radius:999px;background:{{ ph.t.pillSolid }};box-shadow:0 1px 1px rgba(0,0,0,.14),0 5px 10px -3px rgba(0,0,0,.28),inset 0 0 0 1px {{ ph.t.bubEdge }};white-space:nowrap;">
+          <span style="width:7px;height:7px;border-radius:50%;background:{{ m.labelColor }};"></span>
+          <span style="font-size:10px;font-weight:600;color:{{ ph.t.muted }};">dès</span>
+          <span style="font-size:12px;font-weight:800;letter-spacing:-.01em;color:{{ ph.t.text }};">{{ m.label }}</span>
+        </div>
+        </sc-if>
+      </sc-if>
+      <sc-if value="{{ m.isClassic }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:{{ m.left }}px;top:{{ m.top }}px;width:{{ m.size }}px;height:{{ m.size }}px;filter:drop-shadow(0 0 .6px rgba(0,0,0,.4)) drop-shadow(0 1px 1px rgba(0,0,0,.2)) drop-shadow(0 4px 5px rgba(0,0,0,.2));">
+          <div style="position:absolute;inset:0;border-radius:{{ m.radius }};transform:rotate({{ m.rot }}deg);padding:{{ m.pad }}px;box-sizing:border-box;background:#fff;">
+            <div style="width:100%;height:100%;border-radius:{{ m.radius }};background:{{ m.fill }};box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 3px rgba(0,0,0,.12);position:relative;overflow:hidden;"></div>
+          </div>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;">
+            <span class="material-symbols-rounded" style="font-size:{{ m.glyphSize }}px;line-height:1;font-weight:700;font-variation-settings:'FILL' 1,'wght' 600,'GRAD' 0,'opsz' 24;-webkit-font-smoothing:antialiased;font-family:{{ m.glyphFont }};">{{ m.glyph }}</span>
+          </div>
+          <sc-if value="{{ m.multi }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:50%;top:{{ m.chipTop }}px;transform:translateX(-50%);display:flex;padding:2px;gap:2px;border-radius:999px;background:#fff;box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 2px 5px -1px rgba(0,0,0,.35);">
+              <sc-for list="{{ m.chips }}" as="c" hint-placeholder-count="2">
+                <div style="width:{{ m.chipSz }}px;height:{{ m.chipSz }}px;border-radius:50%;background:{{ c.bg }};box-shadow:inset 0 -1.5px 2px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;">
+                  <span class="material-symbols-rounded" style="font-size:{{ m.chipIc }}px;line-height:1;color:#fff;font-variation-settings:'FILL' 1,'wght' 600,'GRAD' 0,'opsz' 24;-webkit-font-smoothing:antialiased;">{{ c.icon }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ m.premium }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;right:{{ m.badgeOff }}px;top:{{ m.badgeOff }}px;width:{{ m.badge }}px;height:{{ m.badge }}px;border-radius:50%;background:#f6b400;box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;">
+              <span role="img" aria-label="PawPremium" style="width:60%;height:50%;background:#6b3a00;clip-path:polygon(0 12%,27% 52%,50% 0,73% 52%,100% 12%,88% 100%,12% 100%);"></span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ m.live }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;right:-1px;bottom:{{ m.dotBottom }}px;width:9px;height:9px;border-radius:50%;background:#e8452f;box-shadow:0 0 0 1.5px #fff;animation:pulse 1.8s ease-out infinite;"></div>
+          </sc-if>
+        </div>
+      </sc-if>
+      <sc-if value="{{ m.isRing }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:-16px;top:-16px;width:32px;height:32px;border-radius:50%;background:transparent;box-shadow:0 0 0 .5px rgba(0,0,0,.25),0 1px 3px rgba(0,0,0,.35);">
+                    <sc-if value="{{ m.hasHalo }}" hint-placeholder-val="{{ false }}">
+            <div aria-hidden="true" style="position:absolute;inset:-5.5px;z-index:-1;border-radius:50%;box-sizing:border-box;background:{{ m.haloSoft }};border:2px solid {{ m.haloC }};box-shadow:0 0 9px 1px {{ m.haloGlow }};"></div>
+          </sc-if>
+          <sc-if value="{{ m.haloPulse }}" hint-placeholder-val="{{ false }}">
+            <div aria-hidden="true" class="halo-pulse" style="position:absolute;inset:-5.5px;z-index:-1;border-radius:50%;box-sizing:border-box;border:2px solid {{ m.haloC }};animation:haloPulse 1.8s ease-out infinite;"></div>
+          </sc-if>
+          <sc-if value="{{ m.boost }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:-5px;top:-5px;width:13px;height:13px;border-radius:50%;background:{{ m.haloC }};box-shadow:0 0 0 1.5px #fff,0 1px 2px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;"><span class="material-symbols-rounded" role="img" aria-label="PawBoost" style="font-size:9px;line-height:1;color:#003d38;font-variation-settings:'FILL' 1,'wght' 700;">rocket_launch</span></div>
+          </sc-if>
+          <sc-if value="{{ m.friend }}" hint-placeholder-val="{{ false }}">
+            <div role="img" aria-label="Ami" style="position:absolute;left:-6px;top:-6px;width:15px;height:15px;border-radius:50%;background:linear-gradient(160deg,#f73cc0,#d9159f);box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(120,0,90,.45),inset 0 1px 0 rgba(255,255,255,.35);"><span aria-hidden="true" style="position:absolute;left:3.5px;top:4.1px;width:8px;height:7.3px;background:#fff;clip-path:path('M4 7.3C1.5 5.3 0 3.9 0 2.2C0 .9 1 0 2.2 0C2.9 0 3.6 .35 4 .9C4.4 .35 5.1 0 5.8 0C7 0 8 .9 8 2.2C8 3.9 6.5 5.3 4 7.3Z');"></span></div>
+          </sc-if>
+          <sc-if value="{{ m.avail }}" hint-placeholder-val="{{ false }}">
+            <div role="img" aria-label="Disponible maintenant" style="position:absolute;left:-1px;bottom:-1px;width:8px;height:8px;border-radius:50%;background:#1fe074;box-shadow:0 0 0 1.5px #fff,0 1px 2px rgba(0,0,0,.3);"></div>
+          </sc-if>
+          <sc-if value="{{ m.tip }}" hint-placeholder-val="{{ false }}">
+            <div aria-hidden="true" style="position:absolute;left:11.5px;top:25px;width:9px;height:9px;z-index:-1;border-radius:0 0 2px 0;transform:rotate(45deg);background:{{ m.tipC }};box-shadow:1px 1px 2px rgba(0,0,0,.3);"></div>
+          </sc-if>
+          <div style="position:absolute;inset:0;border-radius:50%;background:{{ m.softBg }};display:flex;align-items:center;justify-content:center;">
+            <span class="material-symbols-rounded" style="font-size:17px;line-height:1;color:{{ m.mainDark }};font-variation-settings:'FILL' 1,'wght' 600,'GRAD' 0,'opsz' 24;-webkit-font-smoothing:antialiased;">{{ m.glyph }}</span>
+          </div>
+          <sc-if value="{{ m.multi }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:50%;top:27px;transform:translateX(-50%);display:flex;gap:3px;">
+              <sc-for list="{{ m.chips }}" as="c" hint-placeholder-count="2">
+                <div style="width:12px;height:12px;border-radius:50%;background:{{ c.bg }};box-shadow:0 0 0 1.5px #fff,0 0 0 2px rgba(0,0,0,.14),0 1px 2px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;"><span class="material-symbols-rounded" style="font-size:8px;line-height:1;color:#fff;font-variation-settings:'FILL' 1,'wght' 700;">{{ c.icon }}</span></div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ m.premium }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;right:-5px;top:-5px;width:14px;height:14px;border-radius:50%;background:#f6b400;box-shadow:0 0 0 1.5px #fff,0 1px 2px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;"><span role="img" aria-label="PawPremium" style="width:60%;height:50%;background:#6b3a00;clip-path:polygon(0 12%,27% 52%,50% 0,73% 52%,100% 12%,88% 100%,12% 100%);"></span></div>
+          </sc-if>
+          <sc-if value="{{ m.live }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;right:-1px;bottom:-1px;width:7px;height:7px;border-radius:50%;background:#e8452f;box-shadow:0 0 0 1.5px #fff;animation:pulse 1.8s ease-out infinite;"></div>
+          </sc-if>
+        </div>
+      </sc-if>
+      <sc-if value="{{ m.isPill }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:0;bottom:4px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 0 .6px rgba(0,0,0,.45)) drop-shadow(0 2px 2px rgba(0,0,0,.28));">
+          <div style="position:relative;display:flex;padding:3px;border-radius:999px;background:#fff;">
+            <sc-for list="{{ m.chips }}" as="c" hint-placeholder-count="1">
+              <div style="position:relative;overflow:hidden;width:32px;height:32px;margin-left:{{ c.ml }}px;border-radius:50%;background:{{ c.fill }};box-shadow:0 0 0 2px #fff;display:flex;align-items:center;justify-content:center;"><span class="material-symbols-rounded" style="position:relative;font-size:19px;line-height:1;color:#fff;font-variation-settings:'FILL' 1,'wght' 600,'GRAD' 0,'opsz' 24;-webkit-font-smoothing:antialiased;">{{ c.icon }}</span></div>
+            </sc-for>
+            <sc-if value="{{ m.premium }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;right:-5px;top:-5px;width:16px;height:16px;border-radius:50%;background:#f6b400;box-shadow:0 0 0 1.5px #fff;display:flex;align-items:center;justify-content:center;"><span role="img" aria-label="PawPremium" style="width:60%;height:50%;background:#6b3a00;clip-path:polygon(0 12%,27% 52%,50% 0,73% 52%,100% 12%,88% 100%,12% 100%);"></span></div>
+            </sc-if>
+            <sc-if value="{{ m.live }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;right:-2px;bottom:-2px;width:10px;height:10px;border-radius:50%;background:#e8452f;box-shadow:0 0 0 1.5px #fff;animation:pulse 1.8s ease-out infinite;"></div>
+            </sc-if>
+          </div>
+          <div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid #fff;margin-top:-1px;"></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ m.isStack }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:-21px;top:-48px;width:42px;height:42px;filter:drop-shadow(0 0 .6px rgba(0,0,0,.45)) drop-shadow(0 2px 2px rgba(0,0,0,.28));">
+          <sc-for list="{{ m.cards }}" as="c" hint-placeholder-count="1">
+            <div style="position:absolute;inset:0;border-radius:14px;background:#fff;padding:2.5px;box-sizing:border-box;transform:translate({{ c.dx }}px,{{ c.dy }}px) rotate({{ c.rot }}deg);">
+              <div style="position:relative;overflow:hidden;width:100%;height:100%;border-radius:12px;background:{{ c.fill }};display:flex;align-items:center;justify-content:center;"><span class="material-symbols-rounded" style="position:relative;font-size:21px;line-height:1;color:#fff;font-variation-settings:'FILL' 1,'wght' 600,'GRAD' 0,'opsz' 24;-webkit-font-smoothing:antialiased;opacity:{{ c.iconOp }};">{{ c.icon }}</span></div>
+            </div>
+          </sc-for>
+          <div style="position:absolute;left:50%;top:41px;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid #fff;"></div>
+          <sc-if value="{{ m.premium }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;right:-6px;top:-6px;width:17px;height:17px;border-radius:50%;background:#f6b400;box-shadow:0 0 0 1.5px #fff;display:flex;align-items:center;justify-content:center;"><span role="img" aria-label="PawPremium" style="width:60%;height:50%;background:#6b3a00;clip-path:polygon(0 12%,27% 52%,50% 0,73% 52%,100% 12%,88% 100%,12% 100%);"></span></div>
+          </sc-if>
+          <sc-if value="{{ m.live }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;right:-3px;bottom:-3px;width:10px;height:10px;border-radius:50%;background:#e8452f;box-shadow:0 0 0 1.5px #fff;animation:pulse 1.8s ease-out infinite;"></div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+    </sc-for>
+    </div>
+
+    <div style="position:absolute;inset:0;z-index:10;pointer-events:none;">
+    <div style="position:absolute;left:0;right:0;top:0;height:46px;display:flex;align-items:center;justify-content:space-between;padding:6px 30px 0;box-sizing:border-box;font-size:15px;font-weight:700;color:{{ ph.t.text }};">
+      <span>21:02</span><span style="font-size:12px;">59%</span>
+    </div>
+
+    <div style="position:absolute;left:12px;top:52px;display:flex;align-items:center;gap:9px;height:50px;padding:0 16px 0 5px;border-radius:25px;background:{{ ph.t.pill }};backdrop-filter:blur(14px);box-shadow:0 10px 24px -12px rgba(0,0,0,.45),inset 0 0 0 1px {{ ph.t.pillEdge }};">
+      <div style="position:relative;width:40px;height:40px;flex-shrink:0;">
+        <img src="assets/pawmap-icon2.png" alt="PawMap" style="width:40px;height:40px;border-radius:12px;object-fit:cover;display:block;box-shadow:0 4px 10px -3px rgba(180,30,20,.55),0 0 0 1.5px rgba(255,255,255,.7);" />
+        <div style="position:absolute;left:8.05px;top:15.15px;width:3.3px;height:3.3px;border-radius:50%;background:#f47a3a;box-shadow:0 0 0 .8px rgba(255,255,255,.9);animation:toe 3.8s ease-in-out 0s infinite;"></div>
+        <div style="position:absolute;left:12.6px;top:9.1px;width:5px;height:5px;border-radius:50%;background:#4a86f0;box-shadow:0 0 0 .8px rgba(255,255,255,.9);animation:toe 3.8s ease-in-out .25s infinite;"></div>
+        <div style="position:absolute;left:20.2px;top:9.1px;width:5px;height:5px;border-radius:50%;background:#3cb35a;box-shadow:0 0 0 .8px rgba(255,255,255,.9);animation:toe 3.8s ease-in-out .5s infinite;"></div>
+        <div style="position:absolute;left:26.45px;top:15.15px;width:3.3px;height:3.3px;border-radius:50%;background:#9a6be8;box-shadow:0 0 0 .8px rgba(255,255,255,.9);animation:toe 3.8s ease-in-out .75s infinite;"></div>
+      </div>
+      <span style="font-size:20px;font-weight:800;letter-spacing:-.03em;color:{{ ph.t.text }};">Paw<span style="background:linear-gradient(180deg,#f0684a,#c9281b);-webkit-background-clip:text;background-clip:text;color:transparent;">Map</span></span>
+    </div>
+
+    <div style="position:absolute;left:12px;top:110px;display:flex;align-items:center;gap:8px;height:34px;padding:0 14px 0 11px;border-radius:17px;background:linear-gradient(180deg,#2c2629,#171315);box-shadow:0 8px 18px -8px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.12),0 0 0 1.5px rgba(255,255,255,.9);">
+      <div style="width:9px;height:9px;border-radius:50%;background:#e8452f;box-shadow:0 0 0 3px rgba(232,69,47,.25);"></div>
+      <span style="font-size:12.5px;font-weight:700;color:#fff;">Direct</span>
+      <span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:#b9aeb0;text-transform:uppercase;">off</span>
+    </div>
+
+    <sc-if value="{{ ph.card.show }}" hint-placeholder-val="{{ false }}">
+    <div class="card-pop" style="position:absolute;left:12px;right:12px;top:152px;display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:22px;background:{{ ph.t.pillSolid }};box-shadow:0 14px 30px -12px rgba(0,0,0,.5),inset 0 0 0 1px {{ ph.t.bubEdge }};pointer-events:auto;animation:cardIn .3s cubic-bezier(.2,.8,.2,1) both;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <img src="{{ ph.card.avatar }}" alt="" style="width:46px;height:46px;margin:4px;flex-shrink:0;border-radius:50%;object-fit:cover;box-shadow:0 0 0 2px {{ ph.t.pillSolid }},0 0 0 4.5px {{ ph.card.ringC }};" />
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px;">
+          <div style="display:flex;align-items:center;gap:7px;">
+            <span style="font-size:16px;font-weight:800;letter-spacing:-.02em;line-height:1.1;color:{{ ph.t.text }};">{{ ph.card.name }}</span>
+            <sc-if value="{{ ph.card.hasRating }}" hint-placeholder-val="{{ false }}">
+              <span style="display:flex;align-items:center;gap:1px;height:17px;padding:0 6px 0 4px;border-radius:999px;background:#ffc526;font-size:10.5px;font-weight:800;line-height:1;color:#3d2600;"><span class="material-symbols-rounded" aria-hidden="true" style="font-size:12px;line-height:1;font-variation-settings:'FILL' 1,'wght' 700;">star</span>{{ ph.card.rating }}</span>
+            </sc-if>
+          </div>
+          <span style="display:flex;align-items:center;gap:4px;height:20px;padding:0 9px 0 6px;border-radius:999px;background:#ffe6cf;font-size:11px;font-weight:700;color:#8a3b00;"><span class="material-symbols-rounded" aria-hidden="true" style="font-size:12px;line-height:1;font-variation-settings:'FILL' 1,'wght' 600;">pets</span>{{ ph.card.tag }}</span>
+          <span style="font-size:12px;font-weight:500;line-height:1.3;color:{{ ph.t.muted }};">{{ ph.card.line }}</span>
+        </div>
+        <button type="button" aria-label="Fermer la fiche" onClick="{{ ph.card.close }}" style="align-self:flex-start;flex-shrink:0;width:32px;height:32px;padding:0;border:0;border-radius:50%;background:{{ ph.t.base }};color:{{ ph.t.text }};cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="material-symbols-rounded" aria-hidden="true" style="font-size:18px;line-height:1;">close</span></button>
+      </div>
+      <button type="button" style="height:40px;padding:0;border:0;border-radius:999px;background:{{ ph.card.btnBg }};color:#fff;font-family:'Poppins',system-ui,sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:2px;">Profil<span class="material-symbols-rounded" aria-hidden="true" style="font-size:20px;line-height:1;">chevron_right</span></button>
+    </div>
+    </sc-if>
+    <div style="position:absolute;right:12px;top:57px;display:flex;gap:7px;pointer-events:auto;">
+      <sc-for list="{{ topBtns }}" as="b" hint-placeholder-count="4">
+        <div style="width:38px;height:38px;border-radius:50%;background:{{ btn.bg }};box-shadow:0 3px 8px -2px {{ btn.glow }},0 0 0 1.5px #fff,0 0 0 2.5px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;" style-hover="transform:translateY(-1px);" style-active="transform:scale(.94);">
+          <span class="material-symbols-rounded" style="font-size:19px;line-height:1;color:#fff;font-variation-settings:'FILL' 1,'wght' 500;">{{ b }}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="position:absolute;left:0;top:600px;width:28px;height:52px;border-radius:0 18px 18px 0;background:linear-gradient(180deg,#f0603f,#c4291a);box-shadow:0 8px 16px -6px rgba(170,30,15,.6),inset 0 1px 0 rgba(255,255,255,.35),0 0 0 1.5px rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;">
+      <span class="material-symbols-rounded" style="font-size:20px;color:#fff;font-variation-settings:'wght' 700;">chevron_right</span>
+    </div>
+    <div style="position:absolute;right:0;top:600px;width:28px;height:52px;border-radius:18px 0 0 18px;background:linear-gradient(180deg,#f0603f,#c4291a);box-shadow:0 8px 16px -6px rgba(170,30,15,.6),inset 0 1px 0 rgba(255,255,255,.35),0 0 0 1.5px rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;">
+      <span class="material-symbols-rounded" style="font-size:20px;color:#fff;font-variation-settings:'wght' 700;">chevron_left</span>
+    </div>
+
+    <div style="position:absolute;left:14px;right:14px;bottom:30px;height:62px;border-radius:31px;background:linear-gradient(180deg,#d8321f,#b01f12);box-shadow:0 14px 30px -12px rgba(120,15,5,.7);display:grid;grid-template-columns:repeat(5,1fr);align-items:center;">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;opacity:{{ n.op }};">
+          <span class="material-symbols-rounded" style="font-size:22px;line-height:1;">{{ n.icon }}</span>
+          <span style="font-size:8px;font-weight:600;letter-spacing:.05em;">{{ n.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+    </div>
+  </div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:900,&quot;height&quot;:960},&quot;markerStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;anneau&quot;,&quot;pilule&quot;,&quot;cartes&quot;,&quot;rond&quot;,&quot;pin&quot;],&quot;default&quot;:&quot;anneau&quot;,&quot;tsType&quot;:&quot;'anneau' | 'pilule' | 'cartes' | 'rond' | 'pin'&quot;,&quot;section&quot;:&quot;Marqueurs&quot;}}">
+class Component extends DCLogic {
+  state = { focus: [null, 0], sub: [null, 5] };
+  renderVals() {
+    const R = {
+      owner: { a: '#ff7a52', b: '#ff3a0f', icon: 'pets' },
+      sitter: { a: '#5ea0ff', b: '#0f62ff', icon: 'home' },
+      walker: { a: '#3fd476', b: '#00c24a', icon: 'directions_walk' }
+    };
+    const MS = this.state.ms || this.props.markerStyle || 'anneau';
+    const pin = MS === 'pin';
+    const fill = r => R[r].b;
+    R.owner.d = '#a82a14'; R.sitter.d = '#16449e'; R.walker.d = '#146533';
+    R.owner.g = 'rgba(242,59,22,.5)'; R.sitter.g = 'rgba(26,108,255,.5)'; R.walker.g = 'rgba(18,179,80,.5)';
+    const conic = parts => {
+      const tot = parts.reduce((s, p) => s + p[1], 0); let acc = 0; const st = [];
+      parts.forEach(([r, v]) => { const s = acc / tot * 360, e = (acc + v) / tot * 360; st.push(`transparent ${s}deg ${s + 5}deg`, `${R[r].b} ${s + 5}deg ${e}deg`); acc += v; });
+      return `conic-gradient(from -90deg,${st.join(',')})`;
+    };
+    const split = roles => { const n = roles.length; return `conic-gradient(from ${pin ? 0 : 0}deg,${roles.map((k, i) => `${R[k].b} ${i / n * 100}% ${(i + 1) / n * 100}%`).join(',')})`; };
+    const PR = { walker: ['10 €', '/balade'], sitter: ['25 €', '/jour'], owner: ['12 €', '/jour'] };
+    const kid = roles => ({ roles, segs: roles.map(k => seg(k, PR[k][0], PR[k][1])) });
+    const seg = (r, amount, unit) => ({ bg: R[r].b, grad: `linear-gradient(160deg,${R[r].a},${R[r].b})`, dark: R[r].b, icon: R[r].icon, amount, unit });
+    const disc = (x, y, r, o = {}) => {
+      const roles = o.roles || [r];
+      const soft = R[r].b;
+      const HC = { boost: '#12d8c9', follow: '#8f5cff', friend: '#ff5ad2' }[o.halo] || '';
+      const n = roles.length, gap = n > 1 ? 6 : 0;
+      const ringSegs = n > 1 ? `conic-gradient(${roles.map((k, i) => { const a = i / n * 360, b = (i + 1) / n * 360; return `transparent ${a}deg ${a + gap}deg,${R[k].b} ${a + gap}deg ${b}deg`; }).join(',')})` : R[r].b;
+      const cards = roles.map((k, i) => ({ fill: fill(k), icon: R[k].icon, iconOp: i === n - 1 ? 1 : 0, dx: (i - (n - 1)) * 8 + (n - 1) * 4, dy: (i - (n - 1)) * 1.5, rot: (i - (n - 1)) * 12 + (n - 1) * 3 }));
+      return { x, y, isDisc: true, isClassic: MS === 'pin' || MS === 'rond', isRing: MS === 'anneau', isPill: MS === 'pilule', isStack: MS === 'cartes',
+        bubBottom: { pin: 34, rond: 26, anneau: 21, pilule: 48, cartes: 56 }[MS],
+        ringSegs, softBg: n > 1 ? `conic-gradient(${roles.map((k, i) => `${R[k].b} ${i / n * 100}% ${(i + 1) / n * 100}%`).join(',')})` : soft, mainDark: '#fff', cards, glow: R[r].g, hasHalo: !!HC, haloC: HC, haloSoft: HC ? HC + '38' : 'transparent', haloGlow: HC ? HC + 'c0' : 'transparent', haloPulse: o.halo === 'follow', boost: o.halo === 'boost', friend: o.halo === 'friend', avail: !!o.avail, rating: o.rating || '', hasRating: !!o.rating, tipC: R[r].b, role: r, fill: roles.length > 1 && !o.initial ? split(roles) : o.initial ? `linear-gradient(${pin ? 135 : 180}deg,#f2639a,#c41d62)` : (pin ? fill(r) : `linear-gradient(160deg,${R[r].a},${R[r].b})`),
+        size: pin ? 46 : 38, left: pin ? -23 : -19, pad: pin ? 3 : 2.5, chipSz: pin ? 17 : 15, chipIc: pin ? 11 : 10, badge: pin ? 17 : 14, crown: pin ? 7.5 : 6.5, badgeOff: pin ? -5 : -4,
+        top: pin ? -30 : -19, rot: pin ? -45 : 0, radius: pin ? '50% 50% 50% 4px' : '50%', dotBottom: pin ? 5 : -1,
+        ring: '#fff', multi: roles.length > 1, chipTop: pin ? 43 : 31,
+        chips: roles.map((k, i) => ({ bg: R[k].b, fill: fill(k), icon: R[k].icon, ml: i ? -7 : 0 })),
+        glyph: o.initial || (roles.length > 1 ? 'pets' : R[r].icon), glyphSize: o.initial ? (pin ? 17 : 14) : (pin ? 22 : 18), glyphFont: o.initial ? "'Poppins',sans-serif" : "'Material Symbols Rounded'",
+        premium: !!o.premium, live: !!o.live, hasPrice: !!o.segs, segs: o.segs || [],
+        tail: o.segs ? (o.segs.length > 1 ? '#fff' : o.segs[0].dark) : '#fff' };
+    };
+    const cluster = (x, y, n, parts, r, label, kids) => ({ x, y, kids, isCluster: true, count: n, ring: conic(parts), label, labelColor: R[r].b, labelEdge: R[r].b + '55' });
+    const markers = [
+      cluster(150, 205, 14, [['walker', 4], ['owner', 5], ['sitter', 5]], 'walker', '10 €/balade', [['walker'], ['owner'], ['sitter', 'walker'], ['sitter'], ['owner'], ['walker', 'sitter', 'owner'], ['walker'], ['sitter'], ['owner', 'sitter'], ['owner'], ['walker'], ['sitter'], ['owner'], ['sitter']].map(kid)),
+      disc(272, 196, 'sitter', { premium: true, halo: 'boost', avail: true }),
+      cluster(258, 290, 2, [['sitter', 1], ['owner', 1]], 'sitter', '25 €/jour', [['sitter'], ['owner']].map(kid)),
+      disc(160, 330, 'sitter', { premium: true, rating: '4,8', roles: ['sitter', 'walker'], segs: [seg('walker', '10 €', '/balade')] }),
+      disc(192, 448, 'walker', { premium: true, avail: true, rating: '4,9', roles: ['sitter', 'walker'], segs: [seg('sitter', '20 €', '/jour'), seg('walker', '20 €', '/balade')] }),
+      disc(110, 560, 'walker', { premium: true, live: true, halo: 'follow', rating: '5,0', segs: [seg('walker', '10 €', '/balade')] }),
+      disc(300, 470, 'owner', { halo: 'friend' }),
+      disc(278, 590, 'owner', { premium: true, halo: 'friend', rating: '4,7', segs: [seg('owner', '10 €', '/jour')] }),
+      disc(170, 662, 'owner', { premium: true, rating: '4,9', roles: ['owner', 'sitter', 'walker'], segs: [seg('owner', '12 €', '/jour'), seg('sitter', '25 €', '/jour'), seg('walker', '10 €', '/balade')] })
+    ];
+    const tiles = mode => { const o = []; for (let y = 86; y <= 89; y++) for (let x = 128; x <= 130; x++) o.push(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/8/${y}/${x}`); return o; };
+    const T = {
+      light: { base: '#eef0ea', mapFilter: 'saturate(.85) brightness(1.03)', text: '#1d1719', muted: '#7a6f71', pill: 'rgba(255,255,255,.86)', pillEdge: 'rgba(0,0,0,.06)', pillSolid: '#fff', bubEdge: 'rgba(0,0,0,.07)', bubLine: 'rgba(0,0,0,.14)', clusterIn: '#fff', line: 'rgba(40,30,32,.55)', clusterInGrad: 'linear-gradient(180deg,#ffffff,#eef0f3)' },
+      dark: { base: '#1d1b1c', mapFilter: 'invert(1) hue-rotate(180deg) brightness(.85) saturate(.6) contrast(.9)', text: '#f6efec', muted: '#a99c9e', pill: 'rgba(30,26,28,.82)', pillEdge: 'rgba(255,255,255,.1)', pillSolid: '#262123', bubEdge: 'rgba(255,255,255,.22)', bubLine: 'rgba(255,255,255,.18)', clusterIn: '#262123', line: 'rgba(255,255,255,.6)', clusterInGrad: 'linear-gradient(180deg,#332c2e,#211c1e)' }
+    };
+    const focus = this.state.focus || [null, null], sub = this.state.sub || [null, null];
+    const build = (p, label, t, mode) => {
+      const f = focus[p], fm = f != null ? markers[f] : null, isC = fm && fm.isCluster;
+      const s = fm ? (isC ? 1.5 : 1.9) : 1, CX = 195, CY = isC ? 490 : 430;
+      const tx = fm ? CX - fm.x * s : 0, ty = fm ? CY - fm.y * s : 0;
+      const setS = (key, v) => this.setState(st => { const a = [...(st[key] || [null, null])]; a[p] = v; return { [key]: a }; });
+      const setF = v => this.setState(st => { const a = [...(st.focus || [null, null])], b = [...(st.sub || [null, null])]; a[p] = v; b[p] = null; return { focus: a, sub: b }; });
+      const list = markers.map((m, i) => ({ ...m,
+        x: fm ? tx + m.x * s : m.x, y: fm ? ty + m.y * s : m.y,
+        showPrice: f === i && !isC, op: f == null || f === i ? 1 : .35, z: f === i ? 5 : 1, sc: f === i && !isC ? 1.18 : 1,
+        onTap: e => { e.stopPropagation(); setF(f === i ? null : i); } }));
+      if (isC) {
+        const n = fm.kids.length, inner = Math.min(n, 6);
+        fm.kids.forEach((k, j) => {
+          const ring = j < inner ? 0 : 1, cnt = ring ? n - inner : inner, idx = ring ? j - inner : j;
+          const rad = ring ? 132 : 72, ang = (idx / cnt) * Math.PI * 2 - Math.PI / 2 + (ring ? Math.PI / cnt : 0);
+          const x = CX + Math.cos(ang) * rad, y = CY + Math.sin(ang) * rad * (ring ? .95 : 1);
+          const d = disc(x, y, k.roles[0], { roles: k.roles, segs: k.segs, premium: j % 4 === 0, avail: j % 3 === 1, rating: ['4,9', '4,7', '5,0', '4,8'][j % 4] });
+          const sj = sub[p];
+          list.push({ ...d, isChild: true, kidIdx: j, lineLen: Math.hypot(CX - x, CY - y) - 22, lineAng: Math.atan2(CY - y, CX - x) * 180 / Math.PI,
+            showPrice: sj === j, op: sj == null || sj === j ? 1 : .85, z: sj === j ? 9 : 6, sc: sj === j ? 1.18 : 1,
+            onTap: e => { e.stopPropagation(); setS('sub', sj === j ? null : j); } });
+        });
+      }
+      list.forEach(m => { m.tip = !!(m.showPrice && m.isRing && !m.multi); m.segs = (m.segs || []).map((sg, i) => ({ ...sg, sep: i ? 1 : 0, sepGap: i ? 4 : 0 })); const sc = m.sc || 1, w = (m.segs.length * 100 + 8) / 2 * sc; const lo = (12 + w - m.x) / sc, hi = (378 - w - m.x) / sc; m.bubDx = Math.max(lo, Math.min(hi, 0)); if (lo > hi) m.bubDx = (195 - m.x) / sc; m.tailDx = -m.bubDx; });
+      const selM = fm && !isC ? list[f] : (isC && sub[p] != null ? list.find(m => m.isChild && m.kidIdx === sub[p]) : null);
+      const PF = [['Camille R.', 'Jeune chien', '2,4 km', 'assets/avatar-camille2.png'], ['Sasha M.', 'Chien senior', '850 m', 'assets/avatar-sasha.png']];
+      const pf = PF[((selM && selM.kidIdx != null ? selM.kidIdx : f) || 0) % 2];
+      const card = selM ? { show: true, name: pf[0], tag: pf[1], avatar: pf[3],
+        line: [...(selM.segs || []).map(sg => sg.amount + sg.unit), pf[2]].join(' · '),
+        ringC: R[selM.role].b, btnBg: R[selM.role].d, rating: selM.rating, hasRating: !!selM.rating,
+        close: () => (selM.isChild ? setS('sub', null) : setF(null)) } : { show: false };
+      return { label, t, card, tiles: tiles(mode), mapTf: `translate(${tx}px,${ty}px) scale(${s})`, hintOp: f == null ? 1 : 0, clear: () => setF(null), markers: list };
+    };
+    const phones = [build(0, 'Clair', T.light, 'voyager'), build(1, 'Sombre', T.dark, 'dark_all')];
+    const styles = [['anneau', 'A · Anneau'], ['pilule', 'B · Pilule'], ['cartes', 'C · Cartes'], ['rond', 'D · Rond'], ['pin', 'E · Épingle']].map(([id, label]) => ({
+      label, bg: id === MS ? '#e8452f' : 'transparent', color: id === MS ? '#fff' : '#cfc6c3', onClick: () => this.setState({ ms: id }) }));
+    const role = this.state.role || 'owner';
+    const btn = { bg: R[role].b, glow: R[role].g };
+    const roleTabs = [['owner', 'Propriétaire'], ['sitter', 'Gardien'], ['walker', 'Promeneur']].map(([id, label]) => ({
+      label, dot: R[id].b, bg: id === role ? R[id].b : 'transparent', color: id === role ? '#fff' : '#cfc6c3', onClick: () => this.setState({ role: id }) }));
+    return {
+      styles, phones, btn, roleTabs,
+      legend: [
+        { label: 'PawBoost', c: '#12d8c9', fill: '#12d8c938', glow: '#12d8c9c0' },
+        { label: 'PawFollow · en direct', c: '#8f5cff', fill: '#8f5cff38', glow: '#8f5cffc0' },
+        { label: 'Ami', c: '#ff5ad2', fill: '#ff5ad238', glow: '#ff5ad2c0' },
+        { label: 'Disponible maintenant', c: '#fff', fill: '#1fe074', glow: 'transparent' },
+        { label: 'PawPremium · couronne', c: '#f6b400', fill: '#f6b400', glow: 'transparent' }
+      ],
+      topBtns: ['question_mark', 'search', 'refresh', 'settings'],
+      nav: [{ icon: 'pets', label: 'ACCUEIL', op: .85 }, { icon: 'chat_bubble', label: 'CHAT', op: .85 }, { icon: 'location_on', label: 'PAWMAP', op: 1 }, { icon: 'calendar_month', label: 'RÉSERVATIONS', op: .85 }, { icon: 'person', label: 'PROFIL', op: .85 }]
+    };
+  }
+}
+</script>
+</body>
+</html>

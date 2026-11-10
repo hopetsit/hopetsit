@@ -43,6 +43,10 @@ const adLeadSchema = new mongoose.Schema(
     timeFrom: { type: String, default: '', trim: true, maxlength: 5 },
     timeTo: { type: String, default: '', trim: true, maxlength: 5 },
     noCar: { type: Boolean, default: false },
+    // 639 (BOB) — « Je fournis la nourriture » (true / false, null = non précisé) et race FACULTATIVE
+    // de l'animal (≤ 60 car., nettoyée) : recopiées sur la demande / la fiche animal créée à la publication.
+    foodProvided: { type: Boolean, default: null },
+    breed: { type: String, default: '', trim: true, maxlength: 60 },
     budget: { type: Number, default: null },
     confirmedAt: { type: Date }, // demande publiée (par le clic OU par le suivi automatique) — n'est PAS une preuve
     clickedAt: { type: Date }, // 27/10 (SAM) — 1er VRAI clic (navigateur ou app) sur le lien de l'e-mail

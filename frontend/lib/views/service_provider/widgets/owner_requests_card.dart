@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/models/owner_active_request.dart';
 import 'package:hopetsit/services/propose_services_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/conclure1011.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_buttons.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_pins.dart';
@@ -142,6 +143,9 @@ class _RequestTile extends StatelessWidget {
           _line(context, Icons.schedule_rounded, request.hoursLabel),
         if (request.ownerNoCar)
           _line(context, Icons.directions_car_rounded, 'c1011_owner_no_car'.tr),
+        // 639 — nourriture fournie / à prévoir (ligne masquée si non précisé).
+        if (request.foodProvided != null)
+          _line(context, Icons.restaurant_rounded, foodLabel639(request.foodProvided)),
         if (place.isNotEmpty) _line(context, Icons.place_rounded, place),
         SizedBox(height: 10.h),
         PawSignatureButton(

@@ -92,6 +92,9 @@ class PetPostCard extends StatelessWidget {
   /// propriétaire n'a pas de voiture » (cellule masquée si faux).
   final String hoursLabel;
   final bool ownerNoCar;
+  /// 639 — « Nourriture fournie » / « à prévoir » ; null = non précisé
+  /// (ancien serveur ou propriétaire qui n'a rien dit) → case absente.
+  final bool? foodProvided;
   /// 621 — « à partir de 12 €/visite · estimation ~86 € » d'une demande
   /// OUVERTE (propriétaire, serveur 620b) ; vide = case absente.
   final String fromRateLabel;
@@ -171,6 +174,7 @@ class PetPostCard extends StatelessWidget {
     this.budgetLabel = '',
     this.hoursLabel = '',
     this.ownerNoCar = false,
+    this.foodProvided,
     this.fromRateLabel = '',
     this.publishedLabel,
     this.distanceLabel,
@@ -1540,6 +1544,13 @@ class PetPostCard extends StatelessWidget {
       if (ownerNoCar) {
         add(Icons.directions_car_rounded, 'c1011_transport'.tr,
             'c1011_no_car_short'.tr);
+      }
+      // 639 — nourriture : case présente seulement si le propriétaire a
+      // répondu (true / false), jamais inventée.
+      final food639 = foodProvided;
+      if (food639 != null) {
+        add(Icons.restaurant_rounded, 'f639_food_label'.tr,
+            (food639 ? 'f639_food_short_yes' : 'f639_food_short_no').tr);
       }
     }
 

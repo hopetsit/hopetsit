@@ -56,7 +56,7 @@ type Fiche = ProviderRateSource & {
   isTopWalker?: boolean;
   identityVerified?: boolean;
   isBoosted?: boolean;
-  /** 611 — rang (Chiot → Légende) envoyé par le serveur ; absent = rien affiché. */
+  /** 611 — rang (Découvreur → Légende) envoyé par le serveur ; absent = rien affiché. */
   rank?: unknown;
   /** 19/10 (618) — pins ; absent = rien affiché. */
   pins?: unknown;

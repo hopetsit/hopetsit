@@ -133,6 +133,10 @@ export function RankProgress611({ rank, showHow = true, className = "" }: { rank
 export function RanksLadder611({ catalog, mine }: { catalog: RanksCatalog611; mine: Rank611 | null }) {
   const { t, lang } = useT();
   const txt = (m?: Record<string, string>) => (m ? m[lang] || m.en || m.fr || "" : "");
+  // 10/11/2026 (639) — noms et phrase d'explication : le texte du SITE d'abord (clés rank611_*),
+  // celui du catalogue en repli. Un serveur pas encore à jour envoie encore les anciens noms :
+  // sans ça, l'échelle disait « Chef de meute » sous une pastille « Ambassadeur ».
+  const local = (k: string, fallback: string) => { const v = t(k); return v && v !== k ? v : fallback; };
   let fmt = (v: number) => String(v);
   try { const nf = new Intl.NumberFormat(lang); fmt = (v: number) => nf.format(v); } catch { /* */ }
   return (
@@ -155,7 +159,7 @@ export function RanksLadder611({ catalog, mine }: { catalog: RanksCatalog611; mi
                 {done && <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-[#16A34A] text-[11px] font-black text-white ring-2 ring-white" aria-hidden="true">✓</span>}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block break-words text-[15px] font-extrabold leading-tight" style={{ color: s.lightInk }}>{txt(r.texts) || rankName611(t, r.key)}</span>
+                <span className="block break-words text-[15px] font-extrabold leading-tight" style={{ color: s.lightInk }}>{local(`rank611_${r.key}`, txt(r.texts))}</span>
                 <span className="mt-0.5 block text-[12px] font-bold tabular-nums" style={{ color: s.lightInk }}>{fmt(r.min)} pts</span>
                 {here && <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10.5px] font-extrabold text-white" style={{ background: s.lightInk }}>{t("ppl607_here")}</span>}
               </span>
@@ -165,7 +169,7 @@ export function RanksLadder611({ catalog, mine }: { catalog: RanksCatalog611; mi
       </ol>
       {(catalog.texts?.explainer || catalog.texts?.noMoney) && (
         <div className="mt-4 space-y-1.5 rounded-[20px] bg-[#FFF8F3] p-4 ring-1 ring-[#F3E6E1]">
-          {catalog.texts?.explainer && <p className="text-[13px] leading-snug text-[#231715]">{txt(catalog.texts.explainer)}</p>}
+          {catalog.texts?.explainer && <p className="text-[13px] leading-snug text-[#231715]">{local("rank611_explainer", txt(catalog.texts.explainer))}</p>}
           {catalog.texts?.noMoney && <p className="text-[13px] font-semibold leading-snug text-[#6E4F48]">{txt(catalog.texts.noMoney)}</p>}
         </div>
       )}

@@ -13,6 +13,8 @@ import { dr } from "@/lib/i18n/datesRequired0611";
 import { f2 } from "@/lib/i18n/formulaire2etapes1110";
 import { d620 } from "@/lib/i18n/dates620";
 import { c2610 } from "@/lib/i18n/cand2610";
+import { k1011 } from "@/lib/i18n/conclure1011";
+import { breedSuggestions639, cleanBreed639, BREED_MAX_639 } from "@/lib/breeds639";
 // 10/11/2026 (LEO, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — types seulement
 // (effacés à la compilation : aucun octet de plus pour les pages qui n'utilisent pas `ui`).
 import type { HeroUi1011 } from "@/lib/i18n/accueil1011";
@@ -173,6 +175,11 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   const [timeTo, setTimeTo] = useState("");
   const [budget, setBudget] = useState("");
   const [noCar, setNoCar] = useState(false);
+  // 639 (10/11/2026, CONTRATS §1 et §3) — dans le panneau REPLIÉ seulement (le premier écran ne bouge pas) :
+  // race facultative (suggestions chien / chat) et « Je fournis la nourriture ». `food` reste `null` tant que
+  // la personne n'a pas touché la case : le champ n'est alors pas envoyé (= non précisé).
+  const [breed, setBreed] = useState("");
+  const [food, setFood] = useState<boolean | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const postalRef = useRef<HTMLInputElement>(null);
@@ -260,6 +267,8 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
       ...(HHMM_1011.test(timeTo) ? { timeTo } : {}),
       ...(Number.isFinite(budgetNum) && budgetNum > 0 ? { budget: Math.round(budgetNum * 100) / 100 } : {}),
       ...(noCar ? { noCar: true } : {}),
+      ...(food !== null ? { foodProvided: food } : {}),
+      ...(cleanBreed639(breed) ? { breed: cleanBreed639(breed) } : {}),
     };
     try {
       const r = await publishSiteLead({
@@ -440,7 +449,24 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
                 <span aria-hidden className="pointer-events-none absolute inset-y-0 right-3 mt-1 flex items-center text-sm font-extrabold" style={{ color: "#C92A12" }}>{money1011.sign}</span>
               </span>
             </label>
-            <label className={`flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl border ${line} bg-white px-2.5 text-[12.5px] font-bold leading-tight text-ink`}>
+            {/* 639 (CONTRATS §3) — race FACULTATIVE, saisie libre, suggestions selon l'animal choisi. */}
+            <label className="block text-xs font-semibold text-ink">{k1011(L, "f639_breed")}
+              <input type="text" maxLength={BREED_MAX_639} value={breed} onChange={(e) => setBreed(e.target.value)} autoComplete="off"
+                list={breedSuggestions639(animal, L).length ? "hero-breeds-639" : undefined} className={field} data-testid="hero-breed" />
+              {breedSuggestions639(animal, L).length > 0 && (
+                <datalist id="hero-breeds-639">
+                  {breedSuggestions639(animal, L).map((b) => <option key={b} value={b} />)}
+                </datalist>
+              )}
+            </label>
+          </div>
+          {/* 639 (CONTRATS §2) — « Infos pratiques » : nourriture + voiture, côte à côte (une seule ligne repliée de plus). */}
+          <div className="mt-2 grid grid-cols-2 gap-2" data-testid="hero-pratique-639">
+            <label className={`flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl border ${line} bg-white px-2.5 py-1.5 text-[12.5px] font-bold leading-tight text-ink`}>
+              <input type="checkbox" checked={food === true} onChange={(e) => setFood(e.target.checked)} className="h-4 w-4 shrink-0 accent-[#C92A12]" data-testid="hero-food" />
+              {k1011(L, "f639_food")}
+            </label>
+            <label className={`flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl border ${line} bg-white px-2.5 py-1.5 text-[12.5px] font-bold leading-tight text-ink`}>
               <input type="checkbox" checked={noCar} onChange={(e) => setNoCar(e.target.checked)} className="h-4 w-4 shrink-0 accent-[#C92A12]" data-testid="hero-nocar" />
               {t.no_car}
             </label>

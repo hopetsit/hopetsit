@@ -248,7 +248,7 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
               ),
             ],
           ),
-          // 611 — mon RANG (Chiot → Légende) remplace l'ancien badge.
+          // 611 — mon RANG (Découvreur → Légende) remplace l'ancien badge.
           // 2910 (BOB, capture de Daniel) — les 2 pastilles de rang étaient DANS la
           // rangée du titre : elles prenaient toute la largeur et le titre « Mes
           // PawPoints · 3006 pts » s'affichait une lettre par ligne. Les pastilles
@@ -340,7 +340,7 @@ String pawPoints607Text(dynamic texts) {
 
 /// v416 — Feuille « Mes PawPoints » (refonte design Daniel) : stats, barre de
 /// niveau, réductions/mois gratuits sur abonnements (échange auto, 1×/user),
-/// 611 — les 5 rangs (Chiot → Légende) et le barème de gains.
+/// 611 — les 5 rangs (Découvreur → Légende) et le barème de gains.
 class _RewardsSheet extends StatefulWidget {
   const _RewardsSheet({
     required this.myPoints,
@@ -393,11 +393,11 @@ class _RewardsSheetState extends State<_RewardsSheet> {
   List<Map<String, dynamic>> _levels607 = const [];
   List<Map<String, dynamic>> _history = const [];
   bool _checkedIn = false;
-  // 611 (PAM) — rang Chiot → Légende (total gagné, jamais le solde).
+  // 611 (PAM) — rang Découvreur → Légende (total gagné, jamais le solde).
   PawRank611? _rank;
   // 611 (B) — « D'où viennent mes points » (GET /pawpoints/history).
   Map<String, dynamic>? _hist611;
-  PawPins618? _pins618; // 618 — mes pins (podium / 1er Chef de meute)
+  PawPins618? _pins618; // 618 — mes pins (podium / 1er Ambassadeur)
 
   @override
   void initState() {
@@ -612,7 +612,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
       ),
       SizedBox(height: 12.h),
       _balance607(context),
-      // 611 — mon rang + « encore N points pour Chien adulte ».
+      // 611 — mon rang + « encore N points pour Guide ».
       if (_rank != null) ...[
         SizedBox(height: 12.h),
         PawRankProgress611(rank: _rank!),
@@ -1829,12 +1829,12 @@ class _LeaderboardListState extends State<_LeaderboardList>
               ],
             ),
           ),
-          // 618 — pins podium / 1er Chef de meute (champ absent = rien).
+          // 618 — pins podium / 1er Ambassadeur (champ absent = rien).
           if (PawPins618.fromJson(row['pins']) != null) ...[
             SizedBox(width: 6.w),
             PawPinsRow618(pins: PawPins618.fromJson(row['pins'])!, compact: true),
           ],
-          // 611 — le RANG (Chiot → Légende) remplace les 7 anciens badges.
+          // 611 — le RANG (Découvreur → Légende) remplace les 7 anciens badges.
           if (PawRank611.fromJson(row['rank']) != null) ...[
             SizedBox(width: 6.w),
             PawRankPill611(rank: PawRank611.fromJson(row['rank'])!, compact: true),

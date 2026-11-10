@@ -4,6 +4,7 @@
 //   * Demande : `timeFrom` / `timeTo` (« HH:MM », 24 h, '' = pas d'horaire) et
 //     `ownerNoCar` (bool) — facultatifs, le serveur ignore une valeur invalide.
 //   * Profil gardien / promeneur : `hasVehicle` (bool ou null = pas dit).
+//   * 639 — demande : `foodProvided` (true / false, ou null = non précisé).
 //
 // Le serveur est la seule source : ici on ne fait que lire, nettoyer, afficher.
 import 'package:get/get.dart';
@@ -51,10 +52,15 @@ String hoursLabel1011(Object? from, Object? to) {
 ///    horaire non vide, « sans voiture » seulement s'il est coché.
 ///  * Modification (`forUpdate: true`) : `null` = inchangé (rien n'est envoyé),
 ///    `''` = horaire effacé, et le booléen part tel quel (true comme false).
+///
+///  * 639 — `foodProvided` (« Je fournis la nourriture ») : `null` = pas dit →
+///    rien n'est envoyé (création comme modification) ; sinon le booléen part
+///    tel quel, `true` comme `false`.
 Map<String, Object> requestExtras1011({
   String? timeFrom,
   String? timeTo,
   bool? ownerNoCar,
+  bool? foodProvided,
   bool forUpdate = false,
 }) {
   final out = <String, Object>{};
@@ -69,5 +75,14 @@ Map<String, Object> requestExtras1011({
   if (ownerNoCar != null && (ownerNoCar || forUpdate)) {
     out['ownerNoCar'] = ownerNoCar;
   }
+  if (foodProvided != null) out['foodProvided'] = foodProvided;
   return out;
+}
+
+/// 639 — ligne « nourriture » d'une demande : « Nourriture fournie » à `true`,
+/// « Nourriture à prévoir » à `false`, '' quand rien n'est précisé (`null`,
+/// champ absent d'un ancien serveur) → rien à afficher.
+String foodLabel639(bool? foodProvided) {
+  if (foodProvided == null) return '';
+  return (foodProvided ? 'f639_food_yes' : 'f639_food_no').tr;
 }

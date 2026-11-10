@@ -85,7 +85,7 @@ export function ProviderLinkPage({ p }: { p: PublicProvider607 }) {
           </p>
 
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs font-semibold">
-            {/* 611 — rang (Chiot → Légende) seulement si le serveur l'envoie. */}
+            {/* 611 — rang (Découvreur → Légende) seulement si le serveur l'envoie. */}
             <RankPill611 rank={parseRank611(p.rank)} />
             <PinChips1910 pins={parsePins1910(p.pins)} />
             {p.isPioneer && (

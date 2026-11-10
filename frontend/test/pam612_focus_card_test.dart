@@ -49,7 +49,7 @@ void main() {
         ));
         await t.pump(const Duration(milliseconds: 400));
         expect(_clipped(t, 'Cam Chetmou'), isFalse);
-        expect(_clipped(t, 'Jeune chien'), isFalse);
+        expect(_clipped(t, 'Explorateur'), isFalse);
         expect(_clipped(t, 'En balade · 167 m · 18 min'), isFalse);
         expect(find.byKey(const ValueKey<String>('pawmap_focus_open')), findsOneWidget);
         expect(t.takeException(), isNull);

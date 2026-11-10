@@ -73,7 +73,7 @@ void main() {
   });
 
   group('§B pins', () {
-    test('lecture du contrat : absent / vide = null, podium 1..3, 1er Chef de meute', () {
+    test('lecture du contrat : absent / vide = null, podium 1..3, 1er Ambassadeur', () {
       expect(PawPins618.fromJson(null), isNull);
       expect(PawPins618.fromJson(const {'podium': null, 'firstPackLeader': false}), isNull);
       expect(PawPins618.fromJson(const {'podium': 7}), isNull);

@@ -16,6 +16,7 @@ import { PostCandidates1610 } from "@/components/PostCandidates1610";
 import { PostDatesEditor620 } from "@/components/PostDatesEditor620";
 import { FromRateLine620 } from "@/components/DateMode620";
 import { d620 } from "@/lib/i18n/dates620";
+import { k1011 } from "@/lib/i18n/conclure1011";
 import { dateModeOf620 } from "@/lib/services620";
 import {
   ApiError,
@@ -298,11 +299,24 @@ function PostCard({
   };
   const startTime = fmtTime(post.startDate);
   const endTime = fmtTime(post.endDate);
+  // 639 (CONTRATS §1 et §2) — mêmes cellules que la carte de demande de l'app : horaires 1011 saisis par le
+  // propriétaire ("HH:MM"), « Sans voiture », nourriture. Champ absent (ancienne demande, ancien serveur) = rien.
+  const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const tFrom = typeof post.timeFrom === "string" && HHMM.test(post.timeFrom) ? post.timeFrom : "";
+  const tTo = typeof post.timeTo === "string" && HHMM.test(post.timeTo) ? post.timeTo : "";
+  const hours1011 = tFrom && tTo ? `${tFrom} → ${tTo}` : tFrom || tTo;
   const timeLabel =
+    hours1011 ||
     localizedTimeSlot(post.timeSlot, lang) ||
     (startTime && endTime && startTime !== endTime
       ? `${startTime} → ${endTime}`
       : startTime || endTime);
+  const foodLabel =
+    post.foodProvided === true
+      ? k1011(lang, "f639_food_short_yes")
+      : post.foodProvided === false
+        ? k1011(lang, "f639_food_short_no")
+        : "";
 
   // Lieu de garde : combine serviceLocation (at_owner/at_sitter/both) et le
   // legacy houseSittingVenue (owners_home/sitters_home).
@@ -397,6 +411,10 @@ function PostCard({
           {animalsSummary && <ResCell icon="🐾" label={t("posts_field_animals")} value={animalsSummary} />}
           {serviceLabels && <ResCell icon="🛎️" label={t("posts_field_service")} value={serviceLabels} />}
           {timeLabel && <ResCell icon="🕑" label={t("posts_field_time")} value={timeLabel} />}
+        {post.ownerNoCar === true && (
+          <ResCell icon="🚗" label={k1011(lang, "c_transport")} value={k1011(lang, "c_no_car_short")} />
+        )}
+        {foodLabel && <ResCell icon="🍽️" label={k1011(lang, "f639_food_label")} value={foodLabel} />}
           {/* v587 — budget saisi par le propriétaire (absent sans budget, jamais « 0 € »). */}
           {budgetLabel && <ResCell icon="💶" label={t("b587_field")} value={budgetLabel} />}
           {post.notes && <ResCell icon="📝" label={t("posts_field_details")} value={post.notes} />}

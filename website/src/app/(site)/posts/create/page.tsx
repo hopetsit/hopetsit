@@ -52,6 +52,28 @@ import {
 const DRAFT_KEY = "hopetsit_post_draft_v1";
 const HHMM_1011 = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+/** 639 — interrupteur des « Infos pratiques » (même dessin que ceux de la PawMap). Sans hook. */
+function Switch639({ testId, on, onToggle, title, sub }: { testId: string; on: boolean; onToggle: () => void; title: string; sub: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      data-testid={testId}
+      onClick={onToggle}
+      className="flex w-full items-center gap-3 rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-left max-lg:min-h-[44px]"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-ink">{title}</span>
+        <span className="block text-xs leading-snug text-[#6E4F48]">{sub}</span>
+      </span>
+      <span aria-hidden className="relative inline-block h-7 w-12 shrink-0 rounded-full transition" style={{ background: on ? "#C92A12" : "#F0E3DF" }}>
+        <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? "left-6" : "left-1"}`} />
+      </span>
+    </button>
+  );
+}
+
 export default function CreatePostPage() {
   const { t, lang } = useT();
   const router = useRouter();
@@ -86,6 +108,8 @@ export default function CreatePostPage() {
   const [timeFrom, setTimeFrom] = useState("");
   const [timeTo, setTimeTo] = useState("");
   const [ownerNoCar, setOwnerNoCar] = useState(false);
+  // 639 (contrat §1) — « Je fournis la nourriture » : null = pas touché (rien envoyé).
+  const [foodProvided, setFoodProvided] = useState<boolean | null>(null);
   const budgetAmount = (() => {
     const n = Number(budget.replace(/\s/g, "").replace(",", "."));
     return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
@@ -273,6 +297,7 @@ export default function CreatePostPage() {
       if (typeof d.timeFrom === "string" && HHMM_1011.test(d.timeFrom)) setTimeFrom(d.timeFrom);
       if (typeof d.timeTo === "string" && HHMM_1011.test(d.timeTo)) setTimeTo(d.timeTo);
       if (d.ownerNoCar === true) setOwnerNoCar(true);
+      if (typeof d.foodProvided === "boolean") setFoodProvided(d.foodProvided);
       if (typeof d.startDate === "string") setStartDate(d.startDate);
       if (typeof d.endDate === "string") setEndDate(d.endDate);
       // 0611 (NEO) — un brouillon « à prévoir » repart en « dates précises » : l'option n'existe plus.
@@ -500,6 +525,7 @@ export default function CreatePostPage() {
         body, services, serviceLocation: svcLocation, meetingPoint, startDate, endDate, notes,
         dateMode, visitsPerDay, walkTime,
         animalCount, animalTypes, city, postalCode, budget, timeFrom, timeTo, ownerNoCar, targetProvider: target,
+        ...(foodProvided !== null ? { foodProvided } : {}),
         ...(cityCoords ? { cityLat: cityCoords.lat, cityLng: cityCoords.lng, cityLabel } : {}),
         ...extra,
       }));
@@ -544,6 +570,8 @@ export default function CreatePostPage() {
       timeFrom: HHMM_1011.test(timeFrom) ? timeFrom : undefined,
       timeTo: HHMM_1011.test(timeTo) ? timeTo : undefined,
       ownerNoCar: ownerNoCar ? true : undefined,
+      // 639 (contrat §1) — nourriture : true/false seulement si l'interrupteur a été touché.
+      foodProvided: foodProvided === null ? undefined : foodProvided,
       // 28/09 — « Demander à <prénom> » : ce prestataire est prévenu en premier.
       targetProvider: target || undefined,
     };
@@ -782,36 +810,37 @@ export default function CreatePostPage() {
           </div>
         )}
 
-        {/* 616 — ville choisie dans la liste (suggestions) ou « Ma position ». */}
-        <CityAutocomplete616
-          lang={lang}
-          label={t("posts_city_label")}
-          placeholder={t("posts_city_ph")}
-          value={city}
-          coords={cityCoords}
-          pickedLabel={cityLabel}
-          onChange={(c, co, lb) => {
-            setCity(c);
-            setCityCoords(co);
-            setCityLabel(co ? lb || "" : "");
-          }}
-        />
-        {/* 23/10 (BOB, ordre de Daniel) — code postal obligatoire : la demande est placée dans le quartier,
-            pas au centre de la ville (16 demandes au même point le 23/10). */}
-        <div>
-          <label htmlFor="postal-2310" className="block text-sm font-medium text-ink">{t("signup_postal_code")} *</label>
-          <input
-            id="postal-2310"
-            type="text"
-            inputMode="numeric"
-            autoComplete="postal-code"
-            required
-            minLength={3}
-            maxLength={10}
-            value={postalCode}
-            onChange={(e) => setPostalCode(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
-          />
+        {/* v404 — Animaux concernés : types + nombre. 639 (contrat §2) : en tête du formulaire, toujours facultatif. */}
+        <div data-testid="animaux-639">
+          <p className="block text-sm font-medium text-ink">{t("posts_animals_label")}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {ANIMAL_TYPES.map((a) => (
+              <button
+                key={a.key}
+                type="button"
+                onClick={() => toggleAnimalType(a.key)}
+                className={`rounded-full border px-3.5 py-2 text-sm font-semibold transition max-lg:min-h-[44px] ${
+                  animalTypes.includes(a.key)
+                    ? "border-owner bg-owner-light text-owner-dark"
+                    : "border-ink/15 bg-white text-ink hover:border-ink/30"
+                }`}
+              >
+                {a.emoji} {animalTypeLabel(a.key)}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-3">
+            <input
+              id="animal-count-639"
+              type="number"
+              min={1}
+              max={50}
+              value={animalCount}
+              onChange={(e) => setAnimalCount(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+              className="w-20 rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-center text-sm text-ink focus:border-owner focus:outline-none"
+            />
+            <label htmlFor="animal-count-639" className="text-sm text-ink-muted">{t("posts_animals_count_hint")}</label>
+          </div>
         </div>
 
         <div>
@@ -849,12 +878,14 @@ export default function CreatePostPage() {
           />
         )}
 
+        {/* 639 (contrat §2) — « Dates et horaires » : les dates, puis juste dessous les heures facultatives. */}
+        <section data-testid="dates-horaires-639" className="space-y-4">
+        <h2 className="font-display text-base font-extrabold text-ink">{k1011(lang, "f639_dates_hours_title")}</h2>
         {/* 620 — « Quand ? » ; 0611 (NEO, ordre de Daniel) : 2 cartes seulement (précises / approximative),
             « dates à prévoir » n'existe plus pour une nouvelle demande. Balade : date + heure, pas de carte. */}
         {catalog && !isWalk && (
           <div data-testid="date-mode-0611">
-            <p className="block text-sm font-medium text-ink">{d620(lang, "when_title")}</p>
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label={d620(lang, "when_title")}>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label={d620(lang, "when_title")}>
               {(["exact", "approx"] as const).map((m) => {
                 const on = mode620 === m;
                 return (
@@ -940,10 +971,75 @@ export default function CreatePostPage() {
         <p data-testid="dates-hint-0611" className="mt-2 text-xs leading-snug text-[#6E4F48]">{dr(lang, "hint")}</p>
         </div>
 
-        {/* 620 — visites par jour (visite à domicile) + estimation (même calcul que l'app). */}
+        {/* 639 (contrat §2) — heures de début et de fin, FACULTATIVES, juste sous les dates.
+            Mêmes champs qu'avant (timeFrom / timeTo « HH:MM »), seulement déplacés. */}
+        <div data-testid="horaires1011">
+          <p className="block text-sm font-medium text-ink">{k1011(lang, "f639_hours_title")}</p>
+          <div className="mt-1.5 grid grid-cols-2 gap-3">
+            <label className="block min-w-0">
+              <span className="block text-xs font-semibold text-[#6E4F48]">{k1011(lang, "time_from")}</span>
+              <input
+                type="time"
+                step={900}
+                value={timeFrom}
+                onChange={(e) => setTimeFrom(e.target.value)}
+                data-testid="time-from-1011"
+                className="mt-1 w-full min-w-0 rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm font-semibold text-ink focus:border-owner focus:outline-none max-lg:min-h-[44px]"
+              />
+            </label>
+            <label className="block min-w-0">
+              <span className="block text-xs font-semibold text-[#6E4F48]">{k1011(lang, "time_to")}</span>
+              <input
+                type="time"
+                step={900}
+                value={timeTo}
+                onChange={(e) => setTimeTo(e.target.value)}
+                data-testid="time-to-1011"
+                className="mt-1 w-full min-w-0 rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm font-semibold text-ink focus:border-owner focus:outline-none max-lg:min-h-[44px]"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* 620 — visites par jour (visite à domicile). */}
         {catalog && service === "home_visit" && (
           <VisitsPerDay620 lang={lang} value={visitsPerDay} options={serviceDefs.find((x) => x.key === "home_visit")?.visitsPerDay} onChange={setVisitsPerDay} />
         )}
+        </section>
+
+        {/* 616 — ville choisie dans la liste (suggestions) ou « Ma position ». */}
+        <CityAutocomplete616
+          lang={lang}
+          label={t("posts_city_label")}
+          placeholder={t("posts_city_ph")}
+          value={city}
+          coords={cityCoords}
+          pickedLabel={cityLabel}
+          onChange={(c, co, lb) => {
+            setCity(c);
+            setCityCoords(co);
+            setCityLabel(co ? lb || "" : "");
+          }}
+        />
+        {/* 23/10 (BOB, ordre de Daniel) — code postal obligatoire : la demande est placée dans le quartier,
+            pas au centre de la ville (16 demandes au même point le 23/10). */}
+        <div>
+          <label htmlFor="postal-2310" className="block text-sm font-medium text-ink">{t("signup_postal_code")} *</label>
+          <input
+            id="postal-2310"
+            type="text"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            required
+            minLength={3}
+            maxLength={10}
+            value={postalCode}
+            onChange={(e) => setPostalCode(e.target.value)}
+            className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
+          />
+        </div>
+
+
         {catalog && service && (
           <EstimateLine620
             lang={lang}
@@ -1043,7 +1139,7 @@ export default function CreatePostPage() {
           </div>
         )}
 
-        {/* 11/10 (SAM) — détails facultatifs repliés : budget, notes, animaux, photos. */}
+        {/* 11/10 (SAM) — détails facultatifs repliés. 639 : budget, infos pratiques, notes, photos. */}
         <button
           type="button"
           onClick={() => setDetails((v) => !v)}
@@ -1078,47 +1174,26 @@ export default function CreatePostPage() {
           </div>
         </div>
 
-        {/* 1011 (contrat « conclure ») — horaires + « je n'ai pas de voiture », facultatifs. */}
-        <div data-testid="horaires1011">
-          <p className="block text-sm font-medium text-ink">{k1011(lang, "time_title")}</p>
-          <p className="mt-0.5 text-xs leading-snug text-[#6E4F48]">{k1011(lang, "time_sub")}</p>
-          <div className="mt-1.5 grid grid-cols-2 gap-2">
-            <label className="block min-w-0">
-              <span className="block text-xs font-semibold text-[#6E4F48]">{k1011(lang, "time_from")}</span>
-              <input
-                type="time"
-                step={900}
-                value={timeFrom}
-                onChange={(e) => setTimeFrom(e.target.value)}
-                data-testid="time-from-1011"
-                className="mt-1 w-full min-w-0 rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm font-semibold text-ink focus:border-owner focus:outline-none max-lg:min-h-[44px]"
-              />
-            </label>
-            <label className="block min-w-0">
-              <span className="block text-xs font-semibold text-[#6E4F48]">{k1011(lang, "time_to")}</span>
-              <input
-                type="time"
-                step={900}
-                value={timeTo}
-                onChange={(e) => setTimeTo(e.target.value)}
-                data-testid="time-to-1011"
-                className="mt-1 w-full min-w-0 rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-sm font-semibold text-ink focus:border-owner focus:outline-none max-lg:min-h-[44px]"
-              />
-            </label>
-          </div>
-          <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 max-lg:min-h-[44px]">
-            <input
-              type="checkbox"
-              checked={ownerNoCar}
-              onChange={(e) => setOwnerNoCar(e.target.checked)}
-              data-testid="nocar-1011"
-              className="mt-0.5 h-4 w-4 shrink-0 accent-[#C92A12]"
+        {/* 639 (contrat §2) — « Infos pratiques » : deux interrupteurs facultatifs.
+            « Je n'ai pas de voiture » garde son champ (ownerNoCar) et son repère de test. */}
+        <div data-testid="pratique-639">
+          <p className="block text-sm font-medium text-ink">{k1011(lang, "f639_practical_title")}</p>
+          <div className="mt-2 space-y-2">
+            <Switch639
+              testId="food-639"
+              on={foodProvided === true}
+              onToggle={() => setFoodProvided(foodProvided !== true)}
+              title={k1011(lang, "f639_food")}
+              sub={k1011(lang, "f639_food_sub")}
             />
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-ink">{k1011(lang, "nocar")}</span>
-              <span className="block text-xs leading-snug text-[#6E4F48]">{k1011(lang, "nocar_sub")}</span>
-            </span>
-          </label>
+            <Switch639
+              testId="nocar-1011"
+              on={ownerNoCar}
+              onToggle={() => setOwnerNoCar((v) => !v)}
+              title={k1011(lang, "nocar")}
+              sub={k1011(lang, "nocar_sub")}
+            />
+          </div>
         </div>
 
         <div>
@@ -1130,38 +1205,6 @@ export default function CreatePostPage() {
             placeholder={t("posts_notes_ph")}
             className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
           />
-        </div>
-
-        {/* v404 — Animaux concernés : nombre + types */}
-        <div>
-          <label className="block text-sm font-medium text-ink">{t("posts_animals_label")}</label>
-          <div className="mt-2 flex items-center gap-3">
-            <input
-              type="number"
-              min={1}
-              max={50}
-              value={animalCount}
-              onChange={(e) => setAnimalCount(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
-              className="w-20 rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-center text-sm text-ink focus:border-owner focus:outline-none"
-            />
-            <span className="text-sm text-ink-muted">{t("posts_animals_count_hint")}</span>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {ANIMAL_TYPES.map((a) => (
-              <button
-                key={a.key}
-                type="button"
-                onClick={() => toggleAnimalType(a.key)}
-                className={`rounded-full border px-3.5 py-2 text-sm font-semibold transition max-lg:min-h-[44px] ${
-                  animalTypes.includes(a.key)
-                    ? "border-owner bg-owner-light text-owner-dark"
-                    : "border-ink/15 bg-white text-ink hover:border-ink/30"
-                }`}
-              >
-                {a.emoji} {animalTypeLabel(a.key)}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* v402 — Photos de l'annonce (ajouter / supprimer avant publication).

@@ -605,7 +605,8 @@ router.get('/members/nearby', requireAuth, async (req, res) => {
         isFriend: ids.some((x) => friendIds.has(x)),
         // v584 — épingles de la légende : lueur turquoise PawBoost, coche
         // « identité vérifiée », filtre « disponible aujourd'hui ».
-        ...mapVisibility.pinFlags(d, now),
+        // 639 — `availableDot` : rôle de l'épingle + dernière présence de la personne.
+        ...mapVisibility.pinFlags(d, now, { role, lastSeenAt: entries.map((e) => e.d.lastSeenAt) }),
         // v585 (bug 11) — PawBoost de la personne (n'importe lequel de ses rôles).
         isBoosted: entries.some((e) => mapVisibility.isBoosted(e.d, now)),
         // 609 — identité vérifiée de la PERSONNE (n'importe lequel de ses rôles).
@@ -843,7 +844,8 @@ async function _withHiddenFriends(req, payload) {
         approxKm: fp.approx === false ? 0 : WORLD_APPROX_KM,
         hiddenFromMap: fp.mapVisibility === 'friends',
         isFriend: true,
-        ...mapVisibility.pinFlags(d, new Date()),
+        // 639 — `availableDot` : rôle de l'épingle + dernière présence de la personne.
+        ...mapVisibility.pinFlags(d, new Date(), { role: first.role, lastSeenAt: entries.map((e) => e.d.lastSeenAt) }),
         // v595 — PawBoost de la personne (n'importe lequel de ses rôles).
         isBoosted: entries.some((e) => mapVisibility.isBoosted(e.d, new Date())),
         // 609 — identité vérifiée de la PERSONNE (n'importe lequel de ses rôles).
@@ -910,7 +912,10 @@ router.get('/members/world', requireAuth, async (req, res) => {
       + 'boostExpiry kycStatus identityVerification.status availableDates '
       + 'unavailableDates availableTimeSlots availableDays '
       // 611 (PAM) — rang : PawPoints gagnés depuis toujours.
-      + 'pawPoints';
+      + 'pawPoints '
+      // 639 — dernière présence : sert UNIQUEMENT à calculer `availableDot`
+      // (jamais recopiée dans la réponse de la couche monde).
+      + 'lastSeenAt';
     const per = Math.floor(WORLD_LIMIT / 3);
     const [owners, sitters, walkers] = await Promise.all([
       Owner.find(filter).select(sel).sort({ createdAt: -1 }).limit(per).lean(),
@@ -1029,7 +1034,9 @@ router.get('/members/world', requireAuth, async (req, res) => {
         priceAlt: rolePriceAlt605(d, role, priceFrom(d, role)),
         ...prices620.priceFields(d, role), // 620
         currency: d.currency || 'EUR',
-        ...mapVisibility.pinFlags(d, nowDate),
+        // 639 — `availableDot` : rôle de l'épingle + dernière présence de la
+        // personne. `lastSeenAt` sert au calcul et ne sort PAS de la couche monde.
+        ...mapVisibility.pinFlags(d, nowDate, { role, lastSeenAt: entries.map((e) => e.d.lastSeenAt) }),
         // v585 (bug 11) — PawBoost acheté sous un autre rôle : vaut pour la personne.
         isBoosted: entries.some((e) => mapVisibility.isBoosted(e.d, nowDate)),
         // 609 — identité vérifiée de la PERSONNE (n'importe lequel de ses rôles).

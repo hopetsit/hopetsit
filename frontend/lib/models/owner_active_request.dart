@@ -25,6 +25,8 @@ class OwnerActiveRequest {
   final String timeFrom;
   final String timeTo;
   final bool ownerNoCar;
+  /// 639 — nourriture fournie : true / false, ou null = non précisé.
+  final bool? foodProvided;
   final List<String> petIds;
   final List<OwnerActiveRequestPet> pets;
 
@@ -44,6 +46,7 @@ class OwnerActiveRequest {
     this.timeFrom = '',
     this.timeTo = '',
     this.ownerNoCar = false,
+    this.foodProvided,
     this.petIds = const <String>[],
     this.pets = const <OwnerActiveRequestPet>[],
     this.myApplication,
@@ -82,6 +85,7 @@ class OwnerActiveRequest {
       timeFrom: cleanHm1011(j['timeFrom']),
       timeTo: cleanHm1011(j['timeTo']),
       ownerNoCar: parseBool1011(j['ownerNoCar']),
+      foodProvided: parseTriBool1011(j['foodProvided']),
       petIds: ((j['petIds'] as List?) ?? const []).map((e) => e.toString()).where((e) => e.isNotEmpty).toList(),
       pets: pets,
       myApplication: (app == null || app.isEmpty) ? null : app,

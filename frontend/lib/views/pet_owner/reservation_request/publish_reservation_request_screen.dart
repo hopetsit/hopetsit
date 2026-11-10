@@ -252,8 +252,19 @@ class _PublishReservationRequestScreenState
                       step: 3,
                       done: controller.stepDatesDone,
                       icon: Icons.calendar_today_rounded,
-                      title: 'send_request_dates_label'.tr,
-                      child: _buildDatesSection(),
+                      // 639 — « Dates et horaires » : les heures de début et de
+                      // fin (facultatives) viennent juste sous les dates.
+                      title: 'f639_dates_hours_title'.tr,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildDatesSection(),
+                          if (!controller.hoursComeFromDates1011) ...[
+                            SizedBox(height: 16.h),
+                            _buildHours639(),
+                          ],
+                        ],
+                      ),
                     ))),
                 SizedBox(height: 14.h),
                 // ── 4. Lieu (ville obligatoire) ──────────────────────────
@@ -275,14 +286,16 @@ class _PublishReservationRequestScreenState
                       child: _buildBudgetSection(),
                     )),
                 SizedBox(height: 14.h),
-                // ── Précisions (facultatif) — 1011 : horaires + sans voiture ──
+                // ── Infos pratiques (facultatif) — 639 : « Je fournis la
+                // nourriture » puis « Je n'ai pas de voiture » (1011). Les
+                // heures sont remontées sous les dates (étape 3).
                 Obx(() => _buildSectionCard(
                       key: const Key('c1011_section'),
                       optional: true,
-                      done: controller.extrasDone1011,
+                      done: controller.practicalDone639,
                       icon: Icons.tune_rounded,
-                      title: 'c1011_title'.tr,
-                      child: _buildExtras1011(),
+                      title: 'f639_practical_title'.tr,
+                      child: _buildPractical639(),
                     )),
                 SizedBox(height: 14.h),
                 // ── 5. Détails (facultatif) ──────────────────────────────
@@ -498,6 +511,7 @@ class _PublishReservationRequestScreenState
       controller.startTime.value;
       controller.endTime.value;
       final hours1011 = controller.hoursSummary1011;
+      final food639 = controller.foodProvided.value; // 639 — null = non précisé
       final location = controller.serviceLocationDone
           ? serviceLocationDisplay(controller.serviceLocationToSend,
               meetingPoint: controller.meetingPointText.value)
@@ -516,13 +530,17 @@ class _PublishReservationRequestScreenState
             _summaryRow(Icons.room_service_rounded,
                 'send_request_service_type_label'.tr,
                 duration.isNotEmpty ? '$service · $duration min' : service),
+            // v587 (point 8) — lieu du service dans le récapitulatif
+            // (639 : rangé avec le service, comme dans le formulaire).
+            _summaryRow(Icons.home_rounded, 'svc587_field'.tr, location),
             _summaryRow(Icons.calendar_today_rounded,
                 'send_request_dates_label'.tr, dates),
+            // 1011 / 639 — horaires juste sous les dates, s'ils sont remplis.
+            if (hours1011.isNotEmpty)
+              _summaryRow(Icons.schedule_rounded, 'c1011_hours'.tr, hours1011),
             if (estText620.isNotEmpty)
               _summaryRow(Icons.calculate_rounded, 'dates620_estimate_title'.tr,
                   estText620),
-            // v587 (point 8) — lieu du service dans le récapitulatif.
-            _summaryRow(Icons.home_rounded, 'svc587_field'.tr, location),
             _summaryRow(Icons.location_on_rounded,
                 'publish_request_city_label'.tr, city),
             // v587 — budget (facultatif) : « 35 € » ou « Aucun ».
@@ -533,9 +551,14 @@ class _PublishReservationRequestScreenState
                     ? CurrencyHelper.formatCompact(
                         controller.budgetCurrency, controller.budgetAmount!)
                     : 'budget587_none'.tr),
-            // 1011 — horaires et « sans voiture », seulement s'ils sont remplis.
-            if (hours1011.isNotEmpty)
-              _summaryRow(Icons.schedule_rounded, 'c1011_hours'.tr, hours1011),
+            // 639 — infos pratiques : nourriture (si précisée) puis
+            // « sans voiture » (1011), seulement si remplis.
+            if (food639 != null)
+              _summaryRow(
+                  Icons.restaurant_rounded,
+                  'f639_food_label'.tr,
+                  (food639 ? 'f639_food_short_yes' : 'f639_food_short_no').tr,
+                  key: const Key('f639_food_summary')),
             if (controller.ownerNoCar.value)
               _summaryRow(Icons.directions_car_rounded, 'c1011_transport'.tr,
                   'c1011_no_car_short'.tr),
@@ -551,9 +574,10 @@ class _PublishReservationRequestScreenState
   }
 
   Widget _summaryRow(IconData icon, String label, String value,
-      {bool last = false}) {
+      {bool last = false, Key? key}) {
     final filled = value.trim().isNotEmpty;
     return Padding(
+      key: key,
       padding: EdgeInsets.only(bottom: last ? 0 : 10.h),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -774,93 +798,133 @@ class _PublishReservationRequestScreenState
     );
   }
 
-  /// 1011 « conclure » — précisions facultatives : horaires souhaités
-  /// (« de … à … ») et « je n'ai pas de voiture ». Pas d'écran en plus.
-  Widget _buildExtras1011() {
-    final accent = AppColors.primaryColor;
-    final showHours = !controller.hoursComeFromDates1011;
+  /// 639 — horaires souhaités CHAQUE JOUR, FACULTATIFS, juste sous les dates.
+  /// (Les lignes « Début » / « Fin » portent déjà l'heure du 1er et du dernier
+  /// jour : le titre dit « chaque jour » pour ne pas faire double saisie.)
+  /// (bloc 1011 remonté tel quel : mêmes clés, mêmes champs `timeFrom` /
+  /// `timeTo`). Absent quand l'étape 3 demande déjà des heures (garde en
+  /// journée / promenade à dates précises) : pas de double saisie.
+  Widget _buildHours639() {
     return Column(
+      key: const Key('f639_hours_block'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showHours) ...[
-          InterText(
-            text: 'c1011_hours'.tr,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondaryStrong(context),
-          ),
-          SizedBox(height: 4.h),
-          InterText(
-            text: 'c1011_hours_sub'.tr,
-            fontSize: 12.sp,
-            color: AppColors.textSecondary(context),
-            maxLines: 3,
-          ),
-          SizedBox(height: 8.h),
-          Row(
-            children: [
-              Expanded(
-                child: _hourCell1011(
-                  key: const Key('c1011_time_from'),
-                  clearKey: const Key('c1011_time_from_clear'),
-                  label: 'c1011_from'.tr,
-                  value: controller.timeFrom.value,
-                  onTap: () => _pickHour1011(isFrom: true),
-                  onClear: () => controller.timeFrom.value = null,
-                ),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: _hourCell1011(
-                  key: const Key('c1011_time_to'),
-                  clearKey: const Key('c1011_time_to_clear'),
-                  label: 'c1011_to'.tr,
-                  value: controller.timeTo.value,
-                  onTap: () => _pickHour1011(isFrom: false),
-                  onClear: () => controller.timeTo.value = null,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 14.h),
-        ],
+        InterText(
+          text: 'f639_hours_title'.tr,
+          fontSize: 13.sp,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textSecondaryStrong(context),
+          maxLines: 2,
+        ),
+        SizedBox(height: 4.h),
+        InterText(
+          text: 'c1011_hours_sub'.tr,
+          fontSize: 12.sp,
+          color: AppColors.textSecondary(context),
+          maxLines: 3,
+        ),
+        SizedBox(height: 8.h),
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => controller.ownerNoCar.toggle(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InterText(
-                      text: 'c1011_no_car'.tr,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary(context),
-                      maxLines: 2,
-                    ),
-                    SizedBox(height: 2.h),
-                    InterText(
-                      text: 'c1011_no_car_sub'.tr,
-                      fontSize: 12.sp,
-                      color: AppColors.textSecondary(context),
-                      maxLines: 3,
-                    ),
-                  ],
-                ),
+              child: _hourCell1011(
+                key: const Key('c1011_time_from'),
+                clearKey: const Key('c1011_time_from_clear'),
+                label: 'c1011_from'.tr,
+                value: controller.timeFrom.value,
+                onTap: () => _pickHour1011(isFrom: true),
+                onClear: () => controller.timeFrom.value = null,
               ),
             ),
             SizedBox(width: 10.w),
-            AppSwitch(
-              key: const Key('c1011_no_car_switch'),
-              value: controller.ownerNoCar.value,
-              onChanged: (v) => controller.ownerNoCar.value = v,
-              accent: accent,
+            Expanded(
+              child: _hourCell1011(
+                key: const Key('c1011_time_to'),
+                clearKey: const Key('c1011_time_to_clear'),
+                label: 'c1011_to'.tr,
+                value: controller.timeTo.value,
+                onTap: () => _pickHour1011(isFrom: false),
+                onClear: () => controller.timeTo.value = null,
+              ),
             ),
           ],
         ),
+      ],
+    );
+  }
+
+  /// 639 — « Infos pratiques » (facultatif) : « Je fournis la nourriture »
+  /// puis « Je n'ai pas de voiture » (1011, inchangé). Pas d'écran en plus.
+  Widget _buildPractical639() {
+    final accent = AppColors.primaryColor;
+    final food = controller.foodProvided.value == true;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _switchRow639(
+          title: 'f639_food'.tr,
+          sub: 'f639_food_sub'.tr,
+          onTapText: () => controller.setFood639(!food),
+          toggle: AppSwitch(
+            key: const Key('f639_food_switch'),
+            value: food,
+            onChanged: controller.setFood639,
+            accent: accent,
+          ),
+        ),
+        SizedBox(height: 14.h),
+        _switchRow639(
+          title: 'c1011_no_car'.tr,
+          sub: 'c1011_no_car_sub'.tr,
+          onTapText: () => controller.ownerNoCar.toggle(),
+          toggle: AppSwitch(
+            key: const Key('c1011_no_car_switch'),
+            value: controller.ownerNoCar.value,
+            onChanged: (v) => controller.ownerNoCar.value = v,
+            accent: accent,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Une ligne « texte + interrupteur » des infos pratiques.
+  Widget _switchRow639({
+    required String title,
+    required String sub,
+    required VoidCallback onTapText,
+    required Widget toggle,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTapText,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InterText(
+                  text: title,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 2,
+                ),
+                SizedBox(height: 2.h),
+                InterText(
+                  text: sub,
+                  fontSize: 12.sp,
+                  color: AppColors.textSecondary(context),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(width: 10.w),
+        toggle,
       ],
     );
   }

@@ -1,5 +1,5 @@
 // 611 (PAM, 04/10/2026) — RANGS façon Waze (idée de Cam, décision BOB) :
-// Chiot → Jeune chien → Chien adulte → Chef de meute → Légende.
+// Découvreur → Explorateur → Guide → Ambassadeur → Légende.
 //
 // Le serveur calcule le rang sur les PawPoints GAGNÉS depuis toujours (jamais
 // sur le solde) et l'envoie partout sous la même forme :
@@ -42,7 +42,7 @@ class PawRank611 {
   final String? nextKey;
 
   /// null si absent ou illisible (ancien serveur, projection partielle) :
-  /// l'app n'affiche alors aucune pastille plutôt qu'un faux « Chiot ».
+  /// l'app n'affiche alors aucune pastille plutôt qu'un faux « Découvreur ».
   static PawRank611? fromJson(dynamic raw) {
     if (raw is! Map) return null;
     final key = (raw['key'] ?? '').toString();
@@ -84,13 +84,13 @@ class PawRankStyle611 {
   final Color darkInk;
 
   static const List<PawRankStyle611> _all = <PawRankStyle611>[
-    // Chiot — miel
+    // Découvreur — miel
     PawRankStyle611(Color(0xFFE0A045), Color(0xFFFCEBCB), Color(0xFF7A4A06), Color(0xFF4A2F0A), Color(0xFFFFD58C)),
-    // Jeune chien — orange
+    // Explorateur — orange
     PawRankStyle611(Color(0xFFE07A2E), Color(0xFFFDE2CC), Color(0xFF8A3A06), Color(0xFF52260A), Color(0xFFFFBE8A)),
-    // Chien adulte — brique
+    // Guide — brique
     PawRankStyle611(Color(0xFFC9442A), Color(0xFFFADAD2), Color(0xFF8A2410), Color(0xFF55190E), Color(0xFFFFAE9C)),
-    // Chef de meute — violet royal
+    // Ambassadeur — violet royal
     PawRankStyle611(Color(0xFF7A3FB8), Color(0xFFEBDDFB), Color(0xFF4B1D85), Color(0xFF34175A), Color(0xFFD9BCFF)),
     // Légende — or
     PawRankStyle611(Color(0xFFC9961A), Color(0xFFFBEDC4), Color(0xFF6E4E00), Color(0xFF4A3604), Color(0xFFFFDC73)),
@@ -177,7 +177,7 @@ class PawRankPill611 extends StatelessWidget {
   }
 }
 
-/// Écran PawPoints : mon rang + barre « encore N points pour Chien adulte ».
+/// Écran PawPoints : mon rang + barre « encore N points pour Guide ».
 class PawRankProgress611 extends StatelessWidget {
   const PawRankProgress611({super.key, required this.rank});
 
@@ -263,7 +263,7 @@ class PawRankService611 {
   static final PawRankService611 instance = PawRankService611._();
 
   final Rxn<PawRank611> mine = Rxn<PawRank611>();
-  /// 618 — mes pins (podium / 1er Chef de meute), lus dans /pawpoints/me.
+  /// 618 — mes pins (podium / 1er Ambassadeur), lus dans /pawpoints/me.
   final Rxn<PawPins618> pins618 = Rxn<PawPins618>();
   int seenLevel = 1;
   bool _celebrating = false;
@@ -290,7 +290,7 @@ class PawRankService611 {
     } catch (_) {/* best-effort : pas de rang affiché */}
   }
 
-  /// « Tu passes Jeune chien ! » une seule fois par rang et par personne.
+  /// « Tu passes Explorateur ! » une seule fois par rang et par personne.
   Future<bool> maybeCelebrate() async {
     final r = mine.value;
     if (r == null || r.level <= seenLevel || _celebrating) return false;

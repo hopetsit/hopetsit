@@ -91,7 +91,7 @@ export function PawPointsGuide({ initial }: { initial: PawCatalog607 | null }) {
         </section>
       )}
 
-      {/* 04/10 (611) — les 5 rangs (Chiot → Légende) remplacent les 7 paliers. */}
+      {/* 04/10 (611) — les 5 rangs (Découvreur → Légende) remplacent les 7 paliers. */}
       {catalog?.ranks611 && (
         <section className="mt-12" data-ppg-ranks="">
           <PpTitle>{t("rank611_title")}</PpTitle>

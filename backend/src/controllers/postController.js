@@ -659,7 +659,7 @@ const createPost = async (req, res) => {
 
     // 612 §8 — une demande a toujours un animal : sans cela AUCUN prestataire ne
     // pouvait postuler (mesuré). Fiche minimale créée si le propriétaire n'en a pas.
-    await require('../utils/postPet612').attachPetToPayload(postPayload, { owner, animalTypes });
+    await require('../utils/postPet612').attachPetToPayload(postPayload, { owner, animalTypes, breed: req.body && req.body.breed }); // 639 — race facultative (demande rapide)
     const newPost = await Post.create(postPayload);
 
     await newPost.populate('ownerId');
@@ -2052,7 +2052,7 @@ const createPostWithMedia = async (req, res) => {
     // Create the post
     // 612 §8 — une demande a toujours un animal : sans cela AUCUN prestataire ne
     // pouvait postuler (mesuré). Fiche minimale créée si le propriétaire n'en a pas.
-    await require('../utils/postPet612').attachPetToPayload(postPayload, { owner, animalTypes });
+    await require('../utils/postPet612').attachPetToPayload(postPayload, { owner, animalTypes, breed: req.body && req.body.breed }); // 639 — race facultative (demande rapide)
     const newPost = await Post.create(postPayload);
 
     await newPost.populate('ownerId');

@@ -1,5 +1,6 @@
-// 26/10/2026 (LEO, 2610) — tests du module pur lib/pawmap2610.ts (maquette PawMap de l'app,
-// ~/hopetsit-social/design_pawmap_2610/) et du rond sélectionné « épinglé » de pawmapEdge622.
+// 26/10/2026 (LEO, 2610) — tests du module pur lib/pawmap2610.ts et du rond sélectionné « épinglé » de pawmapEdge622.
+// 10/11/2026 (LEO, build 639) — cas de DESSIN réécrits aux valeurs des pastilles v2 (32 px pleine couleur,
+// halos, point « disponible aujourd'hui », bulle claire) ; les cas de LOGIQUE sont inchangés.
 //   node scripts/test-pawmap2610.mjs
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -17,63 +18,147 @@ const edge = await import(url(load("pawmapEdge622.ts").replace(/from "\.\/pawmap
 let n = 0;
 const ok = (name, fn) => { fn(); n++; console.log("OK    " + name); };
 
-ok("couleurs du README : #f23b16 / #1a6cff / #12b350, or #f6b400 (icône #7a4500), direct #e8452f", () => {
-  assert.equal(m.ROLE_2610.owner.color, "#f23b16");
-  assert.equal(m.ROLE_2610.sitter.color, "#1a6cff");
-  assert.equal(m.ROLE_2610.walker.color, "#12b350");
-  assert.equal(m.ROLE_2610.owner.glow, "rgba(242,59,22,0.5)");
-  assert.equal(m.GOLD_2610, "#f6b400"); assert.equal(m.GOLD_ICON_2610, "#7a4500"); assert.equal(m.LIVE_2610, "#e8452f");
+ok("couleurs v2 (CONTRATS §6, carte seulement) : #ff3a0f / #0f62ff / #00c24a, halos #12d8c9 / #8f5cff / #ff5ad2, disponible #1fe074", () => {
+  assert.equal(m.ROLE_2610.owner.color, "#ff3a0f"); assert.equal(m.ROLE_2610.owner.light, "#ff7a52");
+  assert.equal(m.ROLE_2610.sitter.color, "#0f62ff"); assert.equal(m.ROLE_2610.sitter.light, "#5ea0ff");
+  assert.equal(m.ROLE_2610.walker.color, "#00c24a"); assert.equal(m.ROLE_2610.walker.light, "#3fd476");
+  assert.equal(m.BOOST_2610, "#12d8c9"); assert.equal(m.FOLLOW_2610, "#8f5cff"); assert.equal(m.FRIEND_2610, "#ff5ad2");
+  assert.equal(m.AVAILABLE_2610, "#1fe074");
+  assert.equal(m.GOLD_2610, "#f6b400"); assert.equal(m.GOLD_ICON_2610, "#6b3a00"); assert.equal(m.LIVE_2610, "#e8452f");
+  assert.equal(m.PIN_2610, 32);
 });
 
-ok("rond 1 rôle : 50 px, anneau r 19,5 épaisseur 5, centre r 16 (32 px), aucune pastille", () => {
+ok("pastille 1 rôle : 32 px pleine couleur, SANS anneau blanc, filet 0,5 + ombre, icône 17 centrée, ombre au sol", () => {
   const h = m.profilePinHtml2610({ roles: ["sitter"] });
-  assert.match(h, /width:50px;height:50px/);
-  assert.match(h, /r="19.5" stroke="#1a6cff" stroke-width="5"/);
-  assert.match(h, /r="16" fill="#1a6cff"/);
-  assert.doesNotMatch(h, /data-chips-2610/);
-  assert.doesNotMatch(h, /data-price-bubble-2610/);
-  assert.match(h, /0 4px 10px -2px rgba\(26,108,255,0.5\)/);
+  assert.match(h, /^<div data-pin-2610=""  style="position:relative;width:32px;height:32px;transform-origin:50% 50%;">/);
+  assert.match(h, /data-disc-2610="" style="position:absolute;inset:0;border-radius:50%;background:#0f62ff;box-shadow:0 0 0 \.5px rgba\(0,0,0,\.25\),0 1px 3px rgba\(0,0,0,\.35\);"/);
+  assert.match(h, /left:7\.5px;top:7\.5px;width:17px;height:17px/);
+  assert.match(h, /data-ground-2610="" style="position:absolute;left:7px;top:29px;width:18px;height:6px/);
+  assert.doesNotMatch(h, /stroke=|#fff 0|0 0 0 2/); // aucun anneau, aucun contour blanc autour du disque
+  assert.doesNotMatch(h, /data-(chips|price-bubble|boost|follow|friend|wave|rocket|heart|crown|available|live|online|verified|seltail)-2610/);
 });
 
-ok("multi-rôle : anneau découpé avec écart de 6°, camembert, pastilles 17 px pour chaque rôle", () => {
+ok("multi-rôle : camembert dans le disque, icône « animaux », mini-pastilles 12 px (écart 3, haut à 27) pour chaque rôle", () => {
   const h = m.profilePinHtml2610({ roles: ["sitter", "walker"] });
-  assert.equal((h.match(/stroke-width="5"/g) || []).length, 2);
-  assert.match(h, /data-chips-2610/);
-  assert.equal((h.match(/width:17px;height:17px;border-radius:50%;background:#(1a6cff|12b350)/g) || []).length, 2);
-  // 1er arc commence à 6° (pas à 0°) : point de départ ≠ le haut du cercle.
-  const d = h.match(/<path d="(M [^"]+)" stroke="#1a6cff"/)[1];
-  const [x0, y0] = d.split(" ").slice(1, 3).map(Number);
-  assert.ok(Math.abs(x0 - (25 + 19.5 * Math.sin((6 * Math.PI) / 180))) < 0.01 && Math.abs(y0 - (25 - 19.5 * Math.cos((6 * Math.PI) / 180))) < 0.01);
+  assert.match(h, /data-disc-2610="" style="position:absolute;inset:0;border-radius:50%;overflow:hidden;/);
+  assert.equal((h.match(/<path d="M 16 16 L /g) || []).length, 2);
+  assert.match(h, /data-chips-2610="" style="position:absolute;left:50%;top:27px;transform:translateX\(-50%\);display:flex;gap:3px;"/);
+  assert.equal((h.match(/width:12px;height:12px;border-radius:50%;background:#(0f62ff|00c24a)/g) || []).length, 2);
   const h3 = m.profilePinHtml2610({ roles: ["owner", "sitter", "walker"] });
-  assert.equal((h3.match(/stroke-width="5"/g) || []).length, 3);
+  assert.equal((h3.match(/<path d="M 16 16 L /g) || []).length, 3);
+  assert.equal((h3.match(/width:12px;height:12px;border-radius:50%;background:#(ff3a0f|0f62ff|00c24a)/g) || []).length, 3);
 });
 
-ok("couronne 17 px haut-droite (-4/-4), point direct 10 px bas-droite pulsé 1,8 s", () => {
+ok("couronne 14 px haut-droite (-5/-5), point direct 7 px bas-droite (-1/-1) pulsé 1,8 s", () => {
   const h = m.profilePinHtml2610({ roles: ["owner"], premium: true, live: true });
-  assert.match(h, /right:-4px;top:-4px;width:17px;height:17px;border-radius:50%;background:#f6b400/);
-  assert.match(h, /right:0;bottom:0px;width:10px;height:10px;border-radius:50%;background:#e8452f;.*animation:hps2610-pulse 1.8s/);
+  assert.match(h, /data-crown-2610="" style="[^"]*right:-5px;top:-5px;width:14px;height:14px;background:#f6b400/);
+  assert.match(h, /data-live-2610="" style="position:absolute;right:-1px;bottom:-1px;width:7px;height:7px;border-radius:50%;background:#e8452f;[^"]*animation:hps2610-pulse 1\.8s/);
 });
 
-ok("bulle de prix : RIEN tant que le rond n'est pas sélectionné, même avec des prix", () => {
+ok("point « disponible aujourd'hui » : 8 px #1fe074 bas-gauche, UNIQUEMENT si availableDot === true et rôle gardien/promeneur", () => {
+  const on = m.profilePinHtml2610({ roles: ["sitter"], availableDot: true });
+  assert.match(on, /data-available-2610="" style="position:absolute;left:-1px;bottom:-1px;width:8px;height:8px;border-radius:50%;background:#1fe074;box-shadow:0 0 0 1\.5px #fff;"/);
+  assert.match(m.profilePinHtml2610({ roles: ["walker"], availableDot: true }), /data-available-2610/);
+  // champ absent (ancien serveur), false, ou valeur « vraie » qui n'est pas true : pas de point
+  for (const v of [undefined, null, false, 1, "true"]) assert.doesNotMatch(m.profilePinHtml2610({ roles: ["sitter"], availableDot: v }), /data-available-2610/);
+  // jamais sur un propriétaire seul
+  assert.doesNotMatch(m.profilePinHtml2610({ roles: ["owner"], availableDot: true }), /data-available-2610/);
+  // multi-rôle avec un rôle prestataire : point remonté au-dessus des mini-pastilles
+  assert.match(m.profilePinHtml2610({ roles: ["owner", "walker"], availableDot: true }), /data-available-2610="" style="position:absolute;left:-3px;bottom:9px/);
+});
+
+ok("bulle de prix : RIEN tant que la pastille n'est pas sélectionnée ; sélection = ×1,18 + pointe 9 px + bulle à 38 px", () => {
   const prices = [{ role: "sitter", amount: "20 €", unit: "/jour" }];
-  assert.doesNotMatch(m.profilePinHtml2610({ roles: ["sitter"], prices }), /data-price-bubble-2610/);
+  const off = m.profilePinHtml2610({ roles: ["sitter"], prices });
+  assert.doesNotMatch(off, /data-price-bubble-2610/); assert.doesNotMatch(off, /data-seltail-2610/);
   const h = m.profilePinHtml2610({ roles: ["sitter"], prices, selected: true });
-  assert.match(h, /data-price-bubble-2610/);
-  assert.match(h, /transform:scale\(1.18\)/);
-  // pointe à 30 px au-dessus du CENTRE (maquette bubBottom anneau = 30) : 25 + 30 = 55 depuis le bas du rond
-  assert.match(h, /data-price-bubble-2610="" style="position:absolute;left:50%;bottom:55px/);
+  assert.match(h, /data-selected-2610=""/);
+  assert.match(h, /transform:scale\(1\.18\)/);
+  assert.match(h, /data-seltail-2610="" style="position:absolute;left:11\.5px;top:25\.5px;width:9px;height:9px;border-radius:2px;background:#0f62ff;transform:rotate\(45deg\)/);
+  // pointe de la bulle à 21 px au-dessus du centre : 16 + 21 + 1 (demi-diagonale rognée) = 38 depuis le bas
+  assert.equal(m.BUBBLE_BOTTOM_2610, 38);
+  assert.match(h, /data-price-bubble-2610="" style="position:absolute;left:50%;bottom:38px/);
+  // multi-rôle sélectionné : pas de pointe de sélection (les mini-pastilles occupent le bas)
+  assert.doesNotMatch(m.profilePinHtml2610({ roles: ["sitter", "walker"], selected: true }), /data-seltail-2610/);
 });
 
-ok("bulle : pilule blanche padding 2, segment plein par rôle 24 px, icône 12 dans rond 18, 12,5/700 + 9,5/500 88 %, pointe 12 × 7", () => {
-  const h = m.priceBubbleHtml2610([{ role: "sitter", amount: "20 €", unit: "/jour" }, { role: "walker", amount: "12 €", unit: "/balade" }], 30);
-  assert.match(h, /gap:2px;padding:2px;border-radius:999px;background:#fff/);
-  assert.equal((h.match(/height:24px;padding:0 10px 0 3px;border-radius:999px;background:#(1a6cff|12b350)/g) || []).length, 2);
-  assert.match(h, /width:18px;height:18px;border-radius:50%;background:#fff/);
-  assert.match(h, /width="12" height="12" fill="#1a6cff"/);
-  assert.match(h, /font-size:12.5px;font-weight:700/);
-  assert.match(h, /font-size:9.5px;font-weight:500;color:rgba\(255,255,255,.88\)/);
-  assert.match(h, /border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid #fff/);
+ok("bulle v2 : pilule CLAIRE 28 px, pastille d'icône 20 en dégradé, 13/800 + 9,5/600, séparateur 1×14, pointe 11 px, note 16 px", () => {
+  const h = m.priceBubbleHtml2610([{ role: "sitter", amount: "20 €", unit: "/jour" }, { role: "walker", amount: "12 €", unit: "/balade" }], 30, { rating: "4.8" });
+  assert.match(h, /data-bubble-2610="" style="position:relative;z-index:1;display:flex;align-items:center;height:28px;padding:0 4px;border-radius:999px;background:#ffffff;box-shadow:inset 0 0 0 1px rgba\(0,0,0,\.07\);"/);
+  assert.match(h, /width:20px;height:20px;border-radius:50%;background:linear-gradient\(160deg,#5ea0ff,#0f62ff\)/);
+  assert.match(h, /width:20px;height:20px;border-radius:50%;background:linear-gradient\(160deg,#3fd476,#00c24a\)/);
+  assert.match(h, /font-size:13px;font-weight:800;color:#1d1719/);
+  assert.match(h, /font-size:9\.5px;font-weight:600;color:#7a6f71/);
+  assert.equal((h.match(/data-bubble-sep-2610/g) || []).length, 1);
+  assert.match(h, /data-tail-2610="" style="[^"]*width:11px;height:11px;border-radius:3px;background:#ffffff;transform:rotate\(45deg\);margin-top:-5\.5px;"/);
+  assert.match(h, /data-bubble-rating-2610="" style="[^"]*height:16px;[^"]*background:#ffc526/);
+  assert.match(h, /color:#3d2600;">4\.8</);
   assert.match(h, /bottom:30px/);
+  // la passe de collision décale la pilule par `translate` : elle ne porte ni translate ni animation
+  const pill = h.match(/data-bubble-2610="" style="([^"]*)"/)[1];
+  assert.doesNotMatch(pill, /translate|animation/);
+  // sans note : pas de pastille de note ; sombre : fond #262123, texte #f6efec
+  const d = m.priceBubbleHtml2610([{ role: "owner", amount: "30 €", unit: "" }], 39, { dark: true });
+  assert.doesNotMatch(d, /data-bubble-rating-2610/);
+  assert.match(d, /background:#262123/); assert.match(d, /color:#f6efec/);
+  assert.doesNotMatch(d, /hps2610-bub/); // pas d'apparition animée sans `pop`
+  assert.match(m.priceBubbleHtml2610([{ role: "owner", amount: "30 €", unit: "" }], 39, { pop: true }), /animation:hps2610-bub \.28s/);
+});
+
+ok("groupe : 32 px, fond blanc (sombre #262123), anneau 3,3 partagé par rôle, nombre 13/800 ; « dès X » masqué par défaut", () => {
+  const h = m.clusterHtml2610({ counts: { sitter: 5, owner: 5, walker: 4 }, total: 14 });
+  assert.match(h, /data-cluster-2610=""  style="position:relative;width:32px;height:32px;"/);
+  assert.match(h, /background:#ffffff;box-shadow:0 0 0 \.5px rgba\(0,0,0,\.25\),0 1px 3px rgba\(0,0,0,\.35\)/);
+  assert.equal((h.match(/stroke-width="3\.3"/g) || []).length, 3);
+  assert.match(h, /font:800 13px/);
+  assert.doesNotMatch(h, /data-cluster-from-2610/);
+  // un seul rôle : anneau plein (un cercle), pas d'arc
+  const one = m.clusterHtml2610({ counts: { walker: 3 }, total: 3 });
+  assert.equal((one.match(/stroke-width="3\.3"/g) || []).length, 1);
+  const d = m.clusterHtml2610({ counts: { sitter: 1 }, total: 2, dark: true, fromLabel: { from: "dès", amount: "25 €/jour", role: "sitter" } });
+  assert.match(d, /background:#262123/);
+  assert.match(d, /color:#f6efec/);
+  assert.match(d, /data-cluster-open-2610/);
+  assert.match(d, /data-cluster-from-2610="" style="position:absolute;left:50%;top:37px;[^"]*height:24px/);
+});
+
+ok("halos v2 : UN seul (PawBoost > PawFollow > ami), 43 px bord 2 px, fusée 13 / onde violette / cœur 15 ; couronne toujours en plus", () => {
+  const b = m.profilePinHtml2610({ roles: ["walker"], boosted: true, pawFollow: true, friend: true, premium: true });
+  assert.match(b, /data-boost-2610="" style="position:absolute;left:-5\.5px;top:-5\.5px;width:43px;height:43px;[^"]*border:2px solid #12d8c9;background:rgba\(18,216,201,\.22\);box-shadow:0 0 9px 1px rgba\(18,216,201,\.75\);/);
+  assert.match(b, /data-rocket-2610="" style="[^"]*left:-5px;top:-5px;width:13px;height:13px;background:#12d8c9/);
+  assert.doesNotMatch(b, /data-(follow|friend|wave|heart)-2610/);
+  assert.match(b, /data-crown-2610/);
+  const f = m.profilePinHtml2610({ roles: ["walker"], pawFollow: true, friend: true });
+  assert.match(f, /data-follow-2610="" style="[^"]*border:2px solid #8f5cff;background:rgba\(143,92,255,\.22\)/);
+  assert.match(f, /data-wave-2610="" style="[^"]*border:2px solid #8f5cff;animation:hps2610-wave 1\.8s ease-out infinite;"/);
+  assert.doesNotMatch(f, /data-(boost|friend|rocket|heart)-2610/);
+  const a = m.profilePinHtml2610({ roles: ["sitter"], friend: true });
+  assert.match(a, /data-friend-2610="" style="[^"]*border:2px solid #ff5ad2;background:rgba\(255,90,210,\.22\)/);
+  assert.match(a, /data-heart-2610="" style="[^"]*left:-6px;top:-6px;width:15px;height:15px;background:linear-gradient\(160deg,#f73cc0,#d9159f\)/);
+});
+
+ok("signes du site gardés : coche « identité vérifiée » 10 px bord droit, point en ligne 7 px bas-droite, le direct passe devant", () => {
+  const h = m.profilePinHtml2610({ roles: ["sitter"], verified: true, online: true });
+  assert.match(h, /data-verified-2610="" style="[^"]*right:-5px;top:11px;width:10px;height:10px;background:#2F6FE0/);
+  assert.match(h, /data-online-2610="" style="position:absolute;right:-1px;bottom:-1px;width:7px;height:7px;border-radius:50%;background:#16A34A/);
+  assert.match(m.profilePinHtml2610({ roles: ["sitter"], online: false }), /data-online-2610="" style="[^"]*background:#C2410C/);
+  const d = m.profilePinHtml2610({ roles: ["sitter"], live: true, online: true });
+  assert.match(d, /data-live-2610/); assert.doesNotMatch(d, /data-online-2610/);
+  // multi-rôle : la coche passe en haut au centre, les points remontent au-dessus des mini-pastilles
+  assert.match(m.profilePinHtml2610({ roles: ["sitter", "walker"], verified: true }), /data-verified-2610="" style="[^"]*left:11px;top:-5px/);
+  assert.match(m.profilePinHtml2610({ roles: ["sitter", "walker"], online: true }), /data-online-2610="" style="position:absolute;right:-3px;bottom:9px/);
+});
+
+ok("clair / sombre : surfaces de la maquette ; « réduire les animations » coupe l'onde et les animations", () => {
+  assert.deepEqual(m.surface2610(false), { bg: "#ffffff", ink: "#1d1719", muted: "#7a6f71", line: "rgba(0,0,0,.07)", sep: "rgba(0,0,0,.14)" });
+  assert.deepEqual(m.surface2610(true), { bg: "#262123", ink: "#f6efec", muted: "#a99c9e", line: "rgba(255,255,255,.22)", sep: "rgba(255,255,255,.18)" });
+  const css = m.PAWMAP_2610_CSS;
+  const rm = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+  assert.ok(rm.length > 40);
+  assert.match(rm, /\[data-pin-2610\], \[data-price-bubble-2610\], \[data-live-2610\], \[data-boost-2610\] \{ animation:none !important; \}/);
+  assert.match(rm, /\[data-wave-2610\] \{ display:none !important; \}/);
+  // le nom du rebond que la passe de collision écoute n'a pas changé
+  assert.match(css, /@keyframes hps2610-pop/);
 });
 
 ok("splitPrice : « 20 €/jour » → « 20 € » + « /jour » ; « $40/day » ; sans unité = tout en montant", () => {
@@ -91,19 +176,6 @@ ok("visiblePrices : propriétaire (et visiteur) → gardiens + promeneurs ; gard
   assert.deepEqual(m.visiblePrices2610("walker", all, prices).map((p) => p.role), ["owner"]);
   // jamais le prix d'un rôle que la personne n'a pas
   assert.deepEqual(m.visiblePrices2610("owner", ["sitter"], prices).map((p) => p.role), ["sitter"]);
-});
-
-ok("groupe : 48 px, blanc (sombre #262123), contour blanc 2,5, anneau 7, nombre 15,5/800 ; « dès X » masqué par défaut", () => {
-  const h = m.clusterHtml2610({ counts: { sitter: 5, owner: 5, walker: 4 }, total: 14 });
-  assert.match(h, /width:48px;height:48px/);
-  assert.match(h, /background:#fff;box-shadow:0 0 0 2.5px #fff/);
-  assert.equal((h.match(/stroke-width="7"/g) || []).length, 3);
-  assert.match(h, /font:800 15.5px/);
-  assert.doesNotMatch(h, /data-cluster-from-2610/);
-  const d = m.clusterHtml2610({ counts: { sitter: 1 }, total: 2, dark: true, fromLabel: { from: "dès", amount: "25 €/jour", role: "sitter" } });
-  assert.match(d, /background:#262123/);
-  assert.match(d, /color:#f6efec/);
-  assert.match(d, /data-cluster-from-2610/);
 });
 
 ok("éclatement : 6 sur un cercle de 72, le reste sur 132 (×0,95 en hauteur), départ en haut", () => {
@@ -139,27 +211,6 @@ ok("passe : un rond sélectionné dont la pointe est HORS de la carte est masqu�
   const view = { l: 0, t: 0, r: 400, b: 800 };
   const sel = { id: "member:sel", layer: "member", rect: { l: -300, t: 300, r: -140, b: 380 }, anchor: { x: -220, y: 355 }, pinned: true };
   assert.ok(edge.resolveEdges622([sel], view, []).hidden.has("member:sel"));
-});
-
-ok("signes existants gardés (Daniel 26/10) : vérifié bas gauche 15, fusée bord gauche 15, halo PawBoost qui respire, PawFollow violet, point en ligne bas droite 10", () => {
-  const h = m.profilePinHtml2610({ roles: ["sitter"], verified: true, boosted: true, online: true, premium: true });
-  assert.match(h, /data-verified-2610="" style="position:absolute;z-index:2;left:-1px;bottom:-1px;width:15px;height:15px;border-radius:50%;background:#2F6FE0/);
-  assert.match(h, /data-rocket-2610="" style="position:absolute;z-index:2;left:-6px;top:17.5px;width:15px;height:15px;border-radius:50%;background:#06B6D4/);
-  assert.match(h, /data-boost-2610="".*animation:hps2610-boost/);
-  assert.match(h, /data-online-2610="" style="position:absolute;z-index:2;right:0;bottom:0px;width:10px;height:10px;border-radius:50%;background:#16A34A/);
-  // le direct passe devant le point en ligne (même place)
-  const d = m.profilePinHtml2610({ roles: ["sitter"], live: true, online: true });
-  assert.match(d, /data-live-2610/); assert.doesNotMatch(d, /data-online-2610/);
-  const f = m.profilePinHtml2610({ roles: ["walker"], pawFollow: true });
-  assert.match(f, /data-follow-2610="".*rgba\(124,58,237/);
-  // PawBoost passe devant PawFollow (un seul halo)
-  assert.doesNotMatch(m.profilePinHtml2610({ roles: ["walker"], pawFollow: true, boosted: true }), /data-follow-2610/);
-  // multi-rôle : la coche quitte le bas gauche (pastilles de rôles) pour le milieu du bord droit
-  assert.match(m.profilePinHtml2610({ roles: ["sitter", "walker"], verified: true }), /data-verified-2610="" style="position:absolute;z-index:2;right:-6px;top:14px/);
-  assert.match(m.profilePinHtml2610({ roles: ["sitter", "walker"], online: true }), /data-online-2610="" style="position:absolute;z-index:2;right:0;bottom:9px/);
-  // rien par défaut
-  const z = m.profilePinHtml2610({ roles: ["walker"] });
-  assert.doesNotMatch(z, /data-(verified|rocket|boost|follow|online)-2610/);
 });
 
 ok("anti-clignotement : rebond une seule fois par sélection, même dessin = même objet icône", () => {

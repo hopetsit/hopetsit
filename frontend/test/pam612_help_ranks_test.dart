@@ -54,7 +54,7 @@ void main() {
         }
         expect(find.text('dès 10 000 PawPoints', skipOffstage: false).evaluate().isNotEmpty ||
             find.text('dès 10 000 PawPoints', skipOffstage: false).evaluate().isNotEmpty, isTrue);
-        expect(find.text('Chef de meute', skipOffstage: false), findsWidgets);
+        expect(find.text('Ambassadeur', skipOffstage: false), findsWidgets);
         expect(find.byKey(const ValueKey<String>('help607_pawpoints'), skipOffstage: false), findsOneWidget);
         expect(t.takeException(), isNull);
       });

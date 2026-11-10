@@ -142,7 +142,7 @@ export function PawNews1910({ className = "", withLink = false }: { className?: 
   );
 }
 
-/** Podium du moment + « 1er Chef de meute ». Rien tant que la route n'existe pas. */
+/** Podium du moment + « 1er Ambassadeur ». Rien tant que la route n'existe pas. */
 export function PodiumPublic1910({ className = "" }: { className?: string }) {
   const { t, lang } = useT();
   const [data, setData] = useState<PublicPins1910 | null>(null);

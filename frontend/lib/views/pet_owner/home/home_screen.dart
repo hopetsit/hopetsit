@@ -1244,6 +1244,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // 1011 — heures de la garde en journée + « propriétaire sans voiture ».
               hoursLabel: post.hoursLabel,
               ownerNoCar: post.ownerNoCar,
+              foodProvided: post.foodProvided, // 639
               userAvatar: post.owner.avatar.isNotEmpty
                   ? post.owner.avatar
                   : null,

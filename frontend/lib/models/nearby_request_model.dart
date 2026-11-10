@@ -34,6 +34,8 @@ class NearbyRequestPost {
   final String timeFrom;
   final String timeTo;
   final bool ownerNoCar;
+  /// 639 — nourriture fournie : true / false, ou null = non précisé.
+  final bool? foodProvided;
   /// 622 — vrai quand le serveur a donné une devise (budget ou propriétaire).
   /// Faux : `currency` vaut 'EUR' par défaut (mesuré le 25/10 : aucune des 22
   /// demandes ouvertes n'en porte) — l'estimation publique ne doit pas alors
@@ -72,6 +74,7 @@ class NearbyRequestPost {
     this.timeFrom = '',
     this.timeTo = '',
     this.ownerNoCar = false,
+    this.foodProvided,
     this.petIds = const <String>[],
     this.approx = false,
     this.dateMode = '',
@@ -127,6 +130,7 @@ class NearbyRequestPost {
       timeFrom: cleanHm1011(j['timeFrom']),
       timeTo: cleanHm1011(j['timeTo']),
       ownerNoCar: parseBool1011(j['ownerNoCar']),
+      foodProvided: parseTriBool1011(j['foodProvided']),
       petIds: ((j['petIds'] as List?) ?? const [])
           .map((e) => e is Map ? (e['_id'] ?? e['id'] ?? '').toString() : e.toString())
           .where((e) => e.isNotEmpty)

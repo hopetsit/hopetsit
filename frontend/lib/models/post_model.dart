@@ -36,6 +36,9 @@ class PostModel {
   final String timeFrom;
   final String timeTo;
   final bool ownerNoCar;
+  /// 639 — « Je fournis la nourriture » : `true`, `false`, ou `null` quand le
+  /// propriétaire n'a rien précisé (ou ancien serveur) → rien à afficher.
+  final bool? foodProvided;
   final String? petId;
   /// v441 — ids des animaux sélectionnés pour l'annonce (multi-animaux). Sert
   /// au pré-remplissage du formulaire « Modifier » côté owner.
@@ -110,6 +113,7 @@ class PostModel {
     this.timeFrom = '',
     this.timeTo = '',
     this.ownerNoCar = false,
+    this.foodProvided,
     this.petId,
     this.petIds = const <String>[],
     this.animalCount = 0,
@@ -220,6 +224,7 @@ class PostModel {
       timeFrom: cleanHm1011(json['timeFrom']),
       timeTo: cleanHm1011(json['timeTo']),
       ownerNoCar: parseBool1011(json['ownerNoCar']),
+      foodProvided: parseTriBool1011(json['foodProvided']),
       petId: json['petId'] as String?,
       petIds: (json['petIds'] as List<dynamic>?)
               ?.map((e) => e.toString())
@@ -323,6 +328,7 @@ class PostModel {
       timeFrom: timeFrom,
       timeTo: timeTo,
       ownerNoCar: ownerNoCar,
+      foodProvided: foodProvided,
       petId: petId,
       petIds: petIds,
       animalCount: animalCount,

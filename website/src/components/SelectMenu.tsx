@@ -220,7 +220,12 @@ export function SelectMenu({
                   aria-selected={sel}
                   onMouseEnter={() => setActive(i)}
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => choose(i)}
+                  onClick={(e) => {
+                    // 639 — dans un <label> (fiche animal), le clic sur une option était renvoyé au bouton par
+                    // le navigateur : le menu se rouvrait aussitôt et restait posé sur les champs suivants.
+                    e.preventDefault();
+                    choose(i);
+                  }}
                   className="flex min-h-[44px] cursor-pointer items-center gap-2.5 rounded-[12px] px-3 py-2 text-sm"
                   style={{
                     background: sel ? (dark ? c.paleDark : c.pale) : act ? (dark ? "#2F242B" : "#FDF1EB") : "transparent",

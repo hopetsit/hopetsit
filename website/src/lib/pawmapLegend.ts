@@ -267,7 +267,7 @@ export type MemberPinOptions = {
   dark?: boolean;
   /** 590 — coche bleue « identité vérifiée ». */
   verified?: boolean;
-  /** 19/10 (618 §B) — pins podium / « 1er Chef de meute » (null = rien). */
+  /** 19/10 (618 §B) — pins podium / « 1er Ambassadeur » (null = rien). */
   pins?: Pins1910 | null;
 };
 
@@ -385,7 +385,7 @@ export type PhotoPinOptions = {
   dark?: boolean;
   /** 607 — « Vu il y a … » posé AU-DESSUS du rond (la place dessous est prise). */
   captionAbove?: boolean;
-  /** 19/10 (618 §B) — pins podium / « 1er Chef de meute » (null = rien). */
+  /** 19/10 (618 §B) — pins podium / « 1er Ambassadeur » (null = rien). */
   pins?: Pins1910 | null;
 };
 

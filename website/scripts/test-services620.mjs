@@ -67,7 +67,7 @@ ok("validité : exact/approx exigent début ≤ fin ; tbd toujours valable", () 
   assert.equal(datesValid620("exact", "", ""), false);
   assert.equal(datesValid620("tbd", "", ""), true);
 });
-ok("quantité : jours, nuits chez le gardien, visites × /jour, balade = 1, tbd = null", () => {
+ok("quantité : jours, nuits chez le gardien, visites × /jour, balade = 1 par jour (2610), tbd = null", () => {
   const S = "2026-11-02", E = "2026-11-06";
   assert.deepEqual(quantityFor620({ service: "house_sitting", dateMode: "exact", startDate: S, endDate: E }), { quantity: 5, unit: "day" });
   assert.deepEqual(quantityFor620({ service: "house_sitting", dateMode: "approx", startDate: S, endDate: E, venue: "sitters_home" }), { quantity: 4, unit: "night" });
@@ -75,7 +75,8 @@ ok("quantité : jours, nuits chez le gardien, visites × /jour, balade = 1, tbd 
   assert.deepEqual(quantityFor620({ service: "home_visit", dateMode: "exact", startDate: S, endDate: E, visitsPerDay: 2 }), { quantity: 10, unit: "visit" });
   assert.deepEqual(quantityFor620({ service: "home_visit", dateMode: "exact", startDate: S, endDate: E }), { quantity: 5, unit: "visit" });
   assert.deepEqual(quantityFor620({ service: "day_care", dateMode: "exact", startDate: S, endDate: E }), { quantity: 5, unit: "day" });
-  assert.deepEqual(quantityFor620({ service: "dog_walking", dateMode: "exact", startDate: S, endDate: E }), { quantity: 1, unit: "walk" });
+  assert.deepEqual(quantityFor620({ service: "dog_walking", dateMode: "exact", startDate: S, endDate: E }), { quantity: 5, unit: "walk" });
+  assert.deepEqual(quantityFor620({ service: "dog_walking", dateMode: "exact", startDate: S, endDate: S }), { quantity: 1, unit: "walk" });
   assert.deepEqual(quantityFor620({ service: "home_visit", dateMode: "tbd" }), { quantity: null, unit: "visit" });
   assert.deepEqual(quantityFor620({ service: "home_visit", dateMode: "exact", startDate: E, endDate: S }), { quantity: null, unit: "visit" });
 });

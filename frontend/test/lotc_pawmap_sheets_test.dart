@@ -392,7 +392,9 @@ void main() {
       expect(entries.map((e) => e.key).toList(), [
         'me', 'friend', 'member_owner', 'member_sitter', 'member_walker',
         'member_group', 'place', 'place_group', 'spot', 'spot_gold',
-        'spot_group', 'request', 'premium', 'boost', 'verified', 'friends_only',
+        'spot_group', 'request', 'premium', 'boost', 'verified',
+        'available', // 639 — point vert « Disponible aujourd'hui »
+        'friends_only',
       ]);
       // Toutes les lignes existent (défilement simple, rien de paresseux).
       for (final e in entries) {

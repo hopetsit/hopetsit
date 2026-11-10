@@ -1,11 +1,11 @@
 // 04/10/2026 (611, LEO) — RANGS façon Waze (contrat de PAM :
-// ~/hopetsit-social/ranks_611/CONTRAT.md) : Chiot → Jeune chien → Chien
-// adulte → Chef de meute → Légende.
+// ~/hopetsit-social/ranks_611/CONTRAT.md) : Découvreur → Explorateur →
+// Guide → Ambassadeur → Légende (noms 639 ; clés internes puppy… inchangées).
 //
 // Le site ne calcule JAMAIS un rang : il lit le champ `rank` que le serveur
 // envoie ({key, level, pointsEarned, nextAt, nextKey}). Champ absent ou
 // illisible (ancien serveur, projection partielle) → null → rien affiché
-// (jamais de faux « Chiot »). Les seuils ne servent qu'à la barre.
+// (jamais de faux « Découvreur »). Les seuils ne servent qu'à la barre.
 // Teintes = celles de l'app (frontend/lib/widgets/paw_rank611.dart), pleines,
 // zéro gris, une version claire et une version sombre.
 // Le rang est honorifique : aucun avantage payant, aucune valeur en argent.
@@ -78,13 +78,13 @@ export type RankStyle611 = { base: string; lightBg: string; lightInk: string; da
 // Couleurs PLEINES (pas d'opacité : sur fond clair elle redevient grise) —
 // les « crans éteints » et bordures sont des mélanges pleins calculés une fois.
 const STYLES: RankStyle611[] = [
-  // Chiot — miel
+  // Découvreur (puppy) — miel
   { base: "#E0A045", lightBg: "#FCEBCB", lightInk: "#7A4A06", darkBg: "#4A2F0A", darkInk: "#FFD58C", lightPipOff: "#F0CF9C", darkPipOff: "#956826", lightBorder: "#EDC68B", darkBorder: "#C98D3A" },
-  // Jeune chien — orange
+  // Explorateur (young_dog) — orange
   { base: "#E07A2E", lightBg: "#FDE2CC", lightInk: "#8A3A06", darkBg: "#52260A", darkInk: "#FFBE8A", lightPipOff: "#F2C3A0", darkPipOff: "#9A501C", lightBorder: "#EFB487", darkBorder: "#CB6E2A" },
-  // Chien adulte — brique
+  // Guide (adult_dog) — brique
   { base: "#C9442A", lightBg: "#FADAD2", lightInk: "#8A2410", darkBg: "#55190E", darkInk: "#FFAE9C", lightPipOff: "#EBB2A6", darkPipOff: "#8F2F1D", lightBorder: "#E39D8F", darkBorder: "#B33E27" },
-  // Chef de meute — violet royal
+  // Ambassadeur (pack_leader) — violet royal
   { base: "#7A3FB8", lightBg: "#EBDDFB", lightInk: "#4B1D85", darkBg: "#34175A", darkInk: "#D9BCFF", lightPipOff: "#CBB4E5", darkPipOff: "#57298A", lightBorder: "#B796DC", darkBorder: "#6C39A3" },
   // Légende — or
   { base: "#C9961A", lightBg: "#FBEDC4", lightInk: "#6E4E00", darkBg: "#4A3604", darkInk: "#FFDC73", lightPipOff: "#E9D49F", darkPipOff: "#8D6A12", lightBorder: "#E1C47A", darkBorder: "#B58718" },

@@ -70,6 +70,8 @@ class OwnerRepository {
     String? timeFrom,
     String? timeTo,
     bool? ownerNoCar,
+    // 639 — « Je fournis la nourriture » (null = pas dit, rien n'est envoyé).
+    bool? foodProvided,
     // v600 NEO — sans fiche animal : espèce(s) + nombre (clés du site).
     List<String> animalTypes = const <String>[],
     int? animalCount,
@@ -119,7 +121,8 @@ class OwnerRepository {
       if (budget != null && budget > 0) 'budget': budget,
       if (budget != null && budget > 0 && (budgetCurrency ?? '').isNotEmpty)
         'budgetCurrency': budgetCurrency,
-      ...requestExtras1011(timeFrom: timeFrom, timeTo: timeTo, ownerNoCar: ownerNoCar),
+      ...requestExtras1011(
+          timeFrom: timeFrom, timeTo: timeTo, ownerNoCar: ownerNoCar, foodProvided: foodProvided),
     };
 
     final response = await _apiClient.post(
@@ -179,6 +182,8 @@ class OwnerRepository {
     String? timeFrom,
     String? timeTo,
     bool? ownerNoCar,
+    // 639 — « Je fournis la nourriture » (null = pas dit, rien n'est envoyé).
+    bool? foodProvided,
     required List<File> imageFiles,
     // v600 NEO — sans fiche animal : espèce(s) + nombre (multipart → texte,
     // le serveur relit le JSON et fait Number()).
@@ -231,7 +236,8 @@ class OwnerRepository {
       if (budget != null && budget > 0) 'budget': budget.toString(),
       if (budget != null && budget > 0 && (budgetCurrency ?? '').isNotEmpty)
         'budgetCurrency': budgetCurrency!,
-      ...requestExtras1011(timeFrom: timeFrom, timeTo: timeTo, ownerNoCar: ownerNoCar)
+      ...requestExtras1011(
+              timeFrom: timeFrom, timeTo: timeTo, ownerNoCar: ownerNoCar, foodProvided: foodProvided)
           .map((k, v) => MapEntry(k, v.toString())),
     };
 

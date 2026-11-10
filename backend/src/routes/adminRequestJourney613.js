@@ -292,6 +292,7 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
       timeFrom: typeof p.timeFrom === 'string' ? p.timeFrom : '',
       timeTo: typeof p.timeTo === 'string' ? p.timeTo : '',
       ownerNoCar: p.ownerNoCar === true,
+      foodProvided: require('../utils/postExtras1011').publicExtras(p).foodProvided, // 639 — true / false / null (non précisé)
       serviceTimeZone: center ? timeZoneFor(center.lat, center.lng) : null,
       hasPosition: !!center,
       applyMaxKm: DIST.maxKm(), // 16/10 (Daniel) : 200 km
@@ -385,7 +386,7 @@ async function journeys(posts, { now = new Date(), detail = false } = {}) {
 
 const POST_FIELDS = 'ownerId postType location serviceTypes startDate endDate walkDurationMinutes createdAt hidden bannedAt status closedAt reservedBy'
   + ' dateMode visitsPerDay animalTypes animalCount budget budgetCurrency' // 620 (ZOE, relevé ADA)
-  + ' timeFrom timeTo ownerNoCar'; // 09/11 (ADA) — précisions du formulaire (horaires, propriétaire sans voiture), lecture seule
+  + ' timeFrom timeTo ownerNoCar foodProvided'; // 09/11 (ADA) — précisions du formulaire (horaires, propriétaire sans voiture), lecture seule
 
 /**
  * 16/10 — ce que voient les prestataires (feed /posts/requests et PawMap), et

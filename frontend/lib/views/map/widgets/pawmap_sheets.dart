@@ -28,6 +28,7 @@ import 'package:get/get.dart';
 
 import '../../../utils/app_colors.dart';
 import '../../../utils/bottom_inset.dart';
+import '../../../utils/conclure1011.dart';
 import '../../../utils/pawmap_theme.dart';
 import 'pawmap_buttons.dart';
 import 'pawmap_jewel.dart';
@@ -1165,7 +1166,12 @@ class PawMapRequestSheet extends StatelessWidget {
     this.estimateLine,
     this.hoursLabel = '',
     this.ownerNoCar = false,
+    this.foodProvided,
   });
+
+  /// 639 — « Nourriture fournie » (true) / « Nourriture à prévoir » (false) ;
+  /// null = non précisé, ligne masquée.
+  final bool? foodProvided;
 
   /// 1011 — horaires souhaités (« 09:00 – 18:00 », '' = ligne masquée) et
   /// « le propriétaire n'a pas de voiture » (ligne masquée si faux).
@@ -1320,6 +1326,24 @@ class PawMapRequestSheet extends StatelessWidget {
                 SizedBox(width: 6.w),
                 Expanded(
                   child: Text('c1011_owner_no_car'.tr,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: PawMapTheme.fontOn(context,
+                          size: 12.5.sp, weight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ],
+          if (foodProvided != null) ...[
+            SizedBox(height: 8.h),
+            Row(
+              key: const Key('pawmap_request_food639'),
+              children: [
+                Icon(Icons.restaurant_rounded,
+                    size: 16.sp, color: AppColors.accentOn(context, PawMapLegend.owner)),
+                SizedBox(width: 6.w),
+                Expanded(
+                  child: Text(foodLabel639(foodProvided),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: PawMapTheme.fontOn(context,
@@ -1665,6 +1689,18 @@ class PawLegendEntry {
   final void Function(Canvas canvas) paint;
 }
 
+/// 639 — une pastille v2 (même peintre que la carte) pour la légende.
+PawLegendEntry _legendPin639(String key, String label, PawPinSpec639 spec) {
+  final sz = pawPinBitmap639(spec);
+  return PawLegendEntry(
+    key: key,
+    label: label,
+    width: sz.width,
+    height: sz.height,
+    paint: (c) => paintPin639(c, spec),
+  );
+}
+
 /// Les entrées de la légende, dans l'ordre de LEGENDE_PAWMAP.md.
 List<PawLegendEntry> pawLegendEntries() {
   return [
@@ -1693,22 +1729,37 @@ List<PawLegendEntry> pawLegendEntries() {
           fallbackTint: PawMapLegend.friend),
     ),
     for (final role in const ['owner', 'sitter', 'walker'])
+      if (kPawPins639)
+        // 639 — pastille v2 : pleine couleur du rôle.
+        _legendPin639(
+            'member_$role', 'pawmap_legend_$role'.tr, PawPinSpec639(roles: [role]))
+      else
+        PawLegendEntry(
+          key: 'member_$role',
+          label: 'pawmap_legend_$role'.tr,
+          // 623 — rond « Anneau » de la maquette du 26/10.
+          width: pawRingBitmap2610(1, multi: false).width,
+          height: pawRingBitmap2610(1, multi: false).height,
+          paint: (c) => paintRingBitmap2610(c, roles: [role]),
+        ),
+    if (kPawPins639)
       PawLegendEntry(
-        key: 'member_$role',
-        label: 'pawmap_legend_$role'.tr,
-        // 623 — rond « Anneau » de la maquette du 26/10.
-        width: pawRingBitmap2610(1, multi: false).width,
-        height: pawRingBitmap2610(1, multi: false).height,
-        paint: (c) => paintRingBitmap2610(c, roles: [role]),
+        key: 'member_group',
+        label: 'pawmap_legend_member_group'.tr,
+        width: pawClusterBitmap639().width,
+        height: pawClusterBitmap639().height,
+        paint: (c) => paintCluster639(c,
+            count: 12, counts: const {'owner': 5, 'sitter': 4, 'walker': 3}),
+      )
+    else
+      PawLegendEntry(
+        key: 'member_group',
+        label: 'pawmap_legend_member_group'.tr,
+        width: pawClusterBitmap2610().width,
+        height: pawClusterBitmap2610().height,
+        paint: (c) => paintCluster2610(c,
+            count: 12, counts: const {'owner': 5, 'sitter': 4, 'walker': 3}),
       ),
-    PawLegendEntry(
-      key: 'member_group',
-      label: 'pawmap_legend_member_group'.tr,
-      width: pawClusterBitmap2610().width,
-      height: pawClusterBitmap2610().height,
-      paint: (c) => paintCluster2610(c,
-          count: 12, counts: const {'owner': 5, 'sitter': 4, 'walker': 3}),
-    ),
     PawLegendEntry(
       key: 'place',
       label: 'pawmap_legend_place'.tr,
@@ -1756,29 +1807,45 @@ List<PawLegendEntry> pawLegendEntries() {
       height: PawMapPinPainter.requestBubbleBitmapHeight(),
       paint: (c) => PawMapPinPainter.paintRequestBubble(c, walking: false),
     ),
-    PawLegendEntry(
-      key: 'premium',
-      label: 'pawmap_legend_premium'.tr,
-      width: pawRingBitmap2610(1, multi: false).width,
-      height: pawRingBitmap2610(1, multi: false).height,
-      paint: (c) => paintRingBitmap2610(c, roles: const ['sitter'], premium: true),
-    ),
-    PawLegendEntry(
-      key: 'boost',
-      label: 'pawmap_legend_boost'.tr,
-      width: pawRingBitmap2610(1, multi: false).width,
-      height: pawRingBitmap2610(1, multi: false).height,
-      paint: (c) =>
-          paintRingBitmap2610(c, roles: const ['walker'], boostPhase: 0.25),
-    ),
-    PawLegendEntry(
-      key: 'verified',
-      label: 'pawmap_legend_verified'.tr,
-      width: pawRingBitmap2610(1, multi: false).width,
-      height: pawRingBitmap2610(1, multi: false).height,
-      paint: (c) =>
-          paintRingBitmap2610(c, roles: const ['sitter'], verified: true),
-    ),
+    if (kPawPins639) ...[
+      // 639 — couronne or et halo PawBoost turquoise de la pastille v2.
+      _legendPin639('premium', 'pawmap_legend_premium'.tr,
+          PawPinSpec639(roles: const ['sitter'], premium: true)),
+      _legendPin639('boost', 'pawmap_legend_boost'.tr,
+          PawPinSpec639(roles: const ['walker'], halo: PawHalo639.boost)),
+    ] else ...[
+      PawLegendEntry(
+        key: 'premium',
+        label: 'pawmap_legend_premium'.tr,
+        width: pawRingBitmap2610(1, multi: false).width,
+        height: pawRingBitmap2610(1, multi: false).height,
+        paint: (c) => paintRingBitmap2610(c, roles: const ['sitter'], premium: true),
+      ),
+      PawLegendEntry(
+        key: 'boost',
+        label: 'pawmap_legend_boost'.tr,
+        width: pawRingBitmap2610(1, multi: false).width,
+        height: pawRingBitmap2610(1, multi: false).height,
+        paint: (c) =>
+            paintRingBitmap2610(c, roles: const ['walker'], boostPhase: 0.25),
+      ),
+    ],
+    if (kPawPins639 && kPawPinVerified639)
+      _legendPin639('verified', 'pawmap_legend_verified'.tr,
+          PawPinSpec639(roles: const ['sitter'], verified: true))
+    else
+      PawLegendEntry(
+        key: 'verified',
+        label: 'pawmap_legend_verified'.tr,
+        width: pawRingBitmap2610(1, multi: false).width,
+        height: pawRingBitmap2610(1, multi: false).height,
+        paint: (c) =>
+            paintRingBitmap2610(c, roles: const ['sitter'], verified: true),
+      ),
+    // 639 — point vert « disponible aujourd'hui » (serveur : `availableDot`).
+    if (kPawPins639)
+      _legendPin639('available', 'pawmap639_legend_available'.tr,
+          PawPinSpec639(roles: const ['sitter'], available: true)),
     PawLegendEntry(
       key: 'friends_only',
       label: 'pawmap_legend_friends_only'.tr,

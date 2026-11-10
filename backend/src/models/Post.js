@@ -172,6 +172,9 @@ const postSchema = new mongoose.Schema(
     timeFrom: { type: String, trim: true, maxlength: 5, default: '' },
     timeTo: { type: String, trim: true, maxlength: 5, default: '' },
     ownerNoCar: { type: Boolean, default: false },
+    // 639 (BOB, validé par Daniel) — « Je fournis la nourriture » : true / false, null = non précisé
+    // (rien à afficher). Écrit par utils/postExtras1011.js ; coupe-circuit POST_FOOD_PROVIDED=off.
+    foodProvided: { type: Boolean, default: null },
 
     // Session avril 2026 — moderation fields for the admin Annonces tab.
     // Soft-delete only so the historical dataset is preserved (same policy

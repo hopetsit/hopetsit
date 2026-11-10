@@ -54,7 +54,9 @@ function postInputFor(lead, lieu) {
   const { extrasSentence, cleanTime } = require('../utils/postExtras1011');
   const tf = cleanTime(lead.timeFrom) || '';
   const tt = cleanTime(lead.timeTo) || '';
-  const precisions = extrasSentence({ timeFrom: tf, timeTo: tt, noCar: lead.noCar === true }, fr ? 'fr' : 'en');
+  // 639 — « nourriture fournie » (true / false ; null = non précisé → rien n'est dit ni écrit).
+  const food = typeof lead.foodProvided === 'boolean' ? lead.foodProvided : null;
+  const precisions = extrasSentence({ timeFrom: tf, timeTo: tt, noCar: lead.noCar === true, food }, fr ? 'fr' : 'en');
   const cp = require('../utils/geocodePostal2310').cleanCode(lead.postalCode);
   const input = {
     body: `${fr ? 'Je cherche' : "I'm looking for"} ${quoi} ${qui}${quand}.${precisions ? ` ${precisions}` : ''}`,
@@ -72,6 +74,9 @@ function postInputFor(lead, lieu) {
   if (tf) input.timeFrom = tf;
   if (tt) input.timeTo = tt;
   if (lead.noCar === true) input.ownerNoCar = true;
+  if (food !== null) input.foodProvided = food; // 639 — même champ que l'app (postExtras1011)
+  // 639 — race FACULTATIVE : écrite dans la fiche animal créée avec la demande (postPet612), jamais dans la demande.
+  { const race = require('../utils/postPet612').cleanBreed(lead.breed); if (race) input.breed = race; }
   if (Number.isFinite(lead.budget) && lead.budget > 0) input.budget = lead.budget;
   // 620 (ZOE) — sans dates lisibles, la demande est « dates à prévoir » (tbd) : les
   // gardiens candidatent au tarif unitaire, le propriétaire pose ses dates ensuite.
@@ -136,6 +141,9 @@ adminRouter.post('/', requireAdmin, async (req, res) => {
         startText: String(b.startText || '').trim().slice(0, 60), // 23/10 (BOB) — réponses « dates » du formulaire
         endText: String(b.endText || '').trim().slice(0, 60),
         ...([1, 2].includes(Number(b.visitsPerDay)) ? { visitsPerDay: Number(b.visitsPerDay) } : {}), // 620
+        // 639 — facultatifs : nourriture fournie (true / false) et race de l'animal (nettoyée, ≤ 60 car.).
+        ...(() => { const v = require('../utils/postExtras1011').toBool(b.foodProvided); return v === null ? {} : { foodProvided: v }; })(),
+        ...(() => { const r = require('../utils/postPet612').cleanBreed(b.breed); return r ? { breed: r } : {}; })(),
       } },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );

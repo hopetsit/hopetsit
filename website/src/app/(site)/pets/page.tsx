@@ -9,6 +9,8 @@ import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 // 1011 (ZOE, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — textes en 9 langues.
 import { g1011 } from "@/lib/i18n/langues1011";
+import { k1011 } from "@/lib/i18n/conclure1011";
+import { breedSuggestions639 } from "@/lib/breeds639";
 import { SelectMenu } from "@/components/SelectMenu";
 import BackLink from "@/components/BackLink";
 import {
@@ -351,9 +353,13 @@ function PetFormModal({
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 md:items-center md:p-4"
       onClick={onClose}
     >
+      {/* 639 — la fiche dépasse la hauteur d'un téléphone (1 096 px mesurés) : sans hauteur maximale ni
+          défilement, le haut du formulaire (nom, espèce) sortait de l'écran et restait inatteignable.
+          La hauteur laisse 72 px en haut : le titre et la croix restent sous l'en-tête du site, jamais derrière. */}
       <div
-        className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-xl md:rounded-2xl"
+        className="max-h-[calc(100vh-4.5rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-6 shadow-xl supports-[height:100dvh]:max-h-[calc(100dvh-4.5rem)] md:max-h-[calc(100vh-9rem)] md:rounded-2xl md:supports-[height:100dvh]:max-h-[calc(100dvh-9rem)]"
         onClick={(e) => e.stopPropagation()}
+        data-testid="pet-form-panel-639"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink">
@@ -396,13 +402,30 @@ function PetFormModal({
             />
           </Field>
           <Field label={g("pets_f_breed")}>
+            {/* 639 (CONTRATS §3) — races courantes en suggestion (chien / chat selon l'espèce) ; la saisie
+                reste libre et facultative, rien n'est validé contre la liste. */}
             <input
               type="text"
               value={breed}
               onChange={(e) => setBreed(e.target.value)}
               placeholder={g("pets_f_breed_ph")}
+              list={breedSuggestions639(category, lang).length ? "pet-breeds-639" : undefined}
+              autoComplete="off"
+              data-testid="pet-breed-639"
               className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
             />
+            {breedSuggestions639(category, lang).length > 0 && (
+              <>
+                <datalist id="pet-breeds-639">
+                  {breedSuggestions639(category, lang).map((b) => (
+                    <option key={b} value={b} />
+                  ))}
+                </datalist>
+                <span className="mt-1 block text-xs leading-snug text-[#6E4F48]" data-testid="pet-breed-hint-639">
+                  {k1011(lang, "f639_breed_suggest")}
+                </span>
+              </>
+            )}
           </Field>
           <Field label={g("pets_f_vacc")}>
             <input

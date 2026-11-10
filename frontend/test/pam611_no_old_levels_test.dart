@@ -3,6 +3,11 @@
 // nulle part. L'écran PawPoints est rendu avec le VRAI catalogue que sert le
 // serveur 611 (fixture générée depuis pawPointsService / ranks611) : on y voit
 // les 5 rangs, la carte « Mon rang », et aucun ancien nom ni pourcentage.
+// 639 — Daniel renomme les rangs : Découvreur, Explorateur, Guide, Ambassadeur,
+// Légende. « Explorateur » et « Ambassadeur » sont donc de NOUVEAU des noms
+// légitimes (rangs 2 et 4) ; l'ancien système reste traqué par ses noms
+// propres (Contributeur, PawMaster, Légendaire, Paw Legend), ses bonus en %
+// et ses clés retirées.
 import 'dart:convert';
 import 'dart:io';
 
@@ -107,12 +112,12 @@ void main() {
           .join('\n');
       final all = '$texts\n$rich';
       expect(all, isNot(matches(RegExp(
-          r'Explorateur|Explorer|Contributeur|Contributor|Ambassadeur|Ambassador|PawMaster|Légendaire|Legendary|Paw Legend|エクスプローラー|\+5 ?%|\+10 ?%|\+15 ?%'))));
+          r'Contributeur|Contributor|PawMaster|Légendaire|Legendary|Paw Legend|エクスプローラー|\+5 ?%|\+10 ?%|\+15 ?%'))));
       expect(find.byKey(const ValueKey<String>('paw_rank_progress'), skipOffstage: false), findsOneWidget);
       final names = {
-        'fr': ['Chiot', 'Jeune chien', 'Chien adulte', 'Chef de meute', 'Légende'],
-        'en': ['Puppy', 'Young dog', 'Grown dog', 'Pack leader', 'Legend'],
-        'ja': ['子犬', '若犬', '成犬', '群れのリーダー', 'レジェンド'],
+        'fr': ['Découvreur', 'Explorateur', 'Guide', 'Ambassadeur', 'Légende'],
+        'en': ['Newcomer', 'Explorer', 'Guide', 'Ambassador', 'Legend'],
+        'ja': ['ビギナー', '探検家', 'ガイド', 'アンバサダー', 'レジェンド'],
       }[lang]!;
       for (final n in names) {
         expect(all, contains(n), reason: '$lang : $n');
@@ -123,13 +128,16 @@ void main() {
         for (final w in ['Peluche attrapée', 'Signalement confirmé', 'Spot ajouté', '+20', '+1', '+10', 'Points gagnés avant le 04/10 : 5']) {
           expect(all, contains(w), reason: w);
         }
-        // C — « Encore N points pour Jeune chien » côté rang, jamais « Explorateur »
-        expect(all, contains('Encore 600 points pour Chien adulte'));
+        // C — « Encore N points pour Guide » côté rang (noms 639)
+        expect(all, contains('Encore 600 points pour Guide'));
+        // plus aucun ancien nom de rang (« Chiot » reste le nom d'une PELUCHE de la collection)
+        expect(all, isNot(matches(RegExp(r'Jeune chien|Chien adulte|Chef de meute'))));
+        expect(all, isNot(contains('1. Chiot')));
       }
     });
   }
 
-  testWidgets('C. 36 points (capture de Daniel) : « Jeune chien », plus jamais « Explorateur »', (t) async {
+  testWidgets('C. 36 points (capture de Daniel) : rang Découvreur, prochain rang Explorateur à 150', (t) async {
     Get.testMode = true;
     Get.reset();
     PawRankService611.instance.resetForTests();
@@ -152,10 +160,11 @@ void main() {
     }
     final all = t.widgetList<RichText>(find.byType(RichText, skipOffstage: false))
         .map((w) => w.text.toPlainText()).join('\n');
-    expect(all, isNot(contains('Explorateur')));
-    expect(all, contains('Chiot'));
+    expect(all, isNot(matches(RegExp(r'Contributeur|PawMaster|Légendaire|Paw Legend|\+5 ?%'))));
+    expect(all, isNot(matches(RegExp(r'🐾 Chiot|Jeune chien'))));
+    expect(all, contains('Découvreur'));
     expect(all, contains('114'));
-    expect(all, contains('Jeune chien'));
+    expect(all, contains('Explorateur')); // prochain rang, à 150
   });
 
   test('E. clés des anciens niveaux : retirées des traductions ET jamais appelées par le code', () {
@@ -181,6 +190,6 @@ void main() {
     }
     // aucun ancien nom affichable dans les traductions françaises de l'app
     final fr = keys['fr'] ?? keys['fr_FR'] ?? const <String, String>{};
-    expect(fr.values.where((v) => RegExp(r'Explorateur|PawMaster|Paw Legend|Ambassadeur').hasMatch(v)), isEmpty);
+    expect(fr.values.where((v) => RegExp(r'Contributeur|PawMaster|Paw Legend|Légendaire').hasMatch(v)), isEmpty);
   });
 }

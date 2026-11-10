@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { PAWMAP_2610_CSS, clusterHtml2610, priceBubbleHtml2610, profilePinHtml2610 } from "@/lib/pawmap2610";
+import { BOOST_2610, FOLLOW_2610, PAWMAP_2610_CSS, clusterHtml2610, priceBubbleHtml2610, profilePinHtml2610 } from "@/lib/pawmap2610";
 import {
   memberPinHtml,
   photoPinHtml,
@@ -237,8 +237,11 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     { html: profilePinHtml2610({ roles: ["owner"] }), title: t("legend_member_owner"), body: t("legend_member_owner_body"), color: ROLE_COLOR.owner },
     { html: profilePinHtml2610({ roles: ["sitter"] }), title: t("legend_member_sitter"), body: t("legend_member_sitter_body"), color: ROLE_COLOR.sitter },
     { html: profilePinHtml2610({ roles: ["walker"] }), title: t("legend_member_walker"), body: t("legend_member_walker_body"), color: ROLE_COLOR.walker },
-    // 02/10 (609) — identité vérifiée : coche bleue en haut à gauche du rond.
+    // 02/10 (609) — identité vérifiée : coche bleue. 639 (pastilles v2) : sur le bord droit du rond
+    // (le bas à gauche revient au point « disponible aujourd'hui »).
     { html: profilePinHtml2610({ roles: ["sitter"], verified: true }), title: t("help609_verified_title"), body: t("help609_verified_body"), color: "#2563EB" },
+    // 639 (CONTRATS §5) — point vert 8 px en bas à gauche : disponible aujourd'hui (gardiens et promeneurs).
+    { html: profilePinHtml2610({ roles: ["sitter"], availableDot: true }), title: t("map_available_today"), body: t("legend639_available_body"), color: "#15803D" },
     roleColorsRow,
     duoRow,
     { html: profilePinHtml2610({ roles: ["sitter"], premium: true }), title: t("legend_premium"), body: t("legend_premium_body"), color: PREMIUM_GOLD },
@@ -247,7 +250,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     // 27/09 — un seul halo à la fois (PawBoost > PawFollow > ami) + couronne.
     { node: (
         <span className="flex items-center gap-[5px]">
-          {[["rgba(6,182,212,.75)", "#06B6D4"], ["rgba(124,58,237,.55)", "#7C3AED"], ["rgba(227,90,154,.62)", "#E35A9A"]].map(([g, c]) => (
+          {[["rgba(18,216,201,.75)", BOOST_2610], ["rgba(143,92,255,.75)", FOLLOW_2610], ["rgba(227,90,154,.62)", "#E35A9A"]].map(([g, c]) => (
             <span key={c} className="block h-[13px] w-[13px] rounded-full border-2 border-white" style={{ background: c, boxShadow: `0 0 7px 3px ${g}` }} />
           ))}
         </span>
@@ -326,7 +329,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
         { html: `<span data-legend-earn="" style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#F4C04A,#D99A0B 55%,#B07800);border:2px solid #fff;box-shadow:0 6px 14px -6px #B07800;font-size:22px">🪙</span>`, title: t("help612_earn_t"), body: t("pp607_help_points_body"), color: "#8A5A00" },
         // 19/10 (618 §A) — Paw Premium double tous les points gagnés.
         { html: `<span data-legend-x2="" style="display:grid;place-items:center;width:46px;height:46px;border-radius:999px;background:linear-gradient(165deg,#3A3028,#0F0B08);border:2px solid #fff;box-shadow:0 6px 14px -6px #0F0B08;font:900 16px/1 Inter,system-ui,sans-serif;color:#FFD34D">×2</span>`, title: t("p1910_premium_t"), body: t("p1910_premium_b"), color: "#8A5A00" },
-        // 19/10 (618 §B) — pins : podium or/argent/bronze + « 1er Chef de meute », honorifiques.
+        // 19/10 (618 §B) — pins : podium or/argent/bronze + « 1er Ambassadeur », honorifiques.
         { html: `<span data-legend-pins="" style="display:grid;grid-template-columns:repeat(2,20px);gap:3px;width:46px;justify-content:center">${pinDiscHtml(1, 20)}${pinDiscHtml(2, 20)}${pinDiscHtml(3, 20)}${pinDiscHtml("first", 20)}</span>`, title: t("p1910_pins_t"), body: t("p1910_pins_b"), color: "#8A5A00" },
       ],
     },

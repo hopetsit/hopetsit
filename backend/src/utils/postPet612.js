@@ -46,18 +46,50 @@ const localeOf = (owner) => {
 const placeholderName = (species, locale) => (NAMES[species] || NAMES.other)[LOCALES.includes(locale) ? locale : 'fr'];
 
 /**
+ * 639 (BOB, validé par Daniel) — RACE FACULTATIVE d'une demande rapide (formulaire du site sans fiche
+ * animal, chemin pub adLeads2210) : chaîne libre nettoyée (aucune balise, aucun caractère de contrôle,
+ * espaces resserrés), 60 caractères au plus. Illisible / absente → ''. Coupe-circuit : QUICK_REQUEST_BREED=off.
+ */
+const BREED_MAX = 60;
+const breedOn = () => String(process.env.QUICK_REQUEST_BREED || '').toLowerCase() !== 'off';
+const cleanBreed = (v) => {
+  if (!breedOn() || typeof v !== 'string') return '';
+  return v
+    .replace(/<[^>]*>/g, ' ') // balises
+    .replace(/[<>]/g, ' ') // chevrons orphelins
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001F\u007F]/g, ' ') // caractères de contrôle
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, BREED_MAX)
+    .trim();
+};
+
+/**
  * Animal à rattacher à une demande publiée sans animal. Renvoie l'id (String) ou
  * null. Ne lève jamais. `dryRun` : dit ce qui serait fait, n'écrit rien.
  */
-const ensureOwnerPet = async ({ ownerId, owner = null, animalTypes = [], dryRun = false }) => {
+const ensureOwnerPet = async ({ ownerId, owner = null, animalTypes = [], dryRun = false, breed = '' }) => {
   try {
     if (!ownerId) return null;
     const Pet = require('../models/Pet');
-    const existing = await Pet.find({ ownerId }).select('_id category autoCreated').sort({ createdAt: -1 }).lean();
+    const existing = await Pet.find({ ownerId }).select('_id category autoCreated breed').sort({ createdAt: -1 }).lean();
     const species = firstSpecies(animalTypes);
+    const race = cleanBreed(breed); // 639 — '' si absente
     if (existing.length) {
       // Il a déjà des animaux : on rattache celui de la bonne espèce, sinon le plus récent.
       const same = existing.find((p) => String(p.category || '').toLowerCase() === species);
+      // 639 — la race dite dans le formulaire complète UNIQUEMENT une fiche minimale créée par nous
+      // (`autoCreated`), de la même espèce et encore SANS race. Une fiche faite par le propriétaire,
+      // ou qui a déjà une race, n'est jamais modifiée.
+      if (race && !dryRun && same && same.autoCreated === true && !String(same.breed || '').trim()) {
+        try {
+          await Pet.updateOne(
+            { _id: same._id, autoCreated: true, $or: [{ breed: '' }, { breed: null }, { breed: { $exists: false } }] },
+            { $set: { breed: race } },
+          );
+        } catch (e) { logger.warn(`[postPet612] race non écrite : ${e && e.message ? e.message : e}`); }
+      }
       return { id: String((same || existing[0])._id), created: false };
     }
     if (dryRun) return { id: null, created: true, species };
@@ -70,6 +102,7 @@ const ensureOwnerPet = async ({ ownerId, owner = null, animalTypes = [], dryRun 
       petName: placeholderName(species, localeOf(ownerDoc)),
       category: species,
       autoCreated: true,
+      ...(race ? { breed: race } : {}), // 639 — race facultative de la demande rapide
     });
     logger.info(`[postPet612] fiche animal minimale créée pour le propriétaire ${ownerId} (${species})`);
     return { id: String(pet._id), created: true, species };
@@ -80,11 +113,11 @@ const ensureOwnerPet = async ({ ownerId, owner = null, animalTypes = [], dryRun 
 };
 
 /** Complète `postPayload` (avant Post.create) quand la demande n'a aucun animal. */
-const attachPetToPayload = async (postPayload, { owner, animalTypes }) => {
+const attachPetToPayload = async (postPayload, { owner, animalTypes, breed } = {}) => {
   if (!postPayload || postPayload.postType !== 'request') return false;
   const has = (Array.isArray(postPayload.petIds) && postPayload.petIds.length > 0) || !!postPayload.petId;
   if (has) return false;
-  const r = await ensureOwnerPet({ ownerId: postPayload.ownerId, owner, animalTypes: animalTypes || postPayload.animalTypes });
+  const r = await ensureOwnerPet({ ownerId: postPayload.ownerId, owner, animalTypes: animalTypes || postPayload.animalTypes, breed });
   if (!r || !r.id) return false;
   postPayload.petIds = [r.id];
   postPayload.petId = r.id;
@@ -104,4 +137,4 @@ const attachPetToExistingPost = async (post, { dryRun = false } = {}) => {
   return r;
 };
 
-module.exports = { SPECIES, NAMES, firstSpecies, placeholderName, ensureOwnerPet, attachPetToPayload, attachPetToExistingPost };
+module.exports = { SPECIES, NAMES, BREED_MAX, firstSpecies, placeholderName, cleanBreed, ensureOwnerPet, attachPetToPayload, attachPetToExistingPost };

@@ -10,7 +10,7 @@
  * Entrée : { email, firstName, service: garde|promenade|visites, animal: chien|chat|autre,
  *            postalCode, city?, country: FR|US|…, lang: fr|en, startDate, endDate (AAAA-MM-JJ, OBLIGATOIRES
  *            depuis le 06/11 — NEO, ordre de Daniel : 400 DATES_REQUIRED / DATES_INVALID ; coupe-circuit
- *            SITE_DATES_REQUIRED_0611=off → « dates à prévoir » comme avant), visitsPerDay?, lieu?: at_owner|at_sitter, (1011 : service « journee », postalCode OBLIGATOIRE, timeFrom?, timeTo?, noCar?, budget?) campaign?, page?,
+ *            SITE_DATES_REQUIRED_0611=off → « dates à prévoir » comme avant), visitsPerDay?, lieu?: at_owner|at_sitter, (1011 : service « journee », postalCode OBLIGATOIRE, timeFrom?, timeTo?, noCar?, budget? ; 639 : foodProvided?: true|false, breed?: race libre ≤ 60 car.) campaign?, page?,
  *            website (champ piège : doit rester vide) }
  * Garde-fous : limiteur par IP (sensitiveLimiter, monté sur /ad-leads) + par e-mail (3 / 10 min),
  * champ piège, e-mail valide, jamais +test / staff, dédoublonnage par e-mail (contact déjà publié et
@@ -162,6 +162,9 @@ router.post('/site', async (req, res) => {
       timeFrom: cleanTime(b.timeFrom) || '',
       timeTo: cleanTime(b.timeTo) || '',
       noCar: toBool(b.noCar) === true,
+      // 639 — facultatifs : « Je fournis la nourriture » (true / false, sinon non précisé) et race (nettoyée, ≤ 60 car.).
+      ...(toBool(b.foodProvided) === null ? {} : { foodProvided: toBool(b.foodProvided) }),
+      ...(() => { const r = require('../utils/postPet612').cleanBreed(b.breed); return r ? { breed: r } : {}; })(),
       ...(Number.isFinite(budgetN) && budgetN > 0 ? { budget: Math.round(Math.min(budgetN, 100000) * 100) / 100 } : {}),
     };
     const Post = require('../models/Post');

@@ -35,6 +35,14 @@ import 'pawmap_overlap607.dart' show pawMercatorPx;
 /// est seul). Zoom 20 : 56 pt ≈ 8 m — seuls les points quasi superposés.
 const int kPawClusterMaxZoom626 = 20;
 
+/// 639 — seuil de fusion des MEMBRES (pastilles v2), en points écran.
+/// Le seuil d'origine (56 pt) était réglé pour les ronds de 50 pt ; la
+/// pastille v2 fait 32 pt : 56 × 32 / 50 = 35,84 → 36 pt. Deux disques de
+/// 32 pt dont les centres sont à 36 pt ou plus ne se touchent pas (4 pt
+/// d'air), donc les groupes se séparent plus tôt sans se chevaucher.
+/// Les lieux et les PawSpots gardent 56 pt.
+const double kPawMemberMergePx639 = 36;
+
 /// Niveau de regroupement d'un zoom de caméra (partie entière, bornée).
 int pawClusterLevel626(double zoom) {
   if (zoom.isNaN) return 0;

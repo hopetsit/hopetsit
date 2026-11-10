@@ -2292,6 +2292,10 @@ class PawMapPinCache extends GetxService {
     super.onInit();
     // v592 — polices des épingles prêtes avant la première épingle.
     unawaited(ensurePawPinFonts());
+    // 639 — pastilles v2 les plus courantes dessinées dès le lancement.
+    if (!_inTests) {
+      unawaited(ensurePawPinFonts().then((_) => prewarm639()));
+    }
     // v597 — Daniel (27/09) : « ma photo orange, puis ma photo de profil
     // charge : micro-lag ». Ma photo est demandée DÈS le lancement (la PawMap
     // est construite au démarrage), et relue depuis le disque (plus de
@@ -2346,6 +2350,28 @@ class PawMapPinCache extends GetxService {
   }
 
   final Map<String, BitmapDescriptor> _lastBySlot = {};
+
+  /// 639 — image d'une pastille v2 (clé = [PawPinSpec639.key]). Toutes les
+  /// personnes dans le même état partagent UNE image.
+  BitmapDescriptor? pin639(PawPinSpec639 s, {String? slot}) {
+    final sz = pawPinBitmap639(s);
+    return getOrBuild(s.key, sz.width, sz.height, (c) => paintPin639(c, s),
+        slot: slot, scale: pawMemberPinScale());
+  }
+
+  /// 639 — pré-rendu des pastilles les plus courantes (7 combinaisons de
+  /// rôles, avec et sans couronne) : prêtes avant la première épingle.
+  /// Renvoie le nombre d'images demandées.
+  int prewarm639() {
+    var n = 0;
+    for (final roles in kPawPrewarmRoles639) {
+      for (final premium in const [false, true]) {
+        pin639(PawPinSpec639(roles: roles, premium: premium));
+        n++;
+      }
+    }
+    return n;
+  }
 
   // ── 612 (mesuré sur émulateur Android, carte chargée : 100 membres,
   // 50 PawSpots) — à l'ouverture, ~80 images d'épingles étaient dessinées
@@ -2509,3 +2535,883 @@ Offset pawOnlineDotCenter(Offset c, double r, double s, {bool verified = false})
     verified
         ? Offset(c.dx - r + s / 2, c.dy - r + s / 2)
         : Offset(c.dx + r - s / 2, c.dy + r - s / 2);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 639 — PASTILLES v2 (maquette docs/design_handoff_pawmap_pastilles_v2)
+// ═══════════════════════════════════════════════════════════════════════════
+// Une pastille de 32 pt, pleine couleur, sans anneau blanc ; halos fins,
+// petits badges, groupes blancs à anneau partagé, bulle de prix claire.
+// Tout est PUR (aucun état, aucune donnée) : la carte fabrique une
+// [PawPinSpec639], la met en cache par sa [PawPinSpec639.key], et l'ancre
+// EXACTEMENT sur le centre du disque ([pawPinAnchor639]).
+// Les couleurs de cette section ne servent QUE sur la carte (CONTRATS §6).
+
+/// Interrupteur du dessin v2 sur la carte. `false` = retour aux ronds à
+/// anneau d'avant le 639 (pawmap_ring2610.dart), sans autre changement.
+const bool kPawPins639 = bool.fromEnvironment('PAWMAP_PINS_V2', defaultValue: true);
+
+/// Amis (hors « en direct ») en pastille v2 + halo fuchsia + cœur, comme la
+/// maquette. `false` = retour aux ronds photo d'avant le 639.
+const bool kPawFriendPastille639 = true;
+
+/// La coche « identité vérifiée » n'existe pas dans la maquette v2 : elle
+/// n'est plus dessinée sur la pastille (elle reste dans la fiche au toucher).
+/// `true` = la redessiner (petit rond bleu en bas à droite).
+const bool kPawPinVerified639 = false;
+
+/// Images de l'onde PawFollow (1,8 s ÷ 6 = la minuterie 300 ms de la carte).
+const int kPawWaveSteps639 = 6;
+
+/// Rayon du disque et du halo, en points.
+const double kPawPinDiscR639 = 16;
+const double kPawPinHaloR639 = 21.5;
+
+/// Couleurs et icônes des pastilles v2 — CARTE UNIQUEMENT.
+class PawPin639 {
+  PawPin639._();
+
+  static const Color owner = Color(0xFFFF3A0F);
+  static const Color ownerLight = Color(0xFFFF7A52);
+  static const Color sitter = Color(0xFF0F62FF);
+  static const Color sitterLight = Color(0xFF5EA0FF);
+  static const Color walker = Color(0xFF00C24A);
+  static const Color walkerLight = Color(0xFF3FD476);
+
+  static const Color boost = Color(0xFF12D8C9);
+  static const Color boostInk = Color(0xFF003D38);
+  static const Color follow = Color(0xFF8F5CFF);
+  static const Color friend = Color(0xFFFF5AD2);
+  static const Color heartA = Color(0xFFF73CC0);
+  static const Color heartB = Color(0xFFD9159F);
+  static const Color gold = Color(0xFFF6B400);
+  static const Color goldInk = Color(0xFF6B3A00);
+  static const Color live = Color(0xFFE8452F);
+  static const Color available = Color(0xFF1FE074);
+  static const Color verified = Color(0xFF0F62FF);
+  static const Color note = Color(0xFFFFC526);
+  static const Color noteInk = Color(0xFF3D2600);
+
+  // Maquette : #262123 et #7a6f71. Décalés d'un ou deux points vers le
+  // chaud (#262021, #7c6d70) : règle « zéro gris » de l'app.
+  static Color surface(bool dark) =>
+      dark ? const Color(0xFF262021) : const Color(0xFFFFFFFF);
+  static Color text(bool dark) =>
+      dark ? const Color(0xFFF6EFEC) : const Color(0xFF1D1719);
+  static Color muted(bool dark) =>
+      dark ? const Color(0xFFA99C9E) : const Color(0xFF7C6D70);
+  static Color edge(bool dark) =>
+      dark ? const Color(0x38FFFFFF) : const Color(0x12000000);
+  static Color line(bool dark) =>
+      dark ? const Color(0x2EFFFFFF) : const Color(0x24000000);
+
+  /// Ordre fixe des rôles (camembert, mini-pastilles).
+  static const List<String> order = <String>['owner', 'sitter', 'walker'];
+
+  static Color role(String r) {
+    switch (r) {
+      case 'sitter':
+        return sitter;
+      case 'walker':
+        return walker;
+      default:
+        return owner;
+    }
+  }
+
+  static Color roleLight(String r) {
+    switch (r) {
+      case 'sitter':
+        return sitterLight;
+      case 'walker':
+        return walkerLight;
+      default:
+        return ownerLight;
+    }
+  }
+
+  // Police figée des boutons de la carte (assets/pawsymbols) : pets / home /
+  // directions_walk — les mêmes pictos que la maquette.
+  static const IconData pets = IconData(0xe91d, fontFamily: 'PawSymbols');
+  static const IconData home = IconData(0xe9b2, fontFamily: 'PawSymbols');
+  static const IconData walk = IconData(0xe536, fontFamily: 'PawSymbols');
+
+  static IconData icon(String r) {
+    switch (r) {
+      case 'sitter':
+        return home;
+      case 'walker':
+        return walk;
+      default:
+        return pets;
+    }
+  }
+
+  static Color halo(PawHalo639 h) {
+    switch (h) {
+      case PawHalo639.boost:
+        return boost;
+      case PawHalo639.follow:
+        return follow;
+      case PawHalo639.friend:
+        return friend;
+      case PawHalo639.none:
+        return const Color(0x00000000);
+    }
+  }
+}
+
+/// Le halo d'une pastille v2 — UN SEUL à la fois.
+enum PawHalo639 { none, boost, follow, friend }
+
+/// Priorité inchangée (c'est [pickPhotoHalo] qui tranche) : suivi en direct
+/// → PawBoost → PawFollow → Ami. Le suivi en direct et PawFollow partagent
+/// le halo violet.
+PawHalo639 pawHalo639({
+  required bool boosted,
+  bool followed = false,
+  bool pawFollow = false,
+  bool isFriend = false,
+}) {
+  switch (pickPhotoHalo(
+      boosted: boosted,
+      followed: followed,
+      pawFollowGlow: pawFollow,
+      isFriend: isFriend)) {
+    case PawPhotoHalo.follow:
+    case PawPhotoHalo.pawFollow:
+      return PawHalo639.follow;
+    case PawPhotoHalo.boost:
+      return PawHalo639.boost;
+    case PawPhotoHalo.friend:
+      return PawHalo639.friend;
+    case PawPhotoHalo.me:
+    case PawPhotoHalo.none:
+      return PawHalo639.none;
+  }
+}
+
+/// Rôles d'une pastille : connus, sans doublon, dans l'ordre fixe.
+List<String> pawPinRoles639(Iterable<String> roles) {
+  final set = <String>{for (final r in roles) r.trim().toLowerCase()};
+  final out = <String>[
+    for (final r in PawPin639.order)
+      if (set.contains(r)) r,
+  ];
+  return out.isEmpty ? const <String>['owner'] : out;
+}
+
+/// Point vert « disponible aujourd'hui » : UNIQUEMENT quand le serveur envoie
+/// `availableDot == true` ET que la personne est gardien ou promeneur.
+/// Champ absent (ancien serveur) = pas de point. `availableToday` n'est
+/// jamais lu ici (il sert au filtre).
+bool pawAvailableDot639(Map<dynamic, dynamic> p, Iterable<String> roles) =>
+    p['availableDot'] == true &&
+    roles.any((r) => r == 'sitter' || r == 'walker');
+
+/// Les 7 combinaisons de rôles d'une personne (pré-rendu du cache).
+const List<List<String>> kPawPrewarmRoles639 = <List<String>>[
+  ['owner'],
+  ['sitter'],
+  ['walker'],
+  ['owner', 'sitter'],
+  ['owner', 'walker'],
+  ['sitter', 'walker'],
+  ['owner', 'sitter', 'walker'],
+];
+
+/// Tout ce qui décide du dessin d'une pastille v2.
+@immutable
+class PawPinSpec639 {
+  PawPinSpec639({
+    required Iterable<String> roles,
+    this.halo = PawHalo639.none,
+    this.premium = false,
+    this.live = false,
+    bool available = false,
+    this.selected = false,
+    bool verified = false,
+    double scale = 1,
+    int wave = -1,
+    this.caption = '',
+    this.captionAbove = false,
+    this.captionColor = const Color(0xFFB8128F),
+  })  : roles = pawPinRoles639(roles),
+        scale = (scale * 100).round() / 100,
+        wave = halo == PawHalo639.follow && wave >= 0
+            ? wave % kPawWaveSteps639
+            : -1,
+        verified = verified && kPawPinVerified639,
+        available = available &&
+            roles.any((r) {
+              final k = r.trim().toLowerCase();
+              return k == 'sitter' || k == 'walker';
+            });
+
+  final List<String> roles;
+  final PawHalo639 halo;
+  final bool premium;
+
+  /// Point rouge « en direct » (bas-droite).
+  final bool live;
+
+  /// Point vert « disponible aujourd'hui » (bas-gauche).
+  final bool available;
+
+  /// Pastille touchée : pointe sous le disque (mono-rôle).
+  final bool selected;
+  final bool verified;
+
+  /// Échelle de sélection (1 → 1,18), arrondie au centième.
+  final double scale;
+
+  /// Image de l'onde PawFollow (0..5), −1 = pas d'onde.
+  final int wave;
+
+  /// Étiquette d'un ami (« Vu il y a… ») — dessinée hors échelle.
+  final String caption;
+  final bool captionAbove;
+  final Color captionColor;
+
+  bool get multi => roles.length > 1;
+  bool get tip => selected && !multi;
+
+  /// Clé de cache : deux specs de même clé donnent la même image.
+  String get key => 'pin639:${roles.map((r) => r[0]).join()}:h${halo.index}:'
+      '${premium ? 1 : 0}${live ? 1 : 0}${available ? 1 : 0}'
+      '${selected ? 1 : 0}${verified ? 1 : 0}:$scale:w$wave:'
+      '${captionAbove ? 'a' : 'b'}${captionColor.toARGB32()}:$caption';
+}
+
+double _capW639(String caption) =>
+    math.min(160.0, PawMapPinPainter.photoLabelWidth(caption) - 6);
+
+const double _kCapH639 = 19.3;
+
+/// Rayon au-delà duquel l'étiquette d'une pastille se pose (3 pt plus loin) :
+/// le halo ; dessous, le bas des mini-pastilles d'un multi-rôle.
+double pawPinCaptionR639(bool multi, {bool above = false}) =>
+    multi && !above ? 25.5 : kPawPinHaloR639 + 0.5;
+
+/// Géométrie de l'image d'une pastille : taille en points ENTIERS PAIRS et
+/// centre du disque à des coordonnées ENTIÈRES — l'ancre tombe au pixel.
+({double w, double h, double cx, double cy}) pawPinLayout639(PawPinSpec639 s) {
+  // Étendues depuis le centre du disque, à l'échelle 1.
+  double side = 20, top = 19, bottom = 21;
+  if (s.multi) {
+    bottom = 28;
+    if (s.roles.length > 2) side = 25;
+  }
+  if (s.tip) bottom = math.max(bottom, 23);
+  if (s.halo != PawHalo639.none) {
+    side = math.max(side, 32);
+    top = math.max(top, 32);
+    bottom = math.max(bottom, 32);
+    if (s.halo == PawHalo639.follow) {
+      // Même taille à toutes les images de l'onde (pas de saut d'ancre).
+      side = math.max(side, 35);
+      top = math.max(top, 35);
+      bottom = math.max(bottom, 35);
+    }
+  }
+  if (s.halo == PawHalo639.friend) {
+    side = math.max(side, 26.5);
+    top = math.max(top, 26.5);
+  } else if (s.halo == PawHalo639.boost) {
+    side = math.max(side, 24.5);
+    top = math.max(top, 24.5);
+  }
+  if (s.premium) {
+    side = math.max(side, 24.5);
+    top = math.max(top, 24.5);
+  }
+  if (s.available) {
+    side = math.max(side, s.multi ? 23.5 : 20.5);
+    bottom = math.max(bottom, 21.5);
+  }
+  if (s.live || s.verified) {
+    side = math.max(side, 21.5);
+    bottom = math.max(bottom, 22.5);
+  }
+  side *= s.scale;
+  top *= s.scale;
+  bottom *= s.scale;
+  if (s.caption.isNotEmpty) {
+    side = math.max(side, _capW639(s.caption) / 2 + 6);
+    final double reach =
+        (pawPinCaptionR639(s.multi, above: s.captionAbove) + 3) * s.scale + _kCapH639 + 6;
+    if (s.captionAbove) {
+      top = math.max(top, reach);
+    } else {
+      bottom = math.max(bottom, reach);
+    }
+  }
+  final double half = side.ceilToDouble();
+  final double t = top.ceilToDouble();
+  double b = bottom.ceilToDouble();
+  if ((t + b) % 2 != 0) b += 1;
+  return (w: 2 * half, h: t + b, cx: half, cy: t);
+}
+
+Size pawPinBitmap639(PawPinSpec639 s) {
+  final l = pawPinLayout639(s);
+  return Size(l.w, l.h);
+}
+
+/// Ancre EXACTE : le centre du disque, en fraction de l'image réellement
+/// produite (`ceil(taille × densité)` pixels).
+Offset pawPinAnchor639(PawPinSpec639 s, {double? renderScale}) {
+  final l = pawPinLayout639(s);
+  final double sc = renderScale ?? pawMemberPinScale();
+  return Offset(
+      l.cx * sc / (l.w * sc).ceil(), l.cy * sc / (l.h * sc).ceil());
+}
+
+/// Centre du point vert « disponible aujourd'hui » (repère = centre du
+/// disque). Maquette : en bas à gauche, décalé de −1 pt → (−13 ; 13). Sur une
+/// pastille MULTI-rôle (cas absent de la maquette) ce point tomberait sur la
+/// mini-pastille de gauche : il remonte sur le bord gauche du disque
+/// (−16 ; 3), à plus de 13,5 pt du centre de chaque mini-pastille (rayons
+/// 8 + 5,5), donc sans jamais la toucher.
+Offset pawAvailableDotAt639(bool multi) =>
+    multi ? const Offset(-16, 3) : const Offset(-13, 13);
+
+/// Encombrement d'une pastille pour le placement (éviter les chevauchements) :
+/// le disque et son filet, rien d'autre.
+Rect pawPinBox639({bool halo = false}) => Rect.fromCircle(
+    center: Offset.zero, radius: halo ? kPawPinHaloR639 + 0.5 : 17);
+
+Path _circle639(Offset c, double r) =>
+    Path()..addOval(Rect.fromCircle(center: c, radius: r));
+
+/// Petit rond à liseré blanc (badges, points).
+void _dot639(Canvas canvas, Offset c, double r, Paint fill,
+    {double shadowBlur = 2, Color shadow = const Color(0x40000000)}) {
+  PawMapPinPainter.cssShadow(canvas, _circle639(c, r + 1.5),
+      dy: 1, blur: shadowBlur, color: shadow);
+  canvas.drawCircle(c, r + 1.5, Paint()..color = Colors.white);
+  canvas.drawCircle(c, r, fill);
+}
+
+const String _kHeart639 =
+    'M4 7.3C1.5 5.3 0 3.9 0 2.2C0 .9 1 0 2.2 0C2.9 0 3.6 .35 4 .9C4.4 .35 5.1 0 5.8 0C7 0 8 .9 8 2.2C8 3.9 6.5 5.3 4 7.3Z';
+
+/// Étoile à 5 branches inscrite dans un carré de côté [size].
+Path pawStarPath639(Offset c, double size) {
+  final double ro = size / 2, ri = ro * 0.46;
+  final p = Path();
+  for (var i = 0; i < 10; i++) {
+    final double r = i.isEven ? ro : ri;
+    final double a = -math.pi / 2 + i * math.pi / 5;
+    final o = Offset(c.dx + r * math.cos(a), c.dy + r * math.sin(a));
+    if (i == 0) {
+      p.moveTo(o.dx, o.dy);
+    } else {
+      p.lineTo(o.dx, o.dy);
+    }
+  }
+  return p..close();
+}
+
+void _paintHalo639(Canvas canvas, PawPinSpec639 s) {
+  final Color c = PawPin639.halo(s.halo);
+  const double r = kPawPinHaloR639;
+  // Lueur 0 0 9 1 — seulement à l'EXTÉRIEUR du cercle.
+  canvas.save();
+  canvas.clipPath(Path()
+    ..fillType = PathFillType.evenOdd
+    ..addRect(Rect.fromCircle(center: Offset.zero, radius: 60))
+    ..addOval(Rect.fromCircle(center: Offset.zero, radius: r)));
+  canvas.drawCircle(
+      Offset.zero,
+      r + 1,
+      Paint()
+        ..color = c.withValues(alpha: 0xC0 / 255)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.5));
+  canvas.restore();
+  canvas.drawCircle(
+      Offset.zero, r, Paint()..color = c.withValues(alpha: 0x38 / 255));
+  canvas.drawCircle(
+      Offset.zero,
+      r - 1,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = c);
+  if (s.wave >= 0) {
+    // Onde : 1 → 1,6, opacité .75 → 0, ease-out, 1,8 s.
+    final double e = Curves.easeOut.transform(s.wave / kPawWaveSteps639);
+    final double k = 1 + 0.6 * e;
+    canvas.drawCircle(
+        Offset.zero,
+        (r - 1) * k,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2 * k
+          ..color = c.withValues(alpha: 0.75 * (1 - e)));
+  }
+}
+
+void _paintPinBody639(Canvas canvas, PawPinSpec639 s) {
+  const double r = kPawPinDiscR639;
+  final String main = s.roles.first;
+  if (s.halo != PawHalo639.none) _paintHalo639(canvas, s);
+
+  // Pointe de sélection (derrière le disque).
+  if (s.tip) {
+    canvas.save();
+    canvas.translate(0, 13.5);
+    canvas.rotate(math.pi / 4);
+    final rr = RRect.fromRectAndCorners(
+        Rect.fromCenter(center: Offset.zero, width: 9, height: 9),
+        bottomRight: const Radius.circular(2));
+    canvas.drawRRect(
+        rr.shift(const Offset(1, 1)),
+        Paint()
+          ..color = const Color(0x4D000000)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1));
+    canvas.drawRRect(rr, Paint()..color = PawPin639.role(main));
+    canvas.restore();
+  }
+
+  // Disque : ombre 0 1 3 .35, filet 0,5 pt .25, pleine couleur.
+  PawMapPinPainter.cssShadow(canvas, _circle639(Offset.zero, r),
+      dy: 1, blur: 3, color: const Color(0x59000000));
+  canvas.drawCircle(
+      Offset.zero, r + 0.5, Paint()..color = const Color(0x40000000));
+  canvas.drawCircle(Offset.zero, r, Paint()..color = PawPin639.role(main));
+  if (s.multi) {
+    final int n = s.roles.length;
+    final rect = Rect.fromCircle(center: Offset.zero, radius: r);
+    for (var i = 1; i < n; i++) {
+      canvas.drawArc(rect, -math.pi / 2 + i * 2 * math.pi / n,
+          2 * math.pi / n, true, Paint()..color = PawPin639.role(s.roles[i]));
+    }
+  }
+  PawMapPinPainter.drawIcon(canvas,
+      s.multi ? PawPin639.pets : PawPin639.icon(main), Offset.zero, 17,
+      Colors.white);
+
+  // Mini-pastilles des rôles (multi) : 12 pt, écart 3, sous le disque.
+  if (s.multi) {
+    final int n = s.roles.length;
+    for (var i = 0; i < n; i++) {
+      final c = Offset((i - (n - 1) / 2) * 15, 17);
+      PawMapPinPainter.cssShadow(canvas, _circle639(c, 7.5),
+          dy: 1, blur: 2, color: const Color(0x4D000000));
+      canvas.drawCircle(c, 8, Paint()..color = const Color(0x24000000));
+      canvas.drawCircle(c, 7.5, Paint()..color = Colors.white);
+      canvas.drawCircle(c, 6, Paint()..color = PawPin639.role(s.roles[i]));
+      PawMapPinPainter.drawIcon(
+          canvas, PawPin639.icon(s.roles[i]), c, 8, Colors.white);
+    }
+  }
+
+  // Badge du halo, en haut à gauche.
+  if (s.halo == PawHalo639.boost) {
+    const c = Offset(-14.5, -14.5);
+    _dot639(canvas, c, 6.5, Paint()..color = PawPin639.boost);
+    PawMapPinPainter.drawSvg(canvas, PawGlyphs.rocket,
+        Rect.fromCenter(center: c, width: 9, height: 9), PawPin639.boostInk);
+  } else if (s.halo == PawHalo639.friend) {
+    const c = Offset(-14.5, -14.5);
+    final rect = Rect.fromCircle(center: c, radius: 7.5);
+    _dot639(
+        canvas,
+        c,
+        7.5,
+        Paint()
+          ..shader = PawMapPinPainter.cssLinear(
+              rect, 160, const [PawPin639.heartA, PawPin639.heartB]),
+        shadowBlur: 3,
+        shadow: const Color(0x7378005A));
+    // Reflet intérieur 0 1 0 blanc .35.
+    canvas.drawPath(
+        Path.combine(PathOperation.difference, _circle639(c, 7.5),
+            _circle639(c.translate(0, 1), 7.5)),
+        Paint()..color = const Color(0x59FFFFFF));
+    canvas.save();
+    canvas.translate(c.dx - 4, c.dy - 3.65);
+    canvas.drawPath(PawSvgPath.parse(_kHeart639), Paint()..color = Colors.white);
+    canvas.restore();
+  }
+
+  // Couronne Premium, en haut à droite — par-dessus tout.
+  if (s.premium) {
+    const c = Offset(14, -14);
+    _dot639(canvas, c, 7, Paint()..color = PawPin639.gold);
+    const double w = 8.4, h = 7;
+    final double x = c.dx - w / 2, y = c.dy - h / 2;
+    const pts = <List<double>>[
+      [0, 12], [27, 52], [50, 0], [73, 52], [100, 12], [88, 100], [12, 100],
+    ];
+    final p = Path();
+    for (var i = 0; i < pts.length; i++) {
+      final double px = x + w * pts[i][0] / 100, py = y + h * pts[i][1] / 100;
+      if (i == 0) {
+        p.moveTo(px, py);
+      } else {
+        p.lineTo(px, py);
+      }
+    }
+    canvas.drawPath(p..close(), Paint()..color = PawPin639.goldInk);
+  }
+
+  // Point vert « disponible aujourd'hui », en bas à gauche.
+  if (s.available) {
+    _dot639(canvas, pawAvailableDotAt639(s.multi), 4,
+        Paint()..color = PawPin639.available,
+        shadow: const Color(0x4D000000));
+  }
+
+  // Point rouge « en direct », en bas à droite (sinon la coche, si activée).
+  if (s.live) {
+    _dot639(canvas, const Offset(13.5, 13.5), 3.5,
+        Paint()..color = PawPin639.live);
+  } else if (s.verified) {
+    const c = Offset(13.5, 13.5);
+    _dot639(canvas, c, 4.5, Paint()..color = PawPin639.verified);
+    PawMapPinPainter.drawSvg(canvas, PawGlyphs.check,
+        Rect.fromCenter(center: c, width: 7, height: 7), Colors.white,
+        stroke: 3.2);
+  }
+}
+
+/// Dessine la pastille v2 dans une image de [pawPinBitmap639].
+void paintPin639(Canvas canvas, PawPinSpec639 s) {
+  final l = pawPinLayout639(s);
+  canvas.save();
+  canvas.translate(l.cx, l.cy);
+  canvas.save();
+  canvas.scale(s.scale, s.scale);
+  _paintPinBody639(canvas, s);
+  canvas.restore();
+  if (s.caption.isNotEmpty) {
+    final double gap =
+        (pawPinCaptionR639(s.multi, above: s.captionAbove) + 3) * s.scale;
+    PawMapPinPainter._paintPill(canvas,
+        text: s.caption,
+        cx: 0,
+        top: s.captionAbove ? -gap - _kCapH639 : gap,
+        style: _pinStyle(11, FontWeight.w700, s.captionColor, inter: true),
+        height: _kCapH639,
+        padX: 9.5,
+        bg: Colors.white,
+        border: PawPin639.friend,
+        borderW: 1.5);
+  }
+  canvas.restore();
+}
+
+// ── groupe v2 ────────────────────────────────────────────────────────────
+
+TextPainter _tp639(String t, double size, FontWeight w, Color color,
+        {double letterSpacing = 0}) =>
+    TextPainter(
+      text: TextSpan(
+          text: t,
+          style: _pinStyle(size, w, color)
+              .copyWith(letterSpacing: letterSpacing)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+
+/// Largeur de la pilule « dès X » sous un groupe ouvert (0 = pas de pilule).
+double pawClusterLabelW639({String? labelPrefix, String? labelPrice}) {
+  final String price = labelPrice ?? '';
+  if (price.isEmpty) return 0;
+  final String prefix = labelPrefix ?? '';
+  final double pw = prefix.isEmpty
+      ? 0
+      : _tp639(prefix, 10, FontWeight.w600, Colors.black).width + 5;
+  return 8 + 7 + 5 + pw + _tp639(price, 12, FontWeight.w800, Colors.black).width + 10;
+}
+
+({double w, double h, double cx, double cy}) pawClusterLayout639(
+    {String? labelPrefix, String? labelPrice}) {
+  final double lw =
+      pawClusterLabelW639(labelPrefix: labelPrefix, labelPrice: labelPrice);
+  double side = 20, bottom = 21;
+  const double top = 19;
+  if (lw > 0) {
+    side = math.max(side, lw / 2 + 8);
+    bottom = 21 + 24 + 13; // pilule (haut +21, h 24) + ombre 0 5 10 −3
+  }
+  final double half = side.ceilToDouble();
+  double b = bottom.ceilToDouble();
+  if ((top + b) % 2 != 0) b += 1;
+  return (w: 2 * half, h: top + b, cx: half, cy: top);
+}
+
+Size pawClusterBitmap639({String? labelPrefix, String? labelPrice}) {
+  final l =
+      pawClusterLayout639(labelPrefix: labelPrefix, labelPrice: labelPrice);
+  return Size(l.w, l.h);
+}
+
+/// Ancre exacte d'un groupe : le centre de son disque.
+Offset pawClusterAnchor639(
+    {String? labelPrefix, String? labelPrice, double? renderScale}) {
+  final l =
+      pawClusterLayout639(labelPrefix: labelPrefix, labelPrice: labelPrice);
+  final double sc = renderScale ?? pawMemberPinScale();
+  return Offset(
+      l.cx * sc / (l.w * sc).ceil(), l.cy * sc / (l.h * sc).ceil());
+}
+
+/// Groupe v2 : disque 32 pt « surface », anneau 3,5 pt partagé par rôle
+/// (départ à 9 h, sens horaire, promeneur → propriétaire → gardien, écart 5°),
+/// compteur 13 pt extra-gras ; pilule « dès X » quand le groupe est ouvert.
+void paintCluster639(
+  Canvas canvas, {
+  required int count,
+  required Map<String, int> counts,
+  bool dark = false,
+  String? labelPrefix,
+  String? labelPrice,
+  String labelRole = 'sitter',
+}) {
+  final l =
+      pawClusterLayout639(labelPrefix: labelPrefix, labelPrice: labelPrice);
+  const double r = kPawPinDiscR639;
+  canvas.save();
+  canvas.translate(l.cx, l.cy);
+  PawMapPinPainter.cssShadow(canvas, _circle639(Offset.zero, r),
+      dy: 1, blur: 3, color: const Color(0x59000000));
+  canvas.drawCircle(
+      Offset.zero, r + 0.5, Paint()..color = const Color(0x40000000));
+  canvas.drawCircle(Offset.zero, r, Paint()..color = PawPin639.surface(dark));
+
+  const ringOrder = <String>['walker', 'owner', 'sitter'];
+  final parts = <MapEntry<String, int>>[
+    for (final k in ringOrder)
+      if ((counts[k] ?? 0) > 0) MapEntry(k, counts[k]!),
+  ];
+  final int total = parts.fold<int>(0, (a, e) => a + e.value);
+  if (total > 0) {
+    const double gap = 5 * math.pi / 180;
+    final rect = Rect.fromCircle(center: Offset.zero, radius: r - 1.75);
+    double a = math.pi; // 9 h
+    for (final e in parts) {
+      final double sweep = 2 * math.pi * e.value / total;
+      if (sweep > gap) {
+        canvas.drawArc(
+            rect,
+            a + gap,
+            sweep - gap,
+            false,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 3.5
+              ..color = PawPin639.role(e.key));
+      }
+      a += sweep;
+    }
+  }
+  final tp = _tp639(count > 99 ? '99+' : '$count', 13, FontWeight.w800,
+      PawPin639.text(dark),
+      letterSpacing: -0.52);
+  tp.paint(canvas, Offset(-tp.width / 2 - 0.26, -tp.height / 2));
+
+  final String price = labelPrice ?? '';
+  if (price.isNotEmpty) {
+    final double lw =
+        pawClusterLabelW639(labelPrefix: labelPrefix, labelPrice: labelPrice);
+    final rr = RRect.fromRectAndRadius(
+        Rect.fromLTWH(-lw / 2, 21, lw, 24), const Radius.circular(12));
+    final path = Path()..addRRect(rr);
+    PawMapPinPainter.cssShadow(canvas, path,
+        dy: 5, blur: 10, spread: -3, color: const Color(0x47000000));
+    PawMapPinPainter.cssShadow(canvas, path,
+        dy: 1, blur: 1, color: const Color(0x24000000));
+    canvas.drawRRect(rr, Paint()..color = PawPin639.surface(dark));
+    canvas.drawRRect(
+        rr.deflate(0.5),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = PawPin639.edge(dark));
+    double x = -lw / 2 + 8;
+    canvas.drawCircle(
+        Offset(x + 3.5, 33), 3.5, Paint()..color = PawPin639.role(labelRole));
+    x += 7 + 5;
+    final String prefix = labelPrefix ?? '';
+    if (prefix.isNotEmpty) {
+      final pp = _tp639(prefix, 10, FontWeight.w600, PawPin639.muted(dark));
+      pp.paint(canvas, Offset(x, 33 - pp.height / 2));
+      x += pp.width + 5;
+    }
+    final vp = _tp639(price, 12, FontWeight.w800, PawPin639.text(dark));
+    vp.paint(canvas, Offset(x, 33 - vp.height / 2));
+  }
+  canvas.restore();
+}
+
+// ── bulle de prix v2 ─────────────────────────────────────────────────────
+
+/// Un segment de la bulle : un rôle, son prix, son unité (« /h »).
+typedef PawPriceSeg639 = ({String role, String amount, String unit});
+
+/// Distance, en points, entre la pointe de la bulle et le point de la carte :
+/// la pilule flotte à 25 × 1,18 = 29,5 pt au-dessus du centre de la pastille
+/// touchée ; la pointe descend de 6,3 pt.
+const double kBubbleLift639 = 23.2;
+const double _kBubTail639 = 6.3;
+const double _kBubSide639 = 10; // ombre 0 6 9
+const double _kBubTop639 = 12; // étiquette de note (dépasse de 10) + liseré
+
+double _segW639(PawPriceSeg639 s, bool first) =>
+    (first ? 0 : 5) +
+    20 +
+    5 +
+    _tp639(s.amount, 13, FontWeight.w800, Colors.black, letterSpacing: -0.26)
+        .width +
+    (s.unit.isEmpty
+        ? 0
+        : 1 + _tp639(s.unit, 9.5, FontWeight.w600, Colors.black).width) +
+    8;
+
+/// Largeur de la pilule (sans marge) : 4 + segments + 4.
+double pawBubbleBodyW639(List<PawPriceSeg639> segs) {
+  double w = 8;
+  for (var i = 0; i < segs.length; i++) {
+    w += _segW639(segs[i], i == 0);
+  }
+  return w;
+}
+
+({double w, double h, double bodyTop}) _bubLayout639(
+    List<PawPriceSeg639> segs, double lift) {
+  final double w = 2 * ((pawBubbleBodyW639(segs) / 2 + _kBubSide639).ceilToDouble());
+  double h = (_kBubTop639 + 28 + _kBubTail639 + lift).ceilToDouble();
+  if (h % 2 != 0) h += 1;
+  return (w: w, h: h, bodyTop: h - lift - _kBubTail639 - 28);
+}
+
+/// Image de la bulle : la zone transparente sous la pointe ([lift]) fait
+/// PARTIE de l'image — l'ancre reste le bas de l'image, comme avant.
+Size pawBubbleBitmap639(List<PawPriceSeg639> segs,
+    {double lift = kBubbleLift639}) {
+  final l = _bubLayout639(segs, lift);
+  return Size(l.w, l.h);
+}
+
+/// Ancre : la pointe (décalée de [tailDx] quand la bulle est repoussée du
+/// bord de l'écran), tout en bas de l'image.
+Offset pawBubbleAnchor639(List<PawPriceSeg639> segs, double tailDx,
+    {double lift = kBubbleLift639, double? renderScale}) {
+  final l = _bubLayout639(segs, lift);
+  final double sc = renderScale ?? pawMemberPinScale();
+  return Offset((l.w / 2 + tailDx) * sc / (l.w * sc).ceil(),
+      l.h * sc / (l.h * sc).ceil());
+}
+
+/// Bulle de prix v2 : pilule 28 pt claire (sombre en mode nuit), un rond de
+/// rôle par segment, pointe 11 pt, étiquette de note en haut à droite.
+void paintBubble639(
+  Canvas canvas,
+  List<PawPriceSeg639> segs, {
+  double tailDx = 0,
+  double lift = kBubbleLift639,
+  bool dark = false,
+  double rating = 0,
+  String? ratingLabel,
+}) {
+  final l = _bubLayout639(segs, lift);
+  final double bw = pawBubbleBodyW639(segs);
+  final double left = (l.w - bw) / 2, top = l.bodyTop;
+  final rr = RRect.fromRectAndRadius(
+      Rect.fromLTWH(left, top, bw, 28), const Radius.circular(14));
+  // Pointe : carré 11 tourné de 45°, coin du bas arrondi 3, remonté de 7.
+  final double tx = (l.w / 2 + tailDx)
+      .clamp(left + 14, left + bw - 14)
+      .toDouble();
+  final m = Matrix4.identity()
+    ..translateByDouble(tx, top + 28 - 7 + 5.5, 0, 1)
+    ..rotateZ(math.pi / 4);
+  final tail = (Path()
+        ..addRRect(RRect.fromRectAndCorners(
+            Rect.fromCenter(center: Offset.zero, width: 11, height: 11),
+            bottomRight: const Radius.circular(3))))
+      .transform(m.storage);
+  final shape = Path.combine(PathOperation.union, Path()..addRRect(rr), tail);
+  PawMapPinPainter.cssShadow(canvas, shape,
+      dy: 6, blur: 9, color: const Color(0x3D000000));
+  PawMapPinPainter.cssShadow(canvas, shape,
+      dy: 1, blur: 1, color: const Color(0x33000000));
+  canvas.drawPath(shape, Paint()..color = PawPin639.surface(dark));
+  canvas.save();
+  canvas.clipRRect(rr);
+  canvas.drawRRect(
+      rr.deflate(0.5),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = PawPin639.edge(dark));
+  canvas.restore();
+
+  final double cy = top + 14;
+  double x = left + 4;
+  for (var i = 0; i < segs.length; i++) {
+    final s = segs[i];
+    if (i > 0) {
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(Rect.fromLTWH(x, cy - 7, 1, 14),
+              const Radius.circular(1)),
+          Paint()..color = PawPin639.line(dark));
+      x += 5;
+    }
+    final c = Offset(x + 10, cy);
+    final disc = Rect.fromCircle(center: c, radius: 10);
+    canvas.drawCircle(
+        c,
+        10,
+        Paint()
+          ..shader = PawMapPinPainter.cssLinear(disc, 160,
+              [PawPin639.roleLight(s.role), PawPin639.role(s.role)]));
+    canvas.drawPath(
+        Path.combine(PathOperation.difference, _circle639(c, 10),
+            _circle639(c.translate(0, 1), 10)),
+        Paint()..color = const Color(0x59FFFFFF));
+    canvas.drawPath(
+        Path.combine(PathOperation.difference, _circle639(c, 10),
+            _circle639(c.translate(0, -1), 10)),
+        Paint()..color = const Color(0x1F000000));
+    PawMapPinPainter.drawIcon(
+        canvas, PawPin639.icon(s.role), c, 13, Colors.white);
+    x += 20 + 5;
+    final ap = _tp639(s.amount, 13, FontWeight.w800, PawPin639.text(dark),
+        letterSpacing: -0.26);
+    final double ay = cy - ap.height / 2;
+    ap.paint(canvas, Offset(x, ay));
+    x += ap.width;
+    if (s.unit.isNotEmpty) {
+      final up = _tp639(s.unit, 9.5, FontWeight.w600, PawPin639.muted(dark));
+      final double base =
+          ay + ap.computeDistanceToActualBaseline(TextBaseline.alphabetic);
+      up.paint(
+          canvas,
+          Offset(
+              x + 1,
+              base -
+                  up.computeDistanceToActualBaseline(TextBaseline.alphabetic)));
+      x += 1 + up.width;
+    }
+    x += 8;
+  }
+
+  // Étiquette de note : à 10 pt du bord droit, dépasse de 10 pt en haut.
+  if (rating > 0) {
+    final np = _tp639(ratingLabel ?? rating.toStringAsFixed(1), 10,
+        FontWeight.w800, PawPin639.noteInk);
+    final double nw = 4 + 11 + 1 + np.width + 6;
+    final nr = RRect.fromRectAndRadius(
+        Rect.fromLTWH(left + bw - 10 - nw, top - 10, nw, 16),
+        const Radius.circular(8));
+    canvas.drawRRect(nr.inflate(1.5), Paint()..color = PawPin639.surface(dark));
+    canvas.drawRRect(nr, Paint()..color = PawPin639.note);
+    canvas.drawPath(
+        pawStarPath639(Offset(nr.left + 4 + 5.5, nr.top + 8), 10),
+        Paint()..color = PawPin639.noteInk);
+    np.paint(canvas, Offset(nr.left + 4 + 11 + 1, nr.top + 8 - np.height / 2));
+  }
+}

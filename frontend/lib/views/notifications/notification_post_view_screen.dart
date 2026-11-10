@@ -450,6 +450,7 @@ class _NotificationPostViewScreenState
               budgetLabel: post.budgetLabel,
               hoursLabel: post.hoursLabel, // 1011
               ownerNoCar: post.ownerNoCar, // 1011
+              foodProvided: post.foodProvided, // 639
               // 621 — le propriétaire voit « à partir de … » sur SA demande
               // ouverte (jamais le prestataire : il a son propre gain estimé).
               fromRateLabel: isProvider ? '' : fromRate621,

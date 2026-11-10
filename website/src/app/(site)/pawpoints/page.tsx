@@ -208,7 +208,7 @@ export default function PawPointsPage() {
         </section>
       )}
 
-      {/* ── LES RANGS ── (611 : Chiot → Légende, honorifiques) */}
+      {/* ── LES RANGS ── (611 : Découvreur → Légende, honorifiques) */}
       {catalog?.ranks611 && (
         <section className="mt-12" data-pp-ranks="">
           <PpTitle>{t("rank611_title")}</PpTitle>
@@ -216,7 +216,7 @@ export default function PawPointsPage() {
         </section>
       )}
 
-      {/* 19/10 (618 §B) — podium du moment + « 1er Chef de meute » (GET /pawpoints/pins). */}
+      {/* 19/10 (618 §B) — podium du moment + « 1er Ambassadeur » (GET /pawpoints/pins). */}
       <PodiumPublic1910 className="mt-12" />
 
       {/* ── D'OÙ VIENNENT MES POINTS (611) — GET /pawpoints/history : 30 derniers

@@ -107,6 +107,8 @@ router.get('/list', requireAdmin, async (req, res) => {
         timeFrom: l.timeFrom || '',
         timeTo: l.timeTo || '',
         noCar: !!l.noCar,
+        foodProvided: typeof l.foodProvided === 'boolean' ? l.foodProvided : null, // 639 — nourriture fournie (null = non précisé)
+        breed: typeof l.breed === 'string' ? l.breed : '', // 639 — race facultative
         budget: hasBudget ? l.budget : null,
         ownerId: l.ownerId || null,
         postId: l.postId || null,

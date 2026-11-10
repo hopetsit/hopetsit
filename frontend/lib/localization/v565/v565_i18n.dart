@@ -66,7 +66,7 @@ import 'pawmap610_i18n.dart';
 import 'alerts610_i18n.dart'; // 610 (ZOE) — signalements, règle B
 import 'alerts611_i18n.dart'; // 611 (ZOE) — animal perdu / trouvé gratuit pour tous
 import 'pioneer607_i18n.dart';
-import 'ranks611_i18n.dart'; // 611 (PAM) — rangs Chiot → Légende
+import 'ranks611_i18n.dart'; // 611 (PAM) — rangs Découvreur → Légende
 import 'pawmap611_i18n.dart'; // 611 (PAM) — reprise du direct sur ce téléphone
 import 'pm613_i18n.dart'; // 613 (PAM) — fête de la peluche + « Rejoindre »
 import 'plush618_i18n.dart'; // 618 (PAM) — ×2 Premium, pins, collection du mois
@@ -83,8 +83,10 @@ import 'pamc3110_i18n.dart'; // 631 (PAM-C) — page d'ouverture + Balade rapide
 import 'home635_i18n.dart'; // 635 — singulier du compteur de l'accueil
 import 'ownerlink636_i18n.dart'; // 636 — connexion sans mot de passe (lien par e-mail)
 import 'conclure1011_i18n.dart'; // 1011 — heures, sans voiture, véhiculé (plan « conclure »)
+import 'pawmap639_i18n.dart';
+import 'demande639_i18n.dart'; // 639 — dates et horaires, infos pratiques, nourriture, races suggérées
 
-const List<Map<String, Map<String, String>>> v565Packs = <Map<String, Map<String, String>>>[neo600I18n, neo610I18n, pawmap610I18n,chatI18n, mapI18n, profileI18n, homeI18n, coreI18n, friendsI18n, shop567I18n, ui567I18n, delete567I18n, pawspot567I18n, cards568I18n, chatdel569I18n, shop569I18n, agreement569I18n, pay569I18n, post569I18n, misc569I18n, auth569I18n, lists569I18n, home571I18n, ownerhome571I18n, bookings571I18n, location573I18n, profiles573I18n, lot3573I18n, profile575I18n, fixes575I18n, fixes576I18n, invoice576I18n, neo583I18n, lotA583I18n, lotC584I18n, lotD585I18n, pawmap584bI18n, pawmap585I18n, pawmap586I18n, pawmap586bI18n, pawmap587I18n, help587I18n, publish587I18n, signal587I18n, vis587I18n, budget587I18n, friends588I18n, live589I18n, pawmap589I18n, profile589I18n, pawmap590I18n, pawmap592I18n, balade599I18n, notif599I18n, pawmap601I18n, pawmap602I18n, chat604I18n, pawmap605I18n, pawmap607I18n, pioneer607I18n, plush607I18n, pawpoints607I18n, kyc607I18n, verified609I18n, alerts610I18n, alerts611I18n, ranks611I18n, pawmap611I18n, pm613I18n, bob617I18n, plush618I18n, help619I18n, postal2310I18n, dates620I18n, pawmap622I18n, cand2610I18n, pay627I18n, pay628I18n, plush631I18n, pamb3110I18n, pamc3110I18n, home635I18n, ownerlink636I18n, conclure1011I18n];
+const List<Map<String, Map<String, String>>> v565Packs = <Map<String, Map<String, String>>>[neo600I18n, neo610I18n, pawmap610I18n,chatI18n, mapI18n, profileI18n, homeI18n, coreI18n, friendsI18n, shop567I18n, ui567I18n, delete567I18n, pawspot567I18n, cards568I18n, chatdel569I18n, shop569I18n, agreement569I18n, pay569I18n, post569I18n, misc569I18n, auth569I18n, lists569I18n, home571I18n, ownerhome571I18n, bookings571I18n, location573I18n, profiles573I18n, lot3573I18n, profile575I18n, fixes575I18n, fixes576I18n, invoice576I18n, neo583I18n, lotA583I18n, lotC584I18n, lotD585I18n, pawmap584bI18n, pawmap585I18n, pawmap586I18n, pawmap586bI18n, pawmap587I18n, help587I18n, publish587I18n, signal587I18n, vis587I18n, budget587I18n, friends588I18n, live589I18n, pawmap589I18n, profile589I18n, pawmap590I18n, pawmap592I18n, balade599I18n, notif599I18n, pawmap601I18n, pawmap602I18n, chat604I18n, pawmap605I18n, pawmap607I18n, pioneer607I18n, plush607I18n, pawpoints607I18n, kyc607I18n, verified609I18n, alerts610I18n, alerts611I18n, ranks611I18n, pawmap611I18n, pm613I18n, bob617I18n, plush618I18n, help619I18n, postal2310I18n, dates620I18n, pawmap622I18n, cand2610I18n, pay627I18n, pay628I18n, plush631I18n, pamb3110I18n, pamc3110I18n, home635I18n, ownerlink636I18n, conclure1011I18n, demande639I18n, pawmap639I18n];
 
 /// Fusionne toutes les clés v565 pour une langue (code court : fr, en, es…).
 Map<String, String> v565For(String lang) {

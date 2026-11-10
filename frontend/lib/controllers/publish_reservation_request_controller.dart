@@ -141,6 +141,27 @@ class PublishReservationRequestController extends GetxController {
   bool get extrasDone1011 =>
       ownerNoCar.value || timeFrom.value != null || timeTo.value != null;
 
+  // ── 639 — « Je fournis la nourriture » (facultatif, trois états) ─────────
+  /// `null` = non précisé (rien n'est envoyé, rien n'est affiché au gardien),
+  /// sinon `true` / `false`. L'interrupteur est décoché tant que rien n'est dit.
+  final Rxn<bool> foodProvided = Rxn<bool>();
+
+  /// L'interrupteur a été touché sur cet écran : la valeur part au serveur.
+  /// En « Modifier », une valeur seulement relue n'est pas renvoyée.
+  bool foodTouched639 = false;
+
+  void setFood639(bool v) {
+    foodTouched639 = true;
+    foodProvided.value = v;
+  }
+
+  /// Valeur envoyée pour `foodProvided` : `null` (= champ absent) tant que
+  /// l'interrupteur n'a pas été touché.
+  bool? get foodProvidedWire => foodTouched639 ? foodProvided.value : null;
+
+  /// Le bloc « Infos pratiques » (nourriture, sans voiture) a quelque chose.
+  bool get practicalDone639 => ownerNoCar.value || foodProvided.value != null;
+
   /// 638 (contrôle ZOE + BOB) — pose une heure souhaitée. Quand la demande
   /// tient sur UN SEUL jour (début et fin le même jour), une heure de fin qui
   /// n'est pas APRÈS l'heure de début est refusée (retour `false`, rien n'est
@@ -598,6 +619,7 @@ class PublishReservationRequestController extends GetxController {
       selectedDuration, serviceLocation, animalTypes, animalCount,
       selectedPetIds, showAnimalCharacter, meetingPointText, budgetText,
       cityText, dateMode, visitsPerDay, timeFrom, timeTo, ownerNoCar,
+      foodProvided, // 639
     ], (_) => _scheduleDraftSave()));
     notesController.addListener(_scheduleDraftSave);
   }
@@ -661,6 +683,7 @@ class PublishReservationRequestController extends GetxController {
         'timeFrom': _hm(timeFrom.value), // 1011
         'timeTo': _hm(timeTo.value), // 1011
         'ownerNoCar': ownerNoCar.value, // 1011
+        'foodProvided': foodProvidedWire, // 639 — null tant que pas touché
         'animalTypes': animalTypes.toList(),
         'animalCount': animalCount.value,
         'petIds': selectedPetIds.toList(),
@@ -723,6 +746,9 @@ class PublishReservationRequestController extends GetxController {
     timeFrom.value = _parseHm(d['timeFrom']);
     timeTo.value = _parseHm(d['timeTo']);
     ownerNoCar.value = d['ownerNoCar'] == true;
+    // 639 — « Je fournis la nourriture » : repris seulement s'il avait été dit.
+    final food639 = d['foodProvided'];
+    if (food639 is bool) setFood639(food639);
     final at = d['animalTypes'];
     if (at is List) {
       animalTypes.assignAll(at.map((e) => e.toString()).where(kAnimalSpecies600.contains));
@@ -813,6 +839,8 @@ class PublishReservationRequestController extends GetxController {
     timeFrom.value = _parseHm(p.timeFrom);
     timeTo.value = _parseHm(p.timeTo);
     ownerNoCar.value = p.ownerNoCar;
+    // 639 — nourriture : valeur enregistrée relue (null = jamais précisé).
+    foodProvided.value = p.foodProvided;
 
     // Lieu de house-sitting legacy (owners_home / sitters_home).
     final venue = p.houseSittingVenue?.trim();
@@ -1382,6 +1410,7 @@ class PublishReservationRequestController extends GetxController {
           timeFrom: timeFromWire,
           timeTo: timeToWire,
           ownerNoCar: ownerNoCar.value,
+          foodProvided: foodProvidedWire, // 639 — seulement si touché
           animalTypes: speciesToSend,
           animalCount: countToSend,
         );
@@ -1448,6 +1477,7 @@ class PublishReservationRequestController extends GetxController {
           timeFrom: timeFromWire, // 1011
           timeTo: timeToWire, // 1011
           ownerNoCar: ownerNoCar.value, // 1011
+          foodProvided: foodProvidedWire, // 639 — seulement si touché
           animalTypes: speciesToSend,
           animalCount: countToSend,
         );
@@ -1480,6 +1510,7 @@ class PublishReservationRequestController extends GetxController {
           timeFrom: timeFromWire, // 1011
           timeTo: timeToWire, // 1011
           ownerNoCar: ownerNoCar.value, // 1011
+          foodProvided: foodProvidedWire, // 639 — seulement si touché
           imageFiles: imageFiles.toList(),
           animalTypes: speciesToSend,
           animalCount: countToSend,
