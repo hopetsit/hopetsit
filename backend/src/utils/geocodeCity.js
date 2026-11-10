@@ -93,10 +93,38 @@ const NYC_BOROUGHS = {
   'staten island': { lat: 40.5795, lng: -74.1502 },
 };
 
+// 640 (BOB, 10/11/2026) — SÃO PAULO. Mesuré sur Photon (limit=5, place:city /
+// place:town) : « São Paulo » renvoie Itararé, São Carlos, São Pedro, São Simão,
+// São Pedro do Turvo — jamais la ville de São Paulo. Une demande publiée à
+// São Paulo sans GPS restait donc sans position, ou en prenait une fausse.
+// Résolue ICI, comme les quartiers de New York, avant le cache et le réseau.
+//
+// TOKYO (contrôle ZOE du 10/11/2026, mesuré sur Photon) : « Tokyo » et « Tōkyō »
+// renvoient 東洋町 (préfecture de Kōchi), à 550 km de Tokyo. Une demande « Tokyo »
+// sans GPS prenait donc cette position, et disparaissait pour les gardiens de
+// Shinjuku ou de Yokohama. Même remède : position fixe, sans réseau.
+const TOKYO_640 = { lat: 35.6762, lng: 139.6503 };
+const FIXED_CITIES_640 = {
+  'são paulo': { lat: -23.5505, lng: -46.6333 },
+  'sao paulo': { lat: -23.5505, lng: -46.6333 },
+  tokyo: TOKYO_640,
+  'tōkyō': TOKYO_640,
+  tokio: TOKYO_640,
+  '東京': TOKYO_640,
+  '東京都': TOKYO_640,
+  '도쿄': TOKYO_640,
+};
+const _own640 = (table, key) => (Object.prototype.hasOwnProperty.call(table, key) ? table[key] : null);
+
 function fixedCity(key) {
   const k = String(key || '').toLowerCase().replace(/[.,]/g, ' ')
     .replace(/\s+(ny|nyc|new york|new york city|usa|us)$/i, '').replace(/\s+/g, ' ').trim();
-  const v = NYC_BOROUGHS[k];
+  // « São Paulo - SP », « Sao Paulo/SP, Brasil » : tirets et barres = espaces,
+  // suffixes d'État / de pays retirés (deux passes : « … sp brasil »).
+  let k640 = k.replace(/[-–—/]/g, ' ').replace(/\s+/g, ' ').trim();
+  for (let i = 0; i < 2; i += 1) k640 = k640.replace(/\s+(sp|brasil|brazil|br|japan|japon|jp|日本)$/i, '').trim();
+  // hasOwnProperty : « constructor » ou « __proto__ » ne sont pas des villes.
+  const v = _own640(NYC_BOROUGHS, k) || _own640(FIXED_CITIES_640, k640);
   return v ? { lat: v.lat, lng: v.lng } : null;
 }
 

@@ -1056,7 +1056,12 @@ const getRequestPosts = async (req, res) => {
     // v530 — on capture aussi la position ENREGISTRÉE du prestataire pour le
     // plafond géographique appliqué plus bas (500 km).
     let viewerCoords = null; // [lng, lat]
+    let viewerCity640 = ''; // 640 — ville du prestataire (annonces sans coordonnées)
     const captureViewerCoords = (doc) => {
+      try {
+        const vc640 = String(doc?.location?.city || doc?.city || '').trim();
+        if (vc640) viewerCity640 = vc640;
+      } catch (_) { /* pas de ville → pas de comparaison par ville */ }
       const c = doc?.location?.coordinates;
       if (
         Array.isArray(c) && c.length === 2 &&
@@ -1067,7 +1072,7 @@ const getRequestPosts = async (req, res) => {
       }
     };
     if (req.user?.role === 'sitter') {
-      const viewer = await Sitter.findById(req.user.id).select('canServiceAtOwner canServiceAtSitter location').lean();
+      const viewer = await Sitter.findById(req.user.id).select('canServiceAtOwner canServiceAtSitter location city').lean();
       captureViewerCoords(viewer);
       if (viewer) {
         const allowed = [];
@@ -1099,7 +1104,7 @@ const getRequestPosts = async (req, res) => {
       try {
         const Walker = require('../models/Walker');
         captureViewerCoords(
-          await Walker.findById(req.user.id).select('location').lean(),
+          await Walker.findById(req.user.id).select('location city').lean(),
         );
       } catch (_) { /* pas de coords → pas de plafond */ }
     }
@@ -1128,11 +1133,25 @@ const getRequestPosts = async (req, res) => {
           Math.cos(toRadKm(lat1)) * Math.cos(toRadKm(lat2)) * Math.sin(dLng / 2) ** 2;
         return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       };
+      // 640 (10/11/2026) — Daniel, en Espagne, voyait une demande de São Paulo :
+      // elle n'avait aucune position enregistrée et le « fail-open » ci-dessus
+      // la gardait partout dans le monde. Une annonce sans coordonnées est
+      // désormais masquée UNIQUEMENT quand sa ville a été trouvée à plus de
+      // 500 km du prestataire (utils/feedNoCoords640). Dans le doute (ville
+      // non trouvée, géocodeur en panne ou lent, annonce sans ville) : gardée,
+      // comme avant. Coupe-circuit : FEED_NO_COORDS_STRICT=off.
+      let hideNoCoords640 = new Set();
+      try {
+        hideNoCoords640 = await require('../utils/feedNoCoords640').noCoordsPostsToHide640(
+          visiblePosts,
+          { viewerCoords, viewerCity: viewerCity640, maxKm: MAX_FEED_DISTANCE_KM },
+        );
+      } catch (_) { hideNoCoords640 = new Set(); }
       visiblePosts = visiblePosts.filter((post) => {
         const plat = Number(post.location?.lat);
         const plng = Number(post.location?.lng);
         if (!Number.isFinite(plat) || !Number.isFinite(plng) || (plat === 0 && plng === 0)) {
-          return true;
+          return !hideNoCoords640.has(post);
         }
         return distKm(viewerCoords[1], viewerCoords[0], plat, plng) <= MAX_FEED_DISTANCE_KM;
       });
@@ -2232,9 +2251,19 @@ const updatePost = async (req, res) => {
         try { parsedLocation = JSON.parse(parsedLocation); }
         catch (_) { parsedLocation = null; }
       }
-      post.location = parsedLocation && typeof parsedLocation === 'object'
+      let nextLocation640 = parsedLocation && typeof parsedLocation === 'object'
         ? parsedLocation
         : null;
+      // 640 — une modification ne doit jamais faire perdre la position de
+      // l'annonce (l'app renvoie la ville seule quand le GPS est absent) :
+      // même ville → on garde les coordonnées ; autre ville → on la géocode.
+      if (nextLocation640) {
+        try {
+          nextLocation640 = await require('../utils/feedNoCoords640')
+            .keepOrGeocodeLocation640(post.location, nextLocation640);
+        } catch (_) { /* jamais bloquant */ }
+      }
+      post.location = nextLocation640;
     }
 
     if (typeof notes === 'string') {
