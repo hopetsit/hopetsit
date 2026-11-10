@@ -18,66 +18,55 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { API_BASE } from "@/lib/api";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { g1011 } from "@/lib/i18n/langues1011";
+import type { Lang } from "@/lib/i18n/langs";
 
 const RETRY_MS = [60_000, 90_000, 150_000]; // après l'essai 1 : +60 s, puis +90 s, puis +150 s (= 300 s)
 
-const TXT = {
-  fr: {
-    kicker: "Merci ! Il reste un geste.",
-    title: "Dernière étape : publie ta demande",
-    intro: "Appuie sur le bouton : ta demande est publiée tout de suite et les gardiens près de chez toi sont prévenus.",
-    emailLabel: "Ton e-mail (celui du formulaire)",
-    emailPh: "prenom@exemple.fr",
-    cta: "Publier ma demande maintenant",
-    busy: "Publication…",
-    free: "Rien à installer, rien à payer pour publier. Tu reçois les candidats avec leur prix par e-mail — tu choisis, tu paies, annulation gratuite jusqu'à 72 h avant.",
-    terms: "En publiant, tu acceptes les",
-    termsLink: "conditions d'utilisation",
-    pendingTitle: "Ta demande arrive…",
-    pendingBody: "On récupère ta demande auprès de Facebook : ça prend jusqu'à 5 minutes. Laisse cette page ouverte, elle se publie toute seule.",
-    pendingMail: "Tu reçois aussi un e-mail « un clic pour publier ta demande » : son bouton fait exactement la même chose.",
-    retry: "Réessayer maintenant",
-    retrying: (n: number) => `Nouvel essai automatique dans ${n} s`,
-    blocked: "Trop d'essais pour l'instant. Pas de souci : l'e-mail « un clic pour publier ta demande » arrive dans ta boîte d'ici 5 minutes, et son bouton publie ta demande.",
-    emailErr: "Vérifie ton adresse e-mail.",
-    err: "La publication n'a pas abouti. Réessaie dans un instant.",
-    done: "C'est publié ! On t'emmène vers ta demande…",
-    back: "Voir les gardiens à Paris",
-    backHref: "/garde-animaux/paris",
-    steps: ["Ta demande est publiée.", "Les gardiens près de chez toi sont prévenus.", "Ils te proposent leur prix, tu les reçois par e-mail.", "Tu choisis. Rien n'est payé avant ton choix."],
-  },
-  en: {
-    kicker: "Thanks! One last step.",
-    title: "Last step: publish your request",
-    intro: "Press the button: your request goes live right away and sitters near you are notified.",
-    emailLabel: "Your email (the one from the form)",
-    emailPh: "name@example.com",
-    cta: "Publish my request now",
-    busy: "Publishing…",
-    free: "Nothing to install, nothing to pay to publish. You get the candidates with their price by email — you choose, you pay, free cancellation up to 72 h before.",
-    terms: "By publishing, you accept the",
-    termsLink: "terms of use",
-    pendingTitle: "Your request is on its way…",
-    pendingBody: "We are fetching your request from Facebook: it takes up to 5 minutes. Keep this page open, it publishes by itself.",
-    pendingMail: "You also receive an email “one click to publish your request”: its button does exactly the same thing.",
-    retry: "Try again now",
-    retrying: (n: number) => `Automatic retry in ${n} s`,
-    blocked: "Too many tries for now. No worries: the email “one click to publish your request” reaches your inbox within 5 minutes, and its button publishes your request.",
-    emailErr: "Please check your email address.",
-    err: "Publishing didn't go through. Please try again in a moment.",
-    done: "It's live! Taking you to your request…",
-    back: "See sitters in New York",
-    backHref: "/pet-sitting/new-york",
-    steps: ["Your request is published.", "Sitters near you are notified.", "They send you their price, you get it by email.", "You choose. Nothing is paid before you choose."],
-  },
-} as const;
+// 1011 (ZOE, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — mêmes champs
+// qu'avant, lus dans la table en 9 langues (français inchangé). `base` = langue du formulaire (fr/en) :
+// elle choisit la ville du lien de retour et l'exemple d'adresse, comme avant.
+const EMAIL_PH_1011 = { fr: "prenom@exemple.fr", en: "name@example.com" } as const;
+const BACK_HREF_1011 = { fr: "/garde-animaux/paris", en: "/pet-sitting/new-york" } as const;
+function txt1011(ui: Lang, base: "fr" | "en") {
+  const g = (k: string, v?: Record<string, string | number>) => g1011(ui, k, v);
+  return {
+    kicker: g("merci_kicker"),
+    title: g("merci_title"),
+    intro: g("merci_intro"),
+    emailLabel: g("merci_email_label"),
+    emailPh: EMAIL_PH_1011[base],
+    cta: g("merci_cta"),
+    busy: g("conf_busy"),
+    free: g("merci_free"),
+    terms: g("conf_terms"),
+    termsLink: g("conf_terms_link"),
+    termsAfter: g("conf_terms_after"),
+    pendingTitle: g("merci_pending_title"),
+    pendingBody: g("merci_pending_body"),
+    pendingMail: g("merci_pending_mail"),
+    retry: g("merci_retry"),
+    retrying: (n: number) => g("merci_retrying", { n }),
+    blocked: g("merci_blocked"),
+    emailErr: g("merci_email_err"),
+    err: g("merci_err"),
+    done: g("merci_done"),
+    back: g(base === "en" ? "merci_back_nyc" : "merci_back_paris"),
+    backHref: BACK_HREF_1011[base],
+    steps: [g("merci_step1"), g("merci_step2"), g("merci_step3"), g("merci_step4")],
+  };
+}
 
 type Status = "idle" | "pending" | "blocked" | "done";
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const NYC_RE = /^(nyc|new[-_ ]?york|ny)$/i;
 
 export default function MerciLeadPage() {
+  const { lang: siteLang } = useT();
   const [lang, setLang] = useState<"fr" | "en">("fr");
+  // 1011 (BOB) — vrai quand le lien choisit lui-même la langue (?lang= ou ville de New York).
+  const [langFromUrl, setLangFromUrl] = useState(false);
   const [city, setCity] = useState("paris");
   const [campaign, setCampaign] = useState("paris_leads");
   const [email, setEmail] = useState("");
@@ -98,6 +87,7 @@ export default function MerciLeadPage() {
       const l = (q.get("lang") || "").trim().toLowerCase();
       const en = l === "en" || (!l && NYC_RE.test(c));
       setLang(en ? "en" : "fr");
+      setLangFromUrl(!!l || NYC_RE.test(c));
       setCity(c || (en ? "nyc" : "paris"));
       const camp = (q.get("utm_campaign") || "").trim();
       if (/^[a-z0-9_-]{1,40}$/i.test(camp)) setCampaign(camp); else setCampaign(en ? "nyc_leads" : "paris_leads");
@@ -117,11 +107,18 @@ export default function MerciLeadPage() {
     setCountdown(0);
   };
 
-  const t = TXT[lang];
+  // 1011 (ZOE) — langue affichée : celle du site si le visiteur lit autre chose que le français ou
+  // l'anglais ; sinon celle du formulaire (?lang=), comme avant. La valeur envoyée au serveur ne change pas.
+  // 1011 (BOB) — sans langue dans le lien, un visiteur anglais lisait le titre en français : la page suit
+  // alors la langue du site (français ou anglais).
+  const ui: Lang = siteLang !== "fr" && siteLang !== "en" ? siteLang : langFromUrl ? lang : siteLang;
+  const t = txt1011(ui, lang);
+  const tRef = useRef(t);
+  tRef.current = t;
 
   const submit = useCallback(async (auto: boolean) => {
     const value = email.trim().toLowerCase();
-    if (!EMAIL_RE.test(value) || value.length > 120) { setErr(t.emailErr); return; }
+    if (!EMAIL_RE.test(value) || value.length > 120) { setErr(tRef.current.emailErr); return; }
     if (busy) return;
     clearTimers();
     setBusy(true);
@@ -156,10 +153,10 @@ export default function MerciLeadPage() {
         return;
       }
       if (res.status === 429) { trackSiteEvent("cta_click", { label: "merci_limite" }); setStatus("blocked"); return; }
-      if (res.status === 400) { setErr(t.emailErr); return; }
-      setErr(t.err);
+      if (res.status === 400) { setErr(tRef.current.emailErr); return; }
+      setErr(tRef.current.err);
     } catch {
-      setErr(t.err);
+      setErr(tRef.current.err);
     } finally {
       setBusy(false);
     }
@@ -224,7 +221,7 @@ export default function MerciLeadPage() {
         </ol>
         <p className="mt-4 text-center text-xs text-[#6E4F48]">{t.free}</p>
         <p className="mt-1 text-center text-xs text-[#6E4F48]">
-          {t.terms} <Link href="/terms" className="font-semibold text-owner-dark underline">{t.termsLink}</Link>.
+          {t.terms} <Link href="/terms" className="font-semibold text-owner-dark underline">{t.termsLink}</Link>{t.termsAfter}
         </p>
         <p className="mt-4 text-center text-xs">
           <Link href={t.backHref} className="font-semibold text-owner-dark underline">{t.back}</Link>

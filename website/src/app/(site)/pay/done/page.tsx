@@ -13,7 +13,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "@/components/SiteLink";
 import {
   BoostTier,
@@ -22,6 +22,10 @@ import {
   confirmMapBoost,
   confirmSubscription,
 } from "@/lib/api";
+// 1011 (ZOE, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — textes en 9 langues.
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { g1011 } from "@/lib/i18n/langues1011";
+import type { Lang } from "@/lib/i18n/langs";
 
 type Status = "success" | "fail" | "cancel" | "unknown";
 type Purpose = "" | "subscription" | "boost" | "mapboost" | "pawspot" | "booking";
@@ -35,6 +39,10 @@ const PURPOSE_LABEL: Record<Exclude<Purpose, "">, string> = {
 };
 
 export default function PayDonePage() {
+  const { lang } = useT();
+  const langRef = useRef<Lang>(lang);
+  langRef.current = lang;
+  const g = (k: string) => g1011(lang, k);
   const [status, setStatus] = useState<Status>("unknown");
   const [intentId, setIntentId] = useState<string>("");
   const [purpose, setPurpose] = useState<Purpose>("");
@@ -113,7 +121,7 @@ export default function PayDonePage() {
         setConfirmError(
           e instanceof Error
             ? e.message
-            : "Le paiement a été reçu mais nous n'avons pas pu activer l'achat. Contacte le support.",
+            : g1011(langRef.current, "paydone_confirm_fallback"),
         );
       } finally {
         setConfirming(false);
@@ -126,7 +134,7 @@ export default function PayDonePage() {
   const isBooking = purpose === "booking";
   // Où renvoyer l'utilisateur après l'achat (booking → /bookings).
   const primaryHref = isBooking ? "/bookings" : "/boutique";
-  const primaryLabel = isBooking ? "Mes réservations" : "Retour à la boutique";
+  const primaryLabel = isBooking ? g("paydone_my_bookings") : g("paydone_back_shop");
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center px-6 text-center">
@@ -139,9 +147,9 @@ export default function PayDonePage() {
         <>
           {confirming ? (
             <>
-              <p className="text-lg font-semibold text-ink">Activation en cours…</p>
+              <p className="text-lg font-semibold text-ink">{g("paydone_activating")}</p>
               <p className="mt-2 text-sm text-ink-muted">
-                Paiement reçu. On active ton {purposeLabel || "achat"}.
+                {g(purposeLabel ? `paydone_act_${purpose}` : "paydone_act_generic")}
               </p>
               <div className="mt-6 h-2 w-48 overflow-hidden rounded-full bg-bg-soft">
                 <div className="h-full w-1/3 animate-pulse bg-walker" />
@@ -149,50 +157,50 @@ export default function PayDonePage() {
             </>
           ) : confirmError ? (
             <>
-              <p className="text-xl font-semibold text-amber-700">Paiement reçu ✓</p>
+              <p className="text-xl font-semibold text-amber-700">{g("paydone_received")}</p>
               <p className="mt-3 max-w-md text-sm text-ink-muted">
-                Mais l&apos;activation a échoué : {confirmError}
+                {g("paydone_act_failed")} {confirmError}
                 <br />
                 <span className="mt-2 block">
-                  Reviens sur ta boutique pour retenter, ou contacte le support si le problème persiste.
+                  {g("paydone_retry_shop")}
                 </span>
               </p>
             </>
           ) : (
             <>
               <p className="text-2xl font-display font-extrabold text-walker">
-                {purposeLabel ? `Ton ${purposeLabel} est actif ✓` : "Payment received ✓"}
+                {purposeLabel ? g(`paydone_ok_${purpose}`) : g("paydone_app_received")}
               </p>
               <p className="mt-2 text-sm text-ink-muted">
                 {purposeLabel
-                  ? "Merci ! Tu peux retourner à la boutique ou au dashboard."
-                  : "Thanks! You can return to the HoPetSit app."}
+                  ? g("paydone_thanks")
+                  : g("paydone_app_thanks")}
               </p>
             </>
           )}
         </>
       ) : status === "cancel" ? (
         <>
-          <p className="text-xl font-semibold text-ink">Paiement annulé</p>
+          <p className="text-xl font-semibold text-ink">{g("paydone_cancel_title")}</p>
           <p className="mt-2 text-sm text-ink-muted">
-            Aucun débit n&apos;a été effectué. Tu peux réessayer.
+            {g("paydone_cancel_sub")}
           </p>
         </>
       ) : status === "fail" ? (
         <>
-          <p className="text-xl font-semibold text-owner-dark">Échec du paiement</p>
+          <p className="text-xl font-semibold text-owner-dark">{g("paydone_fail_title")}</p>
           <p className="mt-2 text-sm text-ink-muted">
-            Réessaye ou utilise une autre carte.
+            {g("paydone_fail_sub")}
           </p>
         </>
       ) : (
         <>
-          <p className="text-lg font-semibold text-ink">Processing…</p>
+          <p className="text-lg font-semibold text-ink">{g("paydone_processing")}</p>
         </>
       )}
 
       {intentId && (
-        <p className="mt-6 text-[11px] text-ink-soft">Reference: {intentId}</p>
+        <p className="mt-6 text-[11px] text-ink-soft">{g("paydone_reference")} {intentId}</p>
       )}
 
       <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
@@ -208,7 +216,7 @@ export default function PayDonePage() {
           href={purposeLabel ? "/dashboard" : "/"}
           className="rounded-full border border-ink/15 px-6 py-2.5 text-sm font-semibold text-ink hover:border-ink/30"
         >
-          {purposeLabel ? "Dashboard" : "Back to HoPetSit"}
+          {purposeLabel ? g("paydone_dashboard") : g("paydone_back_app")}
         </Link>
       </div>
     </div>

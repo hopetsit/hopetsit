@@ -7,6 +7,8 @@ import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+// 1011 (ZOE, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — textes en 9 langues.
+import { g1011 } from "@/lib/i18n/langues1011";
 import BackLink from "@/components/BackLink";
 import {
   ApiError,
@@ -34,7 +36,8 @@ import { ProfileSkeleton2910 } from "@/components/Skeleton2910";
 type SubChip = { label: string; cls: string };
 
 export default function ProfilePage() {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const g = (k: string) => g1011(lang, k);
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -315,10 +318,10 @@ export default function ProfilePage() {
       </div>
 
       <h1 className="font-display text-3xl font-extrabold md:text-4xl">
-        Mon profil
+        {g("prof_title")}
       </h1>
       <p className="mt-2 text-ink-muted">
-        Modifie tes infos. Elles sont synchronisées entre le site et l&apos;app.
+        {g("prof_intro")}
       </p>
 
       {/* v23.1 part 146 — Avatar avec upload click-to-change. */}
@@ -328,7 +331,7 @@ export default function ProfilePage() {
           onClick={() => fileInputRef.current?.click()}
           disabled={uploadingAvatar}
           className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-full bg-ink/10 transition hover:opacity-90"
-          aria-label="Changer la photo de profil"
+          aria-label={g("prof_photo_aria")}
         >
           {profile.avatar?.url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -344,7 +347,7 @@ export default function ProfilePage() {
               uploadingAvatar ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             }`}
           >
-            {uploadingAvatar ? "Upload…" : "Modifier"}
+            {uploadingAvatar ? g("prof_uploading") : g("common_edit")}
           </span>
         </button>
         <input
@@ -358,14 +361,14 @@ export default function ProfilePage() {
           <div className="text-sm font-semibold text-ink">{profile.name}</div>
           <div className="text-xs text-ink-muted">{profile.email}</div>
           {profile.verified && (
-            <div className="mt-1 text-xs font-medium text-green-600">✓ Email vérifié</div>
+            <div className="mt-1 text-xs font-medium text-green-600">{g("prof_email_verified")}</div>
           )}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="mt-1.5 text-xs text-walker hover:underline"
           >
-            Changer la photo
+            {g("prof_photo_change")}
           </button>
         </div>
       </div>
@@ -394,7 +397,7 @@ export default function ProfilePage() {
       <PromoCodeBox className="mt-6" />
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-        <Field label="Nom complet">
+        <Field label={g("prof_name")}>
           <input
             type="text"
             value={name}
@@ -537,7 +540,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-[1fr_2fr]">
-          <Field label="Indicatif">
+          <Field label={g("prof_dial")}>
             <input
               type="text"
               value={countryCode}
@@ -546,7 +549,7 @@ export default function ProfilePage() {
               className="w-full rounded-xl border border-ink/15 px-4 py-2.5 text-sm focus:border-walker focus:outline-none focus:ring-2 focus:ring-walker/20"
             />
           </Field>
-          <Field label="Téléphone">
+          <Field label={g("prof_phone")}>
             <input
               type="tel"
               value={mobile}
@@ -557,7 +560,7 @@ export default function ProfilePage() {
           </Field>
         </div>
 
-        <Field label="Adresse">
+        <Field label={g("prof_address")}>
           <input
             type="text"
             value={address}
@@ -567,25 +570,25 @@ export default function ProfilePage() {
           />
         </Field>
 
-        <Field label="Bio">
+        <Field label={g("prof_bio")}>
           <textarea
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             rows={4}
-            placeholder="Quelques mots sur toi…"
+            placeholder={g("prof_bio_ph")}
             className="w-full resize-none rounded-xl border border-ink/15 px-4 py-2.5 text-sm focus:border-walker focus:outline-none focus:ring-2 focus:ring-walker/20"
           />
         </Field>
 
         {/* v413 — Préférences (synchro app↔web). */}
         <div className="space-y-3 rounded-2xl border border-ink/10 bg-ink/[0.02] p-4">
-          <h3 className="text-sm font-semibold text-ink">Préférences</h3>
+          <h3 className="text-sm font-semibold text-ink">{g("prof_prefs")}</h3>
           {[
-            { key: "notifications" as const, label: "Notifications", hint: "Push, e-mail et badges" },
-            { key: "sendPhotosVideos" as const, label: "Envoyer photos & vidéos", hint: "Pendant les gardes/promenades" },
-            { key: "quickReplies" as const, label: "Réponses rapides", hint: "Suggestions dans la messagerie" },
-            { key: "flexibleCancellation" as const, label: "Annulation flexible", hint: "Conditions d'annulation souples" },
-            { key: "pawMapInsurance" as const, label: "Assurance PawMap", hint: "Couverture sur les trajets" },
+            { key: "notifications" as const, label: g("prof_p_notif"), hint: g("prof_p_notif_hint") },
+            { key: "sendPhotosVideos" as const, label: g("prof_p_media"), hint: g("prof_p_media_hint") },
+            { key: "quickReplies" as const, label: g("prof_p_quick"), hint: g("prof_p_quick_hint") },
+            { key: "flexibleCancellation" as const, label: g("prof_p_cancel"), hint: g("prof_p_cancel_hint") },
+            { key: "pawMapInsurance" as const, label: g("prof_p_insurance"), hint: g("prof_p_insurance_hint") },
           ].map((row) => (
             <label
               key={row.key}
@@ -615,11 +618,11 @@ export default function ProfilePage() {
 
         {/* v413 — Sécurité : double authentification. */}
         <div className="space-y-3 rounded-2xl border border-ink/10 bg-ink/[0.02] p-4">
-          <h3 className="text-sm font-semibold text-ink">Sécurité</h3>
+          <h3 className="text-sm font-semibold text-ink">{g("prof_security")}</h3>
           <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5">
             <span className="min-w-0">
-              <span className="block text-sm font-medium text-ink">Authentification à deux facteurs</span>
-              <span className="block text-xs text-ink/50">Code de vérification à la connexion</span>
+              <span className="block text-sm font-medium text-ink">{g("prof_2fa")}</span>
+              <span className="block text-xs text-ink/50">{g("prof_2fa_hint")}</span>
             </span>
             <input
               type="checkbox"
@@ -637,7 +640,7 @@ export default function ProfilePage() {
         )}
         {savedAt && (
           <div className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
-            ✓ Profil mis à jour
+            {g("prof_saved")}
           </div>
         )}
 
@@ -647,13 +650,13 @@ export default function ProfilePage() {
             disabled={saving}
             className={`rounded-full bg-${roleColor} px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60`}
           >
-            {saving ? "Enregistrement…" : "Enregistrer"}
+            {saving ? g("common_saving") : g("common_save")}
           </button>
           <Link
             href="/dashboard"
             className="text-sm text-ink-muted hover:text-ink"
           >
-            Annuler
+            {g("common_cancel")}
           </Link>
         </div>
       </form>

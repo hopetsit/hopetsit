@@ -26,8 +26,15 @@ const TXT = {
   en: { label: "City", ph: "Type your city…", hint: "Pick your city from the list, then move the pin to your neighbourhood.", pin: "Move the pin to refine the spot (your exact address is never shown to sitters).", picked: "Location set", none: "No city found: check the spelling, or enter your ZIP code." },
 };
 
-export function PlacePicker3110({ lang, value, onChange, pick, setPick, inputClass, bias }: {
+/** 10/11/2026 (LEO, accueil en 9 langues) — textes fournis par la page (facultatif) : sans `txt`, rien ne change. */
+export type PlaceTxt1011 = Partial<Record<"label" | "ph" | "hint" | "pin" | "picked" | "none", string>>;
+
+export function PlacePicker3110({ lang, value, onChange, pick, setPick, inputClass, bias, txt, searchLang }: {
   lang: "fr" | "en";
+  /** 1011 — libellés dans la langue de la page (les 7 langues hors fr/en) ; absents = textes fr/en d'origine. */
+  txt?: PlaceTxt1011;
+  /** 1011 — langue des noms de villes demandés à /geo/cities (défaut : `lang`). */
+  searchLang?: string;
   value: string;
   onChange: (city: string) => void;
   pick: PlacePick | null;
@@ -36,7 +43,8 @@ export function PlacePicker3110({ lang, value, onChange, pick, setPick, inputCla
   /** Centre de recherche (ville de la page) pour classer les suggestions proches en premier. */
   bias?: { lat: number; lng: number } | null;
 }) {
-  const t = TXT[lang];
+  const t = txt ? { ...TXT[lang], ...txt } : TXT[lang];
+  const sLang = searchLang || lang;
   const [list, setList] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -61,7 +69,7 @@ export function PlacePicker3110({ lang, value, onChange, pick, setPick, inputCla
       ctrl.current?.abort();
       const c = new AbortController();
       ctrl.current = c;
-      const p = new URLSearchParams({ q, lang });
+      const p = new URLSearchParams({ q, lang: sLang });
       if (bias) { p.set("lat", String(bias.lat)); p.set("lng", String(bias.lng)); }
       fetch(`${API_BASE}/geo/cities?${p}`, { signal: c.signal })
         .then((r) => (r.ok ? r.json() : []))
@@ -75,7 +83,7 @@ export function PlacePicker3110({ lang, value, onChange, pick, setPick, inputCla
         .catch(() => { if (mine === seq.current) { setList([]); setSearched(true); } });
     }, wait);
     return () => { if (timer.current) window.clearTimeout(timer.current); };
-  }, [value, lang, bias, pick, typed]);
+  }, [value, sLang, bias, pick, typed]);
 
   function choose(s: Suggestion) {
     onChange(s.name);
@@ -124,8 +132,8 @@ export function PlacePicker3110({ lang, value, onChange, pick, setPick, inputCla
 }
 
 /** La mini-carte de confirmation (pleine largeur, sous la rangée Ville / Code postal), dépliée après le choix. */
-export function PlaceMapConfirm3110({ lang, pick, setPick }: { lang: "fr" | "en"; pick: PlacePick | null; setPick: (p: PlacePick | null) => void }) {
-  const t = TXT[lang];
+export function PlaceMapConfirm3110({ lang, pick, setPick, txt }: { lang: "fr" | "en"; pick: PlacePick | null; setPick: (p: PlacePick | null) => void; txt?: PlaceTxt1011 }) {
+  const t = txt ? { ...TXT[lang], ...txt } : TXT[lang];
   if (!pick) return null;
   return (
     <div className="mt-2" data-place-map-3110="">

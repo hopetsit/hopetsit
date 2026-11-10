@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "@/components/SiteLink";
+// 1011 (ZOE) — titre et chapeau en 9 langues (la page reste un composant serveur).
+import Tx1011 from "@/components/Tx1011";
 
 // v531 — SEO : index du blog (pages 100% statiques côté serveur pour que
 // Google indexe le texte — contrairement aux pages app qui sont client-side).
@@ -331,11 +333,10 @@ export default function BlogIndexPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-16 md:py-24">
       <h1 className="text-center font-display text-4xl font-extrabold tracking-tight text-ink md:text-5xl">
-        Le blog HoPetSit
+        <Tx1011 k="blog_h1" />
       </h1>
       <p className="mx-auto mt-4 max-w-xl text-center text-lg text-ink-muted">
-        Conseils pratiques pour faire garder et promener vos animaux en toute
-        confiance.
+        <Tx1011 k="blog_lead" />
       </p>
       <div className="mt-14 space-y-6">
         {POSTS.map((p) => (
@@ -348,7 +349,7 @@ export default function BlogIndexPage() {
             <h2 className="mt-1 text-lg font-bold text-ink">{p.title}</h2>
             <p className="mt-2 text-sm leading-relaxed text-ink-muted">{p.excerpt}</p>
             <span className="mt-3 inline-block text-sm font-semibold text-owner">
-              Lire l'article →
+              <Tx1011 k="blog_read" />
             </span>
           </Link>
         ))}

@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { openInApp, ApiError } from "@/lib/api";
+// 1011 (ZOE) — textes en 9 langues.
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { g1011 } from "@/lib/i18n/langues1011";
 
 /**
  * v23.1 part 146 — Bouton "Ouvrir dans l'app".
@@ -20,11 +23,13 @@ import { openInApp, ApiError } from "@/lib/api";
  */
 export function OpenInAppButton({
   className = "",
-  label = "Ouvrir dans l'app",
+  label: labelProp,
 }: {
   className?: string;
   label?: string;
 }) {
+  const { lang } = useT();
+  const label = labelProp ?? g1011(lang, "oia_label");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hintAppMissing, setHintAppMissing] = useState(false);
@@ -61,7 +66,7 @@ export function OpenInAppButton({
       if (e instanceof ApiError) {
         setError(e.message);
       } else {
-        setError("Une erreur est survenue. Réessaye.");
+        setError(g1011(lang, "oia_error"));
       }
     }
   };
@@ -119,7 +124,7 @@ export function OpenInAppButton({
             <circle cx="12" cy="18" r="1" fill="currentColor" />
           </svg>
         )}
-        <span>{loading ? "Ouverture…" : label}</span>
+        <span>{loading ? g1011(lang, "oia_opening") : label}</span>
       </button>
 
       {error && (
@@ -129,8 +134,7 @@ export function OpenInAppButton({
       )}
       {hintAppMissing && !error && (
         <p className="mt-2 text-xs text-ink-soft">
-          L&apos;app HoPetSit ne semble pas installée. Télécharge-la depuis
-          le Play Store ou l&apos;App Store, puis recommence.
+          {g1011(lang, "oia_missing")}
         </p>
       )}
     </div>

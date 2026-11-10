@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "@/components/SiteLink";
 import { notFound } from "next/navigation";
+// 1011 (ZOE) — libellés visibles en 9 langues (la page reste un composant serveur).
+import Tx1011 from "@/components/Tx1011";
 
 // v552 — PAGE DE PARTAGE D'UN SIGNALEMENT / D'UN SOS ANIMAL.
 //
@@ -136,6 +138,8 @@ export default async function AlertPage({
 
   const emoji = TYPE_EMOJI[report.type] ?? "🔔";
   const label = TYPE_LABEL[report.type] ?? "Signalement";
+  // 1011 — clé du même libellé dans la table en 9 langues (le français ne change pas).
+  const labelKey = TYPE_LABEL[report.type] ? `alert_t_${report.type}` : "alert_t_default";
   const expired = new Date(report.expiresAt).getTime() < Date.now();
   const mapLink =
     report.lat != null && report.lng != null
@@ -175,11 +179,11 @@ export default async function AlertPage({
             }
           >
             <span>{emoji}</span>
-            <span>{report.isSos ? "SOS animal perdu" : label}</span>
+            <span><Tx1011 k={report.isSos ? "alert_sos" : labelKey} /></span>
           </div>
 
           <h1 className="font-display text-2xl font-extrabold text-ink">
-            {report.isSos ? "Un animal est perdu" : label}
+            <Tx1011 k={report.isSos ? "alert_sos_h1" : labelKey} />
             {report.city ? ` — ${report.city}` : ""}
           </h1>
 
@@ -190,9 +194,7 @@ export default async function AlertPage({
           )}
 
           <p className="mt-3 text-sm text-black/60">
-            {expired
-              ? "Cette alerte a expiré."
-              : "Alerte active — les membres autour ont été prévenus."}
+            <Tx1011 k={expired ? "alert_expired" : "alert_active"} />
           </p>
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
@@ -200,7 +202,7 @@ export default async function AlertPage({
               href={mapLink}
               className="flex-1 rounded-2xl bg-owner px-5 py-3 text-center font-semibold text-white"
             >
-              Voir sur la PawMap
+              <Tx1011 k="alert_see_map" />
             </Link>
             {directions && (
               <a
@@ -209,15 +211,15 @@ export default async function AlertPage({
                 rel="noopener noreferrer"
                 className="flex-1 rounded-2xl border border-black/15 px-5 py-3 text-center font-semibold text-ink"
               >
-                Itinéraire
+                <Tx1011 k="common_directions" />
               </a>
             )}
           </div>
 
           <p className="mt-6 text-center text-sm text-black/60">
-            Tu peux aider : signale-le si tu le vois —{" "}
+            <Tx1011 k="alert_help" />{" "}
             <Link href="/download" className="font-semibold text-owner underline">
-              télécharge HoPetSit
+              <Tx1011 k="alert_help_link" />
             </Link>
           </p>
         </div>

@@ -21,6 +21,10 @@ import { dr, walkEndIso0611, walkStartIso0611 } from "@/lib/i18n/datesRequired06
 import { c2610 } from "@/lib/i18n/cand2610";
 import { f2 } from "@/lib/i18n/formulaire2etapes1110";
 import { d620 } from "@/lib/i18n/dates620";
+// 1011 (ZOE, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — textes en 9 langues.
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { g1011 } from "@/lib/i18n/langues1011";
+import type { Lang } from "@/lib/i18n/langs";
 
 /** Dates proposées d'après le choix « quand » de la pub (même règle que le serveur, utils/adLeadDates2310). */
 function datesFromQuand0611(quand: string): { start: string; end: string } {
@@ -35,72 +39,45 @@ function datesFromQuand0611(quand: string): { start: string; end: string } {
   return { start: "", end: "" };
 }
 
-const TXT = {
-  fr: {
-    hello: (p: string) => (p ? `Bonjour ${p} !` : "Bonjour !"),
-    intro: "Voici la demande que tu as laissée. Publie-la et les gardiens près de chez toi sont prévenus tout de suite.",
-    where: "Où se passe la garde ?",
-    atOwner: "Chez moi", atOwnerSub: "Le gardien vient chez toi",
-    atSitter: "Chez le gardien", atSitterSub: "Tu déposes ton animal chez lui",
-    cta: "Publier ma demande — gratuit",
-    busy: "Publication…",
-    terms: "En publiant, tu acceptes les",
-    termsLink: "conditions d'utilisation",
-    noAccount: "Pas de mot de passe à créer : ton compte est ouvert avec ton e-mail.",
-    done: "C'est publié !",
-    already: "Ta demande est en ligne !",
-    alreadySub: "Les gardiens et promeneurs près de chez toi ont été prévenus. Tu reçois les candidats avec leur prix par e-mail — tu choisis, tu paies, annulation gratuite jusqu'à 72 h avant.",
+/** 1011 (ZOE) — mêmes champs qu'avant, lus dans la table en 9 langues (le français est inchangé). */
+function txt1011(lang: Lang) {
+  const g = (k: string, v?: Record<string, string | number>) => g1011(lang, k, v);
+  return {
+    hello: (p: string) => (p ? g("conf_hello_name", { p }) : g("conf_hello")),
+    intro: g("conf_intro"),
+    where: g("conf_where"),
+    atOwner: g("conf_at_owner"), atOwnerSub: g("conf_at_owner_sub"),
+    atSitter: g("conf_at_sitter"), atSitterSub: g("conf_at_sitter_sub"),
+    cta: g("conf_cta"),
+    busy: g("conf_busy"),
+    terms: g("conf_terms"),
+    termsLink: g("conf_terms_link"),
+    termsAfter: g("conf_terms_after"),
+    noAccount: g("conf_no_account"),
+    done: g("conf_done"),
+    already: g("conf_already"),
+    alreadySub: g("conf_already_sub"),
     doneSub: (n?: number) => (n && n > 0
-      ? `${n} gardien${n > 1 ? "s" : ""} et promeneur${n > 1 ? "s" : ""} près de chez toi ${n > 1 ? "sont prévenus" : "est prévenu"}. Tu reçois les candidats avec leur prix par e-mail — tu choisis, tu paies, annulation gratuite jusqu'à 72 h avant.`
-      : "Les gardiens et promeneurs près de chez toi sont prévenus. Tu reçois les candidats avec leur prix par e-mail — tu choisis, tu paies, annulation gratuite jusqu'à 72 h avant."),
-    see: "Voir ma demande",
-    app: "Télécharger l'app HoPetSit",
-    appSub: "Réponses en direct et suivi de la garde dans l'app. Tu peux aussi tout faire ici, sur le site.",
-    pwd: "Pour te reconnecter plus tard : « Mot de passe oublié » avec ton e-mail.",
-    gone: "Ce lien n'est plus valable.",
-    goneSub: "Tu peux publier ta demande en 1 minute ici :",
-    goneCta: "Publier ma demande",
-    err: "La publication n'a pas abouti. Réessayez dans un instant.",
-    svc: { garde: "Garde", promenade: "Promenades", visites: "Visites à domicile" },
-    ani: { chien: "ton chien", chat: "ton chat", autre: "ton animal" },
-    when: { bientot: "dans les 15 jours", fetes: "pendant les fêtes", plus_tard: "" },
-    for: "pour", in: "à",
-    datesTitle: "Tes dates", from: "Du", to: "Au",
-  },
-  en: {
-    hello: (p: string) => (p ? `Hi ${p}!` : "Hi!"),
-    intro: "Here is the request you left. Publish it and sitters near you are notified right away.",
-    where: "Where should the sitting happen?",
-    atOwner: "At my place", atOwnerSub: "The sitter comes to your home",
-    atSitter: "At the sitter's", atSitterSub: "You drop your pet off at theirs",
-    cta: "Publish my request — free",
-    busy: "Publishing…",
-    terms: "By publishing, you accept the",
-    termsLink: "terms of use",
-    noAccount: "No password to create: your account opens with your email.",
-    done: "It's live!",
-    already: "Your request is live!",
-    alreadySub: "Sitters and dog walkers near you have been notified. Their replies arrive by email and in the app.",
-    doneSub: (n?: number) => (n && n > 0
-      ? `${n} sitter${n > 1 ? "s and dog walkers" : " or dog walker"} near you ${n > 1 ? "were" : "was"} notified. You'll get their replies by email and in the app.`
-      : "Sitters and dog walkers near you are notified. You'll get their replies by email and in the app."),
-    see: "See my request",
-    app: "Get the HoPetSit app",
-    appSub: "Live replies and sitting tracking in the app. You can also do everything here, on the site.",
-    pwd: "To sign in later: “Forgot password” with your email.",
-    gone: "This link is no longer valid.",
-    goneSub: "You can publish your request in 1 minute here:",
-    goneCta: "Publish my request",
-    err: "Publishing didn't go through. Please try again in a moment.",
-    svc: { garde: "Pet sitting", promenade: "Dog walks", visites: "Drop-in visits" },
-    ani: { chien: "your dog", chat: "your cat", autre: "your pet" },
-    when: { bientot: "within 2 weeks", fetes: "over the holidays", plus_tard: "" },
-    for: "for", in: "in",
-    datesTitle: "Your dates", from: "From", to: "To",
-  },
-} as const;
+      ? g(n > 1 ? "conf_done_sub_many" : "conf_done_sub_one", { n })
+      : g("conf_done_sub_none")),
+    see: g("conf_see"),
+    app: g("conf_app"),
+    appSub: g("conf_app_sub"),
+    pwd: g("conf_pwd"),
+    gone: g("conf_gone"),
+    goneSub: g("conf_gone_sub"),
+    goneCta: g("conf_gone_cta"),
+    err: g("conf_err"),
+    summary: (service: string, animal: string) =>
+      g("conf_summary", { svc: g(`conf_svc_${service}`), ani: g(`conf_ani_${animal}`) }),
+    when: (quand: string) => (quand === "bientot" || quand === "fetes" ? g(`conf_when_${quand}`) : ""),
+    datesTitle: g("conf_dates_title"), from: g("conf_from"), to: g("conf_to"),
+  };
+}
 
 export default function ConfirmLeadPage() {
+  const { lang: siteLang } = useT();
+  const langRef = useRef<Lang>("fr");
   const [id, setId] = useState("");
   const [lead, setLead] = useState<AdLeadSummary | null>(null);
   const [gone, setGone] = useState(false);
@@ -153,11 +130,14 @@ export default function ConfirmLeadPage() {
     setOpening(true);
     confirmAdLead(id)
       .then(() => { trackSiteEvent("cta_click", { label: "lead_next" }); window.location.href = next; })
-      .catch(() => { setOpening(false); setErr(TXT[lead.lang === "en" ? "en" : "fr"].err); });
+      .catch(() => { setOpening(false); setErr(g1011(langRef.current, "conf_err")); });
   }, [lead, next, id]);
 
-  const t = TXT[lead?.lang === "en" ? "en" : "fr"];
-  const lang = lead?.lang === "en" ? "en" : "fr";
+  // 1011 (ZOE) — langue affichée : celle du site quand le visiteur lit une autre langue que le français
+  // ou l'anglais ; sinon celle du contact de la pub (fr/en), comme avant.
+  const lang: Lang = siteLang !== "fr" && siteLang !== "en" ? siteLang : (lead?.lang === "en" ? "en" : "fr");
+  langRef.current = lang;
+  const t = txt1011(lang);
   const needsLieu = lead?.service === "garde";
   const isWalk = lead?.service === "promenade";
   const today = new Date().toISOString().slice(0, 10);
@@ -270,9 +250,9 @@ export default function ConfirmLeadPage() {
 
         <div className="mt-5 rounded-2xl border border-owner/30 bg-owner-light p-4">
           <p className="text-lg font-bold text-ink">
-            {t.svc[lead.service]} {t.for} {t.ani[lead.animal]}
+            {t.summary(lead.service, lead.animal)}
           </p>
-          <p className="mt-1 text-sm text-[#6E4F48]">📍 {lead.city}{t.when[lead.quand] ? ` · 🗓 ${t.when[lead.quand]}` : ""}</p>
+          <p className="mt-1 text-sm text-[#6E4F48]">📍 {lead.city}{t.when(lead.quand) ? ` · 🗓 ${t.when(lead.quand)}` : ""}</p>
         </div>
 
         {/* 0611 (NEO, ordre de Daniel) — les dates, obligatoires, AVANT de publier. */}
@@ -333,7 +313,7 @@ export default function ConfirmLeadPage() {
         {err && <p role="alert" className="mt-3 text-center text-sm font-semibold text-owner-dark">{err}</p>}
         <p className="mt-4 text-center text-xs text-[#6E4F48]">{t.noAccount}</p>
         <p className="mt-1 text-center text-xs text-[#6E4F48]">
-          {t.terms} <Link href="/terms" className="font-semibold text-owner-dark underline">{t.termsLink}</Link>.
+          {t.terms} <Link href="/terms" className="font-semibold text-owner-dark underline">{t.termsLink}</Link>{t.termsAfter}
         </p>
       </div>
     </main>

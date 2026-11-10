@@ -10,6 +10,8 @@ import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+// 1011 (ZOE, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — textes en 9 langues.
+import { g1011 } from "@/lib/i18n/langues1011";
 import { SelectMenu } from "@/components/SelectMenu";
 import BackLink from "@/components/BackLink";
 import { VehicleToggle1011 } from "@/components/VehicleToggle1011";
@@ -32,6 +34,7 @@ import {
 
 export default function SitterSetupPage() {
   const { t, lang } = useT();
+  const g = (k: string, vars?: Record<string, string | number>) => g1011(lang, k, vars);
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -157,7 +160,7 @@ export default function SitterSetupPage() {
   }
 
   async function handleDeleteIban() {
-    if (!confirm("Supprimer ton IBAN ? Tu ne pourras plus recevoir de paiements jusqu'à ce que tu en saisisses un nouveau.")) {
+    if (!confirm(g("setup_iban_confirm"))) {
       return;
     }
     try {
@@ -252,11 +255,10 @@ export default function SitterSetupPage() {
       </div>
 
       <h1 className="font-display text-3xl font-extrabold md:text-4xl">
-        Configuration {user?.role}
+        {g("setup_title", { role: user?.role ?? "" })}
       </h1>
       <p className="mt-2 text-ink-muted">
-        Définis tes tarifs et tes coordonnées bancaires pour pouvoir recevoir
-        des réservations payantes.
+        {g("setup_intro")}
       </p>
 
       {error && (
@@ -267,29 +269,28 @@ export default function SitterSetupPage() {
 
       {/* ── TARIFS ───────────────────────────────────────────── */}
       <section className="mt-8 rounded-2xl border border-ink/5 bg-white p-6 shadow-card">
-        <h2 className="text-lg font-bold text-ink">Mes tarifs</h2>
+        <h2 className="text-lg font-bold text-ink">{g("setup_rates_title")}</h2>
         <p className="mt-1 text-xs text-ink-muted">
-          Au moins le tarif horaire est obligatoire. Les tarifs hebdomadaire et
-          mensuel sont optionnels (utiles pour les longs séjours).
+          {g("setup_rates_help")}
         </p>
 
         <form onSubmit={handleSaveRates} className="mt-5 space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
             <RateField
-              label="Heure"
+              label={g("setup_hour")}
               value={hourlyRate}
               onChange={setHourlyRate}
               required
               currency={profile?.currency || "EUR"}
             />
             <RateField
-              label="Semaine"
+              label={g("setup_week")}
               value={weeklyRate}
               onChange={setWeeklyRate}
               currency={profile?.currency || "EUR"}
             />
             <RateField
-              label="Mois"
+              label={g("setup_month")}
               value={monthlyRate}
               onChange={setMonthlyRate}
               currency={profile?.currency || "EUR"}
@@ -298,20 +299,20 @@ export default function SitterSetupPage() {
 
           <label className="block">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-ink-muted">
-              Spécialités
+              {g("setup_skills")}
             </span>
             <input
               type="text"
               value={skills}
               onChange={(e) => setSkills(e.target.value)}
-              placeholder="Dressage, chats âgés, médication…"
+              placeholder={g("setup_skills_ph")}
               className={`w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-${roleColor} focus:outline-none focus:ring-2 focus:ring-${roleColor}/20`}
             />
           </label>
 
           {ratesSavedAt && (
             <div className="rounded-xl bg-green-50 px-4 py-2 text-xs text-green-700">
-              ✓ Tarifs enregistrés
+              {g("setup_rates_saved")}
             </div>
           )}
 
@@ -320,7 +321,7 @@ export default function SitterSetupPage() {
             disabled={savingRates}
             className={`rounded-full bg-${roleColor} px-5 py-2 text-sm font-semibold text-white disabled:opacity-60`}
           >
-            {savingRates ? "Enregistrement…" : "Enregistrer les tarifs"}
+            {savingRates ? g("common_saving") : g("setup_rates_save")}
           </button>
         </form>
       </section>
@@ -330,10 +331,9 @@ export default function SitterSetupPage() {
 
       {/* ── IBAN ─────────────────────────────────────────────── */}
       <section className="mt-6 rounded-2xl border border-ink/5 bg-white p-6 shadow-card">
-        <h2 className="text-lg font-bold text-ink">Compte bancaire (IBAN)</h2>
+        <h2 className="text-lg font-bold text-ink">{g("setup_iban_title")}</h2>
         <p className="mt-1 text-xs text-ink-muted">
-          Tes paiements seront virés sur ce compte après chaque réservation
-          honorée. L&apos;IBAN est stocké chiffré côté serveur — jamais en clair.
+          {g("setup_iban_help")}
         </p>
 
         {iban && iban.ibanLast4 && (
@@ -347,11 +347,11 @@ export default function SitterSetupPage() {
               </div>
               {iban.ibanVerified ? (
                 <div className="mt-1 text-xs font-semibold text-green-600">
-                  ✓ Vérifié
+                  {g("setup_iban_verified")}
                 </div>
               ) : (
                 <div className="mt-1 text-xs font-semibold text-amber-600">
-                  En attente de vérification
+                  {g("setup_iban_pending")}
                 </div>
               )}
             </div>
@@ -360,7 +360,7 @@ export default function SitterSetupPage() {
               onClick={handleDeleteIban}
               className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
             >
-              Supprimer
+              {g("common_delete")}
             </button>
           </div>
         )}
@@ -368,7 +368,7 @@ export default function SitterSetupPage() {
         <form onSubmit={handleSaveIban} className="mt-5 space-y-4">
           <label className="block">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-ink-muted">
-              Titulaire du compte
+              {g("setup_iban_holder")}
             </span>
             <input
               type="text"
@@ -381,7 +381,7 @@ export default function SitterSetupPage() {
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-ink-muted">
-              IBAN {iban ? "(nouveau — remplacera l'ancien)" : ""}
+              IBAN {iban ? g("setup_iban_new") : ""}
             </span>
             <input
               type="text"
@@ -394,7 +394,7 @@ export default function SitterSetupPage() {
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-ink-muted">
-              BIC (optionnel)
+              {g("setup_bic")}
             </span>
             <input
               type="text"
@@ -412,7 +412,7 @@ export default function SitterSetupPage() {
           )}
           {ibanSavedAt && (
             <div className="rounded-xl bg-green-50 px-4 py-2 text-xs text-green-700">
-              ✓ IBAN enregistré
+              {g("setup_iban_saved")}
             </div>
           )}
 
@@ -421,28 +421,26 @@ export default function SitterSetupPage() {
             disabled={savingIban}
             className={`rounded-full bg-${roleColor} px-5 py-2 text-sm font-semibold text-white disabled:opacity-60`}
           >
-            {savingIban ? "Enregistrement…" : iban ? "Mettre à jour l'IBAN" : "Enregistrer l'IBAN"}
+            {savingIban ? g("common_saving") : iban ? g("setup_iban_update") : g("setup_iban_save")}
           </button>
         </form>
       </section>
 
       {/* ── DISPONIBILITÉS ───────────────────────────────────── */}
       <section className="mt-6 rounded-2xl border border-ink/5 bg-white p-6 shadow-card">
-        <h2 className="text-lg font-bold text-ink">Mes disponibilités</h2>
+        <h2 className="text-lg font-bold text-ink">{g("setup_avail_title")}</h2>
         <p className="mt-1 text-xs text-ink-muted">
-          Indique tes créneaux hebdomadaires habituels et bloque les jours où tu
-          n&apos;es pas disponible. Les propriétaires ne pourront pas choisir une
-          date bloquée au moment de réserver.
+          {g("setup_avail_help")}
         </p>
 
         <form onSubmit={handleSaveAvailability} className="mt-5 space-y-6">
           {/* Créneaux hebdomadaires récurrents. */}
           <div>
             <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-ink-muted">
-              Créneaux hebdomadaires
+              {g("setup_slots")}
             </span>
             <div className="space-y-2">
-              {DAYS.map(({ key, label }) => {
+              {DAYS.map(({ key }) => {
                 const slot = timeSlots.find((s) => s.day === key);
                 const active = !!slot;
                 return (
@@ -461,7 +459,7 @@ export default function SitterSetupPage() {
                         onChange={() => toggleSlotDay(key)}
                         className="h-4 w-4"
                       />
-                      {label}
+                      {g(`day_${key}`)}
                     </label>
                     {active && slot && (
                       <div className="flex items-center gap-2 text-sm text-ink-muted">
@@ -489,7 +487,7 @@ export default function SitterSetupPage() {
           {/* Jours bloqués (indisponibilités ponctuelles). */}
           <div>
             <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-ink-muted">
-              Jours indisponibles
+              {g("setup_blocked")}
             </span>
             <div className="flex flex-wrap items-end gap-2">
               <input
@@ -505,7 +503,7 @@ export default function SitterSetupPage() {
                 disabled={!newBlockedDate}
                 className="rounded-full border border-ink/15 px-4 py-2 text-sm font-semibold text-ink hover:border-ink/30 disabled:opacity-50"
               >
-                + Bloquer
+                {g("setup_block_btn")}
               </button>
             </div>
             {unavailableDates.length > 0 ? (
@@ -524,7 +522,7 @@ export default function SitterSetupPage() {
                       type="button"
                       onClick={() => removeBlockedDate(d)}
                       className="text-red-500 hover:text-red-700"
-                      aria-label="Retirer"
+                      aria-label={g("common_remove")}
                     >
                       ✕
                     </button>
@@ -533,7 +531,7 @@ export default function SitterSetupPage() {
               </div>
             ) : (
               <p className="mt-2 text-xs text-ink-soft">
-                Aucun jour bloqué — tu es disponible tous les jours par défaut.
+                {g("setup_no_blocked")}
               </p>
             )}
           </div>
@@ -545,7 +543,7 @@ export default function SitterSetupPage() {
           )}
           {availabilitySavedAt && (
             <div className="rounded-xl bg-green-50 px-4 py-2 text-xs text-green-700">
-              ✓ Disponibilités enregistrées
+              {g("setup_avail_saved")}
             </div>
           )}
 
@@ -554,7 +552,7 @@ export default function SitterSetupPage() {
             disabled={savingAvailability}
             className={`rounded-full bg-${roleColor} px-5 py-2 text-sm font-semibold text-white disabled:opacity-60`}
           >
-            {savingAvailability ? "Enregistrement…" : "Enregistrer les disponibilités"}
+            {savingAvailability ? g("common_saving") : g("setup_avail_save")}
           </button>
         </form>
       </section>
@@ -563,14 +561,15 @@ export default function SitterSetupPage() {
 }
 
 // Jours de la semaine (clés alignées sur le backend : minuscules anglaises).
-const DAYS: { key: AvailabilityTimeSlot["day"]; label: string }[] = [
-  { key: "monday", label: "Lundi" },
-  { key: "tuesday", label: "Mardi" },
-  { key: "wednesday", label: "Mercredi" },
-  { key: "thursday", label: "Jeudi" },
-  { key: "friday", label: "Vendredi" },
-  { key: "saturday", label: "Samedi" },
-  { key: "sunday", label: "Dimanche" },
+// 1011 — le libellé affiché vient de la table en 9 langues (clé `day_<key>`).
+const DAYS: { key: AvailabilityTimeSlot["day"] }[] = [
+  { key: "monday" },
+  { key: "tuesday" },
+  { key: "wednesday" },
+  { key: "thursday" },
+  { key: "friday" },
+  { key: "saturday" },
+  { key: "sunday" },
 ];
 
 // Conversion ISO (renvoyé par le backend) → valeur d'input type=date (YYYY-MM-DD).

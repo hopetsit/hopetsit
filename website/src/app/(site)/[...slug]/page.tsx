@@ -30,6 +30,8 @@ import { useEffect, useMemo, useState } from "react";
 import StoreBadges from "@/components/StoreBadges";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { l1011 } from "@/lib/i18n/liens1011";
+// 1011 (ZOE, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — textes en 9 langues.
+import { g1011 } from "@/lib/i18n/langues1011";
 
 // v23.1.317 — Daniel (audit) : l'ID App Store était un placeholder (id6740000000)
 // → lien cassé 404. L'app iOS n'est pas encore publiée : on pointe vers la page
@@ -42,6 +44,7 @@ const PLAY_STORE_URL =
 // Map du chemin web → page liste équivalente quand disponible. Permet à
 // l'utilisateur desktop de "continuer sur le web" sans atterrir sur une
 // page vide.
+// `label` = clé de la table en 9 langues (langues1011), affichée par g1011(lang, label).
 // 1011 (ZOE point 3) — `direct` : le site sait ouvrir CETTE page précise (une conversation).
 // Le visiteur y est conduit tout seul (tout de suite sur ordinateur, après la tentative
 // d'ouverture de l'app sur téléphone) au lieu de rester devant les boutons des stores.
@@ -52,57 +55,57 @@ function webFallbackFor(path: string): { href: string; label: string; direct?: b
   const first = segments[0] ?? "";
   switch (first) {
     case "bookings":
-      return { href: "/bookings", label: "Voir mes réservations" };
+      return { href: "/bookings", label: "slug_lbl_bookings" };
     case "chat":
       if (segments[1] && /^[A-Za-z0-9_-]{6,64}$/.test(segments[1])) {
-        return { href: `/chat?c=${encodeURIComponent(segments[1])}`, label: "Ouvrir la conversation", direct: true };
+        return { href: `/chat?c=${encodeURIComponent(segments[1])}`, label: "slug_lbl_conv", direct: true };
       }
-      return { href: "/chat", label: "Voir mes messages" };
+      return { href: "/chat", label: "slug_lbl_messages" };
     case "book":
     case "post":
       // /book/:postId ou /post/:postId — fallback vers la home
-      return { href: "/", label: "Retour à l'accueil" };
+      return { href: "/", label: "slug_lbl_home" };
     case "wallet":
-      return { href: "/dashboard", label: "Voir mon tableau de bord" };
+      return { href: "/dashboard", label: "slug_lbl_dashboard" };
     case "subscription":
-      return { href: "/pricing", label: "Voir les abonnements" };
+      return { href: "/pricing", label: "slug_lbl_subs" };
     case "paw-spot":
     case "map-boost":
-      return { href: "/pawmap", label: "Voir la PawMap" };
+      return { href: "/pawmap", label: "slug_lbl_pawmap" };
     case "notifications":
-      return { href: "/dashboard", label: "Voir mon tableau de bord" };
+      return { href: "/dashboard", label: "slug_lbl_dashboard" };
     case "walk":
-      return { href: "/bookings", label: "Voir mes réservations" };
+      return { href: "/bookings", label: "slug_lbl_bookings" };
     case "friends":
     case "amis":
       // v23.1.254 — notifs amis / famille / suivi live (friend_request_*,
       // family_*, live_tracking_*). v565 : la page /friends (demandes,
       // liste, famille) existe depuis la v509 → on y renvoie directement.
-      return { href: "/friends", label: "Voir mes amis" };
+      return { href: "/friends", label: "slug_lbl_friends" };
     // v23.1.175 — cases manquantes ajoutées (audit web Next.js).
     case "profile":
-      return { href: "/profile", label: "Voir mon profil" };
+      return { href: "/profile", label: "slug_lbl_profile" };
     case "pay":
-      return { href: "/pay", label: "Aller au paiement" };
+      return { href: "/pay", label: "slug_lbl_pay" };
     case "invite":
       // /invite/family/<email> ou /invite/<code> — flow d'invitation
-      return { href: "/signup", label: "Créer un compte HoPetSit" };
+      return { href: "/signup", label: "slug_lbl_signup" };
     case "auth":
       // /auth/* — flow de bridge session web → app
-      return { href: "/login", label: "Se connecter" };
+      return { href: "/login", label: "slug_lbl_login" };
     // v603 (ZOE) — cibles précises des e-mails de notification (même routeur
     // que la cloche et le push du 602). Sans ces cas, la page ne tentait pas
     // d'ouvrir l'app et n'offrait aucun bouton : impasse.
     case "request":
     case "application":
-      return { href: "/bookings", label: "Voir mes réservations" };
+      return { href: "/bookings", label: "slug_lbl_bookings" };
     case "identity":
     case "reviews":
-      return { href: "/profile", label: "Voir mon profil" };
+      return { href: "/profile", label: "slug_lbl_profile" };
     case "member":
-      return { href: "/friends", label: "Voir mes amis" };
+      return { href: "/friends", label: "slug_lbl_friends" };
     case "shop":
-      return { href: "/boutique", label: "Voir la boutique" };
+      return { href: "/boutique", label: "slug_lbl_shop" };
     default:
       return null;
   }
@@ -210,14 +213,14 @@ export default function CatchAllPage({
         </div>
 
         <h1 className="text-2xl font-bold text-ink mb-2">
-          Ouvre dans l'app HoPetSit
+          {g1011(lang, "slug_title")}
         </h1>
         <p className="text-ink-muted text-sm mb-6">
-          Cette page est disponible dans l'application mobile HoPetSit.
+          {g1011(lang, "slug_body")}
           {platform !== "desktop" &&
-            " On a essayé d'ouvrir l'app automatiquement ; si rien ne s'est passé, tape sur le bouton ci-dessous."}
+            " " + g1011(lang, "slug_mobile")}
           {platform === "desktop" &&
-            " Télécharge l'app pour continuer, ou poursuis ta navigation sur le web."}
+            " " + g1011(lang, "slug_desktop")}
         </p>
 
         {fallback?.direct && (
@@ -236,7 +239,7 @@ export default function CatchAllPage({
             onClick={handleOpenApp}
             className="block w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl mb-3 transition-colors"
           >
-            Ouvrir dans HoPetSit
+            {g1011(lang, "slug_open_btn")}
           </button>
         )}
 
@@ -253,12 +256,12 @@ export default function CatchAllPage({
             href={fallback.href}
             className="block text-orange-600 hover:text-orange-700 text-sm font-medium underline pt-3 border-t border-ink-line"
           >
-            {fallback.label}
+            {g1011(lang, fallback.label)}
           </Link>
         )}
 
         <p className="text-xs text-ink-soft mt-6">
-          Lien demandé : <code className="font-mono">{path}</code>
+          {g1011(lang, "slug_link_asked")} <code className="font-mono">{path}</code>
         </p>
       </div>
     </main>

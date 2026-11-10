@@ -42,6 +42,7 @@ import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { getSocket } from "@/lib/socket";
 import { usePresence } from "@/lib/usePresence";
 import { c2610 } from "@/lib/i18n/cand2610";
+import { g1011 } from "@/lib/i18n/langues1011";
 
 // v565 (point 10) — identité de l'autre personne d'une conversation (chat
 // ami : `otherParty`, chat réservation : l'autre rôle que le mien).
@@ -575,7 +576,7 @@ export default function ChatPage() {
       const list = await getMessages(activeId);
       setMessages(list);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Erreur");
+      alert(e instanceof Error ? e.message : g1011(lang, "common_error"));
     } finally {
       setFollowBusy(false);
     }
@@ -599,7 +600,7 @@ export default function ChatPage() {
         err instanceof ApiError &&
         err.status === 403 &&
         (err.details as { code?: string } | null)?.code === "FEATURE_DISABLED";
-      alert(disabled ? t("chat_feature_disabled") : err instanceof Error ? err.message : "Erreur");
+      alert(disabled ? t("chat_feature_disabled") : err instanceof Error ? err.message : g1011(lang, "common_error"));
       if (disabled) setFeatures((f) => ({ ...f, media: false }));
     } finally {
       setSending(false);
@@ -616,7 +617,7 @@ export default function ChatPage() {
         setMessages(list);
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Erreur");
+      alert(e instanceof Error ? e.message : g1011(lang, "common_error"));
     } finally {
       setFollowBusy(false);
     }

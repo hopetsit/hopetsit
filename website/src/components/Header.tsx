@@ -19,6 +19,8 @@ const PUBLISH: Partial<Record<string, { label: string; short: string; become: st
 // 31/10 soir (LEO, passe 14 — Daniel : « faire ça plus joli, qu'on comprenne bien ») — en-tête bureau sur UNE ligne :
 // logo · 4 liens au centre (+ « Plus » : PawPoints, Contact) · langue · Se connecter · Devenir gardien (contour) ·
 // Publier ma demande (seul bouton plein). Sous 1240 px : logo · langue · bouton principal · menu (rien ne se coupe).
+// 1011 (BOB) — libellé court du bouton d'inscription sous 400 px, seulement là où le libellé complet dépasse.
+const SIGNUP_SHORT_1011: Partial<Record<string, string>> = { pl: "Rejestracja" };
 const MORE: Record<string, string> = { fr: "Plus", en: "More", es: "Más", de: "Mehr", it: "Altro", pt: "Mais", ko: "더보기", ja: "その他", pl: "Więcej" };
 // 1011 (ZOE point 8) — sur la page d'arrivée de la pub (/demande, /request), « Publier » faisait QUITTER la page
 // vers /garde-animaux/paris alors que le formulaire est sous les yeux. Il ramène maintenant au formulaire.
@@ -235,13 +237,21 @@ export function Header() {
                 href={onAdPage1011 ? "#publier" : PUBLISH[lang] ? PUBLISH[lang]!.href : "/signup"}
                 onClick={onAdPage1011 ? stayOnForm1011 : undefined}
                 /* v585 — pouce : zone de toucher portée à 44 px par un calque invisible. */
-                className="relative whitespace-nowrap rounded-full bg-owner px-4 py-1.5 text-[13px] font-semibold text-white shadow-cta transition after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] hover:bg-owner-dark min-[1240px]:px-5 min-[1240px]:py-[9px] min-[1240px]:text-[14px] min-[1240px]:font-bold"
+                /* 1011 (BOB, constat LEO) — en allemand, espagnol et polonais le libellé « S'inscrire » faisait dépasser
+                   l'en-tête à 375 px (+7, +3, +21 px). Sous 400 px, ces langues ont un bouton un peu plus serré ;
+                   le français et l'anglais (« Publier » / « Post ») ne changent pas. */
+                className={`relative whitespace-nowrap rounded-full bg-owner py-1.5 font-semibold text-white shadow-cta transition after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] hover:bg-owner-dark min-[1240px]:px-5 min-[1240px]:py-[9px] min-[1240px]:text-[14px] min-[1240px]:font-bold ${PUBLISH[lang] ? "px-4 text-[13px]" : "px-2.5 text-[12px] min-[400px]:px-4 min-[400px]:text-[13px]"}`}
                 data-nav-publish-3110={PUBLISH[lang] ? "1" : undefined}
               >
                 {PUBLISH[lang] ? (
                   <>
                     <span className="sm:hidden">{PUBLISH[lang]!.short}</span>
                     <span className="hidden sm:inline">{PUBLISH[lang]!.label}</span>
+                  </>
+                ) : SIGNUP_SHORT_1011[lang] ? (
+                  <>
+                    <span className="min-[400px]:hidden">{SIGNUP_SHORT_1011[lang]}</span>
+                    <span className="hidden min-[400px]:inline">{t("nav_signup")}</span>
                   </>
                 ) : t("nav_signup")}
               </Link>

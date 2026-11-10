@@ -10,6 +10,8 @@ import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+// 1011 (ZOE, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — textes en 9 langues.
+import { g1011 } from "@/lib/i18n/langues1011";
 import BackLink from "@/components/BackLink";
 import {
   ApiError,
@@ -87,7 +89,7 @@ const STATUS_META: Record<BookingStatus, { key: string; color: string }> = {
 };
 
 export default function BookingsPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -157,7 +159,7 @@ export default function BookingsPage() {
     try {
       const intent = await createBookingPaymentIntent(booking.id);
       if (!intent.clientSecret || !intent.paymentIntentId) {
-        throw new Error(intent.savedCardError || "Paiement indisponible.");
+        throw new Error(intent.savedCardError || g1011(lang, "pay_unavailable"));
       }
       const currency = (
         intent.currency ||
@@ -178,7 +180,7 @@ export default function BookingsPage() {
       if (amt > 0) qs.set("amount", String(amt));
       router.push(`/pay?${qs.toString()}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Échec du paiement");
+      setError(e instanceof Error ? e.message : g1011(lang, "paydone_fail_title"));
       setPayingId(null);
     }
   }

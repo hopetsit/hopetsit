@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "@/components/SiteLink";
 import { notFound } from "next/navigation";
+// 1011 (ZOE) — libellés visibles en 9 langues (la page reste un composant serveur).
+import Tx1011, { TxTitle1011 } from "@/components/Tx1011";
 
 // v532 — PAGE DE PARTAGE D'UN PAWSPOT (auto-promotion).
 //
@@ -133,7 +135,8 @@ export default async function SpotPage({
   if (!spot) notFound();
 
   const emoji = TYPE_EMOJI[spot.type] ?? "🐾";
-  const label = TYPE_LABEL[spot.type] ?? "Spot";
+  // 1011 — clé du même libellé dans la table en 9 langues (le français ne change pas).
+  const labelKey = TYPE_LABEL[spot.type] ? `spot_t_${spot.type}` : "spot_t_default";
   const maps =
     spot.lat != null && spot.lng != null
       ? `https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lng}`
@@ -158,8 +161,8 @@ export default async function SpotPage({
         <div className="p-6">
           <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
             <span>{emoji}</span>
-            <span>{label}</span>
-            {spot.communityValidated && <span title="Validé par la communauté">🐾</span>}
+            <span><Tx1011 k={labelKey} /></span>
+            {spot.communityValidated && <TxTitle1011 k="spot_validated">🐾</TxTitle1011>}
           </div>
 
           <h1 className="font-display text-2xl font-extrabold text-ink">
@@ -176,9 +179,9 @@ export default async function SpotPage({
           )}
 
           <div className="mt-4 flex flex-wrap gap-4 text-sm text-black/60">
-            <span>❤️ {spot.likesCount} j&apos;aime</span>
-            <span>✅ {spot.validationsCount} validations</span>
-            {spot.creatorName && <span>Ajouté par {spot.creatorName}</span>}
+            <span><Tx1011 k="spot_likes" vars={{ n: spot.likesCount }} /></span>
+            <span><Tx1011 k="spot_validations" vars={{ n: spot.validationsCount }} /></span>
+            {spot.creatorName && <span><Tx1011 k="spot_added_by" vars={{ name: spot.creatorName }} /></span>}
           </div>
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
@@ -186,7 +189,7 @@ export default async function SpotPage({
               href="/download"
               className="flex-1 rounded-2xl bg-owner px-5 py-3 text-center font-semibold text-white"
             >
-              Ouvrir dans l&apos;app HoPetSit
+              <Tx1011 k="spot_open_app" />
             </Link>
             {maps && (
               <a
@@ -195,15 +198,15 @@ export default async function SpotPage({
                 rel="noopener noreferrer"
                 className="flex-1 rounded-2xl border border-black/15 px-5 py-3 text-center font-semibold text-ink"
               >
-                Itinéraire
+                <Tx1011 k="common_directions" />
               </a>
             )}
           </div>
 
           <p className="mt-6 text-center text-sm text-black/60">
-            Des milliers de lieux pet-friendly autour de toi —{" "}
+            <Tx1011 k="spot_more" />{" "}
             <Link href="/pawmap" className="font-semibold text-owner underline">
-              découvre la PawMap
+              <Tx1011 k="spot_more_link" />
             </Link>
           </p>
         </div>

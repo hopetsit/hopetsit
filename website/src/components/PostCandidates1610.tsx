@@ -28,6 +28,8 @@ import { d620, unitShort620 } from "@/lib/i18n/dates620";
 // 26/10 (LEO — décision de Daniel, proposition B de SAM) : « écrire d'abord, choisir ensuite,
 // payer après » — cartes côte à côte, « Écrire à <prénom> » en bouton principal.
 import { c2610 } from "@/lib/i18n/cand2610";
+// 1011 (ZOE) — repli « prix à confirmer » en 9 langues.
+import { g1011 } from "@/lib/i18n/langues1011";
 // 26/10 (ADA, proposition C de SAM) — repère « le propriétaire a ouvert ses candidats » (jamais bloquant).
 import { markCandidatesViewed } from "@/lib/candidatesView2610";
 import { dateModeOf620 } from "@/lib/services620";
@@ -445,7 +447,7 @@ export function PostCandidates1610({
           // 3110 (FLO, alerte prix de BOB) — total suspect (< 10 sur plusieurs jours, ou ×5 loin des autres
           // candidats) : aucun montant affiché, « prix à confirmer par le gardien », Choisir bloqué.
           const toConfirm = a.pricing?.priceToConfirm === true;
-          const toConfirmLabel = a.pricing?.priceToConfirmLabel || "Prix à confirmer par le gardien";
+          const toConfirmLabel = a.pricing?.priceToConfirmLabel || g1011(lang, "cand_price_to_confirm");
           const stale = a.pricing?.stale === true || toConfirm;
           // 2610 (ZOE, ordre de Daniel) — jamais un total incohérent à l'écran : un total absent,
           // nul ou INFÉRIEUR au tarif unitaire n'est affiché ni comme total ni comme tarif.

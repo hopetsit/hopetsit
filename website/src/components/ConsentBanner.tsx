@@ -40,13 +40,58 @@ const TXT = {
     yes: "Accept",
     no: "Decline",
   },
+  // 1011 (ZOE, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — 7 langues
+  // ajoutées ICI, en ligne : ce bandeau est chargé sur toutes les pages, pas d'import d'une grosse table.
+  es: {
+    text: "Píxel de Meta para medir nuestros anuncios, ningún otro rastreador.",
+    more: "Detalles",
+    yes: "Aceptar",
+    no: "Rechazar",
+  },
+  de: {
+    text: "Meta-Pixel, um unsere Anzeigen zu messen, kein anderer Tracker.",
+    more: "Details",
+    yes: "Akzeptieren",
+    no: "Ablehnen",
+  },
+  it: {
+    text: "Pixel di Meta per misurare le nostre inserzioni, nessun altro tracciante.",
+    more: "Dettagli",
+    yes: "Accetta",
+    no: "Rifiuta",
+  },
+  pt: {
+    text: "Pixel da Meta para medir os nossos anúncios, nenhum outro rastreador.",
+    more: "Detalhes",
+    yes: "Aceitar",
+    no: "Recusar",
+  },
+  pl: {
+    text: "Piksel Meta do pomiaru naszych reklam, żadnego innego trackera.",
+    more: "Szczegóły",
+    yes: "Akceptuj",
+    no: "Odrzuć",
+  },
+  ko: {
+    text: "광고 성과 측정을 위한 Meta 픽셀만 사용하며, 다른 추적기는 없어요.",
+    more: "자세히",
+    yes: "동의",
+    no: "거부",
+  },
+  ja: {
+    text: "広告の効果測定に Meta ピクセルのみを使用します。ほかのトラッカーはありません。",
+    more: "詳細",
+    yes: "同意する",
+    no: "拒否する",
+  },
 };
+type BannerLang = keyof typeof TXT;
 
-function uiLang(): "fr" | "en" {
+function uiLang(): BannerLang {
   try {
     const root = document.documentElement;
     const l = (root.dataset.uiLang || root.lang || "fr").slice(0, 2).toLowerCase();
-    return l === "fr" ? "fr" : "en";
+    return l in TXT ? (l as BannerLang) : "en";
   } catch {
     return "fr";
   }
@@ -54,7 +99,7 @@ function uiLang(): "fr" | "en" {
 
 export default function ConsentBanner() {
   const [show, setShow] = useState(false);
-  const [lang, setLang] = useState<"fr" | "en">("fr");
+  const [lang, setLang] = useState<BannerLang>("fr");
   const [top, setTop] = useState(56);
   const pathname = usePathname() || "/";
 
@@ -69,7 +114,18 @@ export default function ConsentBanner() {
     } catch { /* garde 56 */ }
     const onChoice = () => setShow(false);
     window.addEventListener(CONSENT_EVENT, onChoice);
-    return () => window.removeEventListener(CONSENT_EVENT, onChoice);
+    // 1011 (BOB) — la langue du visiteur est posée sur <html> APRÈS ce montage (effet du
+    // LanguageProvider, puis chargement du dictionnaire) : sans ce suivi, le bandeau restait
+    // en français pour un visiteur allemand, polonais, coréen… sur une page servie en français.
+    let obs: MutationObserver | null = null;
+    try {
+      obs = new MutationObserver(() => setLang(uiLang()));
+      obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-ui-lang", "lang"] });
+    } catch { /* vieux navigateur : garde la langue lue au montage */ }
+    return () => {
+      window.removeEventListener(CONSENT_EVENT, onChoice);
+      if (obs) obs.disconnect();
+    };
   }, []);
 
   const nu = pathname.replace(/^\/[a-z]{2}(?=\/)/, ""); // /en/posts/merci → /posts/merci

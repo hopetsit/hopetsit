@@ -13,6 +13,10 @@ import { dr } from "@/lib/i18n/datesRequired0611";
 import { f2 } from "@/lib/i18n/formulaire2etapes1110";
 import { d620 } from "@/lib/i18n/dates620";
 import { c2610 } from "@/lib/i18n/cand2610";
+// 10/11/2026 (LEO, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — types seulement
+// (effacés à la compilation : aucun octet de plus pour les pages qui n'utilisent pas `ui`).
+import type { HeroUi1011 } from "@/lib/i18n/accueil1011";
+import type { Lang as UiLang } from "@/lib/i18n/langs";
 
 // 12/10/2026 (SAM) — le PREMIER ÉCRAN de la page où arrive la pub EST le formulaire (956 arrivées →
 // 8 clics sur un bouton seul : 99 % ne cliquaient jamais).
@@ -56,6 +60,15 @@ function once1011(label: string) {
   trackSiteEvent("cta_click", { label });
 }
 const HHMM_1011 = /^([01]\d|2[0-3]):[0-5]\d$/;
+// 1011 (LEO) — accueil en 9 langues : devise affichée et centre de recherche des villes selon le pays de la langue.
+// Utilisés SEULEMENT quand la page fournit `ui` (les pages fr/en d'origine gardent leur calcul).
+const CUR_1011: Record<string, { code: string; sign: string }> = {
+  US: { code: "USD", sign: "$" }, KR: { code: "KRW", sign: "₩" }, JP: { code: "JPY", sign: "¥" }, GB: { code: "GBP", sign: "£" }, CH: { code: "CHF", sign: "CHF" },
+};
+const BIAS_1011: Record<string, { lat: number; lng: number }> = {
+  ES: { lat: 40.4168, lng: -3.7038 }, DE: { lat: 52.52, lng: 13.405 }, IT: { lat: 41.9028, lng: 12.4964 }, PT: { lat: 38.7223, lng: -9.1393 },
+  PL: { lat: 52.2297, lng: 21.0122 }, KR: { lat: 37.5665, lng: 126.978 }, JP: { lat: 35.6762, lng: 139.6503 },
+};
 const ANIMALS: { id: "chien" | "chat" | "autre"; fr: string; en: string }[] = [
   { id: "chien", fr: "Chien", en: "Dog" }, { id: "chat", fr: "Chat", en: "Cat" }, { id: "autre", fr: "Autre", en: "Other" },
 ];
@@ -109,8 +122,16 @@ const TXT = {
 /** 0811 — ce que la page /demande reçoit quand la demande est enregistrée (avant le code). */
 export type HeroLeadResult0811 = { id: string; email: string; pending: boolean; existing: boolean; postId: string | null; codeSent: boolean; sessionOpened: boolean; notified?: number };
 
-export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", campaign = "paris_owners", page = "/garde-animaux/paris", cityEditable = false, codeFlow = false, onLead }: {
+export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", campaign = "paris_owners", page = "/garde-animaux/paris", cityEditable = false, codeFlow = false, onLead, ui, uiLang, polish = false }: {
   city: string; lead: string; note: string; lang?: Lang; country?: string; campaign?: string; page?: string;
+  /** 1011 (LEO) — accueil dans les 7 langues hors fr/en : libellés fournis par la page (`heroUi1011`). `lang`
+   *  reste "fr" | "en" et part tel quel au serveur (qui n'écrit ses e-mails qu'en fr ou en) ; `uiLang` est la
+   *  langue AFFICHÉE (dates, prix « dès … », noms de villes). Sans `ui` ni `uiLang` : rien ne change. */
+  ui?: HeroUi1011;
+  uiLang?: UiLang;
+  /** 1011 (LEO, « embellir l'accueil ») — habillage : bordures chaudes pleines (zéro gris), bouton d'envoi en
+   *  rectangle arrondi au dégradé horizontal. Mêmes champs, même envoi. Défaut : habillage d'origine. */
+  polish?: boolean;
   /** 31/10 (accueil, décision BOB) — la ville se saisit (Paris / New York proposées par défaut). */
   cityEditable?: boolean;
   /** 0811 (NEO, ordre de Daniel) — page /demande : l'e-mail porte un code à taper sur la page ; la page parente
@@ -118,7 +139,8 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   codeFlow?: boolean;
   onLead?: (r: HeroLeadResult0811) => void;
 }) {
-  const t = TXT[lang];
+  const L: UiLang = uiLang || lang;
+  const t: (typeof TXT)["fr"] = ui ? { ...TXT[lang], ...ui.t } : TXT[lang];
   const [cityValue, setCityValue] = useState(city);
   // 31/10 (Daniel) — position choisie sur la carte (ville de la liste + épingle déplaçable).
   const [place, setPlace] = useState<PlacePick | null>(null);
@@ -220,8 +242,8 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
     setErr("");
     if (!service) { trackSiteEvent("cta_click", { label: "hero_form_sans_service" }); return setErr(t.need_service); }
     // 0611 (NEO) — dates OBLIGATOIRES : balade = la date ; sinon début et fin, début ≤ fin.
-    if (!startDate || (!isWalk && !endDate)) { trackSiteEvent("cta_click", { label: "hero_form_sans_dates" }); return setErr(isWalk ? dr(lang, "walk_required") : f2(lang, "dates_required")); }
-    if (!isWalk && endDate < startDate) return setErr(d620(lang, "dates_order"));
+    if (!startDate || (!isWalk && !endDate)) { trackSiteEvent("cta_click", { label: "hero_form_sans_dates" }); return setErr(isWalk ? dr(L, "walk_required") : f2(L, "dates_required")); }
+    if (!isWalk && endDate < startDate) return setErr(d620(L, "dates_order"));
     // 1011 — code postal OBLIGATOIRE, même avec un lieu choisi sur la carte (43 demandes sur 46 n'en avaient pas).
     if (postalCode.trim().length < 3) {
       trackSiteEvent("cta_click", { label: "hero_form_sans_lieu" });
@@ -261,14 +283,18 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
       trackSiteEvent("cta_click", { label: `hero_form_refus_${(code || (e instanceof ApiError ? e.status : "x")).toString().toLowerCase()}` });
       if (code === "POSTAL_REQUIRED") { try { postalRef.current?.focus(); } catch { /* champ absent */ } }
       setErr(code === "TEST_ACCOUNT" ? t.err_test : code === "TOO_MANY" ? t.err_many : code === "EMAIL_INVALID" ? t.need_email : code === "POSTAL_REQUIRED" ? t.need_place
-        : code === "DATES_REQUIRED" ? (isWalk ? dr(lang, "walk_required") : f2(lang, "dates_required")) : code === "DATES_INVALID" ? d620(lang, "dates_order") : t.err);
+        : code === "DATES_REQUIRED" ? (isWalk ? dr(L, "walk_required") : f2(L, "dates_required")) : code === "DATES_INVALID" ? d620(L, "dates_order") : t.err);
     } finally {
       setBusy(false);
     }
   }
 
-  const bias = country === "US" ? { lat: 40.7128, lng: -74.006 } : country === "FR" ? { lat: 48.8566, lng: 2.3522 } : null;
-  const field = "mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-2.5 text-[15px] text-ink focus:border-owner focus:outline-none";
+  const bias = country === "US" ? { lat: 40.7128, lng: -74.006 } : country === "FR" ? { lat: 48.8566, lng: 2.3522 } : (ui && BIAS_1011[country]) || null;
+  // 1011 — bordures : `border-ink/15` (encre à 15 % = gris sur blanc) devient un rose chaud PLEIN quand `polish`.
+  const line = polish ? "border-[#EBCFC6]" : "border-ink/15";
+  const lineSoft = polish ? "border-[#F3D2C8]" : "border-ink/10";
+  const field = `mt-1 w-full rounded-xl border ${line} bg-white px-3 py-2.5 text-[15px] text-ink focus:border-owner focus:outline-none`;
+  const money1011 = ui ? (CUR_1011[country] || { code: "EUR", sign: "€" }) : (country === "US" ? { code: "USD", sign: "$" } : { code: "EUR", sign: "€" });
   const svcId = SERVICES.find((s) => s.id === service)?.svc || "";
   const isWalk = service === "promenade";
   const today = new Date().toISOString().slice(0, 10);
@@ -292,7 +318,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
         <p className="mt-2 text-[14px] leading-snug text-ink">{t.done_body}</p>
         {done.sessionOpened ? (
           <>
-            <Link href="/posts" className="mt-4 inline-block rounded-full bg-owner px-6 py-3.5 text-[16px] font-extrabold text-white shadow-card" onClick={() => trackSiteEvent("cta_click", { label: "hero_form_voir" })}>
+            <Link href="/posts" className={`mt-4 inline-block ${polish ? "rounded-[18px]" : "rounded-full"} bg-owner px-6 py-3.5 text-[16px] font-extrabold text-white shadow-card`} onClick={() => trackSiteEvent("cta_click", { label: "hero_form_voir" })}>
               {t.done_link} →
             </Link>
             <p className="mt-3 text-xs text-ink-muted">{t.done_mail}</p>
@@ -302,7 +328,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
           // rien) ; la personne passe par le lien de l'e-mail ou par la connexion.
           <>
             <p className="mt-3 text-[13px] leading-snug text-ink" data-hero-done-email="">{t.done_by_email}</p>
-            <Link href="/login?redirect=%2Fposts" className="mt-4 inline-block rounded-full border-2 border-owner px-6 py-3 text-[15px] font-extrabold text-owner" onClick={() => trackSiteEvent("cta_click", { label: "hero_form_login" })}>
+            <Link href="/login?redirect=%2Fposts" className={`mt-4 inline-block ${polish ? "rounded-[18px]" : "rounded-full"} border-2 border-owner px-6 py-3 text-[15px] font-extrabold text-owner`} onClick={() => trackSiteEvent("cta_click", { label: "hero_form_login" })}>
               {t.done_login} →
             </Link>
           </>
@@ -318,19 +344,19 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   // de la carte, par-dessus la marge crème) ; aucune incidence sur la mise en page, donc rien ne peut déborder. Les états
   // « vérifie ta boîte mail » / « en ligne » sont d'autres blocs avec leur propre cadre (orange / vert) : jamais deux cadres.
   return (
-    <div id="publier" className="mt-7 scroll-mt-20 rounded-3xl bg-[#FFF7F3] p-4 shadow-[0_0_0_2px_#1C1917,0_0_0_20px_#FFF3EC,0_0_36px_32px_rgba(255,243,236,0.95),0_32px_56px_-24px_rgba(35,23,21,0.32)] md:mx-auto md:mt-10 md:max-w-md md:shadow-[0_0_0_2px_#1C1917,0_0_0_28px_#FFF3EC,0_0_44px_40px_rgba(255,243,236,0.95),0_32px_56px_-24px_rgba(35,23,21,0.32)]" data-hero-card-lisse-3110="" data-testid="hero-form" data-hero-form-3110={lang} data-hero-1011="" ref={formRef} onClickCapture={touch}>
+    <div id="publier" className="mt-7 scroll-mt-20 rounded-3xl bg-[#FFF7F3] p-4 shadow-[0_0_0_2px_#1C1917,0_0_0_20px_#FFF3EC,0_0_36px_32px_rgba(255,243,236,0.95),0_32px_56px_-24px_rgba(35,23,21,0.32)] md:mx-auto md:mt-10 md:max-w-md md:shadow-[0_0_0_2px_#1C1917,0_0_0_28px_#FFF3EC,0_0_44px_40px_rgba(255,243,236,0.95),0_32px_56px_-24px_rgba(35,23,21,0.32)]" data-hero-card-lisse-3110="" data-testid="hero-form" data-hero-form-3110={lang} data-hero-1011="" data-hero-ui-1011={L} ref={formRef} onClickCapture={touch}>
       <p className="text-[15px] font-semibold leading-snug text-ink md:text-base">{lead}</p>
       {target && <p className="mt-1.5 rounded-xl bg-white px-3 py-1.5 text-[12px] font-bold" style={{ color: "#1E4FB0" }} data-hero-target={target.role}>{t.target_note}</p>}
 
       {/* 1011 — 4 services en 2 × 2 (icône à gauche : deux rangées basses, le bouton reste dans le premier écran). */}
-      <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label="Service" data-testid="hero-services-1011">
+      <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label={ui?.serviceAria || "Service"} data-testid="hero-services-1011">
         {SERVICES.map((s) => (
           <button key={s.id} type="button" onClick={() => pick(s.id)} aria-pressed={service === s.id} data-svc={s.id}
-            className={`flex min-h-[44px] items-center gap-1 rounded-2xl border px-1.5 py-1 text-left transition ${service === s.id ? "border-owner bg-owner text-white shadow-card" : "border-ink/10 bg-white text-ink"}`}>
+            className={`flex min-h-[44px] items-center gap-1 rounded-2xl border px-1.5 py-1 text-left transition ${service === s.id ? "border-owner bg-owner text-white shadow-card" : `${lineSoft} bg-white text-ink`}`}>
             <span aria-hidden className="shrink-0 text-base leading-none">{s.icon}</span>
             <span className="min-w-0">
-              <span className="block text-[12.5px] font-bold leading-tight">{s[lang]}</span>
-              {s.sub && <span className="block text-[10.5px] font-semibold leading-tight" style={{ color: service === s.id ? "#FFFFFF" : "#6E4F48" }}>{s.sub[lang]}</span>}
+              <span className="block text-[12.5px] font-bold leading-tight">{ui?.services?.[s.id]?.label || s[lang]}</span>
+              {s.sub && <span className="block text-[10.5px] font-semibold leading-tight" style={{ color: service === s.id ? "#FFFFFF" : "#6E4F48" }}>{ui?.services?.[s.id]?.sub || s.sub[lang]}</span>}
             </span>
           </button>
         ))}
@@ -338,7 +364,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
 
       {isWalk ? (
         <div className="mt-3 grid grid-cols-2 gap-2" data-testid="hero-dates-walk-0611">
-          <label className="block text-xs font-semibold text-ink">{c2610(lang, "date_label")} *
+          <label className="block text-xs font-semibold text-ink">{c2610(L, "date_label")} *
             <input type="date" required min={today} value={startDate} onChange={(e) => { once1011("hero_form_dates"); setStartDate(e.target.value); setEndDate(e.target.value); }} className={field} data-testid="hero-start" />
           </label>
         </div>
@@ -353,26 +379,26 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
         </div>
       )}
       {/* 0611 (NEO, texte dicté par Daniel) — pourquoi les dates sont obligatoires. */}
-      <p className="mt-1 text-[11px] font-semibold text-ink" data-testid="hero-dates-hint-0611">{dr(lang, "hint")}</p>
+      <p className="mt-1 text-[11px] font-semibold text-ink" data-testid="hero-dates-hint-0611">{dr(L, "hint")}</p>
 
       {svcId && (
         <div className="mt-3">
-          <EstimateLine620 lang={lang} service={svcId} dateMode={startDate && (isWalk || endDate) ? "exact" : "tbd"} startDate={startDate} endDate={isWalk ? startDate : endDate}
-            visitsPerDay={1} venue={svcId === "house_sitting" ? "owners_home" : null} currency={country === "US" ? "USD" : "EUR"} location={{ city: place ? place.city : (cityEditable ? cityValue : city), ...(place ? { lat: place.lat, lng: place.lng } : {}), ...(postalCode.trim().length >= 3 ? { postalCode: postalCode.trim() } : {}) }} />
+          <EstimateLine620 lang={L} service={svcId} dateMode={startDate && (isWalk || endDate) ? "exact" : "tbd"} startDate={startDate} endDate={isWalk ? startDate : endDate}
+            visitsPerDay={1} venue={svcId === "house_sitting" ? "owners_home" : null} currency={money1011.code} location={{ city: place ? place.city : (cityEditable ? cityValue : city), ...(place ? { lat: place.lat, lng: place.lng } : {}), ...(postalCode.trim().length >= 3 ? { postalCode: postalCode.trim() } : {}) }} />
         </div>
       )}
 
       {/* Ville (liste + carte) et code postal sur une rangée, prénom et e-mail sur la suivante : le bouton reste
           dans le premier écran à 375 px même avec le champ Ville en plus. */}
       <div className="mt-3 grid grid-cols-[1.4fr_1fr] gap-2">
-        <PlacePicker3110 lang={lang} value={cityValue} onChange={setCityValue} pick={place} setPick={(p) => { setPlace(p); trackSiteEvent("cta_click", { label: p ? "hero_form_carte" : "hero_form_carte_off" }); }} inputClass={field} bias={bias} />
+        <PlacePicker3110 lang={lang} value={cityValue} onChange={setCityValue} pick={place} setPick={(p) => { setPlace(p); trackSiteEvent("cta_click", { label: p ? "hero_form_carte" : "hero_form_carte_off" }); }} inputClass={field} bias={bias} txt={ui?.place} searchLang={L} />
         <label className="block text-xs font-semibold text-ink">{t.postal} *
           <input ref={postalRef} required aria-required="true" value={postalCode} onChange={(e) => { once1011("hero_form_postal"); setErr(""); setPostalCode(e.target.value); }} inputMode="numeric" autoComplete="postal-code" maxLength={12} className={field} data-testid="hero-postal" />
         </label>
       </div>
       {/* 1011 — le refus « code postal » s'affiche sous le champ (avec la carte dépliée, le bas du formulaire sort de l'écran). */}
       {err && err === t.need_place && <p className="mt-1 text-xs font-semibold text-owner-dark" role="alert" data-testid="hero-postal-err">{err}</p>}
-      <PlaceMapConfirm3110 lang={lang} pick={place} setPick={(p) => setPlace(p)} />
+      <PlaceMapConfirm3110 lang={lang} pick={place} setPick={(p) => setPlace(p)} txt={ui?.place} />
       <div className="mt-2 grid grid-cols-[1fr_1.4fr] gap-2">
         <label className="block text-xs font-semibold text-ink">{t.first}
           <input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" maxLength={60} className={field} data-testid="hero-first" />
@@ -386,8 +412,8 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
         <span className="text-xs font-semibold text-ink">{t.animal}</span>
         {ANIMALS.map((a) => (
           <button key={a.id} type="button" onClick={() => setAnimal(a.id)} aria-pressed={animal === a.id}
-            className={`min-h-[36px] rounded-full border px-3 text-[12px] font-bold ${animal === a.id ? "border-owner bg-owner text-white" : "border-ink/10 bg-white text-ink"}`}>
-            {a[lang]}
+            className={`min-h-[36px] ${polish ? "rounded-[12px]" : "rounded-full"} border px-3 text-[12px] font-bold ${animal === a.id ? "border-owner bg-owner text-white" : `${lineSoft} bg-white text-ink`}`}>
+            {ui?.animals?.[a.id] || a[lang]}
           </button>
         ))}
       </div>
@@ -411,10 +437,10 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
             <label className="block text-xs font-semibold text-ink">{t.budget} <span style={{ color: "#6E4F48" }}>({t.optional})</span>
               <span className="relative block">
                 <input type="text" inputMode="decimal" maxLength={8} value={budget} onChange={(e) => setBudget(e.target.value.replace(/[^0-9.,]/g, ""))} placeholder={t.budget_ph} className={`${field} pr-9`} data-testid="hero-budget" />
-                <span aria-hidden className="pointer-events-none absolute inset-y-0 right-3 mt-1 flex items-center text-sm font-extrabold" style={{ color: "#C92A12" }}>{country === "US" ? "$" : "€"}</span>
+                <span aria-hidden className="pointer-events-none absolute inset-y-0 right-3 mt-1 flex items-center text-sm font-extrabold" style={{ color: "#C92A12" }}>{money1011.sign}</span>
               </span>
             </label>
-            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl border border-ink/15 bg-white px-2.5 text-[12.5px] font-bold leading-tight text-ink">
+            <label className={`flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl border ${line} bg-white px-2.5 text-[12.5px] font-bold leading-tight text-ink`}>
               <input type="checkbox" checked={noCar} onChange={(e) => setNoCar(e.target.checked)} className="h-4 w-4 shrink-0 accent-[#C92A12]" data-testid="hero-nocar" />
               {t.no_car}
             </label>
@@ -429,11 +455,12 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
       {err && err !== t.need_place && <p className="mt-2 text-center text-sm font-semibold text-owner-dark" role="alert">{err}</p>}
 
       <button id="hero-publier" ref={btnRef} type="button" onClick={() => void submit()} disabled={busy} data-testid="hero-continuer"
-        className="mt-3 block w-full rounded-full bg-owner px-6 py-4 text-center text-lg font-extrabold text-white shadow-card disabled:opacity-70">
+        className={`mt-3 block w-full ${polish ? "rounded-[18px]" : "rounded-full"} bg-owner px-6 py-4 text-center text-lg font-extrabold text-white shadow-card disabled:opacity-70`}
+        style={polish ? { backgroundImage: "linear-gradient(90deg, #C92A12, #9E1F0B)" } : undefined}>
         {busy ? t.busy : t.cta}
       </button>
       <p className="mt-2 text-center text-xs text-ink-muted">{note}</p>
-      <p className="mt-1 text-center text-[11px] text-ink-muted">{t.terms} <Link href={lang === "fr" ? "/cgu" : "/terms"} className="underline">{t.terms_link}</Link>.</p>
+      <p className="mt-1 text-center text-[11px] text-ink-muted">{t.terms} <Link href={lang === "fr" ? "/cgu" : "/terms"} className="underline">{t.terms_link}</Link>{ui?.termsAfter ?? "."}</p>
     </div>
   );
 }

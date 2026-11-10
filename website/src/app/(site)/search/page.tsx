@@ -7,6 +7,8 @@ import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+// 1011 (ZOE, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — textes en 9 langues.
+import { g1011 } from "@/lib/i18n/langues1011";
 import { formatMoney, providerCurrency, providerFrom, type ProviderRateSource } from "@/lib/providerRates";
 import BackLink from "@/components/BackLink";
 import {
@@ -20,7 +22,8 @@ import {
 type ProviderKind = "sitter" | "walker";
 
 export default function SearchPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const g = (k: string) => g1011(lang, k);
   const router = useRouter();
   const [kind, setKind] = useState<ProviderKind>("sitter");
   const [city, setCity] = useState("");
@@ -78,11 +81,10 @@ export default function SearchPage() {
       </div>
 
       <h1 className="font-display text-3xl font-extrabold md:text-4xl">
-        Trouver un pet-sitter
+        {g("search_title")}
       </h1>
       <p className="mt-2 text-ink-muted">
-        Parcours les profils disponibles. Tu peux ensuite envoyer une demande
-        directement depuis le navigateur.
+        {g("search_intro")}
       </p>
 
       {/* Toggle sitter / walker */}
@@ -96,7 +98,7 @@ export default function SearchPage() {
               : "text-ink-muted hover:text-ink"
           }`}
         >
-          🏡 Sitters
+          {g("search_tab_sitters")}
         </button>
         <button
           type="button"
@@ -107,7 +109,7 @@ export default function SearchPage() {
               : "text-ink-muted hover:text-ink"
           }`}
         >
-          🚶 Walkers
+          {g("search_tab_walkers")}
         </button>
       </div>
 
@@ -116,14 +118,14 @@ export default function SearchPage() {
           type="text"
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          placeholder="Ville (Paris, Berlin, London…)"
+          placeholder={g("search_city_ph")}
           className="flex-1 rounded-full border border-ink/15 px-5 py-2.5 text-sm focus:border-walker focus:outline-none focus:ring-2 focus:ring-walker/20"
         />
         <button
           type="submit"
           className="rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
         >
-          Rechercher
+          {g("search_btn")}
         </button>
       </form>
 
@@ -138,9 +140,9 @@ export default function SearchPage() {
       ) : providers.length === 0 ? (
         <div className="mt-12 rounded-3xl border border-dashed border-ink/15 px-6 py-16 text-center">
           <p className="text-2xl">🔍</p>
-          <p className="mt-3 font-semibold text-ink">Aucun résultat</p>
+          <p className="mt-3 font-semibold text-ink">{g("search_none")}</p>
           <p className="mt-1 text-sm text-ink-muted">
-            Essaye une autre ville ou bascule sur l&apos;autre catégorie.
+            {g("search_none_sub")}
           </p>
         </div>
       ) : (
@@ -170,6 +172,7 @@ function ProviderCard({
   // gardien qui n'a QU'un tarif semaine / mois affiche « dès 100 €/sem. »,
   // toujours avec son unité (providerFrom : jour, heure, semaine, mois).
   const { t, lang } = useT();
+  const g = (k: string) => g1011(lang, k);
   const from = providerFrom(kind === "walker" ? "walker" : "sitter", provider as ProviderRateSource);
   const startingPrice = from
     ? `${formatMoney(from.value, providerCurrency(provider as ProviderRateSource), lang)}/${t(from.unitKey)}`
@@ -214,12 +217,12 @@ function ProviderCard({
             sépare : 🏆 Top = mérite ; 🚀 Boosté = promotion payée. */}
         {(provider.isTopSitter || provider.isTopWalker) && (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
-            🏆 Top
+            {g("search_top")}
           </span>
         )}
         {(provider.isBoosted || provider.isMapBoosted) && (
           <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-bold text-sky-800">
-            🚀 Boosté
+            {g("search_boosted")}
           </span>
         )}
       </div>
@@ -235,10 +238,10 @@ function ProviderCard({
             <span className="font-bold text-ink">{startingPrice}</span>
           </div>
         ) : (
-          <div className="text-xs text-ink-muted">Tarif sur demande</div>
+          <div className="text-xs text-ink-muted">{g("search_rate_on_request")}</div>
         )}
         <span className={`rounded-full bg-${color} px-3 py-1 text-xs font-semibold text-white group-hover:opacity-90`}>
-          Réserver →
+          {g("search_book")}
         </span>
       </div>
     </Link>

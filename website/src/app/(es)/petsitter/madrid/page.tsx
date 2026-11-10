@@ -41,7 +41,7 @@ export default function MadridPage() {
           "Seguimiento GPS PawFollow: mira el paseo de tu perro en directo en el mapa.",
           "Pago seguro en la app, liberado solo cuando confirmas el servicio.",
           "PawMap: parques, cafés y veterinarios pet-friendly de Madrid, compartidos por la comunidad.",
-          "App gratuita, disponible en español y en 6 idiomas.",
+          "App gratuita, disponible en español y en 8 idiomas más.",
         ],
         faqTitle: "Preguntas frecuentes en Madrid",
         faq: [

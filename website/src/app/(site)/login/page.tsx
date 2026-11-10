@@ -125,12 +125,28 @@ export default function LoginPage() {
   );
 }
 
+// 1011 (ZOE) — libellé d'accessibilité de l'œil du mot de passe, dans les 9 langues du site
+// (table locale, comme FORGOT : on ne charge pas langues1011 sur cette page pour un libellé).
+const PW_EYE: Record<Lang, [string, string]> = {
+  fr: ["Masquer le mot de passe", "Afficher le mot de passe"],
+  en: ["Hide password", "Show password"],
+  es: ["Ocultar la contraseña", "Mostrar la contraseña"],
+  de: ["Passwort verbergen", "Passwort anzeigen"],
+  it: ["Nascondi la password", "Mostra la password"],
+  pt: ["Ocultar a palavra-passe", "Mostrar a palavra-passe"],
+  pl: ["Ukryj hasło", "Pokaż hasło"],
+  ko: ["비밀번호 숨기기", "비밀번호 표시"],
+  ja: ["パスワードを隠す", "パスワードを表示"],
+};
+
 function Field({
   label, value, onChange, type = "text", required, autoComplete,
 }: {
   label: string; value: string; onChange: (v: string) => void;
   type?: string; required?: boolean; autoComplete?: string;
 }) {
+  const { lang } = useT();
+  const pwEye = PW_EYE[lang] || PW_EYE.fr;
   // v404 — œil afficher/masquer le mot de passe.
   const [show, setShow] = useState(false);
   const isPwd = type === "password";
@@ -151,7 +167,7 @@ function Field({
           <button
             type="button"
             onClick={() => setShow((s) => !s)}
-            aria-label={show ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+            aria-label={show ? pwEye[0] : pwEye[1]}
             className="absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 text-ink-muted hover:text-ink"
           >
             {show ? (

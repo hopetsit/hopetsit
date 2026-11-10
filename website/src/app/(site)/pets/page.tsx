@@ -7,6 +7,8 @@ import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
+// 1011 (ZOE, ordre de Daniel « les pages ne sont pas à jour dans les autres langues ») — textes en 9 langues.
+import { g1011 } from "@/lib/i18n/langues1011";
 import { SelectMenu } from "@/components/SelectMenu";
 import BackLink from "@/components/BackLink";
 import {
@@ -26,7 +28,8 @@ type EditMode =
   | { mode: "edit"; pet: Pet };
 
 export default function PetsPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const g = (k: string, vars?: Record<string, string | number>) => g1011(lang, k, vars);
   const router = useRouter();
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +67,7 @@ export default function PetsPage() {
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Supprimer ${name} ? Action irréversible.`)) return;
+    if (!confirm(g("pets_del_confirm", { name }))) return;
     try {
       await deletePet(id);
       setPets((p) => p.filter((x) => x.id !== id));
@@ -86,9 +89,9 @@ export default function PetsPage() {
   if (user?.role !== "owner") {
     return (
       <div className="mx-auto max-w-2xl px-4 py-24 text-center">
-        <p className="text-lg font-semibold text-ink">Réservé aux propriétaires</p>
+        <p className="text-lg font-semibold text-ink">{g("pets_owner_only")}</p>
         <p className="mt-2 text-sm text-ink-muted">
-          La gestion des animaux est disponible pour les comptes Owner uniquement.
+          {g("pets_owner_only_sub")}
         </p>
         <div className="mt-6">
           <BackLink href="/dashboard" label={t("nav_dashboard")} />
@@ -106,15 +109,15 @@ export default function PetsPage() {
           onClick={() => setEditMode({ mode: "new" })}
           className="rounded-full bg-owner px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
         >
-          + Ajouter un animal
+          {g("pets_add")}
         </button>
       </div>
 
       <h1 className="font-display text-3xl font-extrabold md:text-4xl">
-        Mes animaux
+        {g("pets_title")}
       </h1>
       <p className="mt-2 text-ink-muted">
-        Tes compagnons sont aussi visibles dans l&apos;app HoPetSit.
+        {g("pets_sub")}
       </p>
 
       {error && (
@@ -126,16 +129,16 @@ export default function PetsPage() {
       {pets.length === 0 ? (
         <div className="mt-12 rounded-3xl border border-dashed border-ink/15 px-6 py-16 text-center">
           <p className="text-2xl">🐾</p>
-          <p className="mt-3 font-semibold text-ink">Aucun animal pour l&apos;instant</p>
+          <p className="mt-3 font-semibold text-ink">{g("pets_empty")}</p>
           <p className="mt-1 text-sm text-ink-muted">
-            Ajoute ton premier compagnon pour pouvoir créer une réservation.
+            {g("pets_empty_sub")}
           </p>
           <button
             type="button"
             onClick={() => setEditMode({ mode: "new" })}
             className="mt-5 rounded-full bg-owner px-5 py-2.5 text-sm font-semibold text-white"
           >
-            + Ajouter un animal
+            {g("pets_add")}
           </button>
         </div>
       ) : (
@@ -189,6 +192,8 @@ function PetCard({
   onDelete: () => void;
   onPhotoChanged: (updated: Pet) => void;
 }) {
+  const { lang } = useT();
+  const g = (k: string, vars?: Record<string, string | number>) => g1011(lang, k, vars);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -202,7 +207,7 @@ function PetCard({
       const updated = await uploadPetAvatar(pet.id, file);
       onPhotoChanged(updated);
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Upload échoué");
+      setUploadError(err instanceof Error ? err.message : g("pets_upload_failed"));
       setTimeout(() => setUploadError(null), 4000);
     } finally {
       setUploading(false);
@@ -218,7 +223,7 @@ function PetCard({
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
           className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-ink/10 transition hover:opacity-90"
-          aria-label={`Changer la photo de ${pet.petName}`}
+          aria-label={g("pets_photo_aria", { name: pet.petName })}
         >
           {pet.avatar?.url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -263,14 +268,14 @@ function PetCard({
           onClick={onEdit}
           className="flex-1 rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold text-ink hover:border-ink/30"
         >
-          Modifier
+          {g("common_edit")}
         </button>
         <button
           type="button"
           onClick={onDelete}
           className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
         >
-          Supprimer
+          {g("common_delete")}
         </button>
       </div>
     </div>
@@ -286,7 +291,8 @@ function PetFormModal({
   onClose: () => void;
   onSaved: (pet: Pet) => void;
 }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const g = (k: string, vars?: Record<string, string | number>) => g1011(lang, k, vars);
   const [petName, setPetName] = useState(initial?.petName || "");
   const [category, setCategory] = useState(initial?.category || "Dog");
   const [breed, setBreed] = useState(initial?.breed || "");
@@ -351,20 +357,20 @@ function PetFormModal({
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink">
-            {initial ? "Modifier l'animal" : "Nouvel animal"}
+            {initial ? g("pets_form_edit") : g("pets_form_new")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="text-2xl leading-none text-ink-muted hover:text-ink"
-            aria-label="Fermer"
+            aria-label={g("common_close")}
           >
             ×
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Field label="Nom *">
+          <Field label={g("pets_f_name")}>
             <input
               type="text"
               value={petName}
@@ -373,9 +379,9 @@ function PetFormModal({
               className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
             />
           </Field>
-          <Field label="Espèce *">
+          <Field label={g("pets_f_species")}>
             <SelectMenu
-              ariaLabel="Espèce"
+              ariaLabel={g("pets_f_species_aria")}
               value={category}
               onChange={setCategory}
               tone="owner"
@@ -389,39 +395,39 @@ function PetFormModal({
               ]}
             />
           </Field>
-          <Field label="Race">
+          <Field label={g("pets_f_breed")}>
             <input
               type="text"
               value={breed}
               onChange={(e) => setBreed(e.target.value)}
-              placeholder="Labrador, Persan…"
+              placeholder={g("pets_f_breed_ph")}
               className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
             />
           </Field>
-          <Field label="Vaccinations">
+          <Field label={g("pets_f_vacc")}>
             <input
               type="text"
               value={vaccination}
               onChange={(e) => setVaccination(e.target.value)}
-              placeholder="À jour, rappel rage 2024…"
+              placeholder={g("pets_f_vacc_ph")}
               className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
             />
           </Field>
-          <Field label="Description">
+          <Field label={g("pets_f_desc")}>
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={3}
-              placeholder="Présentation de l'animal…"
+              placeholder={g("pets_f_desc_ph")}
               className="w-full resize-none rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
             />
           </Field>
 
           {/* v413 — parité app : caractère / santé / habitudes (synchro). */}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Sexe">
+            <Field label={g("pets_f_sex")}>
               <SelectMenu
-                ariaLabel="Sexe"
+                ariaLabel={g("pets_f_sex")}
                 value={gender}
                 onChange={setGender}
                 tone="owner"
@@ -432,9 +438,9 @@ function PetFormModal({
                 ]}
               />
             </Field>
-            <Field label="Statut vaccinal">
+            <Field label={g("pets_f_vacc_status")}>
               <SelectMenu
-                ariaLabel="Statut vaccinal"
+                ariaLabel={g("pets_f_vacc_status")}
                 value={vaccinationStatus}
                 onChange={setVaccinationStatus}
                 tone="owner"
@@ -448,58 +454,58 @@ function PetFormModal({
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Poids (kg)">
+            <Field label={g("pets_f_weight")}>
               <input
                 type="text"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
-                placeholder="ex. 12"
+                placeholder={g("pets_f_weight_ph")}
                 className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
               />
             </Field>
-            <Field label="Taille (cm)">
+            <Field label={g("pets_f_height")}>
               <input
                 type="text"
                 value={height}
                 onChange={(e) => setHeight(e.target.value)}
-                placeholder="ex. 45"
+                placeholder={g("pets_f_height_ph")}
                 className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
               />
             </Field>
           </div>
-          <Field label="Caractère (traits séparés par des virgules)">
+          <Field label={g("pets_f_traits")}>
             <input
               type="text"
               value={character}
               onChange={(e) => setCharacter(e.target.value)}
-              placeholder="Affectueux, joueur, protecteur…"
+              placeholder={g("pets_f_traits_ph")}
               className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
             />
           </Field>
-          <Field label="Allergies / traitements">
+          <Field label={g("pets_f_allergies")}>
             <input
               type="text"
               value={allergies}
               onChange={(e) => setAllergies(e.target.value)}
-              placeholder="Aucune allergie connue…"
+              placeholder={g("pets_f_allergies_ph")}
               className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
             />
           </Field>
-          <Field label="Histoire">
+          <Field label={g("pets_f_story")}>
             <textarea
               value={history}
               onChange={(e) => setHistory(e.target.value)}
               rows={2}
-              placeholder="Comment il est arrivé, son passé…"
+              placeholder={g("pets_f_story_ph")}
               className="w-full resize-none rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
             />
           </Field>
-          <Field label="Habitudes / remarques">
+          <Field label={g("pets_f_habits")}>
             <textarea
               value={habitsRemarks}
               onChange={(e) => setHabitsRemarks(e.target.value)}
               rows={2}
-              placeholder="Niveau d'énergie, alimentation, ce qu'il aime…"
+              placeholder={g("pets_f_habits_ph")}
               className="w-full resize-none rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
             />
           </Field>
@@ -515,7 +521,7 @@ function PetFormModal({
             disabled={saving}
             className="w-full rounded-full bg-owner px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
           >
-            {saving ? "Enregistrement…" : initial ? "Mettre à jour" : "Créer"}
+            {saving ? g("common_saving") : initial ? g("pets_update") : g("pets_create")}
           </button>
         </form>
       </div>
