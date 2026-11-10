@@ -72,7 +72,7 @@ class _PawWalkJewelState extends State<PawWalkJewel>
   /// 5 · 18 · 21 s) : la boucle reprend sans à-coup.
   late final AnimationController _life = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: _WalkJewelPainter.loopSeconds),
+    duration: const Duration(seconds: PawWalkJewelPainter.loopSeconds),
   );
 
   bool _held = false;
@@ -172,7 +172,7 @@ class _PawWalkJewelState extends State<PawWalkJewel>
                     child: IgnorePointer(
                       child: RepaintBoundary(
                         child: CustomPaint(
-                          painter: _WalkJewelPainter(
+                          painter: PawWalkJewelPainter(
                             diameter: s,
                             live: widget.live,
                             moving: widget.live && !_reduced,
@@ -198,14 +198,28 @@ class _PawWalkJewelState extends State<PawWalkJewel>
 
 /// Tout le dessin du bouton. Repeint par les deux horloges seulement : le
 /// reste de l'écran n'est jamais reconstruit.
-class _WalkJewelPainter extends CustomPainter {
-  _WalkJewelPainter({
+///
+/// 640 — public : le gros bouton « Balade rapide »
+/// (`QuickWalkButton3110`) réutilise CE dessin au lieu de le recopier. Les
+/// réglages ajoutés ([pastilleRatio], [pastilleDy], [leafRadiusRatios],
+/// [leafAngles], [pawRadiusRatio], [pawsFadeAtBottom], [dog]) ont pour
+/// valeur par défaut celles du bouton de la barre : sans eux, le rendu de
+/// `PawWalkJewel` est celui de la 639, au pixel près.
+class PawWalkJewelPainter extends CustomPainter {
+  PawWalkJewelPainter({
     required this.diameter,
     required this.live,
     required this.moving,
     required this.badge,
     required this.press,
     required this.life,
+    this.pastilleRatio = _pastilleRatio,
+    this.pastilleDy = 0,
+    this.leafRadiusRatios = _leafRadiusRatios,
+    this.leafAngles = _leafAngles,
+    this.pawRadiusRatio = _pawRadiusRatio,
+    this.pawsFadeAtBottom = true,
+    this.dog = true,
   }) : super(repaint: Listenable.merge(<Listenable>[press, life]));
 
   static const int loopSeconds = 1260;
@@ -239,6 +253,27 @@ class _WalkJewelPainter extends CustomPainter {
   final Animation<double> press;
   final Animation<double> life;
 
+  /// Rayon de la pastille violette, en part du rayon du disque.
+  final double pastilleRatio;
+
+  /// Décalage vertical de la pastille par rapport au centre du disque (dp).
+  final double pastilleDy;
+
+  /// Rayon de chaque feuille, en part du diamètre.
+  final List<double> leafRadiusRatios;
+
+  /// Angle de chaque feuille (0° = à droite, sens horaire).
+  final List<double> leafAngles;
+
+  /// Rayon de l'orbite des pattes, en part du diamètre.
+  final double pawRadiusRatio;
+
+  /// Vrai : les pattes s'effacent en passant sous le bouton (texte dessous).
+  final bool pawsFadeAtBottom;
+
+  /// Faux : pastille sans le chien (un indicateur d'attente est posé dessus).
+  final bool dog;
+
   double get _k => diameter / 144;
   double get _relief => math.max(diameter * _reliefRatio, 1.5);
   double get _faceRadius => (diameter - _relief) / 2;
@@ -262,7 +297,7 @@ class _WalkJewelPainter extends CustomPainter {
   late final Paint _pastillePaint = Paint()
     ..isAntiAlias = true
     ..shader = _cssRadial(
-      radius: _faceRadius * _pastilleRatio,
+      radius: _faceRadius * pastilleRatio,
       atX: 0.40,
       atY: 0.30,
       colors: const <Color>[
@@ -351,10 +386,10 @@ class _WalkJewelPainter extends CustomPainter {
     );
 
     // ── La pastille violette et le chien ────────────────────────────────
-    final double pr = r * _pastilleRatio; // rayon de la pastille
+    final double pr = r * pastilleRatio; // rayon de la pastille
     final double u = pr * 2 / 50; // 1 px de la maquette (pastille de 50)
     final double pastilleRelief = 4 * u;
-    final Offset pc = Offset(0, -pastilleRelief / 2);
+    final Offset pc = Offset(0, pastilleDy - pastilleRelief / 2);
     // Liseré blanc 35 % (3 px).
     canvas.drawCircle(
       pc,
@@ -402,7 +437,7 @@ class _WalkJewelPainter extends CustomPainter {
       canvas.rotate(a * math.pi / 180);
       canvas.translate(-24, -40.8);
     }
-    _DogArt.paint(canvas);
+    if (dog) _DogArt.paint(canvas);
     canvas.restore(); // pastille
     canvas.restore(); // découpe du disque
     canvas.restore(); // centre
@@ -410,6 +445,8 @@ class _WalkJewelPainter extends CustomPainter {
 
   /// Aller-retour 0 → 1 → 0 sur une période, chaque moitié en ease-in-out
   /// (équivalent des images clés CSS 0 % / 50 % / 100 %).
+  static double yoyo(double periods) => _yoyo(periods);
+
   static double _yoyo(double periods) {
     final double f = periods - periods.floorToDouble();
     final double tri = f < 0.5 ? f * 2 : 2 - f * 2;
@@ -473,13 +510,15 @@ class _WalkJewelPainter extends CustomPainter {
     // Pattes en orbite. Sous le bouton, il y a le texte des minutes : la
     // patte s'efface en passant dans l'arc du bas (±40°) pour ne jamais le
     // recouvrir, puis réapparaît.
-    final double orbitR = diameter * _pawRadiusRatio;
+    final double orbitR = diameter * pawRadiusRatio;
     for (int i = 0; i < 4; i++) {
       final double start = i * math.pi / 2;
       final double orbit = start + 2 * math.pi * (t / _pawPeriods[i]);
       final double fromBottom =
           math.acos((-math.cos(orbit)).clamp(-1.0, 1.0)) * 180 / math.pi;
-      final double fade = ((fromBottom - 40) / 35).clamp(0.0, 1.0);
+      final double fade = pawsFadeAtBottom
+          ? ((fromBottom - 40) / 35).clamp(0.0, 1.0)
+          : 1.0;
       final double opacity = 0.9 * fade * fade * (3 - 2 * fade);
       if (opacity < 0.02) continue;
       // Plancher de lisibilité : jamais moins de 5,5 / 5 dp.
@@ -501,13 +540,13 @@ class _WalkJewelPainter extends CustomPainter {
     final double lift = math.max(6 * k, 1.5);
     for (int i = 0; i < 4; i++) {
       if (badge && i == 1) continue;
-      final double a = _leafAngles[i] * math.pi / 180;
+      final double a = leafAngles[i] * math.pi / 180;
       final double sz = math.max(_leafSizes[i] * k, 5.5);
       final double local = t - _leafDelays[i];
       final double dy = local <= 0 ? 0 : -lift * _yoyo(local / _leafPeriods[i]);
       final double unit = sz / 24;
       canvas.save();
-      final double leafR = diameter * _leafRadiusRatios[i];
+      final double leafR = diameter * leafRadiusRatios[i];
       canvas.translate(leafR * math.cos(a), leafR * math.sin(a) + dy);
       // drop-shadow(0 3px 4px rgba(30,122,56,.25)).
       canvas.save();
@@ -539,13 +578,20 @@ class _WalkJewelPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _WalkJewelPainter old) =>
+  bool shouldRepaint(covariant PawWalkJewelPainter old) =>
       old.diameter != diameter ||
       old.live != live ||
       old.moving != moving ||
       old.badge != badge ||
       old.press != press ||
-      old.life != life;
+      old.life != life ||
+      old.pastilleRatio != pastilleRatio ||
+      old.pastilleDy != pastilleDy ||
+      !identical(old.leafRadiusRatios, leafRadiusRatios) ||
+      !identical(old.leafAngles, leafAngles) ||
+      old.pawRadiusRatio != pawRadiusRatio ||
+      old.pawsFadeAtBottom != pawsFadeAtBottom ||
+      old.dog != dog;
 }
 
 /// La tête de chien de la maquette (viewBox 0 0 48 48, tracés du bloc

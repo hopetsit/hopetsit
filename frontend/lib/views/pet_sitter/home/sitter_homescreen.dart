@@ -40,6 +40,7 @@ import 'package:hopetsit/utils/apply_distance617.dart';
 import 'package:hopetsit/views/shared/widgets/city_picker_sheet.dart';
 import 'package:hopetsit/views/shared/widgets/home_empty_kit.dart';
 import 'package:hopetsit/views/shared/widgets/home_hero3110.dart';
+import 'package:hopetsit/views/shared/widgets/home640_kit.dart';
 import 'package:hopetsit/views/shared/widgets/provider_home3110.dart';
 // v571 — actions de l'état vide : profil du rôle, invitation, boutique.
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
@@ -320,18 +321,30 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   /// v441 — filtre distance (Haversine via Geolocator.distanceBetween) des
   /// annonces owner autour de l'ancre « Autour de moi », dans le rayon courant.
   /// Toujours actif (le slider est en permanence visible, comme l'accueil
-  /// owner). Tolérance : une annonce SANS coordonnées GPS reste affichée — on
-  /// ne masque pas un owner qui n'a pas saisi son adresse précise.
+  /// owner). 640 : une annonce SANS coordonnées GPS reste gardée ici — c'est
+  /// le serveur qui retire celles dont la ville est vraiment loin
+  /// (voir [keepPostForAnchor640] et `kFeedNoCoordsStrict640`).
   List<PostModel> _filterByRadius(List<PostModel> source) {
     final anchor = _effectiveAnchor;
     if (anchor == null) return source; // pas d'ancre → pas de filtre.
     final radiusKm = _radiusKm.clamp(_kMinRadiusKm, _kMaxRadiusKm);
+    // 640 — Daniel, en Espagne avec un rayon de 90 km, voyait une demande du
+    // Brésil : une annonce SANS coordonnées passait partout. C'est corrigé au
+    // SERVEUR (il situe la ville et retire l'annonce si elle est vraiment
+    // loin). Ici on la garde (`kFeedNoCoordsStrict640 = false`) : l'app ne
+    // sait pas situer une ville et masquerait de vraies demandes proches.
+    // Avec coordonnées : règle inchangée (Lot D — même règle que le serveur,
+    // haversine, borne inclusive).
     return source.where((post) {
-      final lat = post.location?.lat;
-      final lng = post.location?.lng;
-      if (lat == null || lng == null) return true; // tolérance sans coords.
-      // Lot D — même règle que le serveur (haversine, borne inclusive).
-      return withinRadiusKm(haversineKm(anchor.lat, anchor.lng, lat, lng), radiusKm);
+      return keepPostForAnchor640(
+        anchorLat: anchor.lat,
+        anchorLng: anchor.lng,
+        postLat: post.location?.lat,
+        postLng: post.location?.lng,
+        postCity: post.location?.city,
+        providerCity: _searchCityLabel,
+        radiusKm: radiusKm.toDouble(),
+      );
     }).toList();
   }
 
@@ -788,7 +801,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               child: Column(
                 children: [
                   // ── Hero : en-tête + bloc statut + ligne lieu ──
-                  HomeHero3110(
+                  // 640 — patte en filigrane sur le hero du promeneur
+                  // (peinte par-dessus, jamais tactile).
+                  HeroPawOverlay640(
+                    show: kProviderHome640 && _isWalkerViewer,
+                    child: HomeHero3110(
                     role: viewerRole,
                     bottomPadding: 20,
                     name: profileController.userName.value.isNotEmpty
@@ -806,13 +823,25 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        HeroStatusBlock3110(
-                          primary: tokens3110.primary,
-                          title: 'quick_action_title_provider'.tr,
-                          subtitle: _isWalkerViewer
-                              ? 'pamb3110_status_sub_walker'.tr
-                              : 'pamb3110_status_sub_sitter'.tr,
-                        ),
+                        if (kProviderHome640)
+                          HeroStatusBlock640(
+                            primary: tokens3110.primary,
+                            title: 'quick_action_title_provider'.tr,
+                            subtitle: _isWalkerViewer
+                                ? 'pamb3110_status_sub_walker'.tr
+                                : 'pamb3110_status_sub_sitter'.tr,
+                            deco: _isWalkerViewer
+                                ? HomeDeco640.dogOnLeash
+                                : null,
+                          )
+                        else
+                          HeroStatusBlock3110(
+                            primary: tokens3110.primary,
+                            title: 'quick_action_title_provider'.tr,
+                            subtitle: _isWalkerViewer
+                                ? 'pamb3110_status_sub_walker'.tr
+                                : 'pamb3110_status_sub_sitter'.tr,
+                          ),
                         HeroLocationLine3110(
                           city: _anchorCityLabel(),
                           radiusKm: _radiusKm.round(),
@@ -820,6 +849,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                         ),
                       ],
                     ),
+                  ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),

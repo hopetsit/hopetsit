@@ -64,6 +64,11 @@ Future<void> _loadFonts() async {
 }
 
 /// Les épingles à figer (clé → largeur, hauteur, peintre).
+/// 640 — marge de l'image d'un ami, comme `_photoIcon` de l'écran.
+const double _friendMargin640 = kPawFriendPhoto640
+    ? PawMapPinPainter.photoMarginFriend640
+    : PawMapPinPainter.photoMargin;
+
 final Map<String, (double, double, void Function(Canvas))> _pins = {
   'me_owner': (
     PawMapPinPainter.photoBitmapSize(PawMapLegend.meSize),
@@ -88,15 +93,20 @@ final Map<String, (double, double, void Function(Canvas))> _pins = {
         eyeOff: true,
         fallbackTint: PawMapLegend.sitter),
   ),
-  'friend_online': (
-    PawMapPinPainter.photoBitmapSize(PawMapLegend.friendSize),
-    PawMapPinPainter.photoBitmapSize(PawMapLegend.friendSize),
+  // 640 — l'ami est une PHOTO de 56 (comme « moi ») avec halo rose + cœur :
+  // image de référence `friend_online_640.png`. Coupe-circuit à false
+  // (`--dart-define=PAWMAP_FRIEND_PHOTO=false`) : rendu 639, image d'origine.
+  (kPawFriendPhoto640 ? 'friend_online_640' : 'friend_online'): (
+    PawMapPinPainter.photoBitmapSize(kPawFriendSize640, margin: _friendMargin640),
+    PawMapPinPainter.photoBitmapSize(kPawFriendSize640, margin: _friendMargin640),
     (c) => PawMapPinPainter.paintPhotoDot(c,
         avatar: null,
         ringColor: PawMapLegend.friend,
-        size: PawMapLegend.friendSize,
+        size: kPawFriendSize640,
         online: true,
         crown: true,
+        crownSize: kPawFriendCrown640,
+        margin: _friendMargin640,
         fallbackTint: PawMapLegend.friend),
   ),
   'member_owner': (

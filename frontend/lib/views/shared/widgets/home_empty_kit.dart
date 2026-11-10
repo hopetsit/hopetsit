@@ -23,6 +23,7 @@ import 'package:hopetsit/utils/apply_distance617.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/paw_tab_bar.dart' show PawGlyph;
 import 'package:hopetsit/views/shared/widgets/home_hero3110.dart';
+import 'package:hopetsit/views/shared/widgets/home640_kit.dart';
 import 'package:hopetsit/views/shared/widgets/provider_home3110.dart';
 
 /// Illustration de l'état vide : le logo PawMap posé dans un halo teinté à
@@ -482,8 +483,25 @@ class HomeTooFarCard617 extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          Icon(Icons.near_me_disabled_rounded, size: 20.sp, color: accent),
-          SizedBox(width: 10.w),
+          // 640 — l'icône « position barrée » est posée dans un carré pâle.
+          if (kProviderHome640)
+            Container(
+              key: const ValueKey<String>('home640_too_far_tile'),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(
+                Icons.near_me_disabled_rounded,
+                size: 20,
+                color: accent,
+              ),
+            )
+          else
+            Icon(Icons.near_me_disabled_rounded, size: 20.sp, color: accent),
+          SizedBox(width: kProviderHome640 ? 12.w : 10.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

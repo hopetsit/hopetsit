@@ -116,15 +116,19 @@ void main() {
     // Centre du rond (dp) dans chaque cas.
     final cyBelow = m + fs / 2;
     final cyAbove = PawMapPinPainter.photoLabelExtra + m + fs / 2;
+    // 640 — l'ami en photo porte un liseré BLANC (3) puis un anneau rose (4)
+    // autour du rond : ces lignes blanches-là ne sont pas la pastille. On
+    // regarde donc au-delà du halo (rayon + 7) ; coupe-circuit à false : 0.
+    const double edge = fs / 2 + (kPawFriendPhoto640 ? kPawFriendOut640 : 0);
     // Dessous : la pastille commence sous l'anneau (rayon 25 + 3).
-    expect(rowsBelow!.where((y) => y > cyBelow + fs / 2), isNotEmpty);
-    expect(rowsBelow.where((y) => y < cyBelow - fs / 2), isEmpty);
+    expect(rowsBelow!.where((y) => y > cyBelow + edge), isNotEmpty);
+    expect(rowsBelow.where((y) => y < cyBelow - edge), isEmpty);
     // Dessus : la pastille est ENTIÈREMENT au-dessus de l'anneau, et dans le
     // bitmap (aucune ligne blanche hors [0, h[ — trivial — mais surtout aucune
     // ligne blanche sous le rond).
-    expect(rowsAbove!.where((y) => y < cyAbove - fs / 2), isNotEmpty,
+    expect(rowsAbove!.where((y) => y < cyAbove - edge), isNotEmpty,
         reason: 'pastille attendue au-dessus du rond');
-    expect(rowsAbove.where((y) => y > cyAbove + fs / 2), isEmpty,
+    expect(rowsAbove.where((y) => y > cyAbove + edge), isEmpty,
         reason: 'aucune pastille sous le rond quand labelAbove');
     // La pastille (19,3 dp) tient au-dessus : sa 1re ligne n'est pas la ligne 0.
     expect(rowsAbove.reduce((a, b) => a < b ? a : b), greaterThan(0));

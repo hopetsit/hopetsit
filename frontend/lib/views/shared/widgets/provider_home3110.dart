@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/views/shared/widgets/home_hero3110.dart';
+import 'package:hopetsit/views/shared/widgets/home640_kit.dart';
 
 /// Carte « Rayon de recherche » : label + valeur, curseur, bornes.
 class RadiusCard3110 extends StatefulWidget {
@@ -312,21 +313,35 @@ class PillButton3110 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color fg = filled ? Colors.white : tokens.primary;
-    return Material(
-      color: filled ? tokens.primary : tokens.tintOn(context),
+    // 640 — le bouton plein porte le dégradé du rôle (maquettes de Daniel) ;
+    // `kProviderHome640 = false` → aplat `tokens.primary` d'avant.
+    final bool gradient640 = kProviderHome640 && filled;
+    final List<BoxShadow> shadow = <BoxShadow>[
+      BoxShadow(
+        color: tokens.shadowColor,
+        blurRadius: 20,
+        offset: const Offset(0, 8),
+      ),
+    ];
+    final Widget pill = Material(
+      color: gradient640
+          ? Colors.transparent
+          : (filled ? tokens.primary : tokens.tintOn(context)),
       borderRadius: BorderRadius.circular(999),
       child: Ink(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
-          boxShadow: filled
-              ? <BoxShadow>[
-                  BoxShadow(
-                    color: tokens.shadowColor,
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ]
+          gradient: gradient640
+              ? LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: <Color>[tokens.heroStart, tokens.heroEnd],
+                )
               : null,
+          // 640 : l'ombre est portée par l'enveloppe ci-dessous. Posée sur
+          // l'`Ink`, elle est rognée au rectangle du `Material` (coins pâles
+          // carrés autour de la pilule, vus sur la capture).
+          boxShadow: filled && !gradient640 ? shadow : null,
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(999),
@@ -351,6 +366,14 @@ class PillButton3110 extends StatelessWidget {
           ),
         ),
       ),
+    );
+    if (!gradient640) return pill;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: shadow,
+      ),
+      child: pill,
     );
   }
 }

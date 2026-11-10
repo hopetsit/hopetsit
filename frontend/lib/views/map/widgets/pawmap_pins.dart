@@ -1425,6 +1425,11 @@ class PawMapPinPainter {
     // l'étiquette (le bitmap garde la même taille, voir photoBitmapSize).
     final c = Offset(margin + r, margin + r + (labelAbove && hasLabel ? photoLabelZoneFor(margin) : 0));
     final bool isFriend = ringColor == PawMapLegend.friend;
+    // 640 — ami en photo « comme le site » (voir [kPawFriendPhoto640]).
+    final bool f640 = kPawFriendPhoto640 && isFriend;
+    // 640 — pas de coche sur la photo d'un ami (comme la pastille 639) : le
+    // point « en ligne » reste en bas à droite, le cœur garde le haut-gauche.
+    final bool showVerified = verified && (!f640 || kPawPinVerified639);
     final bool isMe = !isFriend &&
         (dashedRing || eyeOff || size >= PawMapLegend.meSize);
     final double maxR = r + margin - 0.5;
@@ -1468,6 +1473,13 @@ class PawMapPinPainter {
       drawCssGlow(canvas, c, glowR, maxR, PawMapLegend.pawFollow,
           [(8, 0, 0.92), (8, 24, 0.7)]);
       canvas.drawCircle(c, r + 3, Paint()..color = Colors.white);
+    } else if (f640) {
+      // 640 — le site : box-shadow 0 0 0 3px #fff, 0 0 0 7px #ff5ad2,
+      // 0 0 18px 6px rgba(255,90,210,.6). Lueur, anneau rose NET, liseré blanc.
+      drawCssGlow(canvas, c, glowR, maxR, PawPin639.friend, [(6, 18, 0.6)]);
+      canvas.drawCircle(c, r + kPawFriendOut640,
+          Paint()..color = _veil(PawPin639.friend, dimmed));
+      canvas.drawCircle(c, r + kPawFriendWhite640, Paint()..color = Colors.white);
     } else if (isFriend) {
       // v594 — Daniel (26/09) : « le halo rose oui » (l'or non, la couronne
       // suffit). Lueur rose FIXE autour de chaque ami, sous PawBoost/suivi.
@@ -1487,6 +1499,8 @@ class PawMapPinPainter {
     } else if (boostPhase != null || followPhase != null) {
       cssShadow(canvas, circle,
           dy: 2, blur: 6, color: PawMapLegend.ink.withValues(alpha: 0.35));
+    } else if (f640 && halo == PawPhotoHalo.friend) {
+      // 640 — pas d'ombre sur le liseré blanc : l'anneau rose le détache.
     } else if (isFriend || isMe) {
       cssShadow(canvas, circle,
           dy: 3, blur: 8, color: PawMapLegend.ink.withValues(alpha: 0.35));
@@ -1572,7 +1586,7 @@ class PawMapPinPainter {
     // foncé plein), jamais la même pastille pour tout le monde.
     if (online || dimmed || offlineDot) {
       final s = (size * 13 / 50).roundToDouble();
-      drawOnlineDot(canvas, pawOnlineDotCenter(c, r, s, verified: verified), s,
+      drawOnlineDot(canvas, pawOnlineDotCenter(c, r, s, verified: showVerified), s,
           online: online && !dimmed);
     }
     if (boostPhase != null) {
@@ -1582,7 +1596,7 @@ class PawMapPinPainter {
           canvas, Offset(c.dx - (r + l - s / 2), c.dy + r + b - s / 2), s);
     }
     // 609 — coche en bas à droite, jamais sous la fusée ni la couronne.
-    if (verified) {
+    if (showVerified) {
       drawVerifiedBadge(canvas, pawVerifiedBadgeCenter(c, r));
     }
     if (eyeOff) {
@@ -1590,6 +1604,12 @@ class PawMapPinPainter {
     }
     if (crown) {
       _crownAt(canvas, c, r, crownSize);
+    }
+    // 640 — le cœur : seulement quand le halo AFFICHÉ est celui d'ami (pas
+    // sous PawBoost, suivi en direct ni PawFollow). Haut-gauche, à cheval sur
+    // l'anneau rose — le coin opposé à la couronne.
+    if (f640 && halo == PawPhotoHalo.friend) {
+      drawHeartBadge640(canvas, pawFriendHeartCenter640(c, r));
     }
     if (pin618 > 0) drawPin618(canvas, Offset(c.dx - r, c.dy), pin618);
 
@@ -1603,8 +1623,14 @@ class PawMapPinPainter {
                   : PawPinLabelStyle.name);
       // Haut de la pastille : sous le rond (+3 / +4), ou au-dessus (sa
       // hauteur + 3 au-dessus de l'anneau).
-      double top(double gap, double height) =>
-          labelAbove ? c.dy - r - 3 - height : c.dy + r + gap;
+      // 640 — sous (ou sur) l'anneau rose d'un ami, pas dedans. Même écart
+      // sous PawBoost ou suivi : l'étiquette ne saute pas quand le halo
+      // change, et la place réservée par l'écran (kPawFriendLabelR640) est
+      // toujours la bonne.
+      final double out = f640 ? kPawFriendOut640 : 0;
+      double top(double gap, double height) => labelAbove
+          ? c.dy - r - out - 3 - height
+          : c.dy + r + out + gap;
       switch (style) {
         case PawPinLabelStyle.me:
           _paintPill(canvas,
@@ -1635,7 +1661,9 @@ class PawMapPinPainter {
               height: 19.3,
               padX: 9.5,
               bg: lost ? const Color(0xFFFFF4E5) : Colors.white,
-              border: lost ? PawMapLegend.owner : PawMapLegend.friend,
+              border: lost
+                  ? PawMapLegend.owner
+                  : (f640 ? PawPin639.friend : PawMapLegend.friend),
               borderW: 1.5);
           break;
         case PawPinLabelStyle.name:
@@ -1667,6 +1695,10 @@ class PawMapPinPainter {
   // gardent 22 : Google compte toute l'image comme zone de toucher, une
   // marge plus grande rendait le 1er appui moins précis (Daniel, 27/09).
   static const double photoMarginGlow = 30;
+  /// 640 — marge d'une photo d'AMI (56) sans PawBoost ni suivi : 7 de liseré
+  /// et d'anneau rose + la lueur. 26 → image de 108 pt, pas plus lourde que
+  /// l'ami d'avant le 639 (50 + 2 × 30 = 110) dans la réserve de textures iOS.
+  static const double photoMarginFriend640 = 26;
   /// Hauteur ajoutée au bitmap pour l'étiquette (sous le rond, ou au-dessus
   /// avec `labelAbove` — v598). 10 → 14 (v598) : avec la marge serrée, la
   /// queue d'ombre de la pastille touchait le bord du bitmap.
@@ -2554,6 +2586,46 @@ const bool kPawPins639 = bool.fromEnvironment('PAWMAP_PINS_V2', defaultValue: tr
 /// maquette. `false` = retour aux ronds photo d'avant le 639.
 const bool kPawFriendPastille639 = true;
 
+/// 640 (PAM, retour de Daniel du 10/11 : « les cœurs amis, ça s'affiche mal »,
+/// « ma photo de profil grande comme celle de mes amis ») — un AMI (position
+/// de profil ET partage en direct) est dessiné en PHOTO, à la taille de
+/// « Moi » (56), avec un liseré blanc 3, un anneau ROSE net 4, une lueur rose
+/// et un cœur de 20 px en haut à gauche — comme le site. `false` = retour
+/// exact à la pastille + mini cœur du 639 (essai sans toucher au code :
+/// `--dart-define=PAWMAP_FRIEND_PHOTO=false`).
+const bool kPawFriendPhoto640 =
+    bool.fromEnvironment('PAWMAP_FRIEND_PHOTO', defaultValue: true);
+
+/// La pastille d'ami du 639 n'est posée que si la photo 640 est coupée.
+const bool kPawFriendPin639 = kPawFriendPastille639 && !kPawFriendPhoto640;
+
+/// Taille de la photo d'un ami : celle de « Moi » en 640, 50 avant.
+const double kPawFriendSize640 =
+    kPawFriendPhoto640 ? PawMapLegend.meSize : PawMapLegend.friendSize;
+
+/// Largeur de ce qui entoure la photo d'un ami 640 : liseré blanc + anneau rose.
+const double kPawFriendWhite640 = 3;
+const double kPawFriendRing640 = 4;
+const double kPawFriendOut640 = kPawFriendWhite640 + kPawFriendRing640;
+
+/// Rayon RÉSERVÉ à un ami dans les collisions (ce qui se voit + 0,5) :
+/// 28 + 7 en 640 ; 25 + 2,5 avant.
+const double kPawFriendBoxR640 = kPawFriendPhoto640
+    ? PawMapLegend.meSize / 2 + kPawFriendOut640 + 0.5
+    : PawMapLegend.friendSize / 2 + 2.5;
+
+/// Rayon d'où part l'étiquette d'un ami (elle se pose 3 pt plus loin).
+const double kPawFriendLabelR640 = kPawFriendPhoto640
+    ? PawMapLegend.meSize / 2 + kPawFriendOut640
+    : PawMapLegend.friendSize / 2;
+
+/// Couronne Premium d'un ami : celle de « Moi » quand il a sa taille.
+const double kPawFriendCrown640 =
+    kPawFriendPhoto640 ? PawMapLegend.crownMe : PawMapLegend.crownFriend;
+
+/// Taille du cœur d'ami sur la photo (liseré blanc compris).
+const double kPawFriendHeart640 = 20;
+
 /// La coche « identité vérifiée » n'existe pas dans la maquette v2 : elle
 /// n'est plus dessinée sur la pastille (elle reste dans la fiche au toucher).
 /// `true` = la redessiner (petit rond bleu en bas à droite).
@@ -2561,6 +2633,42 @@ const bool kPawPinVerified639 = false;
 
 /// Images de l'onde PawFollow (1,8 s ÷ 6 = la minuterie 300 ms de la carte).
 const int kPawWaveSteps639 = 6;
+
+/// 640 (PAM, retour de Daniel du 10/11 : « la fluidité de la carte est un peu
+/// molle ») — coupe-circuit des deux allègements MESURÉS dans
+/// test/pawmap640_fluidite_test.dart (ce que la carte renvoie au moteur natif
+/// à chaque battement, carte immobile) :
+///   · la photo d'un ami boosté refaisait respirer le halo PawBoost (4 images,
+///     1,67 battement/s → 1,7 image de 88 Ko par seconde et par ami ; la
+///     pastille du 639 avait un halo FIXE → 0). Son halo est FIXE, à son
+///     plein ([kPawFriendBoostPhase640]) ;
+///   · l'onde PawFollow (6 images, 3,33 battements/s) renvoyait une image par
+///     membre PawFollow et par battement, sans plafond (20 membres → 66,7
+///     images/s, 1 120 Ko/s). Au-delà de [kPawWaveMax640] pastilles en onde,
+///     leur halo violet est FIXE (plus d'onde, plus de minuterie).
+/// `false` = comportement d'avant (essai sans toucher au code :
+/// `--dart-define=PAWMAP_SMOOTH=false`).
+const bool kPawSmooth640 = bool.fromEnvironment('PAWMAP_SMOOTH', defaultValue: true);
+
+/// Le halo PawBoost d'un ami en photo ne respire plus (voir [kPawSmooth640]).
+const bool kPawFriendBoostFixed640 = kPawSmooth640 && kPawFriendPhoto640;
+
+/// Image du halo PawBoost FIXE d'un ami (sur [kBoostPhases] = 4) : 1 →
+/// sin(π/2) = 1, halo à son plein — comme `kPawFollowHaloPhase613`.
+const int kPawFriendBoostPhase640 = 1;
+
+/// Nombre de pastilles dont l'onde PawFollow reste animée en même temps.
+const int kPawWaveMax640 = 3;
+
+/// L'onde PawFollow est-elle animée quand [waveMembers] pastilles la portent ?
+bool pawWaveAnimated640(int waveMembers) =>
+    !kPawSmooth640 || waveMembers <= kPawWaveMax640;
+
+/// Image (0…3) du halo PawBoost d'un rond photo : FIXE pour un ami 640
+/// ([fixed]), sinon l'image courante de la respiration ([running]) — 0 si
+/// l'utilisateur a réduit les animations.
+int pawBoostPhase640({required bool fixed, required bool reduceMotion, required int running}) =>
+    fixed ? kPawFriendBoostPhase640 : (reduceMotion ? 0 : running);
 
 /// Rayon du disque et du halo, en points.
 const double kPawPinDiscR639 = 16;
@@ -2894,6 +3002,42 @@ void _dot639(Canvas canvas, Offset c, double r, Paint fill,
 
 const String _kHeart639 =
     'M4 7.3C1.5 5.3 0 3.9 0 2.2C0 .9 1 0 2.2 0C2.9 0 3.6 .35 4 .9C4.4 .35 5.1 0 5.8 0C7 0 8 .9 8 2.2C8 3.9 6.5 5.3 4 7.3Z';
+
+/// 640 — centre du cœur d'un ami en photo : en haut à gauche, à 45°, à cheval
+/// sur le liseré blanc et l'anneau rose (le coin opposé à la couronne).
+Offset pawFriendHeartCenter640(Offset c, double r) {
+  final double d = (r + kPawFriendWhite640) * math.sqrt1_2;
+  return Offset(c.dx - d, c.dy - d);
+}
+
+/// 640 — cœur d'ami de [size] px (liseré blanc 1,5 compris) : dégradé
+/// #F73CC0 → #D9159F à 160°, reflet, cœur blanc. Même dessin que le badge de
+/// la pastille 639, en plus grand : lisible à bout de bras.
+void drawHeartBadge640(Canvas canvas, Offset c,
+    {double size = kPawFriendHeart640}) {
+  final double r = size / 2 - 1.5;
+  final rect = Rect.fromCircle(center: c, radius: r);
+  _dot639(
+      canvas,
+      c,
+      r,
+      Paint()
+        ..shader = PawMapPinPainter.cssLinear(
+            rect, 160, const [PawPin639.heartA, PawPin639.heartB]),
+      shadowBlur: 3,
+      shadow: const Color(0x7378005A));
+  canvas.drawPath(
+      Path.combine(PathOperation.difference, _circle639(c, r),
+          _circle639(c.translate(0, 1), r)),
+      Paint()..color = const Color(0x59FFFFFF));
+  // Cœur du 639 (boîte 8 × 7,3) agrandi : 59 % du disque.
+  final double k = r * 1.18 / 8;
+  canvas.save();
+  canvas.translate(c.dx - 4 * k, c.dy - 3.65 * k + 0.3);
+  canvas.scale(k);
+  canvas.drawPath(PawSvgPath.parse(_kHeart639), Paint()..color = Colors.white);
+  canvas.restore();
+}
 
 /// Étoile à 5 branches inscrite dans un carré de côté [size].
 Path pawStarPath639(Offset c, double size) {

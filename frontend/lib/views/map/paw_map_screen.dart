@@ -5012,7 +5012,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     final cached = _markersByPhase[phase];
     if (cached != null) return cached;
     final sw = kDebugMode ? (Stopwatch()..start()) : null; // 616 — mesure
-    final built = _applyLayout607(_buildMarkers());
+    final built = _applyLayout607(_buildMarkers640());
     if (sw != null) PawMapScreen.debugLastBuildUs616 = sw.elapsedMicroseconds;
     return _markersByPhase[phase] = built;
   }
@@ -5138,6 +5138,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     bool dashedRing = false,
     bool eyeOff = false,
     bool boosted = false,
+    // 640 — halo PawBoost FIXE (ami en photo, voir kPawSmooth640).
+    bool boostFixed = false,
     int followPhase = -1,
     bool dimmed = false,
     IconData fallbackIcon = Icons.pets_rounded,
@@ -5158,14 +5160,24 @@ class _PawMapScreenState extends State<PawMapScreen>
     final ringsKey = (ringColors ?? const <Color>[])
         .map((c) => c.toARGB32())
         .join('-');
-    final phase = boosted ? (_reduceMotion ? 0 : _boostPhaseIdx) : -1;
+    final phase = boosted
+        ? pawBoostPhase640(
+            fixed: boostFixed, reduceMotion: _reduceMotion, running: _boostPhaseIdx)
+        : -1;
     final withLabel = label != null && label.isNotEmpty;
     final key =
         '$keyPrefix:${avatar == null ? 0 : avatarUrl.hashCode}:${ring.toARGB32()}:$size:${label ?? ''}:${crown ? 1 : 0}:${online ? 1 : 0}:${dashedRing ? 1 : 0}:${eyeOff ? 1 : 0}:$phase:$followPhase:${dimmed ? 1 : 0}:${fallbackIcon.codePoint}:$ringsKey:${withBubble ? '$priceBubble/$priceRole' : ''}:${labelAbove && withLabel ? 'up' : ''}:${verified ? 'v' : ''}${offlineDot ? 'o' : ''}:p$pin618';
     // v594 — la bulle duo gardien/promeneur est plus large que le rond : le
     // bitmap s'élargit des deux côtés (le rond reste centré, ancre x = 0,5).
     // v594 — grande marge seulement pour les ronds à halo (voir photoMarginGlow).
-    final double m = (boosted ||
+    // 640 — photo d'ami (56) sans PawBoost ni suivi : marge 26 (image de
+    // 108 pt, pas plus lourde que l'ami d'avant le 639).
+    final double m = (kPawFriendPhoto640 &&
+            ring == PawMapLegend.friend &&
+            !boosted &&
+            followPhase < 0)
+        ? PawMapPinPainter.photoMarginFriend640
+        : (boosted ||
             followPhase >= 0 ||
             ring == PawMapLegend.friend ||
             (ringColors ?? const <Color>[]).toSet().length > 1)
@@ -5256,7 +5268,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       pawHalo639(
           boosted: _boosted639(p),
           pawFollow: p['hasPawFollow'] == true,
-          isFriend: _isFriend639(p) && kPawFriendPastille639) !=
+          isFriend: _isFriend639(p) && kPawFriendPin639) !=
       PawHalo639.none;
 
   /// Note du rôle [role] de la personne — seulement avec de vrais avis.
@@ -5285,7 +5297,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     final roles = pawMapPersonRoles(p);
     final halo = pawHalo639(
         boosted: boosted, pawFollow: p['hasPawFollow'] == true, isFriend: isFriend);
-    final bool wave = halo == PawHalo639.follow && !_reduceMotion;
+    final bool wantWave = halo == PawHalo639.follow && !_reduceMotion;
+    if (wantWave) _waveWanted640++;
+    // 640 — trop d'ondes à la fois : halo violet fixe (voir kPawSmooth640).
+    final bool wave = wantWave && _waveOk640;
     if (wave) _anyLive2610 = true; // minuterie de l'onde
     return PawPinSpec639(
       roles: roles,
@@ -5298,6 +5313,22 @@ class _PawMapScreenState extends State<PawMapScreen>
       caption: caption,
       captionAbove: captionAbove,
     );
+  }
+
+  /// 640 — pastilles qui porteraient l'onde PawFollow (dernière passe) et
+  /// décision : onde animée, ou halo fixe au-delà de [kPawWaveMax640].
+  int _waveWanted640 = 0;
+  bool _waveOk640 = true;
+
+  /// 640 — une passe de marqueurs ; si le nombre d'ondes fait changer la
+  /// décision (animée ↔ fixe), la passe est refaite UNE fois avec la bonne.
+  Set<Marker> _buildMarkers640() {
+    var m = _buildMarkers();
+    if (_waveOk640 != pawWaveAnimated640(_waveWanted640)) {
+      _waveOk640 = !_waveOk640;
+      m = _buildMarkers();
+    }
+    return m;
   }
 
   BitmapDescriptor _pin639Icon(PawPinSpec639 spec, {String? slot}) {
@@ -5661,7 +5692,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       final PawPinSpec639? spec639 = kPawPins639
           ? _spec639(p,
               boosted: _boosted639(p),
-              isFriend: _isFriend639(p) && kPawFriendPastille639,
+              isFriend: _isFriend639(p) && kPawFriendPin639,
               focused: focused)
           : null;
       final icon = spec639 != null
@@ -6200,6 +6231,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     Map<String, Offset>? reqShifts622;
     _anyBoosted = false;
     _anyLive2610 = false; // 623
+    _waveWanted640 = 0; // 640
     if (kDebugMode) PawMapScreen.debugBuilds2610++;
     if (kDebugMode) PawMapScreen.debugHidden625 = 0; // 625
     if (kDebugMode) PawMapScreen.debugBubble2610 = const <String>[];
@@ -6478,7 +6510,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           // 639 — groupe et pastille : 32 pt (+ filet) ; avec halo : 43 pt.
           if (g.length > 1) return pawPinBox639();
           final bool fr639 = isFriendMember(g.first);
-          if (!fr639 || kPawFriendPastille639) {
+          if (!fr639 || kPawFriendPin639) {
             return pawPinBox639(halo: fr639 || _hasHalo639(g.first));
           }
         }
@@ -6496,7 +6528,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               labelGap: 1);
         }
         final p = g.first;
-        if (isFriendMember(p)) return pawPinBox(PawMapLegend.friendSize / 2 + 2.5);
+        if (isFriendMember(p)) return pawPinBox(kPawFriendBoxR640);
         final name = (p['name'] ?? '').toString();
         final bool crown622 = p['isPremium'] == true && _showPremiumLayer.value;
         final bool boost622 = p['isBoosted'] == true ||
@@ -6565,7 +6597,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             for (final fp in _liveMap.friendPositions.values)
               if (fp.liveState != FriendLiveState.seen)
                 PawPlacedBox(px622(LatLng(fp.latitude, fp.longitude)),
-                    pawPinBox(PawMapLegend.friendSize / 2 + 2.5)),
+                    pawPinBox(kPawFriendBoxR640)),
             // 623 — l'éclatement occupe son cercle : rien ne s'y pose.
             if (_spider2610 != null)
               PawPlacedBox(px622(_spider2610!.hub),
@@ -6675,7 +6707,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       for (final fp in _liveMap.friendPositions.values) {
         if (fp.liveState == FriendLiveState.seen) continue;
         fixedPx.add(pxOf(LatLng(fp.latitude, fp.longitude)));
-        fixedR.add(PawMapLegend.friendSize / 2 + 2.5);
+        fixedR.add(kPawFriendBoxR640);
       }
       final List<Offset> groupPx = <Offset>[];
       final List<double> groupR = <double>[];
@@ -6685,12 +6717,12 @@ class _PawMapScreenState extends State<PawMapScreen>
         final c = pxOf(_anchor625<Map<String, dynamic>>(g, (p) => posOfMember(p)!));
         final bool fr = g.length == 1 && isFriendMember(g.first);
         // 639 — pastille v2 : 17 pt de rayon, 22 pt avec un halo.
-        final bool v2r = kPawPins639 && (!fr || kPawFriendPastille639);
+        final bool v2r = kPawPins639 && (!fr || kPawFriendPin639);
         final double r639 =
             g.length == 1 && (fr || _hasHalo639(g.first)) ? kPawPinHaloR639 + 0.5 : 17;
         if (fr) {
           fixedPx.add(c);
-          fixedR.add(v2r ? r639 : PawMapLegend.friendSize / 2 + 2.5);
+          fixedR.add(v2r ? r639 : kPawFriendBoxR640);
         }
         groupPx.add(c);
         groupIsFriend.add(fr);
@@ -6699,7 +6731,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             : (g.length > 1
                 ? 24.5
                 : (fr
-                    ? PawMapLegend.friendSize / 2 + 2
+                    ? kPawFriendBoxR640 - 0.5
                     // 607 — au zoom rue le prénom pend sous le rond : on le compte.
                     : PawMapLegend.memberSize / 2 + 1 + (showPrice ? 10 : 0))));
       }
@@ -6720,7 +6752,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       // rue son étiquette est dessinée dessous : « Moi » se posait dessus.
       final bool friendLabels613 = _pinZoom >= _priceZoom;
       final Rect friendBox = pawFriendBox613(
-        PawMapLegend.friendSize / 2 + 2.5,
+        kPawFriendBoxR640,
         labelW: friendLabels613
             ? _liveMap.friendPositions.values
                 .map((p) => PawMapPinPainter.photoLabelWidth(pawMapShortName(p.name)) - 8)
@@ -6870,8 +6902,12 @@ class _PawMapScreenState extends State<PawMapScreen>
         final bool isFriend = p['isFriend'] == true ||
             _friendController.isFriendWithAny(pawMapPersonIds(p));
         // 639 — pastille v2 : le halo PawBoost est FIXE (plus de battement).
-        final bool v2 = kPawPins639 && (!isFriend || kPawFriendPastille639);
-        if (boosted && !v2) _anyBoosted = true;
+        final bool v2 = kPawPins639 && (!isFriend || kPawFriendPin639);
+        // 640 — ami en photo : halo PawBoost FIXE lui aussi (mesuré : sa
+        // respiration renvoyait 1,7 image/s au moteur de la carte).
+        if (boosted && !v2 && !(isFriend && kPawFriendBoostFixed640)) {
+          _anyBoosted = true;
+        }
         // v590 — handoff §1 : prix de l'autre côté du marché seulement.
         // v594 — gardien + promeneur : UNE bulle duo bleu/vert (Daniel 26/09).
         // 607 (PAM) — captures de Daniel à Dallas, zoom ville : aucune bulle
@@ -6975,14 +7011,14 @@ class _PawMapScreenState extends State<PawMapScreen>
             final double lw = PawMapPinPainter.photoLabelWidth(rawFriendLabel) - 8;
             side = pawPickLabelSide(
               center: groupPx[groupIdx],
-              radius: PawMapLegend.friendSize / 2,
+              radius: kPawFriendLabelR640,
               width: lw,
               obstacles: obstaclesBut(groupIdx),
               allowAbove: bubble == null,
             );
             if (side != PawLabelSide.none) {
               placedLabels.add(
-                  pawLabelRect(groupPx[groupIdx], PawMapLegend.friendSize / 2, lw, side));
+                  pawLabelRect(groupPx[groupIdx], kPawFriendLabelR640, lw, side));
             }
           }
           final String friendLabel =
@@ -6992,7 +7028,8 @@ class _PawMapScreenState extends State<PawMapScreen>
             keyPrefix: 'friend:$id',
             avatarUrl: avatar,
             ring: PawMapLegend.friend,
-            size: PawMapLegend.friendSize,
+            size: kPawFriendSize640,
+            crownSize: kPawFriendCrown640,
             label: friendLabel.isEmpty ? null : friendLabel,
             // v592 — ami à plusieurs rôles : rose puis les anneaux de ses rôles (web).
             ringColors: roleRings.length > 1 ? roleRings : null,
@@ -7008,12 +7045,13 @@ class _PawMapScreenState extends State<PawMapScreen>
             offlineDot: true, // 616 — orange plein hors ligne
             verified: verified, // 609
             boosted: boosted,
+            boostFixed: kPawFriendBoostFixed640, // 640
             fallbackIcon: PawMapLegend.roleIcon(role),
             fallbackTint: PawMapLegend.roleColor(role),
             labelAbove: friendLabelAbove,
             pin618: pin618,
           );
-          anchor = _photoAnchor(PawMapLegend.friendSize,
+          anchor = _photoAnchor(kPawFriendSize640,
               withLabel: friendLabel.isNotEmpty,
               withBubble: bubble != null,
               labelAbove: friendLabelAbove);
@@ -7133,7 +7171,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             anchor: pawShiftedAnchor612(
                 pawFriendBadgeAnchor610(v2
                     ? kPawPinHaloR639
-                    : (isFriend ? PawMapLegend.friendSize : PawMapLegend.memberSize) / 2),
+                    : (isFriend ? kPawFriendLabelR640 : PawMapLegend.memberSize / 2)),
                 singleShift,
                 width: kPm610BadgeSize,
                 height: kPm610BadgeSize),
@@ -7384,7 +7422,8 @@ class _PawMapScreenState extends State<PawMapScreen>
         // « direct » ne savait pas que la personne est boostée.
         final bool liveBoosted = _personBoosted(pos.userId) ||
             (friend?.other?.personIds ?? const <String>[]).any(_personBoosted);
-        if (liveBoosted) _anyBoosted = true;
+        // 640 — halo FIXE sur la photo d'un ami (voir kPawSmooth640).
+        if (liveBoosted && !kPawFriendBoostFixed640) _anyBoosted = true;
         markers.add(
           Marker(
             markerId: MarkerId('friend_${pos.userId}'),
@@ -7396,7 +7435,8 @@ class _PawMapScreenState extends State<PawMapScreen>
               keyPrefix: 'live:${pos.userId}',
               avatarUrl: avatarUrl,
               ring: PawMapLegend.friend,
-              size: PawMapLegend.friendSize,
+              size: kPawFriendSize640,
+              crownSize: kPawFriendCrown640,
               crown: isPremiumMember,
               online: pos.isLive,
               // Signal perdu : rond « éteint » à la couleur du rôle, jamais gris.
@@ -7404,6 +7444,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               // v597 — le halo PawBoost reste visible en « signal perdu »
               // (Daniel : capture du 27/09, halo absent sur le rond éteint).
               boosted: liveBoosted,
+              boostFixed: kPawFriendBoostFixed640, // 640
               // v584 — auréole violette qui respire sur la personne SUIVIE.
               // v605 — Daniel : « t'es pas violet ». La personne que JE
               // suis est violette même boostée (pickPhotoHalo), et « je la
@@ -7419,7 +7460,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               fallbackTint: PawMapLegend.roleColor(role),
             ),
             anchor: _anchorShift(
-                _photoAnchor(PawMapLegend.friendSize,
+                _photoAnchor(kPawFriendSize640,
                     withLabel: _pinZoom >= _priceZoom || _focusTapId == pos.userId),
                 _followedByMe(pos)
                     ? Offset.zero

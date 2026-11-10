@@ -272,7 +272,7 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
     add('friends_only', t: 'help2709_mefr_t', b: 'help2709_mefr_b', c: PawMapLegend.ink);
     rows.add(_pinRow(_friendEntry(),
         title: 'help2709_friend_t'.tr,
-        help: 'help2709_friend_b'.tr,
+        help: (kPawFriendPhoto640 ? 'help640_friend_b' : 'help2709_friend_b').tr,
         color: PawMapLegend.friend));
     for (final r in const ['owner', 'sitter', 'walker']) {
       add('member_$r', c: PawMapLegend.roleColor(r));
@@ -764,19 +764,24 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
 /// Ami : halo rose, contour bicolore gardien + promeneur (ses rôles), point
 /// vert « en ligne » — comme `photoPinHtml({roles:[sitter,walker]})` du site.
 PawLegendEntry _friendEntry() {
-  const s = PawMapLegend.friendSize;
+  // 640 — photo à la taille de « Moi », halo rose net + cœur (comme la carte).
+  const s = kPawFriendSize640;
+  const m = kPawFriendPhoto640
+      ? PawMapPinPainter.photoMarginFriend640
+      : PawMapPinPainter.photoMargin;
   return PawLegendEntry(
     key: 'friend',
     label: 'help2709_friend_t'.tr,
-    width: PawMapPinPainter.photoBitmapSize(s),
-    height: PawMapPinPainter.photoBitmapSize(s),
+    width: PawMapPinPainter.photoBitmapSize(s, margin: m),
+    height: PawMapPinPainter.photoBitmapSize(s, margin: m),
     paint: (c) => PawMapPinPainter.paintPhotoDot(c,
         avatar: null,
         ringColor: PawMapLegend.friend,
         ringColors: const [PawMapLegend.sitter, PawMapLegend.walker],
         size: s,
         online: true,
-        fallbackTint: PawMapLegend.friend),
+        fallbackTint: PawMapLegend.friend,
+        margin: m),
   );
 }
 

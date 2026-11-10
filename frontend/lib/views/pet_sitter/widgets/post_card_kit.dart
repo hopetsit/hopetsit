@@ -14,6 +14,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/paw_icons.dart';
 
 /// Jetons de design de la carte d'annonce (rayons, cibles tactiles).
 class PostCardKit {
@@ -40,11 +41,16 @@ class PostTypeChip extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.color,
+    this.outlined = false,
   });
 
   final IconData icon;
   final String label;
   final Color color;
+
+  /// 640 — pastille « contour » (fond de la carte, trait marqué) des maquettes
+  /// de Daniel. `false` (défaut) → pastille teintée d'avant.
+  final bool outlined;
 
   @override
   Widget build(BuildContext context) {
@@ -52,9 +58,12 @@ class PostTypeChip extends StatelessWidget {
       constraints: BoxConstraints(maxWidth: 132.w),
       padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: outlined ? Colors.transparent : color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
+        border: Border.all(
+          color: color.withValues(alpha: outlined ? 0.60 : 0.22),
+          width: outlined ? 1.2 : 1.0,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -88,6 +97,7 @@ class PostBullet extends StatelessWidget {
     required this.value,
     required this.accent,
     this.valueColor,
+    this.squared = false,
   });
 
   final IconData icon;
@@ -95,6 +105,10 @@ class PostBullet extends StatelessWidget {
   final String value;
   final Color accent;
   final Color? valueColor;
+
+  /// 640 — icône dans un CARRÉ arrondi pâle (maquettes de Daniel) au lieu de
+  /// la pastille ronde. `false` (défaut) → rendu d'avant.
+  final bool squared;
 
   @override
   Widget build(BuildContext context) {
@@ -106,10 +120,15 @@ class PostBullet extends StatelessWidget {
           Container(
             width: 28.w,
             height: 28.w,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.10),
-              shape: BoxShape.circle,
-            ),
+            decoration: squared
+                ? BoxDecoration(
+                    color: accent.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(9.r),
+                  )
+                : BoxDecoration(
+                    color: accent.withValues(alpha: 0.10),
+                    shape: BoxShape.circle,
+                  ),
             child: Icon(icon, size: 15.sp, color: accent),
           ),
           SizedBox(width: 10.w),
@@ -567,6 +586,178 @@ class PostBlock extends StatelessWidget {
             SizedBox(height: 8.h),
           ],
           child,
+        ],
+      ),
+    );
+  }
+}
+
+
+/// 640 — panneau de l'animal sur la carte d'annonce vue par le gardien / le
+/// promeneur (maquettes de Daniel) : rond « patte », nom en gras à la couleur
+/// du rôle, « Race • âge », pastille de sexe, et la photo de l'animal à droite
+/// avec une patte en filigrane. Sans photo (ou photo qui ne charge pas) : une
+/// tuile pâle avec la patte — jamais un cadre vide.
+///
+/// Design uniquement : libellés déjà traduits, image fournie par l'appelant.
+/// Le panneau n'est pas tactile par lui-même (l'appelant l'enveloppe).
+class PostPetPanel640 extends StatelessWidget {
+  const PostPetPanel640({
+    super.key,
+    required this.name,
+    required this.accent,
+    this.meta = '',
+    this.sexLabel = '',
+    this.photo,
+  });
+
+  final String name;
+  final Color accent;
+
+  /// « Race • âge » (vide = ligne absente).
+  final String meta;
+
+  /// « Mâle » / « Femelle » (vide = pastille absente).
+  final String sexLabel;
+
+  /// Photo de l'animal (null = tuile à patte).
+  final ImageProvider? photo;
+
+  Widget _placeholder() {
+    return ColoredBox(
+      color: accent.withValues(alpha: 0.10),
+      child: Center(
+        child: PawIconWidget(
+          PawIcon.paw,
+          size: 34.w,
+          color: accent.withValues(alpha: 0.45),
+          fill: accent.withValues(alpha: 0.22),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double photoSide = 76.w;
+    return Container(
+      padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 12.h),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(PostCardKit.blockRadius.r),
+        border: Border.all(color: accent.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 34.w,
+                      height: 34.w,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.14),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: PawIconWidget(
+                        PawIcon.paw,
+                        size: 18.w,
+                        color: accent,
+                        fill: accent.withValues(alpha: 0.30),
+                      ),
+                    ),
+                    SizedBox(width: 9.w),
+                    Expanded(
+                      child: InterText(
+                        text: name,
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w800,
+                        color: accent,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                if (meta.isNotEmpty) ...[
+                  SizedBox(height: 8.h),
+                  InterText(
+                    text: meta,
+                    fontSize: 11.5.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary(context),
+                    maxLines: 2,
+                  ),
+                ],
+                if (sexLabel.isNotEmpty) ...[
+                  SizedBox(height: 7.h),
+                  Container(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 9.w, vertical: 3.h),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20.r),
+                    ),
+                    child: InterText(
+                      text: sexLabel,
+                      fontSize: 10.5.sp,
+                      fontWeight: FontWeight.w700,
+                      color: accent,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          SizedBox(width: 10.w),
+          SizedBox(
+            key: const ValueKey<String>('post640_pet_photo'),
+            width: photoSide,
+            height: photoSide,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Patte en filigrane, derrière la photo, qui dépasse en haut à
+                // droite (décor, jamais tactile).
+                Positioned(
+                  top: -9.w,
+                  right: -7.w,
+                  child: IgnorePointer(
+                    child: ExcludeSemantics(
+                      child: Transform.rotate(
+                        angle: 0.42,
+                        child: PawIconWidget(
+                          PawIcon.paw,
+                          size: 30.w,
+                          color: accent.withValues(alpha: 0.26),
+                          fill: accent.withValues(alpha: 0.16),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18.r),
+                    child: photo == null
+                        ? _placeholder()
+                        : Image(
+                            image: photo!,
+                            fit: BoxFit.cover,
+                            gaplessPlayback: true,
+                            errorBuilder: (_, __, ___) => _placeholder(),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

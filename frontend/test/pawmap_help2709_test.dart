@@ -6,7 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hopetsit/localization/v565/help587_i18n.dart';
+import 'package:hopetsit/localization/v565/pawmap640_i18n.dart';
 import 'package:hopetsit/views/map/pawmap_help_screen.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_pins.dart'
+    show kPawFriendPhoto640;
 
 import 'lotd_harness.dart';
 
@@ -50,9 +53,14 @@ void main() {
           final t = help587I18n[lang]!;
           expect(find.byKey(const ValueKey<String>('help_privacy')), findsOneWidget);
           for (final k in _newKeys) {
+            // 640 — l'ami est dessiné en photo (halo rose + cœur) : son texte
+            // d'aide devient `help640_friend_b`. Coupe-circuit à false : 639.
+            final String text = (k == 'help2709_friend_b' && kPawFriendPhoto640)
+                ? pawmap640I18n[lang]!['help640_friend_b']!
+                : t[k]!;
             // 619 — « PawFollow » (help2709_follow_t) apparaît aussi dans la
             // nouvelle carte « abonnements expliqués » : au moins une fois.
-            expect(find.text(t[k]!, skipOffstage: false), findsAtLeastNWidgets(1), reason: k);
+            expect(find.text(text, skipOffstage: false), findsAtLeastNWidgets(1), reason: k);
           }
           expect(find.byKey(const ValueKey<String>('help_roles'), skipOffstage: false),
               findsOneWidget);

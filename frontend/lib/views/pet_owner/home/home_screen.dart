@@ -24,6 +24,7 @@ import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/owner_home_kit.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/owner_home3110.dart';
 import 'package:hopetsit/views/shared/widgets/home_hero3110.dart';
+import 'package:hopetsit/views/shared/widgets/home640_kit.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/utils/publish_draft600.dart' show profileCity600;
 import 'package:hopetsit/services/supply_city600.dart' show fetchSupplyTotal600;
@@ -325,6 +326,20 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildActionCards(BuildContext context) {
     // PAM-B 3110 — cartes « Garde » / « Promenade » des maquettes ; mêmes
     // actions, même règle « compacte dès qu'une annonce existe ».
+    // BUILD 640 — mêmes actions, mêmes clés, même règle compact / grand ;
+    // seul le dessin change (maquette de Daniel). `kOwnerHomeCards640` à
+    // `false` → cartes du 31/10.
+    if (kOwnerHomeCards640) {
+      return OwnerServiceCards640(
+        compact: _myPostsCount() > 0,
+        sittingTitle: 'pamb3110_card_sitting'.tr,
+        walkingTitle: 'pamb3110_card_walking'.tr,
+        sittingSubtitle: 'ownerhome571_action_sitting'.tr,
+        walkingSubtitle: 'ownerhome571_action_walking'.tr,
+        onSitting: () => _openPublishRequest(serviceType: kServiceSitting),
+        onWalking: () => _openPublishRequest(serviceType: kServiceWalking),
+      );
+    }
     return ServiceCards3110(
       compact: _myPostsCount() > 0,
       sittingSubtitle: 'ownerhome571_action_sitting'.tr,

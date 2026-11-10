@@ -11,6 +11,8 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/post_price_estimator.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/post_card_kit.dart';
+import 'package:hopetsit/views/shared/widgets/home640_kit.dart'
+    show kProviderHome640;
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -215,6 +217,12 @@ class PetPostCard extends StatelessWidget {
   bool get _isSitterView => (viewerRole ?? '').toLowerCase() == 'sitter';
   bool get _isProviderView => _isWalkerView || _isSitterView;
 
+  /// 640 (PAM) — habillage des maquettes de Daniel, UNIQUEMENT pour la carte
+  /// vue par le gardien / le promeneur (liseré à la couleur du rôle, pastille
+  /// contour, puces carrées, panneau de l'animal). Aucune action ne change.
+  /// `kProviderHome640 = false` → rendu d'avant.
+  bool get _dress640 => kProviderHome640 && _isProviderView;
+
   // ── v569 — en-tête, pastille de type et bouton principal ─────────────────
 
   /// Ligne de contexte sous le nom du propriétaire :
@@ -249,6 +257,7 @@ class PetPostCard extends StatelessWidget {
         icon: Icons.door_front_door_outlined,
         label: 'post569_type_visit'.tr,
         color: const Color(0xFFE8920A),
+        outlined: _dress640,
       );
     }
     final walkColor = const Color(0xFF16A34A);
@@ -259,6 +268,7 @@ class PetPostCard extends StatelessWidget {
         icon: Icons.directions_walk_rounded,
         label: 'post569_type_walk'.tr,
         color: walkColor,
+        outlined: _dress640,
       );
     }
     if (serviceColor == sitColor) {
@@ -266,12 +276,14 @@ class PetPostCard extends StatelessWidget {
         icon: Icons.home_rounded,
         label: 'post569_type_sitting'.tr,
         color: sitColor,
+        outlined: _dress640,
       );
     }
     return PostTypeChip(
       icon: Icons.pets_rounded,
       label: 'post569_type_generic'.tr,
       color: _accent,
+      outlined: _dress640,
     );
   }
 
@@ -344,7 +356,10 @@ class PetPostCard extends StatelessWidget {
             width: 2.w,
           )
         : Border.all(
-            color: AppColors.divider(context).withValues(alpha: 0.35),
+            // 640 — fin liseré à la couleur du rôle côté prestataire.
+            color: _dress640
+                ? _accent.withValues(alpha: 0.24)
+                : AppColors.divider(context).withValues(alpha: 0.35),
             width: 1.w,
           );
     // v23.1 part 232 — Daniel : "sa surrame le scroll est au ralenti".
@@ -880,7 +895,14 @@ class PetPostCard extends StatelessWidget {
               if (i > 0) SizedBox(width: 12.w),
               Expanded(
                 child: _wrapPetTap(
-                    pets![i], _buildPetStripCard(context, pets![i])),
+                  pets![i],
+                  // 640 — un seul animal : panneau large avec la photo à
+                  // droite. Plusieurs animaux côte à côte : la tuile étroite
+                  // d'avant (le panneau n'y tiendrait pas).
+                  _dress640 && pets!.length == 1
+                      ? _buildPetPanel640(context, pets![i])
+                      : _buildPetStripCard(context, pets![i]),
+                ),
               ),
             ],
           ],
@@ -960,6 +982,24 @@ class PetPostCard extends StatelessWidget {
       onTap: () => onPetTap!(id),
       borderRadius: BorderRadius.circular(14.r),
       child: child,
+    );
+  }
+
+  /// 640 — panneau de l'animal (un seul animal, vue prestataire) : mêmes
+  /// données que [_buildPetStripCard], présentées comme sur les maquettes.
+  Widget _buildPetPanel640(BuildContext context, PostPet p) {
+    final metaParts = <String>[
+      if (p.breed.trim().isNotEmpty) p.breed.trim(),
+      if (p.age != null) _ageLabel(p.age!),
+    ];
+    return PostPetPanel640(
+      name: p.petName,
+      accent: _accent,
+      meta: metaParts.join(' • '),
+      sexLabel: _sexLabel(p.sex),
+      photo: p.avatar.isNotEmpty
+          ? CachedNetworkImageProvider(p.avatar, maxWidth: 300)
+          : null,
     );
   }
 
@@ -1671,6 +1711,7 @@ class PetPostCard extends StatelessWidget {
       // v443 — texte du Service coloré par type (bleu sitting / vert
       // promenade) ; sinon couleur de texte par défaut.
       valueColor: valueColor,
+      squared: _dress640,
     );
   }
 

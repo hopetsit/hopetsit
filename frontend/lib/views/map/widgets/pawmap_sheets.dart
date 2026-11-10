@@ -1701,6 +1701,11 @@ PawLegendEntry _legendPin639(String key, String label, PawPinSpec639 spec) {
   );
 }
 
+/// 640 — marge de la ligne « ami » de la légende (celle de la carte).
+const double _kFriendLegendMargin640 = kPawFriendPhoto640
+    ? PawMapPinPainter.photoMarginFriend640
+    : PawMapPinPainter.photoMargin;
+
 /// Les entrées de la légende, dans l'ordre de LEGENDE_PAWMAP.md.
 List<PawLegendEntry> pawLegendEntries() {
   return [
@@ -1716,17 +1721,20 @@ List<PawLegendEntry> pawLegendEntries() {
           label: 'pawmap_me_label'.tr,
           crownSize: PawMapLegend.crownMe),
     ),
+    // 640 — l'ami en PHOTO, à la taille de « Moi » : halo rose net + cœur
+    // (même peintre que la carte ; à false : le rond de 50 d'avant).
     PawLegendEntry(
       key: 'friend',
-      label: 'pawmap_legend_friend'.tr,
-      width: PawMapPinPainter.photoBitmapSize(PawMapLegend.friendSize),
-      height: PawMapPinPainter.photoBitmapSize(PawMapLegend.friendSize),
+      label: (kPawFriendPhoto640 ? 'pawmap640_legend_friend' : 'pawmap_legend_friend').tr,
+      width: PawMapPinPainter.photoBitmapSize(kPawFriendSize640, margin: _kFriendLegendMargin640),
+      height: PawMapPinPainter.photoBitmapSize(kPawFriendSize640, margin: _kFriendLegendMargin640),
       paint: (c) => PawMapPinPainter.paintPhotoDot(c,
           avatar: null,
           ringColor: PawMapLegend.friend,
-          size: PawMapLegend.friendSize,
+          size: kPawFriendSize640,
           online: true,
-          fallbackTint: PawMapLegend.friend),
+          fallbackTint: PawMapLegend.friend,
+          margin: _kFriendLegendMargin640),
     ),
     for (final role in const ['owner', 'sitter', 'walker'])
       if (kPawPins639)

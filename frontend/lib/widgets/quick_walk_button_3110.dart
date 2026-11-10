@@ -44,6 +44,8 @@ import 'package:hopetsit/services/open_on_prefs_3110.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_live_sheet.dart'
     show showPawLiveSheet;
+import 'package:hopetsit/views/map/widgets/pawmap_walk_jewel.dart'
+    show PawWalkJewelPainter;
 import 'package:hopetsit/widgets/paw_tab_bar.dart'
     show kPawTabBarPillHeight, kPawTabBarBottomMargin;
 
@@ -82,6 +84,11 @@ const double kQuickWalkSideMargin3110 = 16;
 // 634 — 46 → 26 : le petit rond se pose juste au-dessus du logo Google.
 const double kQuickWalkAboveBar3110 =
     kPawTabBarPillHeight + kPawTabBarBottomMargin + 26;
+
+/// 640 — COUPE-CIRCUIT du nouveau dessin (celui de la 639, partagé avec
+/// `PawWalkJewel`). `false` = retour exact au dessin et au code de la 633.
+/// Taille, place, clés, toucher et textes sont les mêmes dans les deux cas.
+const bool kQuickWalkJewel640 = true;
 
 class QuickWalkButton3110 extends StatefulWidget {
   const QuickWalkButton3110({
@@ -176,8 +183,19 @@ class QuickWalkButton3110 extends StatefulWidget {
     );
   }
 
+  /// Tests seulement : force le dessin (`true` = 640, `false` = 633) sans
+  /// toucher à [kQuickWalkJewel640].
+  @visibleForTesting
+  static bool? debugJewel640;
+
+  // Le coupe-circuit choisit l'état AVANT la création : `false` rend la
+  // classe de la 633, intacte.
   @override
-  State<QuickWalkButton3110> createState() => _QuickWalkButton3110State();
+  State<QuickWalkButton3110> createState() =>
+      // ignore: no_logic_in_create_state
+      (debugJewel640 ?? kQuickWalkJewel640)
+      ? _QuickWalkJewelState640()
+      : _QuickWalkButton3110State();
 }
 
 class _QuickWalkButton3110State extends State<QuickWalkButton3110>
@@ -326,6 +344,534 @@ class _QuickWalkButton3110State extends State<QuickWalkButton3110>
       );
     });
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 640 — le même bouton, au dessin de la 639 (celui de `PawWalkJewel`).
+//
+// Daniel (10/11, build 639) : « le bouton balade qd il apparaît à gauche ou
+// droite n'a pas été changé par le nouveau ». Ce rond reprend donc le peintre
+// partagé `PawWalkJewelPainter` : disque vert en relief, pastille violette,
+// nouvelle tête de chien, 4 feuilles et 4 pattes en direct, plus d'anneau en
+// pointillés.
+//
+// RÈGLE DE LA MAQUETTE : on ne change QUE l'apparence. Même cadre
+// ([kQuickWalkCanvas0311]), même rond touchable ([kQuickWalkSize3110]), mêmes
+// clés, même logique de toucher, mêmes textes. Les décorations sont peintes
+// en surcouche (`IgnorePointer`) à l'intérieur du halo de la 633.
+//
+// FLUIDITÉ : avant, une balade en direct reconstruisait tout le bouton à
+// chaque image (`setState` dans un `Ticker`). Ici, les animations passent par
+// un peintre (`repaint:`) derrière un `RepaintBoundary` : aucune
+// reconstruction par image. Seuls les deux petits textes du chrono sont
+// reconstruits, une fois par seconde.
+// ─────────────────────────────────────────────────────────────────────────
+
+class _QuickWalkJewelState640 extends State<QuickWalkButton3110>
+    with TickerProviderStateMixin {
+  // ── Géométrie ─────────────────────────────────────────────────────────
+  /// Part du relief dans le diamètre du dessin (celle du peintre partagé).
+  static const double _reliefRatio = 0.055;
+
+  /// Diamètre donné au peintre : sa FACE (diamètre − relief) fait exactement
+  /// [kQuickWalkSize3110], le rond touchable. Le relief (3,6 dp) dépasse
+  /// dessous, comme l'ombre dure de la 633.
+  static const double _diameter = kQuickWalkSize3110 / (1 - _reliefRatio);
+  static const double _relief = _diameter * _reliefRatio;
+
+  /// Pastille violette : 26 dp, comme en 633 (la maquette réduit le chien
+  /// plutôt que le texte quand la place manque).
+  static const double _pastilleR = 13;
+  static const double _pastilleRatio = _pastilleR / (kQuickWalkSize3110 / 2);
+  // 1 px de la maquette de la pastille (dessinée pour 50 px).
+  static const double _u = _pastilleR * 2 / 50;
+  // Du haut du liseré (3 px maquette) au bas du petit relief (4 px).
+  static const double _pastilleBlock = _pastilleR * 2 + 3 * _u + 4 * _u;
+  static const double _pastilleTop = _pastilleR + 3 * _u + 2 * _u;
+  static const double _rowH = 16;
+  static const double _secsH = 9;
+  static const double _gapRest = 3;
+  static const double _gapLive = 1;
+
+  // Hors ligne / connexion : pastille + ligne des minutes.
+  static const double _restTop = -(_pastilleBlock + _gapRest + _rowH) / 2;
+  static const double _restPastilleDy = _restTop + _pastilleTop;
+  static const double _restRowCy =
+      _restTop + _pastilleBlock + _gapRest + _rowH / 2;
+  // En direct : pastille + minutes + secondes.
+  static const double _liveTop =
+      -(_pastilleBlock + _gapLive + _rowH + _secsH) / 2;
+  static const double _livePastilleDy = _liveTop + _pastilleTop;
+  static const double _liveRowCy =
+      _liveTop + _pastilleBlock + _gapLive + _rowH / 2;
+  static const double _liveSecsCy = _liveRowCy + _rowH / 2 + _secsH / 2;
+
+  /// Feuilles : aux angles de la maquette (225°, 315°, 45°, 135°), sur un
+  /// cercle de 0,79 D en haut et 0,72 D en bas pour rester dans le halo.
+  static const List<double> _leafAngles = <double>[225, 315, 45, 135];
+  static const List<double> _leafRadii = <double>[0.74, 0.74, 0.70, 0.70];
+
+  /// Pattes : orbite à 0,64 D (0,71 D dans la maquette dépasserait le halo
+  /// et le bord de l'écran).
+  static const double _pawRadius = 0.64;
+
+  /// Marge de peinture autour du cadre (flou de l'ombre portée).
+  static const double _bleed = 8;
+
+  // ── Horloges ──────────────────────────────────────────────────────────
+  /// Appui : le disque descend sur son relief (150 ms).
+  late final AnimationController _press = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 150),
+  )..addStatusListener(_onPressStatus);
+
+  /// Chien, feuilles, pattes, point d'état : une seule horloge, qui ne
+  /// tourne que pendant une balade.
+  late final AnimationController _life = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: PawWalkJewelPainter.loopSeconds),
+  );
+
+  /// Le chrono : seuls ses deux textes écoutent ce compteur.
+  final ValueNotifier<int> _second = ValueNotifier<int>(0);
+  Timer? _tick;
+  StreamSubscription<DateTime>? _clockSub;
+
+  bool _busy = false;
+  bool _held = false;
+
+  LiveMapService? get _live =>
+      Get.isRegistered<LiveMapService>() ? Get.find<LiveMapService>() : null;
+
+  RxBool get _broadcasting =>
+      widget.broadcasting ??
+      _live?.broadcasting ??
+      _QuickWalkButton3110State._never;
+  Rxn<DateTime> get _startedAt =>
+      widget.startedAt ??
+      _live?.sessionStartedAt ??
+      _QuickWalkButton3110State._noStart;
+  Rxn<DateTime> get _elsewhereSince =>
+      widget.elsewhereSince ??
+      _live?.elsewhereSince ??
+      _QuickWalkButton3110State._noStart;
+  RxBool get _confirmed =>
+      widget.confirmed ??
+      _live?.serverConfirmed ??
+      _QuickWalkButton3110State._yes;
+  RxBool get _elsewhere =>
+      widget.elsewhere ??
+      _live?.liveElsewhere ??
+      _QuickWalkButton3110State._never;
+
+  /// 632 — l'horloge commune (pilule, barre, rond) : `LiveMapService.liveNow`.
+  DateTime _clock() =>
+      widget.now?.call() ?? _live?.liveNow.value ?? DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    OpenOnPrefs3110.load();
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    _clockSub?.cancel();
+    _press.dispose();
+    _life.dispose();
+    _second.dispose();
+    super.dispose();
+  }
+
+  /// Met en route ou arrête ce qui bouge. [on] : une balade tourne (le
+  /// chrono avance) ; [moving] : les animations sont permises.
+  void _sync({required bool on, required bool moving}) {
+    if (moving) {
+      if (!_life.isAnimating) _life.repeat();
+    } else {
+      if (_life.isAnimating) _life.stop();
+      if (_life.value != 0) _life.value = 0;
+    }
+    if (!on) {
+      _tick?.cancel();
+      _tick = null;
+      _clockSub?.cancel();
+      _clockSub = null;
+      return;
+    }
+    // En balade : le chrono suit l'horloge commune du service (une mise à
+    // jour par seconde) ; sans service (tests, aperçus), une minuterie.
+    final LiveMapService? live = widget.now == null ? _live : null;
+    if (live != null) {
+      _tick?.cancel();
+      _tick = null;
+      _clockSub ??= live.liveNow.listen((_) {
+        if (mounted) _second.value++;
+      });
+    } else {
+      _clockSub?.cancel();
+      _clockSub = null;
+      _tick ??= Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) _second.value++;
+      });
+    }
+  }
+
+  void _onPressStatus(AnimationStatus status) {
+    // Appui bref : le disque finit de descendre avant de remonter.
+    if (status == AnimationStatus.completed && !_held) _press.reverse();
+  }
+
+  void _down() {
+    _held = true;
+    _press.forward();
+  }
+
+  void _up() {
+    _held = false;
+    if (_press.status == AnimationStatus.forward) return;
+    _press.reverse();
+  }
+
+  // Même logique de toucher que la 633, mot pour mot.
+  Future<void> _onTap() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      HapticFeedback.mediumImpact();
+      if (widget.onTapOverride != null) {
+        await widget.onTapOverride!();
+      } else if (_broadcasting.value || _elsewhere.value) {
+        if (widget.onStop != null) {
+          await widget.onStop!(context);
+        } else if (mounted) {
+          await showPawLiveSheet(context);
+        }
+      } else {
+        if (widget.onStart != null) {
+          await widget.onStart!();
+        } else {
+          await LiveShareStarter.startWithFeedback();
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    return Obx(() {
+      final bool visible =
+          (widget.visible ?? OpenOnPrefs3110.quickWalkVisible).value;
+      final QuickWalkSide3110 side =
+          (widget.side ?? OpenOnPrefs3110.quickWalkSide).value;
+      if (!visible) {
+        _sync(on: false, moving: false);
+        return const SizedBox.shrink();
+      }
+      final bool live = _broadcasting.value;
+      // 632 — « en direct » aussi quand ma balade tourne sur mon autre
+      // téléphone, comme la pilule et le bouton de la barre.
+      final bool elsewhere = _elsewhere.value;
+      final bool on = live || elsewhere;
+      // 632 — tant que le serveur n'a pas confirmé : « Connexion… ».
+      final bool connecting = live && !_confirmed.value;
+      final DateTime? start = live
+          ? _startedAt.value
+          : (elsewhere ? _elsewhereSince.value : null);
+      final bool timed = on && !connecting && start != null;
+      final String label = on
+          ? 'pamc3110_qw_stop_hint'.tr
+          : 'pm605_live_start'.tr;
+      final String status = connecting
+          ? 'live607_connecting'.tr
+          : (on ? 'pamc3110_qw_live'.tr : 'pamc3110_qw_offline'.tr);
+      final bool moving = on && !reduced;
+      _sync(on: on, moving: moving);
+
+      const double canvas = kQuickWalkCanvas0311;
+      const double button = kQuickWalkSize3110;
+      final double pastilleDy = timed ? _livePastilleDy : _restPastilleDy;
+
+      return SizedBox(
+        width: canvas,
+        height: canvas,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            // Tout le dessin : hors appuis, repeint seul. Son centre est
+            // posé un demi-relief sous celui du rond touchable : au repos,
+            // la face du disque recouvre exactement ce rond.
+            Positioned(
+              left: -_bleed,
+              right: -_bleed,
+              top: -_bleed + _relief / 2,
+              bottom: -_bleed - _relief / 2,
+              child: IgnorePointer(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: PawWalkJewelPainter(
+                      diameter: _diameter,
+                      live: on,
+                      moving: moving,
+                      badge: false,
+                      press: _press,
+                      life: _life,
+                      pastilleRatio: _pastilleRatio,
+                      pastilleDy: pastilleDy,
+                      leafRadiusRatios: _leafRadii,
+                      leafAngles: _leafAngles,
+                      pawRadiusRatio: _pawRadius,
+                      pawsFadeAtBottom: false,
+                      dog: !_busy,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Le rond touchable : clé de côté, sémantique et info-bulle,
+            // comme en 633. Il ne bouge pas à l'appui (seul le dessin
+            // descend).
+            Semantics(
+              key: ValueKey<String>('quick_walk_3110_${side.code}'),
+              button: true,
+              label: '$status · $label',
+              child: Tooltip(
+                message: label,
+                child: GestureDetector(
+                  key: const ValueKey<String>('quick_walk_3110_tap'),
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (_) => _down(),
+                  onTapUp: (_) => _up(),
+                  onTapCancel: _up,
+                  onTap: _onTap,
+                  child: SizedBox(
+                    width: button,
+                    height: button,
+                    // Le texte suit le disque quand il s'enfonce.
+                    child: AnimatedBuilder(
+                      animation: _press,
+                      builder: (BuildContext context, Widget? child) =>
+                          Transform.translate(
+                            offset: Offset(
+                              0,
+                              Curves.easeOut.transform(
+                                    _press.value.clamp(0.0, 1.0),
+                                  ) *
+                                  _relief,
+                            ),
+                            child: child,
+                          ),
+                      child: _content(
+                        on: on,
+                        moving: moving,
+                        timed: timed,
+                        start: start,
+                        pastilleDy: pastilleDy,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  // Couleurs de texte de la maquette 639 (aucun gris).
+  static const Color _dotOffline = Color(0xFFECFFE4);
+  static const Color _txtSmall = Color(0xFFE3FBDA);
+
+  /// Ce qui s'écrit sur le disque : le point d'état, les minutes, les
+  /// secondes. Mêmes clés et mêmes tailles de texte que la 633.
+  Widget _content({
+    required bool on,
+    required bool moving,
+    required bool timed,
+    required DateTime? start,
+    required double pastilleDy,
+  }) {
+    const double half = kQuickWalkSize3110 / 2;
+    final TextStyle minStyle = GoogleFonts.nunito(
+      fontSize: 15,
+      fontWeight: FontWeight.w900,
+      color: Colors.white,
+      height: 1,
+      fontFeatures: const [FontFeature.tabularFigures()],
+      shadows: [
+        Shadow(
+          color: Colors.black.withValues(alpha: .2),
+          offset: const Offset(0, 1),
+        ),
+      ],
+    );
+    final TextStyle smallStyle = GoogleFonts.nunito(
+      fontSize: 8,
+      fontWeight: FontWeight.w800,
+      color: _txtSmall,
+      height: 1,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    final double rowCy = timed ? _liveRowCy : _restRowCy;
+
+    Duration elapsed() {
+      final DateTime now = _clock();
+      return now.isAfter(start!) ? now.difference(start) : Duration.zero;
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // Attente d'une action : l'indicateur remplace le chien.
+        if (_busy)
+          Positioned(
+            left: half - 8,
+            top: half + pastilleDy - 2 * _u - 8,
+            width: 16,
+            height: 16,
+            child: const CircularProgressIndicator(
+              strokeWidth: 2.2,
+              color: Colors.white,
+            ),
+          ),
+        // Point d'état + minutes.
+        Positioned(
+          left: 7,
+          right: 7,
+          top: half + rowCy - _rowH / 2,
+          height: _rowH,
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RepaintBoundary(
+                    child: CustomPaint(
+                      size: const Size(9, 9),
+                      painter: _StatusDotPainter640(
+                        on: on,
+                        moving: moving,
+                        life: _life,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  if (!timed)
+                    Text(
+                      '—',
+                      key: const ValueKey<String>('quick_walk_3110_chrono'),
+                      style: minStyle,
+                    )
+                  else ...[
+                    ValueListenableBuilder<int>(
+                      valueListenable: _second,
+                      builder: (BuildContext context, int _, Widget? _) =>
+                          Text(
+                            '${elapsed().inMinutes}',
+                            key: const ValueKey<String>(
+                              'quick_walk_3110_chrono',
+                            ),
+                            style: minStyle,
+                          ),
+                    ),
+                    const SizedBox(width: 2),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Text('pamc3110_qw_min'.tr, style: smallStyle),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Secondes (en direct seulement).
+        if (timed)
+          Positioned(
+            left: 12,
+            right: 12,
+            top: half + _liveSecsCy - _secsH / 2,
+            height: _secsH,
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: ValueListenableBuilder<int>(
+                  valueListenable: _second,
+                  builder: (BuildContext context, int _, Widget? _) => Text(
+                    '${(elapsed().inSeconds % 60).toString().padLeft(2, '0')} '
+                    '${'pamc3110_qw_sec'.tr}',
+                    key: const ValueKey<String>('quick_walk_3110_secs'),
+                    style: smallStyle,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 640 — le point d'état devant les minutes. Hors ligne : point clair fixe.
+/// En balade : point violet clair qui bat, avec son halo. La maquette fait
+/// aussi baisser l'opacité du point à 0,5 ; sur le vert, un violet à moitié
+/// transparent tire sur le gris : le point reste donc plein, seul le halo
+/// s'estompe. Repeint par l'horloge, sans reconstruction.
+class _StatusDotPainter640 extends CustomPainter {
+  _StatusDotPainter640({
+    required this.on,
+    required this.moving,
+    required this.life,
+  }) : super(repaint: life);
+
+  final bool on;
+  final bool moving;
+  final Animation<double> life;
+
+  static const Color _liveDot = Color(0xFFC9A8FF);
+
+  /// Période du battement : 1,05 s (1,1 s dans la maquette) pour que la
+  /// boucle de 1 260 s reprenne sans à-coup.
+  static const double _period = 1.05;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Offset c = size.center(Offset.zero);
+    if (!on) {
+      canvas.drawCircle(
+        c,
+        2.5,
+        Paint()..color = _QuickWalkJewelState640._dotOffline,
+      );
+      return;
+    }
+    final double beat = moving
+        ? 1 -
+              0.5 *
+                  PawWalkJewelPainter.yoyo(
+                    life.value * PawWalkJewelPainter.loopSeconds / _period,
+                  )
+        : 1;
+    // beat : 1 (gros) → 0,5 (petit).
+    final double scale = 0.3 + 0.7 * beat;
+    canvas.drawCircle(
+      c,
+      4.2 * scale,
+      Paint()..color = _liveDot.withValues(alpha: 0.7 * beat - 0.3),
+    );
+    canvas.drawCircle(c, 2.6 * scale, Paint()..color = _liveDot);
+  }
+
+  @override
+  bool shouldRepaint(covariant _StatusDotPainter640 old) =>
+      old.on != on || old.moving != moving || old.life != life;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
