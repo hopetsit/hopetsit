@@ -79,6 +79,8 @@ async function startServer() {
     // 618 (SAM, 17/10) — Daniel : la devise suit le pays (79 comptes sans pays, devises alignées). UNE fois, non bloquant.
     await require('./scripts/fixCountryCurrency618').runFixCountryCurrency618(mongoose.connection.db, logger);
     await require('./scripts/fixCountryCurrency618').runFixNewYork618b(mongoose.connection.db, logger);
+    // 640 (BOB, 10/11, accord de Daniel) — position posée UNE fois sur la demande de São Paulo publiée sans position. Non bloquant, coupe-circuit FIX_REQUEST_COORDS_640=off.
+    await require('./scripts/fixRequestCoords640').runFixRequestCoords640(mongoose.connection.db, logger);
     // v404 — charge les mots interdits admin (BannedWord) dans le service de
     // modération texte → s'applique app + web. Non bloquant.
     try {
