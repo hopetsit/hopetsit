@@ -74,8 +74,9 @@ describe('GET /admin/app-presence', () => {
     // 2 suppressions de la même personne aujourd'hui = 1 départ ; une 3e il y a 3 jours → 2 sur 7 j.
     await mk(Owner, { email: 'ancien@example.org', createdAt: new Date(Date.now() - 10 * DAY) });
     await AccountDeletion.collection.insertMany([
-      { role: 'owner', emailHash: 'h1', deletedAt: new Date(Date.now() - 3600000) },
-      { role: 'sitter', emailHash: 'h1', deletedAt: new Date(Date.now() - 3500000) },
+      // 1011 — « aujourd'hui » part de minuit : 1 h plus tôt tombait la veille entre 0 h et 1 h (test rouge la nuit).
+      { role: 'owner', emailHash: 'h1', deletedAt: new Date(Date.now() - 20000) },
+      { role: 'sitter', emailHash: 'h1', deletedAt: new Date(Date.now() - 10000) },
       { role: 'walker', emailHash: 'h2', deletedAt: new Date(Date.now() - 3 * DAY) },
     ]);
     const r = await request(app).get('/admin/app-presence').set(ADMIN);

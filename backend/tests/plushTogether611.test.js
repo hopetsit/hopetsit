@@ -107,7 +107,9 @@ test('1. balade à deux : Cam l\'attrape, Daniel attrape LA MÊME juste après (
   walk(daniel, q.lat, q.lng);
   plush._resetForTests();
   expect((await grab(daniel, q, { lat: q.lat, lng: q.lng })).status).toBe(200);
-  const r3 = others[1];
+  // 1011 — le jour de la dorée, la ville n'a que 2 ordinaires : la 3e tentative vise alors
+  // la dorée (encore libre), refusée par la même limite de 2 par jour.
+  const r3 = others[1] || plushies.find((x) => x.golden);
   walk(daniel, r3.lat, r3.lng);
   plush._resetForTests();
   const lim = await grab(daniel, r3, { lat: r3.lat, lng: r3.lng });

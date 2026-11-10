@@ -67,7 +67,10 @@ describe('CGU 2.4 — clause responsabilité individuelle (sources des 3 surface
     }
   });
 
-  test('site : clause en article 8 dans les 9 langues, datée du 15 octobre 2026', () => {
+  // 10/11/2026 : l'anglais et le français (versions officielles) ont reçu un
+  // article 15 « SMS » → leur date passe au 10 novembre ; les 7 autres langues
+  // restent au 15 octobre.
+  test('site : clause en article 8 dans les 9 langues, datée du 15 octobre 2026 (en/fr : 10 novembre)', () => {
     const src = fs.readFileSync(SITE, 'utf8');
     const terms = src.slice(src.indexOf('export const TERMS'), src.indexOf('export const PRIVACY'));
     for (const lang of SITE_LANGS) {
@@ -79,7 +82,7 @@ describe('CGU 2.4 — clause responsabilité individuelle (sources des 3 surface
       expect(block.split(CLAUSE).length - 1).toBe(1);
       expect(block).toMatch(/html: `8\. /);
       expect(block).toMatch(/html: `14\. /);
-      expect(block).toMatch(/lastUpdated: "(October 15, 2026|15 octobre 2026|15 de octubre de 2026|15\. Oktober 2026|15 ottobre 2026|15 de outubro de 2026|2026년 10월 15일|2026年10月15日)"/);
+      expect(block).toMatch(/lastUpdated: "(October 15, 2026|15 octobre 2026|November 10, 2026|10 novembre 2026|15 de octubre de 2026|15\. Oktober 2026|15 ottobre 2026|15 de outubro de 2026|2026년 10월 15일|2026年10月15日)"/);
     }
     // Le français du site = celui de Daniel, paragraphe par paragraphe.
     for (const p of DANIEL_FR) expect(terms).toContain('html: `' + p + '`');
