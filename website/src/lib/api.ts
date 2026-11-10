@@ -246,12 +246,18 @@ export async function sendDemandeCode0811(id: string) {
   return request<{ ok: boolean; sent: boolean; retryAfter: number }>("/ad-leads/code/send", { method: "POST", body: JSON.stringify({ id }) });
 }
 export async function checkDemandeCode0811(id: string, code: string) {
-  const data = await request<{ token: string; user: AuthUser; postId: string | null; published: boolean; notified?: number; link?: string }>(
+  const data = await request<{ token: string; user: AuthUser; postId: string | null; published: boolean; notified?: number; link?: string; smsConsent?: boolean }>(
     "/ad-leads/code/check",
     { method: "POST", body: JSON.stringify({ id, code }) },
   );
   persistAuth(data.token, { ...data.user, role: "owner" });
   return data;
+}
+
+// 1011 — accord SMS facultatif de l'écran de fin de /demande (session ouverte par le code). Le serveur n'envoie
+// aucun SMS ici : il note le numéro, la date et la phrase acceptée. Coupe-circuit serveur : DEMANDE_SMS_1011=off.
+export async function saveDemandeSmsConsent1011(id: string, phone: string) {
+  return request<{ ok: boolean }>("/ad-leads/sms-consent", { method: "POST", body: JSON.stringify({ id, phone, consent: true }) });
 }
 
 export async function confirmAdLead(id: string, lieu?: "at_owner" | "at_sitter") {

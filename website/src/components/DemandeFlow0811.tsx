@@ -5,7 +5,7 @@ import Link from "@/components/SiteLink";
 import StoreBadges from "@/components/StoreBadges";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { ParisHeroForm, type HeroLeadResult0811 } from "@/components/ParisHeroForm";
-import { ApiError, checkDemandeCode0811, sendDemandeCode0811 } from "@/lib/api";
+import { ApiError, checkDemandeCode0811, saveDemandeSmsConsent1011, sendDemandeCode0811 } from "@/lib/api";
 import { dm } from "@/lib/i18n/demande0811";
 
 // 08/11/2026 (NEO, ordre de Daniel 16 h 45 transmis par BOB) — PAGE DE DEMANDE DE LA PUB META (site, plus le
@@ -37,7 +37,13 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
   const [wait, setWait] = useState(0);
-  const [done, setDone] = useState<{ postId: string | null; notified?: number; link: string; published: boolean } | null>(null);
+  const [done, setDone] = useState<{ postId: string | null; notified?: number; link: string; published: boolean; sms: boolean } | null>(null);
+  // 1011 — accord SMS facultatif (affiché seulement si le serveur renvoie smsConsent: true ; case DÉCOCHÉE par défaut).
+  const [smsPhone, setSmsPhone] = useState("");
+  const [smsAgree, setSmsAgree] = useState(false);
+  const [smsBusy, setSmsBusy] = useState(false);
+  const [smsErr, setSmsErr] = useState("");
+  const [smsSaved, setSmsSaved] = useState(false);
   const topRef = useRef<HTMLDivElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
   const seen = useRef(false);
@@ -118,7 +124,8 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
       const r = await checkDemandeCode0811(lead.id, c);
       trackSiteEvent("cta_click", { label: "demande_code_ok" });
       if (r.published) trackSiteEvent("cta_click", { label: "demande_publiee", eventId: lead.id });
-      setDone({ postId: r.postId, notified: r.notified, link: r.link || "/posts", published: r.published });
+      setDone({ postId: r.postId, notified: r.notified, link: r.link || "/posts", published: r.published, sms: r.smsConsent === true });
+      if (r.smsConsent === true) trackSiteEvent("cta_click", { label: "demande_sms_vu" });
     } catch (e) {
       const d = e instanceof ApiError && e.details && typeof e.details === "object" ? (e.details as { code?: string; left?: number }) : {};
       const cd = d.code || (e instanceof ApiError ? String(e.status) : "x");
@@ -129,6 +136,25 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
       else setErr(t("err"));
     } finally {
       setBusy(false);
+    }
+  }
+
+  const smsDigits = smsPhone.replace(/\D/g, "").length;
+  const smsReady = smsAgree && smsDigits >= 10 && smsDigits <= 15;
+  async function saveSms() {
+    if (!lead || smsBusy || !smsReady) return;
+    setSmsBusy(true);
+    setSmsErr("");
+    try {
+      await saveDemandeSmsConsent1011(lead.id, smsPhone.trim());
+      trackSiteEvent("cta_click", { label: "demande_sms_ok" });
+      setSmsSaved(true);
+    } catch (e) {
+      const d = e instanceof ApiError && e.details && typeof e.details === "object" ? (e.details as { code?: string }) : {};
+      trackSiteEvent("cta_click", { label: "demande_sms_refus" });
+      setSmsErr(t(d.code === "PHONE_INVALID" ? "sms_bad" : "sms_err"));
+    } finally {
+      setSmsBusy(false);
     }
   }
 
@@ -151,6 +177,37 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
           {t("done_link")} →
         </Link>
         <p className="mt-3 text-center text-xs text-ink-muted">{t("done_mail")}</p>
+        {/* 1011 — accord SMS FACULTATIF : numéro + case décochée + phrase complète visible ; rien n'est envoyé sans la case. */}
+        {done.sms && (
+          <div className="mt-4 rounded-2xl border border-ink/15 p-4 text-left" data-testid="demande-sms-1011">
+            {smsSaved ? (
+              <p className="text-center text-[15px] font-semibold" style={{ color: "#15803D" }} role="status" data-testid="demande-sms-ok">✓ {t("sms_done")}</p>
+            ) : (
+              <>
+                <p className="text-[16px] font-extrabold leading-snug text-ink">{t("sms_title")}</p>
+                <label className="mt-3 block text-xs font-semibold text-ink">{t("sms_label")}
+                  <input value={smsPhone} onChange={(e) => { setSmsPhone(e.target.value.replace(/[^\d+ ().-]/g, "").slice(0, 24)); setSmsErr(""); }}
+                    type="tel" inputMode="tel" autoComplete="tel" placeholder={city.country === "US" ? "+1 (555) 010-0000" : "06 00 00 00 00"}
+                    className="mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-3 text-[16px] text-ink focus:border-owner focus:outline-none" data-testid="demande-sms-phone" />
+                </label>
+                <label className="mt-3 flex items-start gap-3 text-[13px] leading-snug text-ink">
+                  <input type="checkbox" checked={smsAgree} onChange={(e) => setSmsAgree(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#C92A12]" data-testid="demande-sms-box" />
+                  <span>{t("sms_consent")}</span>
+                </label>
+                <p className="mt-2 text-[12px] text-ink-muted">
+                  <Link href="/privacy" className="underline" target="_blank">{t("sms_privacy")}</Link>
+                  {" · "}
+                  <Link href={lang === "fr" ? "/cgu" : "/terms"} className="underline" target="_blank">{t("sms_terms")}</Link>
+                </p>
+                {smsErr && <p className="mt-2 text-sm font-semibold text-owner-dark" role="alert">{smsErr}</p>}
+                <button type="button" onClick={() => void saveSms()} disabled={!smsReady || smsBusy}
+                  className="mt-3 block w-full rounded-full bg-ink px-6 py-3 text-center text-[15px] font-extrabold text-white disabled:opacity-40" data-testid="demande-sms-cta">
+                  {smsBusy ? t("sms_busy") : t("sms_cta")}
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
     );
   }
