@@ -228,6 +228,8 @@ router.post('/check', async (req, res) => {
       published: !hadPost && !!r.postId,
       ...(r.notified === undefined || r.notified === null ? {} : { notified: r.notified }),
       ...(link ? { link } : {}),
+      // 1011 (BOB) — le site ne montre le bloc « recevoir un SMS » que si le serveur le propose (coupe-circuit).
+      ...(require('./demandeSms1011').offeredFor(lead) ? { smsConsent: true } : {}),
     });
   } catch (e) {
     logger.error('[demandeCode0811] check failed', e);

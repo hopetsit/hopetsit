@@ -32,6 +32,8 @@ const Owner = require('../models/Owner');
 const router = express.Router();
 // 0811 (NEO, ordre de Daniel 08/11) — code reçu par e-mail tapé sur la page /demande : POST /ad-leads/code/send|check.
 router.use('/code', require('./demandeCode0811'));
+// 1011 (BOB) — accord SMS facultatif de la page de demande (jeton obligatoire, coupe-circuit DEMANDE_SMS_1011=off).
+router.use('/sms-consent', require('./demandeSms1011'));
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const TEST_RE = /\+test|^hopetsit@|^dadaciao84@|^probe-|@invalid\.example$|staff@hopetsit/i;
 const CITY_ANCHORS = {
