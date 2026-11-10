@@ -562,6 +562,63 @@ describe('« un gardien est libre et vous attend » 1011', () => {
     expect(new Set([...real.asked, ...rest.asked].map((l) => l.postId)).size).toBe(12);
   });
 
+  // 10/11/2026 (BOB, « Oui, autorise » de Daniel) — la question part aussi vers un gardien dont
+  // l'e-mail n'a jamais été validé, et une ligne arrêtée à 3 essais par ce garde-fou repart UNE fois.
+  test('10/11 — gardien à l\'e-mail non validé : bloqué coupe-circuit fermé, puis la question part et la ligne repart une seule fois', async () => {
+    const dom = S.mail.a.split('@')[1];
+    const mk = (n) => `${n}@${dom}`;
+    const o = await Owner.create({ name: 'Ines Morin', email: mk('ines1011'), password: PASS, city: 'Paris', country: 'FR', currency: 'EUR', verified: true, location: PARIS(), acceptedTerms: true, appLocale: 'fr' });
+    const nv = await Sitter.create({ name: 'Nora Vidal', email: mk('nora1011'), password: PASS, city: 'Paris', country: 'FR', currency: 'EUR', dailyRate: 18, verified: false, location: PARIS(2.36) });
+    const ok = await Sitter.create({ name: 'Omar Klein', email: mk('omar1011'), password: PASS, city: 'Paris', country: 'FR', currency: 'EUR', dailyRate: 18, verified: true, location: PARIS(2.37) });
+    const mkPost = async (d) => (await Post.collection.insertOne({ ownerId: o._id, postType: 'request', status: 'open', dateMode: 'range', serviceTypes: ['house_sitting'], city: 'Paris', body: 'Garde', petIds: [S.o1.pet._id], createdAt: at(60), location: PARIS(), startDate: day(d), endDate: day(d + 1) })).insertedId;
+    const mkApp = async (postId, sitterId) => (await Application.collection.insertOne({ ownerId: o._id, sitterId, postId, petIds: [S.o1.pet._id], serviceType: 'house_sitting', status: 'pending', createdAt: at(70), updatedAt: at(70), pricing: PRICING })).insertedId;
+    const pNv = await mkPost(25); const aNv = await mkApp(pNv, nv._id);
+    const pOk = await mkPost(27); const aOk = await mkApp(pOk, ok._id);
+    const mailsTo = (n) => questionMails().filter((m) => m.to === mk(n)).length;
+
+    // 1) Coupe-circuit fermé = l'ancien comportement : la question au non-validé ne part pas.
+    process.env.SITTER_FREE_EMAIL_UNVERIFIED = 'off';
+    try {
+      const r1 = await run(98);
+      expect(reasons(r1, pNv)).toContain('not_sent:email_blocked:unverified');
+      expect(mailsTo('nora1011')).toBe(0);
+      expect(mailsTo('omar1011')).toBe(1); // le gardien validé, lui, reçoit sa question
+      let row = await Free.findOne({ key: `q:${aNv}` }).lean();
+      expect(row).toMatchObject({ status: 'failed', error: 'email_blocked:unverified', attempts: 1 });
+      // Trois essais atteints : la ligne est arrêtée.
+      await Free.updateOne({ key: `q:${aNv}` }, { $set: { attempts: 3 } });
+      const r2 = await run(99);
+      expect(reasons(r2, pNv)).toContain('failed_max');
+      expect(mailsTo('nora1011')).toBe(0);
+      row = await Free.findOne({ key: `q:${aNv}` }).lean();
+      expect(row.unblockedAt == null).toBe(true);
+    } finally { delete process.env.SITTER_FREE_EMAIL_UNVERIFIED; }
+
+    // 2) Une ligne arrêtée pour une AUTRE raison ne repart jamais.
+    await Free.updateOne({ key: `q:${aOk}` }, { $set: { status: 'failed', error: 'smtp_down', attempts: 3 } });
+
+    // 3) Exception active (par défaut) : la ligne « e-mail non validé » repart, la question est envoyée.
+    const sim = await run(100, { dryRun: true });
+    expect(sim.wouldAsk.map((l) => l.applicationId)).toContain(String(aNv));
+    expect(sim.wouldAsk.map((l) => l.applicationId)).not.toContain(String(aOk));
+    const r3 = await run(100);
+    expect(r3.asked.map((l) => l.applicationId)).toContain(String(aNv));
+    expect(reasons(r3, pOk)).toContain('failed_max');
+    expect(mailsTo('nora1011')).toBe(1);
+    expect(mailsTo('omar1011')).toBe(1);
+    let row = await Free.findOne({ key: `q:${aNv}` }).lean();
+    expect(row).toMatchObject({ status: 'sent', error: '', attempts: 1 });
+    expect(row.unblockedAt).toBeInstanceOf(Date);
+
+    // 4) Un seul déblocage par ligne : arrêtée de nouveau, elle ne repart plus.
+    await Free.updateOne({ key: `q:${aNv}` }, { $set: { status: 'failed', error: 'email_blocked:unverified', attempts: 3 } });
+    const r4 = await run(101);
+    expect(reasons(r4, pNv)).toContain('failed_max');
+    expect(mailsTo('nora1011')).toBe(1);
+    row = await Free.findOne({ key: `q:${aNv}` }).lean();
+    expect(row.status).toBe('failed');
+  });
+
   test('planificateur : démarre seulement si SITTER_FREE_1011=on', () => {
     process.env.SITTER_FREE_1011 = 'off';
     expect(svc().startSitterFreeScheduler({ firstDelayMs: 3600000, intervalMs: 3600000 })).toBe(false);

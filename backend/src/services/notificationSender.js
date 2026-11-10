@@ -731,8 +731,16 @@ const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtr
   // Coupe-circuit : OWNER_CANDIDATES_EMAIL_UNVERIFIED=off.
   const ownerCandidatesBypass = role === 'owner' && String(type) === 'application_new'
     && process.env.OWNER_CANDIDATES_EMAIL_UNVERIFIED !== 'off';
+  // 10/11/2026 (BOB, décision écrite de Daniel : « Oui, autorise ») — la question « Êtes-vous
+  // toujours libre ? » (still_free_1011) part aussi vers un gardien / promeneur dont l'e-mail
+  // n'a jamais été validé : il a LUI-MÊME candidaté, et sans sa réponse le propriétaire ne
+  // reçoit jamais le message « un gardien est libre → payer ». Mesuré le 10/11 : 9 questions
+  // sur 11 bloquées par ce garde-fou. Seul ce type passe, jamais côté propriétaire.
+  // Coupe-circuit : SITTER_FREE_EMAIL_UNVERIFIED=off.
+  const stillFreeBypass = String(type) === 'still_free_1011' && role !== 'owner'
+    && process.env.SITTER_FREE_EMAIL_UNVERIFIED !== 'off';
   const requestAlertBypass = (UNVERIFIED_BYPASS_TYPES.has(type)
-    && process.env.REQUEST_ALERT_EMAIL_UNVERIFIED !== 'off') || ownerCandidatesBypass;
+    && process.env.REQUEST_ALERT_EMAIL_UNVERIFIED !== 'off') || ownerCandidatesBypass || stillFreeBypass;
   if (email && !requestAlertBypass && await unverifiedEmailBlocked(user, role)) {
     emailBlocked = 'unverified';
     logger.info(`[notif.email.skip] compte jamais vérifié → aucun e-mail type=${type} role=${role} userId=${userId}`);

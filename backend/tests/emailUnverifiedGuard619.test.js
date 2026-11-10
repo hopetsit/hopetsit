@@ -116,4 +116,31 @@ describe('619 — e-mails de notification et comptes jamais vérifiés', () => {
       expect(sendEmail).not.toHaveBeenCalled();
     } finally { delete process.env.REQUEST_ALERT_EMAIL_UNVERIFIED; }
   });
+
+  // 10/11/2026 (BOB, « Oui, autorise » de Daniel) — la question « Êtes-vous toujours libre ? »
+  // part aussi vers un gardien / promeneur à l'e-mail jamais validé : il a lui-même candidaté.
+  // Même appel que le service sitterFree1011 : e-mail seul, gabarit « candidats ».
+  const askFree = (role) => require('../src/services/notificationSender').sendEmailOnly({
+    userId: mockUser._id, role, type: 'still_free_1011', templateType: 'application_new_2610',
+    data: { postId: '64b0000000000000000000bb', title: 'Toujours libre ?', body: 'Question', emailSubject: 'Toujours libre ?' },
+  });
+  test('10/11 — « toujours libre ? » : e-mail envoyé à un gardien et à un promeneur non vérifiés', async () => {
+    expect(await askFree('sitter')).toMatchObject({ sent: true });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(await askFree('walker')).toMatchObject({ sent: true });
+    expect(sendEmail).toHaveBeenCalledTimes(2);
+  });
+
+  test('10/11 — « toujours libre ? » : jamais côté propriétaire non vérifié', async () => {
+    expect(await askFree('owner')).toMatchObject({ sent: false, reason: 'email_blocked:unverified' });
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  test('10/11 — coupe-circuit SITTER_FREE_EMAIL_UNVERIFIED=off : question bloquée comme avant', async () => {
+    process.env.SITTER_FREE_EMAIL_UNVERIFIED = 'off';
+    try {
+      expect(await askFree('sitter')).toMatchObject({ sent: false, reason: 'email_blocked:unverified' });
+      expect(sendEmail).not.toHaveBeenCalled();
+    } finally { delete process.env.SITTER_FREE_EMAIL_UNVERIFIED; }
+  });
 });

@@ -29,6 +29,9 @@ const schema = new mongoose.Schema(
     error: { type: String, default: '' },
     answer: { type: String, enum: ['', 'yes', 'no'], default: '' },
     answeredAt: { type: Date, default: null },
+    // 10/11 — date du déblocage UNIQUE d'une ligne restée en échec « e-mail non validé »
+    // (accord de Daniel du 10/11) : une ligne ne se débloque qu'une fois.
+    unblockedAt: { type: Date, default: null },
     createdAt: { type: Date, default: Date.now },
   },
   { versionKey: false },

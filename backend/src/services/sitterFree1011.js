@@ -37,6 +37,12 @@ const MAX_PER_PERSON_PER_DAY = 2; // questions par personne sur 24 h glissantes
 const MAX_POSTS_PER_RUN = 10; // demandes servies par passage
 const MAX_EXAMINED = 300;
 const MAX_ATTEMPTS = 3; // rejeux d'un envoi en échec
+// 10/11/2026 (BOB, « Oui, autorise » de Daniel) — la question part aussi vers un e-mail jamais
+// validé (notificationSender, coupe-circuit SITTER_FREE_EMAIL_UNVERIFIED=off). Les lignes
+// restées en échec pour CE motif après 3 essais sont débloquées UNE fois (`unblockedAt`).
+const UNVERIFIED_REASON = 'email_blocked:unverified';
+const unverifiedAllowed = () => process.env.SITTER_FREE_EMAIL_UNVERIFIED !== 'off';
+const canUnblock = (row) => !!row && row.status === 'failed' && row.error === UNVERIFIED_REASON && !row.unblockedAt && unverifiedAllowed();
 const LINK_TTL = 14 * DAY;
 const YES_FRESH = DAY; // un « oui » vaut 24 h pour prévenir le propriétaire
 const TICK_MS = 30 * 60 * 1000;
@@ -155,6 +161,15 @@ const claim = async (fields, now) => {
     { new: true },
   );
   if (replay) return replay;
+  if (unverifiedAllowed()) {
+    // Déblocage unique d'une ligne arrêtée à 3 essais par le garde-fou « e-mail non validé ».
+    const freed = await Free.findOneAndUpdate(
+      { key: fields.key, status: 'failed', error: UNVERIFIED_REASON, attempts: { $gte: MAX_ATTEMPTS }, unblockedAt: null },
+      { $set: { status: 'sent', error: '', createdAt: now, attempts: 1, unblockedAt: now } },
+      { new: true },
+    );
+    if (freed) return freed;
+  }
   try {
     return await Free.create({ ...fields, status: 'sent', attempts: 1, createdAt: now });
   } catch (e) {
@@ -422,7 +437,7 @@ const runSitterFree = async (opts = {}) => {
         const at = { postId: post._id, applicationId: a._id };
         const prev = byApp.get(String(a._id));
         if (prev && prev.status === 'sent') continue; // déjà interrogé : rien à redire
-        if (prev && prev.attempts >= MAX_ATTEMPTS) { skip('failed_max', at); continue; }
+        if (prev && prev.attempts >= MAX_ATTEMPTS && !canUnblock(prev)) { skip('failed_max', at); continue; }
         if (a.bookingId) { skip('has_booking', at); continue; }
         const { role, id } = providerOf(a);
         // eslint-disable-next-line no-await-in-loop
