@@ -25,7 +25,7 @@ const T = {
     when: (a, b) => (a && b && a !== b ? ` du ${a} au ${b}` : a ? ` le ${a}` : ''),
     ask: (v, p, w, c) => `Êtes-vous toujours libre pour ${v} ${p}${w}${c ? ` à ${c}` : ''} ?`,
     intro: 'Vous avez répondu à cette demande. Le propriétaire n’a pas encore choisi : dites-nous en un clic si vous êtes toujours disponible.',
-    labels: { service: 'Service', dates: 'Dates', city: 'Ville' },
+    labels: { service: 'Service', dates: 'Dates', city: 'Ville', breed: 'Race', note: 'Message du propriétaire' },
     yes: 'Oui, je suis libre',
     no: 'Non, plus disponible',
     noLine: 'Vous n’êtes plus disponible ? Votre candidature sera retirée :',
@@ -59,7 +59,7 @@ const T = {
     when: (a, b) => (a && b && a !== b ? ` from ${a} to ${b}` : a ? ` on ${a}` : ''),
     ask: (v, p, w, c) => `Are you still available to ${v} ${p}${w}${c ? ` in ${c}` : ''}?`,
     intro: 'You replied to this request. The owner has not chosen yet: tell us in one click whether you are still available.',
-    labels: { service: 'Service', dates: 'Dates', city: 'City' },
+    labels: { service: 'Service', dates: 'Dates', city: 'City', breed: "Breed", note: "Owner's message" },
     yes: 'Yes, I am available',
     no: 'No, not available any more',
     noLine: 'Not available any more? Your application will be withdrawn:',
@@ -88,7 +88,7 @@ const T = {
     still: '¿Sigue disponible?',
     svc: { sit: 'Cuidado de mascotas', visit: 'Visita a domicilio', walk: 'Paseo' },
     intro: 'Usted respondió a esta solicitud. El propietario aún no ha elegido: díganos en un clic si sigue disponible.',
-    labels: { service: 'Servicio', dates: 'Fechas', city: 'Ciudad' },
+    labels: { service: 'Servicio', dates: 'Fechas', city: 'Ciudad', breed: 'Raza', note: 'Mensaje del propietario' },
     yes: 'Sí, estoy disponible',
     no: 'No, ya no estoy disponible',
     noLine: '¿Ya no está disponible? Su candidatura se retirará:',
@@ -117,7 +117,7 @@ const T = {
     still: 'Sind Sie noch verfügbar?',
     svc: { sit: 'Tierbetreuung', visit: 'Hausbesuch', walk: 'Gassi-Service' },
     intro: 'Sie haben auf diese Anfrage geantwortet. Der Besitzer hat noch nicht gewählt: Sagen Sie uns mit einem Klick, ob Sie noch verfügbar sind.',
-    labels: { service: 'Service', dates: 'Daten', city: 'Ort' },
+    labels: { service: 'Service', dates: 'Daten', city: 'Ort', breed: 'Rasse', note: 'Nachricht des Halters' },
     yes: 'Ja, ich bin verfügbar',
     no: 'Nein, nicht mehr verfügbar',
     noLine: 'Nicht mehr verfügbar? Ihre Bewerbung wird zurückgezogen:',
@@ -146,7 +146,7 @@ const T = {
     still: 'È ancora disponibile?',
     svc: { sit: 'Pet sitting', visit: 'Visita a domicilio', walk: 'Passeggiata' },
     intro: 'Ha risposto a questa richiesta. Il proprietario non ha ancora scelto: ci dica con un clic se è ancora disponibile.',
-    labels: { service: 'Servizio', dates: 'Date', city: 'Città' },
+    labels: { service: 'Servizio', dates: 'Date', city: 'Città', breed: 'Razza', note: 'Messaggio del proprietario' },
     yes: 'Sì, sono disponibile',
     no: 'No, non sono più disponibile',
     noLine: 'Non è più disponibile? La sua candidatura sarà ritirata:',
@@ -175,7 +175,7 @@ const T = {
     still: 'Ainda está disponível?',
     svc: { sit: 'Pet sitting', visit: 'Visita ao domicílio', walk: 'Passeio' },
     intro: 'Respondeu a este pedido. O dono ainda não escolheu: diga-nos com um clique se ainda está disponível.',
-    labels: { service: 'Serviço', dates: 'Datas', city: 'Cidade' },
+    labels: { service: 'Serviço', dates: 'Datas', city: 'Cidade', breed: 'Raça', note: 'Mensagem do dono' },
     yes: 'Sim, estou disponível',
     no: 'Não, já não estou disponível',
     noLine: 'Já não está disponível? A sua candidatura será retirada:',
@@ -204,7 +204,7 @@ const T = {
     still: '아직 가능하신가요?',
     svc: { sit: '펫시팅', visit: '방문 돌봄', walk: '산책' },
     intro: '이 요청에 지원하셨습니다. 보호자가 아직 선택하지 않았습니다. 아직 가능하신지 한 번의 클릭으로 알려 주세요.',
-    labels: { service: '서비스', dates: '날짜', city: '지역' },
+    labels: { service: '서비스', dates: '날짜', city: '지역', breed: '품종', note: '보호자 메시지' },
     yes: '네, 가능합니다',
     no: '아니요, 더 이상 불가능합니다',
     noLine: '더 이상 가능하지 않으신가요? 지원이 취소됩니다:',
@@ -233,7 +233,7 @@ const T = {
     still: 'まだご都合はよろしいですか？',
     svc: { sit: 'ペットシッティング', visit: '訪問ケア', walk: 'お散歩' },
     intro: 'この依頼に応募されました。飼い主はまだ選んでいません。まだ対応可能かどうか、ワンクリックでお知らせください。',
-    labels: { service: 'サービス', dates: '日程', city: '地域' },
+    labels: { service: 'サービス', dates: '日程', city: '地域', breed: '犬種・猫種', note: '飼い主からのメッセージ' },
     yes: 'はい、対応できます',
     no: 'いいえ、対応できなくなりました',
     noLine: '対応できなくなりましたか？応募は取り下げられます：',
@@ -262,7 +262,7 @@ const T = {
     still: 'Czy nadal masz czas?',
     svc: { sit: 'Opieka nad zwierzęciem', visit: 'Wizyta domowa', walk: 'Spacer' },
     intro: 'Masz zgłoszenie do tej prośby. Właściciel jeszcze nie wybrał: daj nam znać jednym kliknięciem, czy nadal masz czas.',
-    labels: { service: 'Usługa', dates: 'Daty', city: 'Miasto' },
+    labels: { service: 'Usługa', dates: 'Daty', city: 'Miasto', breed: 'Rasa', note: 'Wiadomość od właściciela' },
     yes: 'Tak, mam czas',
     no: 'Nie, już nie mam czasu',
     noLine: 'Nie masz już czasu? Twoje zgłoszenie zostanie wycofane:',
@@ -329,12 +329,44 @@ const row = (label, value) => (value
  * Données de rendu de la QUESTION (gabarit application_new_2610) : le bouton principal du
  * gabarit est « Oui » (`emailLink`), le lien « Non » est dans le corps.
  */
-function questionEmailData({ lang, post, serviceType, petNames, yesLink, noLink }) {
+/**
+ * 11/11/2026 (BOB, ordre de Daniel après la demande d'une gardienne : « merci de me dire la race à chaque fois ») —
+ * la race de l'animal (fiche animal de la demande) et un court extrait du message du propriétaire sont ajoutés à
+ * l'e-mail « êtes-vous toujours libre ? ». Rien d'inventé : pas de race connue = pas de ligne. L'extrait est
+ * nettoyé de toute adresse e-mail, lien et numéro de téléphone. Coupe-circuit : SITTER_FREE_BREED_1111=off.
+ */
+const breedOn1111 = () => String(process.env.SITTER_FREE_BREED_1111 || '').trim().toLowerCase() !== 'off';
+function breedLine1111(breeds) {
+  if (!breedOn1111() || !Array.isArray(breeds)) return '';
+  const seen = new Set();
+  const out = [];
+  for (const b of breeds) {
+    const v = String(b || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    const k = v.toLowerCase();
+    if (!v || seen.has(k)) continue;
+    seen.add(k);
+    out.push(v);
+    if (out.length >= 3) break;
+  }
+  return out.join(', ');
+}
+function noteLine1111(post) {
+  if (!breedOn1111()) return '';
+  let v = String((post && post.body) || '').replace(/\s+/g, ' ').trim();
+  if (!v) return '';
+  v = v
+    .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '…')
+    .replace(/(?:https?:\/\/|www\.)\S+/gi, '…')
+    .replace(/(?:\+|00)?\d[\d .()\-]{7,}\d/g, '…');
+  return v.length > 160 ? `${v.slice(0, 157).trimEnd()}…` : v;
+}
+
+function questionEmailData({ lang, post, serviceType, petNames, breeds, yesLink, noLink }) {
   const l = lang2(lang);
   const t = L(l);
   const fam = serviceFamily(serviceType || (post && Array.isArray(post.serviceTypes) ? post.serviceTypes[0] : ''));
   const html = `<p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#231715">${esc(t.intro)}</p>`
-    + `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 14px">${row(t.labels.service, t.svc[fam])}${row(t.labels.dates, datesOf(post, l))}${row(t.labels.city, base.cityOfPost(post))}</table>`
+    + `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 14px">${row(t.labels.service, t.svc[fam])}${row(t.labels.dates, datesOf(post, l))}${row(t.labels.city, base.cityOfPost(post))}${row(t.labels.breed, breedLine1111(breeds))}${row(t.labels.note, noteLine1111(post))}</table>`
     + (/^https:\/\//.test(String(noLink || ''))
       ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#6E4F48">${esc(t.noLine)} <a href="${esc(noLink)}" style="color:#9E1F0B;font-weight:700">${esc(t.no)}</a></p>`
       : '');
@@ -410,5 +442,5 @@ function pageHtml({ lang, title, lines = [], button = '', action = '', tone = 'o
 }
 
 module.exports = {
-  T, L, datesOf, petPhrase, questionLine, questionEmailData, questionPushData, ownerEmailData, ownerPushData, pageHtml,
+  T, L, datesOf, petPhrase, questionLine, questionEmailData, breedLine1111, noteLine1111, questionPushData, ownerEmailData, ownerPushData, pageHtml,
 };

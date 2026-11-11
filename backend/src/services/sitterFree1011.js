@@ -193,6 +193,18 @@ const petNamesOf = async (post) => {
   }
 };
 
+/** 1111 — races des animaux de la demande (fiche animal) ; liste vide si inconnues. */
+const petBreedsOf = async (post) => {
+  try {
+    const ids = Array.isArray(post && post.petIds) ? post.petIds.slice(0, 3) : [];
+    if (!ids.length) return [];
+    const pets = await require('../models/Pet').find({ _id: { $in: ids } }).select('breed').lean();
+    return pets.map((p) => String(p.breed || '').trim()).filter(Boolean);
+  } catch (_) {
+    return [];
+  }
+};
+
 const langOf = async (role, id) => {
   try { return (await require('./notificationSender').resolveRecipientLocale(role, String(id))) || 'fr'; } catch (_) { return 'fr'; }
 };
@@ -465,6 +477,7 @@ const runSitterFree = async (opts = {}) => {
       if (!candidates.length) { skip('nobody_to_ask', here); continue; }
 
       let petNames = null;
+      let breeds = null; // 1111
       let did = false;
       for (const c of candidates.slice(0, slots)) {
         const at = { postId: post._id, applicationId: c.app._id };
@@ -488,6 +501,7 @@ const runSitterFree = async (opts = {}) => {
         try {
           // eslint-disable-next-line no-await-in-loop
           if (petNames === null) petNames = await petNamesOf(post);
+          if (breeds === null) breeds = await petBreedsOf(post);
           // eslint-disable-next-line no-await-in-loop
           const lang = await langOf(c.role, c.id);
           const yesLink = answerUrl(signAnswerLink({ applicationId: c.app._id, providerId: c.id, answer: 'yes', now: now.getTime() }));
@@ -498,7 +512,7 @@ const runSitterFree = async (opts = {}) => {
             skip('not_sent:no_link', at); continue;
           }
           const ids = { applicationId: String(c.app._id), postId: String(post._id) };
-          const data = { ...ids, ...text.questionEmailData({ lang, post, serviceType: c.app.serviceType, petNames, yesLink, noLink }) };
+          const data = { ...ids, ...text.questionEmailData({ lang, post, serviceType: c.app.serviceType, petNames, breeds, yesLink, noLink }) };
           // eslint-disable-next-line no-await-in-loop
           const r = await (opts.send || ns.sendEmailOnly)({ userId: c.id, role: c.role, type: TYPE_QUESTION, templateType: TEMPLATE_EMAIL, data });
           if (!r || !r.sent) {
