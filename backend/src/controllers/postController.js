@@ -976,13 +976,11 @@ const getMediaPosts = async (req, res) => {
  * (endDate, sinon startDate, sinon sans date) et pas de réservation en cours.
  * À ajouter au filtre Mongo des feeds prestataires.
  */
+// 11/11/2026 (BOB, ordre de Daniel) — la règle de dates vit dans utils/openRequest1111 : une demande
+// n'est plus proposée aux prestataires une fois son JOUR de début passé (avant : sa date de fin).
 const openRequestFilter = (now = new Date()) => ({
   'reservedBy.bookingId': { $in: [null] },
-  $or: [
-    { endDate: { $gte: now } },
-    { endDate: { $in: [null] }, startDate: { $gte: now } },
-    { endDate: { $in: [null] }, startDate: { $in: [null] } },
-  ],
+  $or: require('../utils/openRequest1111').dateOpenOr(now),
 });
 
 const getPublicRequestPosts = async (req, res) => {
@@ -1039,6 +1037,13 @@ const getRequestPosts = async (req, res) => {
     const filter = { postType: 'request', hidden: { $ne: true }, status: { $ne: 'closed' } };
     if (ownerId) {
       filter.ownerId = ownerId;
+      // 11/11/2026 (BOB, ordre de Daniel) — un gardien ou un promeneur qui regarde les annonces d'UN
+      // propriétaire (sa fiche) ne voit plus celles qui sont réservées ou dont le début est passé.
+      // Le propriétaire, lui, voit toujours toutes les siennes.
+      if (req.user && (req.user.role === 'sitter' || req.user.role === 'walker')
+        && require('../utils/openRequest1111').enabled()) {
+        Object.assign(filter, openRequestFilter());
+      }
     } else {
       // 16/10/2026 (ADA, demande de Daniel : « vérifier qu'elle s'efface bien
       // une fois exécutée, finie ou délai passé ») — mesuré en production : une
@@ -1339,6 +1344,11 @@ const getNearbyRequestPosts = async (req, res) => {
     // v591 — audit du 26/09 : une annonce déjà réservée restait proposée comme
     // libre sur la PawMap (l'accueil, lui, affiche le badge « réservé »).
     filter['reservedBy.bookingId'] = { $in: [null] };
+    // 11/11/2026 (BOB, ordre de Daniel) — la PawMap n'avait AUCUN filtre de date : une demande passée y
+    // restait jusqu'à son effacement. Même règle que le feed (jour de début passé = plus proposée).
+    if (require('../utils/openRequest1111').enabled()) {
+      filter.$or = require('../utils/openRequest1111').dateOpenOr(new Date());
+    }
 
     // Sitter service-preference filter (mirrors getRequestPosts).
     if (req.user?.role === 'sitter') {

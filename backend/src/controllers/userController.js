@@ -794,6 +794,8 @@ const deleteAccount = async (req, res) => {
     if (role === 'owner') {
       await Pet.deleteMany({ ownerId: userId });
       await Post.deleteMany({ ownerId: userId });
+      // 11/11/2026 (ZOE) — l'historique des demandes effacées part avec le compte.
+      try { await require('../models/PostArchive1111').deleteMany({ ownerId: userId }); } catch (e) { logger.warn(`[deleteAccount] historique des demandes non purgé : ${e?.message || e}`); }
       await Task.deleteMany({ ownerId: userId });
       await Owner.deleteOne({ _id: userId });
     } else if (role === 'sitter') {

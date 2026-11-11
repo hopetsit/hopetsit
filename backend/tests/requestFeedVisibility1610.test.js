@@ -5,6 +5,9 @@
 // visible jusqu'à sa suppression 48 h plus tard ; une demande réservée restait
 // visible jusqu'au « terminé ». Vraie route, base Mongo en mémoire.
 process.env.NODE_ENV = 'test';
+// 11/11/2026 (BOB) — ce fichier garde l'ANCIENNE règle (date de fin) : il prouve que le coupe-circuit
+// REQUEST_HIDE_STARTED_1111=off la rétablit telle quelle. La nouvelle règle : tests/requestStarted1111.test.js.
+process.env.REQUEST_HIDE_STARTED_1111 = 'off';
 process.env.JWT_SECRET = 'test_jwt_secret_'.padEnd(64, 'x');
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'fa6e6fa345a9f83cb9f350828e1308f5cb9b7d7750202fb316dce12ed3702113';
 

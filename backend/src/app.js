@@ -375,6 +375,8 @@ const versionedRoutes = [
   // (admin) puis confirmation en un clic depuis l'e-mail (public, jeton aléatoire).
   // 1011 (BOB, ordre de Daniel) — liste des demandes pub / site avec l'étape où chacune attend (lecture seule, sans e-mail).
   { path: '/admin/ad-leads-1011', mw: [], router: require('./routes/adminAdLeadsList1011') },
+  // 1111 (BOB, ordre de Daniel) — historique des demandes effacées automatiquement 48 h après leur fin (lecture seule, sans e-mail).
+  { path: '/admin/posts-history-1111', mw: [], router: require('./routes/adminPostsHistory1111') },
   // 1011 (ADA, ordre de Daniel) — onglet Inscriptions : a publié / a candidaté / a payé par profil (lecture seule, compteurs sans donnée personnelle).
   { path: '/admin/people-1011', mw: [], router: require('./routes/adminPeople1011') },
   { path: '/admin/ad-leads', mw: [], router: require('./routes/adLeads2210').adminRouter },

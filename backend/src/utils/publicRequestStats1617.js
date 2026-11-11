@@ -81,11 +81,7 @@ function mongoFilter(now) {
     postType: 'request', hidden: { $ne: true }, status: { $ne: 'closed' },
     'reservedBy.bookingId': { $in: [null] },
     $and: [
-      { $or: [
-        { endDate: { $gte: now } },
-        { endDate: { $in: [null] }, startDate: { $gte: now } },
-        { endDate: { $in: [null] }, startDate: { $in: [null] } },
-      ] },
+      { $or: require('./openRequest1111').dateOpenOr(now) }, // 11/11 — même règle que le feed
       { $or: [{ createdAt: { $gte: since } }, { startDate: { $gte: now } }, { endDate: { $gte: now } }] },
     ],
   };

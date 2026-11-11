@@ -24,6 +24,11 @@ const MAX_POSTS = 10;
 
 /** Période encore à venir (ou en cours) : fin, sinon début, sinon création < 60 j. */
 function isStillActive(post, now = new Date()) {
+  // 11/11/2026 (BOB, ordre de Daniel ; relevé par ZOE) — fiche du propriétaire vue par un gardien ou un
+  // promeneur : même règle que le feed et la PawMap (jour de début passé = plus proposée).
+  // Coupe-circuit REQUEST_HIDE_STARTED_1111=off → ancienne règle ci-dessous (date de fin, tolérance 24 h).
+  const r1111 = require('../utils/openRequest1111');
+  if (r1111.enabled()) return r1111.isDateOpen(post, now);
   const end = post.endDate ? new Date(post.endDate) : null;
   const start = post.startDate ? new Date(post.startDate) : null;
   const ref = end && !Number.isNaN(end.getTime()) ? end : start;
