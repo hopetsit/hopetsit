@@ -1721,8 +1721,9 @@ List<PawLegendEntry> pawLegendEntries() {
           label: 'pawmap_me_label'.tr,
           crownSize: PawMapLegend.crownMe),
     ),
-    // 640 — l'ami en PHOTO, à la taille de « Moi » : halo rose net + cœur
-    // (même peintre que la carte ; à false : le rond de 50 d'avant).
+    // 640 — l'ami en PHOTO : halo rose net + cœur (même peintre que la
+    // carte ; à false : le rond de 50 d'avant). 641 — 36 pt tout compris,
+    // à peine plus qu'une pastille normale (voir kPawFriendSmall641).
     PawLegendEntry(
       key: 'friend',
       label: (kPawFriendPhoto640 ? 'pawmap640_legend_friend' : 'pawmap_legend_friend').tr,

@@ -7,6 +7,11 @@
 //   flutter test test/pawmap640_amis_test.dart --update-goldens
 // Retour 639 (pastille + mini cœur), à vérifier aussi :
 //   flutter test test/pawmap640_amis_test.dart --dart-define=PAWMAP_FRIEND_PHOTO=false
+// 641 (PAM) — Daniel : « les pastilles amis sont trop grandes » → l'ami fait
+// 36 pt tout compris (kPawFriendSmall641, voir pam641_friend_size_test.dart).
+// La planche de CE fichier reste celle du 640 : elle n'est comparée à son
+// image de référence qu'avec le coupe-circuit, ce qui prouve le retour exact :
+//   flutter test test/pawmap640_amis_test.dart --dart-define=PAWMAP_FRIEND_SMALL=false
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -268,7 +273,13 @@ void main() {
   // ── Coupe-circuit : les constantes dérivées ──────────────────────────────
   test('640 — coupe-circuit : tailles et rayons dérivés', () {
     expect(kPawFriendPin639, kPawFriendPastille639 && !kPawFriendPhoto640);
-    if (kPawFriendPhoto640) {
+    if (kPawFriendPhoto640 && kPawFriendSmall641) {
+      expect(kPawFriendSize640, 30); // 641 : 36 tout compris
+      expect(kPawFriendCrown640, 16);
+      expect(kPawFriendBoxR640, 18.5); // rond 15 + liseré 1 + anneau 2 + 0,5
+      expect(kPawFriendLabelR640, 18);
+      expect(kPawFriendPin639, isFalse);
+    } else if (kPawFriendPhoto640) {
       expect(kPawFriendSize640, PawMapLegend.meSize); // 56, comme « moi »
       expect(kPawFriendCrown640, PawMapLegend.crownMe);
       expect(kPawFriendBoxR640, 35.5); // photo 28 + liseré 3 + anneau 4 + 0,5
@@ -294,7 +305,7 @@ void main() {
     expect(before, 110);
     if (kPawFriendPhoto640) {
       final double now = PawMapPinPainter.photoBitmapSize(kPawFriendSize640, margin: _mF);
-      expect(now, 108);
+      expect(now, kPawFriendSmall641 ? 62 : 108);
       expect(now <= before, isTrue);
       // l'anneau rose (7) + la lueur tiennent dans la marge
       expect(_mF > kPawFriendOut640 + 12, isTrue);
@@ -303,11 +314,17 @@ void main() {
 
   test('640 — le cœur : en haut à gauche, à cheval sur l\'anneau rose', () {
     const c = Offset(100, 100);
-    final h = pawFriendHeartCenter640(c, 28);
+    const double r = kPawFriendSize640 / 2;
+    final h = pawFriendHeartCenter640(c, r);
     expect(h.dx < c.dx && h.dy < c.dy, isTrue);
-    expect((h - c).distance, closeTo(28 + kPawFriendWhite640, 0.001));
+    // 641 : au milieu de l'anneau rose ; 640 : à la limite blanc / rose.
+    expect(
+        (h - c).distance,
+        closeTo(
+            r + kPawFriendWhite640 + (kPawFriendSmall641 ? kPawFriendRing640 / 2 : 0),
+            0.001));
     // jamais sous la couronne (haut-droite)
-    final crown = PawMapPinPainter.crownCenter(c, 28, kPawFriendCrown640);
+    final crown = PawMapPinPainter.crownCenter(c, r, kPawFriendCrown640);
     expect((crown - h).distance > (kPawFriendHeart640 + kPawFriendCrown640) / 2, isTrue);
   });
 
@@ -339,15 +356,16 @@ void main() {
       await ensurePawPinFonts();
       Future<int> count(String name, double margin,
           {required Color ring, double? boost, double? follow}) async {
-        const size = PawMapLegend.meSize;
+        // 641 : l'ami à SA taille (30, ou 56 avec le coupe-circuit).
+        final double size = ring == PawMapLegend.friend
+            ? kPawFriendSize640
+            : PawMapLegend.meSize;
         final double side = PawMapPinPainter.photoBitmapSize(size, margin: margin);
         final img = await renderPinImage(side, side, (c) {
           PawMapPinPainter.paintPhotoDot(c,
               avatar: null,
               ringColor: ring,
-              size: kPawFriendPhoto640 || ring != PawMapLegend.friend
-                  ? size
-                  : PawMapLegend.friendSize,
+              size: size,
               boostPhase: boost,
               followPhase: follow,
               fallbackTint: PawMapLegend.sitter,
@@ -404,13 +422,14 @@ void main() {
         final out = Platform.environment['PAWMAP640_OUT'];
         if (out != null && out.isNotEmpty) {
           final name =
-              'planche_${kPawFriendPhoto640 ? '640' : 'retour639'}_${dark ? 'sombre' : 'clair'}.png';
+              'planche_${kPawFriendPhoto640 ? (kPawFriendSmall641 ? '641' : '640') : 'retour639'}_${dark ? 'sombre' : 'clair'}.png';
           File('$out/$name').writeAsBytesSync(png!);
         }
       });
       expect(board, isNotNull);
       expect(png, isNotNull);
-      if (kPawFriendPhoto640) {
+      // 641 — image de référence du 640 : seulement aux tailles du 640.
+      if (kPawFriendPhoto640 && !kPawFriendSmall641) {
         await expectLater(
             board!,
             matchesGoldenFile(

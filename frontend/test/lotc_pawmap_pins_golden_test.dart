@@ -96,7 +96,11 @@ final Map<String, (double, double, void Function(Canvas))> _pins = {
   // 640 — l'ami est une PHOTO de 56 (comme « moi ») avec halo rose + cœur :
   // image de référence `friend_online_640.png`. Coupe-circuit à false
   // (`--dart-define=PAWMAP_FRIEND_PHOTO=false`) : rendu 639, image d'origine.
-  (kPawFriendPhoto640 ? 'friend_online_640' : 'friend_online'): (
+  // 641 (PAM) — ami ramené à 36 pt tout compris : image `friend_online_641`.
+  // `--dart-define=PAWMAP_FRIEND_SMALL=false` revient à `friend_online_640`.
+  (kPawFriendPhoto640
+      ? (kPawFriendSmall641 ? 'friend_online_641' : 'friend_online_640')
+      : 'friend_online'): (
     PawMapPinPainter.photoBitmapSize(kPawFriendSize640, margin: _friendMargin640),
     PawMapPinPainter.photoBitmapSize(kPawFriendSize640, margin: _friendMargin640),
     (c) => PawMapPinPainter.paintPhotoDot(c,

@@ -438,6 +438,17 @@ class FirstPostCard3110 extends StatelessWidget {
                     ),
                   ],
                 ),
+                // 641 — le bouton passe JUSTE SOUS le titre (retour testeur :
+                // en bas de la carte, le menu flottant le recouvrait au repos).
+                // Les 3 étapes suivent, en dessous.
+                const SizedBox(height: 14),
+                PrimaryPill3110(
+                  key: const ValueKey<String>('owner_first_post_cta'),
+                  label: ctaLabel,
+                  color: t.primary,
+                  shadow: t.shadowColor,
+                  onTap: onCta,
+                ),
                 const SizedBox(height: 16),
                 for (int i = 0; i < steps.length; i++) ...<Widget>[
                   if (i > 0) const SizedBox(height: 9),
@@ -478,14 +489,6 @@ class FirstPostCard3110 extends StatelessWidget {
                     ],
                   ),
                 ],
-                const SizedBox(height: 16),
-                PrimaryPill3110(
-                  key: const ValueKey<String>('owner_first_post_cta'),
-                  label: ctaLabel,
-                  color: t.primary,
-                  shadow: t.shadowColor,
-                  onTap: onCta,
-                ),
               ],
             ),
           ),

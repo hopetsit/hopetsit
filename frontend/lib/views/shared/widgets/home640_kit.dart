@@ -496,7 +496,7 @@ class HeroStatusBlock640 extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             subtitle,
-                            maxLines: 2,
+                            maxLines: 3, // 641 ZOE : 2 lignes coupaient le texte à côté du dessin (écran 360 dp)
                             overflow: TextOverflow.ellipsis,
                             style: pop3110(
                               fontSize: 12,
@@ -660,7 +660,9 @@ class OwnerServiceCards640 extends StatelessWidget {
   /// toujours, sans `IntrinsicHeight` ni `stretch` (règles du projet).
   static double largeHeightFor(BuildContext context) {
     final TextScaler s = _scaler(context);
-    return 100 +
+    // 641 — cartes moins hautes (retour testeur : « menos alto ») :
+    // 12 + pavé 40 + 8 mini + [titre] + 2 + [sous-titre ×2] + 12.
+    return 74 +
         math.max(18.0, s.scale(18)) * 1.2 +
         math.max(12.0, s.scale(12)) * 1.4 * 2;
   }
@@ -915,25 +917,25 @@ class OwnerServiceCard640 extends StatelessWidget {
 
   Widget _large(BuildContext context) {
     return SizedBox(
-      height: height ?? 156,
+      height: height ?? 130,
       child: Stack(
         children: <Widget>[
-          _halo(132, -52, -44),
+          _halo(116, -50, -40),
           // Filigrane : sous le texte, en bas à droite.
           Positioned(
             right: 8,
             bottom: 7,
-            child: HomeSilhouette640(deco: deco, height: 56, opacity: 0.17),
+            child: HomeSilhouette640(deco: deco, height: 48, opacity: 0.17),
           ),
           Positioned.fill(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(padH, 16, padH, 14),
+              padding: EdgeInsets.fromLTRB(padH, 12, padH, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[_tile(48, 16, 26), _arrow(32, 17)],
+                    children: <Widget>[_tile(40, 14, 22), _arrow(28, 15)],
                   ),
                   const Spacer(),
                   Text(

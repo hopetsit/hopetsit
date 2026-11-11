@@ -74,6 +74,8 @@ import {
 import {
   memberPinHtml,
   photoPinHtml,
+  FRIEND_PHOTO_PX_641,
+  FRIEND_SMALL_641,
   memberClusterHtml,
   placePinHtml,
   placeClusterHtml,
@@ -206,8 +208,9 @@ const reportIcon = (type: string, fresh: boolean) => {
 const FRIEND_PHOTO_640 = true;
 /** 1011 — pastille des rôles + halo fuchsia + petit cœur (dessin 639) : seulement si la photo 640 est coupée. */
 const FRIEND_PASTILLE_639 = !FRIEND_PHOTO_640;
-/** Diamètre de la photo d'un ami (56 = comme « moi » ; 50 = ancien dessin). */
-const FRIEND_PX_640 = FRIEND_PHOTO_640 ? 56 : 50;
+/** Diamètre de la photo d'un ami : 30 depuis le 641 (36 px avec liseré + anneau rose, soit +12,5 % d'une
+ *  pastille normale de 32 px — Daniel 10/11 : « trop grandes ») ; 56 si `FRIEND_SMALL_641` est coupé ; 50 = ancien dessin. */
+const FRIEND_PX_640 = FRIEND_PHOTO_640 ? FRIEND_PHOTO_PX_641 : 50;
 /** Rayon réservé à un ami à sa position de profil (photo 56 px, ou halo 43 px de la pastille). */
 const FRIEND_R_639 = FRIEND_PASTILLE_639 ? 43 / 2 : FRIEND_PX_640 / 2;
 function memberIcon(m: NearbyMember, caption: string | null, roles: PersonRole[], dark: boolean, o: { selected?: boolean; dim?: boolean; prices?: Price2610[]; live?: boolean; off?: { x: number; y: number } | null; rating?: string | null; friend?: boolean; captionAbove?: boolean; premium?: boolean } = {}): L.DivIcon {
@@ -1042,7 +1045,8 @@ export default function PoiMap({
     const meW = textWidth(meLabel || "Moi", "700 11px Inter, system-ui, sans-serif", 11) + 16;
     const meBox = pinBox(56 / 2 + 2, { labelW: meW, labelH: 16.3, labelGap: 3 });
     if (meAt) meRects.push(circleRect(meAt, 56 / 2 + 2), labelRect(meAt, 56 / 2, meW, "below", 16.3));
-    const friendBox = pinBox(FRIEND_PX_640 / 2 + 2.5);
+    // 641 — petit format : la boîte couvre l'anneau rose (rayon 15 + 3 + 0,5 = 18,5, comme l'app).
+    const friendBox = pinBox(FRIEND_PX_640 / 2 + (FRIEND_SMALL_641 && FRIEND_PHOTO_640 ? 3.5 : 2.5));
     // 640 — ami en photo 56 px (profil et direct) ; coupe-circuit : pastille + halo (43 px) au profil, photo 50 px en direct.
     const friendProfileBox = FRIEND_PASTILLE_639 ? pinBox(FRIEND_R_639 + 1) : friendBox;
     const entries: { items: NearbyMember[]; c: Px; r: number; friend: boolean }[] = [];

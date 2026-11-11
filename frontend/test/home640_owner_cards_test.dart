@@ -204,7 +204,8 @@ void main() {
       expect(a.left, 20);
       expect(b.right, 402 - 20);
       expect(b.left - a.right, 12);
-      expect(a.height, greaterThanOrEqualTo(150));
+      expect(a.height, greaterThanOrEqualTo(124));
+      expect(a.height, lessThanOrEqualTo(134)); // 641 : cartes moins hautes
       _expectNoClippedText(tester, 'grandes 402');
 
       // Toute la carte est tactile : les 4 coins + le centre + le décor.
@@ -387,7 +388,7 @@ void main() {
       expect(find.byType(OwnerServiceCards640), findsOneWidget);
       expect(find.byType(ServiceCards3110), findsNothing);
       expect(tester.widget<OwnerServiceCards640>(find.byType(OwnerServiceCards640)).compact, isFalse);
-      expect(tester.getRect(find.byKey(kSitting)).height, greaterThanOrEqualTo(150));
+      expect(tester.getRect(find.byKey(kSitting)).height, greaterThanOrEqualTo(124));
       await home640Shot(tester, shot, 'owner_cartes');
 
       await tester.tap(find.byKey(kSitting));
@@ -412,6 +413,31 @@ void main() {
       await lotdSettle(tester, frames: 6);
       tester.takeException(); // l'écran de publication n'est pas l'objet de ce test
     });
+
+    // 641 — retour testeur (captures du 10/11) : au repos, le bouton « Publier
+    // mon annonce » de la carte « première annonce » passait SOUS le menu
+    // flottant. Pire cas Android : barre d'état 32 dp, dégagement bas 48 dp,
+    // menu = 76 dp (marge 6 + barre 70) au-dessus du dégagement.
+    for (final Size phone in const <Size>[Size(360, 740), Size(360, 800), Size(393, 852), Size(412, 915)]) {
+      testWidgets('641 — sans annonce, Publier visible au repos au-dessus du menu '
+          '(${phone.width.toInt()}×${phone.height.toInt()})', (tester) async {
+        _serve();
+        tester.view.padding = const FakeViewPadding(top: 32, bottom: 48);
+        tester.view.viewPadding = const FakeViewPadding(top: 32, bottom: 48);
+        addTearDown(tester.view.resetPadding);
+        addTearDown(tester.view.resetViewPadding);
+        await _openHome(tester, width: phone.width, height: phone.height);
+        expect(tester.takeException(), isNull);
+        final Rect cta = tester.getRect(find.byKey(const ValueKey<String>('owner_first_post_cta')));
+        final Rect card = tester.getRect(find.byKey(kSitting));
+        final double menuTop = phone.height - 48 - 76;
+        // ignore: avoid_print
+        print('M641 ${phone.width.toInt()}x${phone.height.toInt()} carte=$card cta=$cta menuTop=$menuTop');
+        expect(card.height, lessThanOrEqualTo(134));
+        expect(cta.bottom, lessThanOrEqualTo(menuTop),
+            reason: 'le bouton Publier doit rester au-dessus du menu au repos');
+      });
+    }
 
     testWidgets('avec une annonce à moi : cartes compactes, mêmes actions', (tester) async {
       _serve(posts: <Map<String, dynamic>>[_myPost('a1')]);

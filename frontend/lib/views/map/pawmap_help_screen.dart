@@ -764,7 +764,8 @@ class _PawMapHelpScreenState extends State<PawMapHelpScreen> {
 /// Ami : halo rose, contour bicolore gardien + promeneur (ses rôles), point
 /// vert « en ligne » — comme `photoPinHtml({roles:[sitter,walker]})` du site.
 PawLegendEntry _friendEntry() {
-  // 640 — photo à la taille de « Moi », halo rose net + cœur (comme la carte).
+  // 640 — halo rose net + cœur (comme la carte). 641 — à peine plus grande
+  // qu'une pastille normale (36 pt tout compris, voir kPawFriendSmall641).
   const s = kPawFriendSize640;
   const m = kPawFriendPhoto640
       ? PawMapPinPainter.photoMarginFriend640

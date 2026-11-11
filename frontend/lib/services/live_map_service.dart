@@ -222,6 +222,17 @@ List<LatLng> appendTrailPoint(List<LatLng> trail, LatLng p,
   return out.length > max ? out.sublist(out.length - max) : out;
 }
 
+/// 641 — précision demandée au GPS pendant MON direct. Hors panne : la
+/// meilleure (`best`), comme le bouton « Ma position » hors direct — avant,
+/// le direct demandait `high` (≈ 10 m sur iPhone), donc MOINS que hors
+/// direct. Android : `high` et `best` sont le même réglage. Mode dégradé
+/// (flux en panne) : précision basse, inchangé.
+LocationAccuracy liveGpsAccuracy641({required bool degraded}) =>
+    degraded ? LocationAccuracy.low : LocationAccuracy.best;
+
+/// 641 — distance mini (m) entre deux points du flux GPS (inchangée).
+int liveGpsDistanceFilter641({required bool degraded}) => degraded ? 100 : 5;
+
 /// v590 — tracé renvoyé par le serveur : [[lat, lng], …].
 List<LatLng> parseTrail(dynamic raw) {
   if (raw is! List) return const <LatLng>[];
@@ -799,6 +810,11 @@ class LiveMapService extends GetxService {
   int _attachRetries = 0;
   String? _city;
   DateTime? _lastGpsAt;
+
+  /// 641 — porte des points GPS de MA balade : garde la PRÉCISION du dernier
+  /// point retenu, pour qu'un point imprécis (cache du téléphone) ne bloque
+  /// plus le vrai point GPS qui suit. Voir [PawGpsGate641].
+  final PawGpsGate641 _gpsGate641 = PawGpsGate641();
   DateTime? _lastHttpAt;
   bool _gpsDegraded = false;
   /// Rafraîchissement des positions amis (stale / lastSeenAt) par HTTP.
@@ -1441,6 +1457,9 @@ class LiveMapService extends GetxService {
     final initial = latestPosition();
     final hasInitial = !(initial.latitude == 0 && initial.longitude == 0);
     _lastKnownGps = hasInitial ? initial : null;
+    // 641 — la position de départ vient de l'écran (précision moyenne) :
+    // le premier vrai point GPS la remplacera, un point en cache non.
+    _gpsGate641.seed(_lastKnownGps, DateTime.now());
     myLivePosition.value = hasInitial ? initial : null;
 
     _startGpsStream();
@@ -1495,13 +1514,11 @@ class LiveMapService extends GetxService {
         // un point imprécis (> 40 m) ou un saut impossible à pied, juste
         // après un bon point, n'est ni envoyé à ceux qui me suivent, ni
         // dessiné. Après 25 s sans bon point, on reprend ce qui vient.
-        if (!pawAcceptGpsFix612(
-          accuracyM: pos.accuracy,
-          fix: p,
-          lastGood: _lastKnownGps,
-          lastGoodAt: _lastGpsAt,
-          now: DateTime.now(),
-        )) {
+        // 641 (testeur, 10/11 : « Pas précis dans la géoloc direct ») — la
+        // porte retient aussi la PRÉCISION du dernier point gardé : le 1er
+        // point du flux (cache du téléphone) n'est plus pris d'office, et il
+        // ne fait plus refuser le vrai point GPS qui arrive juste après.
+        if (!_gpsGate641.offer(p, pos.accuracy, DateTime.now())) {
           return;
         }
         final bool firstFix = _lastKnownGps == null;
@@ -1696,8 +1713,8 @@ class LiveMapService extends GetxService {
   /// v23.1.294 — réglages GPS. Sur Android on attache un foreground service
   /// (notif persistante) pour que le partage survive en arrière-plan.
   LocationSettings _buildLocationSettings({bool degraded = false}) {
-    final accuracy = degraded ? LocationAccuracy.low : LocationAccuracy.high;
-    final int filter = degraded ? 100 : 5;
+    final accuracy = liveGpsAccuracy641(degraded: degraded);
+    final int filter = liveGpsDistanceFilter641(degraded: degraded);
     if (defaultTargetPlatform == TargetPlatform.android) {
       return gloc_android.AndroidSettings(
         accuracy: accuracy,
@@ -1772,6 +1789,7 @@ class LiveMapService extends GetxService {
     _gpsSub = null;
     _lastKnownGps = null;
     _lastGpsAt = null;
+    _gpsGate641.reset();
     _gpsError = false;
     _lastHttpAt = null;
     _lastHttpHadPos = false; // 607

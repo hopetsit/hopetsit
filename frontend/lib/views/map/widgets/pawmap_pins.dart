@@ -754,6 +754,8 @@ class PawMapPinPainter {
   /// à droite, fusée en bas à gauche, point de statut en haut à gauche).
   /// [code] 1..3 = podium or / argent bleuté / bronze (chiffre), 4 = 1er Chef
   /// de meute (violet, patte dorée). Mêmes couleurs que `PawPinStyle618`.
+  /// 641 — sur le petit rond d'un ami, le pin prend le coin gauche libre
+  /// (voir `pawFriendCorner641`) : le milieu du bord toucherait le cœur.
   static void drawPin618(Canvas canvas, Offset center, int code, [double size = 16]) {
     if (code < 1 || code > 4) return;
     const fills = <int, List<Color>>{
@@ -1430,6 +1432,11 @@ class PawMapPinPainter {
     // 640 — pas de coche sur la photo d'un ami (comme la pastille 639) : le
     // point « en ligne » reste en bas à droite, le cœur garde le haut-gauche.
     final bool showVerified = verified && (!f640 || kPawPinVerified639);
+    // 641 — ami à la petite taille (36 pt tout compris) : anneaux plus fins,
+    // badges à l'échelle. Un rond d'ami plus grand (illustration « La balade
+    // de Rex ») garde le dessin d'avant.
+    final bool small641 =
+        f640 && kPawFriendSmall641 && size <= kPawFriendSize640 + 0.01;
     final bool isMe = !isFriend &&
         (dashedRing || eyeOff || size >= PawMapLegend.meSize);
     final double maxR = r + margin - 0.5;
@@ -1476,7 +1483,9 @@ class PawMapPinPainter {
     } else if (f640) {
       // 640 — le site : box-shadow 0 0 0 3px #fff, 0 0 0 7px #ff5ad2,
       // 0 0 18px 6px rgba(255,90,210,.6). Lueur, anneau rose NET, liseré blanc.
-      drawCssGlow(canvas, c, glowR, maxR, PawPin639.friend, [(6, 18, 0.6)]);
+      // 641 — lueur à l'échelle du petit rond (elle ne le grossit pas).
+      drawCssGlow(canvas, c, glowR, maxR, PawPin639.friend,
+          small641 ? const [(5, 10, 0.55)] : const [(6, 18, 0.6)]);
       canvas.drawCircle(c, r + kPawFriendOut640,
           Paint()..color = _veil(PawPin639.friend, dimmed));
       canvas.drawCircle(c, r + kPawFriendWhite640, Paint()..color = Colors.white);
@@ -1514,8 +1523,9 @@ class PawMapPinPainter {
 
     // 4. Anneau 3 px (dégradé 170° : rose pour un ami, rôle sinon), liseré
     //    blanc 2 px, puis la photo.
-    const ring = 3.0;
-    const white = 2.0;
+    //    641 — ami à la petite taille : 2 + 1 (voir kPawFriendInRing641).
+    final double ring = small641 ? kPawFriendInRing641 : 3.0;
+    final double white = small641 ? kPawFriendInWhite641 : 2.0;
     final rect = Rect.fromCircle(center: c, radius: r);
     final (tl, td) = PawMapLegend.ringGradient(fallbackTint);
     if (dashedRing) {
@@ -1585,12 +1595,14 @@ class PawMapPinPainter {
     // 616 — [offlineDot] : le point est aussi dessiné HORS LIGNE (orange
     // foncé plein), jamais la même pastille pour tout le monde.
     if (online || dimmed || offlineDot) {
-      final s = (size * 13 / 50).roundToDouble();
+      // 641 — jamais moins de 10 sur un ami (le point des pastilles normales).
+      final double s0 = (size * 13 / 50).roundToDouble();
+      final double s = small641 ? math.max(kPawFriendDot641, s0) : s0;
       drawOnlineDot(canvas, pawOnlineDotCenter(c, r, s, verified: showVerified), s,
           online: online && !dimmed);
     }
     if (boostPhase != null) {
-      final s = isMe ? 20.0 : 18.0;
+      final s = isMe ? 20.0 : (small641 ? kPawFriendRocket641 : 18.0);
       final b = (s * 0.25).roundToDouble(), l = (s * 0.3).roundToDouble();
       drawRocketBadge(
           canvas, Offset(c.dx - (r + l - s / 2), c.dy + r + b - s / 2), s);
@@ -1608,10 +1620,21 @@ class PawMapPinPainter {
     // 640 — le cœur : seulement quand le halo AFFICHÉ est celui d'ami (pas
     // sous PawBoost, suivi en direct ni PawFollow). Haut-gauche, à cheval sur
     // l'anneau rose — le coin opposé à la couronne.
-    if (f640 && halo == PawPhotoHalo.friend) {
+    final bool heart640 = f640 && halo == PawPhotoHalo.friend;
+    if (heart640) {
       drawHeartBadge640(canvas, pawFriendHeartCenter640(c, r));
     }
-    if (pin618 > 0) drawPin618(canvas, Offset(c.dx - r, c.dy), pin618);
+    if (pin618 > 0) {
+      // 641 — sur le petit rond d'un ami, le milieu du bord gauche touche le
+      // cœur (haut-gauche) et la fusée (bas-gauche) : le pin prend le coin
+      // gauche resté libre (le cœur et la fusée ne sont jamais ensemble).
+      drawPin618(
+          canvas,
+          small641
+              ? pawFriendCorner641(c, r, -1, heart640 ? 1 : -1)
+              : Offset(c.dx - r, c.dy),
+          pin618);
+    }
 
     // 6. Étiquette sous le rond (v598 : ou au-dessus, [labelAbove]).
     if (label != null && label.isNotEmpty) {
@@ -1698,7 +1721,9 @@ class PawMapPinPainter {
   /// 640 — marge d'une photo d'AMI (56) sans PawBoost ni suivi : 7 de liseré
   /// et d'anneau rose + la lueur. 26 → image de 108 pt, pas plus lourde que
   /// l'ami d'avant le 639 (50 + 2 × 30 = 110) dans la réserve de textures iOS.
-  static const double photoMarginFriend640 = 26;
+  /// 641 — ami de 30 (36 tout compris) : 16 → image de 62 pt (3 d'anneau, le
+  /// cœur qui dépasse de 10, la lueur) ; zone de toucher réduite d'autant.
+  static const double photoMarginFriend640 = kPawFriendSmall641 ? 16 : 26;
   /// Hauteur ajoutée au bitmap pour l'étiquette (sous le rond, ou au-dessus
   /// avec `labelAbove` — v598). 10 → 14 (v598) : avec la marge serrée, la
   /// queue d'ombre de la pastille touchait le bord du bitmap.
@@ -2599,32 +2624,75 @@ const bool kPawFriendPhoto640 =
 /// La pastille d'ami du 639 n'est posée que si la photo 640 est coupée.
 const bool kPawFriendPin639 = kPawFriendPastille639 && !kPawFriendPhoto640;
 
-/// Taille de la photo d'un ami : celle de « Moi » en 640, 50 avant.
-const double kPawFriendSize640 =
-    kPawFriendPhoto640 ? PawMapLegend.meSize : PawMapLegend.friendSize;
+/// 641 (PAM, retour de Daniel du 10/11 : « les pastilles amis sont trop
+/// grandes, il faudra les faire juste un peu plus grosses que les pastilles
+/// normales ») — la photo d'un ami faisait 70 pt TOUT COMPRIS (photo 56 +
+/// liseré blanc 3 + anneau rose 4 de chaque côté) à côté d'une pastille
+/// normale de 32 pt ([kPawPinDiscR639] × 2) : 2,2 fois sa taille. Elle fait
+/// maintenant [kPawFriendScale641] fois la pastille normale, tout compris.
+/// `false` = retour exact aux tailles du 640 (essai sans toucher au code :
+/// `--dart-define=PAWMAP_FRIEND_SMALL=false`).
+const bool kPawFriendSmall641 =
+    bool.fromEnvironment('PAWMAP_FRIEND_SMALL', defaultValue: true);
 
-/// Largeur de ce qui entoure la photo d'un ami 640 : liseré blanc + anneau rose.
-const double kPawFriendWhite640 = 3;
-const double kPawFriendRing640 = 4;
+/// LE réglage : taille d'un ami (anneau rose compris) / pastille normale.
+/// 1,125 = +12,5 % → 36 pt. Tout le reste en découle.
+const double kPawFriendScale641 = 1.125;
+
+/// Diamètre d'un ami TOUT COMPRIS (photo, contour, liseré blanc, anneau rose).
+const double kPawFriendTotal641 = 2 * kPawPinDiscR639 * kPawFriendScale641;
+
+/// Largeur de ce qui entoure la photo d'un ami : liseré blanc + anneau rose
+/// (641 : 1 + 2 ; 640 : 3 + 4).
+const double kPawFriendWhite640 = kPawFriendSmall641 ? 1 : 3;
+const double kPawFriendRing640 = kPawFriendSmall641 ? 2 : 4;
 const double kPawFriendOut640 = kPawFriendWhite640 + kPawFriendRing640;
 
+/// 641 — dans le rond d'un ami : contour de rôle 2 + liseré blanc 1 (les
+/// autres ronds photo gardent 3 + 2) : la photo garde 24 pt sur 30.
+const double kPawFriendInRing641 = 2;
+const double kPawFriendInWhite641 = 1;
+
+/// Taille du rond d'un ami (contour de rôle compris, SANS liseré blanc ni
+/// anneau rose) : 30 en 641 (36 tout compris) ; 56 en 640 ; 50 avant.
+const double kPawFriendSize640 = kPawFriendPhoto640
+    ? (kPawFriendSmall641
+        ? kPawFriendTotal641 - 2 * kPawFriendOut640
+        : PawMapLegend.meSize)
+    : PawMapLegend.friendSize;
+
 /// Rayon RÉSERVÉ à un ami dans les collisions (ce qui se voit + 0,5) :
-/// 28 + 7 en 640 ; 25 + 2,5 avant.
+/// 18 + 0,5 en 641 ; 28 + 7 + 0,5 en 640 ; 25 + 2,5 avant.
 const double kPawFriendBoxR640 = kPawFriendPhoto640
-    ? PawMapLegend.meSize / 2 + kPawFriendOut640 + 0.5
+    ? kPawFriendSize640 / 2 + kPawFriendOut640 + 0.5
     : PawMapLegend.friendSize / 2 + 2.5;
 
 /// Rayon d'où part l'étiquette d'un ami (elle se pose 3 pt plus loin).
 const double kPawFriendLabelR640 = kPawFriendPhoto640
-    ? PawMapLegend.meSize / 2 + kPawFriendOut640
+    ? kPawFriendSize640 / 2 + kPawFriendOut640
     : PawMapLegend.friendSize / 2;
 
-/// Couronne Premium d'un ami : celle de « Moi » quand il a sa taille.
-const double kPawFriendCrown640 =
-    kPawFriendPhoto640 ? PawMapLegend.crownMe : PawMapLegend.crownFriend;
+/// Couronne Premium d'un ami : 16 en 641 (la pastille normale porte un rond
+/// or de 14 + liseré) ; celle de « Moi » en 640.
+const double kPawFriendCrown640 = kPawFriendPhoto640
+    ? (kPawFriendSmall641 ? 16 : PawMapLegend.crownMe)
+    : PawMapLegend.crownFriend;
 
-/// Taille du cœur d'ami sur la photo (liseré blanc compris).
-const double kPawFriendHeart640 = 20;
+/// Taille du cœur d'ami sur la photo (liseré blanc compris) : 16 en 641 (le
+/// cœur de la pastille 639 fait 18), 20 en 640.
+const double kPawFriendHeart640 = kPawFriendSmall641 ? 16 : 20;
+
+/// 641 — fusée PawBoost et point « en ligne » d'un ami à la petite taille.
+const double kPawFriendRocket641 = 16;
+const double kPawFriendDot641 = 10;
+
+/// 641 — centre d'un badge posé au MILIEU de l'anneau rose d'un ami, à 45° :
+/// [sx] / [sy] = −1 (gauche / haut) ou +1 (droite / bas).
+Offset pawFriendCorner641(Offset c, double r, int sx, int sy) {
+  final double d =
+      (r + kPawFriendWhite640 + kPawFriendRing640 / 2) * math.sqrt1_2;
+  return Offset(c.dx + sx * d, c.dy + sy * d);
+}
 
 /// La coche « identité vérifiée » n'existe pas dans la maquette v2 : elle
 /// n'est plus dessinée sur la pastille (elle reste dans la fiche au toucher).
@@ -3005,7 +3073,10 @@ const String _kHeart639 =
 
 /// 640 — centre du cœur d'un ami en photo : en haut à gauche, à 45°, à cheval
 /// sur le liseré blanc et l'anneau rose (le coin opposé à la couronne).
+/// 641 — au MILIEU de l'anneau rose (il est plus fin) : le cœur ne mord que
+/// 3 pt sur la photo.
 Offset pawFriendHeartCenter640(Offset c, double r) {
+  if (kPawFriendSmall641) return pawFriendCorner641(c, r, -1, -1);
   final double d = (r + kPawFriendWhite640) * math.sqrt1_2;
   return Offset(c.dx - d, c.dy - d);
 }

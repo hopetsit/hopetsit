@@ -182,8 +182,13 @@ void main() {
         expect(_k('home_hero_rocket'), findsOneWidget);
         expect(_k('home_hero_bell'), findsOneWidget);
         expect(_k('home_hero_change_city'), findsOneWidget);
-        // Silhouette du bandeau et patte en filigrane : promeneur seulement.
-        expect(_k('home640_status_deco'), walker ? findsOneWidget : findsNothing);
+        // 641 — silhouette du bandeau pour les DEUX rôles (gardien : chien et
+        // chat ; promeneur : chien en laisse). Patte en filigrane : promeneur seul.
+        expect(_k('home640_status_deco'), findsOneWidget);
+        expect(
+          tester.widget<HomeSilhouette640>(_k('home640_status_deco')).deco,
+          walker ? HomeDeco640.dogOnLeash : HomeDeco640.dogAndCat,
+        );
         expect(_k('home640_hero_paw'), walker ? findsOneWidget : findsNothing);
         if (walker) {
           // La patte n'est jamais tactile : la fusée et la cloche reçoivent

@@ -43,12 +43,16 @@ export function pinDiscHtml(kind: 1 | 2 | 3 | "first", size = 18): string {
  * personne est vérifiée ET a un point en ligne, ce point passe en haut à gauche : le pin descend
  * alors au milieu du bord gauche. Les deux pins côte à côte quand la personne a les deux.
  */
-export function pinsOnAvatarHtml(pins: Pins1910 | null | undefined, size: number, opts?: { leftMiddle?: boolean }): string {
+export function pinsOnAvatarHtml(pins: Pins1910 | null | undefined, size: number, opts?: { leftMiddle?: boolean; bottomLeft?: boolean }): string {
   if (!pins) return "";
   const d = Math.max(16, Math.round(size * 0.36));
   const discs = [pins.podium ? pinDiscHtml(pins.podium, d) : "", pins.firstPackLeader ? pinDiscHtml("first", d) : ""].filter(Boolean).join("");
   if (!discs) return "";
-  const pos = opts?.leftMiddle ? `top:50%;left:-${Math.round(d * 0.45)}px;transform:translateY(-50%);flex-direction:column;` : `top:-${Math.round(d * 0.3)}px;left:-${Math.round(d * 0.3)}px;`;
+  // 641 — petit rond d'un ami (30 px) avec son cœur en haut à gauche : le milieu du bord toucherait le cœur,
+  // le pin prend le coin bas gauche (libre : pas de fusée sous le halo ami). Ancré par son bord droit : un
+  // second pin s'ajoute vers l'extérieur, jamais sur le point « en ligne ».
+  const off = Math.round(d * 0.3);
+  const pos = opts?.bottomLeft ? `bottom:-${off}px;right:${size - d + off}px;flex-direction:row-reverse;` : opts?.leftMiddle ? `top:50%;left:-${Math.round(d * 0.45)}px;transform:translateY(-50%);flex-direction:column;` : `top:-${Math.round(d * 0.3)}px;left:-${Math.round(d * 0.3)}px;`;
   return `<span data-pins-avatar="" style="position:absolute;${pos}display:flex;gap:2px;z-index:2;pointer-events:none;">${discs}</span>`;
 }
 

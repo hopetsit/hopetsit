@@ -5172,6 +5172,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v594 — grande marge seulement pour les ronds à halo (voir photoMarginGlow).
     // 640 — photo d'ami (56) sans PawBoost ni suivi : marge 26 (image de
     // 108 pt, pas plus lourde que l'ami d'avant le 639).
+    // 641 — ami ramené à 36 pt tout compris (rond 30) : marge 16, image de
+    // 62 pt (voir kPawFriendSmall641).
     final double m = (kPawFriendPhoto640 &&
             ring == PawMapLegend.friend &&
             !boosted &&

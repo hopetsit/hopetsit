@@ -138,11 +138,19 @@ List<LatLng> pawCleanTrail612(List<LatLng> raw,
 /// (> [maxAccuracyM]) ou s'il suppose une vitesse impossible à pied
 /// (> [maxSpeedMs]) — mais seulement tant que le dernier bon point a moins
 /// de [graceSeconds] : passé ce délai on reprend ce qui vient (jamais figé).
+///
+/// 641 — [lastGoodAccuracyM] : précision (m) du dernier point gardé. Quand
+/// ce point est lui-même IMPRÉCIS (> [maxAccuracyM] : position en cache du
+/// téléphone, point de départ approximatif), il ne sert plus d'étalon : un
+/// point précis le remplace tout de suite, à n'importe quelle distance, et
+/// un point imprécis ne le remplace que s'il est PLUS précis que lui. Sans
+/// cette valeur (`null`) : règles 612 inchangées.
 bool pawAcceptGpsFix612({
   required double accuracyM,
   required LatLng fix,
   LatLng? lastGood,
   DateTime? lastGoodAt,
+  double? lastGoodAccuracyM,
   required DateTime now,
   double maxAccuracyM = 40,
   double maxSpeedMs = 9,
@@ -151,10 +159,75 @@ bool pawAcceptGpsFix612({
   if (lastGood == null || lastGoodAt == null) return true;
   final double dt = now.difference(lastGoodAt).inMilliseconds / 1000.0;
   if (dt >= graceSeconds) return true;
+  // 641 — le dernier point gardé est douteux : la « vitesse » mesurée depuis
+  // lui ne veut rien dire (c'est LUI qui est faux, pas le nouveau point).
+  if (lastGoodAccuracyM != null && !(lastGoodAccuracyM <= maxAccuracyM)) {
+    if (!accuracyM.isFinite) return false;
+    return accuracyM <= maxAccuracyM || accuracyM < lastGoodAccuracyM;
+  }
   if (accuracyM.isFinite && accuracyM > maxAccuracyM) return false;
   final double d = pawMeters612(lastGood, fix);
   if (d > 25 && d / math.max(dt, 1.0) > maxSpeedMs) return false;
   return true;
+}
+
+/// 641 — précision supposée (m) de la position de DÉPART d'un direct : elle
+/// vient de l'écran (dernière position affichée, obtenue en précision
+/// moyenne ≈ 100 m), pas du flux GPS. Assez bonne pour ne pas être écrasée
+/// par un point en cache encore moins précis, pas assez pour refuser le
+/// premier vrai point GPS.
+const double kPawSeedAccuracyM641 = 100;
+
+/// 641 (testeur, 10/11 : « Pas précis dans la géoloc direct ») — la porte
+/// des points GPS de MA balade, avec la mémoire de la précision du dernier
+/// point gardé. Avant, le service ne retenait que la position et l'heure :
+/// le 1er point du flux (souvent le cache du téléphone, à 100 m – 1 km près)
+/// était toujours pris, puis le vrai point GPS, 1 à 3 s plus tard, était
+/// refusé comme « saut impossible » pendant 25 s — et pour de bon si le
+/// téléphone ne bougeait plus (filtre de 5 m).
+class PawGpsGate641 {
+  /// Dernier point gardé (celui qui est affiché et envoyé).
+  LatLng? last;
+
+  /// Heure du dernier point gardé.
+  DateTime? at;
+
+  /// Précision (m) du dernier point gardé.
+  double? accuracyM;
+
+  /// Départ du direct : [initial] est la position affichée à l'écran (ou
+  /// `null` si on n'en a pas).
+  void seed(LatLng? initial, DateTime now) {
+    last = initial;
+    at = initial == null ? null : now;
+    accuracyM = initial == null ? null : kPawSeedAccuracyM641;
+  }
+
+  /// Un point du flux GPS. Vrai = gardé (à afficher et à envoyer).
+  bool offer(LatLng fix, double fixAccuracyM, DateTime now) {
+    if (!pawAcceptGpsFix612(
+      accuracyM: fixAccuracyM,
+      fix: fix,
+      lastGood: last,
+      lastGoodAt: at,
+      lastGoodAccuracyM: accuracyM,
+      now: now,
+    )) {
+      return false;
+    }
+    last = fix;
+    at = now;
+    // précision inconnue = point douteux (le suivant, précis, le remplacera)
+    accuracyM = fixAccuracyM.isFinite ? fixAccuracyM : double.infinity;
+    return true;
+  }
+
+  /// Arrêt du direct.
+  void reset() {
+    last = null;
+    at = null;
+    accuracyM = null;
+  }
 }
 
 /// Position affichée d'une photo qui GLISSE de [from] vers [to] (t ∈ 0..1,

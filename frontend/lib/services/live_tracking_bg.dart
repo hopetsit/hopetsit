@@ -219,9 +219,24 @@ void onLiveBgStart(ServiceInstance service) async {
         return;
       }
       final pos = await _readPosition();
+      // 641 — ce service envoie toutes les 15 s, y compris quand l'app est
+      // ouverte et envoie déjà ses points filtrés : un point imprécis ou une
+      // vieille position en cache passait PAR-DESSUS le bon point chez mes
+      // amis. Un tel point ne part plus (battement seul), sauf si rien n'est
+      // parti d'ici depuis 30 s (jamais figé ; 60 s au départ, ramené à 30 s
+      // après le contrôle de ZOE : en ville dense l'écart max passe de 79 à 51 s).
+      final DateTime now641 = DateTime.now();
+      final bool usable641 = pos != null &&
+          bgFixUsable641(
+            accuracyM: pos.accuracy,
+            fixAt: pos.timestamp,
+            now: now641,
+            lastSentAt: _bgLastSentAt641,
+          );
+      if (usable641) _bgLastSentAt641 = now641;
       // v565 — pas de fix GPS : simple battement pour que le serveur garde
       // la session vivante (« vu il y a X » côté amis, jamais coupé).
-      final bool stoppedElsewhere = pos == null
+      final bool stoppedElsewhere = !usable641
           ? await _postHeartbeat()
           : await _postPosition(pos.latitude, pos.longitude);
       // v589 — la personne a arrêté son direct depuis un AUTRE téléphone : le
@@ -256,6 +271,33 @@ Future<bool> onLiveIosBg(ServiceInstance service) async {
       await box.write(kBgLiveActive, false);
     }
   } catch (_) {}
+  return true;
+}
+
+/// 641 — heure du dernier point envoyé par CE service (isolate de fond).
+DateTime? _bgLastSentAt641;
+
+/// 641 — un point lu par le service de fond mérite-t-il d'être envoyé à mes
+/// amis ? Oui s'il est précis (≤ [maxAccuracyM]) et frais (≤ [maxAgeSeconds]).
+/// Sinon non : le serveur garde le dernier bon point (battement seul) — sauf
+/// si ce service n'a rien envoyé depuis [graceSeconds] (jamais figé).
+bool bgFixUsable641({
+  required double accuracyM,
+  required DateTime? fixAt,
+  required DateTime now,
+  required DateTime? lastSentAt,
+  double maxAccuracyM = 40,
+  int maxAgeSeconds = 30,
+  int graceSeconds = 30,
+}) {
+  if (lastSentAt == null ||
+      now.difference(lastSentAt).inSeconds >= graceSeconds) {
+    return true;
+  }
+  if (!accuracyM.isFinite || accuracyM > maxAccuracyM) return false;
+  if (fixAt != null && now.difference(fixAt).inSeconds > maxAgeSeconds) {
+    return false;
+  }
   return true;
 }
 

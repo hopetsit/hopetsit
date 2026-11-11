@@ -322,6 +322,39 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// 641 — vrai quand la carte « Ajoute ton animal » doit passer sous la
+  /// carte « Publie ta première annonce » (onglet « Mes annonces », aucune
+  /// annonce) pour laisser le bouton « Publier » au-dessus du menu.
+  bool get _addPetBelowFirstPost641 =>
+      _selectedTabIndex == 0 && _myPostsCount() == 0;
+
+  /// v571 — carte « Ajoute ton animal » (aucun animal enregistré).
+  /// Lecture réactive DIRECTE des observables ; tant que la liste n'est pas
+  /// chargée (ou en erreur) on n'affiche RIEN, pour ne jamais montrer un faux
+  /// positif.
+  Widget _buildAddPetCard() {
+    return Obx(() {
+      final bool loading = _petsController.isLoading.value;
+      final bool failed = _petsController.errorMessage.value.isNotEmpty;
+      final bool empty = _petsController.pets.isEmpty;
+      if (loading || failed || !empty) {
+        return const SizedBox.shrink();
+      }
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        child: OwnerAddPetCard(
+          accent: AppColors.primaryColor,
+          title: 'ownerhome571_addpet_title'.tr,
+          ctaLabel: 'ownerhome571_addpet_cta'.tr,
+          onTap: () async {
+            await Get.to(() => const EditPetScreen());
+            await _petsController.refreshPets();
+          },
+        ),
+      );
+    });
+  }
+
   /// Les deux grandes cartes d'action. Version basse dès qu'une annonce existe.
   Widget _buildActionCards(BuildContext context) {
     // PAM-B 3110 — cartes « Garde » / « Promenade » des maquettes ; mêmes
@@ -1584,32 +1617,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               // ── v571 : « Ajoute ton animal » (aucun animal enregistré) ──
-              // Lecture réactive DIRECTE des observables ; tant que la liste
-              // n'est pas chargée (ou en erreur) on n'affiche RIEN, pour ne
-              // jamais montrer un faux positif.
-              SliverToBoxAdapter(
-                child: Obx(() {
-                  final bool loading = _petsController.isLoading.value;
-                  final bool failed =
-                      _petsController.errorMessage.value.isNotEmpty;
-                  final bool empty = _petsController.pets.isEmpty;
-                  if (loading || failed || !empty) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: OwnerAddPetCard(
-                      accent: AppColors.primaryColor,
-                      title: 'ownerhome571_addpet_title'.tr,
-                      ctaLabel: 'ownerhome571_addpet_cta'.tr,
-                      onTap: () async {
-                        await Get.to(() => const EditPetScreen());
-                        await _petsController.refreshPets();
-                      },
-                    ),
-                  );
-                }),
-              ),
+              // 641 — sans annonce, sur « Mes annonces », cette carte passe
+              // SOUS la carte « Publie ta première annonce » : sur un petit
+              // téléphone elle poussait le bouton « Publier » sous le menu.
+              if (!_addPetBelowFirstPost641)
+                SliverToBoxAdapter(child: _buildAddPetCard()),
               // PAM-B 3110 — le composer « Publication » est fusionné dans le
               // champ du hero (même destination : « Publier ma demande »).
               const SliverToBoxAdapter(child: SizedBox(height: 14)),
@@ -1665,6 +1677,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildSittersTab()
               else
                 _buildWalkersTab(),
+
+              // 641 — « Ajoute ton animal » sous la première annonce à publier.
+              if (_addPetBelowFirstPost641)
+                SliverToBoxAdapter(child: _buildAddPetCard()),
 
               // Bottom padding pour eviter que le dernier item soit cache
               // par la pill flottante du bottom nav.

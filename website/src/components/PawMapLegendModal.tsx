@@ -28,6 +28,7 @@ import {
   PAWFOLLOW_VIOLET,
   PREMIUM_GOLD,
   FRIEND_PINK,
+  FRIEND_PHOTO_PX_641,
 } from "@/lib/pawmapLegend";
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { RankGlyph611, RankPill611 } from "@/components/Rank611";
@@ -232,8 +233,9 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     { html: photoPinHtml({ role: "owner", name: "Moi", me: true, meLabel: t("legend_me_label") }), title: t("legend_me"), body: t("legend_me_body"), color: ROLE_COLOR.owner },
     // 27/09 — mon rond en « amis seulement » / « masqué » (pointillés + œil barré).
     { html: photoPinHtml({ role: "owner", name: "Moi", me: true, friendsOnly: true, meLabel: t("legend_me_label") }), title: t("priv2709_mefr_t"), body: t("priv2709_mefr_b"), color: "#17141F" },
-    // 640 — ami : sa PHOTO (56 px, comme « moi »), halo rose net + cœur ; le contour garde les couleurs de ses rôles.
-    { html: photoPinHtml({ role: "sitter", roles: ["sitter", "walker"], name: "Léa Martin", online: true, heart: true, size: 56 }), title: t("legend_friend"), body: t("legend_friend_body"), color: FRIEND_PINK },
+    // 640 puis 641 — ami : sa PHOTO, halo rose net + cœur ; le contour garde les couleurs de ses rôles.
+    // 641 : à peine plus gros qu'une pastille normale (36 px tout compris), même taille que sur la carte.
+    { html: photoPinHtml({ role: "sitter", roles: ["sitter", "walker"], name: "Léa Martin", online: true, heart: true, size: FRIEND_PHOTO_PX_641 }), title: t("legend_friend"), body: t("legend_friend_body"), color: FRIEND_PINK },
     { html: profilePinHtml2610({ roles: ["owner"] }), title: t("legend_member_owner"), body: t("legend_member_owner_body"), color: ROLE_COLOR.owner },
     { html: profilePinHtml2610({ roles: ["sitter"] }), title: t("legend_member_sitter"), body: t("legend_member_sitter_body"), color: ROLE_COLOR.sitter },
     { html: profilePinHtml2610({ roles: ["walker"] }), title: t("legend_member_walker"), body: t("legend_member_walker_body"), color: ROLE_COLOR.walker },
@@ -284,7 +286,7 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     },
     rows: [
       { html: walkPillHtml(t("p601_pawmap601_walk_min").replace("{n}", "12")), title: `${t("help599_t_me")} · « ${t("m590_on_walk")} · ${t("p601_pawmap601_walk_min").replace("{n}", "12")} · ${t("bal2909_followers").replace("{n}", "2")} »`, body: t("help599_b_me"), color: "#1F7A37" },
-      { html: photoPinHtml({ role: "walker", name: "Kathy", followed: true, online: true }), title: t("help599_t_others"), body: t("help599_b_others"), color: PAWFOLLOW_VIOLET, chip: { text: t("bal2909_live_now"), color: ROLE_COLOR.walker, border: FRIEND_PINK } },
+      { html: photoPinHtml({ role: "walker", name: "Kathy", followed: true, online: true, size: FRIEND_PHOTO_PX_641 }), title: t("help599_t_others"), body: t("help599_b_others"), color: PAWFOLLOW_VIOLET, chip: { text: t("bal2909_live_now"), color: ROLE_COLOR.walker, border: FRIEND_PINK } },
       { html: menuDotHtml(), title: `${t("help599_t_dot")} · ${t("p589_in_app")}`, body: t("help599_b_dot"), color: "#16A34A" },
     ],
   };

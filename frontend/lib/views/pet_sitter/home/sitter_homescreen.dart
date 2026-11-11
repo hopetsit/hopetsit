@@ -830,9 +830,12 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                             subtitle: _isWalkerViewer
                                 ? 'pamb3110_status_sub_walker'.tr
                                 : 'pamb3110_status_sub_sitter'.tr,
+                            // 641 — le gardien a aussi son dessin (chien et
+                            // chat en blanc, comme la carte « Garde » du
+                            // propriétaire) ; le promeneur garde la laisse.
                             deco: _isWalkerViewer
                                 ? HomeDeco640.dogOnLeash
-                                : null,
+                                : HomeDeco640.dogAndCat,
                           )
                         else
                           HeroStatusBlock3110(
