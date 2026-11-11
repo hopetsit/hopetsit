@@ -352,12 +352,17 @@ class FirstPostCard3110 extends StatelessWidget {
     required this.steps,
     required this.ctaLabel,
     required this.onCta,
+    this.ctaAnchorKey,
   });
 
   final String title;
   final List<String> steps;
   final String ctaLabel;
   final VoidCallback onCta;
+
+  /// 642 — repère posé autour du bouton : l'accueil mesure sa position pour
+  /// savoir s'il est caché par le menu flottant (petits écrans).
+  final GlobalKey? ctaAnchorKey;
 
   @override
   Widget build(BuildContext context) {
@@ -411,7 +416,11 @@ class FirstPostCard3110 extends StatelessWidget {
                         children: <Widget>[
                           Text(
                             title,
-                            maxLines: 2,
+                            // 642 (ZOE) — gros caractères / petit écran : le
+                            // titre, le sous-titre et les étapes étaient
+                            // coupés. La carte a une hauteur naturelle : on
+                            // laisse les lignes nécessaires.
+                            maxLines: 5,
                             overflow: TextOverflow.ellipsis,
                             style: pop3110(
                               fontSize: 15.5,
@@ -424,7 +433,7 @@ class FirstPostCard3110 extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             'pamb3110_three_steps'.tr,
-                            maxLines: 1,
+                            maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                             style: pop3110(
                               fontSize: 12,
@@ -442,12 +451,15 @@ class FirstPostCard3110 extends StatelessWidget {
                 // en bas de la carte, le menu flottant le recouvrait au repos).
                 // Les 3 étapes suivent, en dessous.
                 const SizedBox(height: 14),
-                PrimaryPill3110(
-                  key: const ValueKey<String>('owner_first_post_cta'),
-                  label: ctaLabel,
-                  color: t.primary,
-                  shadow: t.shadowColor,
-                  onTap: onCta,
+                KeyedSubtree(
+                  key: ctaAnchorKey,
+                  child: PrimaryPill3110(
+                    key: const ValueKey<String>('owner_first_post_cta'),
+                    label: ctaLabel,
+                    color: t.primary,
+                    shadow: t.shadowColor,
+                    onTap: onCta,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 for (int i = 0; i < steps.length; i++) ...<Widget>[
@@ -476,7 +488,7 @@ class FirstPostCard3110 extends StatelessWidget {
                       Expanded(
                         child: Text(
                           steps[i],
-                          maxLines: 2,
+                          maxLines: 6,
                           overflow: TextOverflow.ellipsis,
                           style: pop3110(
                             fontSize: 13,
@@ -539,16 +551,23 @@ class PrimaryPill3110 extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
+                // 642 (ZOE) — libellé long ou gros caractères : il était
+                // coupé (« Publier mon ann… »). Il reste ENTIER sur une ligne
+                // et rétrécit juste ce qu'il faut ; le bouton garde 48 px.
+                const SizedBox(width: 16),
                 Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: pop3110(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                      height: 1.2,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: pop3110(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        height: 1.2,
+                      ),
                     ),
                   ),
                 ),
@@ -558,6 +577,7 @@ class PrimaryPill3110 extends StatelessWidget {
                   size: 18,
                   color: Colors.white,
                 ),
+                const SizedBox(width: 16),
               ],
             ),
           ),

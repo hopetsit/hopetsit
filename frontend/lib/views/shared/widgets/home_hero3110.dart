@@ -274,14 +274,24 @@ class HomeHero3110 extends StatelessWidget {
         children: <Widget>[
           Icon(roleIconData(role), size: 11, color: Colors.white),
           const SizedBox(width: 4),
-          Text(
-            roleLabelKey(role).tr,
-            maxLines: 1,
-            style: pop3110(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-              height: 1.2,
+          // 642 (ZOE) — libellés longs (polonais « Wyprowadzacz psów ») ou
+          // gros caractères : la pastille débordait de la rangée. Le libellé
+          // reste ENTIER et rétrécit juste ce qu'il faut pour tenir.
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                roleLabelKey(role).tr,
+                maxLines: 1,
+                softWrap: false,
+                style: pop3110(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  height: 1.2,
+                ),
+              ),
             ),
           ),
         ],
@@ -430,7 +440,9 @@ class HeroRequestField3110 extends StatelessWidget {
                 Expanded(
                   child: Text(
                     hint ?? 'post_input_hint'.tr,
-                    maxLines: 1,
+                    // 642 (ZOE) — gros caractères : l'invite était coupée
+                    // (« Écris ta demande i… »). Une ligne en taille normale.
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: pop3110(
                       fontSize: 14.5,
@@ -491,7 +503,8 @@ class HeroAvailableLine3110 extends StatelessWidget {
               text,
               key: const ValueKey<String>('home_hero_available'),
               // 631 (ZOE) : 2 lignes — coupée en anglais (« …as soon as y… »).
-              maxLines: 2,
+              // 642 : gros caractères sur petit écran → jusqu'à 5 lignes.
+              maxLines: 5,
               overflow: TextOverflow.ellipsis,
               style: pop3110(
                 fontSize: 12,
@@ -600,7 +613,9 @@ class HeroLocationLine3110 extends StatelessWidget {
           const SizedBox(width: 6),
           Expanded(
             child: RichText(
-              maxLines: 1,
+              // 642 (ZOE) — gros caractères : « ville · rayon » était coupé.
+              textScaler: MediaQuery.textScalerOf(context),
+              maxLines: 3,
               overflow: TextOverflow.ellipsis,
               text: TextSpan(
                 style: pop3110(

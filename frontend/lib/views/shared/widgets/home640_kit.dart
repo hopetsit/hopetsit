@@ -484,7 +484,10 @@ class HeroStatusBlock640 extends StatelessWidget {
                         children: <Widget>[
                           Text(
                             title,
-                            maxLines: 2,
+                            // 642 (ZOE) — gros caractères : titre et
+                            // sous-titre coupés ; le bloc a une hauteur
+                            // naturelle, on laisse les lignes nécessaires.
+                            maxLines: 4,
                             overflow: TextOverflow.ellipsis,
                             style: pop3110(
                               fontSize: 14,
@@ -496,7 +499,7 @@ class HeroStatusBlock640 extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             subtitle,
-                            maxLines: 3, // 641 ZOE : 2 lignes coupaient le texte à côté du dessin (écran 360 dp)
+                            maxLines: 8, // 641 ZOE : 2 lignes coupaient le texte à côté du dessin (écran 360 dp) ; 642 : gros caractères
                             overflow: TextOverflow.ellipsis,
                             style: pop3110(
                               fontSize: 12,

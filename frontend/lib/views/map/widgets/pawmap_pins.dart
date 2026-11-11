@@ -1346,6 +1346,9 @@ class PawMapPinPainter {
     // 616 (PAM) — point de statut aussi hors ligne (orange foncé plein).
     bool offlineDot = false,
     int pin618 = 0, // 618 — pin du classement (0 = rien)
+    // 642 — « Moi » dit explicitement (à 40 pt, la taille ne le dit plus).
+    // null = ancienne déduction (pointillé, œil barré ou taille ≥ 56).
+    bool? me,
   }) {
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
     if (withBubble) {
@@ -1382,6 +1385,7 @@ class PawMapPinPainter {
       labelAbove: labelAbove,
       offlineDot: offlineDot,
       pin618: pin618,
+      me: me,
     );
     if (withBubble) canvas.restore();
   }
@@ -1420,6 +1424,7 @@ class PawMapPinPainter {
     bool labelAbove = false,
     bool offlineDot = false,
     int pin618 = 0,
+    bool? me,
   }) {
     final r = size / 2;
     final bool hasLabel = label != null && label.isNotEmpty;
@@ -1438,7 +1443,11 @@ class PawMapPinPainter {
     final bool small641 =
         f640 && kPawFriendSmall641 && size <= kPawFriendSize640 + 0.01;
     final bool isMe = !isFriend &&
-        (dashedRing || eyeOff || size >= PawMapLegend.meSize);
+        (me ?? (dashedRing || eyeOff || size >= PawMapLegend.meSize));
+    // 642 — « Moi » à la taille d'un ami (40 pt) : contour 2 + liseré 1,
+    // badges de 16, lueur à l'échelle (site : `small` de photoPinHtml).
+    final bool smallMe642 =
+        isMe && kPawMeSmall642 && size <= kPawMeSize642 + 0.01;
     final double maxR = r + margin - 0.5;
 
     // Anneaux des autres rôles (site : `extraRoleRings`) — calculés AVANT le
@@ -1497,7 +1506,16 @@ class PawMapPinPainter {
     } else if (isMe) {
       // Le site fait « pulser » un anneau autour de moi (`hps-pulse`) : sur
       // un bitmap fixe, un halo doux de la couleur de mon rôle.
-      drawCssGlow(canvas, c, r, maxR, ringColor, [(2, 0, 0.18), (3, 14, 0.30)]);
+      // 642 — petit « Moi » : lueur à l'échelle (40 / 56).
+      drawCssGlow(
+          canvas,
+          c,
+          r,
+          maxR,
+          ringColor,
+          smallMe642
+              ? const [(2, 0, 0.18), (2, 10, 0.30)]
+              : const [(2, 0, 0.18), (3, 14, 0.30)]);
     }
 
     // 2. (v597) plus d'anneaux de rôle sous le rond : voir `contour`.
@@ -1510,6 +1528,9 @@ class PawMapPinPainter {
           dy: 2, blur: 6, color: PawMapLegend.ink.withValues(alpha: 0.35));
     } else if (f640 && halo == PawPhotoHalo.friend) {
       // 640 — pas d'ombre sur le liseré blanc : l'anneau rose le détache.
+    } else if (smallMe642) {
+      cssShadow(canvas, circle,
+          dy: 2, blur: 6, color: PawMapLegend.ink.withValues(alpha: 0.35));
     } else if (isFriend || isMe) {
       cssShadow(canvas, circle,
           dy: 3, blur: 8, color: PawMapLegend.ink.withValues(alpha: 0.35));
@@ -1524,8 +1545,10 @@ class PawMapPinPainter {
     // 4. Anneau 3 px (dégradé 170° : rose pour un ami, rôle sinon), liseré
     //    blanc 2 px, puis la photo.
     //    641 — ami à la petite taille : 2 + 1 (voir kPawFriendInRing641).
-    final double ring = small641 ? kPawFriendInRing641 : 3.0;
-    final double white = small641 ? kPawFriendInWhite641 : 2.0;
+    //    642 — « Moi » à 40 pt : 2 + 1 aussi.
+    final bool thin = small641 || smallMe642;
+    final double ring = thin ? kPawFriendInRing641 : 3.0;
+    final double white = thin ? kPawFriendInWhite641 : 2.0;
     final rect = Rect.fromCircle(center: c, radius: r);
     final (tl, td) = PawMapLegend.ringGradient(fallbackTint);
     if (dashedRing) {
@@ -1602,7 +1625,9 @@ class PawMapPinPainter {
           online: online && !dimmed);
     }
     if (boostPhase != null) {
-      final s = isMe ? 20.0 : (small641 ? kPawFriendRocket641 : 18.0);
+      final s = isMe
+          ? (smallMe642 ? kPawMeRocket642 : 20.0)
+          : (small641 ? kPawFriendRocket641 : 18.0);
       final b = (s * 0.25).roundToDouble(), l = (s * 0.3).roundToDouble();
       drawRocketBadge(
           canvas, Offset(c.dx - (r + l - s / 2), c.dy + r + b - s / 2), s);
@@ -1612,7 +1637,8 @@ class PawMapPinPainter {
       drawVerifiedBadge(canvas, pawVerifiedBadgeCenter(c, r));
     }
     if (eyeOff) {
-      drawEyeOffBadge(canvas, eyeOffBadgeCenter(c, r, online: online || dimmed || offlineDot), 20);
+      drawEyeOffBadge(canvas, eyeOffBadgeCenter(c, r, online: online || dimmed || offlineDot),
+          smallMe642 ? kPawMeEyeOff642 : 20);
     }
     if (crown) {
       _crownAt(canvas, c, r, crownSize);
@@ -1723,6 +1749,7 @@ class PawMapPinPainter {
   /// l'ami d'avant le 639 (50 + 2 × 30 = 110) dans la réserve de textures iOS.
   /// 641 — ami de 30 (36 tout compris) : 16 → image de 62 pt (3 d'anneau, le
   /// cœur qui dépasse de 10, la lueur) ; zone de toucher réduite d'autant.
+  /// 642 — ami de 34 (40 tout compris) : même marge, image de 66 pt.
   static const double photoMarginFriend640 = kPawFriendSmall641 ? 16 : 26;
   /// Hauteur ajoutée au bitmap pour l'étiquette (sous le rond, ou au-dessus
   /// avec `labelAbove` — v598). 10 → 14 (v598) : avec la marge serrée, la
@@ -2636,8 +2663,11 @@ const bool kPawFriendSmall641 =
     bool.fromEnvironment('PAWMAP_FRIEND_SMALL', defaultValue: true);
 
 /// LE réglage : taille d'un ami (anneau rose compris) / pastille normale.
-/// 1,125 = +12,5 % → 36 pt. Tout le reste en découle.
-const double kPawFriendScale641 = 1.125;
+/// 1,125 = +12,5 % → 36 pt au 641. Tout le reste en découle.
+/// 642 (Daniel, 11/11 : « la pastille amis légèrement plus grande ») — 1,25 :
+/// 40 pt tout compris, photo de 34 (30 avant). Jumeau de `FRIEND_PX_641 = 34`
+/// du site.
+const double kPawFriendScale641 = 1.25;
 
 /// Diamètre d'un ami TOUT COMPRIS (photo, contour, liseré blanc, anneau rose).
 const double kPawFriendTotal641 = 2 * kPawPinDiscR639 * kPawFriendScale641;
@@ -2649,12 +2679,13 @@ const double kPawFriendRing640 = kPawFriendSmall641 ? 2 : 4;
 const double kPawFriendOut640 = kPawFriendWhite640 + kPawFriendRing640;
 
 /// 641 — dans le rond d'un ami : contour de rôle 2 + liseré blanc 1 (les
-/// autres ronds photo gardent 3 + 2) : la photo garde 24 pt sur 30.
+/// autres ronds photo gardent 3 + 2) : la photo garde 28 pt sur 34 (642).
 const double kPawFriendInRing641 = 2;
 const double kPawFriendInWhite641 = 1;
 
 /// Taille du rond d'un ami (contour de rôle compris, SANS liseré blanc ni
-/// anneau rose) : 30 en 641 (36 tout compris) ; 56 en 640 ; 50 avant.
+/// anneau rose) : 34 en 642 (40 tout compris ; 30 / 36 au 641) ; 56 en 640 ;
+/// 50 avant.
 const double kPawFriendSize640 = kPawFriendPhoto640
     ? (kPawFriendSmall641
         ? kPawFriendTotal641 - 2 * kPawFriendOut640
@@ -2662,7 +2693,7 @@ const double kPawFriendSize640 = kPawFriendPhoto640
     : PawMapLegend.friendSize;
 
 /// Rayon RÉSERVÉ à un ami dans les collisions (ce qui se voit + 0,5) :
-/// 18 + 0,5 en 641 ; 28 + 7 + 0,5 en 640 ; 25 + 2,5 avant.
+/// 20 + 0,5 en 642 (18 + 0,5 au 641) ; 28 + 7 + 0,5 en 640 ; 25 + 2,5 avant.
 const double kPawFriendBoxR640 = kPawFriendPhoto640
     ? kPawFriendSize640 / 2 + kPawFriendOut640 + 0.5
     : PawMapLegend.friendSize / 2 + 2.5;
@@ -2681,6 +2712,29 @@ const double kPawFriendCrown640 = kPawFriendPhoto640
 /// Taille du cœur d'ami sur la photo (liseré blanc compris) : 16 en 641 (le
 /// cœur de la pastille 639 fait 18), 20 en 640.
 const double kPawFriendHeart640 = kPawFriendSmall641 ? 16 : 20;
+
+/// 642 (Daniel, 11/11 : « ajuste ma pastille à la même taille que amis ») —
+/// « Moi » passe de 56 à 40 pt : exactement la taille d'un ami avec son anneau
+/// rose (34 + 2 × 3). Contour 2 + liseré 1, badges (couronne, fusée, œil
+/// barré) de 16, lueur à l'échelle — comme le site. `false` = « Moi » à 56
+/// comme avant (essai : `--dart-define=PAWMAP_ME_SMALL=false`). Jumeau de
+/// `ME_SMALL_1111` / `ME_PX_1111` du site.
+const bool kPawMeSmall642 =
+    bool.fromEnvironment('PAWMAP_ME_SMALL', defaultValue: true);
+
+/// Diamètre du rond « Moi » : 40 (642) ou 56 (coupe-circuit).
+const double kPawMeSize642 =
+    kPawMeSmall642 ? 2 * kPawPinDiscR639 * 1.25 : PawMapLegend.meSize;
+
+/// Couronne, fusée PawBoost et œil barré de « Moi » (site : 16 en petit).
+const double kPawMeCrown642 = kPawMeSmall642 ? 16 : PawMapLegend.crownMe;
+const double kPawMeRocket642 = kPawMeSmall642 ? 16 : 20;
+const double kPawMeEyeOff642 = kPawMeSmall642 ? 16 : 20;
+
+/// Rayon RÉSERVÉ à « Moi » dans les collisions (rond + 2, comme le site :
+/// `ME_PX_1111 / 2 + 2`) et rayon d'où part son étiquette.
+const double kPawMeBoxR642 = kPawMeSize642 / 2 + 2;
+const double kPawMeLabelR642 = kPawMeSize642 / 2;
 
 /// 641 — fusée PawBoost et point « en ligne » d'un ami à la petite taille.
 const double kPawFriendRocket641 = 16;

@@ -155,21 +155,50 @@ bool pawAcceptGpsFix612({
   double maxAccuracyM = 40,
   double maxSpeedMs = 9,
   int graceSeconds = 25,
+  // 642 — vrai : le dernier point gardé vient du flux GPS (pas de l'écran).
+  // S'il était imprécis, un nouveau point trop loin de lui pour être vrai
+  // (au-delà de son cercle d'erreur + ce qu'on peut marcher) est refusé.
+  bool lastGoodFromGps = false,
 }) {
   if (lastGood == null || lastGoodAt == null) return true;
   final double dt = now.difference(lastGoodAt).inMilliseconds / 1000.0;
   if (dt >= graceSeconds) return true;
+  // 642 — une précision NaN, infinie ou négative n'est pas une précision :
+  // le point vaut « imprécis » (refusé tant qu'un point gardé est récent).
+  if (!pawAccuracyKnown642(accuracyM)) return false;
   // 641 — le dernier point gardé est douteux : la « vitesse » mesurée depuis
   // lui ne veut rien dire (c'est LUI qui est faux, pas le nouveau point).
-  if (lastGoodAccuracyM != null && !(lastGoodAccuracyM <= maxAccuracyM)) {
-    if (!accuracyM.isFinite) return false;
-    return accuracyM <= maxAccuracyM || accuracyM < lastGoodAccuracyM;
+  if (lastGoodAccuracyM != null &&
+      !(pawAccuracyKnown642(lastGoodAccuracyM) &&
+          lastGoodAccuracyM <= maxAccuracyM)) {
+    final bool better = accuracyM <= maxAccuracyM ||
+        !pawAccuracyKnown642(lastGoodAccuracyM) ||
+        accuracyM < lastGoodAccuracyM;
+    if (!better) return false;
+    // 642 — … mais pas à n'importe quelle distance : un point « précis » à
+    // des kilomètres d'un point connu à 150 m près est un point aberrant.
+    if (lastGoodFromGps && pawAccuracyKnown642(lastGoodAccuracyM)) {
+      final double d = pawMeters612(lastGood, fix);
+      final double reach = kPawJumpSlack642 * lastGoodAccuracyM +
+          accuracyM +
+          maxSpeedMs * math.max(dt, 1.0);
+      if (d > 25 && d > reach) return false;
+    }
+    return true;
   }
-  if (accuracyM.isFinite && accuracyM > maxAccuracyM) return false;
+  if (accuracyM > maxAccuracyM) return false;
   final double d = pawMeters612(lastGood, fix);
   if (d > 25 && d / math.max(dt, 1.0) > maxSpeedMs) return false;
   return true;
 }
+
+/// 642 — une précision GPS exploitable : un nombre fini, jamais négatif.
+bool pawAccuracyKnown642(double accuracyM) =>
+    accuracyM.isFinite && accuracyM >= 0;
+
+/// 642 — marge sur le cercle d'erreur du dernier point imprécis (la précision
+/// annoncée par le téléphone est un rayon à ~68 % : on en accorde le double).
+const double kPawJumpSlack642 = 2;
 
 /// 641 — précision supposée (m) de la position de DÉPART d'un direct : elle
 /// vient de l'écran (dernière position affichée, obtenue en précision
@@ -195,12 +224,27 @@ class PawGpsGate641 {
   /// Précision (m) du dernier point gardé.
   double? accuracyM;
 
+  /// 642 — vrai quand [last] vient du flux GPS (faux : position de l'écran,
+  /// peut-être ancienne — on ne mesure aucun « saut » depuis elle).
+  bool fromGps = false;
+
+  /// 642 — point PRÉCIS refusé parce que trop loin du dernier point gardé
+  /// (lui-même imprécis). Seul, il est peut-être aberrant ; si le point
+  /// précis SUIVANT est d'accord avec lui, c'est le dernier point gardé qui
+  /// était faux (position en cache du téléphone, sortie de tunnel) : on
+  /// bascule tout de suite — jamais 25 s sur la mauvaise position.
+  LatLng? pending;
+  DateTime? pendingAt;
+
   /// Départ du direct : [initial] est la position affichée à l'écran (ou
   /// `null` si on n'en a pas).
   void seed(LatLng? initial, DateTime now) {
     last = initial;
     at = initial == null ? null : now;
     accuracyM = initial == null ? null : kPawSeedAccuracyM641;
+    fromGps = false;
+    pending = null;
+    pendingAt = null;
   }
 
   /// Un point du flux GPS. Vrai = gardé (à afficher et à envoyer).
@@ -212,13 +256,40 @@ class PawGpsGate641 {
       lastGoodAt: at,
       lastGoodAccuracyM: accuracyM,
       now: now,
+      lastGoodFromGps: fromGps,
     )) {
-      return false;
+      // 642 — un point précis ISOLÉ loin d'un point imprécis est refusé ;
+      // deux points précis de suite qui sont d'accord entre eux sont pris.
+      final bool precise =
+          pawAccuracyKnown642(fixAccuracyM) && fixAccuracyM <= 40;
+      final double? la = accuracyM;
+      final bool lastDoubtful =
+          la != null && !(pawAccuracyKnown642(la) && la <= 40);
+      if (!(precise && lastDoubtful)) {
+        pending = null;
+        pendingAt = null;
+        return false;
+      }
+      final LatLng? p = pending;
+      final DateTime? pa = pendingAt;
+      final bool agree = p != null &&
+          pa != null &&
+          pawFixesAgree642(p, pa, fix, now);
+      if (!agree) {
+        pending = fix;
+        pendingAt = now;
+        return false;
+      }
     }
+    pending = null;
+    pendingAt = null;
     last = fix;
     at = now;
-    // précision inconnue = point douteux (le suivant, précis, le remplacera)
-    accuracyM = fixAccuracyM.isFinite ? fixAccuracyM : double.infinity;
+    // précision inconnue (NaN, infinie, négative) = point douteux (le
+    // suivant, précis, le remplacera)
+    accuracyM =
+        pawAccuracyKnown642(fixAccuracyM) ? fixAccuracyM : double.infinity;
+    fromGps = true;
     return true;
   }
 
@@ -227,7 +298,22 @@ class PawGpsGate641 {
     last = null;
     at = null;
     accuracyM = null;
+    fromGps = false;
+    pending = null;
+    pendingAt = null;
   }
+}
+
+/// 642 — deux points précis qui se suivent sont-ils « d'accord » ? Oui s'ils
+/// sont à moins de 25 m l'un de l'autre, ou à une distance qu'on peut
+/// marcher dans l'intervalle ([maxSpeedMs]) — et s'ils se suivent de près
+/// (≤ [maxGapSeconds]).
+bool pawFixesAgree642(LatLng a, DateTime aAt, LatLng b, DateTime bAt,
+    {double maxSpeedMs = 9, int maxGapSeconds = 10}) {
+  final double dt = bAt.difference(aAt).inMilliseconds / 1000.0;
+  if (dt < 0 || dt > maxGapSeconds) return false;
+  final double d = pawMeters612(a, b);
+  return d <= 25 || d / math.max(dt, 1.0) <= maxSpeedMs;
 }
 
 /// Position affichée d'une photo qui GLISSE de [from] vers [to] (t ∈ 0..1,

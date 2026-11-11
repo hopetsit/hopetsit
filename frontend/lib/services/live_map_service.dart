@@ -1525,7 +1525,8 @@ class LiveMapService extends GetxService {
         _lastKnownGps = p;
         _lastGpsAt = DateTime.now();
         _gpsError = false;
-        myLiveAccuracy.value = pos.accuracy.isFinite ? pos.accuracy : 0; // 611
+        myLiveAccuracy.value =
+            pawAccuracyKnown642(pos.accuracy) ? pos.accuracy : 0; // 611, 642
         myLivePosition.value = p; // la PawMap suit la caméra « à la trace »
         // 607 (PAM, mesuré au simulateur) — Balade lancée SANS position :
         // « Connexion… » restait ~10 s (attente du tick). Dès le 1er point

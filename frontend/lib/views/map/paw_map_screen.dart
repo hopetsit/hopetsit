@@ -55,6 +55,7 @@ import 'package:hopetsit/views/map/pawspot_sheets.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/map/widgets/paw_rail_button.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_pins.dart';
+import 'package:hopetsit/views/map/widgets/pawmap_boost642.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_zoom616.dart';
 import 'package:hopetsit/views/map/widgets/pawmap_placeholder.dart';
 import 'package:hopetsit/views/map/pawmap_snapshot.dart';
@@ -175,6 +176,9 @@ class PawMapScreen extends StatefulWidget {
   /// 625 — (tests) écart (pt) entre position affichée et position réelle
   /// de chaque rond / groupe posé (id du marqueur).
   static final Map<String, double> debugGap625 = <String, double>{};
+  /// 642 — (tests) décalage (px) posé sur chaque pastille PawBoost seule
+  /// (id du profil) : simulation + placement « à côté du groupe ».
+  static final Map<String, Offset> debugBoostShift642 = <String, Offset>{};
 
   const PawMapScreen({
     super.key,
@@ -5154,6 +5158,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     bool verified = false,
     bool offlineDot = false, // 616
     int pin618 = 0, // 618 — pin du classement
+    bool? me, // 642 — rond « Moi » (dit explicitement au peintre)
   }) {
     final avatar = _pins.avatarFor(avatarUrl);
     final bool withBubble = priceBubble != null && priceBubble.isNotEmpty;
@@ -5232,6 +5237,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             labelAbove: labelAbove && withLabel,
             offlineDot: offlineDot,
             pin618: pin618,
+            me: me,
           );
             c.restore();
           },
@@ -6267,11 +6273,13 @@ class _PawMapScreenState extends State<PawMapScreen>
               keyPrefix: 'me',
               avatarUrl: myAvatar,
               ring: roleColor,
-              size: PawMapLegend.meSize,
+              // 642 — « Moi » à la taille d'un ami (40 pt ; 56 si coupé).
+              size: kPawMeSize642,
+              me: true,
               label: 'pawmap_me_label'.tr,
               labelColor: PawMapLegend.darken(roleColor, 0.25),
               crown: _pawSpotController.premiumActive.value,
-              crownSize: PawMapLegend.crownMe,
+              crownSize: kPawMeCrown642,
               // v585 (bug 11) — PawBoost : lueur turquoise qui respire + fusée
               // sur MON rond aussi (prime sur la couleur du rôle ; Premium
               // garde sa couronne).
@@ -6283,7 +6291,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             anchor: (() {
               _meIconW612 = _lastIconW;
               _meIconH612 = _lastIconH;
-              return _meAnchor612 = _photoAnchor(PawMapLegend.meSize, withLabel: true);
+              return _meAnchor612 = _photoAnchor(kPawMeSize642, withLabel: true);
             })(),
             zIndexInt: 10,
             consumeTapEvents: true, // v590 — zoom géré par la carte focus
@@ -6360,6 +6368,52 @@ class _PawMapScreenState extends State<PawMapScreen>
         }
         worldPool.add(p);
       }
+      // 642 (Daniel, 11/11 : « ceux qui ont PawBoost doivent être visibles,
+      // leur pastille, même en dézoomant ») — au plus 24 profils boostés (les
+      // plus proches du centre de l'écran, ordre stable) gardent leur
+      // pastille à tous les zooms : jamais dans un groupe, jamais écartés par
+      // le plafond d'affichage. Les identifiants boostés sont relevés UNE
+      // fois par passe (avant : chaque test reparcourait toute la couche).
+      final Set<String> boostSolo642;
+      if (kPawBoostSolo642) {
+        final Set<String> boostedIds642 =
+            pawBoostedIds642([_worldMembers, _nearbyProviders]);
+        final double cosB = math
+            .cos(_currentCenter.latitude * math.pi / 180)
+            .abs()
+            .clamp(0.05, 1.0);
+        final cand = <({String id, double dist2})>[];
+        final byId = <String, Map<String, dynamic>>{};
+        if (boostedIds642.isNotEmpty) {
+          for (final p in [...combined, ...worldPool]) {
+            if (!pawIsBoosted642(p, boostedIds642) || isFriendMember(p)) continue;
+            final id = (p['id'] ?? p['_id'] ?? '').toString();
+            final ll = pawMapMemberLatLng(p);
+            if (id.isEmpty || ll == null || byId.containsKey(id)) continue;
+            final dLat = ll.latitude - _currentCenter.latitude;
+            final dLng = (ll.longitude - _currentCenter.longitude) * cosB;
+            byId[id] = p;
+            cand.add((id: id, dist2: dLat * dLat + dLng * dLng));
+          }
+        }
+        boostSolo642 = pawBoostSoloPick642(cand);
+        if (boostSolo642.isNotEmpty) {
+          // sortis du lot soumis au plafond → toujours affichés
+          final moved = <Map<String, dynamic>>[];
+          worldPool.removeWhere((p) {
+            final hit =
+                boostSolo642.contains((p['id'] ?? p['_id'] ?? '').toString());
+            if (hit) moved.add(p);
+            return hit;
+          });
+          combined.addAll(moved);
+        }
+      } else {
+        boostSolo642 = const <String>{};
+      }
+      bool isBoostSolo642(Map<String, dynamic> p) =>
+          boostSolo642.isNotEmpty &&
+          boostSolo642.contains((p['id'] ?? p['_id'] ?? '').toString());
       final int worldCap =
           _pinZoom >= 11 ? 400 : (_pinZoom >= 6 ? 300 : 200);
       if (worldPool.length > worldCap) {
@@ -6479,9 +6533,12 @@ class _PawMapScreenState extends State<PawMapScreen>
       // faut surzoomer ». Un ami était absorbé dans un groupe « 12 » avec des
       // inconnus. Les amis ne sont plus JAMAIS regroupés : chacun garde son
       // rond photo + anneau rose, à tous les zooms, au-dessus des autres.
+      // 642 (Daniel, 11/11 : « ceux qui ont PawBoost doivent être visibles,
+      // leur pastille, même en dézoomant ») — un profil boosté non plus : il
+      // garde sa pastille à tous les zooms (coupe-circuit kPawBoostSolo642).
       final groups0 = pawGroupKeepingFriends<Map<String, dynamic>>(
         placeable,
-        isFriendMember,
+        (p) => isFriendMember(p) || isBoostSolo642(p),
         // 607 (PAM, captures de Daniel du 01/10) — les cases de 44 px
         // laissaient se chevaucher deux pastilles voisines (« 35 » sur « 5 »
         // sur « 4 ») : tout groupe à moins de 50 px d'un autre fusionne.
@@ -6595,7 +6652,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               : boxForGroup622(g.cast<Map<String, dynamic>>(), compact: true),
           fixed: <PawPlacedBox>[
             if (myPos != null)
-              PawPlacedBox(px622(myPos), pawPinBox(PawMapLegend.meSize / 2 + 2)),
+              PawPlacedBox(px622(myPos), pawPinBox(kPawMeBoxR642)),
             for (final fp in _liveMap.friendPositions.values)
               if (fp.liveState != FriendLiveState.seen)
                 PawPlacedBox(px622(LatLng(fp.latitude, fp.longitude)),
@@ -6698,10 +6755,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         final c = pxOf(myPos);
         fixedPx.add(c);
         // 607 — + 6 : l'étiquette « Moi » dépasse sous la photo.
-        fixedR.add(PawMapLegend.meSize / 2 + 2 + 6);
+        fixedR.add(kPawMeBoxR642 + 6);
         meRects
-          ..add(pawCircleRect(c, PawMapLegend.meSize / 2 + 2))
-          ..add(pawLabelRect(c, PawMapLegend.meSize / 2,
+          ..add(pawCircleRect(c, kPawMeBoxR642))
+          ..add(pawLabelRect(c, kPawMeLabelR642,
               PawMapPinPainter.photoLabelWidth('pawmap_me_label'.tr) - 8,
               PawLabelSide.below,
               height: 16.3));
@@ -6745,7 +6802,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       //      « Moi », les amis et les ronds déjà posés.
       // Les ronds sont DÉPLACÉS (position), leur image ne change pas.
       final Offset? meAt = (myPos != null) ? pxOf(myPos) : null;
-      final Rect meBox = pawPinBox(PawMapLegend.meSize / 2 + 2,
+      final Rect meBox = pawPinBox(kPawMeBoxR642,
           labelW: PawMapPinPainter.photoLabelWidth('pawmap_me_label'.tr) - 8,
           labelH: 16.3,
           labelGap: 3);
@@ -6801,9 +6858,69 @@ class _PawMapScreenState extends State<PawMapScreen>
         groupShift[friendIdx[k]] = fanShift[liveFriends.length + k];
       }
       final movable = [for (var i = 0; i < groups.length; i++) !groupIsFriend[i]];
+      // 642 — un boosté ne se pose jamais SUR le rond d'un groupe ni sur une
+      // autre pastille (à petit zoom il tombait sur le groupe de sa ville et
+      // cachait son compteur) : décalé à côté, en px d'écran — même calcul
+      // que le site (pawmap_boost642.dart). Obstacles : groupes, pastilles,
+      // amis (profil et direct) et « Moi », à leur place affichée.
+      final Map<int, Offset> boostShift642 = <int, Offset>{};
+      if (boostSolo642.isNotEmpty) {
+        final List<int> bIdx = <int>[
+          for (var i = 0; i < groups.length; i++)
+            if (groups[i].length == 1 &&
+                !groupIsFriend[i] &&
+                isBoostSolo642(groups[i].first))
+              i
+        ];
+        if (bIdx.isNotEmpty) {
+          final Set<int> bSet = bIdx.toSet();
+          final off = pawBoostOffsets642(
+            <PawBoosted642>[
+              for (final i in bIdx)
+                (
+                  id: (groups[i].first['id'] ?? groups[i].first['_id'] ?? '')
+                      .toString(),
+                  // depuis sa VRAIE position : 60 pt au plus, tout compris
+                  px: groupPx[i],
+                ),
+            ],
+            <Offset>[
+              for (var i = 0; i < groups.length; i++)
+                if (!bSet.contains(i))
+                  groupPx[i] +
+                      (groupIsFriend[i] ? groupShift[i] : memberShift622[i]),
+              for (var k = 0; k < liveFriends.length; k++)
+                fanAt[k] + fanShift[k],
+              if (meAt != null) meAt + fan.me,
+            ],
+            // jamais hors de la zone visible (bords, en-tête, menu) ni sur
+            // le rail ou la capsule : sinon place suivante, ou vraie position
+            allowed: pawBoostAllowed642(
+                _viewBounds622(), _railObstacles622().map((o) => o.box.shift(o.at)).toList()),
+          );
+          for (final i in bIdx) {
+            final o = off[(groups[i].first['id'] ?? groups[i].first['_id'] ?? '')
+                .toString()];
+            if (o != null) boostShift642[i] = o;
+          }
+          if (kDebugMode) {
+            PawMapScreen.debugBoostShift642
+              ..clear()
+              ..addAll(<String, Offset>{
+                for (final i in bIdx)
+                  (groups[i].first['id'] ?? groups[i].first['_id'] ?? '')
+                      .toString(): boostShift642[i] ?? memberShift622[i],
+              });
+          }
+        } else if (kDebugMode) {
+          PawMapScreen.debugBoostShift642.clear();
+        }
+      } else if (kDebugMode) {
+        PawMapScreen.debugBoostShift642.clear();
+      }
       // 622 — décalages de la simulation commune (membres + demandes).
       for (var i = 0; i < groups.length; i++) {
-        if (movable[i]) groupShift[i] = memberShift622[i];
+        if (movable[i]) groupShift[i] = boostShift642[i] ?? memberShift622[i];
         if (groupShift[i] != Offset.zero) groupPx[i] = groupPx[i] + groupShift[i];
       }
       // 612 — plus AUCUN trait rose « vraie position → rond décalé »
@@ -7664,7 +7781,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   pawMercatorPx(myPos.latitude, myPos.longitude, _zoomLevel) - cam,
                   bearingDeg: _camBearing612,
                   tiltDeg: _camTilt612),
-              pawPinBox(PawMapLegend.meSize / 2 + 2)),
+              pawPinBox(kPawMeBoxR642)),
         ..._railObstacles622(),
       ],
       bounds: _viewBounds622(),

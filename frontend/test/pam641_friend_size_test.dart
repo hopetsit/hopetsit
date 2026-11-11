@@ -165,6 +165,7 @@ void _dot(
   Color fallbackTint = PawMapLegend.owner,
   IconData fallbackIcon = Icons.pets_rounded,
   int pin618 = 0,
+  bool? me,
 }) {
   final bool withLabel = label != null && label.isNotEmpty;
   final double base = PawMapPinPainter.photoBitmapSize(size, margin: margin);
@@ -191,7 +192,8 @@ void _dot(
       fallbackTint: fallbackTint,
       fallbackIcon: fallbackIcon,
       margin: margin,
-      pin618: pin618);
+      pin618: pin618,
+      me: me);
   c.restore();
 }
 
@@ -253,7 +255,7 @@ void _sheet(Canvas c, bool dark, List<ui.Image> av) {
   cap(0, 0, 'Pastille normale (32)');
   _cross(c, p(1, 0));
   _friend(c, p(1, 0), av[1]);
-  cap(1, 0, 'Ami en ligne (36)');
+  cap(1, 0, 'Ami en ligne (40)');
   _cross(c, p(2, 0));
   _friend(c, p(2, 0), av[2], crown: true, role: PawMapLegend.walker);
   cap(2, 0, 'Ami Premium');
@@ -309,14 +311,15 @@ void _sheet(Canvas c, bool dark, List<ui.Image> av) {
   _dot(c, p(4, 2).translate(-12, 0),
       avatar: av[0],
       ring: PawMapLegend.owner,
-      size: PawMapLegend.meSize,
+      size: kPawMeSize642, // 642 — « Moi » à la taille d'un ami
+      me: true,
       margin: PawMapPinPainter.photoMarginBare,
       label: 'Moi',
-      crownSize: PawMapLegend.crownMe,
+      crownSize: kPawMeCrown642,
       fallbackTint: PawMapLegend.owner);
   _cross(c, p(5, 2));
   _friend(c, p(5, 2), av[3]);
-  _caption(c, p(4, 2).translate(42, 50), 'Moi (56) et un ami (36)', dark);
+  _caption(c, p(4, 2).translate(42, 50), 'Moi (40) et un ami (40)', dark);
 }
 
 /// Portrait de synthèse (aucune photo réelle dans le dépôt de tests).
@@ -335,37 +338,45 @@ Future<ui.Image> _portrait(Color bg, Color skin, Color hair) =>
 
 void main() {
   // ── Tailles ──────────────────────────────────────────────────────────────
-  test('641 — ami : +10 à +15 % d\'une pastille normale, pas plus', () {
+  // 642 (Daniel, 11/11 : « la pastille amis légèrement plus grande ») —
+  // 36 → 40 pt tout compris (photo 30 → 34), soit +25 % d'une pastille normale.
+  test('641 / 642 — ami : +25 % d\'une pastille normale (40 pt), pas plus', () {
     const double normal = 2 * kPawPinDiscR639;
     expect(normal, 32);
     const double total = kPawFriendSize640 + 2 * kPawFriendOut640;
     if (_on) {
       expect(total, kPawFriendTotal641);
-      expect(total, 36);
-      expect(total / normal >= 1.10, isTrue, reason: '${total / normal}');
-      expect(total / normal <= 1.15, isTrue, reason: '${total / normal}');
-      expect(kPawFriendSize640, 30);
+      expect(total, 40); // site : FRIEND_PX_641 (34) + 2 × 3
+      expect(total / normal, 1.25);
+      expect(kPawFriendSize640, 34);
       expect(_mF, 16);
-      expect(PawMapPinPainter.photoBitmapSize(kPawFriendSize640, margin: _mF), 62);
+      expect(PawMapPinPainter.photoBitmapSize(kPawFriendSize640, margin: _mF), 66);
       // boîte anti-chevauchement et rayon d'étiquette : le rond, pas plus
-      expect(kPawFriendBoxR640, 18.5);
-      expect(kPawFriendLabelR640, 18);
+      // (site : rayon 17 + 3 + 0,5 = 20,5)
+      expect(kPawFriendBoxR640, 20.5);
+      expect(kPawFriendLabelR640, 20);
     } else if (kPawFriendPhoto640) {
       expect(total, 70); // coupe-circuit : exactement le 640
       expect(_mF, 26);
     }
   });
 
-  test('641 — « moi » inchangé (56), jamais plus petit qu\'un ami', () {
-    expect(PawMapLegend.meSize, 56);
-    expect(PawMapLegend.meSize >= kPawFriendSize640 + 2 * kPawFriendOut640 || !_on, isTrue);
+  test('642 — « moi » à la taille d\'un ami (40), jamais plus petit', () {
+    expect(PawMapLegend.meSize, 56); // la valeur d'avant reste le coupe-circuit
+    if (kPawMeSmall642) {
+      expect(kPawMeSize642, 40);
+      if (_on) expect(kPawMeSize642, kPawFriendSize640 + 2 * kPawFriendOut640);
+    } else {
+      expect(kPawMeSize642, 56);
+    }
+    expect(kPawMeSize642 >= kPawFriendSize640 + 2 * kPawFriendOut640 || !_on, isTrue);
   });
 
   test('641 — badges : dans l\'image, jamais l\'un sur l\'autre', () {
     if (!_on) return;
     const double r = kPawFriendSize640 / 2;
     const c = Offset(_mF + r, _mF + r);
-    const double side = 2 * (_mF + r); // 62
+    const double side = 2 * (_mF + r); // 66
     final heart = pawFriendHeartCenter640(c, r);
     final crown = PawMapPinPainter.crownCenter(c, r, kPawFriendCrown640);
     final dot = pawOnlineDotCenter(c, r, kPawFriendDot641);
@@ -394,7 +405,7 @@ void main() {
   });
 
   // ── Rendu mesuré ─────────────────────────────────────────────────────────
-  testWidgets('641 — diamètres mesurés sur l\'image : normale 32, ami 36',
+  testWidgets('641 / 642 — diamètres mesurés sur l\'image : normale 32, ami 40',
       (tester) async {
     late double normal, normalBoost, friend, boosted;
     await tester.runAsync(() async {
@@ -421,7 +432,7 @@ void main() {
       friend = _solidRun(px, img.width, (ctr.dx * sc).round(), (ctr.dy * sc).round()) / sc;
       img.dispose();
 
-      // boosté : plus d'anneau rose → le rond seul (30) + l'anneau du halo
+      // boosté : plus d'anneau rose → le rond seul (34) + l'anneau du halo
       final (imgB, ctrB) = await _friendImage(scale: sc, boost: 0.5);
       px = await _rgba(imgB);
       boosted =
@@ -433,11 +444,12 @@ void main() {
         '$normalBoost, ami $friend, ami boosté $boosted');
     expect(normal, closeTo(32, 0.75));
     if (_on) {
-      expect(friend, closeTo(36, 0.75));
-      expect(friend / normal >= 1.08 && friend / normal <= 1.17, isTrue,
+      expect(friend, closeTo(40, 0.75));
+      expect(friend / normal >= 1.21 && friend / normal <= 1.29, isTrue,
           reason: 'ratio ${friend / normal}');
-      // boosté : jamais plus de +15 % d'une pastille normale à halo (43 pt)
-      expect(boosted <= 2 * kPawPinHaloR639 * 1.15, isTrue,
+      // boosté : jamais plus de +20 % d'une pastille normale à halo (43 pt)
+      // (642 : le rond passe de 30 à 34 → 50,5 mesurés ; +15 % au 641)
+      expect(boosted <= 2 * kPawPinHaloR639 * 1.20, isTrue,
           reason: 'ami boosté : $boosted');
     } else if (kPawFriendPhoto640) {
       expect(friend, closeTo(70, 0.75));
@@ -528,7 +540,7 @@ void main() {
 
   // ── Planche (golden) + copie à regarder ──────────────────────────────────
   for (final dark in [false, true]) {
-    testWidgets('641 — planche amis à 36 pt — ${dark ? 'sombre' : 'clair'}',
+    testWidgets('641 / 642 — planche amis à 40 pt — ${dark ? 'sombre' : 'clair'}',
         (tester) async {
       ui.Image? board;
       await tester.runAsync(() async {

@@ -75,6 +75,7 @@ void _dot(
   IconData fallbackIcon = Icons.pets_rounded,
   bool dashedRing = false,
   bool eyeOff = false,
+  bool? me,
 }) {
   final bool withLabel = label != null && label.isNotEmpty;
   final double base = PawMapPinPainter.photoBitmapSize(size, margin: margin);
@@ -105,6 +106,7 @@ void _dot(
     dashedRing: dashedRing,
     eyeOff: eyeOff,
     margin: margin,
+    me: me,
   );
   c.restore();
 }
@@ -149,7 +151,8 @@ void _me(Canvas c, Offset at, ui.Image? avatar,
     _dot(c, at,
         avatar: avatar,
         ring: PawMapLegend.owner,
-        size: PawMapLegend.meSize,
+        size: kPawMeSize642, // 642 — « Moi » à la taille d'un ami (40)
+        me: true,
         margin: boostPhase != null
             ? _mG
             : (crown || friendsOnly
@@ -157,7 +160,7 @@ void _me(Canvas c, Offset at, ui.Image? avatar,
                 : PawMapPinPainter.photoMarginBare),
         label: 'Moi',
         crown: crown,
-        crownSize: PawMapLegend.crownMe,
+        crownSize: kPawMeCrown642,
         boostPhase: boostPhase,
         dashedRing: friendsOnly,
         eyeOff: friendsOnly,
@@ -274,10 +277,10 @@ void main() {
   test('640 — coupe-circuit : tailles et rayons dérivés', () {
     expect(kPawFriendPin639, kPawFriendPastille639 && !kPawFriendPhoto640);
     if (kPawFriendPhoto640 && kPawFriendSmall641) {
-      expect(kPawFriendSize640, 30); // 641 : 36 tout compris
+      expect(kPawFriendSize640, 34); // 642 : 40 tout compris (641 : 30 / 36)
       expect(kPawFriendCrown640, 16);
-      expect(kPawFriendBoxR640, 18.5); // rond 15 + liseré 1 + anneau 2 + 0,5
-      expect(kPawFriendLabelR640, 18);
+      expect(kPawFriendBoxR640, 20.5); // rond 17 + liseré 1 + anneau 2 + 0,5
+      expect(kPawFriendLabelR640, 20);
       expect(kPawFriendPin639, isFalse);
     } else if (kPawFriendPhoto640) {
       expect(kPawFriendSize640, PawMapLegend.meSize); // 56, comme « moi »
@@ -297,6 +300,9 @@ void main() {
   test('640 — « moi » jamais plus petit qu\'un ami', () {
     expect(PawMapLegend.meSize >= kPawFriendSize640, isTrue);
     expect(PawMapLegend.crownMe >= kPawFriendCrown640, isTrue);
+    // 642 — « Moi » à 40 : toujours ≥ le rond d'un ami (34) et sa couronne.
+    expect(kPawMeSize642 >= kPawFriendSize640, isTrue);
+    expect(kPawMeCrown642 >= kPawFriendCrown640, isTrue);
   });
 
   test('640 — image d\'un ami : pas plus lourde que l\'ami d\'avant le 639', () {
@@ -305,7 +311,7 @@ void main() {
     expect(before, 110);
     if (kPawFriendPhoto640) {
       final double now = PawMapPinPainter.photoBitmapSize(kPawFriendSize640, margin: _mF);
-      expect(now, kPawFriendSmall641 ? 62 : 108);
+      expect(now, kPawFriendSmall641 ? 66 : 108); // 642 : 34 + 2 × 16
       expect(now <= before, isTrue);
       // l'anneau rose (7) + la lueur tiennent dans la marge
       expect(_mF > kPawFriendOut640 + 12, isTrue);

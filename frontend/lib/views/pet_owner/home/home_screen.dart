@@ -17,6 +17,8 @@ import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
+import 'package:hopetsit/widgets/paw_tab_bar.dart'
+    show pawTabBarTotalHeight;
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/post_date_label.dart';
@@ -78,6 +80,18 @@ class _HomeScreenState extends State<HomeScreen> {
   // grandes cartes d'action font le même travail en haut de page, il
   // n'apparaît donc qu'une fois la page défilée.
   bool _showFab = false;
+
+  // 642 — petits écrans (360×640, 320×568) et gros caractères : le bouton
+  // « Publier » de la carte « première annonce » reste sous le menu flottant
+  // au repos. Tant qu'il n'est pas entièrement visible, le MÊME bouton est
+  // épinglé juste au-dessus du menu (hauteur annoncée par le menu, jamais un
+  // chiffre en dur). Dès que celui de la carte est visible, l'épinglé s'efface.
+  final GlobalKey _firstCtaAnchor642 = GlobalKey();
+  bool _pinPublish642 = false;
+  bool _pinSyncScheduled642 = false;
+
+  /// Écart entre le bouton épinglé et le haut du menu.
+  static const double _kPinnedGap642 = 6;
   bool _userPickedTab = false;
   // v443 — Daniel : « le tri Plus récent en premier sur l'accueil sert à
   // rien ». Sélecteur de tri RETIRÉ ; les publications restent en ordre
@@ -319,6 +333,94 @@ class _HomeScreenState extends State<HomeScreen> {
           label: 'ownerhome571_trust_cancel'.tr,
         ),
       ],
+    );
+  }
+
+  /// 642 — la carte « Publie ta première annonce » est affichée (onglet « Mes
+  /// annonces », aucune annonce, chargement terminé). À lire DANS l'Obx.
+  bool get _firstPostCardShown642 =>
+      _selectedTabIndex == 0 &&
+      _myPostsCount() == 0 &&
+      !_postsController.isLoading.value;
+
+  /// 642 — haut du menu flottant, PATTE centrale comprise (elle dépasse de la
+  /// pilule et recouvrirait le milieu du bouton), en coordonnées de la fenêtre.
+  double _menuTop642(BuildContext context) =>
+      MediaQueryData.fromView(View.of(context)).size.height -
+      pawTabBarTotalHeight(windowBottomViewPadding(context));
+
+  /// 642 — après la mise en page : le bouton de la carte est-il ENTIÈREMENT
+  /// visible entre la barre d'état et le menu ? Sinon on épingle son double.
+  void _schedulePinnedSync642() {
+    if (_pinSyncScheduled642) return;
+    _pinSyncScheduled642 = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pinSyncScheduled642 = false;
+      if (!mounted) return;
+      bool pin = false;
+      if (_firstPostCardShown642) {
+        // Carte pas encore construite (hors de la zone de cache) = cachée.
+        pin = true;
+        final RenderObject? box =
+            _firstCtaAnchor642.currentContext?.findRenderObject();
+        if (box is RenderBox && box.attached && box.hasSize) {
+          final double top = box.localToGlobal(Offset.zero).dy;
+          final double bottom = top + box.size.height;
+          final double statusBar =
+              MediaQueryData.fromView(View.of(context)).viewPadding.top;
+          pin = top < statusBar ||
+              bottom > _menuTop642(context) - _kPinnedGap642;
+        }
+      }
+      if (pin != _pinPublish642) setState(() => _pinPublish642 = pin);
+    });
+  }
+
+  /// 642 — le bouton « Publier » épinglé au-dessus du menu, sur une bande au
+  /// fond de la page (le contenu qui défile ne passe pas derrière le texte).
+  Widget _buildPinnedPublish642(BuildContext context) {
+    final Color bg = HomeTokens3110.owner.pageBackground(context);
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          IgnorePointer(
+            child: Container(
+              height: 18,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[bg.withValues(alpha: 0), bg],
+                ),
+              ),
+            ),
+          ),
+          ColoredBox(
+            color: bg,
+            child: Padding(
+              // Même marge que le bouton de la carte (20 + 18).
+              padding: EdgeInsets.fromLTRB(
+                38,
+                0,
+                38,
+                pawTabBarTotalHeight(windowBottomViewPadding(context)) +
+                    _kPinnedGap642,
+              ),
+              child: PrimaryPill3110(
+                key: const ValueKey<String>('owner_first_post_cta_pinned'),
+                label: 'ownerhome571_first_cta'.tr,
+                color: HomeTokens3110.owner.primary,
+                shadow: HomeTokens3110.owner.shadowColor,
+                onTap: _openPublishRequest,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1268,6 +1370,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
               ctaLabel: 'ownerhome571_first_cta'.tr,
               onCta: _openPublishRequest,
+              ctaAnchorKey: _firstCtaAnchor642,
             ),
           ),
         );
@@ -1576,17 +1679,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => Scaffold(
+    return Obx(() {
+      // 642 — lu ici pour que l'Obx suive la fin du chargement des annonces.
+      final bool pinPublish = _firstPostCardShown642 && _pinPublish642;
+      _schedulePinnedSync642();
+      return Scaffold(
         // PAM-B 3110 — maquettes du 31/10 : fond uni de la page, plus
         // d'AppBar (le hero porte nom, rôle, fusée et cloche), plus de motif
         // à pattes. Même CustomScrollView, mêmes slivers de contenu.
         backgroundColor: HomeTokens3110.owner.pageBackground(context),
         extendBody: false,
         extendBodyBehindAppBar: false,
-        body: NotificationListener<ScrollNotification>(
+        body: Stack(
+          children: <Widget>[
+            NotificationListener<ScrollNotification>(
             onNotification: (ScrollNotification n) {
               if (n.metrics.axis == Axis.vertical) {
+                _schedulePinnedSync642();
                 final bool show = n.metrics.pixels > 260;
                 if (show != _showFab && mounted) {
                   setState(() => _showFab = show);
@@ -1695,6 +1804,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+            if (pinPublish) _buildPinnedPublish642(context),
+          ],
+        ),
         // v23.1 — FAB compact bottom-right : icône + uniquement, gradient,
         // taille discrète pour ne pas masquer le contenu.
         // v471 — Daniel : « remonter encore un peu » le bouton + de l'accueil
@@ -1741,7 +1853,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      ),
-    );
+      );
+    });
   }
 }

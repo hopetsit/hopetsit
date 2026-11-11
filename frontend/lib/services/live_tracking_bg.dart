@@ -294,7 +294,10 @@ bool bgFixUsable641({
       now.difference(lastSentAt).inSeconds >= graceSeconds) {
     return true;
   }
-  if (!accuracyM.isFinite || accuracyM > maxAccuracyM) return false;
+  // 642 — précision NaN, infinie ou négative = imprécis.
+  if (!accuracyM.isFinite || accuracyM < 0 || accuracyM > maxAccuracyM) {
+    return false;
+  }
   if (fixAt != null && now.difference(fixAt).inSeconds > maxAgeSeconds) {
     return false;
   }
