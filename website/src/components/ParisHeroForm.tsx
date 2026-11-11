@@ -124,7 +124,7 @@ const TXT = {
 /** 0811 — ce que la page /demande reçoit quand la demande est enregistrée (avant le code). */
 export type HeroLeadResult0811 = { id: string; email: string; pending: boolean; existing: boolean; postId: string | null; codeSent: boolean; sessionOpened: boolean; notified?: number };
 
-export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", campaign = "paris_owners", page = "/garde-animaux/paris", cityEditable = false, codeFlow = false, onLead, ui, uiLang, polish = false }: {
+export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", campaign = "paris_owners", page = "/garde-animaux/paris", cityEditable = false, codeFlow = false, steps = false, onLead, ui, uiLang, polish = false }: {
   city: string; lead: string; note: string; lang?: Lang; country?: string; campaign?: string; page?: string;
   /** 1011 (LEO) — accueil dans les 7 langues hors fr/en : libellés fournis par la page (`heroUi1011`). `lang`
    *  reste "fr" | "en" et part tel quel au serveur (qui n'écrit ses e-mails qu'en fr ou en) ; `uiLang` est la
@@ -139,11 +139,18 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   /** 0811 (NEO, ordre de Daniel) — page /demande : l'e-mail porte un code à taper sur la page ; la page parente
    *  reprend la main après l'envoi (`onLead`) et le formulaire n'affiche pas ses écrans « vérifie ta boîte mail ». */
   codeFlow?: boolean;
+  /** 1111 (BOB, ordre de Daniel « modifie la page car il n'y a pas de publication ») — page de la pub : le
+   *  formulaire se remplit en 3 PETITES étapes (1 le service, 2 les dates avec des raccourcis, 3 le code postal
+   *  et l'e-mail) au lieu d'un mur de 8 champs. Mesuré sur 4 jours : 154 arrivées de pub, 11 touchent le
+   *  formulaire, 3 arrivent aux dates, 0 envoie. Mêmes champs, mêmes règles, même envoi. Défaut : 1 seul écran. */
+  steps?: boolean;
   onLead?: (r: HeroLeadResult0811) => void;
 }) {
   const L: UiLang = uiLang || lang;
   const t: (typeof TXT)["fr"] = ui ? { ...TXT[lang], ...ui.t } : TXT[lang];
   const [cityValue, setCityValue] = useState(city);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [quickOn, setQuickOn] = useState(""); // 1111 — raccourci de date allumé
   // 31/10 (Daniel) — position choisie sur la carte (ville de la liste + épingle déplaçable).
   const [place, setPlace] = useState<PlacePick | null>(null);
   const [target, setTarget] = useState<{ role: "sitter" | "walker"; id: string } | null>(null);
@@ -241,16 +248,18 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   }
   function pick(id: ServiceId) {
     setErr("");
-    setService((cur) => (cur === id ? "" : id));
+    // 1111 — en 3 étapes : un tap sur un service le choisit (jamais « décoché ») et passe aux dates.
+    setService((cur) => (steps ? id : cur === id ? "" : id));
     if (!started) { setStarted(true); trackSiteEvent("cta_click", { label: "hero_form_service" }); }
+    if (steps) { setStep(2); once1011("hero_etape2_vue"); }
   }
 
   async function submit() {
     setErr("");
-    if (!service) { trackSiteEvent("cta_click", { label: "hero_form_sans_service" }); return setErr(t.need_service); }
+    if (!service) { trackSiteEvent("cta_click", { label: "hero_form_sans_service" }); if (steps) setStep(1); return setErr(t.need_service); }
     // 0611 (NEO) — dates OBLIGATOIRES : balade = la date ; sinon début et fin, début ≤ fin.
-    if (!startDate || (!isWalk && !endDate)) { trackSiteEvent("cta_click", { label: "hero_form_sans_dates" }); return setErr(isWalk ? dr(L, "walk_required") : f2(L, "dates_required")); }
-    if (!isWalk && endDate < startDate) return setErr(d620(L, "dates_order"));
+    if (!startDate || (!isWalk && !endDate)) { trackSiteEvent("cta_click", { label: "hero_form_sans_dates" }); if (steps) setStep(2); return setErr(isWalk ? dr(L, "walk_required") : f2(L, "dates_required")); }
+    if (!isWalk && endDate < startDate) { if (steps) setStep(2); return setErr(d620(L, "dates_order")); }
     // 1011 — code postal OBLIGATOIRE, même avec un lieu choisi sur la carte (43 demandes sur 46 n'en avaient pas).
     if (postalCode.trim().length < 3) {
       trackSiteEvent("cta_click", { label: "hero_form_sans_lieu" });
@@ -291,6 +300,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
       const code = e instanceof ApiError && e.details && typeof e.details === "object" ? String((e.details as { code?: string }).code || "") : "";
       trackSiteEvent("cta_click", { label: `hero_form_refus_${(code || (e instanceof ApiError ? e.status : "x")).toString().toLowerCase()}` });
       if (code === "POSTAL_REQUIRED") { try { postalRef.current?.focus(); } catch { /* champ absent */ } }
+      if (steps && (code === "DATES_REQUIRED" || code === "DATES_INVALID")) setStep(2); // (ZOE) le refus s'affiche là où sont les dates
       setErr(code === "TEST_ACCOUNT" ? t.err_test : code === "TOO_MANY" ? t.err_many : code === "EMAIL_INVALID" ? t.need_email : code === "POSTAL_REQUIRED" ? t.need_place
         : code === "DATES_REQUIRED" ? (isWalk ? dr(L, "walk_required") : f2(L, "dates_required")) : code === "DATES_INVALID" ? d620(L, "dates_order") : t.err);
     } finally {
@@ -307,6 +317,31 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   const svcId = SERVICES.find((s) => s.id === service)?.svc || "";
   const isWalk = service === "promenade";
   const today = new Date().toISOString().slice(0, 10);
+  // ── 1111 — formulaire en 3 étapes (page de la pub) ──
+  const show = (n: 1 | 2 | 3) => !steps || step === n;
+  const S = lang === "fr"
+    ? { of: "Étape {n} sur 3", back: "Retour", q1: "De quoi as-tu besoin ?", q2: "Pour quand ?", q3: "Où envoyer les réponses des gardiens ?", today: "Aujourd'hui", tomorrow: "Demain", weekend: "Ce week-end", next: "Continuer", free: "Gratuit · sans mot de passe · 1 minute" }
+    : { of: "Step {n} of 3", back: "Back", q1: "What do you need?", q2: "When?", q3: "Where should sitters send their replies?", today: "Today", tomorrow: "Tomorrow", weekend: "This weekend", next: "Continue", free: "Free · no password · 1 minute" };
+  // (ZOE) raccourcis : le jour LOCAL de la personne (le soir à New York, le jour UTC est déjà demain).
+  const todayLocal = (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); })();
+  const dayPlus = (n: number) => { const d = new Date(`${todayLocal}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const weekend = (): [string, string] => { const wd = new Date(`${todayLocal}T12:00:00Z`).getUTCDay(); if (wd === 0) return [todayLocal, todayLocal]; const sat = dayPlus(6 - wd); return [sat, wd === 6 ? dayPlus(1) : dayPlus(7 - wd)]; };
+  function quick(a: string, b: string, label: string) {
+    setErr("");
+    setQuickOn(label);
+    once1011("hero_form_dates");
+    trackSiteEvent("cta_click", { label: `hero_date_${label}` });
+    setStartDate(a);
+    setEndDate(isWalk ? a : b);
+  }
+  function nextFromDates() {
+    setErr("");
+    if (!startDate || (!isWalk && !endDate)) { trackSiteEvent("cta_click", { label: "hero_form_sans_dates" }); return setErr(isWalk ? dr(L, "walk_required") : f2(L, "dates_required")); }
+    if (!isWalk && endDate < startDate) return setErr(d620(L, "dates_order"));
+    setStep(3);
+    once1011("hero_etape3_vue");
+  }
+  const chip = (on: boolean) => `min-h-[44px] rounded-full border px-4 text-[14px] font-bold ${on ? "border-owner bg-owner text-white" : `${lineSoft} bg-white text-ink`}`;
 
   if (done && done.pending) {
     // 31/10 (BOB, sécurité) — un compte existe déjà avec cet e-mail : la demande est gardée en brouillon et
@@ -354,23 +389,46 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   // « vérifie ta boîte mail » / « en ligne » sont d'autres blocs avec leur propre cadre (orange / vert) : jamais deux cadres.
   return (
     <div id="publier" className="mt-7 scroll-mt-20 rounded-3xl bg-[#FFF7F3] p-4 shadow-[0_0_0_2px_#1C1917,0_0_0_20px_#FFF3EC,0_0_36px_32px_rgba(255,243,236,0.95),0_32px_56px_-24px_rgba(35,23,21,0.32)] md:mx-auto md:mt-10 md:max-w-md md:shadow-[0_0_0_2px_#1C1917,0_0_0_28px_#FFF3EC,0_0_44px_40px_rgba(255,243,236,0.95),0_32px_56px_-24px_rgba(35,23,21,0.32)]" data-hero-card-lisse-3110="" data-testid="hero-form" data-hero-form-3110={lang} data-hero-1011="" data-hero-ui-1011={L} ref={formRef} onClickCapture={touch}>
-      <p className="text-[15px] font-semibold leading-snug text-ink md:text-base">{lead}</p>
+      {steps && (
+        <div className="mb-2" data-testid="hero-steps-1111" data-step={step}>
+          <div className="flex items-center justify-between text-[12px] font-bold text-ink">
+            {step > 1
+              ? <button type="button" onClick={() => { setErr(""); setStep((step - 1) as 1 | 2); }} className="min-h-[36px] pr-3 text-owner-dark underline decoration-1 underline-offset-2" data-testid="hero-step-back">← {S.back}</button>
+              : <span />}
+            <span>{S.of.replace("{n}", String(step))}</span>
+          </div>
+          <div className="mt-1 flex gap-1.5" aria-hidden>
+            {[1, 2, 3].map((n) => <span key={n} className="h-1.5 flex-1 rounded-full" style={{ background: n <= step ? "#C92A12" : "#F3D2C8" }} />)}
+          </div>
+          <p className="mt-3 text-[19px] font-extrabold leading-tight text-ink">{step === 1 ? S.q1 : step === 2 ? S.q2 : S.q3}</p>
+        </div>
+      )}
+      {show(1) && <p className={steps ? "text-[13.5px] font-semibold leading-snug text-ink" : "text-[15px] font-semibold leading-snug text-ink md:text-base"}>{lead}</p>}
       {target && <p className="mt-1.5 rounded-xl bg-white px-3 py-1.5 text-[12px] font-bold" style={{ color: "#1E4FB0" }} data-hero-target={target.role}>{t.target_note}</p>}
 
       {/* 1011 — 4 services en 2 × 2 (icône à gauche : deux rangées basses, le bouton reste dans le premier écran). */}
-      <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label={ui?.serviceAria || "Service"} data-testid="hero-services-1011">
+      <div className={show(1) ? `mt-3 grid ${steps ? "grid-cols-1 gap-2.5" : "grid-cols-2 gap-2"}` : "hidden"} role="group" aria-label={ui?.serviceAria || "Service"} data-testid="hero-services-1011">
         {SERVICES.map((s) => (
           <button key={s.id} type="button" onClick={() => pick(s.id)} aria-pressed={service === s.id} data-svc={s.id}
-            className={`flex min-h-[44px] items-center gap-1 rounded-2xl border px-1.5 py-1 text-left transition ${service === s.id ? "border-owner bg-owner text-white shadow-card" : `${lineSoft} bg-white text-ink`}`}>
-            <span aria-hidden className="shrink-0 text-base leading-none">{s.icon}</span>
+            className={`flex ${steps ? "min-h-[58px] gap-3 px-4 py-2" : "min-h-[44px] gap-1 px-1.5 py-1"} items-center rounded-2xl border text-left transition ${service === s.id ? "border-owner bg-owner text-white shadow-card" : `${lineSoft} bg-white text-ink`}`}>
+            <span aria-hidden className={`shrink-0 leading-none ${steps ? "text-2xl" : "text-base"}`}>{s.icon}</span>
             <span className="min-w-0">
-              <span className="block text-[12.5px] font-bold leading-tight">{ui?.services?.[s.id]?.label || s[lang]}</span>
-              {s.sub && <span className="block text-[10.5px] font-semibold leading-tight" style={{ color: service === s.id ? "#FFFFFF" : "#6E4F48" }}>{ui?.services?.[s.id]?.sub || s.sub[lang]}</span>}
+              <span className={`block font-bold leading-tight ${steps ? "text-[16px]" : "text-[12.5px]"}`}>{ui?.services?.[s.id]?.label || s[lang]}</span>
+              {s.sub && <span className={`block font-semibold leading-tight ${steps ? "text-[12.5px]" : "text-[10.5px]"}`} style={{ color: service === s.id ? "#FFFFFF" : "#6E4F48" }}>{ui?.services?.[s.id]?.sub || s.sub[lang]}</span>}
             </span>
           </button>
         ))}
       </div>
+      {steps && show(1) && <p className="mt-3 text-center text-[12.5px] font-bold text-ink" data-testid="hero-step1-free">{S.free}</p>}
 
+      <div className={show(2) ? "" : "hidden"}>
+      {steps && (
+        <div className="mt-1 flex flex-wrap gap-2" role="group" aria-label={S.q2} data-testid="hero-quick-dates-1111">
+          <button type="button" className={chip(quickOn === "aujourdhui" && startDate === todayLocal)} onClick={() => quick(todayLocal, todayLocal, "aujourdhui")}>{S.today}</button>
+          <button type="button" className={chip(quickOn === "demain" && startDate === dayPlus(1))} onClick={() => quick(dayPlus(1), dayPlus(1), "demain")}>{S.tomorrow}</button>
+          <button type="button" className={chip(quickOn === "weekend" && startDate === weekend()[0])} onClick={() => quick(weekend()[0], weekend()[1], "weekend")}>{S.weekend}</button>
+        </div>
+      )}
       {isWalk ? (
         <div className="mt-3 grid grid-cols-2 gap-2" data-testid="hero-dates-walk-0611">
           <label className="block text-xs font-semibold text-ink">{c2610(L, "date_label")} *
@@ -389,8 +447,9 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
       )}
       {/* 0611 (NEO, texte dicté par Daniel) — pourquoi les dates sont obligatoires. */}
       <p className="mt-1 text-[11px] font-semibold text-ink" data-testid="hero-dates-hint-0611">{dr(L, "hint")}</p>
+      </div>
 
-      {svcId && (
+      {svcId && (!steps || step >= 2) && (
         <div className="mt-3">
           <EstimateLine620 lang={L} service={svcId} dateMode={startDate && (isWalk || endDate) ? "exact" : "tbd"} startDate={startDate} endDate={isWalk ? startDate : endDate}
             visitsPerDay={1} venue={svcId === "house_sitting" ? "owners_home" : null} currency={money1011.code} location={{ city: place ? place.city : (cityEditable ? cityValue : city), ...(place ? { lat: place.lat, lng: place.lng } : {}), ...(postalCode.trim().length >= 3 ? { postalCode: postalCode.trim() } : {}) }} />
@@ -399,6 +458,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
 
       {/* Ville (liste + carte) et code postal sur une rangée, prénom et e-mail sur la suivante : le bouton reste
           dans le premier écran à 375 px même avec le champ Ville en plus. */}
+      <div className={show(3) ? "" : "hidden"}>
       <div className="mt-3 grid grid-cols-[1.4fr_1fr] gap-2">
         <PlacePicker3110 lang={lang} value={cityValue} onChange={setCityValue} pick={place} setPick={(p) => { setPlace(p); trackSiteEvent("cta_click", { label: p ? "hero_form_carte" : "hero_form_carte_off" }); }} inputClass={field} bias={bias} txt={ui?.place} searchLang={L} />
         <label className="block text-xs font-semibold text-ink">{t.postal} *
@@ -473,6 +533,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
           </div>
         </div>
       )}
+      </div>
       {/* Champ piège anti-robot : invisible, jamais rempli par une personne. */}
       <div aria-hidden className="absolute h-0 w-0 overflow-hidden opacity-0" style={{ position: "absolute", left: -9999 }}>
         <label>Website<input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} name="website" /></label>
@@ -480,6 +541,13 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
 
       {err && err !== t.need_place && <p className="mt-2 text-center text-sm font-semibold text-owner-dark" role="alert">{err}</p>}
 
+      {steps && step === 2 && (
+        <button type="button" onClick={nextFromDates} data-testid="hero-step-next"
+          className={`mt-3 block w-full ${polish ? "rounded-[18px]" : "rounded-full"} bg-owner px-6 py-4 text-center text-lg font-extrabold text-white shadow-card`}>
+          {S.next}
+        </button>
+      )}
+      <div className={show(3) ? "" : "hidden"}>
       <button id="hero-publier" ref={btnRef} type="button" onClick={() => void submit()} disabled={busy} data-testid="hero-continuer"
         className={`mt-3 block w-full ${polish ? "rounded-[18px]" : "rounded-full"} bg-owner px-6 py-4 text-center text-lg font-extrabold text-white shadow-card disabled:opacity-70`}
         style={polish ? { backgroundImage: "linear-gradient(90deg, #C92A12, #9E1F0B)" } : undefined}>
@@ -487,6 +555,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
       </button>
       <p className="mt-2 text-center text-xs text-ink-muted">{note}</p>
       <p className="mt-1 text-center text-[11px] text-ink-muted">{t.terms} <Link href={lang === "fr" ? "/cgu" : "/terms"} className="underline">{t.terms_link}</Link>{ui?.termsAfter ?? "."}</p>
+      </div>
     </div>
   );
 }

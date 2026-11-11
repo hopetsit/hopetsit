@@ -28,6 +28,10 @@ const CITIES: Record<CityKey, { name: string; country: string; campaign: string 
   nyc: { name: "New York", country: "US", campaign: "nyc_owners" },
 };
 const RESEND_S = 60;
+// 11/11/2026 (BOB, ordre de Daniel « modifie la page car il n'y a pas de publication ») — mesuré sur 4 jours :
+// 154 arrivées de pub sur cette page, 11 touchent le formulaire, 3 arrivent aux dates, 0 envoie. Le formulaire
+// passe en 3 petites étapes (ParisHeroForm `steps`). Coupe-circuit : false = le formulaire en un seul écran.
+const STEPS_1111 = true;
 
 export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; defaultCity: CityKey }) {
   const [cityKey, setCityKey] = useState<CityKey>(defaultCity);
@@ -252,6 +256,7 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
         campaign={city.campaign}
         page={page}
         codeFlow
+        steps={STEPS_1111}
         onLead={onLead}
       />
     </div>
