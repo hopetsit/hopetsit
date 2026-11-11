@@ -24,12 +24,12 @@ const router = express.Router();
 const ID_RE = /^[a-f0-9]{32}$/;
 const HOUR_MS = 3600 * 1000;
 const MAX_TRIES_1H = 5;
-const VERSION = '1011-v1';
+const VERSION = '1011-v2';
 
 // Texte EXACT de la case (le même que sur le site, website/src/lib/i18n/demande0811.ts, clés sms_box*).
 const CONSENT_TEXT = {
   en: 'I agree to receive text messages from HoPetSit about my pet-care request (new sitter replies and booking updates). Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe, HELP for help. Consent is not a condition of purchase. See our Privacy Policy and Terms.',
-  fr: "J'accepte de recevoir des SMS de HoPetSit au sujet de ma demande de garde (réponses des gardiens, suivi de réservation). Fréquence variable. Des frais de message peuvent s'appliquer. Réponds STOP pour arrêter, AIDE pour de l'aide. Ce n'est pas une condition d'achat. Voir notre Politique de confidentialité et nos Conditions.",
+  fr: "J'accepte de recevoir des SMS de HoPetSit au sujet de ma demande de garde (réponses des gardiens, suivi de réservation). Fréquence variable. Des frais de message peuvent s'appliquer. Réponds STOP pour arrêter, HELP pour de l'aide. Ce n'est pas une condition d'achat. Voir notre Politique de confidentialité et nos Conditions.",
 };
 
 const tries = new Map(); // id → [horodatages]
@@ -69,6 +69,10 @@ function normalizePhone(raw, country) {
     } else return '';
   }
   if (d.length < 8 || d.length > 15 || d.startsWith('0')) return '';
+  // 1011-v2 (contrôle ZOE) — un contact américain ou canadien n'enregistre qu'un numéro nord-américain (+1),
+  // et jamais un numéro surtaxé (900, 976).
+  if ((c === 'US' || c === 'CA') && !d.startsWith('1')) return '';
+  if (/^1(900|976)/.test(d)) return '';
   // Amérique du Nord : indicatif régional et central ne commencent jamais par 0 ou 1.
   if (d.startsWith('1') && !/^1[2-9]\d{2}[2-9]\d{6}$/.test(d)) return '';
   return `+${d}`;
@@ -77,7 +81,7 @@ function normalizePhone(raw, country) {
 router.post('/', (req, res, next) => (enabled() ? next() : res.status(404).json({ error: 'not_found', code: 'NOT_FOUND' })), requireAuth, async (req, res) => {
   try {
     const b = req.body || {};
-    const id = String(b.id || '');
+    const id = typeof b.id === 'string' ? b.id : '';
     if (!ID_RE.test(id)) return res.status(404).json({ error: 'not_found', code: 'NOT_FOUND' });
     const lead = await AdLead.findById(id);
     if (!lead) return res.status(404).json({ error: 'not_found', code: 'NOT_FOUND' });
@@ -90,7 +94,7 @@ router.post('/', (req, res, next) => (enabled() ? next() : res.status(404).json(
     if (list.length >= MAX_TRIES_1H) return res.status(429).json({ error: 'TOO_MANY', code: 'TOO_MANY' });
     list.push(now);
     if (b.consent !== true) return res.status(400).json({ error: 'CONSENT_REQUIRED', code: 'CONSENT_REQUIRED' });
-    const phone = normalizePhone(b.phone, lead.country);
+    const phone = typeof b.phone === 'string' ? normalizePhone(b.phone, lead.country) : '';
     if (!phone) return res.status(400).json({ error: 'PHONE_INVALID', code: 'PHONE_INVALID' });
     lead.smsPhone = phone;
     lead.smsConsentAt = new Date();

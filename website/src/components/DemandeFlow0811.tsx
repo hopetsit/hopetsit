@@ -187,7 +187,7 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
                 <p className="text-[16px] font-extrabold leading-snug text-ink">{t("sms_title")}</p>
                 <label className="mt-3 block text-xs font-semibold text-ink">{t("sms_label")}
                   <input value={smsPhone} onChange={(e) => { setSmsPhone(e.target.value.replace(/[^\d+ ().-]/g, "").slice(0, 24)); setSmsErr(""); }}
-                    type="tel" inputMode="tel" autoComplete="tel" placeholder={city.country === "US" ? "+1 (555) 010-0000" : "06 00 00 00 00"}
+                    type="tel" inputMode="tel" autoComplete="tel" placeholder={city.country === "US" ? "+1 (212) 555-0142" : "06 00 00 00 00"}
                     className="mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-3 text-[16px] text-ink focus:border-owner focus:outline-none" data-testid="demande-sms-phone" />
                 </label>
                 <label className="mt-3 flex items-start gap-3 text-[13px] leading-snug text-ink">
@@ -195,9 +195,9 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
                   <span>{t("sms_consent")}</span>
                 </label>
                 <p className="mt-2 text-[12px] text-ink-muted">
-                  <Link href="/privacy" className="underline" target="_blank">{t("sms_privacy")}</Link>
+                  <Link href="/privacy" className="underline" target="_blank" rel="noopener noreferrer">{t("sms_privacy")}</Link>
                   {" · "}
-                  <Link href={lang === "fr" ? "/cgu" : "/terms"} className="underline" target="_blank">{t("sms_terms")}</Link>
+                  <Link href={lang === "fr" ? "/cgu" : "/terms"} className="underline" target="_blank" rel="noopener noreferrer">{t("sms_terms")}</Link>
                 </p>
                 {smsErr && <p className="mt-2 text-sm font-semibold text-owner-dark" role="alert">{smsErr}</p>}
                 <button type="button" onClick={() => void saveSms()} disabled={!smsReady || smsBusy}

@@ -147,8 +147,16 @@ test('normalizePhone : formats acceptés et refusés', () => {
   expect(n('212-555-0142', 'US')).toBe('+12125550142');
   expect(n('1 212 555 0142', 'US')).toBe('+12125550142');
   expect(n('+1 (212) 555-0142', 'FR')).toBe('+12125550142');
-  expect(n('0033 6 12 34 56 78', 'US')).toBe('+33612345678');
-  expect(n('+33 6 12 34 56 78', 'US')).toBe('+33612345678');
+  // 1011-v2 : un contact américain n'enregistre qu'un numéro nord-américain, jamais surtaxé.
+  expect(n('0033 6 12 34 56 78', 'US')).toBe('');
+  expect(n('+33 6 12 34 56 78', 'US')).toBe('');
+  expect(n('+33 6 12 34 56 78', 'FR')).toBe('+33612345678');
+  expect(n('0033 6 12 34 56 78', 'FR')).toBe('+33612345678');
+  expect(n('+1 900 555 0142', 'US')).toBe('');
+  expect(n('976-555-0142', 'US')).toBe('');
+  expect(n('+1 900 555 0142', 'FR')).toBe('');
+  expect(n('+1 (212) 555-0142', 'US')).toBe('+12125550142');
+  expect(n(2125550142, 'US')).toBe('+12125550142');
   expect(n('212 555 0142', 'FR')).toBe('');
   expect(n('212 555 0142', '')).toBe('');
   expect(n('+0612345678', 'FR')).toBe('');
@@ -156,4 +164,18 @@ test('normalizePhone : formats acceptés et refusés', () => {
   expect(n('+1234567', 'US')).toBe('');
   expect(n('+1234567890123456', 'US')).toBe('');
   expect(n(null, 'US')).toBe('');
+});
+
+test('1011-v2 : id ou numéro qui ne sont pas du texte, numéro étranger ou surtaxé pour un contact américain → refusés', async () => {
+  expect((await sms(usOwner, { id: { $ne: null }, phone: NUM, consent: true })).status).toBe(404);
+  expect((await sms(usOwner, { id: [usId], phone: NUM, consent: true })).status).toBe(404);
+  expect((await sms(usOwner, { id: usId, phone: { a: 1 }, consent: true })).status).toBe(400);
+  expect((await sms(usOwner, { id: usId, phone: 2125550142, consent: true })).status).toBe(400);
+  expect((await sms(usOwner, { id: usId, phone: '+33 6 12 34 56 78', consent: true })).status).toBe(400);
+  expect((await sms(usOwner, { id: usId, phone: '+1 900 555 0142', consent: true })).status).toBe(400);
+  const m = require('../src/routes/demandeSms1011');
+  expect(m.VERSION).toBe('1011-v2');
+  expect(m.CONSENT_TEXT.fr).toContain('HELP pour');
+  expect(m.CONSENT_TEXT.fr).not.toContain('AIDE');
+  expect(m.CONSENT_TEXT.en).toContain('HELP for help');
 });

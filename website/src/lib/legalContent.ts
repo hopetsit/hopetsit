@@ -192,7 +192,7 @@ const placeholder = (sections: LegalSection[]): LegalDoc => ({
 
 export const TERMS: LegalDocByLang = {
   en: {
-    lastUpdated: "November 10, 2026",
+    lastUpdated: "November 11, 2026",
     sections: [
     { type: "p", html: `These Terms of Service (the "Terms") govern your use of the HoPetSit marketplace (the "Service"), operated by CARDELLI HERMANOS LIMITED (trading as HoPetSit), a company incorporated in Hong Kong (the "Company", "we", "us").` },
     { type: "h2", html: `1. The Service` },
@@ -240,11 +240,11 @@ export const TERMS: LegalDocByLang = {
     { type: "h2", html: `14. Contact` },
     { type: "p", html: `Questions: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
     { type: "h2", html: `15. Text messages (SMS)` },
-    { type: "p", html: `Text messages are optional. If you enter your mobile number and tick the consent box on our request page, HoPetSit will text you about your pet-care request (new sitter replies and booking updates). Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time, HELP for help. Consent is not a condition of purchase. Carriers are not liable for delayed or undelivered messages. See our <a href="/privacy">Privacy Policy</a>.` },
+    { type: "p", html: `Text messages are optional. If you enter your mobile number and tick the consent box on our request page, HoPetSit may text you about your pet-care request (new sitter replies and booking updates). Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time, HELP for help. Consent is not a condition of purchase. Carriers are not liable for delayed or undelivered messages. See our <a href="/privacy">Privacy Policy</a>.` },
   ],
   },
   fr: {
-    lastUpdated: "10 novembre 2026",
+    lastUpdated: "11 novembre 2026",
     sections: [
     { type: "p", html: `Les présentes conditions d'utilisation (les « Conditions ») régissent votre utilisation du marché HoPetSit (le « Service »), exploité par CARDELLI HERMANOS LIMITED (exerçant ses activités sous le nom de HoPetSit), une société constituée à Hong Kong (la « Société », « nous », « notre »).` },
     { type: "h2", html: `1. Le service` },
@@ -292,11 +292,11 @@ export const TERMS: LegalDocByLang = {
     { type: "h2", html: `14. Contacter` },
     { type: "p", html: `Questions : <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
     { type: "h2", html: `15. SMS` },
-    { type: "p", html: `Les SMS sont facultatifs. Si vous saisissez votre numéro de mobile et cochez la case d'accord sur notre page de demande, HoPetSit vous écrit par SMS au sujet de votre demande de garde (réponses des gardiens, suivi de réservation). Fréquence variable. Des frais de message peuvent s'appliquer. Répondez STOP pour arrêter à tout moment, AIDE pour de l'aide. Cet accord n'est pas une condition d'achat. Les opérateurs ne sont pas responsables des messages retardés ou non remis. Voir notre <a href="/privacy">Politique de confidentialité</a>.` },
+    { type: "p", html: `Les SMS sont facultatifs. Si vous saisissez votre numéro de mobile et cochez la case d'accord sur notre page de demande, HoPetSit peut vous écrire par SMS au sujet de votre demande de garde (réponses des gardiens, suivi de réservation). Fréquence variable. Des frais de message peuvent s'appliquer. Répondez STOP pour arrêter à tout moment, HELP pour de l'aide. Cet accord n'est pas une condition d'achat. Les opérateurs ne sont pas responsables des messages retardés ou non remis. Voir notre <a href="/privacy">Politique de confidentialité</a>.` },
   ],
   },
   es: {
-    lastUpdated: "15 de octubre de 2026",
+    lastUpdated: "11 de noviembre de 2026",
     sections: [
     { type: "p", html: `Estos Términos de servicio (los "Términos") rigen su uso del mercado HoPetSit (el "Servicio"), operado por CARDELLI HERMANOS LIMITED (que opera como HoPetSit), una empresa constituida en Hong Kong (la "Compañía", "nosotros", "nos").` },
     { type: "h2", html: `1. El Servicio` },
@@ -343,10 +343,12 @@ export const TERMS: LegalDocByLang = {
     { type: "p", html: `Estos Términos se rigen por las leyes de la RAE de Hong Kong. Las disputas serán resueltas por los tribunales competentes de Hong Kong, sin perjuicio de los derechos obligatorios de protección del consumidor en su país de residencia.` },
     { type: "h2", html: `14. Contacto` },
     { type: "p", html: `Preguntas: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `15. Mensajes de texto (SMS)` },
+    { type: "p", html: `Los mensajes de texto son opcionales. Si introduce su número de móvil y marca la casilla de consentimiento en nuestra página de solicitud, HoPetSit podrá enviarle mensajes de texto sobre su solicitud de cuidado de mascotas (nuevas respuestas de cuidadores y novedades de la reserva). La frecuencia de los mensajes varía. Pueden aplicarse tarifas de mensajes y datos. Responda STOP para darse de baja en cualquier momento, HELP para obtener ayuda. El consentimiento no es una condición de compra. Los operadores no son responsables de los mensajes retrasados o no entregados. Consulte nuestra <a href="/privacy">Política de privacidad</a>.` },
   ],
   },
   de: {
-    lastUpdated: "15. Oktober 2026",
+    lastUpdated: "11. November 2026",
     sections: [
     { type: "p", html: `Diese Nutzungsbedingungen (die „Bedingungen“) regeln Ihre Nutzung des HoPetSit-Marktplatzes (der „Dienst“), der von CARDELLI HERMANOS LIMITED (firmierend als HoPetSit), einem in Hongkong eingetragenen Unternehmen (das „Unternehmen“, „wir“, „uns“), betrieben wird.` },
     { type: "h2", html: `1. Der Dienst` },
@@ -393,10 +395,12 @@ export const TERMS: LegalDocByLang = {
     { type: "p", html: `Diese Bedingungen unterliegen den Gesetzen der Sonderverwaltungszone Hongkong. Streitigkeiten werden von den zuständigen Gerichten in Hongkong beigelegt, unbeschadet der zwingenden Verbraucherschutzrechte in Ihrem Wohnsitzland.` },
     { type: "h2", html: `14. Kontakt` },
     { type: "p", html: `Fragen: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `15. Textnachrichten (SMS)` },
+    { type: "p", html: `Textnachrichten sind freiwillig. Wenn Sie auf unserer Anfrageseite Ihre Mobilnummer eingeben und das Einwilligungskästchen ankreuzen, kann HoPetSit Ihnen Textnachrichten zu Ihrer Betreuungsanfrage senden (neue Antworten von Tiersittern und Neuigkeiten zur Buchung). Die Häufigkeit der Nachrichten variiert. Es können Gebühren für Nachrichten und Daten anfallen. Antworten Sie mit STOP, um sich jederzeit abzumelden, mit HELP für Hilfe. Die Einwilligung ist keine Bedingung für einen Kauf. Mobilfunkanbieter haften nicht für verspätete oder nicht zugestellte Nachrichten. Siehe unsere <a href="/privacy">Datenschutzerklärung</a>.` },
   ],
   },
   it: {
-    lastUpdated: "15 ottobre 2026",
+    lastUpdated: "11 novembre 2026",
     sections: [
     { type: "p", html: `I presenti Termini di servizio (i "Termini") regolano l'utilizzo del mercato HoPetSit (il "Servizio"), gestito da CARDELLI HERMANOS LIMITED (operante come HoPetSit), una società costituita a Hong Kong (la "Società", "noi", "ci").` },
     { type: "h2", html: `1. Il Servizio` },
@@ -443,10 +447,12 @@ export const TERMS: LegalDocByLang = {
     { type: "p", html: `I presenti Termini sono regolati dalle leggi della Regione Amministrativa Speciale di Hong Kong. Le controversie saranno risolte dai tribunali competenti di Hong Kong, fatti salvi i diritti obbligatori di protezione dei consumatori nel tuo paese di residenza.` },
     { type: "h2", html: `14. Contatto` },
     { type: "p", html: `Domande: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `15. Messaggi di testo (SMS)` },
+    { type: "p", html: `I messaggi di testo sono facoltativi. Se inserisci il tuo numero di cellulare e spunti la casella di consenso nella nostra pagina di richiesta, HoPetSit potrà inviarti messaggi di testo sulla tua richiesta di custodia (nuove risposte dei pet sitter e aggiornamenti sulla prenotazione). La frequenza dei messaggi varia. Possono essere applicati costi per messaggi e dati. Rispondi STOP per annullare l'iscrizione in qualsiasi momento, HELP per ricevere aiuto. Il consenso non è una condizione di acquisto. Gli operatori non sono responsabili dei messaggi in ritardo o non consegnati. Consulta la nostra <a href="/privacy">Informativa sulla privacy</a>.` },
   ],
   },
   pt: {
-    lastUpdated: "15 de outubro de 2026",
+    lastUpdated: "11 de novembro de 2026",
     sections: [
     { type: "p", html: `Estes Termos de Serviço (os "Termos") regem o uso do mercado HoPetSit (o "Serviço"), operado pela CARDELLI HERMANOS LIMITED (negociando como HoPetSit), uma empresa constituída em Hong Kong (a "Empresa", "nós", "nos").` },
     { type: "h2", html: `1. O serviço` },
@@ -493,10 +499,12 @@ export const TERMS: LegalDocByLang = {
     { type: "p", html: `Estes Termos são regidos pelas leis da RAE de Hong Kong. Os litígios serão resolvidos pelos tribunais competentes de Hong Kong, sem prejuízo dos direitos obrigatórios de proteção do consumidor no seu país de residência.` },
     { type: "h2", html: `14. Contato` },
     { type: "p", html: `Perguntas: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `15. Mensagens de texto (SMS)` },
+    { type: "p", html: `As mensagens de texto são opcionais. Se você informar o número do seu celular e marcar a caixa de consentimento em nossa página de solicitação, o HoPetSit poderá enviar mensagens de texto sobre a sua solicitação de cuidados com o seu pet (novas respostas de cuidadores e atualizações da reserva). A frequência das mensagens varia. Podem ser aplicadas tarifas de mensagens e dados. Responda STOP para cancelar a qualquer momento, HELP para obter ajuda. O consentimento não é uma condição de compra. As operadoras não são responsáveis por mensagens atrasadas ou não entregues. Consulte a nossa <a href="/privacy">Política de Privacidade</a>.` },
   ],
   },
   ko: {
-    lastUpdated: "2026년 10월 15일",
+    lastUpdated: "2026년 11월 11일",
     sections: [
     { type: "p", html: `본 서비스 이용약관(이하 "약관")은 홍콩에서 설립된 회사인 CARDELLI HERMANOS LIMITED(HoPetSit이라는 상호로 영업, 이하 "회사", "당사")가 운영하는 HoPetSit 마켓플레이스(이하 "서비스")의 이용에 적용됩니다.` },
     { type: "h2", html: `1. 서비스` },
@@ -543,10 +551,12 @@ export const TERMS: LegalDocByLang = {
     { type: "p", html: `본 약관은 홍콩 특별행정구의 법률에 따릅니다. 분쟁은 홍콩의 관할 법원에서 해결되며, 귀하의 거주 국가에서 강행적으로 적용되는 소비자 보호 권리에는 영향을 미치지 않습니다.` },
     { type: "h2", html: `14. 문의` },
     { type: "p", html: `문의 사항: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `15. 문자 메시지(SMS)` },
+    { type: "p", html: `문자 메시지는 선택 사항입니다. 요청 페이지에서 휴대전화 번호를 입력하고 동의 상자에 체크하시면, HoPetSit이 귀하의 돌봄 요청에 관한 문자 메시지(펫시터의 새 답변 및 예약 진행 상황)를 보내드릴 수 있습니다. 메시지 빈도는 달라질 수 있습니다. 메시지 및 데이터 요금이 부과될 수 있습니다. 언제든지 STOP이라고 답장하면 수신이 중단되며, HELP라고 답장하면 도움말을 받으실 수 있습니다. 동의는 구매 조건이 아닙니다. 통신사는 지연되거나 전달되지 않은 메시지에 대해 책임을 지지 않습니다. 당사의 <a href="/privacy">개인정보 처리방침</a>을 참조하십시오.` },
   ],
   },
   ja: {
-    lastUpdated: "2026年10月15日",
+    lastUpdated: "2026年11月11日",
     sections: [
     { type: "p", html: `本利用規約（以下「本規約」）は、香港で設立された会社であるCARDELLI HERMANOS LIMITED（HoPetSitとして事業を行う。以下「当社」）が運営するHoPetSitマーケットプレイス（以下「本サービス」）のご利用に適用されます。` },
     { type: "h2", html: `1. 本サービス` },
@@ -593,13 +603,15 @@ export const TERMS: LegalDocByLang = {
     { type: "p", html: `本規約は香港特別行政区の法律に準拠します。紛争は香港の管轄裁判所において解決されるものとし、お客様の居住国における強行的な消費者保護の権利を妨げるものではありません。` },
     { type: "h2", html: `14. お問い合わせ` },
     { type: "p", html: `ご質問: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `15. テキストメッセージ（SMS）` },
+    { type: "p", html: `テキストメッセージの受信は任意です。リクエストページで携帯電話番号を入力し、同意のチェックボックスにチェックを入れた場合、HoPetSitはお客様のペットケアのリクエストに関するテキストメッセージ（シッターからの新しい返信や予約の最新情報）をお送りすることがあります。メッセージの頻度は一定ではありません。メッセージ料金およびデータ通信料がかかる場合があります。配信を停止するにはいつでもSTOPと、ヘルプが必要な場合はHELPと返信してください。同意は購入の条件ではありません。通信事業者は、メッセージの遅延または不達について責任を負いません。当社の<a href="/privacy">プライバシーポリシー</a>をご覧ください。` },
   ],
   },
   // v546 — polonais : version ANGLAISE reprise telle quelle (un texte
   // juridique ne se traduit pas automatiquement ; à faire relire par un
   // traducteur juridique avant une version polonaise).
   pl: {
-    lastUpdated: "October 15, 2026",
+    lastUpdated: "November 11, 2026",
     sections: [
     { type: "p", html: `These Terms of Service (the "Terms") govern your use of the HoPetSit marketplace (the "Service"), operated by CARDELLI HERMANOS LIMITED (trading as HoPetSit), a company incorporated in Hong Kong (the "Company", "we", "us").` },
     { type: "h2", html: `1. The Service` },
@@ -646,13 +658,15 @@ export const TERMS: LegalDocByLang = {
     { type: "p", html: `These Terms are governed by the laws of Hong Kong SAR. Disputes shall be resolved by the competent courts of Hong Kong, without prejudice to mandatory consumer-protection rights in your country of residence.` },
     { type: "h2", html: `14. Contact` },
     { type: "p", html: `Questions: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `15. Text messages (SMS)` },
+    { type: "p", html: `Text messages are optional. If you enter your mobile number and tick the consent box on our request page, HoPetSit may text you about your pet-care request (new sitter replies and booking updates). Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time, HELP for help. Consent is not a condition of purchase. Carriers are not liable for delayed or undelivered messages. See our <a href="/privacy">Privacy Policy</a>.` },
   ],
   },
 };
 
 export const PRIVACY: LegalDocByLang = {
   en: {
-    lastUpdated: "November 10, 2026",
+    lastUpdated: "November 11, 2026",
     sections: [
     { type: "p", html: `CARDELLI HERMANOS LIMITED (trading as HoPetSit) ("we", "us") is the data controller of personal data collected through the HoPetSit mobile application and website (the "Service"). This page explains what we collect, why, how long we keep it, and your rights — in accordance with the EU General Data Protection Regulation (GDPR), the UK GDPR and Hong Kong PDPO.` },
     { type: "h2", html: `1. Data we collect` },
@@ -701,11 +715,11 @@ export const PRIVACY: LegalDocByLang = {
     { type: "h2", html: `10. Contact` },
     { type: "p", html: `Data Protection contact: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
     { type: "h2", html: `11. Text messages (SMS)` },
-    { type: "p", html: `If you opt in to text messages on our request page, we store your mobile number, the date and the consent wording you accepted, and we use them only to text you about your pet-care request (new sitter replies and booking updates). We do not sell, rent or share mobile numbers or SMS consent with third parties or affiliates for marketing or promotional purposes. Messages are delivered through our messaging provider, acting on our behalf. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time, HELP for help.` },
+    { type: "p", html: `If you opt in to text messages on our request page, we keep your mobile number, the date, the consent wording you accepted and the IP address used, together with your request, and we use them only to text you about your pet-care request (new sitter replies and booking updates). This record is deleted together with the request, at the latest 60 days after the request was created. We do not sell, rent or share mobile numbers or SMS consent with third parties or affiliates for marketing or promotional purposes. Messages are delivered through our messaging provider, acting on our behalf. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time, HELP for help.` },
   ],
   },
   fr: {
-    lastUpdated: "10 novembre 2026",
+    lastUpdated: "11 novembre 2026",
     sections: [
     { type: "p", html: `CARDELLI HERMANOS LIMITED (exerçant ses activités sous le nom de HoPetSit) (« nous », « notre ») est le responsable du traitement des données personnelles collectées via l'application mobile et le site Web HoPetSit (le « Service »). Cette page explique ce que nous collectons, pourquoi, combien de temps nous le conservons et vos droits – conformément au Règlement général sur la protection des données (RGPD) de l'UE, au RGPD du Royaume-Uni et au PDPO de Hong Kong.` },
     { type: "h2", html: `1. Données que nous collectons` },
@@ -754,11 +768,11 @@ export const PRIVACY: LegalDocByLang = {
     { type: "h2", html: `10. Contacter` },
     { type: "p", html: `Contact pour la protection des données : <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
     { type: "h2", html: `11. SMS` },
-    { type: "p", html: `Si vous acceptez les SMS sur notre page de demande, nous conservons votre numéro de mobile, la date et la phrase d'accord acceptée, et nous ne les utilisons que pour vous écrire au sujet de votre demande de garde (réponses des gardiens, suivi de réservation). Nous ne vendons, ne louons et ne partageons pas les numéros de mobile ni l'accord SMS avec des tiers ou des sociétés affiliées à des fins commerciales ou publicitaires. Les messages sont remis par notre prestataire d'envoi, qui agit pour notre compte. Fréquence variable. Des frais de message peuvent s'appliquer. Répondez STOP pour arrêter à tout moment, AIDE pour de l'aide.` },
+    { type: "p", html: `Si vous acceptez les SMS sur notre page de demande, nous conservons votre numéro de mobile, la date, la phrase d'accord acceptée et l'adresse IP utilisée, avec votre demande, et nous ne les utilisons que pour vous écrire au sujet de votre demande de garde (réponses des gardiens, suivi de réservation). Ces informations sont supprimées avec la demande, au plus tard 60 jours après sa création. Nous ne vendons, ne louons et ne partageons pas les numéros de mobile ni l'accord SMS avec des tiers ou des sociétés affiliées à des fins commerciales ou publicitaires. Les messages sont remis par notre prestataire d'envoi, qui agit pour notre compte. Fréquence variable. Des frais de message peuvent s'appliquer. Répondez STOP pour arrêter à tout moment, HELP pour de l'aide.` },
   ],
   },
   es: {
-    lastUpdated: "25 de abril de 2026",
+    lastUpdated: "11 de noviembre de 2026",
     sections: [
     { type: "p", html: `CARDELLI HERMANOS LIMITED (que opera como HoPetSit) ("nosotros", "nos") es el controlador de datos personales recopilados a través de la aplicación móvil y el sitio web de HoPetSit (el "Servicio"). Esta página explica qué recopilamos, por qué, durante cuánto tiempo lo conservamos y sus derechos, de acuerdo con el Reglamento General de Protección de Datos de la UE (GDPR), el RGPD del Reino Unido y la PDPO de Hong Kong.` },
     { type: "h2", html: `1. Datos que recopilamos` },
@@ -806,10 +820,12 @@ export const PRIVACY: LegalDocByLang = {
     { type: "p", html: `Los cambios materiales a esta política se notifican en la aplicación y por correo electrónico (cuando haya optado por recibir actualizaciones de productos) al menos 30 días antes de que entren en vigencia.` },
     { type: "h2", html: `10. Contacto` },
     { type: "p", html: `Contacto de Protección de Datos: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `11. Mensajes de texto (SMS)` },
+    { type: "p", html: `Si acepta recibir mensajes de texto en nuestra página de solicitud, conservamos su número de móvil, la fecha, el texto de consentimiento que aceptó y la dirección IP utilizada, junto con su solicitud, y los usamos únicamente para enviarle mensajes de texto sobre su solicitud de cuidado de mascotas (nuevas respuestas de cuidadores y novedades de la reserva). Estos datos se eliminan junto con la solicitud, a más tardar 60 días después de su creación. No vendemos, alquilamos ni compartimos números de móvil ni el consentimiento para SMS con terceros o empresas afiliadas con fines comerciales o promocionales. Los mensajes se entregan a través de nuestro proveedor de mensajería, que actúa en nuestro nombre. La frecuencia de los mensajes varía. Pueden aplicarse tarifas de mensajes y datos. Responda STOP para darse de baja en cualquier momento, HELP para obtener ayuda.` },
   ],
   },
   de: {
-    lastUpdated: "25. April 2026",
+    lastUpdated: "11. November 2026",
     sections: [
     { type: "p", html: `CARDELLI HERMANOS LIMITED (firmierend als HoPetSit) („wir“, „uns“) ist der Datenverantwortliche für personenbezogene Daten, die über die mobile Anwendung und Website von HoPetSit (der „Dienst“) erfasst werden. Auf dieser Seite wird erklärt, was wir sammeln, warum, wie lange wir es aufbewahren und welche Rechte Sie haben – gemäß der EU-Datenschutz-Grundverordnung (DSGVO), der britischen DSGVO und dem Hongkonger PDPO.` },
     { type: "h2", html: `1. Von uns erfasste Daten` },
@@ -857,10 +873,12 @@ export const PRIVACY: LegalDocByLang = {
     { type: "p", html: `Wesentliche Änderungen dieser Richtlinie werden in der App und per E-Mail (wenn Sie sich für Produktaktualisierungen entschieden haben) mindestens 30 Tage vor ihrem Inkrafttreten mitgeteilt.` },
     { type: "h2", html: `10. Kontakt` },
     { type: "p", html: `Datenschutzkontakt: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `11. Textnachrichten (SMS)` },
+    { type: "p", html: `Wenn Sie auf unserer Anfrageseite dem Empfang von Textnachrichten zustimmen, speichern wir Ihre Mobilnummer, das Datum, den von Ihnen akzeptierten Einwilligungstext und die verwendete IP-Adresse zusammen mit Ihrer Anfrage und nutzen diese Angaben ausschließlich, um Ihnen Textnachrichten zu Ihrer Betreuungsanfrage zu senden (neue Antworten von Tiersittern und Neuigkeiten zur Buchung). Diese Angaben werden zusammen mit der Anfrage gelöscht, spätestens 60 Tage nach deren Erstellung. Wir verkaufen, vermieten oder teilen Mobilnummern und SMS-Einwilligungen nicht mit Dritten oder verbundenen Unternehmen zu Marketing- oder Werbezwecken. Die Nachrichten werden über unseren Messaging-Dienstleister zugestellt, der in unserem Auftrag handelt. Die Häufigkeit der Nachrichten variiert. Es können Gebühren für Nachrichten und Daten anfallen. Antworten Sie mit STOP, um sich jederzeit abzumelden, mit HELP für Hilfe.` },
   ],
   },
   it: {
-    lastUpdated: "25 aprile 2026",
+    lastUpdated: "11 novembre 2026",
     sections: [
     { type: "p", html: `CARDELLI HERMANOS LIMITED (operante come HoPetSit) ("noi") è il titolare del trattamento dei dati personali raccolti tramite l'applicazione mobile e il sito web HoPetSit (il "Servizio"). Questa pagina spiega cosa raccogliamo, perché, per quanto tempo li conserviamo e i tuoi diritti, in conformità con il Regolamento generale sulla protezione dei dati (GDPR) dell'UE, il GDPR del Regno Unito e il PDPO di Hong Kong.` },
     { type: "h2", html: `1. Dati che raccogliamo` },
@@ -908,10 +926,12 @@ export const PRIVACY: LegalDocByLang = {
     { type: "p", html: `Le modifiche sostanziali a questa politica vengono notificate nell'app e via e-mail (se hai aderito agli aggiornamenti del prodotto) almeno 30 giorni prima che entrino in vigore.` },
     { type: "h2", html: `10. Contatto` },
     { type: "p", html: `Contatto per la protezione dei dati: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `11. Messaggi di testo (SMS)` },
+    { type: "p", html: `Se accetti di ricevere messaggi di testo nella nostra pagina di richiesta, conserviamo il tuo numero di cellulare, la data, il testo del consenso che hai accettato e l'indirizzo IP utilizzato, insieme alla tua richiesta, e li usiamo solo per inviarti messaggi di testo sulla tua richiesta di custodia (nuove risposte dei pet sitter e aggiornamenti sulla prenotazione). Questi dati vengono eliminati insieme alla richiesta, al più tardi 60 giorni dopo la sua creazione. Non vendiamo, non noleggiamo e non condividiamo i numeri di cellulare né il consenso agli SMS con terzi o società affiliate per finalità di marketing o promozionali. I messaggi sono recapitati tramite il nostro fornitore di messaggistica, che agisce per nostro conto. La frequenza dei messaggi varia. Possono essere applicati costi per messaggi e dati. Rispondi STOP per annullare l'iscrizione in qualsiasi momento, HELP per ricevere aiuto.` },
   ],
   },
   pt: {
-    lastUpdated: "25 de abril de 2026",
+    lastUpdated: "11 de novembro de 2026",
     sections: [
     { type: "p", html: `CARDELLI HERMANOS LIMITED (negociado como HoPetSit) ("nós", "nos") é o controlador de dados pessoais coletados por meio do aplicativo móvel e site HoPetSit (o "Serviço"). Esta página explica o que coletamos, por que, por quanto tempo os mantemos e seus direitos — de acordo com o Regulamento Geral de Proteção de Dados (GDPR) da UE, o GDPR do Reino Unido e o PDPO de Hong Kong.` },
     { type: "h2", html: `1. Dados que coletamos` },
@@ -959,10 +979,12 @@ export const PRIVACY: LegalDocByLang = {
     { type: "p", html: `Alterações materiais nesta política são notificadas no aplicativo e por e-mail (quando você tiver optado por receber atualizações do produto) pelo menos 30 dias antes de entrarem em vigor.` },
     { type: "h2", html: `10. Contato` },
     { type: "p", html: `Contato de proteção de dados: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `11. Mensagens de texto (SMS)` },
+    { type: "p", html: `Se você aceitar receber mensagens de texto em nossa página de solicitação, guardamos o número do seu celular, a data, o texto de consentimento que você aceitou e o endereço IP utilizado, junto com a sua solicitação, e os usamos apenas para enviar mensagens de texto sobre a sua solicitação de cuidados com o seu pet (novas respostas de cuidadores e atualizações da reserva). Esses dados são excluídos junto com a solicitação, no máximo 60 dias após a sua criação. Não vendemos, alugamos nem compartilhamos números de celular ou o consentimento de SMS com terceiros ou empresas afiliadas para fins de marketing ou promocionais. As mensagens são entregues por meio do nosso provedor de mensagens, que atua em nosso nome. A frequência das mensagens varia. Podem ser aplicadas tarifas de mensagens e dados. Responda STOP para cancelar a qualquer momento, HELP para obter ajuda.` },
   ],
   },
   ko: {
-    lastUpdated: "2026년 4월 25일",
+    lastUpdated: "2026년 11월 11일",
     sections: [
     { type: "p", html: `CARDELLI HERMANOS LIMITED(HoPetSit이라는 상호로 영업, 이하 "당사")는 HoPetSit 모바일 애플리케이션 및 웹사이트(이하 "서비스")를 통해 수집되는 개인정보의 관리자입니다. 본 페이지는 당사가 무엇을 수집하는지, 그 이유, 보관 기간 및 귀하의 권리를 EU 일반 개인정보 보호법(GDPR), 영국 GDPR 및 홍콩 PDPO에 따라 설명합니다.` },
     { type: "h2", html: `1. 당사가 수집하는 정보` },
@@ -1010,10 +1032,12 @@ export const PRIVACY: LegalDocByLang = {
     { type: "p", html: `본 정책의 중대한 변경 사항은 효력 발생 최소 30일 전에 앱 내 및 이메일(제품 업데이트 수신에 동의한 경우)로 통지됩니다.` },
     { type: "h2", html: `10. 문의` },
     { type: "p", html: `개인정보 보호 문의: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `11. 문자 메시지(SMS)` },
+    { type: "p", html: `요청 페이지에서 문자 메시지 수신에 동의하시면, 당사는 귀하의 휴대전화 번호, 날짜, 귀하가 동의한 문구 및 사용된 IP 주소를 귀하의 요청과 함께 보관하며, 귀하의 돌봄 요청에 관한 문자 메시지(펫시터의 새 답변 및 예약 진행 상황)를 보내는 용도로만 사용합니다. 이 정보는 요청과 함께 삭제되며, 늦어도 요청 생성 후 60일 이내에 삭제됩니다. 당사는 마케팅 또는 홍보 목적으로 휴대전화 번호나 SMS 동의를 제3자 또는 계열사에 판매, 대여 또는 공유하지 않습니다. 메시지는 당사를 대신하여 업무를 수행하는 메시지 발송 업체를 통해 전달됩니다. 메시지 빈도는 달라질 수 있습니다. 메시지 및 데이터 요금이 부과될 수 있습니다. 언제든지 STOP이라고 답장하면 수신이 중단되며, HELP라고 답장하면 도움말을 받으실 수 있습니다.` },
   ],
   },
   ja: {
-    lastUpdated: "2026年4月25日",
+    lastUpdated: "2026年11月11日",
     sections: [
     { type: "p", html: `CARDELLI HERMANOS LIMITED（HoPetSitとして事業を行う。以下「当社」）は、HoPetSitモバイルアプリケーションおよびウェブサイト（以下「本サービス」）を通じて収集される個人データの管理者です。本ページでは、当社が何を収集し、その理由、保管期間、およびお客様の権利について、EU一般データ保護規則（GDPR）、英国GDPRならびに香港PDPOに従って説明します。` },
     { type: "h2", html: `1. 当社が収集する情報` },
@@ -1061,13 +1085,15 @@ export const PRIVACY: LegalDocByLang = {
     { type: "p", html: `本ポリシーの重要な変更は、効力発生の少なくとも30日前に、アプリ内および（製品アップデートの受信に同意されている場合は）メールにて通知します。` },
     { type: "h2", html: `10. お問い合わせ` },
     { type: "p", html: `データ保護に関するお問い合わせ: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `11. テキストメッセージ（SMS）` },
+    { type: "p", html: `リクエストページでテキストメッセージの受信に同意された場合、当社はお客様の携帯電話番号、日付、同意された文言および使用されたIPアドレスをリクエストとともに保管し、お客様のペットケアのリクエストに関するテキストメッセージ（シッターからの新しい返信や予約の最新情報）をお送りする目的にのみ使用します。これらの情報はリクエストとともに削除され、遅くともリクエスト作成から60日後までに削除されます。当社は、マーケティングまたは販売促進の目的で、携帯電話番号やSMSの同意を第三者または関連会社に販売、貸与、共有することはありません。メッセージは、当社に代わって業務を行うメッセージ配信事業者を通じて配信されます。メッセージの頻度は一定ではありません。メッセージ料金およびデータ通信料がかかる場合があります。配信を停止するにはいつでもSTOPと、ヘルプが必要な場合はHELPと返信してください。` },
   ],
   },
   // v546 — polonais : version ANGLAISE reprise telle quelle (un texte
   // juridique ne se traduit pas automatiquement ; à faire relire par un
   // traducteur juridique avant une version polonaise).
   pl: {
-    lastUpdated: "April 25, 2026",
+    lastUpdated: "November 11, 2026",
     sections: [
     { type: "p", html: `CARDELLI HERMANOS LIMITED (trading as HoPetSit) ("we", "us") is the data controller of personal data collected through the HoPetSit mobile application and website (the "Service"). This page explains what we collect, why, how long we keep it, and your rights — in accordance with the EU General Data Protection Regulation (GDPR), the UK GDPR and Hong Kong PDPO.` },
     { type: "h2", html: `1. Data we collect` },
@@ -1115,6 +1141,8 @@ export const PRIVACY: LegalDocByLang = {
     { type: "p", html: `Material changes to this policy are notified in-app and by email (when you have opted in to product updates) at least 30 days before they take effect.` },
     { type: "h2", html: `10. Contact` },
     { type: "p", html: `Data Protection contact: <a href="mailto:contact@hopetsit.com">contact@hopetsit.com</a>` },
+    { type: "h2", html: `11. Text messages (SMS)` },
+    { type: "p", html: `If you opt in to text messages on our request page, we keep your mobile number, the date, the consent wording you accepted and the IP address used, together with your request, and we use them only to text you about your pet-care request (new sitter replies and booking updates). This record is deleted together with the request, at the latest 60 days after the request was created. We do not sell, rent or share mobile numbers or SMS consent with third parties or affiliates for marketing or promotional purposes. Messages are delivered through our messaging provider, acting on our behalf. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time, HELP for help.` },
   ],
   },
 };

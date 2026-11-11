@@ -71,7 +71,8 @@ const adLeadSchema = new mongoose.Schema(
     targetRole: { type: String, enum: ['sitter', 'walker', null], default: null },
     targetId: { type: String, default: '' },
     // 1011 (BOB, accord de Daniel 10/11) — accord SMS FACULTATIF donné sur la page de demande (case non cochée par
-    // défaut, routes/demandeSms1011). On n'écrit par SMS qu'à un contact qui a `smsConsentAt` et pas `smsOptOutAt`.
+    // défaut, routes/demandeSms1011). On ENREGISTRE seulement l'accord : aucun code n'envoie encore de SMS. Le jour où
+    // un envoi existe, il devra exiger `smsConsentAt` et l'absence de `smsOptOutAt`. Supprimé avec la demande (60 j).
     smsPhone: { type: String, default: '', trim: true, maxlength: 20 },
     smsConsentAt: { type: Date },
     smsConsentText: { type: String, default: '', maxlength: 700 },
