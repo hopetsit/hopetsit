@@ -47,6 +47,9 @@ const PUBLIC_PATHS = [
   // 04/11 (GUS) — articles ko + ja de la semaine.
   "/blog/seoul-cat-sitter-guide",
   "/blog/tokyo-new-year-pet-care",
+  // 11/11 (GUS) — articles ko + ja de la semaine.
+  "/blog/seoul-dog-boarding-guide",
+  "/blog/tokyo-dog-walking-guide",
   // 31/10 (GUS, décision BOB : Paris 27/40 arrondissements indexés) — 5 boroughs de New York.
   "/pet-sitting-new-york/manhattan",
   "/pet-sitting-new-york/brooklyn",

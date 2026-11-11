@@ -210,7 +210,11 @@ export default function ArticleTokyoPetSitterGuide() {
         <Link href="/blog/tokyo-new-year-pet-care" className="font-semibold text-owner underline">
           年末年始に犬・猫を預けるには
         </Link>
-        で詳しくまとめています。
+        で詳しくまとめています。毎日の散歩だけを頼みたいときは{" "}
+        <Link href="/blog/tokyo-dog-walking-guide" className="font-semibold text-owner underline">
+          東京で犬の散歩代行を頼むには
+        </Link>
+        も参考にしてください。
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">シッターに渡すものチェックリスト</h2>

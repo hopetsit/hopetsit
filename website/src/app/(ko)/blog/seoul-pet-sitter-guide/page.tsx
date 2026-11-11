@@ -269,7 +269,11 @@ export default function ArticleSeoulPetSitterGuide() {
         <Link href="/blog/seoul-cat-sitter-guide" className="font-semibold text-owner underline">
           서울 아파트 고양이 돌봄 : 방문 캣시터와 탁묘 비교
         </Link>
-        도 함께 읽어 보세요.
+        도 함께 읽어 보세요. 여행이나 출장으로 며칠 집을 비운다면{" "}
+        <Link href="/blog/seoul-dog-boarding-guide" className="font-semibold text-owner underline">
+          서울 강아지 맡기는 곳 : 애견호텔·위탁·방문 펫시터 비교
+        </Link>
+        에서 어디에 맡길지 고르는 법을 정리했습니다.
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">자주 묻는 질문</h2>

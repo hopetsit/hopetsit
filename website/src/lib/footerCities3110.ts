@@ -16,8 +16,8 @@ export const FOOTER_CITIES = [
 export const FOOTER_POSTS = [
   { href: "/blog/chat-dappartement-paris", label: "Paris : chat d'appartement, visite ou garde ailleurs ?" },
   { href: "/blog/cat-sitting-nyc-apartment", label: "New York: cat sitting, drop-ins, keys and doormen" },
-  { href: "/blog/seoul-cat-sitter-guide", label: "서울 아파트 고양이 돌봄 : 방문 캣시터와 탁묘" },
-  { href: "/blog/tokyo-new-year-pet-care", label: "年末年始に犬・猫を預けるには" },
+  { href: "/blog/seoul-dog-boarding-guide", label: "서울 강아지 맡기는 곳 : 애견호텔·위탁·방문 펫시터" },
+  { href: "/blog/tokyo-dog-walking-guide", label: "東京で犬の散歩代行を頼むには" },
   { href: "/blog/cat-sitting-amsterdam-holidays", label: "Amsterdam: cat sitting over the holidays" },
 ];
 
