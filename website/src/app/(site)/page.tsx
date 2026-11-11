@@ -68,6 +68,20 @@ function keepTogether(text: string, lang?: string) {
 }
 
 // 10/11 — même tuile de pattes, en orange PLEIN plus clair que la bande (jamais d'opacité), pour l'appel final.
+// 11/11/2026 (BOB, ordre de Daniel : « mets un plus beau arrière-plan sur la page d'accueil ») — fond du héros :
+// lumières chaudes aux couleurs de la marque (ambre en haut à gauche, orange HoPetSit en haut à droite, rose et
+// or en bas) sur un dégradé pêche → blanc, pattes gardées, vague douce en bas. CSS + SVG en ligne seulement :
+// 0 image à charger, donc aucun poids en plus sur téléphone. Jamais de gris. Retour arrière : HERO_BG_1111 = false.
+const HERO_BG_1111 = true;
+const HERO_BG_OLD_3110 = `${PAWS_TILE}, radial-gradient(55% 60% at 80% 25%, rgba(201,42,18,0.16), rgba(201,42,18,0) 70%), linear-gradient(165deg, #F8D9CC 0%, #FFF3EC 40%, #FFFFFF 100%)`;
+const HERO_BG_NEW_1111 = [
+  PAWS_TILE,
+  "radial-gradient(42% 46% at 8% 4%, rgba(255,170,110,0.55), rgba(255,170,110,0) 72%)",
+  "radial-gradient(46% 52% at 94% 10%, rgba(201,42,18,0.30), rgba(201,42,18,0) 72%)",
+  "radial-gradient(40% 40% at 86% 82%, rgba(240,106,160,0.20), rgba(240,106,160,0) 72%)",
+  "radial-gradient(42% 38% at 6% 88%, rgba(244,192,74,0.26), rgba(244,192,74,0) 72%)",
+  "linear-gradient(180deg, #FFDCC9 0%, #FFEDE2 38%, #FFF8F3 72%, #FFFFFF 100%)",
+].join(", ");
 const PAWS_TILE_BAND = PAWS_TILE.replace("fill='%23F3C7B8'", "fill='%23B5230F'");
 
 const GRAD = "linear-gradient(90deg, #C92A12, #9E1F0B)";
@@ -185,7 +199,14 @@ export default function HomePage() {
           rapprochées (formulaire 460 px | maquette 288-320 px, écart 48-64 px, le tout centré), et un vrai fond de héros :
           dégradé chaud orange → crème + pattes discrètes (SVG en couleur pleine, jamais du gris) — CSS seul, 0 octet
           d'image, donc rien de lourd sur téléphone et LCP inchangé. */}
-      <section className="overflow-x-hidden" style={{ background: `${PAWS_TILE}, radial-gradient(55% 60% at 80% 25%, rgba(201,42,18,0.16), rgba(201,42,18,0) 70%), linear-gradient(165deg, #F8D9CC 0%, #FFF3EC 40%, #FFFFFF 100%)` }} data-hero-bg-3110="">
+      <section className="relative overflow-x-hidden" style={{ background: HERO_BG_1111 ? HERO_BG_NEW_1111 : HERO_BG_OLD_3110 }} data-hero-bg-3110="" data-hero-bg-1111={HERO_BG_1111 ? "" : undefined}>
+        {/* 11/11 — vague douce en bas du héros : le fond coloré se fond dans la section blanche (SVG en ligne, décoratif). */}
+        {HERO_BG_1111 && (
+          <svg aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-10 w-full md:h-16" viewBox="0 0 1440 80" preserveAspectRatio="none">
+            <path d="M0 46 C 240 6, 480 6, 720 34 S 1200 74, 1440 30 L1440 80 L0 80 Z" fill="#FFE1D2" opacity="0.7" />
+            <path d="M0 58 C 300 22, 560 26, 820 50 S 1240 78, 1440 46 L1440 80 L0 80 Z" fill="#FFFFFF" />
+          </svg>
+        )}
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-12 pt-12 md:pt-20 lg:max-w-[1180px] lg:grid-cols-[minmax(0,448px)_auto] lg:justify-center lg:gap-12 lg:pt-24 xl:gap-16">
           <div className="min-w-0 text-center lg:text-left">
             <span className="inline-flex items-center gap-2 rounded-[12px] border border-[#F3D2C8] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#6E4F48]">
