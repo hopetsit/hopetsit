@@ -10,6 +10,7 @@
 // Chargée en `dynamic(..., { ssr: false })` par les pages : Leaflet touche
 // `window` et ne se rend pas côté serveur.
 
+import { boostOffsets1111 } from "@/lib/pawmapBoost1111";
 import Link from "@/components/SiteLink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer, ZoomControl, useMap, useMapEvents } from "react-leaflet";
@@ -300,8 +301,24 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
     const out = new Set(spider?.ids ?? []);
     return list0.filter((p) => !out.has(p.id));
   }, [providers, verifiedOnly, spider]);
-  const memberIndex = useMemo(() => clusterIndex2710(groupable2710, (p) => p.id, (p) => [p.lat, p.lng]), [groupable2710]);
-  const clusters = useMemo(() => memberIndex.at(view.zoom).map((g) => ({ items: g.items, center: [g.anchor.lat, g.anchor.lng] as [number, number], key: g.key })), [memberIndex, view.zoom]);
+  // 11/11 (BOB, ordre de Daniel : « ceux qui ont PawBoost doivent être visibles, leur pastille, même en
+  // dézoomant ») — un profil boosté ne rentre jamais dans un groupe (même règle que la carte connectée).
+  // Coupe-circuit : BOOST_SOLO_1111 = false.
+  const BOOST_SOLO_1111 = true;
+  const groupableNoBoost = useMemo(() => (BOOST_SOLO_1111 ? groupable2710.filter((p) => !p.boosted) : groupable2710), [groupable2710, BOOST_SOLO_1111]);
+  const boostSolo = useMemo(() => (BOOST_SOLO_1111 ? groupable2710.filter((p) => !!p.boosted) : []), [groupable2710, BOOST_SOLO_1111]);
+  const memberIndex = useMemo(() => clusterIndex2710(groupableNoBoost, (p) => p.id, (p) => [p.lat, p.lng]), [groupableNoBoost]);
+  const clusters = useMemo(() => [
+    ...memberIndex.at(view.zoom).map((g) => ({ items: g.items, center: [g.anchor.lat, g.anchor.lng] as [number, number], key: g.key })),
+    ...boostSolo.map((p) => ({ items: [p], center: [p.lat, p.lng] as [number, number], key: `boost:${p.id}` })),
+  ], [memberIndex, view.zoom, boostSolo]);
+  // 11/11 (ZOE) — un boosté ne se pose jamais SUR un groupe ou une autre pastille : décalé à côté (px écran).
+  const boostOff = useMemo(() => {
+    if (!boostSolo.length) return new Map<string, { x: number; y: number }>();
+    const px = (la: number, ln: number) => mercatorPx(la, ln, view.zoom);
+    const obstacles = clusters.filter((g) => !g.key.startsWith("boost:")).map((g) => px(g.center[0], g.center[1]));
+    return boostOffsets1111(boostSolo.map((p) => ({ id: String(p.id), px: px(p.lat, p.lng) })), obstacles);
+  }, [boostSolo, clusters, view.zoom]);
   const spiderItems = useMemo(() => {
     if (!spider) return [] as PublicProvider[];
     const byId = new Map(providers.map((p) => [p.id, p] as const));
@@ -423,7 +440,10 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
         {[...clusters.filter((g) => g.items.length === 1).map((g) => g.items[0]), ...spiderItems].map((p) => {
           const si = spider ? spiderItems.indexOf(p) : -1;
           // 27/10 (règle 626) — plus d'éclatement : chaque rond à sa vraie position.
-          const off: { x: number; y: number } | null = si >= 0 ? { x: 0, y: 0 } : null;
+          const spOff: { x: number; y: number } | null = si >= 0 ? { x: 0, y: 0 } : null;
+          // 11/11 — boosté posé à côté d'un groupe (décalage en px ; son prénom reste affiché).
+          const bOff = spOff ? null : boostOff.get(String(p.id)) ?? null;
+          const off = spOff ?? bOff;
           const isSel = sel === p.id;
           const prices = isSel ? pricesOf(p) : [];
           const color = ROLE_COLOR[p.role];
@@ -432,11 +452,11 @@ export default function PublicPawMap({ center, zoom = 12, height = "60vh", compa
           const href = ready && user ? bookHref : `/signup?next=${encodeURIComponent(bookHref)}`;
           return (
             <Marker
-              key={`p-${p.id}${off ? "-sp" : ""}`}
+              key={`p-${p.id}${spOff ? "-sp" : bOff ? `-b${bOff.x},${bOff.y}` : ""}`}
               ref={(mk) => { if (mk) markerRefs.current.set(p.id, mk); else markerRefs.current.delete(p.id); }}
               position={[p.lat, p.lng]}
-              icon={memberIcon(p, off ? null : captionOf(p), { selected: isSel, dim: !!sel && !isSel, prices, off, dark })}
-              zIndexOffset={isSel ? PIN_Z.me + 500 : off ? PIN_Z.member + 800 : p.boosted ? PIN_Z.memberBoosted : PIN_Z.member}
+              icon={memberIcon(p, spOff ? null : captionOf(p), { selected: isSel, dim: !!sel && !isSel, prices, off, dark })}
+              zIndexOffset={isSel ? PIN_Z.me + 500 : spOff ? PIN_Z.member + 800 : p.boosted ? PIN_Z.memberBoosted : PIN_Z.member}
               eventHandlers={{
                 click: (e) => {
                   const onBubble = !!(e.originalEvent?.target as Element | null)?.closest?.("[data-price-bubble-2610]");

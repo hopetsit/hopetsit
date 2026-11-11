@@ -316,7 +316,15 @@ export const FRIEND_GLOW_640 = "box-shadow:0 0 0 3px #fff,0 0 0 7px #ff5ad2,0 0 
  */
 export const FRIEND_SMALL_641 = true;
 /** Diamètre de la photo d'un ami en petit format (36 px avec le liseré et l'anneau rose). */
-export const FRIEND_PX_641 = 30;
+// 11/11 (BOB, Daniel : « la pastille amis légèrement plus grande ») — 30 → 34 : 40 px tout compris (36 avant).
+export const FRIEND_PX_641 = 34;
+/**
+ * 11/11 (BOB, Daniel : « ajuste ma pastille à la même taille que amis ») — « Moi » passe de 56 à 40 px,
+ * soit exactement la taille d'un ami avec son anneau rose (34 + 2 × 3). SITE SEULEMENT pour l'instant :
+ * l'app suivra au build 642. Coupe-circuit : `false` = « Moi » à 56 px comme avant.
+ */
+export const ME_SMALL_1111 = true;
+export const ME_PX_1111 = ME_SMALL_1111 ? FRIEND_PX_641 + 6 : 56;
 /** Diamètre passé à `photoPinHtml` pour un ami : 30 (641) ou 56 (640, coupe-circuit). */
 export const FRIEND_PHOTO_PX_641 = FRIEND_SMALL_641 ? FRIEND_PX_641 : 56;
 /** 641 — halo rose d'un ami en petit format : liseré blanc 1 px, anneau rose plein 2 px, lueur courte. */
@@ -431,8 +439,8 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   const size = o.size && o.size > 0 ? o.size : o.me ? 56 : 50;
   // 640 — le cœur ne s'affiche que si le halo est celui de l'ami (jamais sur moi, ni sous un halo boost / PawFollow / suivi).
   const heartOn = !!o.heart && !o.me && !o.followed && !o.boosted && !o.pawFollow;
-  // 641 — petit format d'un ami (photo 30 px) : anneaux, badges et cœur réduits ; « moi » n'est jamais concerné.
-  const small = FRIEND_SMALL_641 && !o.me && size <= FRIEND_PX_641;
+  // 641 — petit format d'un ami (photo 30 px) : anneaux, badges et cœur réduits ; « moi » aussi depuis le 11/11 (ME_SMALL_1111).
+  const small = FRIEND_SMALL_641 && (o.me ? ME_SMALL_1111 && size <= ME_PX_1111 : size <= FRIEND_PX_641);
   const ring = o.me ? color : FRIEND_PINK;
   const ringStyle = o.friendsOnly ? "dashed" : "solid";
   // 27/09 — UN seul halo. 30/09 (Daniel, « t'es pas violet ») : la personne
@@ -485,7 +493,7 @@ export function photoPinHtml(o: PhotoPinOptions): string {
   const disc = o.friendsOnly
     ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};background-clip:padding-box;border:3px ${ringStyle} ${ring};${glow}display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;position:relative;">${inner}</div>`
     : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${grad};padding:${small ? 2 : 3}px;${glow}box-sizing:border-box;"><div style="width:100%;height:100%;border-radius:50%;border:${small ? 1 : 2}px solid #fff;background:${ringGradient(key)};display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;position:relative;">${inner}</div></div>`;
-  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}${disc}${o.premium ? crownBadge(o.me ? 24 : small ? 16 : 22) : ""}${o.boosted ? (o.me ? rocketBadge(20, -1) : rocketBadge(small ? 16 : 18)) : ""}${o.friendsOnly && o.me ? eyeOffBadge(20) : ""}${!o.me && (o.online === true || o.online === false) ? (small ? onlineDot(10, o.online, false, 2) : onlineDot(13, o.online)) : ""}${heartOn ? (small ? friendHeartBadge640(16, -5) : friendHeartBadge640(20)) : ""}${pinsOnAvatarHtml(o.pins, size, heartOn ? (small ? { bottomLeft: true } : { leftMiddle: true }) : undefined)}${label}${bubble}</div>`;
+  return `<div style="position:relative;width:${size}px;height:${size}px;">${ringLayer}${disc}${o.premium ? crownBadge(small ? 16 : o.me ? 24 : 22) : ""}${o.boosted ? (o.me ? rocketBadge(small ? 16 : 20, -1) : rocketBadge(small ? 16 : 18)) : ""}${o.friendsOnly && o.me ? eyeOffBadge(small ? 16 : 20) : ""}${!o.me && (o.online === true || o.online === false) ? (small ? onlineDot(10, o.online, false, 2) : onlineDot(13, o.online)) : ""}${heartOn ? (small ? friendHeartBadge640(16, -5) : friendHeartBadge640(20)) : ""}${pinsOnAvatarHtml(o.pins, size, heartOn ? (small ? { bottomLeft: true } : { leftMiddle: true }) : undefined)}${label}${bubble}</div>`;
 }
 
 /** Couleur foncée d'un rôle (bas du dégradé 160°, même valeur que l'app). */

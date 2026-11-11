@@ -10,12 +10,13 @@
 //   rond = personne (icône du rôle, couleur du rôle à tous les zooms),
 //   goutte = lieu (couleur du type), carré = groupe de lieux, noir et or =
 //   PawSpot, rose = ami, couronne or = Premium, PawBoost = lueur turquoise qui
-//   respire + fusée, « Moi » 56 px avec ma photo, demandes des propriétaires
+//   respire + fusée, « Moi » avec ma photo (40 px depuis le 11/11, comme un ami), demandes des propriétaires
 //   en bulle orange foncé (prix dedans), signalement = triangle rouge.
 // + zoom de suivi « joli » (vol en douceur, zoom rue, suit le point, tracé
 //   violet PawFollow, pause au geste), mode sombre, prix sur l'épingle au
 //   zoom rue. Tous les dessins viennent de lib/pawmapLegend.ts.
 
+import { boostOffsets1111 } from "@/lib/pawmapBoost1111";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Circle,
@@ -76,6 +77,7 @@ import {
   photoPinHtml,
   FRIEND_PHOTO_PX_641,
   FRIEND_SMALL_641,
+  ME_PX_1111,
   memberClusterHtml,
   placePinHtml,
   placeClusterHtml,
@@ -206,6 +208,8 @@ const reportIcon = (type: string, fresh: boolean) => {
  * Jumeau de `kPawFriendPhoto640` côté app.
  */
 const FRIEND_PHOTO_640 = true;
+/** 11/11 — profils PawBoost hors des groupes, visibles à tous les zooms (voir memberClusters). */
+const BOOST_SOLO_1111 = true;
 /** 1011 — pastille des rôles + halo fuchsia + petit cœur (dessin 639) : seulement si la photo 640 est coupée. */
 const FRIEND_PASTILLE_639 = !FRIEND_PHOTO_640;
 /** Diamètre de la photo d'un ami : 30 depuis le 641 (36 px avec liseré + anneau rose, soit +12,5 % d'une
@@ -258,10 +262,11 @@ function friendProfileIcon(m: NearbyMember, premium: boolean, roles: PersonRole[
 function meIcon(o: { role: string; name: string; avatar?: string | null; premium?: boolean; meLabel?: string; friendsOnly?: boolean; boosted?: boolean; pawFollow?: boolean }): L.DivIcon {
   return L.divIcon({
     className: "hps-l-me",
-    html: `<div style="position:relative;width:56px;height:56px;"><div style="position:absolute;inset:-8px;border-radius:50%;border:3px solid ${ROLE_COLOR[roleKey(o.role)]};animation:hps-pulse 2s ease-out infinite;"></div>${photoPinHtml({ ...o, me: true })}</div>`,
-    iconSize: [56, 56],
-    iconAnchor: [28, 28],
-    popupAnchor: [0, -32],
+    // 11/11 (Daniel) — « Moi » à la taille d'un ami (ME_PX_1111 = 40 px ; 56 si le coupe-circuit est coupé).
+    html: `<div style="position:relative;width:${ME_PX_1111}px;height:${ME_PX_1111}px;"><div style="position:absolute;inset:-${ME_PX_1111 < 56 ? 6 : 8}px;border-radius:50%;border:3px solid ${ROLE_COLOR[roleKey(o.role)]};animation:hps-pulse 2s ease-out infinite;"></div>${photoPinHtml({ ...o, me: true, size: ME_PX_1111 })}</div>`,
+    iconSize: [ME_PX_1111, ME_PX_1111],
+    iconAnchor: [ME_PX_1111 / 2, ME_PX_1111 / 2],
+    popupAnchor: [0, -(ME_PX_1111 / 2 + 4)],
   });
 }
 /** 622 — zoom à partir duquel les prix se montrent (pays). */
@@ -1001,8 +1006,24 @@ export default function PoiMap({
   // 27/10 — regroupement STABLE (règle 626 de PAM, lib/pawmapGroups2710) : index hiérarchique calculé une
   // fois par jeu de données ; niveau = partie entière du zoom ; groupe posé sur son membre le plus central.
   // Même zoom + mêmes données = mêmes groupes, quel que soit le chemin ou l'ordre d'arrivée des données.
-  const memberIndex = useMemo(() => clusterIndex2710(otherMembers, (m) => String(m.id), memberPos2710), [otherMembers]);
-  const memberClusters = useMemo(() => memberIndex.at(zoomLevel).map((g) => ({ items: g.items, center: memberPos2710(g.anchor)!, key: g.key })), [memberIndex, zoomLevel]);
+  // 11/11 (BOB, ordre de Daniel : « ceux qui ont PawBoost doivent être visibles, leur pastille, même en
+  // dézoomant ») — un profil boosté ne rentre JAMAIS dans un groupe : il garde sa propre pastille à tous les
+  // zooms. SITE SEULEMENT pour l'instant (l'app suivra au build 642). Coupe-circuit : BOOST_SOLO_1111 = false.
+  const groupable = useMemo(() => (BOOST_SOLO_1111 ? otherMembers.filter((m) => !m.isBoosted) : otherMembers), [otherMembers]);
+  const boostSolo = useMemo(() => (BOOST_SOLO_1111 ? otherMembers.filter((m) => !!m.isBoosted && !!memberPos2710(m)) : []), [otherMembers]);
+  const memberIndex = useMemo(() => clusterIndex2710(groupable, (m) => String(m.id), memberPos2710), [groupable]);
+  const memberClusters = useMemo(() => [
+    ...memberIndex.at(zoomLevel).map((g) => ({ items: g.items, center: memberPos2710(g.anchor)!, key: g.key })),
+    ...boostSolo.map((m) => ({ items: [m], center: memberPos2710(m)!, key: `boost:${m.id}` })),
+  ], [memberIndex, zoomLevel, boostSolo]);
+  // 11/11 (ZOE) — un boosté ne se pose jamais SUR un groupe ou une autre pastille : décalé à côté (px écran).
+  const boostOff = useMemo(() => {
+    if (!boostSolo.length) return new Map<string, { x: number; y: number }>();
+    const px = (p: [number, number]) => mercatorPx(p[0], p[1], zoomLevel);
+    const obstacles = memberClusters.filter((g) => !g.key.startsWith("boost:")).map((g) => px(g.center));
+    for (const f of friendMembers) { const fp = memberPos2710(f); if (fp) obstacles.push(px(fp)); }
+    return boostOffsets1111(boostSolo.map((m) => ({ id: String(m.id), px: px(memberPos2710(m)!) })), obstacles);
+  }, [boostSolo, memberClusters, friendMembers, zoomLevel]);
   const spotIndex = useMemo(() => clusterIndex2710(spots, (s) => String(s.id), spotPos2710, (z) => (z >= 13 ? 18 : 44)), [spots]);
   const spotClusters = useMemo(() => spotIndex.at(zoomLevel).map((g) => ({ items: g.items, center: [g.anchor.lat, g.anchor.lng] as [number, number], key: g.key })), [spotIndex, zoomLevel]);
 
@@ -1043,9 +1064,9 @@ export default function PoiMap({
     // 02/10 (607, PAM v2 — CONTRAT_607_bulles §3) : collision par BOÎTES RÉELLES.
     const meAt: Px | null = userLocation ? pxOf([userLocation.lat, userLocation.lng]) : null;
     const meW = textWidth(meLabel || "Moi", "700 11px Inter, system-ui, sans-serif", 11) + 16;
-    const meBox = pinBox(56 / 2 + 2, { labelW: meW, labelH: 16.3, labelGap: 3 });
-    if (meAt) meRects.push(circleRect(meAt, 56 / 2 + 2), labelRect(meAt, 56 / 2, meW, "below", 16.3));
-    // 641 — petit format : la boîte couvre l'anneau rose (rayon 15 + 3 + 0,5 = 18,5, comme l'app).
+    const meBox = pinBox(ME_PX_1111 / 2 + 2, { labelW: meW, labelH: 16.3, labelGap: 3 });
+    if (meAt) meRects.push(circleRect(meAt, ME_PX_1111 / 2 + 2), labelRect(meAt, ME_PX_1111 / 2, meW, "below", 16.3));
+    // 641 — petit format : la boîte couvre l'anneau rose (rayon 17 + 3 + 0,5 = 20,5 depuis le 11/11 ; l'app est encore à 18,5 jusqu'au build 642).
     const friendBox = pinBox(FRIEND_PX_640 / 2 + (FRIEND_SMALL_641 && FRIEND_PHOTO_640 ? 3.5 : 2.5));
     // 640 — ami en photo 56 px (profil et direct) ; coupe-circuit : pastille + halo (43 px) au profil, photo 50 px en direct.
     const friendProfileBox = FRIEND_PASTILLE_639 ? pinBox(FRIEND_R_639 + 1) : friendBox;
@@ -1346,7 +1367,7 @@ export default function PoiMap({
         {/* 02/10 (607, PAM) — passe de mise en page unique (CONTRAT_607_bulles §2). */}
         <CollisionPass607 />
 
-        {/* Ma position : cercle de précision honnête + « Moi » (56 px). */}
+        {/* Ma position : cercle de précision honnête + « Moi » (ME_PX_1111). */}
         {/* 612 — pendant un suivi : aucun cercle en mètres sur la carte (comme l'app). */}
         {userLocation && userAccuracy != null && userAccuracy > 25 && !trackedId && (
           <Circle center={[userLocation.lat, userLocation.lng]} radius={userAccuracy} pathOptions={{ color: ROLE_COLOR[roleKey(userRole)], fillColor: ROLE_COLOR[roleKey(userRole)], fillOpacity: 0.08, weight: 1, dashArray: "6 6" }} />
@@ -1521,6 +1542,8 @@ export default function PoiMap({
           const spiderIdx = spider ? spiderMembers.indexOf(m) : -1;
           // 27/10 (règle 626) — plus d'éclatement : chaque rond est dessiné à sa vraie position.
           const spiderOff: { x: number; y: number } | null = spiderIdx >= 0 ? { x: 0, y: 0 } : null;
+          // 11/11 — boosté posé à côté d'un groupe (décalage en px ; son prénom reste affiché).
+          const bOff = spiderOff ? null : boostOff.get(String(m.id)) ?? null;
           const pt: [number, number] | null = pointOf(m);
           if (!pt) return null;
           const isFriend = isFriendMember(m, friendSet);
@@ -1578,7 +1601,7 @@ export default function PoiMap({
           const rCount = r0.reviewsCount ?? m.reviewsCount ?? 0;
           const rating = sel && prices.length && rVal > 0 && rCount > 0 ? rVal.toFixed(1) : null;
           return (
-            <Marker key={`member-${m.id}${spiderOff ? "-sp" : ""}`} position={pt} icon={memberIcon(m, spiderOff ? null : memberCaption({ ...m, role: r0.role }), roles, dark, { selected: sel, dim, prices, live, off: spiderOff, rating })} zIndexOffset={sel ? PIN_Z.me + 500 : spiderOff ? PIN_Z.member + 800 : m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: (e) => { const onBubble = !!(e.originalEvent?.target as Element | null)?.closest?.("[data-price-bubble-2610]"); if (sel && onBubble) { open(); return; } const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt, pUnit); if (f) tapFocus(f); else open(); } }} />
+            <Marker key={`member-${m.id}${spiderOff ? "-sp" : bOff ? `-b${bOff.x},${bOff.y}` : ""}`} position={pt} icon={memberIcon(m, spiderOff ? null : memberCaption({ ...m, role: r0.role }), roles, dark, { selected: sel, dim, prices, live, off: spiderOff ?? bOff, rating })} zIndexOffset={sel ? PIN_Z.me + 500 : spiderOff ? PIN_Z.member + 800 : m.isBoosted ? PIN_Z.memberBoosted : PIN_Z.member} eventHandlers={{ click: (e) => { const onBubble = !!(e.originalEvent?.target as Element | null)?.closest?.("[data-price-bubble-2610]"); if (sel && onBubble) { open(); return; } const f = personFocus(m, r0.role, pFrom, pCur, open, false, shown, pAlt, pUnit); if (f) tapFocus(f); else open(); } }} />
           );
         })}
 

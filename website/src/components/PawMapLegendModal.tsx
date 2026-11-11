@@ -29,6 +29,7 @@ import {
   PREMIUM_GOLD,
   FRIEND_PINK,
   FRIEND_PHOTO_PX_641,
+  ME_PX_1111,
 } from "@/lib/pawmapLegend";
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { RankGlyph611, RankPill611 } from "@/components/Rank611";
@@ -230,11 +231,11 @@ export function PawMapLegendModal({ open, onClose, role }: { open: boolean; onCl
     color: ROLE_COLOR.sitter,
   };
   const pins: Row[] = [
-    { html: photoPinHtml({ role: "owner", name: "Moi", me: true, meLabel: t("legend_me_label") }), title: t("legend_me"), body: t("legend_me_body"), color: ROLE_COLOR.owner },
+    { html: photoPinHtml({ role: "owner", name: "Moi", me: true, size: ME_PX_1111, meLabel: t("legend_me_label") }), title: t("legend_me"), body: t("legend_me_body"), color: ROLE_COLOR.owner },
     // 27/09 — mon rond en « amis seulement » / « masqué » (pointillés + œil barré).
-    { html: photoPinHtml({ role: "owner", name: "Moi", me: true, friendsOnly: true, meLabel: t("legend_me_label") }), title: t("priv2709_mefr_t"), body: t("priv2709_mefr_b"), color: "#17141F" },
+    { html: photoPinHtml({ role: "owner", name: "Moi", me: true, size: ME_PX_1111, friendsOnly: true, meLabel: t("legend_me_label") }), title: t("priv2709_mefr_t"), body: t("priv2709_mefr_b"), color: "#17141F" },
     // 640 puis 641 — ami : sa PHOTO, halo rose net + cœur ; le contour garde les couleurs de ses rôles.
-    // 641 : à peine plus gros qu'une pastille normale (36 px tout compris), même taille que sur la carte.
+    // 641 : à peine plus gros qu'une pastille normale (40 px tout compris), même taille que sur la carte.
     { html: photoPinHtml({ role: "sitter", roles: ["sitter", "walker"], name: "Léa Martin", online: true, heart: true, size: FRIEND_PHOTO_PX_641 }), title: t("legend_friend"), body: t("legend_friend_body"), color: FRIEND_PINK },
     { html: profilePinHtml2610({ roles: ["owner"] }), title: t("legend_member_owner"), body: t("legend_member_owner_body"), color: ROLE_COLOR.owner },
     { html: profilePinHtml2610({ roles: ["sitter"] }), title: t("legend_member_sitter"), body: t("legend_member_sitter_body"), color: ROLE_COLOR.sitter },
