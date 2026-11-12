@@ -80,3 +80,41 @@ test('étapes après publication (calcul pur)', () => {
   expect(_stepOf({}, j({ applications: { count: 2 }, decision: { state: 'accepted' } }), 3)).toBe('choisi');
   expect(_stepOf({}, j({ decision: { state: 'accepted' }, payment: { state: 'paid' } }), 0)).toBe('paye');
 });
+
+// 12/11/2026 (BOB) — accords SMS : seuls ceux qui ont coché, sans STOP, avec une demande publiée.
+describe('accords SMS (1211)', () => {
+  const P = new mongoose.Types.ObjectId();
+  let okId;
+  beforeAll(async () => {
+    const docs = await AdLead.create([
+      lead({ firstName: 'Coche', country: 'US', lang: 'en', postId: P, smsPhone: '+12125550123', smsConsentAt: new Date() }),
+      lead({ firstName: 'Stop', country: 'US', postId: P, smsPhone: '+12125550124', smsConsentAt: new Date(), smsOptOutAt: new Date() }),
+      lead({ firstName: 'SansCase', country: 'US', postId: P, smsPhone: '+12125550125' }),
+      lead({ firstName: 'SansDemande', country: 'US', smsPhone: '+12125550126', smsConsentAt: new Date() }),
+      lead({ firstName: 'Test', email: 'lea+test1211@example.com', country: 'US', postId: P, smsPhone: '+12125550127', smsConsentAt: new Date() }),
+    ]);
+    okId = String(docs[0]._id);
+  });
+
+  test('réservé à l’admin', async () => {
+    expect((await request(app).get('/admin/ad-leads-1011/sms-consents')).status).toBe(401);
+    expect((await request(app).get('/admin/ad-leads-1011/sms-consents').set({ 'x-test-user': 'u', 'x-test-role': 'owner' })).status).toBe(403);
+    expect((await request(app).post('/admin/ad-leads-1011/sms-optout').send({ id: okId })).status).toBe(401);
+  });
+
+  test('ne renvoie que la personne qui a coché, sans e-mail', async () => {
+    const r = await request(app).get('/admin/ad-leads-1011/sms-consents').set(ADMIN);
+    expect(r.status).toBe(200);
+    expect(r.body.items.map((i) => i.firstName)).toEqual(['Coche']);
+    expect(r.body.items[0]).toMatchObject({ id: okId, phone: '+12125550123', lang: 'en', country: 'US', postId: String(P) });
+    expect(JSON.stringify(r.body)).not.toMatch(/@/);
+  });
+
+  test('STOP noté → la personne sort de la liste ; identifiant inconnu → 404', async () => {
+    expect((await request(app).post('/admin/ad-leads-1011/sms-optout').set(ADMIN).send({ id: 'x' })).status).toBe(404);
+    expect((await request(app).post('/admin/ad-leads-1011/sms-optout').set(ADMIN).send({ id: 'a'.repeat(32) })).status).toBe(404);
+    expect((await request(app).post('/admin/ad-leads-1011/sms-optout').set(ADMIN).send({ id: okId })).status).toBe(200);
+    const r = await request(app).get('/admin/ad-leads-1011/sms-consents').set(ADMIN);
+    expect(r.body.total).toBe(0);
+  });
+});

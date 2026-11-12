@@ -129,6 +129,55 @@ router.get('/list', requireAdmin, async (req, res) => {
   }
 });
 
+/**
+ * 12/11/2026 (BOB, « Oui, construis-le » de Daniel) — ACCORDS SMS, pour l'envoi « un gardien a répondu ».
+ * Le numéro gratuit américain est approuvé par Twilio depuis le 11/11. L'envoi se fait depuis le Mac
+ * (~/hopetsit-social/sms/sms_accord_1211.py) : le serveur n'a pas les clés Twilio.
+ *
+ *   GET  /admin/ad-leads-1011/sms-consents           → contacts qui ont COCHÉ la case (smsConsentAt), qui n'ont
+ *        pas dit STOP (smsOptOutAt vide) et dont la demande est publiée. SEULE route admin qui renvoie un
+ *        numéro : il faut bien l'avoir pour écrire. Jamais d'e-mail. Comptes de test écartés.
+ *   POST /admin/ad-leads-1011/sms-optout { id }      → note le STOP (Twilio refuse alors l'envoi, code 21610).
+ * Aucun numéro dans les journaux.
+ */
+router.get('/sms-consents', requireAdmin, async (req, res) => {
+  try {
+    const AdLead = require('../models/AdLead2210');
+    const leads = await AdLead.find({ smsConsentAt: { $ne: null }, smsPhone: { $regex: /^\+\d{8,15}$/ }, postId: { $ne: null } })
+      .sort({ smsConsentAt: -1 }).limit(500).lean();
+    const items = leads.filter((l) => !l.smsOptOutAt && !isTestLead(l)).map((l) => ({
+      id: l._id,
+      phone: l.smsPhone,
+      consentAt: l.smsConsentAt,
+      lang: l.lang === 'en' ? 'en' : 'fr',
+      country: String(l.country || '').toUpperCase(),
+      firstName: l.firstName || '',
+      animal: l.animal || '',
+      postId: l.postId,
+    }));
+    return res.json({ generatedAt: new Date(), total: items.length, items });
+  } catch (e) {
+    logger.error('[adLeadsList1011] sms-consents failed', e && e.message);
+    return res.status(500).json({ error: 'Unable to read.' });
+  }
+});
+
+router.post('/sms-optout', requireAdmin, async (req, res) => {
+  try {
+    const AdLead = require('../models/AdLead2210');
+    const id = typeof (req.body || {}).id === 'string' ? req.body.id : '';
+    if (!/^[a-f0-9]{32}$/.test(id)) return res.status(404).json({ error: 'not_found' });
+    const lead = await AdLead.findById(id);
+    if (!lead || !lead.smsConsentAt) return res.status(404).json({ error: 'not_found' });
+    if (!lead.smsOptOutAt) { lead.smsOptOutAt = new Date(); await lead.save(); }
+    logger.info({ leadId: String(lead._id) }, '[adLeadsList1011] STOP SMS noté');
+    return res.json({ ok: true });
+  } catch (e) {
+    logger.error('[adLeadsList1011] sms-optout failed', e && e.message);
+    return res.status(500).json({ error: 'Unable to save.' });
+  }
+});
+
 module.exports = router;
 module.exports._stepOf = stepOf;
 module.exports.STEPS = STEPS;
