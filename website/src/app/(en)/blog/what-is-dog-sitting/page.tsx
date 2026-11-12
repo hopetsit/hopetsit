@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "@/components/SiteLink";
 
 // 14/10/2026 (GUS) — article de la semaine choisi sur la demande mesurée dans la Search
@@ -16,6 +17,9 @@ const DESCRIPTION =
   "Dog sitting means a person cares for your dog in a home, usually yours, while you are away: drop-in visits, day sitting or overnight stays. What a dog sitter does, how it differs from boarding, and how to find one.";
 const HEADLINE = "Dog sitting explained: how it works and how to find a dog sitter near you";
 
+// 12/11/2026 (GUS) — image propre (1200×630) au lieu de l'og-image générique.
+const COVER_ALT = "Happy corgi outdoors, cover of the dog sitting guide";
+
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
@@ -27,7 +31,7 @@ export const metadata: Metadata = {
     type: "article",
     locale: "en_US",
     siteName: "HoPetSit",
-    images: [{ url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630, alt: "HoPetSit" }],
+    images: [{ url: "https://www.hopetsit.com/blog/what-is-dog-sitting.jpg", width: 1200, height: 630, alt: COVER_ALT }],
   },
 };
 
@@ -65,7 +69,7 @@ export default function ArticleWhatIsDogSitting() {
         inLanguage: "en-US",
         mainEntityOfPage: URL,
         datePublished: "2026-10-14",
-        image: { "@type": "ImageObject", url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630 },
+        image: { "@type": "ImageObject", url: "https://www.hopetsit.com/blog/what-is-dog-sitting.jpg", width: 1200, height: 630 },
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com", logo: { "@type": "ImageObject", url: "https://www.hopetsit.com/logo.png" } },
       },
@@ -100,6 +104,15 @@ export default function ArticleWhatIsDogSitting() {
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
         Dog sitting explained: how it works and how to find a dog sitter near you
       </h1>
+      <Image
+        src="/blog/what-is-dog-sitting.jpg"
+        alt={COVER_ALT}
+        width={1200}
+        height={630}
+        priority
+        sizes="(max-width: 768px) 100vw, 768px"
+        className="mt-6 h-auto w-full rounded-2xl"
+      />
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         A trip, a long week at the office, a family emergency: at some point
         every dog owner needs someone to look after their dog. "Dog sitting"

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "@/components/SiteLink";
 
 // 21/10/2026 (GUS) — article de la semaine choisi sur la demande mesurée dans la Search
@@ -16,6 +17,9 @@ const DESCRIPTION =
   "Cat sitting means someone looks after your cat in your own home while you are away. What a cat sitter does on each visit, how many visits a day your cat needs, and how to choose a cat sitter you can trust.";
 const HEADLINE = "Cat sitting explained: what a cat sitter does and how to find one near you";
 
+// 12/11/2026 (GUS) — image propre (1200×630) au lieu de l'og-image générique.
+const COVER_ALT = "Cat waiting at home, cover of the cat sitting guide";
+
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
@@ -27,7 +31,7 @@ export const metadata: Metadata = {
     type: "article",
     locale: "en_US",
     siteName: "HoPetSit",
-    images: [{ url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630, alt: "HoPetSit" }],
+    images: [{ url: "https://www.hopetsit.com/blog/what-is-cat-sitting.jpg", width: 1200, height: 630, alt: COVER_ALT }],
   },
 };
 
@@ -86,7 +90,7 @@ export default function ArticleWhatIsCatSitting() {
         inLanguage: "en-US",
         mainEntityOfPage: URL,
         datePublished: "2026-10-21",
-        image: { "@type": "ImageObject", url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630 },
+        image: { "@type": "ImageObject", url: "https://www.hopetsit.com/blog/what-is-cat-sitting.jpg", width: 1200, height: 630 },
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com", logo: { "@type": "ImageObject", url: "https://www.hopetsit.com/logo.png" } },
       },
@@ -108,6 +112,15 @@ export default function ArticleWhatIsCatSitting() {
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
         Cat sitting explained: what a cat sitter does and how to find one near you
       </h1>
+      <Image
+        src="/blog/what-is-cat-sitting.jpg"
+        alt={COVER_ALT}
+        width={1200}
+        height={630}
+        priority
+        sizes="(max-width: 768px) 100vw, 768px"
+        className="mt-6 h-auto w-full rounded-2xl"
+      />
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         Cats have a reputation for being independent, and many owners assume a
         full bowl and a clean litter box are enough for a few days away. They
