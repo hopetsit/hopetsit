@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import DemandeFlow0811 from "@/components/DemandeFlow0811";
+import OwnerPageEngagement from "@/components/OwnerPageEngagement";
 import { dm } from "@/lib/i18n/demande0811";
 
 // 08/11/2026 (NEO, ordre de Daniel 16 h 45 transmis par BOB) — PAGE D'ARRIVÉE DE LA PUB META « Paris · propriétaires »
@@ -26,6 +27,8 @@ export default function DemandePage() {
           {dm("fr", "title", { city: "Paris" })}
         </h1>
         <DemandeFlow0811 lang="fr" defaultCity="paris" />
+        {/* 12/11 SAM : lecture_3s / lecture_15s / lecture_moitie — rien d'affiché, sépare « repart aussitôt » de « lit sans agir » */}
+        <OwnerPageEngagement />
       </div>
     </main>
   );
