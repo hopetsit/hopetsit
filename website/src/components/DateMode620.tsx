@@ -199,7 +199,11 @@ export function EstimateLine620(p: EstimateLineProps) {
   const [server, setServer] = useState<Estimate620 | null>(null);
   const [serverKey, setServerKey] = useState("");
   const locKey = location ? `${location.city || ""}@${location.lat ?? ""},${location.lng ?? ""}#${location.postalCode || ""}` : "";
-  const key = `${service}|${dateMode}|${startDate}|${endDate}|${visitsPerDay}|${venue || ""}|${provider ? `${provider.role}:${provider.id}` : ""}|${locKey}`;
+  // 1411 (SAM) — même service, mêmes dates, seul le lieu change (frappe du code postal à l'étape 3) : on garde
+  // l'estimation déjà affichée pendant que la nouvelle arrive, au lieu de la retirer à chaque touche (le bloc
+  // « à partir de … · N gardiens » disparaissait et les champs sautaient sous le doigt).
+  const baseKey = `${service}|${dateMode}|${startDate}|${endDate}|${visitsPerDay}|${venue || ""}|${provider ? `${provider.role}:${provider.id}` : ""}`;
+  const key = `${baseKey}|${locKey}`;
   useEffect(() => {
     if (!service) { setServer(null); setServerKey(""); return; }
     const ready = dateMode === "tbd" || q.quantity != null;
@@ -240,7 +244,7 @@ export function EstimateLine620(p: EstimateLineProps) {
   }, [key, providerRates, lang]);
 
   if (!service) return null;
-  const est = server && serverKey === key ? server : local;
+  const est = server && (serverKey === key || (!provider && !!locKey && serverKey.startsWith(`${baseKey}|`))) ? server : local;
   const unitLong = unitLong620(lang, est.unit || q.unit);
   const cur = est.currency || "EUR";
 
