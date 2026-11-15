@@ -31,6 +31,9 @@ const PUBLIC_PATHS = [
   "/remboursement",
   // v531 — SEO : blog + pages villes (contenu statique indexable).
   "/blog",
+  // 2026-W46 (marketing hebdo) — rotation des 4 pôles : Paris (jardins) + New York (hiver).
+  "/blog/jardins-parisiens-ouverts-aux-chiens",
+  "/blog/nyc-winter-dog-walks",
   // 08/11 (GUS, ordre de Daniel) — 5e pôle : Pays-Bas (en anglais).
   "/blog/cat-sitting-amsterdam-holidays",
   // 2026-W45 (marketing hebdo) — rotation des 4 pôles : Paris + New York (propriétaires, chats d'appartement).

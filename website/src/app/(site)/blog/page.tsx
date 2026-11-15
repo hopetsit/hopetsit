@@ -15,6 +15,22 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 2026-W46 (marketing hebdo, dimanche) — rotation des 4 pôles (sujets_4poles.md) :
+  // Paris (jardins) + New York (hiver).
+  {
+    slug: "jardins-parisiens-ouverts-aux-chiens",
+    lang: "🇫🇷",
+    title: "Les jardins parisiens ouverts aux chiens : règles et bonnes pratiques",
+    excerpt:
+      "Jardins, squares, bois : tous les espaces verts parisiens n'acceptent pas les chiens de la même façon. Comment savoir où ils sont admis, et les bons réflexes une fois sur place.",
+  },
+  {
+    slug: "nyc-winter-dog-walks",
+    lang: "🇺🇸",
+    title: "Walking Your Dog in an NYC Winter: Salt, Cold and Short Walks",
+    excerpt:
+      "Why sidewalk salt is harder on paws than people think, how to tell a walk is too cold, and why shorter, more frequent walks beat one long one.",
+  },
   // 08/11 (GUS, ordre de Daniel : « SEO blog gratuit Hollande ») — 5e pôle : Pays-Bas, en anglais.
   {
     slug: "cat-sitting-amsterdam-holidays",
