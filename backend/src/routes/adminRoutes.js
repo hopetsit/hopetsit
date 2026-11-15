@@ -545,7 +545,7 @@ router.get('/stats', requireAdmin, async (req, res) => {
     let users = null;
     try {
       const { countUsers } = require('../utils/userCounts');
-      users = await countUsers({ Owner, Sitter, Walker, decrypt });
+      users = await countUsers({ Owner, Sitter, Walker, decrypt, DeletedAccount: require('../models/DeletedAccount') });
     } catch (e) {
       logger.warn(`[admin/stats] users count failed: ${e.message}`);
     }
@@ -1423,7 +1423,7 @@ router.get('/platform-stats', requireAdmin, async (req, res) => {
     let users = null;
     try {
       const { countUsers } = require('../utils/userCounts');
-      users = await countUsers({ Owner, Sitter, Walker, decrypt });
+      users = await countUsers({ Owner, Sitter, Walker, decrypt, DeletedAccount: require('../models/DeletedAccount') });
     } catch (_) { /* repli : comptes bruts */ }
     res.json({
       totalUsers: users ? users.total : totalOwners + totalSitters + totalWalkers,

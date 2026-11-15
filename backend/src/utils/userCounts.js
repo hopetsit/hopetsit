@@ -60,13 +60,79 @@ function summarizeUsers({ owners = [], sitters = [], walkers = [] } = {}) {
   return out;
 }
 
-/** Lit les e-mails des 3 rôles (déchiffrés) et renvoie le résumé. */
-async function countUsers({ Owner, Sitter, Walker, decrypt }) {
-  const plain = (v) => { try { return decrypt(v || '') || ''; } catch (_) { return ''; } };
-  const read = async (Model) => (await Model.find({}).select('email').lean())
-    .map((u) => plain(u.email));
-  const [owners, sitters, walkers] = await Promise.all([read(Owner), read(Sitter), read(Walker)]);
-  return summarizeUsers({ owners, sitters, walkers });
+const DAY_MS = 86400000;
+
+/**
+ * 15/11/2026 (BOB, demande de Daniel) — « le VRAI nombre de gens à jour dans
+ * l'app, en comptant les désinscrits ». Fonction PURE.
+ *
+ *   inscrits depuis le début = comptes présents + comptes désinscrits
+ *   présents aujourd'hui     = comptes encore en base (une suppression efface
+ *                              le compte : il n'est donc plus compté)
+ *
+ * Les désinscriptions viennent du journal DeletedAccount (tenu depuis la v530) :
+ * un compte restauré n'est pas une désinscription ; les comptes de test /
+ * internes sont exclus des deux côtés, avec la même règle que summarizeUsers.
+ *
+ * @param {{accounts: Array<{role:string,email:string,createdAt?:Date,verified?:boolean,status?:string,adLead?:boolean,lastSeenAt?:Date}>,
+ *          deletions: Array<{role?:string,email?:string,deletedAt?:Date,source?:string,restoredAt?:Date}>, now?: Date}} p
+ */
+function summarizeMembers({ accounts = [], deletions = [], now = new Date() } = {}) {
+  const t = now.getTime();
+  const since = (d, days) => { const x = d ? new Date(d).getTime() : NaN; return Number.isFinite(x) && t - x <= days * DAY_MS; };
+  const real = accounts.filter((a) => !isInternalEmail(a.email));
+  const gone = deletions.filter((d) => !d.restoredAt && !isInternalEmail(d.email));
+  const byRole = (list, role) => list.filter((x) => x.role === role).length;
+  const blocked = real.filter((a) => a.status === 'suspended' || a.status === 'banned');
+  const verified = real.filter((a) => a.verified === true);
+  const unverified = real.filter((a) => a.verified !== true);
+  const firstDeletion = gone.reduce((m, d) => {
+    const x = d.deletedAt ? new Date(d.deletedAt).getTime() : NaN;
+    return Number.isFinite(x) && (m === null || x < m) ? x : m;
+  }, null);
+  const win = (days) => {
+    const joined = real.filter((a) => since(a.createdAt, days)).length;
+    const left = gone.filter((d) => since(d.deletedAt, days)).length;
+    // Un compte créé puis supprimé dans la période a aussi été « inscrit ».
+    return { joined, left, net: joined - left };
+  };
+  return {
+    current: real.length,
+    everRegistered: real.length + gone.length,
+    deleted: gone.length,
+    deletedByUser: gone.filter((d) => d.source !== 'admin').length,
+    deletedByAdmin: gone.filter((d) => d.source === 'admin').length,
+    deletedByRole: { owners: byRole(gone, 'owner'), sitters: byRole(gone, 'sitter'), walkers: byRole(gone, 'walker') },
+    deletionsSince: firstDeletion === null ? null : new Date(firstDeletion).toISOString(),
+    verified: verified.length,
+    unverified: unverified.length,
+    unverifiedAdLead: unverified.filter((a) => a.adLead === true).length,
+    verifiedByRole: { owners: byRole(verified, 'owner'), sitters: byRole(verified, 'sitter'), walkers: byRole(verified, 'walker') },
+    blocked: blocked.length,
+    seen30d: real.filter((a) => since(a.lastSeenAt, 30)).length,
+    seen7d: real.filter((a) => since(a.lastSeenAt, 7)).length,
+    d1: win(1), d7: win(7), d30: win(30),
+  };
 }
 
-module.exports = { INTERNAL_EMAIL_RE, isInternalEmail, summarizeUsers, countUsers };
+/** Lit les 3 rôles (e-mails déchiffrés) + le journal des désinscriptions et renvoie le résumé. */
+async function countUsers({ Owner, Sitter, Walker, decrypt, DeletedAccount = null, now = new Date() }) {
+  const plain = (v) => { try { return decrypt(v || '') || ''; } catch (_) { return ''; } };
+  const read = async (Model, role) => (await Model.find({}).select('email createdAt verified status adLeadAt lastSeenAt').lean())
+    .map((u) => ({ role, email: plain(u.email), createdAt: u.createdAt, verified: u.verified === true,
+      status: u.status || 'active', adLead: Boolean(u.adLeadAt), lastSeenAt: u.lastSeenAt || null }));
+  const [o, s, w] = await Promise.all([read(Owner, 'owner'), read(Sitter, 'sitter'), read(Walker, 'walker')]);
+  const out = summarizeUsers({ owners: o.map((a) => a.email), sitters: s.map((a) => a.email), walkers: w.map((a) => a.email) });
+  // Best-effort : sans journal lisible, les compteurs de base restent servis.
+  try {
+    let deletions = [];
+    if (DeletedAccount) {
+      deletions = await DeletedAccount.find({}).select('role email deletedAt source restoredAt').lean();
+    }
+    out.members = summarizeMembers({ accounts: [...o, ...s, ...w], deletions, now });
+    out.members.journal = Boolean(DeletedAccount);
+  } catch (_) { out.members = null; }
+  return out;
+}
+
+module.exports = { INTERNAL_EMAIL_RE, isInternalEmail, summarizeUsers, summarizeMembers, countUsers };
