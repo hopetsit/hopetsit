@@ -2462,6 +2462,18 @@ input[type="file"] { font-size: 13px; color: var(--ink-2); }
              GET/PATCH /api/v1/app-config/admin/chat-features → { media, voice, reply }.
              Drapeau à false = la route correspondante répond 403 FEATURE_DISABLED
              et l'app / le web cachent le bouton. -->
+        <!-- 17/11/2026 (BOB, ordre de Daniel) — alerte « messages suspects » : quelqu'un demande de sortir de l'app
+             (Telegram, WhatsApp…) ou propose un paiement hors de HoPetSit. GET /admin/suspect-messages-1711 (lecture seule),
+             POST …/dismiss pour classer. Rendu par sm1711Render(). -->
+        <div class="panel" id="sm1711-panel" style="border-left:4px solid #D83C28">
+          <div class="section-title" style="font-size:16px;margin-top:0">🚨 <span>Messages suspects</span>
+            <span id="sm1711-count" class="chip" style="font-weight:600">…</span>
+            <button class="action-btn" style="margin-left:auto" onclick="sm1711Load()">↻ <span data-i18n="refresh">Actualiser</span></button>
+          </div>
+          <p class="page-desc" style="margin-bottom:8px">Messages des 60 derniers jours où quelqu'un demande de continuer sur une autre messagerie ou propose de payer en dehors de HoPetSit. « Fort » = c'est un propriétaire qui le demande, ou il s'agit d'argent. Une alerte disparaît quand le compte est suspendu ou quand tu la classes ; elle revient si un nouveau message suspect arrive.</p>
+          <div id="sm1711-list"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+
         <div class="panel" id="chat-features-panel">
           <div class="section-title" style="font-size:16px;margin-top:0">🎛️ <span data-i18n="chatf_title">Fonctions du chat</span>
             <span id="chat-features-status" class="chip" style="font-weight:500">…</span>
@@ -4347,7 +4359,7 @@ function showPage(name, el) {
   if (name === 'terms') initTermsPage();
   if (name === 'privacy') loadPrivacy();
   if (name === 'reports') initReportsPage();
-  if (name === 'chat') loadChatConversations();
+  if (name === 'chat') { loadChatConversations(); try { sm1711Load(); } catch (_) {} }
   if (name === 'wallets') loadAdminWallets();
   if (name === 'disputes') loadDisputes();
   if (name === 'accounting') loadAccounting();
@@ -4500,7 +4512,7 @@ function refreshActivePageI18n() {
     else if (name === 'terms') initTermsPage();
     else if (name === 'privacy') loadPrivacy();
     else if (name === 'reports') initReportsPage();
-    else if (name === 'chat') loadChatConversations();
+    else if (name === 'chat') { loadChatConversations(); try { sm1711Load(); } catch (_) {} }
     else if (name === 'wallets') loadAdminWallets();
     else if (name === 'accounting') loadAccounting();
     else if (name === 'loyalty') loadAdminLoyalty();
@@ -7492,6 +7504,7 @@ async function loadQueue(silent) {
   ]);
   const kycPaid = await safe(api('/admin/kyc-people?status=paid_unverified'));
   const pois = await safe(api('/admin/map-pois?status=pending&limit=100'));
+  const suspects = await safe(api('/admin/suspect-messages-1711'));
   const cards = [];
   const add = function (key, icon, title, res, pick, page, info) {
     if (!res.ok) { cards.push({ key: key, icon: icon, title: title, err: res.e && res.e.message, page: page }); return; }
@@ -7518,6 +7531,11 @@ async function loadQueue(silent) {
       sub: hidden ? hidden + ' déjà masquée(s)' : '',
     };
   }, 'pawmap');
+  add('suspect', '🚨', 'Messages suspects', suspects, function (d) {
+    const list = (d.items || []).filter(function (r) { return r.state === 'a_traiter'; });
+    const strong = list.filter(function (r) { return r.level === 'fort'; }).length;
+    return { count: list.length, age: adaAgeH(list.map(function (r) { return r.lastAt; })), sub: strong ? strong + ' de niveau fort (sortie de l\'app demandée par un propriétaire, ou argent)' : 'Telegram, WhatsApp, paiement hors de l\'app' };
+  }, 'chat');
   add('disputes', '⚖️', 'Litiges', disp, function (d) {
     const list = d.disputes || [];
     return { count: list.length, age: adaAgeH(list.map(function (r) { return r.disputedAt || r.updatedAt || r.createdAt; })) };
@@ -11105,6 +11123,87 @@ function renderBoostsPagination(total) {
 
 // v19.1.3 - Chat moderation
 let currentChatConvId = null;
+// 17/11/2026 (BOB, ordre de Daniel) — alerte « messages suspects » (page Chat + carte « À traiter »).
+var sm1711Data = null;
+async function sm1711Load() {
+  const box = document.getElementById('sm1711-list');
+  const chip = document.getElementById('sm1711-count');
+  if (!box) return;
+  try {
+    sm1711Data = await api('/admin/suspect-messages-1711');
+    sm1711Render();
+  } catch (e) {
+    box.innerHTML = '<div style="color:var(--error)">Erreur : ' + escapeHtml(e.message) + '</div>';
+    if (chip) chip.textContent = '—';
+  }
+}
+function sm1711Render() {
+  const box = document.getElementById('sm1711-list');
+  const chip = document.getElementById('sm1711-count');
+  if (!box || !sm1711Data) return;
+  const items = sm1711Data.items || [];
+  const todo = items.filter(function (i) { return i.state === 'a_traiter'; });
+  const done = items.filter(function (i) { return i.state !== 'a_traiter'; });
+  if (chip) {
+    chip.textContent = todo.length ? todo.length + ' à traiter' : 'rien à traiter';
+    chip.style.background = todo.length ? '#FDECEA' : '';
+    chip.style.color = todo.length ? '#B92425' : '';
+  }
+  const roleFr = { owner: 'propriétaire', sitter: 'gardien', walker: 'promeneur' };
+  const row = function (i) {
+    const strong = i.level === 'fort';
+    const when = new Date(i.lastAt).toLocaleString();
+    const stateTag = i.state === 'compte_bloque'
+      ? '<span class="chip" style="background:#E8F5E9;color:#1B5E20">compte suspendu</span>'
+      : (i.state === 'classe' ? '<span class="chip">classé</span>' : '');
+    const actions = i.state === 'a_traiter'
+      ? '<button class="action-btn" onclick="sm1711Open(\'' + i.conversationId + '\')">Voir la conversation</button>'
+        + '<button class="action-btn" style="color:#B92425" onclick="sm1711Suspend(\'' + i.key + '\')">Suspendre le compte</button>'
+        + '<button class="action-btn" onclick="sm1711Dismiss(\'' + i.key + '\')">Classer sans suite</button>'
+      : '<button class="action-btn" onclick="sm1711Open(\'' + i.conversationId + '\')">Voir la conversation</button>';
+    return '<div style="border:1px solid var(--border,#E5E5EA);border-radius:14px;padding:12px 14px;margin-bottom:10px;background:' + (i.state === 'a_traiter' && strong ? '#FFF7F5' : '#fff') + '">'
+      + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:600;font-size:14px">'
+      + '<span class="chip" style="background:' + (strong ? '#D83C28' : '#F4A340') + ';color:#fff;font-weight:700">' + (strong ? 'FORT' : 'moyen') + '</span>'
+      + '<span>' + escapeHtml(i.sender.name) + ' <span style="color:var(--text-muted);font-weight:500">(' + (roleFr[i.sender.role] || i.sender.role) + ')</span> → ' + escapeHtml(i.peer.name) + '</span>'
+      + stateTag
+      + '<span style="margin-left:auto;color:var(--text-muted);font-weight:500;font-size:12px">' + escapeHtml(when) + ' · ' + i.count + ' message' + (i.count > 1 ? 's' : '') + '</span></div>'
+      + '<div style="margin-top:6px;font-size:13px;color:#B92425">' + escapeHtml(i.reason) + '</div>'
+      + '<div style="margin-top:4px;font-size:13px;color:var(--text-muted);overflow-wrap:anywhere">« ' + escapeHtml(i.excerpt) + ' »</div>'
+      + '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' + actions + '</div></div>';
+  };
+  let html = todo.length ? todo.map(row).join('') : '<div style="color:var(--text-muted);font-size:14px">Aucun message suspect à traiter.</div>';
+  if (done.length) {
+    html += '<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--text-muted);font-size:13px">Déjà traités (' + done.length + ')</summary><div style="margin-top:10px">' + done.map(row).join('') + '</div></details>';
+  }
+  box.innerHTML = html;
+}
+function sm1711Open(convId) {
+  try { loadChatMessages(convId); } catch (_) {}
+  const el = document.getElementById('chat-messages-header') || document.getElementById('chat-conversations-list');
+  if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+async function sm1711Dismiss(key) {
+  if (!confirm('Classer cette alerte sans suite ? Elle reviendra si un nouveau message suspect arrive.')) return;
+  try {
+    await api('/admin/suspect-messages-1711/dismiss', 'POST', { key: key });
+    showToast('Alerte classée.');
+    await sm1711Load();
+    try { loadQueue(true); } catch (_) {}
+  } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
+}
+async function sm1711Suspend(key) {
+  const it = ((sm1711Data && sm1711Data.items) || []).find(function (i) { return i.key === key; });
+  if (!it) return;
+  const reason = prompt('Suspendre le compte de ' + it.sender.name + ' ?\nMotif (gardé dans la fiche du compte) :', 'Message suspect : ' + it.reason);
+  if (reason === null) return;
+  try {
+    await api('/admin/users/' + it.sender.id + '/suspend', 'POST', { role: it.sender.role, reason: reason });
+    showToast('Compte suspendu.');
+    await sm1711Load();
+    try { loadQueue(true); } catch (_) {}
+  } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
+}
+
 async function loadChatConversations() {
   const list = document.getElementById('chat-conversations-list');
   if (!list) return;

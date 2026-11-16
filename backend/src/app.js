@@ -248,7 +248,7 @@ const ADMIN_BUILD = 'v642'; // 642 (11/11) : PawMap — pastille PawBoost visibl
 const _ADMIN_BUILD_612 = 'v612'; // 612 (PAM, 04/10) : admin — rangs Chiot → Légende à la place des anciens badges
 // 02/10/2026 (ADA) — marqueur de déploiement de l'admin : le changer force Render à
 // redéployer quand seul admin_dashboard.html a bougé (ADMIN_BUILD reste celui de l'app).
-const ADMIN_DEPLOYED_AT = '2026-11-16T00:40'; // 16/11 (BOB) : page Demandes publiées en vue « ventes » (étapes jusqu'au paiement, ce qui bloque) · 10/11 (BOB) : bouton de la page « toujours libre ? » réparé (erreur à l'appui : origine « null » refusée) · 10/11 (BOB) : « toujours libre ? » aussi aux gardiens à l'e-mail non validé (accord Daniel) · 10/11 (BOB) : motif des envois « gardien libre » non partis ; 10/11 (ADA) : tableau de bord, demandes publiées, inscriptions redessinés ; 09/11 (ADA) : demandes pub (entonnoir 8 étapes + liste), pastille « Véhiculé », bloc « gardien libre → payer », horaires / sans voiture dans le parcours ; 05/11 (BOB) : frise des demandes droite (étapes 4 « sautée » et 2) ; 31/10 soir (ADA) : tuile « Propriétaires revenus », « A l'app » par personne, relance « posez vos dates » ; avant 26/10 (ADA, décision de Daniel) : « vrai dernier retour du propriétaire » (scripts exclus), « a ouvert ses candidats », « a l'app » dans Demandes publiées
+const ADMIN_DEPLOYED_AT = '2026-11-17T02:30'; // 17/11 (BOB) : alerte « messages suspects » dans À traiter + page Chat · 16/11 (BOB) : page Demandes publiées en vue « ventes » (étapes jusqu'au paiement, ce qui bloque) · 10/11 (BOB) : bouton de la page « toujours libre ? » réparé (erreur à l'appui : origine « null » refusée) · 10/11 (BOB) : « toujours libre ? » aussi aux gardiens à l'e-mail non validé (accord Daniel) · 10/11 (BOB) : motif des envois « gardien libre » non partis ; 10/11 (ADA) : tableau de bord, demandes publiées, inscriptions redessinés ; 09/11 (ADA) : demandes pub (entonnoir 8 étapes + liste), pastille « Véhiculé », bloc « gardien libre → payer », horaires / sans voiture dans le parcours ; 05/11 (BOB) : frise des demandes droite (étapes 4 « sautée » et 2) ; 31/10 soir (ADA) : tuile « Propriétaires revenus », « A l'app » par personne, relance « posez vos dates » ; avant 26/10 (ADA, décision de Daniel) : « vrai dernier retour du propriétaire » (scripts exclus), « a ouvert ses candidats », « a l'app » dans Demandes publiées
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -368,6 +368,8 @@ const versionedRoutes = [
   { path: '/admin/dashboard607', mw: [], router: require('./routes/adminDashboard607') },
   // 607 (ADA, 02/10) — « À traiter » : épingles signalées (détail) + action « Masquer », journalisée.
   { path: '/admin/moderation607', mw: [], router: require('./routes/adminModeration607') },
+  // 17/11 (BOB, ordre de Daniel) — alerte « messages suspects » : demande de sortir de l'app (Telegram…), paiement hors app.
+  { path: '/admin/suspect-messages-1711', mw: [], router: require('./routes/adminSuspectMessages1711') },
   // 04/10 (ZOE) — 1re vraie demande : qui a été prévenu, relance sans doublon
   // (simulation par défaut), villes écrites dans une langue étrangère (lecture seule).
   { path: '/admin/requests0410', mw: [], router: require('./routes/adminRequests0410') },
