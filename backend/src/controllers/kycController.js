@@ -48,6 +48,23 @@ const _useDidit = () => didit.isConfigured();
 
 const KYC_PRICE_EUR = 3; // 3 EUR fixed price
 
+// 17/11/2026 (BOB) — vérification d'identité OFFERTE (détail : utils/kycFree1711.js).
+// Coupe-circuit : KYC_FREE_1711=off sur Render.
+const kycFree = require('../utils/kycFree1711');
+const _grantFreeKyc = async (Model, user, role, tag) => {
+  if (!kycFree.shouldGrantFree(user)) return false;
+  const ref = kycFree.newFreeRef();
+  const r = await Model.updateOne(
+    { _id: user._id, kycPaidAt: null, kycStatus: { $in: ['none', 'pending_payment', null] } },
+    { $set: { kycStatus: 'pending_verification', kycPaymentIntentId: ref } },
+  );
+  if (!r || !(r.modifiedCount || r.nModified)) return false;
+  user.kycStatus = 'pending_verification';
+  user.kycPaymentIntentId = ref;
+  logger.info(`[kyc.free1711] ${role} ${user._id} → pending_verification offert (${tag})`);
+  return true;
+};
+
 const _modelForRole = (role) => {
   if (role === 'sitter') return Sitter;
   if (role === 'walker') return Walker;
@@ -113,10 +130,21 @@ const initiatePayment = async (req, res) => {
     if (user.kycStatus === 'verified') {
       return res.status(400).json({ error: 'Already verified.', kycStatus: 'verified' });
     }
-    if (user.kycStatus === 'pending_verification' && user.kycPaidAt) {
+    if (user.kycStatus === 'pending_verification' && (user.kycPaidAt || kycFree.isFreeRef(user))) {
       return res.status(400).json({
         error: 'Payment already done. Use /kyc/start to launch verification.',
         kycStatus: 'pending_verification',
+      });
+    }
+    // 17/11 — offert : aucun paiement à créer, le compte peut lancer sa vérification.
+    if (await _grantFreeKyc(Model, user, role, 'initiate-payment')) {
+      return res.status(201).json({
+        free: true,
+        paidFromWallet: true,
+        kycStatus: user.kycStatus,
+        kycPaidAt: null,
+        amount: 0,
+        currency: 'EUR',
       });
     }
 
@@ -255,7 +283,9 @@ const startVerification = async (req, res) => {
     if (user.kycStatus === 'verified') {
       return res.status(400).json({ error: 'Already verified.' });
     }
-    if (user.kycStatus !== 'pending_verification' || !user.kycPaidAt) {
+    // 17/11 — un compte « offert » démarre sans paiement (repère free_1711).
+    await _grantFreeKyc(Model, user, role, 'start');
+    if (!kycFree.canStartVerification(user)) {
       return res.status(400).json({
         error: 'Payment required first. Call /kyc/initiate-payment.',
         kycStatus: user.kycStatus,
@@ -560,6 +590,11 @@ const getStatus = async (req, res) => {
     const user = await Model.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
+    // 17/11 — offert : l'écran de l'app passe directement à « Lancer la vérification ».
+    try { await _grantFreeKyc(Model, user, role, 'status'); } catch (e) {
+      logger.warn(`[kyc.free1711] status grant failed: ${e?.message || e}`);
+    }
+
     // v23.1 part 247 — Daniel : "jai bien verifier mon identiter sa la
     // valider mais sa ne mas pas mis dans lapp ni identiter verifier".
     //
@@ -703,7 +738,8 @@ const getStatus = async (req, res) => {
       kycVerifiedAt: user.kycVerifiedAt || null,
       kycRejectionReason: user.kycRejectionReason || null,
       isVerified: user.kycStatus === 'verified',
-      price: KYC_PRICE_EUR,
+      price: kycFree.displayedPrice(KYC_PRICE_EUR),
+      free: kycFree.isFreeEnabled(),
       currency: 'EUR',
     });
   } catch (err) {
