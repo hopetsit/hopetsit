@@ -123,6 +123,10 @@ const PUBLIC_PATHS = [
   // en ligne, seulement à relier et faire indexer).
   "/tiersitter-werden",
   "/ser-cuidador-de-mascotas",
+  // 16/11/2026 (Bob, semaine 47) — même hub, côté italien (priorité n° 3 de
+  // Daniel, 20/09 : Italie, 12 villes déjà en ligne, seulement à relier).
+  "/diventare-pet-sitter",
+  "/custodia-animali",
   // v575 — page d'atterrissage de la pub Meta « Paris · Propriétaires » et hub
   // vers les 20 arrondissements (src/app/garde-animaux/paris/page.tsx).
   // Elle n'est pas produite par ownerPaths() : son slug n'est pas dans
@@ -158,7 +162,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       path === "/devenir-petsitter" ||
       path === "/become-a-pet-sitter" ||
       path === "/tiersitter-werden" ||
-      path === "/ser-cuidador-de-mascotas"
+      path === "/ser-cuidador-de-mascotas" ||
+      path === "/diventare-pet-sitter" ||
+      path === "/custodia-animali"
     ) return 0.9;
     if (path.startsWith("/devenir-petsitter/") || path.startsWith("/garde-animaux/")) return 0.8;
     const m = path.match(/^\/(become-a-pet-sitter|pet-sitting)\/([^/]+)$/);

@@ -152,6 +152,10 @@ export function Footer() {
         // espagnol (priorité n° 2, 20/09 : Allemagne/Autriche/Suisse + Espagne).
         { href: "/tiersitter-werden", label: "Tiersitter werden" },
         { href: "/ser-cuidador-de-mascotas", label: "Ser cuidador de mascotas" },
+        // 16/11/2026 (Bob, semaine 47) : même logique, hub italien (priorité
+        // n° 3, 20/09 : Italie — villes déjà en ligne, seulement à relier).
+        { href: "/diventare-pet-sitter", label: "Diventare pet sitter" },
+        { href: "/custodia-animali", label: "Custodia animali" },
         // 01/10/2026 (SAM, demandé par BOB) : push USA gratuit, New York et
         // San Francisco reliés depuis toutes les pages déjà indexées.
         { href: "/pet-sitting/new-york", label: "Pet sitters in New York" },
