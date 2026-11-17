@@ -4,7 +4,7 @@ const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const { createNotificationSafe } = require('./notificationService');
-const { sendEmail, buildNotificationEmailHtml } = require('./emailService');
+const { sendEmail, buildNotificationEmailHtml, kycLineFor1711 } = require('./emailService');
 const { render } = require('../utils/i18nTemplate');
 const firebaseAdmin = require('../config/firebaseAdmin');
 const { decrypt } = require('../utils/encryption');
@@ -303,7 +303,7 @@ const resolveUser = async (role, userId) => {
     role === 'walker' ? Walker :
     null;
   if (!Model) return null;
-  const primary = await Model.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs verified createdAt adLeadAt').lean();
+  const primary = await Model.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs verified createdAt adLeadAt kycStatus identityVerification').lean();
   if (primary) return primary;
 
   // v23.1 part 49 — cross-collection fallback. The destructive switchRole
@@ -324,7 +324,7 @@ const resolveUser = async (role, userId) => {
   const fallbackModels = [Owner, Sitter, Walker].filter((m) => m !== Model);
   for (const Fb of fallbackModels) {
     try {
-      const found = await Fb.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs verified createdAt adLeadAt').lean();
+      const found = await Fb.findById(userId).select('email language appLocale fcmTokens fcmDevices name oldId notificationPrefs verified createdAt adLeadAt kycStatus identityVerification').lean();
       if (found) {
         logger.warn(
           `[notif.fallback] user ${userId} expected in ${role} collection but ` +
@@ -715,6 +715,8 @@ const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtr
     link: renderData.emailLink,
     preheader: body,
     unsubscribeUrl,
+    // 1711 — gardien/promeneur sans badge : rappel « identité offerte » dans l'e-mail qu'il reçoit déjà.
+    kycLine: kycLineFor1711(role, user, locale),
   });
   const emailText = `${body}\n\n${renderData.emailLink}`;
   let email = decrypt(user.email || '');

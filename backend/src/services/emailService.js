@@ -244,6 +244,30 @@ const NOTIF_EMAIL_APP_I18N = {
   ja: 'HoPetSitアプリなら、素早く返信し、お世話を確認し、安全に支払えます：',
 };
 const NOTIF_EMAIL_APP_LINK = 'https://www.hopetsit.com/download?utm_source=email&utm_medium=notification&utm_campaign=app';
+// 17/11/2026 (BOB, ordre de Daniel « tout pour la première vente ») — la vérification d'identité est offerte
+// (utils/kycFree1711) mais 10 gardiens/promeneurs sur 461 seulement ont le badge : les propriétaires regardent
+// leurs candidats et ne choisissent pas. Une ligne dans les e-mails que le gardien/promeneur NON vérifié reçoit
+// DÉJÀ (aucun e-mail en plus) ; elle disparaît dès que son identité est vérifiée. Coupe-circuit : KYC_EMAIL_LINE_1711=off.
+const NOTIF_EMAIL_KYC_I18N = {
+  fr: 'Vérifie ton identité gratuitement (2 minutes, dans l\'app : Profil › Vérification d\'identité). Le badge « Identité vérifiée » s\'affiche sur ton profil et rassure les propriétaires.',
+  en: 'Verify your identity for free (2 minutes, in the app: Profile › Identity verification). The "Identity verified" badge shows on your profile and reassures pet owners.',
+  es: 'Verifica tu identidad gratis (2 minutos, en la app: Perfil › Verificación de identidad). La insignia «Identidad verificada» aparece en tu perfil y da confianza a los propietarios.',
+  de: 'Verifiziere deine Identität kostenlos (2 Minuten, in der App: Profil › Identitätsprüfung). Das Abzeichen „Identität verifiziert“ erscheint in deinem Profil und gibt Tierhaltern Sicherheit.',
+  it: 'Verifica la tua identità gratis (2 minuti, nell\'app: Profilo › Verifica dell\'identità). Il badge «Identità verificata» compare sul tuo profilo e rassicura i proprietari.',
+  pt: 'Verifica a tua identidade gratuitamente (2 minutos, na app: Perfil › Verificação de identidade). O selo «Identidade verificada» aparece no teu perfil e dá confiança aos donos.',
+  pl: 'Zweryfikuj swoją tożsamość za darmo (2 minuty, w aplikacji: Profil › Weryfikacja tożsamości). Odznaka „Tożsamość zweryfikowana” pojawia się w Twoim profilu i daje właścicielom pewność.',
+  ko: '무료로 신원을 인증하세요(2분, 앱: 프로필 › 신원 인증). 프로필에 "신원 인증됨" 배지가 표시되어 보호자에게 신뢰를 줍니다.',
+  ja: '本人確認は無料です（2分、アプリ：プロフィール › 本人確認）。プロフィールに「本人確認済み」バッジが表示され、飼い主に安心していただけます。',
+};
+/** Ligne « identité offerte » pour ce destinataire, ou '' (propriétaire, déjà vérifié, offre éteinte, coupe-circuit). */
+const kycLineFor1711 = (role, user, locale, env = process.env) => {
+  if (role !== 'sitter' && role !== 'walker') return '';
+  if (String(env.KYC_EMAIL_LINE_1711 || 'on').trim().toLowerCase() === 'off') return '';
+  if (!require('../utils/kycFree1711').isFreeEnabled(env)) return '';
+  if (!user || user.kycStatus === 'verified') return '';
+  if (user.identityVerification && user.identityVerification.status === 'verified') return '';
+  return NOTIF_EMAIL_KYC_I18N[locale] || NOTIF_EMAIL_KYC_I18N.en;
+};
 const escapeHtml = (v) => String(v == null ? '' : v)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -267,7 +291,7 @@ const NOTIF_EMAIL_UNSUB_I18N = {
   ja: 'このメールの配信を停止する',
 };
 
-const buildNotificationEmailHtml = (innerHtml, { locale = 'fr', link = '', preheader = '', unsubscribeUrl = '' } = {}) => {
+const buildNotificationEmailHtml = (innerHtml, { locale = 'fr', link = '', preheader = '', unsubscribeUrl = '', kycLine = '' } = {}) => {
   const t = NOTIF_EMAIL_I18N[locale] || NOTIF_EMAIL_I18N.en;
   const unsub = unsubscribeUrl
     ? `<br><a href="${escapeHtml(unsubscribeUrl)}" style="color:#8E8E93">${NOTIF_EMAIL_UNSUB_I18N[locale] || NOTIF_EMAIL_UNSUB_I18N.en}</a>`
@@ -288,6 +312,7 @@ const buildNotificationEmailHtml = (innerHtml, { locale = 'fr', link = '', prehe
 <p style="font-size:20px;font-weight:700;margin:0 0 14px;color:#D83C28">🐾 ${BRAND_NAME}</p>
 ${inner}
 ${fallback}
+${kycLine ? `<p style="color:#231715;font-size:13px;line-height:1.5;margin:14px 0 0;padding:10px 12px;background:#F0FDF4;border-radius:10px">🪪 ${escapeHtml(kycLine)}</p>` : ''}
 <p style="color:#231715;font-size:13px;line-height:1.5;margin:14px 0 0">📲 ${NOTIF_EMAIL_APP_I18N[locale] || NOTIF_EMAIL_APP_I18N.en} <a href="${NOTIF_EMAIL_APP_LINK}" style="color:#D83C28;font-weight:700">hopetsit.com/download</a></p>
 <hr style="border:none;border-top:1px solid #EEEEF0;margin:22px 0 14px">
 <p style="color:#8E8E93;font-size:12px;line-height:1.5;margin:0">${t.footer}<br>${t.noreply}${unsub}</p>
@@ -321,6 +346,7 @@ module.exports = {
   sendTestEmail,
   sendCampaignEmail,
   buildNotificationEmailHtml, // v566
+  kycLineFor1711, // 1711
   NOTIF_EMAIL_UNSUB_I18N, // 612
 };
 
