@@ -40,10 +40,15 @@ export function totalOf3110(a: ApplicationItem): number | null {
   return total;
 }
 
+/** 17/11 — le gardien ou le promeneur de cette candidature a-t-il le badge « Identité vérifiée » ? */
+export function verified1711(a: ApplicationItem): boolean {
+  return a.walker?.identityVerified === true || a.sitter?.identityVerified === true;
+}
+
 /**
- * Ordre de la page : 1) le candidat de l'e-mail (focus) ; 2) le plus proche de chez toi (distance
- * inconnue en dernier) ; 3) à distance égale, le moins cher (total inconnu en dernier) ; 4) ordre
- * du serveur (stable).
+ * Ordre de la page : 1) le candidat de l'e-mail (focus) ; 2) les profils « Identité vérifiée » ;
+ * 3) le plus proche de chez toi (distance inconnue en dernier) ; 4) à distance égale, le moins cher
+ * (total inconnu en dernier) ; 5) ordre du serveur (stable).
  */
 export function sortCandidates3110(items: ApplicationItem[], postPoint: LatLng | null, focusId?: string): ApplicationItem[] {
   const idx = new Map(items.map((x, i) => [applicationId(x), i]));
@@ -51,6 +56,12 @@ export function sortCandidates3110(items: ApplicationItem[], postPoint: LatLng |
     const fx = focusId && applicationId(x) === focusId ? 0 : 1;
     const fy = focusId && applicationId(y) === focusId ? 0 : 1;
     if (fx !== fy) return fx - fy;
+    // 17/11 (BOB, « oui » de Daniel) — les profils « Identité vérifiée » passent avant les autres : c'est le seul
+    // signe de confiance tant qu'il n'y a ni avis ni garde terminée. Entre vérifiés (ou entre non vérifiés),
+    // l'ordre d'avant ne change pas.
+    const vx = verified1711(x) ? 0 : 1;
+    const vy = verified1711(y) ? 0 : 1;
+    if (vx !== vy) return vx - vy;
     const kx = kmOf3110(x, postPoint);
     const ky = kmOf3110(y, postPoint);
     if (kx !== ky) {

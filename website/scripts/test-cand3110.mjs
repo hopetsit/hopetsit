@@ -60,6 +60,17 @@ ok("tri : le candidat du lien (focus) passe devant, total incohérent compte com
   assert.equal(lib.totalOf3110(mk("i", 0, 0, 50, { pricing: { totalPrice: 50, indicative: true } })), null);
   assert.equal(lib.totalOf3110(mk("o", 0, 0, 64.8)), 64.8);
 });
+ok("tri 17/11 : identité vérifiée d'abord, puis l'ordre d'avant ; le focus reste devant", () => {
+  const v = (id, dlat, total, role = "sitter") => { const x = mk(id, dlat, 0, total); x.sitter.identityVerified = true; if (role === "walker") { x.walker = x.sitter; delete x.sitter; } return x; };
+  const items = [mk("pres", 0.01, 0.01, 30), v("loinV", 0.5, 90), mk("moyen", 0.1, 0.1, 20), v("presV", 0.02, 80, "walker")];
+  assert.deepEqual(lib.sortCandidates3110(items, P).map((x) => x.id), ["presV", "loinV", "pres", "moyen"]);
+  assert.deepEqual(lib.sortCandidates3110(items, P, "moyen").map((x) => x.id), ["moyen", "presV", "loinV", "pres"]);
+  assert.equal(lib.verified1711(items[0]), false);
+  assert.equal(lib.verified1711(items[3]), true);
+  // personne de vérifié : exactement l'ordre d'avant
+  const none = [mk("a", 0.3, 0.3, 50), mk("b", 0.01, 0.01, 90), mk("c", 0.01, 0.01, 60)];
+  assert.deepEqual(lib.sortCandidates3110(none, P).map((x) => x.id), ["c", "b", "a"]);
+});
 ok("tri stable sans point de demande (ordre serveur), km null", () => {
   const items = [mk("a", 0.3, 0.3, 50), mk("b", 0.01, 0.01, 50)];
   assert.deepEqual(lib.sortCandidates3110(items, null).map((x) => x.id), ["a", "b"]);
