@@ -69,13 +69,15 @@ function canonicalEmail(email) {
 }
 
 /**
- * INTERRUPTEUR (éteint par défaut) — rendre la preuve OBLIGATOIRE à l'inscription par e-mail + mot de passe.
+ * INTERRUPTEUR (allumé par défaut depuis le 17/11, =off pour l'éteindre) — rendre la preuve OBLIGATOIRE à l'inscription par e-mail + mot de passe.
  *   SIGNUP_EMAIL_PROOF_REQUIRED=on          → le site (X-App-Version: web) doit présenter `emailProof` ;
  *   SIGNUP_EMAIL_PROOF_MIN_BUILD=<n° build> → …et les apps à partir de ce build aussi (ex. 650).
  * Les apps plus anciennes (ou sans en-tête) gardent TOUJOURS le parcours d'avant : rien ne casse.
  */
 function proofRequiredFor(req) {
-  if (String(process.env.SIGNUP_EMAIL_PROOF_REQUIRED || '').toLowerCase() !== 'on') return false;
+  // 17/11 (BOB, ordre de Daniel « il est obligé de confirmer son e-mail pour continuer ») : ALLUMÉ par défaut une fois
+  // le nouveau site vérifié en ligne (671e1c02). Retour arrière sans republier : SIGNUP_EMAIL_PROOF_REQUIRED=off.
+  if (String(process.env.SIGNUP_EMAIL_PROOF_REQUIRED || 'on').trim().toLowerCase() === 'off') return false;
   const raw = String((req && req.headers && req.headers['x-app-version']) || '').trim().toLowerCase();
   if (!raw) return false;
   if (raw === 'web') return true;

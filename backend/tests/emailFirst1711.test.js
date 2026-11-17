@@ -70,7 +70,7 @@ beforeEach(() => {
   require('../src/routes/emailFirst1711')._resetForTest();
   require('../src/routes/adLeadsSite3110')._resetForTest();
   require('../src/routes/demandeCode0811')._resetForTest();
-  delete process.env.SIGNUP_EMAIL_PROOF_REQUIRED; delete process.env.SIGNUP_EMAIL_PROOF_MIN_BUILD; delete process.env.AD_LEAD_ACCOUNT_AT_CLICK_1711; delete process.env.EMAIL_FIRST_1711;
+  process.env.SIGNUP_EMAIL_PROOF_REQUIRED = 'off'; delete process.env.SIGNUP_EMAIL_PROOF_MIN_BUILD; // 17/11 (BOB) : allumé par défaut en production ; les cas « sans preuve » de cette suite l'éteignent delete process.env.AD_LEAD_ACCOUNT_AT_CLICK_1711; delete process.env.EMAIL_FIRST_1711;
 });
 
 describe('POST /auth/email-first/send', () => {
@@ -288,7 +288,7 @@ describe('POST /auth/signup avec ou sans preuve', () => {
     await signup('owner', USER(email), { emailProof: proof }).expect(409);
   });
 
-  test('INTERRUPTEUR éteint par défaut ; SIGNUP_EMAIL_PROOF_REQUIRED=on → le site sans preuve = 400 EMAIL_PROOF_REQUIRED (rien créé), les anciennes apps passent toujours, les apps ≥ build minimum sont tenues à la preuve', async () => {
+  test('INTERRUPTEUR ; SIGNUP_EMAIL_PROOF_REQUIRED=on → le site sans preuve = 400 EMAIL_PROOF_REQUIRED (rien créé), les anciennes apps passent toujours, les apps ≥ build minimum sont tenues à la preuve', async () => {
     process.env.SIGNUP_EMAIL_PROOF_REQUIRED = 'on';
     const r = await signup('owner', USER('exige.web1711@example.test')).expect(400);
     expect(r.body.code).toBe('EMAIL_PROOF_REQUIRED');
@@ -475,5 +475,25 @@ describe('Formulaire Facebook : compte créé seulement au clic (AD_LEAD_ACCOUNT
     expect(r.verified).toBe(true);
     expect(await Owner.countDocuments({ email })).toBe(1);
     expect((await Owner.findById(o._id).lean()).adLeadAt).toBeTruthy();
+  });
+});
+
+// 17/11 (BOB) — valeur par défaut en production : la preuve est exigée du site, jamais des apps installées.
+describe('emailProof1711.proofRequiredFor — défaut', () => {
+  const { proofRequiredFor } = require('../src/utils/emailProof1711');
+  const req = (v) => ({ headers: v == null ? {} : { 'x-app-version': v } });
+  afterEach(() => { process.env.SIGNUP_EMAIL_PROOF_REQUIRED = 'off'; delete process.env.SIGNUP_EMAIL_PROOF_MIN_BUILD; });
+  test('sans variable : site obligé, apps et clients sans en-tête libres', () => {
+    delete process.env.SIGNUP_EMAIL_PROOF_REQUIRED; delete process.env.SIGNUP_EMAIL_PROOF_MIN_BUILD;
+    expect(proofRequiredFor(req('web'))).toBe(true);
+    expect(proofRequiredFor(req('23.1.606+642'))).toBe(false);
+    expect(proofRequiredFor(req(null))).toBe(false);
+  });
+  test('=off éteint tout ; build minimum : seulement à partir de ce build', () => {
+    process.env.SIGNUP_EMAIL_PROOF_REQUIRED = 'off';
+    expect(proofRequiredFor(req('web'))).toBe(false);
+    delete process.env.SIGNUP_EMAIL_PROOF_REQUIRED; process.env.SIGNUP_EMAIL_PROOF_MIN_BUILD = '643';
+    expect(proofRequiredFor(req('23.1.607+643'))).toBe(true);
+    expect(proofRequiredFor(req('23.1.606+642'))).toBe(false);
   });
 });

@@ -4,6 +4,9 @@
 
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test_jwt_secret_'.padEnd(64, 'x');
+// 17/11/2026 (BOB) — cette suite rejoue le parcours d'AVANT (compte puis code). En production le site doit
+// désormais présenter la preuve d'e-mail : on éteint l'obligation ici, elle est testée dans emailFirst1711.
+process.env.SIGNUP_EMAIL_PROOF_REQUIRED = 'off';
 
 // ── Faux modèles Mongoose (magasin en mémoire) ─────────────────────────────
 const mockStores = { Owner: [], Sitter: [], Walker: [], VerificationCode: [] };
