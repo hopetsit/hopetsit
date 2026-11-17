@@ -253,6 +253,9 @@ router.get('/:id', async (req, res) => {
  * demande par createPost = mêmes règles et mêmes alertes aux gardiens).
  * Renvoie { owner, postId, notified, status, body } ; status ≠ 200 = createPost a refusé.
  */
+/** 1711 — « compte du contact pub créé seulement au clic » : allumé par défaut, AD_LEAD_ACCOUNT_AT_CLICK_1711=off l'éteint. */
+const accountAtClick1711 = (env = process.env) => String(env.AD_LEAD_ACCOUNT_AT_CLICK_1711 || 'on').trim().toLowerCase() !== 'off';
+
 /** 3110 — compte propriétaire du contact : existant (marqué pub) ou créé NON vérifié. Aucune demande. */
 async function ensureLeadOwner(lead) {
   let owner = await Owner.findOne({ email: lead.email });
@@ -372,12 +375,13 @@ async function sendConfirmEmail(lead, variant = 'new') {
  */
 async function draftLead(lead, { variant = 'new' } = {}) {
   if (lead.postId) return { alreadyPublished: true, postId: String(lead.postId), ownerId: lead.ownerId ? String(lead.ownerId) : null, pending: false, emailSent: false };
-  // 1711 (NEO, ordre de Daniel « que de vrais inscrits ») — INTERRUPTEUR AD_LEAD_ACCOUNT_AT_CLICK_1711=on (ÉTEINT par
-  // défaut) : le contact de la pub reste une simple ligne de contact, AUCUN compte propriétaire n'est créé ici. Le
+  // 1711 (NEO, ordre de Daniel « que de vrais inscrits ») — INTERRUPTEUR AD_LEAD_ACCOUNT_AT_CLICK_1711 (allumé par
+  // défaut depuis le 17/11, =off pour l'éteindre) : le contact de la pub reste une simple ligne de contact, AUCUN compte propriétaire n'est créé ici. Le
   // compte naît au clic « publier ma demande » de l'e-mail (publishLead → ensureLeadOwner, puis vérifié par
   // /:id/confirm). E-mail « confirme », rappel +3 h (adLeadConfirmReminder3110) et SMS : inchangés, ils ne lisent
   // que le contact. Un compte qui existe DÉJÀ pour cette adresse est seulement rattaché (comme avant).
-  const accountAtClick = String(process.env.AD_LEAD_ACCOUNT_AT_CLICK_1711 || '').toLowerCase() === 'on';
+  // 17/11 (BOB, « oui » de Daniel) : ALLUMÉ par défaut après contrôle des SMS et des rappels. Retour : =off sur Render.
+  const accountAtClick = accountAtClick1711();
   const owner = accountAtClick ? await Owner.findOne({ email: lead.email }) : await ensureLeadOwner(lead);
   if (owner) {
     lead.ownerId = owner._id;
@@ -645,6 +649,7 @@ adminRouter.post('/:id/publish', requireAdmin, async (req, res) => {
 });
 
 module.exports = router;
+module.exports._accountAtClick1711 = accountAtClick1711;
 module.exports.adminRouter = adminRouter;
 module.exports.postInputFor = postInputFor;
 module.exports.publishLead = publishLead; // 31/10 (LEO) — réutilisé par adLeadsSite3110

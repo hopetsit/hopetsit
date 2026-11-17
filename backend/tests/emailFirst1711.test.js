@@ -70,7 +70,12 @@ beforeEach(() => {
   require('../src/routes/emailFirst1711')._resetForTest();
   require('../src/routes/adLeadsSite3110')._resetForTest();
   require('../src/routes/demandeCode0811')._resetForTest();
-  process.env.SIGNUP_EMAIL_PROOF_REQUIRED = 'off'; delete process.env.SIGNUP_EMAIL_PROOF_MIN_BUILD; // 17/11 (BOB) : allumé par défaut en production ; les cas « sans preuve » de cette suite l'éteignent delete process.env.AD_LEAD_ACCOUNT_AT_CLICK_1711; delete process.env.EMAIL_FIRST_1711;
+  // 17/11 (BOB) : ces deux interrupteurs sont ALLUMÉS par défaut en production ; chaque test repart éteint et
+  // allume lui-même ce qu'il vérifie.
+  process.env.SIGNUP_EMAIL_PROOF_REQUIRED = 'off';
+  delete process.env.SIGNUP_EMAIL_PROOF_MIN_BUILD;
+  process.env.AD_LEAD_ACCOUNT_AT_CLICK_1711 = 'off';
+  delete process.env.EMAIL_FIRST_1711;
 });
 
 describe('POST /auth/email-first/send', () => {
@@ -495,5 +500,16 @@ describe('emailProof1711.proofRequiredFor — défaut', () => {
     delete process.env.SIGNUP_EMAIL_PROOF_REQUIRED; process.env.SIGNUP_EMAIL_PROOF_MIN_BUILD = '643';
     expect(proofRequiredFor(req('23.1.607+643'))).toBe(true);
     expect(proofRequiredFor(req('23.1.606+642'))).toBe(false);
+  });
+});
+
+// 17/11 (BOB, « oui » de Daniel) — formulaire Facebook : « compte créé seulement au clic » est allumé par défaut.
+describe('adLeads2210 — compte du contact pub au clic : valeur par défaut', () => {
+  const { _accountAtClick1711 } = require('../src/routes/adLeads2210');
+  test('sans variable : allumé ; =off : éteint ; =on : allumé', () => {
+    expect(_accountAtClick1711({})).toBe(true);
+    expect(_accountAtClick1711({ AD_LEAD_ACCOUNT_AT_CLICK_1711: 'off' })).toBe(false);
+    expect(_accountAtClick1711({ AD_LEAD_ACCOUNT_AT_CLICK_1711: ' OFF ' })).toBe(false);
+    expect(_accountAtClick1711({ AD_LEAD_ACCOUNT_AT_CLICK_1711: 'on' })).toBe(true);
   });
 });
