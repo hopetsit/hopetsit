@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "@/components/SiteLink";
 import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
@@ -10,11 +11,26 @@ import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 // loi : on renvoie systématiquement à la signalétique sur place et à paris.fr.
 const URL = "https://www.hopetsit.com/blog/jardins-parisiens-ouverts-aux-chiens";
 
+const TITLE = "Les jardins parisiens ouverts aux chiens : règles et bonnes pratiques";
+const DESCRIPTION =
+  "Jardins, squares, bois : tous les espaces verts parisiens n'acceptent pas les chiens de la même façon. Comment savoir où ils sont admis, et les bons réflexes une fois sur place.";
+// 16/11/2026 (GUS) — image propre à l'article (règle du 01/11) : og:image, JSON-LD et haut de page.
+const COVER = "https://www.hopetsit.com/blog/jardins-parisiens-ouverts-aux-chiens.jpg";
+const COVER_ALT = "Un chien et un chat à la maison, image du guide des jardins parisiens ouverts aux chiens";
+
 export const metadata: Metadata = {
-  title: "Les jardins parisiens ouverts aux chiens : règles et bonnes pratiques",
-  description:
-    "Jardins, squares, bois : tous les espaces verts parisiens n'acceptent pas les chiens de la même façon. Comment savoir où ils sont admis, et les bons réflexes une fois sur place.",
+  title: TITLE,
+  description: DESCRIPTION,
   alternates: { canonical: URL },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: URL,
+    type: "article",
+    locale: "fr_FR",
+    siteName: "HoPetSit",
+    images: [{ url: COVER, width: 1200, height: 630, alt: COVER_ALT }],
+  },
 };
 
 const FAQ = [
@@ -50,6 +66,8 @@ export default function ArticleJardinsParisiensChiens() {
         inLanguage: "fr",
         mainEntityOfPage: URL,
         datePublished: "2026-11-15",
+        description: DESCRIPTION,
+        image: { "@type": "ImageObject", url: COVER, width: 1200, height: 630 },
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com" },
       },
@@ -71,6 +89,15 @@ export default function ArticleJardinsParisiensChiens() {
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
         Les jardins parisiens ouverts aux chiens : règles et bonnes pratiques
       </h1>
+      <Image
+        src="/blog/jardins-parisiens-ouverts-aux-chiens.jpg"
+        alt={COVER_ALT}
+        width={1200}
+        height={630}
+        priority
+        sizes="(max-width: 768px) 100vw, 768px"
+        className="mt-6 h-auto w-full rounded-2xl"
+      />
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         Paris compte des centaines d&apos;espaces verts, mais ils ne se valent
         pas tous pour une sortie avec votre chien. Certains jardins

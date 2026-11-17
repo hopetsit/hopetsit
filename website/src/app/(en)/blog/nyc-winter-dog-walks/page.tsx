@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "@/components/SiteLink";
 
 // 2026-W46 (weekly marketing routine, Sunday) — next unchecked topic from
@@ -9,6 +10,8 @@ const URL = "https://www.hopetsit.com/blog/nyc-winter-dog-walks";
 const TITLE = "Walking Your Dog in an NYC Winter: Salt, Cold and Short Walks";
 const DESCRIPTION =
   "NYC winter dog walks: why sidewalk salt is harder on paws than people think, how to tell a walk is too cold, and why shorter, more frequent walks beat one long one.";
+const COVER = "https://www.hopetsit.com/blog/nyc-winter-dog-walks.jpg";
+const COVER_ALT = "A small dog on a leash during a walk, cover of the guide to walking your dog in an NYC winter";
 const HEADLINE = "Walking your dog in an NYC winter: salt, cold and short walks";
 
 export const metadata: Metadata = {
@@ -22,6 +25,7 @@ export const metadata: Metadata = {
     type: "article",
     locale: "en_US",
     siteName: "HoPetSit",
+    images: [{ url: COVER, width: 1200, height: 630, alt: COVER_ALT }],
   },
 };
 
@@ -59,6 +63,7 @@ export default function ArticleNycWinterDogWalks() {
         inLanguage: "en-US",
         mainEntityOfPage: URL,
         datePublished: "2026-11-15",
+        image: { "@type": "ImageObject", url: COVER, width: 1200, height: 630 },
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com" },
       },
@@ -73,6 +78,15 @@ export default function ArticleNycWinterDogWalks() {
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
         Walking your dog in an NYC winter: salt, cold and short walks
       </h1>
+      <Image
+        src="/blog/nyc-winter-dog-walks.jpg"
+        alt={COVER_ALT}
+        width={1200}
+        height={630}
+        priority
+        sizes="(max-width: 768px) 100vw, 768px"
+        className="mt-6 h-auto w-full rounded-2xl"
+      />
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         A New York winter is harder on a dog's paws than most owners expect —
         not just the cold, but what's spread on the sidewalk underneath it.
