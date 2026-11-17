@@ -29,6 +29,11 @@ export function RoleWallpaper() {
     html.dataset.role = user?.role || "";
     html.dataset.pet = "";
     html.dataset.wp = "auto";
+    // 17/11 (LEO) — aperçu des deux fonds sans rien republier : ?bg=a (sobre) ou ?bg=b (animal) dans l'adresse.
+    try {
+      const q = new URLSearchParams(window.location.search).get("bg");
+      if (q === "a" || q === "b") html.dataset.bg = q;
+    } catch { /* adresse illisible → fond par défaut */ }
     if (!user) return;
     let alive = true;
     (async () => {

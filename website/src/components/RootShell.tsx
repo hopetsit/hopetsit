@@ -22,6 +22,8 @@ import SiteAnalytics from "@/components/SiteAnalytics";
 // 06/11 (SAM, ordre de Daniel) — pixel Meta après consentement (bandeau fr/en, choix mémorisé).
 import MetaPixel from "@/components/MetaPixel";
 import { RoleWallpaper } from "@/components/RoleWallpaper";
+// 17/11 (LEO) — variante du fond du site (A sobre / B animal) : une seule constante, lue ici.
+import { SITE_BG_1711 } from "@/lib/siteBg1711";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -127,7 +129,7 @@ export function RootShell({
   children: ReactNode;
 }) {
   return (
-    <html lang={lang} data-lang-lock={locked ? "1" : undefined} className={inter.className}>
+    <html lang={lang} data-lang-lock={locked ? "1" : undefined} data-bg={SITE_BG_1711 === "old" ? undefined : SITE_BG_1711} className={inter.className}>
       <body className="min-h-screen bg-white text-ink antialiased">
         {/* v23.1.267 — SEO/AEO : données structurées Organization + WebSite. */}
         <script

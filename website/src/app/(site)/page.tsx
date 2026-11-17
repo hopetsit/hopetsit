@@ -8,7 +8,7 @@ import { AppIcon, type AppIconName } from "@/components/AppIcon";
 import { PageTitle } from "@/components/PageTitle";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
-import { pawmapShotFor, PhoneFrame } from "@/lib/screens";
+import { pawmapShotFor, PhoneFrame, screensPreviewFor } from "@/lib/screens";
 import { ROLE_COLOR } from "@/lib/pawmapLegend";
 // 31/10 (LEO, décision BOB, étape 3) — premier écran = le formulaire 1 étape (fr/en) : accueil 94 vues → 0 clic d'action.
 import { ParisHeroForm } from "@/components/ParisHeroForm";
@@ -18,6 +18,14 @@ import { ParisHeroForm } from "@/components/ParisHeroForm";
 // journée », la pastille « Véhiculé », les villes. Textes nouveaux : src/lib/i18n/accueil1011.ts.
 import { a1011, heroUi1011 } from "@/lib/i18n/accueil1011";
 import { k1011 } from "@/lib/i18n/conclure1011";
+// 17/11 (LEO, ordre de Daniel transmis par BOB : « améliore la page d'accueil et aussi l'arrière-plan ») — l'accueil
+// parle d'abord au PROPRIÉTAIRE : à quoi ça sert et pourquoi faire confiance dès le premier écran (faits VRAIS
+// seulement), un bouton secondaire pour les gardiens, « comment ça marche » en 3 étapes, les captures de l'app, un
+// appel final sans promesse de revenus. Le fond suit la variante du site (src/lib/siteBg1711.ts, classes hps-hero-1711
+// de globals.css). Formulaire du premier écran (ParisHeroForm, NEO) : inchangé. Liens des villes : inchangés.
+import { a1711 } from "@/lib/i18n/accueil1711";
+import { SITE_BG_1711 } from "@/lib/siteBg1711";
+import { trackSiteEvent } from "@/components/SiteAnalytics";
 
 // v562 — Refonte « minimaliste, pro, façon Apple » (Daniel, 13/09).
 // 24/09/2026 — LOT B (plan de LEO validé par Daniel « oui, valide tout ») :
@@ -128,12 +136,17 @@ export default function HomePage() {
     { key: "walker", icon: "walker" as AppIconName, color: ROLE_COLOR.walker, bg: "#DEF7E5", title: t("role_walker_title"), body: t("role_walker_body"), price: t("pricing_provider_price") },
   ] as const;
 
-  const trust: { icon: AppIconName; label: string }[] = [
-    { icon: "shield-check", label: t("trust_id_title") },
-    { icon: "lock", label: t("trust_pay_title") },
-    { icon: "chat", label: t("trust_chat_title") },
-    { icon: "map", label: t("trust_map_title") },
+  // 17/11 — la confiance, en faits VRAIS (jamais « tous vérifiés » : le badge se voit sur les profils qui l'ont).
+  const miniTrust = [a1711(lang, "m_pay"), a1711(lang, "m_cancel"), a1711(lang, "m_id")];
+  const trustCards: { icon: AppIconName; color: string; bg: string; title: string; body: string }[] = [
+    { icon: "shield-check", color: ROLE_COLOR.walker, bg: "#DEF7E5", title: a1711(lang, "c_id_title"), body: a1711(lang, "c_id_body") },
+    { icon: "lock", color: ROLE_COLOR.owner, bg: "#FBE9E5", title: a1711(lang, "c_pay_title"), body: a1711(lang, "c_pay_body") },
+    { icon: "clock", color: ROLE_COLOR.sitter, bg: "#E3EFFE", title: a1711(lang, "c_cancel_title"), body: a1711(lang, "c_cancel_body") },
+    { icon: "chat", color: ROLE_COLOR.owner, bg: "#FBE9E5", title: a1711(lang, "c_chat_title"), body: a1711(lang, "c_chat_body") },
   ];
+  // Bouton secondaire « gardien » : la page de recrutement de la langue quand elle existe, sinon l'inscription.
+  const sitterHref = lang === "fr" ? "/devenir-petsitter" : lang === "en" ? "/become-a-pet-sitter" : "/signup";
+  const appShots = screensPreviewFor(lang).slice(0, 3);
 
   // 10/11 — les 4 services du formulaire, présentés (mêmes noms, même ordre que dans l'app et le formulaire).
   const services: { id: "garde" | "journee" | "promenade" | "visites"; icon: AppIconName; color: string; bg: string; title: string; desc: string }[] = [
@@ -160,13 +173,12 @@ export default function HomePage() {
     { name: "PawPremium", title: t("home_pawpremium_title_short"), body: t("home_pawpremium_blurb"), logo: "/pawpremium_logo.svg", href: "/boutique", cta: `${t("home_discover")} PawPremium`, dark: true },
   ] as const;
 
-  // 10/11 — étapes 1 et 3 : le texte du parcours réel (demande publiée sans compte, paiement par carte), le même
-  // dans les 9 langues ; les étapes 2 et 4 gardent leurs clés.
+  // 17/11 — 3 étapes, celles du parcours réel : publier (sans compte), recevoir les candidats et leur prix,
+  // choisir et payer (argent versé après la garde).
   const steps = [
-    { n: "1", title: a1011(lang, "step1_title"), body: a1011(lang, "step1_body") },
-    { n: "2", title: t("how_step2_title"), body: t("how_step2_body") },
-    { n: "3", title: t("how_step3_title"), body: a1011(lang, "step3_body") },
-    { n: "4", title: t("how_step4_title"), body: t("how_step4_body") },
+    { n: "1", icon: "megaphone" as AppIconName, title: a1011(lang, "step1_title"), body: a1011(lang, "step1_body") },
+    { n: "2", icon: "people" as AppIconName, title: a1711(lang, "s2_title"), body: a1711(lang, "s2_body") },
+    { n: "3", icon: "lock" as AppIconName, title: a1711(lang, "s3_title"), body: a1011(lang, "step3_body") },
   ] as const;
 
   const faq = Array.from({ length: 10 }, (_, i) => ({ q: t(`faq_q${i + 1}`), a: t(`faq_a${i + 1}`) }))
@@ -199,27 +211,33 @@ export default function HomePage() {
           rapprochées (formulaire 460 px | maquette 288-320 px, écart 48-64 px, le tout centré), et un vrai fond de héros :
           dégradé chaud orange → crème + pattes discrètes (SVG en couleur pleine, jamais du gris) — CSS seul, 0 octet
           d'image, donc rien de lourd sur téléphone et LCP inchangé. */}
-      <section className="relative overflow-x-hidden" style={{ background: HERO_BG_1111 ? HERO_BG_NEW_1111 : HERO_BG_OLD_3110 }} data-hero-bg-3110="" data-hero-bg-1111={HERO_BG_1111 ? "" : undefined}>
-        {/* 11/11 — vague douce en bas du héros : le fond coloré se fond dans la section blanche (SVG en ligne, décoratif). */}
-        {HERO_BG_1111 && (
-          <svg aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-10 w-full md:h-16" viewBox="0 0 1440 80" preserveAspectRatio="none">
-            <path d="M0 46 C 240 6, 480 6, 720 34 S 1200 74, 1440 30 L1440 80 L0 80 Z" fill="#FFE1D2" opacity="0.7" />
-            <path d="M0 58 C 300 22, 560 26, 820 50 S 1240 78, 1440 46 L1440 80 L0 80 Z" fill="#FFFFFF" />
-          </svg>
-        )}
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-12 pt-12 md:pt-20 lg:max-w-[1180px] lg:grid-cols-[minmax(0,448px)_auto] lg:justify-center lg:gap-12 lg:pt-24 xl:gap-16">
+      <section className="hps-hero-1711" style={SITE_BG_1711 === "old" ? { background: HERO_BG_1111 ? HERO_BG_NEW_1111 : HERO_BG_OLD_3110 } : undefined} data-hero-bg-3110="" data-hero-bg-1711={SITE_BG_1711}>
+        {/* 11/11 — vague douce en bas du héros (fond d'avant le 17/11 seulement : classe masquée par les variantes A et B). */}
+        <svg aria-hidden="true" className="hps-hero-wave-1711 pointer-events-none absolute inset-x-0 bottom-0 h-10 w-full md:h-16" viewBox="0 0 1440 80" preserveAspectRatio="none">
+          <path d="M0 46 C 240 6, 480 6, 720 34 S 1200 74, 1440 30 L1440 80 L0 80 Z" fill="#FFE1D2" opacity="0.7" />
+          <path d="M0 58 C 300 22, 560 26, 820 50 S 1240 78, 1440 46 L1440 80 L0 80 Z" fill="#FFFFFF" />
+        </svg>
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-10 pt-8 md:pb-14 md:pt-16 lg:max-w-[1180px] lg:grid-cols-[minmax(0,448px)_auto] lg:justify-center lg:gap-12 lg:pt-20 xl:gap-16">
           <div className="min-w-0 text-center lg:text-left">
-            <span className="inline-flex items-center gap-2 rounded-[12px] border border-[#F3D2C8] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#6E4F48]">
-              <AppIcon name="globe" size={14} color="#C92A12" />
-              {t("hero_badge")}
-            </span>
-            <h1 className={`mt-4 font-display font-bold tracking-[-0.03em] text-[#231715] md:text-6xl ${lang === "ja" ? "text-[1.75rem] leading-[1.2] lg:text-[2.5rem]" : "text-[2rem] leading-[1.05] lg:text-5xl"}`}>
+            {/* 17/11 — à quoi ça sert, en une ligne (remplace « 177 pays », qui ne dit rien à un propriétaire). */}
+            <p className="text-[12.5px] font-bold uppercase tracking-[0.08em] text-owner-dark" data-home-eyebrow-1711="">{a1711(lang, "eyebrow")}</p>
+            <h1 className={`mt-2.5 font-display font-bold tracking-[-0.03em] text-[#231715] md:text-6xl ${lang === "ja" ? "text-[1.75rem] leading-[1.2] lg:text-[2.5rem]" : "text-[2rem] leading-[1.05] lg:text-5xl"}`}>
               {keepTogether(t("home_hero_title_book"), lang)}
             </h1>
+            {/* 17/11 — pourquoi faire confiance, AVANT le formulaire : 3 faits vrais, courts. */}
+            <ul className="mt-3.5 flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 text-[12.5px] font-semibold leading-tight text-[#231715] lg:justify-start" data-home-minitrust-1711="">
+              {miniTrust.map((m) => (
+                <li key={m} className="inline-flex items-center gap-1.5">
+                  <AppIcon name="check" size={14} color="#16A34A" className="shrink-0" />
+                  {m}
+                </li>
+              ))}
+            </ul>
 
             {/* 31/10 (LEO, décision BOB) — le formulaire 1 étape (ville à saisir), publié sans compte.
                 10/11 — dans les 9 langues : fr et en gardent leurs textes ; les 7 autres reçoivent les leurs par
-                `ui` (le serveur, lui, reçoit toujours fr ou en). */}
+                `ui` (le serveur, lui, reçoit toujours fr ou en).
+                17/11 — `lead` : « Les gardiens et promeneurs… » (plus « gardiens vérifiés » : tous ne le sont pas). */}
             <div className="mx-auto w-full max-w-md text-left lg:mx-0" data-home-form-3110={lang}>
               <ParisHeroForm
                 city={a1011(lang, "hero_city")}
@@ -231,27 +249,28 @@ export default function HomePage() {
                 country={HOME_COUNTRY[lang] || "US"}
                 campaign={`home_${lang}`}
                 page="/"
-                lead={a1011(lang, "lead")}
+                lead={a1711(lang, "lead")}
                 note={a1011(lang, "note")}
               />
             </div>
 
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-              <Link href="/download" className="hidden min-h-[44px] items-center gap-2 rounded-[14px] border border-[#F3D2C8] bg-white px-5 text-sm font-semibold text-[#231715] transition hover:border-owner hover:bg-[#FFF7F3] sm:inline-flex">
-                <AppIcon name="download" size={16} color="#C92A12" />
-                {t("hero_cta_app")}
+            {/* 17/11 — bouton SECONDAIRE (norme : blanc, contour 1,5 px à la couleur du rôle, disque teinté) pour
+                les gardiens et promeneurs ; le bouton principal de l'écran reste « Publier ma demande ». */}
+            <div className="mx-auto mt-4 w-full max-w-md lg:mx-0">
+              <Link
+                href={sitterHref}
+                onClick={() => trackSiteEvent("cta_click", { label: "home_gardien" })}
+                data-home-sitter-1711=""
+                className="flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-[16px] border-[1.5px] border-[#2563EB] bg-white px-4 py-2 text-center text-[15px] font-bold leading-tight text-[#173F8F] transition hover:bg-[#F1F6FE]"
+              >
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-[#E3EFFE]"><AppIcon name="home" size={16} color="#2563EB" /></span>
+                <span className="min-w-0 text-balance">{a1711(lang, "sitter_cta")}</span>
               </Link>
-              <StoreBadges className="justify-center lg:justify-start" />
             </div>
 
-            <ul className="mt-6 grid grid-cols-2 gap-2 text-left text-[12.5px] font-semibold leading-tight text-[#231715] sm:grid-cols-4 lg:grid-cols-2">
-              {trust.map((tr) => (
-                <li key={tr.label} className="flex min-h-[44px] items-center gap-2 rounded-[12px] border border-[#F3D2C8] bg-white px-3 py-2">
-                  <AppIcon name={tr.icon} size={16} color="#16A34A" className="shrink-0" />
-                  <span className="min-w-0">{tr.label}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+              <StoreBadges className="justify-center lg:justify-start" />
+            </div>
           </div>
           <div className="hidden justify-center lg:flex">
             <PhoneFrame src={pawmapShot} alt={t("hero609_alt")} className="w-72 xl:w-80" priority w={768} h={1669} />
@@ -259,9 +278,57 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── 2. SERVICES ── 10/11 : les 4 services du formulaire, dont « Garde en journée ». Une carte = un
+      {/* ── 2. CONFIANCE ── 17/11 : quatre faits vrais (badge sur les profils qui l'ont, paiement gardé, annulation
+           gratuite jusqu'à 72 h avant, messagerie). Aucun chiffre, aucun avis inventé. */}
+      <section className="py-10 md:py-16" data-home-trust-1711="">
+        <div className="mx-auto max-w-6xl px-4">
+          <Ornament />
+          <h2 className={h2}>{a1711(lang, "trust_title")}</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-balance text-center text-base text-[#6E4F48] md:text-lg">{a1711(lang, "trust_sub")}</p>
+          <ul className="mt-7 grid gap-3 sm:grid-cols-2 md:mt-10 lg:grid-cols-4 lg:gap-4">
+            {trustCards.map((c) => (
+              <li key={c.title} className="flex items-start gap-3.5 rounded-[20px] border border-[#F3D2C8] bg-white p-4 shadow-[0_14px_30px_-24px_rgba(201,42,18,0.45)] md:p-5 lg:block">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px]" style={{ background: c.bg }}>
+                  <AppIcon name={c.icon} size={22} color={c.color} />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="font-display text-[16px] font-bold leading-snug tracking-[-0.01em] text-[#231715] lg:mt-4 lg:text-[17px]">{c.title}</h3>
+                  <p className="mt-1 text-[13.5px] leading-relaxed text-[#6E4F48] lg:mt-1.5 lg:text-sm">{c.body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* ── 3. COMMENT ÇA MARCHE ── 17/11 : 3 étapes (avant : 4, dans un carrousel à faire glisser sur téléphone). */}
+      <section className="bg-white py-10 md:py-16" data-home-steps-1711="">
+        <div className="mx-auto max-w-5xl px-4">
+          <Ornament />
+          <h2 className={h2}>{t("nav_how")}</h2>
+          <ol className="mt-7 grid gap-3 md:mt-10 md:grid-cols-3 md:gap-4">
+            {steps.map((s) => (
+              <li key={s.n} className="relative flex items-start gap-4 rounded-[20px] border border-[#F3D2C8] bg-[#FFF7F3] p-4 md:block md:rounded-[24px] md:p-6">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] font-display text-lg font-bold text-white" style={{ backgroundImage: GRAD }}>{s.n}</span>
+                <div className="min-w-0">
+                  <h3 className="font-display text-[16px] font-bold leading-snug tracking-[-0.01em] text-[#231715] md:mt-4 md:text-lg">{s.title}</h3>
+                  <p className="mt-1 text-[13.5px] leading-relaxed text-[#6E4F48] md:mt-1.5 md:text-sm">{s.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <div className="mx-auto mt-6 max-w-sm md:mt-8">
+            <button type="button" onClick={() => { trackSiteEvent("cta_click", { label: "home_etapes_publier" }); goToForm(); }} className="inline-flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-[18px] px-5 text-[16px] font-bold text-white transition hover:brightness-110" style={{ backgroundImage: GRAD }}>
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-white"><AppIcon name="megaphone" size={16} color="#C92A12" /></span>
+              {a1011(lang, "f_cta")}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 4. SERVICES ── 10/11 : les 4 services du formulaire, dont « Garde en journée ». Une carte = un
            appui : le service est coché dans le formulaire du haut et la page y remonte. */}
-      <section className="bg-white py-12 md:py-20" data-home-services-1011="">
+      <section className="py-10 md:py-16" data-home-services-1011="">
         <div className="mx-auto max-w-6xl px-4">
           <Ornament />
           <h2 className={h2}>{a1011(lang, "services_title")}</h2>
@@ -274,7 +341,7 @@ export default function HomePage() {
                 type="button"
                 onClick={() => goToForm(s.id)}
                 data-home-svc-1011={s.id}
-                className="group flex h-full flex-col rounded-[22px] border border-[#F3D2C8] bg-[#FFF7F3] p-4 text-left transition hover:-translate-y-0.5 hover:border-owner hover:shadow-[0_18px_32px_-22px_rgba(201,42,18,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-owner md:p-6"
+                className="group flex h-full flex-col rounded-[22px] border border-[#F3D2C8] bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-owner hover:shadow-[0_18px_32px_-22px_rgba(201,42,18,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-owner md:p-6"
               >
                 <span className="grid h-12 w-12 place-items-center rounded-[14px]" style={{ background: s.bg }}>
                   <AppIcon name={s.icon} size={24} color={s.color} />
@@ -306,9 +373,29 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── 3. CARTE + TABLEAU DE BORD ── la vraie PawMap (sans compte) et le
+      {/* ── 5. L'APP ET LE SITE ── 17/11 : « dans l'app HoPetSit ou sur hopetsit.com » — trois captures réelles de
+           l'app (jeu validé de lib/screens : aucun membre identifiable) + les badges officiels des stores. */}
+      <section className="bg-white py-10 md:py-16" data-home-stores-1011="" data-home-app-1711="">
+        <div className="mx-auto max-w-5xl px-4 text-center">
+          <Ornament />
+          <h2 className={h2}>{a1711(lang, "app_title")}</h2>
+          <p className="mx-auto mt-3 max-w-xl text-balance text-[15px] leading-relaxed text-[#6E4F48] md:text-lg">{a1011(lang, "stores_sub")}</p>
+          <div className="mx-auto mt-7 grid max-w-[640px] grid-cols-3 items-end gap-2.5 md:mt-10 md:gap-6">
+            {appShots.map((shot, i) => (
+              <div key={shot.src} className={`rounded-[18px] bg-[#231715] p-[3px] shadow-[0_24px_44px_-26px_rgba(35,23,21,0.55)] md:rounded-[30px] md:p-[5px] ${i === 1 ? "" : "translate-y-3 md:translate-y-5"}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={shot.src} alt={shot.alt} width={shot.w || 1080} height={shot.h || 2348} loading="lazy" decoding="async" className="block h-auto w-full rounded-[15px] bg-[#231715] md:rounded-[25px]" />
+              </div>
+            ))}
+          </div>
+          <StoreBadges center className="mt-10 justify-center md:mt-14" />
+          <p className="mt-4 text-sm"><Link href="/download" className={textLink}>{t("hero_cta_app")} →</Link></p>
+        </div>
+      </section>
+
+      {/* ── 6. CARTE + TABLEAU DE BORD ── la vraie PawMap (sans compte) et le
            tableau de bord web, mis en avant dès le 2e écran. */}
-      <section className="bg-[#FAF1EC] py-12 md:py-20">
+      <section className="bg-white py-10 md:py-16">
         <div className="mx-auto max-w-6xl px-4">
           <Ornament />
           <h2 className={h2}>
@@ -374,25 +461,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── 4. RÉSERVER EN 4 ÉTAPES ── */}
-      <section className="mx-auto max-w-6xl px-4 py-12 md:py-20">
-        <Ornament />
-        <h2 className={h2}>
-          {t("home_steps_title")}
-        </h2>
-        <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] md:mx-0 md:mt-12 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
-          {steps.map((s) => (
-            <div key={s.n} className="w-[78%] shrink-0 snap-center rounded-[20px] border border-[#F3D2C8] bg-[#FFF7F3] p-5 md:w-auto md:rounded-[24px] md:p-7">
-              <span className="grid h-10 w-10 place-items-center rounded-[12px] font-display text-lg font-bold text-white" style={{ backgroundImage: GRAD }}>{s.n}</span>
-              <h3 className="mt-3 text-[15px] font-semibold leading-snug text-[#231715] md:mt-4 md:text-lg">{s.title}</h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-[#6E4F48] md:text-sm">{s.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* ── 5. TROIS RÔLES, UN COMPTE ── + les 4 produits (une seule grille). */}
-      <section className="bg-[#FAF1EC] py-12 md:py-20">
+      <section className="py-10 md:py-16">
         <div className="mx-auto max-w-6xl px-4">
           <Ornament />
           <h2 className={h2}>
@@ -400,7 +470,7 @@ export default function HomePage() {
           </h2>
           <div className="mt-8 grid gap-3 md:mt-12 md:grid-cols-3 md:gap-4">
             {roles.map((r) => (
-              <div key={r.key} className="relative flex items-start gap-4 overflow-hidden rounded-[24px] bg-white p-5 md:block md:p-8">
+              <div key={r.key} className="relative flex items-start gap-4 overflow-hidden rounded-[24px] border border-[#F3D2C8] bg-white p-5 md:block md:p-8">
                 <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1.5" style={{ background: r.color }} />
                 <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[14px]" style={{ background: r.bg }}>
                   <AppIcon name={r.icon} size={24} color={r.color} />
@@ -419,7 +489,7 @@ export default function HomePage() {
               <Link
                 key={p.name}
                 href={p.href}
-                className={`flex items-center gap-3 rounded-[20px] p-3 transition hover:-translate-y-0.5 md:flex-col md:items-start md:rounded-[22px] md:p-6 ${p.dark ? "bg-[#231715] text-white" : "bg-white text-[#231715]"}`}
+                className={`flex items-center gap-3 rounded-[20px] p-3 transition hover:-translate-y-0.5 md:flex-col md:items-start md:rounded-[22px] md:p-6 ${p.dark ? "bg-[#231715] text-white" : "border border-[#F3D2C8] bg-white text-[#231715]"}`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.logo} alt="" width={44} height={44} className="h-10 w-10 shrink-0 md:h-11 md:w-11" />
@@ -439,7 +509,7 @@ export default function HomePage() {
       </section>
 
       {/* ── 6. VIDÉO ── */}
-      <section className="mx-auto max-w-4xl px-4 py-12 md:py-20">
+      <section className="bg-white py-10 md:py-16"><div className="mx-auto max-w-4xl px-4">
         <Ornament />
         <h2 className="text-balance text-center font-display text-2xl font-bold tracking-[-0.02em] text-[#231715] md:text-4xl">
           {t("video_title")}
@@ -449,19 +519,7 @@ export default function HomePage() {
             <source src="/videos/hopetsit_presentation.mp4" type="video/mp4" />
           </video>
         </div>
-      </section>
-
-      {/* ── 7. L'APP ── 10/11 : le bloc des stores (mêmes badges officiels que le premier écran). */}
-      <section className="px-4 pb-12 md:pb-20" data-home-stores-1011="">
-        <div className="mx-auto max-w-5xl overflow-hidden rounded-[28px] border border-[#F3D2C8] px-5 py-8 text-center md:px-10 md:py-12" style={{ background: `${PAWS_TILE}, linear-gradient(90deg, #FFF3EC, #FBE9E5)` }}>
-          <span className="mx-auto grid h-14 w-14 place-items-center rounded-[18px]" style={{ backgroundImage: GRAD }}>
-            <AppIcon name="download" size={26} color="#fff" />
-          </span>
-          <h2 className="mt-4 text-balance font-display text-2xl font-bold tracking-[-0.02em] text-[#231715] md:text-4xl">{a1011(lang, "stores_title")}</h2>
-          <p className="mx-auto mt-3 max-w-xl text-balance text-[15px] leading-relaxed text-[#6E4F48] md:text-lg">{a1011(lang, "stores_sub")}</p>
-          <StoreBadges center className="mt-6 justify-center" />
-        </div>
-      </section>
+      </div></section>
 
       {/* ── 8. VILLES ── v562 (Search Console 17/09) : liens directs vers les
           pages Paris / Île-de-France et USA (exploration Google). Rendu dans les
@@ -471,9 +529,9 @@ export default function HomePage() {
           un lien depuis l'accueil, la page la plus forte du site. Aucune page créée.
           10/11 (LEO) : mêmes liens, mêmes textes en français (et la colonne États-Unis toujours en anglais
           pour un visiteur français) ; les 7 autres langues lisent enfin ces deux colonnes dans la leur. */}
-      <section className="bg-[#FAF1EC] py-10 md:py-14">
+      <section className="py-10 md:py-14">
         <div className="mx-auto grid max-w-5xl gap-4 px-4 md:grid-cols-2 md:gap-5">
-          <div className="rounded-[24px] bg-white p-5 md:p-7">
+          <div className="rounded-[24px] border border-[#F3D2C8] bg-white p-5 md:p-7">
             <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[#231715] md:text-2xl">{a1011(lang, "cities_fr_title")}</h2>
             {/* 30/10 (GUS) — Search Console 7 j : « dog sitter paris » (50 affichages, 14e),
                 « pet sitter paris » (48, 17e), « pet sitting paris », « petsitter paris » → 0 clic ;
@@ -490,7 +548,7 @@ export default function HomePage() {
             </ul>
             <p className="mt-3 text-sm"><Link href="/devenir-petsitter/paris" className={textLink}>{a1011(lang, "cities_fr_become")} →</Link></p>
           </div>
-          <div className="rounded-[24px] bg-white p-5 md:p-7">
+          <div className="rounded-[24px] border border-[#F3D2C8] bg-white p-5 md:p-7">
             <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[#231715] md:text-2xl">{a1011(usLang, "cities_us_title")}</h2>
             <ul className="mt-3 flex flex-wrap gap-1.5 text-sm">
               {[["dallas","Dallas"],["fort-worth","Fort Worth"],["plano","Plano"],["frisco","Frisco"],["houston","Houston"],["austin","Austin"],["new-york","New York"],["los-angeles","Los Angeles"],["chicago","Chicago"],["miami","Miami"],["san-francisco","San Francisco"],["seattle","Seattle"],["boston","Boston"],["atlanta","Atlanta"],["denver","Denver"],["phoenix","Phoenix"],["indianapolis","Indianapolis"],["cincinnati","Cincinnati"],["minneapolis","Minneapolis"],["columbus","Columbus"],["detroit","Detroit"],["arlington-tx","Arlington, TX"],["decatur-ga","Decatur, GA"],["naples-fl","Naples, FL"],["honolulu","Honolulu"]].map(([slug, name]) => (
@@ -522,7 +580,7 @@ export default function HomePage() {
       </section>
 
       {/* ── 9. FAQ ── 4 questions, le reste sur /faq. */}
-      <section className="mx-auto max-w-3xl px-4 py-12 md:py-20">
+      <section className="bg-white py-10 md:py-16"><div className="mx-auto max-w-3xl px-4">
         <Ornament />
         <h2 className="text-balance text-center font-display text-2xl font-bold tracking-[-0.02em] text-[#231715] md:text-4xl">
           {t("faq_title")}
@@ -539,20 +597,21 @@ export default function HomePage() {
           ))}
         </div>
         <p className="mt-4 text-center text-sm"><Link href="/faq" className={textLink}>{t("home_faq_more")} →</Link></p>
-      </section>
+      </div></section>
 
-      {/* ── 10. APPEL FINAL ── 10/11 : bande au dégradé horizontal de la marque + pattes pleines ; le bouton
-           principal ramène au formulaire (publier une demande), le second vers l'app. */}
-      <section className="px-4 pb-12 md:pb-20" data-home-final-1011="">
+      {/* ── 10. APPEL FINAL ── 17/11 : pour le propriétaire d'abord (« Publier ma demande », qui ramène au
+           formulaire), bouton secondaire pour les gardiens. Plus de « gagnent dès le premier jour » (promesse de
+           revenus interdite) ; le lien vers l'app est dans le bloc des captures et le pied de page. */}
+      <section className="px-4 pb-12 pt-10 md:pb-20 md:pt-16" data-home-final-1011="" data-home-final-1711="">
         <div className="mx-auto max-w-5xl overflow-hidden rounded-[28px] px-5 py-10 text-center md:px-10 md:py-16" style={{ background: `${PAWS_TILE_BAND}, ${GRAD}` }}>
-          <h2 className="text-balance font-display text-3xl font-bold tracking-[-0.02em] text-white md:text-5xl">{t("cta_join_title")}</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-balance text-base text-[#FFF3EC] md:text-lg">{t("cta_join_sub")}</p>
+          <h2 className="text-balance font-display text-3xl font-bold tracking-[-0.02em] text-white md:text-5xl">{a1711(lang, "final_title")}</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-balance text-base text-[#FFF3EC] md:text-lg">{a1711(lang, "final_sub")}</p>
           <div className="mx-auto mt-7 grid max-w-xl gap-3 sm:grid-cols-2">
-            <button type="button" onClick={() => goToForm()} className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-[18px] bg-white px-6 text-[15px] font-bold text-owner-dark transition hover:bg-[#FFF3EC]">
-              <AppIcon name="megaphone" size={18} color="#9E1F0B" />{a1011(lang, "f_cta")}
+            <button type="button" onClick={() => { trackSiteEvent("cta_click", { label: "home_final_publier" }); goToForm(); }} className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-[18px] bg-white px-5 text-[15px] font-bold leading-tight text-owner-dark transition hover:bg-[#FFF3EC]">
+              <AppIcon name="megaphone" size={18} color="#9E1F0B" className="shrink-0" />{a1011(lang, "f_cta")}
             </button>
-            <Link href="/download" className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-[18px] bg-[#231715] px-6 text-[15px] font-bold text-white transition hover:bg-black">
-              <AppIcon name="download" size={18} color="#fff" />{t("nav_download")}
+            <Link href={sitterHref} onClick={() => trackSiteEvent("cta_click", { label: "home_final_gardien" })} className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-[18px] border-[1.5px] border-white px-5 py-2 text-center text-[15px] font-bold leading-tight text-white transition hover:bg-[#B5230F]">
+              <AppIcon name="home" size={18} color="#fff" className="shrink-0" /><span className="min-w-0 text-balance">{a1711(lang, "sitter_cta")}</span>
             </Link>
           </div>
         </div>

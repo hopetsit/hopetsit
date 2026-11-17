@@ -229,3 +229,95 @@ html[data-wp="auto"][data-pet="mix"]    body::before { --wp-mask: var(--wp-dog);
   .hps-btn-sheen, .hps-pawprint { animation: none; display: none; }
   .hps-btn { transition: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   17/11/2026 — NOUVEAU FOND DU SITE (LEO, ordre de Daniel transmis par BOB :
+   « améliore la page d'accueil du site web et aussi l'arrière-plan »).
+   Constat (captures du 17/11) : le fond d'avant semait des pattes et des cœurs
+   PARTOUT, y compris derrière les titres et le texte, et les blocs à demi
+   transparents laissaient voir les carreaux du motif.
+   Deux variantes, choisies par UNE constante (src/lib/siteBg1711.ts →
+   <html data-bg="a|b">) ; sans l'attribut, rien ne change (fond d'avant).
+     A — sobre et lumineux : ivoire chaud + deux halos de lumière en haut de
+         page. Aucun motif : rien ne passe jamais derrière le texte. Le plus
+         léger (aucun masque à dessiner sur téléphone).
+     B — chaleureux, « animal » : pêche + une piste de pattes en diagonale, un
+         os, une balle, un poisson, des cœurs, TON SUR TON (couleur pleine très
+         proche du fond : lisible partout, jamais de gris).
+   Les couleurs du rôle connecté sont gardées (gardien bleu, promeneur vert),
+   comme le réglage « Mon fond » (data-wp="none") et les objets de mon animal.
+   CSS + SVG en ligne seulement : 0 image à charger.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --wp-paw-one: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-15 -16 30 31'><ellipse cx='0' cy='6' rx='9' ry='7.5'/><ellipse cx='-9' cy='-3' rx='4' ry='5.2' transform='rotate(-24 -9 -3)'/><ellipse cx='-3' cy='-9' rx='4' ry='5.4'/><ellipse cx='3' cy='-9' rx='4' ry='5.4'/><ellipse cx='9' cy='-3' rx='4' ry='5.2' transform='rotate(24 9 -3)'/></svg>");
+  /* Tuile 320×320 : 8 pas en diagonale (la piste continue d'une tuile à l'autre), os, poisson, balle, 3 cœurs. */
+  --wp-animal: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'><g id='p'><ellipse cx='0' cy='6' rx='9' ry='7.5'/><ellipse cx='-9' cy='-3' rx='4' ry='5.2' transform='rotate(-24 -9 -3)'/><ellipse cx='-3' cy='-9' rx='4' ry='5.4'/><ellipse cx='3' cy='-9' rx='4' ry='5.4'/><ellipse cx='9' cy='-3' rx='4' ry='5.2' transform='rotate(24 9 -3)'/></g><use href='%23p' transform='translate(28 308) rotate(45) scale(.75)'/><use href='%23p' transform='translate(52 252) rotate(45) scale(.75)'/><use href='%23p' transform='translate(108 228) rotate(45) scale(.75)'/><use href='%23p' transform='translate(132 172) rotate(45) scale(.75)'/><use href='%23p' transform='translate(188 148) rotate(45) scale(.75)'/><use href='%23p' transform='translate(212 92) rotate(45) scale(.75)'/><use href='%23p' transform='translate(268 68) rotate(45) scale(.75)'/><use href='%23p' transform='translate(292 12) rotate(45) scale(.75)'/><g transform='translate(78 100) rotate(-28)'><circle cx='-16' cy='-5' r='5'/><circle cx='-16' cy='5' r='5'/><circle cx='16' cy='-5' r='5'/><circle cx='16' cy='5' r='5'/><rect x='-16' y='-4' width='32' height='8' rx='4'/></g><g transform='translate(150 50) rotate(-12) scale(.9)'><path d='M-18 0 Q-6 -12 8 -9 Q16 -4 18 0 Q16 4 8 9 Q-6 12 -18 0z'/><path d='M14 0 L24 -8 L24 8z'/></g><path transform='translate(238 232)' fill-rule='evenodd' d='M-11 0a11 11 0 1 0 22 0a11 11 0 1 0 -22 0z M-10.6 -2.2 Q0 -9 10.6 -2.2 L10.9 0.6 Q0 -6 -10.9 0.6z'/><path transform='translate(120 290) scale(.62)' d='M0 12 C-14 2,-8 -12,0 -6 C8 -12,14 2,0 12z'/><path transform='translate(292 152) scale(.5) rotate(12)' d='M0 12 C-14 2,-8 -12,0 -6 C8 -12,14 2,0 12z'/><path transform='translate(36 172) scale(.45) rotate(-14)' d='M0 12 C-14 2,-8 -12,0 -6 C8 -12,14 2,0 12z'/></svg>");
+}
+
+/* ── Variante A : sobre et lumineux ─────────────────────────────────────── */
+html[data-bg="a"] { --wp-bg: #FFFAF6; --wp-glow1: 255, 221, 202; --wp-glow2: 255, 237, 213; }
+html[data-bg="a"][data-role="sitter"] { --wp-bg: #F8FBFF; --wp-glow1: 212, 228, 252; --wp-glow2: 226, 240, 255; }
+html[data-bg="a"][data-role="walker"] { --wp-bg: #F8FCF9; --wp-glow1: 206, 237, 216; --wp-glow2: 226, 246, 231; }
+html[data-bg="a"] body {
+  background:
+    radial-gradient(min(900px, 130vw) 460px at 0% 0%, rgba(var(--wp-glow1), 0.85), rgba(var(--wp-glow1), 0) 72%) no-repeat,
+    radial-gradient(min(820px, 120vw) 420px at 100% 40px, rgba(var(--wp-glow2), 0.9), rgba(var(--wp-glow2), 0) 72%) no-repeat,
+    var(--wp-bg);
+}
+html[data-bg="a"] body::before { display: none; }
+
+/* ── Variante B : chaleureux, « animal » ────────────────────────────────── */
+html[data-bg="b"] { --wp-bg: #FFF4EC; --wp-motif: #FBDFD0; --wp-top: #FFE6D7; }
+html[data-bg="b"][data-role="sitter"] { --wp-bg: #EEF4FE; --wp-motif: #D5E3FA; --wp-top: #E0EBFD; }
+html[data-bg="b"][data-role="walker"] { --wp-bg: #EEF8F1; --wp-motif: #CFE9D8; --wp-top: #DFF2E6; }
+html[data-bg="b"] body {
+  background: linear-gradient(180deg, var(--wp-top) 0, var(--wp-bg) 520px) no-repeat, var(--wp-bg);
+}
+html[data-bg="b"] body::before {
+  background-color: var(--wp-motif);
+  opacity: 1;
+  -webkit-mask-size: 320px 320px;
+  mask-size: 320px 320px;
+  -webkit-mask-image: var(--wp-mask, var(--wp-animal));
+  mask-image: var(--wp-mask, var(--wp-animal));
+}
+@media (max-width: 767px) {
+  /* Téléphone : motif un peu plus petit, pour garder la piste lisible sur 375 px. */
+  html[data-bg="b"] body::before { -webkit-mask-size: 260px 260px; mask-size: 260px 260px; }
+}
+
+/* ── Premier écran de l'accueil (classe posée par (site)/page.tsx) ───────── */
+.hps-hero-1711 { position: relative; isolation: isolate; overflow: hidden; }
+.hps-hero-wave-1711 { display: none; }
+html:not([data-bg]) .hps-hero-wave-1711 { display: block; }
+html[data-bg="a"] .hps-hero-1711 {
+  background:
+    radial-gradient(62% 58% at 90% 6%, rgba(255, 211, 190, 0.8), rgba(255, 211, 190, 0) 70%),
+    radial-gradient(52% 52% at 0% 0%, rgba(255, 232, 204, 0.95), rgba(255, 232, 204, 0) 72%),
+    linear-gradient(180deg, #FFF3EA 0%, #FFFAF6 82%, rgba(255, 250, 246, 0) 100%);
+}
+html[data-bg="b"] .hps-hero-1711 {
+  background:
+    radial-gradient(42% 46% at 8% 4%, rgba(255, 170, 110, 0.5), rgba(255, 170, 110, 0) 72%),
+    radial-gradient(46% 52% at 94% 10%, rgba(216, 60, 40, 0.24), rgba(216, 60, 40, 0) 72%),
+    radial-gradient(42% 38% at 6% 88%, rgba(244, 192, 74, 0.24), rgba(244, 192, 74, 0) 72%),
+    linear-gradient(180deg, #FFD9C4 0%, #FFE8DA 48%, #FFF4EC 100%);
+}
+/* B : deux grandes empreintes posées dans les coins (jamais derrière le titre ni le formulaire). */
+html[data-bg="b"] .hps-hero-1711::before,
+html[data-bg="b"] .hps-hero-1711::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  background-color: #FFC7AD;
+  -webkit-mask: var(--wp-paw-one) center / contain no-repeat;
+  mask: var(--wp-paw-one) center / contain no-repeat;
+}
+html[data-bg="b"] .hps-hero-1711::before { width: 118px; height: 122px; top: -52px; right: -34px; transform: rotate(-24deg); }
+html[data-bg="b"] .hps-hero-1711::after  { width: 150px; height: 155px; bottom: -46px; left: -44px; transform: rotate(32deg); }
+@media (min-width: 1024px) {
+  /* Bureau : les deux empreintes entières, dans les marges (à droite du téléphone, à gauche du formulaire). */
+  html[data-bg="b"] .hps-hero-1711::before { width: 150px; height: 155px; top: 44px; right: max(24px, calc(50vw - 600px)); transform: rotate(20deg); }
+  html[data-bg="b"] .hps-hero-1711::after  { width: 128px; height: 132px; bottom: 56px; left: max(20px, calc(50vw - 610px)); transform: rotate(-22deg); }
+}
