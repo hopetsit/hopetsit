@@ -330,6 +330,16 @@ const signup = async (req, res) => {
     }
 
     const email = user.email.toLowerCase();
+    // 1711 (NEO, ordre de Daniel) — « e-mail d'abord » : `emailProof` (routes/emailFirst1711) = la personne a déjà
+    // tapé le bon code pour CETTE adresse → compte créé directement vérifié, aucun e-mail de code. Sans preuve :
+    // parcours d'avant, inchangé (apps installées). Interrupteur ÉTEINT par défaut pour l'exiger :
+    // SIGNUP_EMAIL_PROOF_REQUIRED=on (+ SIGNUP_EMAIL_PROOF_MIN_BUILD pour les apps), cf. utils/emailProof1711.
+    const emailProof1711 = require('../utils/emailProof1711');
+    const proofIn = req.body.emailProof || user.emailProof;
+    const proofOk = emailProof1711.verifyEmailProof(proofIn, email);
+    if (proofIn && !proofOk) {
+      return res.status(400).json({ code: 'EMAIL_PROOF_INVALID', error: 'Email proof is invalid or expired. Please request a new code.' });
+    }
     const mobile = (user.mobile || '').trim();
     const countryCode = (user.countryCode || '').toString().trim();
     const paypalEmailRaw = user.paypalEmail;
@@ -353,6 +363,23 @@ const signup = async (req, res) => {
       // on (re)génère + renvoie le code de vérif et on répond comme un signup
       // frais (200, SANS token, needsVerification) → web ET app basculent sur la
       // saisie du code (l'app gère déjà "pas de token → écran de vérification").
+      if (existingForRole.verified === false && proofOk) {
+        // 1711 — un compte NON vérifié existait déjà pour cette adresse (ancienne inscription jamais confirmée,
+        // contact de la pub) et la personne vient de PROUVER la boîte : c'est son compte. On le vérifie, on prend
+        // le mot de passe qu'elle vient de choisir (même garantie qu'un « mot de passe oublié ») et on la connecte.
+        existingForRole.password = user.password;
+        existingForRole.verified = true;
+        await existingForRole.save({ validateModifiedOnly: true });
+        await markVerifiedAcrossRoles(email, 'email_first');
+        return res.status(200).json({
+          role,
+          user: sanitizeUser(existingForRole, { includeEmail: true }),
+          token: signAuthToken({ id: existingForRole._id.toString(), role }),
+          emailVerified: true,
+          availableRoles: await findAvailableRolesForAccount(email, existingForRole.oldId),
+          message: 'Account verified.',
+        });
+      }
       if (existingForRole.verified === false) {
         try {
           const verificationCode = generateVerificationCode();
@@ -379,6 +406,12 @@ const signup = async (req, res) => {
         });
       }
       return res.status(409).json({ error: 'User with this email already exists.' });
+    }
+    // 1711 — preuve exigée (interrupteur éteint par défaut) : sans preuve, et sans profil frère déjà vérifié
+    // (« un compte, trois profils » : l'e-mail est alors déjà prouvé), rien n'est créé.
+    if (!proofOk && emailProof1711.proofRequiredFor(req)
+      && ![existingOwner, existingSitter, existingWalker].some((a) => a && a.verified === true)) {
+      return res.status(400).json({ code: 'EMAIL_PROOF_REQUIRED', error: 'Please confirm your email with the code first.' });
     }
     // Compte frère le plus pertinent comme source de copie (sitter/walker
     // d'abord — ils portent l'IBAN — sinon owner).
@@ -802,6 +835,15 @@ const signup = async (req, res) => {
         for (const k of SHARED) {
           const v = _siblingSource[k];
           if (v === undefined || v === null || v === '') continue;
+          // 1711 (NEO) — BUG mesuré par test : un profil frère SANS coordonnées GPS porte quand même un
+          // `location: { type: 'Point' }` (valeur par défaut du schéma). Le copier faisait échouer TOUT l'héritage
+          // (« Can't extract geo keys ») : ni nom, ni téléphone, ni e-mail déjà vérifié, ni forfaits sur le 2e profil.
+          if (k === 'location') {
+            const c = v && v.coordinates;
+            const okGeo = Array.isArray(c) && c.length === 2 && Number.isFinite(Number(c[0])) && Number.isFinite(Number(c[1]))
+              && !(Number(c[0]) === 0 && Number(c[1]) === 0);
+            if (!okGeo) continue;
+          }
           // 'verified' et 'isStaff' restent hérités inconditionnellement :
           // ce sont des statuts de compte, pas des saisies du wizard.
           if (k !== 'verified' && k !== 'isStaff' && isFilled(newUser[k])) continue;
@@ -840,6 +882,11 @@ const signup = async (req, res) => {
     // v565 — e-mail déjà vérifié sur un profil frère (hérité ci-dessus) : pas
     // de nouveau code, pas d'e-mail, et la réponse dit emailVerified:true
     // (AVANT : e-mail envoyé + emailVerified:false → écran de code inutile).
+    // 1711 — preuve « e-mail d'abord » : le compte naît vérifié (3 profils de la personne + date de la preuve).
+    if (proofOk) {
+      await markVerifiedAcrossRoles(email, 'email_first');
+      newUser.verified = true;
+    }
     const alreadyVerified = newUser.verified === true;
     if (!alreadyVerified) {
       const verificationCode = generateVerificationCode();

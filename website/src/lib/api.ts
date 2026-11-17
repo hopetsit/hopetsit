@@ -227,12 +227,15 @@ export type SiteLeadInput = {
   timeFrom?: string; timeTo?: string; noCar?: boolean; budget?: number;
   /** 639 (CONTRATS §1 et §3) — « Je fournis la nourriture » (absent = non précisé) et race facultative (≤ 60 car.). */
   foodProvided?: boolean; breed?: string;
+  /** 1711 (NEO, ordre de Daniel « e-mail d'abord ») — preuve que le bon code a été tapé pour cet e-mail AVANT l'envoi :
+   *  le serveur crée alors le compte déjà vérifié et PUBLIE la demande tout de suite (réponse 200 avec la session). */
+  emailProof?: string;
 };
 export async function publishSiteLead(input: SiteLeadInput) {
   // 31/10 16 h 40 (ZOE) — le serveur ne renvoie un jeton QUE pour un compte créé par cet appel ; un compte
   // déjà existant (ou un contact déjà publié) répond { session: "email" } : la session s'ouvre par le lien
   // de l'e-mail ou par la connexion normale, jamais sur la seule saisie d'une adresse e-mail.
-  const data = await request<{ id: string; postId: string | null; token?: string; user?: AuthUser; notified?: number; existing: boolean; session?: "email"; pending?: boolean }>(
+  const data = await request<{ id: string; postId: string | null; token?: string; user?: AuthUser; notified?: number; existing: boolean; session?: "email"; pending?: boolean; published?: boolean; link?: string; smsConsent?: boolean; accountCreated?: boolean }>(
     "/ad-leads/site",
     { method: "POST", body: JSON.stringify(input) },
   );
@@ -269,6 +272,24 @@ export async function confirmAdLead(id: string, lieu?: "at_owner" | "at_sitter")
   return data;
 }
 
+// 1711 (NEO, ordre de Daniel) — INSCRIPTION « E-MAIL D'ABORD » : aucun compte tant que le code n'est pas bon.
+//   emailFirstSend1711  → { suggestion } (domaine mal tapé, rien envoyé) | { exists } (compte vérifié existant, rien
+//                         envoyé sauf allowExisting) | { ok, retryAfter } (code à 6 chiffres envoyé) ;
+//   emailFirstCheck1711 → { emailProof } (60 min) à donner à signup() ou à publishSiteLead().
+// `missing: true` = le serveur ne connaît pas encore la route (déploiement en cours) : l'appelant garde l'ancien parcours.
+export type EmailFirstSend1711 = { ok?: boolean; sent?: boolean; retryAfter?: number; suggestion?: string; exists?: boolean; missing?: boolean };
+export async function emailFirstSend1711(email: string, lang: string, allowExisting = false): Promise<EmailFirstSend1711> {
+  try {
+    return await request<EmailFirstSend1711>("/auth/email-first/send", { method: "POST", body: JSON.stringify({ email, lang, ...(allowExisting ? { allowExisting: true } : {}) }) });
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return { missing: true };
+    throw e;
+  }
+}
+export async function emailFirstCheck1711(email: string, code: string) {
+  return request<{ emailProof: string }>("/auth/email-first/check", { method: "POST", body: JSON.stringify({ email, code }) });
+}
+
 export async function signup(input: {
   name: string;
   email: string;
@@ -284,12 +305,15 @@ export async function signup(input: {
   country?: string;
   // 23/10 (BOB, ordre de Daniel) — code postal : le serveur place le compte là, pas au centre de la ville.
   postalCode?: string;
+  // 1711 (NEO) — preuve « e-mail d'abord » : le compte est créé directement vérifié, session ouverte.
+  emailProof?: string;
 }): Promise<{ needsVerification: boolean; email: string; token?: string; user?: AuthUser; emailVerified?: boolean }> {
   // The /auth/signup contract requires `{ role, user: {...} }` (and accepts
   // optional fields like mobile, countryCode, currency that we don't collect
   // from the website — the mobile app fills those later in the onboarding).
   const body = {
     role: input.role,
+    ...(input.emailProof ? { emailProof: input.emailProof } : {}),
     user: {
       name: input.name,
       email: input.email,

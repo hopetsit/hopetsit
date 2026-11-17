@@ -24,6 +24,8 @@ export const DEMANDE_0811: Record<Lang, D> = {
     resent: "Nouveau code envoyé. Regarde ta boîte mail.",
     already_sent: "Un code t'a déjà été envoyé il y a moins d'une minute : regarde ta boîte mail.",
     spam: "Pas d'e-mail ? Regarde les indésirables. Tu peux aussi appuyer sur le bouton de l'e-mail : ça publie pareil.",
+    // 1711 (NEO) — parcours « e-mail d'abord » : l'e-mail ne porte que le code (pas de bouton), rien n'est créé avant.
+    spam_first: "Pas d'e-mail ? Regarde les indésirables, ou reviens en arrière pour vérifier ton adresse.", many_first: "Trop d'essais. Réessaie dans une heure.", many_sends: "Trop de codes demandés aujourd'hui pour cette adresse. Réessaie demain.",
     wrong: "Code incorrect. Il te reste {n} essais.",
     expired: "Ce code n'est plus valable : demande-en un nouveau.",
     many: "Trop d'essais. Réessaie dans une heure, ou appuie sur le bouton de l'e-mail que tu as reçu.",
@@ -60,6 +62,8 @@ export const DEMANDE_0811: Record<Lang, D> = {
     resent: "New code sent. Check your inbox.",
     already_sent: "A code was already sent to you less than a minute ago: check your inbox.",
     spam: "No email? Check your spam folder. You can also press the button in the email: it posts your request too.",
+    // 1711 (NEO) — parcours « e-mail d'abord » : l'e-mail ne porte que le code (pas de bouton), rien n'est créé avant.
+    spam_first: "No email? Check your spam folder, or go back to check your address.", many_first: "Too many tries. Try again in an hour.", many_sends: "Too many codes requested today for this address. Try again tomorrow.",
     wrong: "Wrong code. {n} tries left.",
     expired: "This code is no longer valid: ask for a new one.",
     many: "Too many tries. Try again in an hour, or press the button in the email you received.",
@@ -96,6 +100,8 @@ export const DEMANDE_0811: Record<Lang, D> = {
     resent: "Nuevo código enviado. Mira tu correo.",
     already_sent: "Ya te enviamos un código hace menos de un minuto: mira tu correo.",
     spam: "¿Sin e-mail? Mira la carpeta de spam. También puedes pulsar el botón del e-mail: publica igual.",
+    // 1711 (NEO) — parcours « e-mail d'abord » : l'e-mail ne porte que le code (pas de bouton), rien n'est créé avant.
+    spam_first: "¿Sin e-mail? Mira la carpeta de spam o vuelve atrás para revisar tu dirección.", many_first: "Demasiados intentos. Vuelve a probar en una hora.", many_sends: "Demasiados códigos pedidos hoy para esta dirección. Vuelve a probar mañana.",
     wrong: "Código incorrecto. Te quedan {n} intentos.",
     expired: "Este código ya no es válido: pide uno nuevo.",
     many: "Demasiados intentos. Vuelve a probar en una hora o pulsa el botón del e-mail recibido.",
@@ -124,6 +130,8 @@ export const DEMANDE_0811: Record<Lang, D> = {
     resent: "Neuer Code gesendet. Schau in dein Postfach.",
     already_sent: "Vor weniger als einer Minute wurde dir schon ein Code gesendet: schau in dein Postfach.",
     spam: "Keine E-Mail? Schau im Spam-Ordner nach. Du kannst auch auf den Button in der E-Mail tippen: das veröffentlicht genauso.",
+    // 1711 (NEO) — parcours « e-mail d'abord » : l'e-mail ne porte que le code (pas de bouton), rien n'est créé avant.
+    spam_first: "Keine E-Mail? Schau im Spam-Ordner nach oder geh zurück und prüfe deine Adresse.", many_first: "Zu viele Versuche. Versuche es in einer Stunde erneut.", many_sends: "Heute wurden zu viele Codes für diese Adresse angefordert. Versuche es morgen erneut.",
     wrong: "Falscher Code. Noch {n} Versuche.",
     expired: "Dieser Code ist nicht mehr gültig: fordere einen neuen an.",
     many: "Zu viele Versuche. Versuche es in einer Stunde erneut oder tippe auf den Button in der E-Mail.",
@@ -152,6 +160,8 @@ export const DEMANDE_0811: Record<Lang, D> = {
     resent: "Nuovo codice inviato. Controlla la posta.",
     already_sent: "Ti abbiamo già inviato un codice meno di un minuto fa: controlla la posta.",
     spam: "Nessuna e-mail? Guarda nello spam. Puoi anche premere il pulsante dell'e-mail: pubblica lo stesso.",
+    // 1711 (NEO) — parcours « e-mail d'abord » : l'e-mail ne porte que le code (pas de bouton), rien n'est créé avant.
+    spam_first: "Nessuna e-mail? Guarda nello spam, oppure torna indietro per controllare l'indirizzo.", many_first: "Troppi tentativi. Riprova tra un'ora.", many_sends: "Troppi codici richiesti oggi per questo indirizzo. Riprova domani.",
     wrong: "Codice errato. Ti restano {n} tentativi.",
     expired: "Questo codice non è più valido: richiedine uno nuovo.",
     many: "Troppi tentativi. Riprova tra un'ora, oppure premi il pulsante dell'e-mail ricevuta.",
@@ -180,6 +190,8 @@ export const DEMANDE_0811: Record<Lang, D> = {
     resent: "Novo código enviado. Vê a tua caixa de correio.",
     already_sent: "Já te enviámos um código há menos de um minuto: vê a tua caixa de correio.",
     spam: "Sem e-mail? Vê a pasta de spam. Também podes carregar no botão do e-mail: publica da mesma forma.",
+    // 1711 (NEO) — parcours « e-mail d'abord » : l'e-mail ne porte que le code (pas de bouton), rien n'est créé avant.
+    spam_first: "Sem e-mail? Vê a pasta de spam ou volta atrás para verificar o teu endereço.", many_first: "Demasiadas tentativas. Tenta de novo daqui a uma hora.", many_sends: "Demasiados códigos pedidos hoje para este endereço. Tenta de novo amanhã.",
     wrong: "Código errado. Restam-te {n} tentativas.",
     expired: "Este código já não é válido: pede um novo.",
     many: "Demasiadas tentativas. Tenta de novo daqui a uma hora, ou carrega no botão do e-mail recebido.",
@@ -208,6 +220,8 @@ export const DEMANDE_0811: Record<Lang, D> = {
     resent: "새 코드를 보냈어요. 메일함을 확인해 주세요.",
     already_sent: "1분 이내에 이미 코드를 보냈어요. 메일함을 확인해 주세요.",
     spam: "메일이 없나요? 스팸함을 확인해 주세요. 메일의 버튼을 눌러도 똑같이 게시돼요.",
+    // 1711 (NEO) — parcours « e-mail d'abord » : l'e-mail ne porte que le code (pas de bouton), rien n'est créé avant.
+    spam_first: "메일이 없나요? 스팸함을 확인하거나, 뒤로 돌아가 주소를 확인해 주세요.", many_first: "시도 횟수가 너무 많아요. 1시간 후 다시 시도해 주세요.", many_sends: "오늘 이 주소로 요청한 코드가 너무 많아요. 내일 다시 시도해 주세요.",
     wrong: "코드가 틀렸어요. {n}번 더 시도할 수 있어요.",
     expired: "이 코드는 더 이상 유효하지 않아요. 새 코드를 요청해 주세요.",
     many: "시도 횟수가 너무 많아요. 1시간 후 다시 시도하거나 받은 메일의 버튼을 눌러 주세요.",
@@ -236,6 +250,8 @@ export const DEMANDE_0811: Record<Lang, D> = {
     resent: "新しいコードを送りました。受信箱を確認してください。",
     already_sent: "1分以内にコードを送信済みです。受信箱を確認してください。",
     spam: "メールが届かない？迷惑メールを確認してください。メールのボタンを押しても同じように公開されます。",
+    // 1711 (NEO) — parcours « e-mail d'abord » : l'e-mail ne porte que le code (pas de bouton), rien n'est créé avant.
+    spam_first: "メールが届かない？迷惑メールを確認するか、戻ってアドレスを確認してください。", many_first: "試行回数が多すぎます。1時間後にやり直してください。", many_sends: "本日このアドレスへのコード送信が多すぎます。明日やり直してください。",
     wrong: "コードが違います。あと{n}回試せます。",
     expired: "このコードは無効です。新しいコードを請求してください。",
     many: "試行回数が多すぎます。1時間後にやり直すか、届いたメールのボタンを押してください。",
@@ -264,6 +280,8 @@ export const DEMANDE_0811: Record<Lang, D> = {
     resent: "Nowy kod wysłany. Sprawdź skrzynkę.",
     already_sent: "Kod został już wysłany mniej niż minutę temu: sprawdź skrzynkę.",
     spam: "Brak e-maila? Sprawdź spam. Możesz też kliknąć przycisk w e-mailu: to też publikuje ogłoszenie.",
+    // 1711 (NEO) — parcours « e-mail d'abord » : l'e-mail ne porte que le code (pas de bouton), rien n'est créé avant.
+    spam_first: "Brak e-maila? Sprawdź spam albo wróć i sprawdź adres.", many_first: "Zbyt wiele prób. Spróbuj za godzinę.", many_sends: "Zbyt wiele kodów dla tego adresu dzisiaj. Spróbuj jutro.",
     wrong: "Zły kod. Pozostało prób: {n}.",
     expired: "Ten kod już nie działa: poproś o nowy.",
     many: "Zbyt wiele prób. Spróbuj za godzinę albo kliknij przycisk w otrzymanym e-mailu.",

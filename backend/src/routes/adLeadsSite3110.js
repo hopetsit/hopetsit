@@ -135,6 +135,11 @@ router.post('/site', async (req, res) => {
     // 31/10 (BOB, point 1) — e-mail CANONIQUE : alias « +xxx » retiré (a+1@ = a+2@ = a@) pour le limiteur et le
     // dédoublonnage ; le +test reste refusé au-dessus. Le compte, lui, garde l'adresse telle quelle.
     const canonical = canonicalEmail(email);
+    // 1711 (NEO, ordre de Daniel « e-mail d'abord ») — `emailProof` (POST /auth/email-first/check) : la personne a DÉJÀ
+    // tapé le bon code pour cette adresse, avant tout envoi du formulaire. Rien n'a été créé jusqu'ici ; avec la preuve,
+    // le compte naît vérifié et la demande est PUBLIÉE tout de suite (plus bas). Preuve fausse ou expirée → 400.
+    const proofOk = require('../utils/emailProof1711').verifyEmailProof(b.emailProof, email);
+    if (b.emailProof && !proofOk) return res.status(400).json({ error: 'EMAIL_PROOF_INVALID', code: 'EMAIL_PROOF_INVALID' });
     const service = AdLead.SERVICES.includes(b.service) ? b.service : '';
     if (!service) return res.status(400).json({ error: 'SERVICE_REQUIRED', code: 'SERVICE_REQUIRED' });
     const country = String(b.country || 'FR').trim().toUpperCase().slice(0, 2);
@@ -182,12 +187,20 @@ router.post('/site', async (req, res) => {
       // 31/10 16 h 40 (ZOE) — JAMAIS de jeton de session pour un compte qui existe déjà : la seule
       // donnée fournie ici est une adresse e-mail (connue de tous), elle ne prouve rien. La session ne
       // s'ouvre que par le lien reçu dans la boîte (/posts/confirmer?l=…) ou par la connexion normale.
+      // 1711 — boîte PROUVÉE par le code : la session peut s'ouvrir ici (même réponse que POST /code/check).
+      if (owner && proofOk) {
+        const out = await require('./demandeCode0811').publishProven(prev, req, lieu, 'email_first');
+        if (out.status === 200) return res.status(200).json({ id: prev._id, existing: true, ...out.body });
+      }
       if (owner) return res.status(200).json({ id: prev._id, postId: String(prev.postId), existing: true, session: 'email' });
     }
 
     // 3110 (ADA, ordre de Daniel) — un brouillon encore en attente de confirmation pour la même boîte (< 24 h) :
     // même brouillon, pas de 2e compte, pas de 2e e-mail (le rappel +24 h s'en charge).
-    const pendingDraft = await AdLead.findOne({ ...sameBox, pendingConfirm: true, postId: null, createdAt: { $gte: new Date(Date.now() - 24 * 3600 * 1000) } }).sort({ createdAt: -1 }).lean();
+    // 1711 — avec la preuve : les anciens brouillons de cette boîte sont clos (plus de rappel), c'est la demande
+    // que la personne vient de remplir qui est publiée.
+    if (proofOk) await AdLead.updateMany({ ...sameBox, pendingConfirm: true, postId: null }, { $set: { pendingConfirm: false } });
+    const pendingDraft = proofOk ? null : await AdLead.findOne({ ...sameBox, pendingConfirm: true, postId: null, createdAt: { $gte: new Date(Date.now() - 24 * 3600 * 1000) } }).sort({ createdAt: -1 }).lean();
     if (pendingDraft) return res.status(202).json({ id: pendingDraft._id, pending: true, existing: true, session: 'email' });
 
     // Position (demande de Daniel, 31/10 : « sélectionnée par carte pour être précis ») :
@@ -218,6 +231,31 @@ router.post('/site', async (req, res) => {
     // BROUILLON (contact enregistré, rien publié, aucun gardien prévenu) et un e-mail « confirme ta demande » part
     // vers la boîte : le clic (/posts/confirmer?l=…, route /ad-leads/:id/confirm) publie ET ouvre la session.
     const existingOwner = await Owner.findOne({ email }).select('_id name').lean();
+    if (proofOk) {
+      // 1711 — « E-MAIL D'ABORD » : boîte déjà prouvée → contact créé, compte propriétaire créé (ou repris) et
+      // marqué vérifié, demande publiée et gardiens prévenus dans la même requête. Même réponse que /code/check.
+      const lead = await AdLead.create({
+        metaLeadId: `site:${crypto.randomBytes(12).toString('hex')}`,
+        source: 'site', campaign, page: String(b.page || '').trim().slice(0, 120), postalCode,
+        positionSource: picked ? 'map' : geo ? 'postal' : cityIn ? 'city' : 'anchor',
+        ...extras1011,
+        email, firstName: String(b.firstName || '').trim().slice(0, 60) || String((existingOwner && existingOwner.name) || '').split(' ')[0] || '',
+        city: place.city, ...(Number.isFinite(place.lat) && Number.isFinite(place.lng) ? { lat: place.lat, lng: place.lng } : {}),
+        country, lang, service, animal: AdLead.ANIMALS.includes(b.animal) ? b.animal : 'autre', quand: 'plus_tard',
+        startText: textDate(b.startDate, lang), endText: textDate(b.endDate || b.startDate, lang),
+        ...([1, 2].includes(Number(b.visitsPerDay)) ? { visitsPerDay: Number(b.visitsPerDay) } : {}),
+        ...(() => { const tp = b.targetProvider && typeof b.targetProvider === 'object' ? b.targetProvider : null; const role = tp && String(tp.role || '').toLowerCase(); const id = tp && String(tp.id || ''); return role && ['sitter', 'walker'].includes(role) && /^[a-f0-9]{24}$/i.test(id) ? { targetRole: role, targetId: id } : {}; })(),
+      });
+      const out = await require('./demandeCode0811').publishProven(lead, req, lieu, 'email_first');
+      if (out.status !== 200) {
+        // createPost a refusé : pas de contact fantôme, et le compte éventuellement créé n'est jamais laissé
+        // « non vérifié » (la boîte EST prouvée).
+        await AdLead.deleteOne({ _id: lead._id });
+        try { await require('../controllers/authController').markVerifiedAcrossRoles(email, 'email_first'); } catch (_) { /* jamais bloquant */ }
+        return res.status(out.status).json(out.body);
+      }
+      return res.status(200).json({ id: lead._id, existing: false, pending: false, accountCreated: !existingOwner, ...out.body });
+    }
     if (existingOwner) {
       const draft = await AdLead.create({
         metaLeadId: `site:${crypto.randomBytes(12).toString('hex')}`,

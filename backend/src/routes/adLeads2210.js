@@ -372,15 +372,24 @@ async function sendConfirmEmail(lead, variant = 'new') {
  */
 async function draftLead(lead, { variant = 'new' } = {}) {
   if (lead.postId) return { alreadyPublished: true, postId: String(lead.postId), ownerId: lead.ownerId ? String(lead.ownerId) : null, pending: false, emailSent: false };
-  const owner = await ensureLeadOwner(lead);
-  lead.ownerId = owner._id;
+  // 1711 (NEO, ordre de Daniel « que de vrais inscrits ») — INTERRUPTEUR AD_LEAD_ACCOUNT_AT_CLICK_1711=on (ÉTEINT par
+  // défaut) : le contact de la pub reste une simple ligne de contact, AUCUN compte propriétaire n'est créé ici. Le
+  // compte naît au clic « publier ma demande » de l'e-mail (publishLead → ensureLeadOwner, puis vérifié par
+  // /:id/confirm). E-mail « confirme », rappel +3 h (adLeadConfirmReminder3110) et SMS : inchangés, ils ne lisent
+  // que le contact. Un compte qui existe DÉJÀ pour cette adresse est seulement rattaché (comme avant).
+  const accountAtClick = String(process.env.AD_LEAD_ACCOUNT_AT_CLICK_1711 || '').toLowerCase() === 'on';
+  const owner = accountAtClick ? await Owner.findOne({ email: lead.email }) : await ensureLeadOwner(lead);
+  if (owner) {
+    lead.ownerId = owner._id;
+    if (accountAtClick && !owner.adLeadAt) await Owner.updateOne({ _id: owner._id }, { $set: { adLeadAt: new Date() } });
+  }
   lead.pendingConfirm = true;
   await lead.save();
   let emailSent = false;
   if (!lead.confirmEmailAt) {
     try { emailSent = await sendConfirmEmail(lead, variant); } catch (e) { logger.warn(`[adLeads2210] e-mail « confirme » non envoyé : ${e && e.message}`); }
   }
-  return { alreadyPublished: false, postId: null, ownerId: String(owner._id), pending: true, emailSent, verified: owner.verified === true };
+  return { alreadyPublished: false, postId: null, ownerId: owner ? String(owner._id) : null, pending: true, emailSent, verified: !!owner && owner.verified === true };
 }
 
 /**

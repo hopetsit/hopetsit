@@ -5,6 +5,7 @@ import Link from "@/components/SiteLink";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { EstimateLine620 } from "@/components/DateMode620";
 import { ApiError, publishSiteLead } from "@/lib/api";
+import { ef } from "@/lib/i18n/emailFirst1711";
 import { PlaceMapConfirm3110, PlacePicker3110, type PlacePick } from "@/components/PlacePicker3110";
 // 06/11/2026 (NEO, ordre de Daniel « dates obligatoires ») — plus de « laisse vide » : dates de début et de fin
 // obligatoires (balade : la date), même refus côté serveur (400 DATES_REQUIRED). Mesure de FLO (14 j) : 19 demandes
@@ -122,9 +123,16 @@ const TXT = {
 };
 
 /** 0811 — ce que la page /demande reçoit quand la demande est enregistrée (avant le code). */
-export type HeroLeadResult0811 = { id: string; email: string; pending: boolean; existing: boolean; postId: string | null; codeSent: boolean; sessionOpened: boolean; notified?: number };
+export type HeroLeadResult0811 = {
+  id: string; email: string; pending: boolean; existing: boolean; postId: string | null; codeSent: boolean; sessionOpened: boolean; notified?: number;
+  /** 1711 — envoi fait AVEC la preuve « e-mail d'abord » : la demande est déjà publiée, la session ouverte. */
+  proven?: boolean; published?: boolean; link?: string; smsConsent?: boolean; accountCreated?: boolean;
+};
+/** 1711 (NEO) — refus de la page parente pendant la demande de preuve : annulation (retour au formulaire), faute de
+ *  frappe du domaine à proposer, ou code d'erreur du serveur (TEST_ACCOUNT, TOO_MANY, EMAIL_INVALID…). */
+export type ProofRefusal1711 = { cancelled?: boolean; suggestion?: string; code?: string };
 
-export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", campaign = "paris_owners", page = "/garde-animaux/paris", cityEditable = false, codeFlow = false, steps = false, onLead, ui, uiLang, polish = false }: {
+export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", campaign = "paris_owners", page = "/garde-animaux/paris", cityEditable = false, codeFlow = false, steps = false, onLead, requestProof, onProofFail, ui, uiLang, polish = false }: {
   city: string; lead: string; note: string; lang?: Lang; country?: string; campaign?: string; page?: string;
   /** 1011 (LEO) — accueil dans les 7 langues hors fr/en : libellés fournis par la page (`heroUi1011`). `lang`
    *  reste "fr" | "en" et part tel quel au serveur (qui n'écrit ses e-mails qu'en fr ou en) ; `uiLang` est la
@@ -145,6 +153,12 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
    *  formulaire, 3 arrivent aux dates, 0 envoie. Mêmes champs, mêmes règles, même envoi. Défaut : 1 seul écran. */
   steps?: boolean;
   onLead?: (r: HeroLeadResult0811) => void;
+  /** 1711 (NEO, ordre de Daniel « e-mail d'abord ») — AVANT d'envoyer quoi que ce soit au serveur, la page parente
+   *  fait taper le code reçu par e-mail et rend la preuve (chaîne) ; "" = le serveur ne connaît pas encore la route
+   *  → envoi d'avant (`codeFlow`). Rejette avec un `ProofRefusal1711`. Le formulaire reste monté (champs gardés). */
+  requestProof?: (email: string) => Promise<string>;
+  /** 1711 — l'envoi AVEC preuve a été refusé (dates, code postal…) : la page parente réaffiche le formulaire. */
+  onProofFail?: (code: string) => void;
 }) {
   const L: UiLang = uiLang || lang;
   const t: (typeof TXT)["fr"] = ui ? { ...TXT[lang], ...ui.t } : TXT[lang];
@@ -226,6 +240,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState(""); // champ piège : jamais affiché
   const [err, setErr] = useState("");
+  const [suggest1711, setSuggest1711] = useState(""); // 1711 — « Tu voulais dire …@gmail.com ? »
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState(false);
   const [touched, setTouched] = useState(false);
@@ -254,7 +269,8 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
     if (steps) { setStep(2); once1011("hero_etape2_vue"); }
   }
 
-  async function submit() {
+  async function submit(emailOverride?: string) {
+    const em = (typeof emailOverride === "string" ? emailOverride : email).trim(); // 1711 — adresse corrigée par la suggestion
     setErr("");
     if (!service) { trackSiteEvent("cta_click", { label: "hero_form_sans_service" }); if (steps) setStep(1); return setErr(t.need_service); }
     // 0611 (NEO) — dates OBLIGATOIRES : balade = la date ; sinon début et fin, début ≤ fin.
@@ -266,9 +282,23 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
       try { postalRef.current?.focus(); } catch { /* champ absent */ }
       return setErr(t.need_place);
     }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { trackSiteEvent("cta_click", { label: "hero_form_sans_email" }); return setErr(t.need_email); }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { trackSiteEvent("cta_click", { label: "hero_form_sans_email" }); return setErr(t.need_email); }
     trackSiteEvent("cta_click", { label: "signup_web_hero" });
+    setSuggest1711("");
     setBusy(true);
+    // 1711 — « e-mail d'abord » : la preuve (code tapé) est obtenue AVANT tout envoi ; rien n'est créé d'ici là.
+    let emailProof = "";
+    if (requestProof) {
+      try {
+        emailProof = await requestProof(em.toLowerCase());
+      } catch (e) {
+        const r = (e && typeof e === "object" ? e : {}) as ProofRefusal1711;
+        setBusy(false);
+        if (r.cancelled) return;
+        if (r.suggestion) { setSuggest1711(r.suggestion); return; }
+        return setErr(r.code === "TEST_ACCOUNT" ? t.err_test : r.code === "TOO_MANY" ? t.err_many : r.code === "EMAIL_INVALID" ? t.need_email : t.err);
+      }
+    }
     // 1011 — précisions : envoyées seulement si elles sont remplies (un serveur d'avant 1011 ignore ces champs).
     const budgetNum = Number(budget.replace(",", "."));
     const extra1011 = {
@@ -281,23 +311,25 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
     };
     try {
       const r = await publishSiteLead({
-        email: email.trim(), firstName: firstName.trim(), service, animal, postalCode: postalCode.trim(), city: (place ? place.city : cityValue.trim()) || city,
+        email: em, firstName: firstName.trim(), service, animal, postalCode: postalCode.trim(), city: (place ? place.city : cityValue.trim()) || city,
         country: (place && place.countryCode) || country, lang,
         ...(place ? { lat: place.lat, lng: place.lng } : {}),
         startDate, endDate: isWalk ? startDate : endDate, campaign, page, website,
         ...(target ? { targetProvider: target } : {}),
-        ...(codeFlow ? { codeFlow: true } : {}),
+        ...(emailProof ? { emailProof } : codeFlow ? { codeFlow: true } : {}),
         ...extra1011,
       });
       trackSiteEvent("cta_click", { label: r.pending ? "hero_form_a_confirmer" : r.existing ? "hero_form_deja" : "hero_form_envoye" });
       if (onLead) {
         // 0811 — la page /demande affiche le champ « code reçu par e-mail » à la place des écrans ci-dessous.
-        onLead({ id: r.id, email: email.trim(), pending: !!r.pending, existing: r.existing, postId: r.postId ?? null, codeSent: (r as { code?: boolean }).code === true, sessionOpened: r.sessionOpened, notified: r.notified });
+        onLead({ id: r.id, email: em, pending: !!r.pending, existing: r.existing, postId: r.postId ?? null, codeSent: (r as { code?: boolean }).code === true, sessionOpened: r.sessionOpened, notified: r.notified,
+          ...(emailProof && r.sessionOpened ? { proven: true, published: r.published === true, link: r.link, smsConsent: r.smsConsent === true, accountCreated: r.accountCreated === true } : {}) });
         return;
       }
       setDone({ notified: r.notified, existing: r.existing, sessionOpened: r.sessionOpened, pending: !!r.pending });
     } catch (e) {
       const code = e instanceof ApiError && e.details && typeof e.details === "object" ? String((e.details as { code?: string }).code || "") : "";
+      if (emailProof && onProofFail) onProofFail(code); // 1711 — la page parente réaffiche le formulaire (la preuve reste valable 60 min)
       trackSiteEvent("cta_click", { label: `hero_form_refus_${(code || (e instanceof ApiError ? e.status : "x")).toString().toLowerCase()}` });
       if (code === "POSTAL_REQUIRED") { try { postalRef.current?.focus(); } catch { /* champ absent */ } }
       if (steps && (code === "DATES_REQUIRED" || code === "DATES_INVALID")) setStep(2); // (ZOE) le refus s'affiche là où sont les dates
@@ -473,7 +505,7 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
           <input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" maxLength={60} className={field} data-testid="hero-first" />
         </label>
         <label className="block text-xs font-semibold text-ink">{t.email}
-          <input type="email" value={email} onChange={(e) => { once1011("hero_form_email"); setEmail(e.target.value); }} autoComplete="email" inputMode="email" maxLength={120} className={field} data-testid="hero-email"
+          <input type="email" value={email} onChange={(e) => { once1011("hero_form_email"); setSuggest1711(""); setEmail(e.target.value); }} autoComplete="email" inputMode="email" maxLength={120} className={field} data-testid="hero-email"
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void submit(); } }} />
         </label>
       </div>
@@ -540,6 +572,16 @@ export function ParisHeroForm({ city, lead, note, lang = "fr", country = "FR", c
       </div>
 
       {err && err !== t.need_place && <p className="mt-2 text-center text-sm font-semibold text-owner-dark" role="alert">{err}</p>}
+      {/* 1711 — faute de frappe du domaine (gmail.con…) : rien n'a été envoyé, un appui corrige l'adresse. */}
+      {suggest1711 && (
+        <div className="mt-2 rounded-xl border border-owner bg-owner-light p-3 text-center" role="alert" data-testid="hero-suggestion-1711">
+          <p className="break-words text-sm font-semibold text-owner-dark">{ef(L, "suggest_tu", { email: suggest1711 })}</p>
+          <button type="button" onClick={() => { const fixed = suggest1711; setEmail(fixed); setSuggest1711(""); setErr(""); void submit(fixed); }}
+            className="mt-2 min-h-[40px] rounded-full bg-owner px-5 py-2 text-sm font-extrabold text-white" data-testid="hero-suggestion-use-1711">
+            {ef(L, "suggest_use")}
+          </button>
+        </div>
+      )}
 
       {steps && step === 2 && (
         <button type="button" onClick={nextFromDates} data-testid="hero-step-next"

@@ -139,6 +139,48 @@ async function startCodeFlow(lead) {
   return { ownerId: String(owner._id), emailSent };
 }
 
+/**
+ * La boîte est PROUVÉE (code tapé sur la page — `lead_code` — ou preuve « e-mail d'abord » — `email_first`) :
+ * demande publiée par le même chemin que le clic de l'e-mail (publishLead → createPost → gardiens prévenus,
+ * idempotent), e-mail vérifié sur les 3 profils, session ouverte + lien « voir mes candidats » signé.
+ * Renvoie { status, body } ; status ≠ 200 = createPost a refusé (rien n'est alors marqué vérifié).
+ * 1711 (NEO) — extrait de POST /check pour servir aussi à POST /ad-leads/site { emailProof }.
+ */
+async function publishProven(lead, req, lieu, proofSource) {
+  const email = String(lead.email).toLowerCase();
+  const { publishLead } = require('./adLeads2210');
+  const hadPost = !!lead.postId;
+  const r = await publishLead(lead, lieu);
+  if (r.status !== 200) return { status: r.status, body: r.body };
+  const { markVerifiedAcrossRoles, signAuthToken } = require('../controllers/authController');
+  await markVerifiedAcrossRoles(email, proofSource);
+  if (!lead.clickedAt) await AdLead.updateOne({ _id: lead._id, clickedAt: null }, { $set: { clickedAt: new Date() } });
+  if (!hadPost && r.postId) { try { void require('../services/metaCapi0611').leadPublished(lead, req); } catch (_) { /* jamais bloquant */ } }
+
+  // Lien « voir mes candidats » : le même que dans nos e-mails (signé par leadOwnerEmailLink ; pour un contact de
+  // la pub : /posts/confirmer?l=…&next=/posts, qui ouvre la session sans mot de passe).
+  let link = '';
+  try {
+    const { leadOwnerEmailLink } = require('../services/notificationSender');
+    const { BASE_URL } = require('../utils/emailLinkBuilder');
+    link = await leadOwnerEmailLink('owner', String(r.owner._id), `${BASE_URL}/posts`, BASE_URL);
+  } catch (_) { link = ''; }
+  logger.info({ leadId: String(lead._id), published: !hadPost && !!r.postId, proof: proofSource }, '[demandeCode0811] boîte prouvée');
+  return {
+    status: 200,
+    body: {
+      token: signAuthToken({ id: r.owner._id.toString(), role: 'owner' }),
+      user: { id: r.owner._id.toString(), name: r.owner.name, email: r.owner.email, role: 'owner' },
+      postId: r.postId,
+      published: !hadPost && !!r.postId,
+      ...(r.notified === undefined || r.notified === null ? {} : { notified: r.notified }),
+      ...(link ? { link } : {}),
+      // 1011 (BOB) — le site ne montre le bloc « recevoir un SMS » que si le serveur le propose (coupe-circuit).
+      ...(require('./demandeSms1011').offeredFor(lead) ? { smsConsent: true } : {}),
+    },
+  };
+}
+
 router.post('/send', async (req, res) => {
   try {
     const id = String((req.body && req.body.id) || '');
@@ -201,36 +243,10 @@ router.post('/check', async (req, res) => {
 
     // Le code tapé PROUVE la boîte (comme le clic du lien) : e-mail vérifié sur les 3 profils, puis publication par le
     // même chemin que le clic de l'e-mail (publishLead → createPost → gardiens prévenus ; idempotent).
-    const { publishLead } = require('./adLeads2210');
-    const hadPost = !!lead.postId;
     // 1011 (BOB) — lieu explicite dans la requête, sinon celui choisi dans le formulaire (gardé sur le contact).
     const lieu = b.lieu === 'at_sitter' || b.lieu === 'at_owner' ? b.lieu : (lead.lieu === 'at_sitter' ? 'at_sitter' : 'at_owner');
-    const r = await publishLead(lead, lieu);
-    if (r.status !== 200) return res.status(r.status).json(r.body);
-    const { markVerifiedAcrossRoles, signAuthToken } = require('../controllers/authController');
-    await markVerifiedAcrossRoles(email, 'lead_code');
-    if (!lead.clickedAt) await AdLead.updateOne({ _id: lead._id, clickedAt: null }, { $set: { clickedAt: new Date() } });
-    if (!hadPost && r.postId) { try { void require('../services/metaCapi0611').leadPublished(lead, req); } catch (_) { /* jamais bloquant */ } }
-
-    // Lien « voir mes candidats » : le même que dans nos e-mails (signé par leadOwnerEmailLink ; pour un contact de
-    // la pub : /posts/confirmer?l=…&next=/posts, qui ouvre la session sans mot de passe).
-    let link = '';
-    try {
-      const { leadOwnerEmailLink } = require('../services/notificationSender');
-      const { BASE_URL } = require('../utils/emailLinkBuilder');
-      link = await leadOwnerEmailLink('owner', String(r.owner._id), `${BASE_URL}/posts`, BASE_URL);
-    } catch (_) { link = ''; }
-    logger.info({ leadId: String(lead._id), published: !hadPost && !!r.postId }, '[demandeCode0811] code OK');
-    return res.json({
-      token: signAuthToken({ id: r.owner._id.toString(), role: 'owner' }),
-      user: { id: r.owner._id.toString(), name: r.owner.name, email: r.owner.email, role: 'owner' },
-      postId: r.postId,
-      published: !hadPost && !!r.postId,
-      ...(r.notified === undefined || r.notified === null ? {} : { notified: r.notified }),
-      ...(link ? { link } : {}),
-      // 1011 (BOB) — le site ne montre le bloc « recevoir un SMS » que si le serveur le propose (coupe-circuit).
-      ...(require('./demandeSms1011').offeredFor(lead) ? { smsConsent: true } : {}),
-    });
+    const out = await publishProven(lead, req, lieu, 'lead_code');
+    return res.status(out.status).json(out.body);
   } catch (e) {
     logger.error('[demandeCode0811] check failed', e);
     return res.status(500).json({ error: 'Unable to check the code.' });
@@ -241,5 +257,6 @@ module.exports = router;
 module.exports.startCodeFlow = startCodeFlow;
 module.exports.sendCodeEmail = sendCodeEmail;
 module.exports.buildCodeMail = buildCodeMail;
+module.exports.publishProven = publishProven; // 1711 — POST /ad-leads/site { emailProof }
 module.exports._resetForTest = resetForTest;
 module.exports._backdateForTest = (id, ms) => { sends.set(String(id), (sends.get(String(id)) || []).map((t) => t - ms)); }; // tests : « le délai de 60 s est passé »

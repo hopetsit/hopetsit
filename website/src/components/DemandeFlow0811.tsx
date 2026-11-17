@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "@/components/SiteLink";
 import StoreBadges from "@/components/StoreBadges";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
-import { ParisHeroForm, type HeroLeadResult0811 } from "@/components/ParisHeroForm";
-import { ApiError, checkDemandeCode0811, saveDemandeSmsConsent1011, sendDemandeCode0811 } from "@/lib/api";
+import { ParisHeroForm, type HeroLeadResult0811, type ProofRefusal1711 } from "@/components/ParisHeroForm";
+import { ApiError, checkDemandeCode0811, emailFirstCheck1711, emailFirstSend1711, saveDemandeSmsConsent1011, sendDemandeCode0811 } from "@/lib/api";
 import { dm } from "@/lib/i18n/demande0811";
 
 // 08/11/2026 (NEO, ordre de Daniel 16 h 45 transmis par BOB) — PAGE DE DEMANDE DE LA PUB META (site, plus le
@@ -20,6 +20,17 @@ import { dm } from "@/lib/i18n/demande0811";
 // Mesure (admin › Trafic du site, repères cta_click) : demande_vue · demande_envoyee · demande_code_ok ·
 // demande_publiee · demande_store_clic (+ demande_code_faux, demande_code_renvoye, demande_code_refus_<code>).
 // Règle de Daniel du 31/10 maintenue : rien n'est publié sans e-mail vérifié. Tous les hooks AVANT tout retour.
+
+// 17/11/2026 (NEO, ordre de Daniel transmis par BOB) — « E-MAIL D'ABORD » : RIEN n'est créé avant le bon code.
+//   Les 3 étapes du formulaire ne changent pas (service → dates → code postal + prénom + e-mail). À l'envoi :
+//   POST /auth/email-first/send (aucun compte, aucun brouillon) → écran du code → POST /auth/email-first/check →
+//   preuve (60 min) → POST /ad-leads/site { emailProof } : compte créé déjà vérifié, demande PUBLIÉE, même écran de fin.
+//   Le formulaire reste monté (caché) pendant le code : « Modifier ma demande » retrouve tous les champs.
+//   Repères gardés (demande_envoyee = formulaire envoyé et code parti, demande_code_ok, demande_publiee…) + nouveaux
+//   signup_email_envoye · signup_code_ok · signup_compte_cree (ce dernier : seulement si le compte vient de naître).
+//   Ce qui disparaît : le brouillon et son rappel +3 h (il n'y a plus de contact avant le code).
+//   Coupe-circuit : EMAIL_FIRST_1711 = false → parcours du 08/11. Serveur pas encore à jour (404) → parcours du 08/11.
+const EMAIL_FIRST_1711 = true;
 
 type Lang = "fr" | "en";
 type CityKey = "paris" | "nyc";
@@ -42,6 +53,7 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
   const [info, setInfo] = useState("");
   const [wait, setWait] = useState(0);
   const [done, setDone] = useState<{ postId: string | null; notified?: number; link: string; published: boolean; sms: boolean } | null>(null);
+  const [leadId, setLeadId] = useState(""); // 1711 — identifiant du contact pour l'accord SMS (les deux parcours)
   // 1011 — accord SMS facultatif (affiché seulement si le serveur renvoie smsConsent: true ; case DÉCOCHÉE par défaut).
   const [smsPhone, setSmsPhone] = useState("");
   const [smsAgree, setSmsAgree] = useState(false);
@@ -51,6 +63,10 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
   const topRef = useRef<HTMLDivElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
   const seen = useRef(false);
+  // 1711 — « e-mail d'abord » : adresse en attente de code, preuve gardée en mémoire (60 min), promesse du formulaire.
+  const [pend, setPend] = useState<{ email: string; publishing: boolean } | null>(null);
+  const proofRef = useRef<{ email: string; proof: string } | null>(null);
+  const waiter = useRef<{ resolve: (proof: string) => void; reject: (r: ProofRefusal1711) => void } | null>(null);
 
   // ?city=paris|nyc (la pub Paris FR et New York EN partagent le composant ; les utm sont lus par SiteAnalytics).
   useEffect(() => {
@@ -69,15 +85,90 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
   }, [wait]);
 
   // Étape « code » ou « fin » : on remonte la carte sous l'en-tête (leçon ZOE 31/10 : carte hors écran à 375 px).
+  const pendEmail = pend ? pend.email : "";
   useEffect(() => {
-    if (!lead && !done) return;
+    if (!lead && !done && !pendEmail) return;
     try { topRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }); } catch { /* vieux navigateur */ }
-    if (lead && !done) setTimeout(() => codeRef.current?.focus(), 350);
-  }, [lead, done]);
+    if ((lead || pendEmail) && !done) setTimeout(() => codeRef.current?.focus(), 350);
+  }, [lead, done, pendEmail]);
 
   const city = CITIES[cityKey];
   const page = lang === "fr" ? "/demande" : "/request";
   const t = (k: string, vars?: Record<string, string | number>) => dm(lang, k, vars);
+
+  // ── 1711 : « e-mail d'abord » ─────────────────────────────────────────────────────────────────────────────
+  /** Appelé par le formulaire juste avant l'envoi : rend la preuve (déjà obtenue, ou après le code). "" = ancien parcours. */
+  async function requestProof(email: string): Promise<string> {
+    const kept = proofRef.current;
+    if (kept && kept.email === email) return kept.proof;
+    setErr(""); setInfo(""); setCode("");
+    let r;
+    try {
+      r = await emailFirstSend1711(email, lang, true);
+    } catch (e) {
+      const d = e instanceof ApiError && e.details && typeof e.details === "object" ? (e.details as { code?: string; retryAfter?: number }) : {};
+      if (d.code !== "RESEND_TOO_SOON") throw { code: d.code || "ERR" } as ProofRefusal1711;
+      r = { ok: true, retryAfter: Number(d.retryAfter) || RESEND_S }; // un code est parti il y a moins d'une minute : on le demande
+      setInfo(t("already_sent"));
+    }
+    if (r.missing) return ""; // serveur pas encore à jour → parcours du 08/11 (brouillon + code)
+    if (r.suggestion) throw { suggestion: r.suggestion } as ProofRefusal1711;
+    trackSiteEvent("cta_click", { label: "demande_envoyee" });
+    trackSiteEvent("cta_click", { label: "signup_email_envoye" });
+    setWait(r.retryAfter || RESEND_S);
+    setPend({ email, publishing: false });
+    return new Promise<string>((resolve, reject) => { waiter.current = { resolve, reject }; });
+  }
+  async function resendFirst() {
+    if (!pend || busy) return;
+    setErr(""); setInfo("");
+    try {
+      const r = await emailFirstSend1711(pend.email, lang, true);
+      setWait(r.retryAfter || RESEND_S);
+      setInfo(t("resent"));
+      trackSiteEvent("cta_click", { label: "demande_code_renvoye" });
+    } catch (e) {
+      const d = e instanceof ApiError && e.details && typeof e.details === "object" ? (e.details as { code?: string; retryAfter?: number }) : {};
+      if (d.code === "RESEND_TOO_SOON") { setWait(Number(d.retryAfter) || RESEND_S); setInfo(t("already_sent")); return; }
+      setErr(t(d.code === "TOO_MANY" ? "many_sends" : "err"));
+    }
+  }
+  async function checkFirst() {
+    if (!pend || busy || pend.publishing) return;
+    const c = code.replace(/\D/g, "");
+    if (c.length !== 6) { setErr(t("code_need")); return; }
+    setBusy(true); setErr(""); setInfo("");
+    try {
+      const r = await emailFirstCheck1711(pend.email, c);
+      proofRef.current = { email: pend.email, proof: r.emailProof };
+      trackSiteEvent("cta_click", { label: "demande_code_ok" });
+      trackSiteEvent("cta_click", { label: "signup_code_ok" });
+      setPend({ email: pend.email, publishing: true }); // le formulaire (caché) envoie maintenant la demande avec la preuve
+      const w = waiter.current; waiter.current = null;
+      if (w) w.resolve(r.emailProof);
+    } catch (e) {
+      const d = e instanceof ApiError && e.details && typeof e.details === "object" ? (e.details as { code?: string; left?: number }) : {};
+      const cd = d.code || (e instanceof ApiError ? String(e.status) : "x");
+      trackSiteEvent("cta_click", { label: cd === "CODE_INVALID" ? "demande_code_faux" : `demande_code_refus_${cd.toLowerCase()}` });
+      if (cd === "CODE_INVALID") setErr((d.left ?? 0) > 0 ? t("wrong", { n: d.left ?? 0 }) : t("many_first"));
+      else if (cd === "CODE_EXPIRED") setErr(t("expired"));
+      else if (cd === "TOO_MANY_TRIES") setErr(t("many_first"));
+      else setErr(t("err"));
+    } finally {
+      setBusy(false);
+    }
+  }
+  /** « Modifier ma demande » : retour au formulaire (champs gardés), rien n'a été créé. */
+  function cancelFirst() {
+    const w = waiter.current; waiter.current = null;
+    if (w) w.reject({ cancelled: true });
+    setPend(null); setCode(""); setErr(""); setInfo("");
+  }
+  /** L'envoi avec preuve a été refusé (dates…) : le formulaire réaffiche son message ; la preuve reste valable. */
+  function onProofFail(code: string) {
+    if (code === "EMAIL_PROOF_INVALID") proofRef.current = null; // preuve expirée (> 60 min) : le prochain envoi redemande un code
+    setPend(null); setCode("");
+  }
 
   async function resend(auto = false) {
     if (!lead || busy) return;
@@ -96,6 +187,18 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
   }
 
   function onLead(r: HeroLeadResult0811) {
+    if (r.proven) {
+      // 1711 — envoi fait AVEC la preuve : compte vérifié, demande publiée, session ouverte → écran de fin directement.
+      if (r.published) trackSiteEvent("cta_click", { label: "demande_publiee", eventId: r.id });
+      if (r.accountCreated) trackSiteEvent("cta_click", { label: "signup_compte_cree" });
+      setLeadId(r.id);
+      setPend(null);
+      setDone({ postId: r.postId, notified: r.notified, link: r.link || "/posts", published: r.published === true, sms: r.smsConsent === true });
+      if (r.smsConsent === true) trackSiteEvent("cta_click", { label: "demande_sms_vu" });
+      return;
+    }
+    setPend(null); // ancien parcours (serveur pas encore à jour, ou preuve non rendue)
+    setLeadId(r.id);
     trackSiteEvent("cta_click", { label: "demande_envoyee", eventId: r.id });
     setLead(r);
     setCode("");
@@ -146,11 +249,12 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
   const smsDigits = smsPhone.replace(/\D/g, "").length;
   const smsReady = smsAgree && smsDigits >= 10 && smsDigits <= 15;
   async function saveSms() {
-    if (!lead || smsBusy || !smsReady) return;
+    const id = leadId || (lead ? lead.id : "");
+    if (!id || smsBusy || !smsReady) return;
     setSmsBusy(true);
     setSmsErr("");
     try {
-      await saveDemandeSmsConsent1011(lead.id, smsPhone.trim());
+      await saveDemandeSmsConsent1011(id, smsPhone.trim());
       trackSiteEvent("cta_click", { label: "demande_sms_ok" });
       setSmsSaved(true);
     } catch (e) {
@@ -244,21 +348,52 @@ export default function DemandeFlow0811({ lang, defaultCity }: { lang: Lang; def
     );
   }
 
+  // 1711 — le formulaire reste MONTÉ pendant l'écran du code (seulement caché) : c'est lui qui envoie la demande dès
+  // que la preuve arrive, et « Modifier ma demande » retrouve tous les champs remplis.
+  const working = !!pend && (busy || pend.publishing);
   return (
-    <div ref={topRef} data-testid="demande-form-0811" data-demande-city={cityKey}>
-      <ParisHeroForm
-        key={cityKey}
-        city={city.name}
-        lead={t("lead")}
-        note={t("note")}
-        lang={lang}
-        country={city.country}
-        campaign={city.campaign}
-        page={page}
-        codeFlow
-        steps={STEPS_1111}
-        onLead={onLead}
-      />
+    <div ref={topRef} className="scroll-mt-24">
+      {pend && (
+        <div className={card} style={{ boxShadow: "0 0 0 2px #1C1917, 0 14px 30px -18px rgba(35,23,21,.5)" }} data-testid="demande-code-1711">
+          <p className="text-[20px] font-extrabold leading-tight text-ink">✉ {t("code_title")}</p>
+          <p className="mt-2 break-words text-[15px] leading-snug text-ink">{t("code_body", { email: pend.email })}</p>
+          <label className="mt-4 block text-xs font-semibold text-ink">{t("code_label")}
+            <input ref={codeRef} value={code} onChange={(e) => { setCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setErr(""); }}
+              inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={6} placeholder="••••••" disabled={pend.publishing}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void checkFirst(); } }}
+              className="mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-3 text-center text-[28px] font-extrabold tracking-[0.4em] text-ink focus:border-owner focus:outline-none" data-testid="demande-code-input" />
+          </label>
+          {err && <p className="mt-2 text-center text-sm font-semibold text-owner-dark" role="alert" data-testid="demande-code-err">{err}</p>}
+          {!err && info && <p className="mt-2 text-center text-sm font-semibold" style={{ color: "#15803D" }} role="status">{info}</p>}
+          <button type="button" onClick={() => void checkFirst()} disabled={working} className={bigBtn} data-testid="demande-code-cta">
+            {working ? t("code_busy") : t("code_cta")}
+          </button>
+          <button type="button" onClick={() => void resendFirst()} disabled={working || wait > 0}
+            className="mt-3 block w-full rounded-full border-2 border-owner px-6 py-3 text-center text-[15px] font-extrabold text-owner disabled:border-ink/15 disabled:text-ink-muted" data-testid="demande-code-resend">
+            {wait > 0 ? t("resend_wait", { s: wait }) : t("resend")}
+          </button>
+          <p className="mt-3 text-center text-[12px] leading-snug text-ink-muted">{t("spam_first")}</p>
+          <button type="button" onClick={cancelFirst} disabled={pend.publishing} className="mt-2 block w-full text-center text-[12px] font-semibold text-ink underline underline-offset-4" data-testid="demande-back">
+            {t("back")}
+          </button>
+        </div>
+      )}
+      <div className={pend ? "hidden" : ""} data-testid="demande-form-0811" data-demande-city={cityKey}>
+        <ParisHeroForm
+          key={cityKey}
+          city={city.name}
+          lead={t("lead")}
+          note={t("note")}
+          lang={lang}
+          country={city.country}
+          campaign={city.campaign}
+          page={page}
+          codeFlow
+          steps={STEPS_1111}
+          onLead={onLead}
+          {...(EMAIL_FIRST_1711 ? { requestProof, onProofFail } : {})}
+        />
+      </div>
     </div>
   );
 }

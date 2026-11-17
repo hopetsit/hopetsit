@@ -25,6 +25,10 @@ const { adminLoginLimiter, sensitiveLimiter } = require('../middleware/rateLimit
 
 const router = express.Router();
 
+// 1711 (NEO, ordre de Daniel) — inscription « e-mail d'abord » : POST /auth/email-first/send | /check
+// (code tapé AVANT la création du compte → jeton `emailProof` présenté à /auth/signup).
+router.use('/email-first', require('./emailFirst1711'));
+
 /**
  * @swagger
  * /auth/signup:

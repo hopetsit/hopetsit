@@ -18,7 +18,8 @@ const verificationCodeSchema = new mongoose.Schema(
     },
     purpose: {
       type: String,
-      enum: ['email_verification', 'password_reset'],
+      // 1711 (NEO) — 'email_first' : code tapé AVANT la création du compte (routes/emailFirst1711).
+      enum: ['email_verification', 'password_reset', 'email_first'],
       default: 'email_verification',
     },
     verified: {
