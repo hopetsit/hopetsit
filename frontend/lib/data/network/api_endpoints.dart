@@ -7,6 +7,9 @@ class ApiEndpoints {
   // v23.1.254 — refresh à expiration glissante (confort total).
   static const String authRefresh = '/auth/refresh';
   static const String authSignup = '/auth/signup';
+  // 1711 (NEO) — inscription « e-mail d'abord » : code AVANT la création du compte.
+  static const String authEmailFirstSend = '/auth/email-first/send';
+  static const String authEmailFirstCheck = '/auth/email-first/check';
   static const String authVerify = '/auth/verify';
   static const String authResendVerification = '/auth/resend-code';
   static const String authChooseService = '/auth/choose-service';

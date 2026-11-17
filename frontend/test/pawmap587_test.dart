@@ -219,8 +219,9 @@ void main() {
           body: StatefulBuilder(
             builder: (ctx, set) => Stack(children: [
               Positioned(
-                left: left ? 12 : null,
-                right: left ? null : 12,
+                // 643 — la barre porte elle-même sa marge du bord (edgeGap).
+                left: left ? 0 : null,
+                right: left ? null : 0,
                 bottom: 100,
                 child: PawCollapsibleBar(
                   left: left,

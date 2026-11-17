@@ -6,6 +6,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/sign_up_controller.dart';
+import 'package:hopetsit/controllers/email_first1711.dart';
+import 'package:hopetsit/views/auth/email_first1711.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -75,14 +77,15 @@ class SignupWizardScreen extends StatelessWidget {
     // v565 audit-inscription — retour arrière SYSTÈME (bouton Android, geste
     // iOS) : AVANT, il quittait tout le wizard depuis n'importe quelle étape
     // et perdait la saisie ; désormais il revient d'une étape, comme la flèche.
+    // 1711 — « e-mail d'abord » : le retour suit aussi les deux étapes de la
+    // porte (code → e-mail → sortie ; 1re étape de l'assistant → e-mail).
     return Obx(() => PopScope(
-      canPop: c.currentStep.value == 0,
+      canPop: c.currentStep.value == 0 &&
+          (c.emailFirst.phase.value == EmailGatePhase.email ||
+              c.emailFirst.phase.value == EmailGatePhase.legacy),
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (c.currentStep.value > 0) {
-          c.currentStep.value -= 1;
-          c.onStepEntered(c.currentStep.value);
-        }
+        _stepBack(c);
       },
       child: Scaffold(
       backgroundColor: AppColors.scaffold(context),
@@ -94,12 +97,7 @@ class SignupWizardScreen extends StatelessWidget {
         leading: BackButton(
           color: AppColors.textPrimary(context),
           onPressed: () {
-            if (c.currentStep.value > 0) {
-              c.currentStep.value -= 1;
-              c.onStepEntered(c.currentStep.value);
-            } else {
-              Get.back();
-            }
+            if (!_stepBack(c)) Get.back();
           },
         ),
       ),
@@ -114,6 +112,11 @@ class SignupWizardScreen extends StatelessWidget {
         child: Obx(() {
           final step = c.currentStep.value;
           final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+          // 1711 — tant que l'adresse n'est pas confirmée par le code, la
+          // porte « e-mail d'abord » remplace la 1re étape de l'assistant.
+          final phase = c.emailFirst.phase.value;
+          final gate = step == 0 &&
+              (phase == EmailGatePhase.email || phase == EmailGatePhase.code);
           return Column(
             children: [
               if (!keyboardOpen) ...[
@@ -121,16 +124,26 @@ class SignupWizardScreen extends StatelessWidget {
                 SizedBox(height: 14.h),
               ] else
                 SizedBox(height: 8.h),
-              _progressBar(step),
+              if (!gate) _progressBar(step),
               SizedBox(height: keyboardOpen ? 12.h : 18.h),
               Expanded(
                 child: SingleChildScrollView(
                   controller: c.wizardScroll,
                   padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 24.h),
-                  child: _stepBody(context, c, step),
+                  child: gate
+                      ? (phase == EmailGatePhase.code
+                          ? EmailFirstCodeStep(ef: c.emailFirst, accent: _accent)
+                          : EmailFirstEmailStep(
+                              ef: c.emailFirst,
+                              accent: _accent,
+                              onLogin: () => _goToLogin(c),
+                            ))
+                      : _stepBody(context, c, step),
                 ),
               ),
-              _bottomBar(context, c, step),
+              gate
+                  ? _gateBottomBar(context, c, phase)
+                  : _bottomBar(context, c, step),
             ],
           );
         }),
@@ -138,6 +151,108 @@ class SignupWizardScreen extends StatelessWidget {
         ),
     ),
     ));
+  }
+
+  /// 1711 — une étape en arrière. Renvoie faux quand il n'y a plus d'étape
+  /// (l'appelant quitte alors l'inscription).
+  bool _stepBack(SignUpController c) {
+    final ef = c.emailFirst;
+    if (c.currentStep.value > 0) {
+      c.currentStep.value -= 1;
+      c.onStepEntered(c.currentStep.value);
+      return true;
+    }
+    switch (ef.phase.value) {
+      case EmailGatePhase.code:
+        ef.changeEmail();
+        return true;
+      case EmailGatePhase.done:
+        ef.backToEmail();
+        return true;
+      case EmailGatePhase.email:
+      case EmailGatePhase.legacy:
+        return false;
+    }
+  }
+
+  /// 1711 — « Se connecter » quand un compte existe déjà pour l'adresse :
+  /// l'adresse est reportée sur l'écran de connexion.
+  void _goToLogin(SignUpController c) {
+    final email = c.emailController.text.trim();
+    try {
+      if (Get.isRegistered<AuthController>()) {
+        Get.find<AuthController>().emailController.text = email;
+      }
+    } catch (_) {/* préremplissage facultatif */}
+    openLoginScreen1711(); // 643 — jamais deux écrans de connexion montés
+  }
+
+  /// 1711 — bouton du bas des deux étapes de la porte (même habillage que
+  /// « Suivant »).
+  Widget _gateBottomBar(
+      BuildContext context, SignUpController c, EmailGatePhase phase) {
+    final ef = c.emailFirst;
+    final isCode = phase == EmailGatePhase.code;
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+          20.w, 10.h, 20.w, 16.h + appBottomInsetInsideSafeArea(context)),
+      child: Obx(() {
+        final loading = ef.busy.value;
+        return Container(
+          width: double.infinity,
+          height: 52.h,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_accent, Color.lerp(_accent, Colors.black, 0.18)!],
+            ),
+            borderRadius: BorderRadius.circular(15.r),
+            boxShadow: [
+              BoxShadow(
+                color: _accent.withValues(alpha: 0.4),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              key: const Key('ef_primary'),
+              borderRadius: BorderRadius.circular(15.r),
+              onTap: loading
+                  ? null
+                  : () => isCode ? ef.submitCode() : ef.submitEmail(),
+              child: Center(
+                child: loading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2.5),
+                      )
+                    // Adresse déjà confirmée (retour depuis l'assistant) :
+                    // « Continuer », aucun nouveau code n'est envoyé.
+                    : ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: ef.emailController,
+                        builder: (_, v, __) => PoppinsText(
+                          text: isCode
+                              ? 'ef_code_cta'.tr
+                              : (ef.hasProofFor(v.text)
+                                  ? 'ef_email_continue'.tr
+                                  : 'ef_email_cta'.tr),
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
   }
 
   // ── header (logo patte + titre + sous-titre) ──────────────────────────────
@@ -398,7 +513,13 @@ class SignupWizardScreen extends StatelessWidget {
           ],
         ),
         SizedBox(height: 10.h),
-        _field(c.emailController, 'signup_field_email'.tr, kb: TextInputType.emailAddress),
+        // 1711 — adresse confirmée par le code : affichée, non modifiable
+        // (retour arrière = changer d'adresse). Serveur pas encore à jour
+        // (repli 404) : champ e-mail d'avant.
+        Obx(() => c.emailFirst.phase.value == EmailGatePhase.done
+            ? EmailFirstConfirmedTile(email: c.emailController.text.trim())
+            : _field(c.emailController, 'signup_field_email'.tr,
+                kb: TextInputType.emailAddress)),
         _PasswordField(controller: c.passwordController, label: 'signup_field_password'.tr,
             onChanged: (v) => c.passwordLive.value = v, accent: _accent),
         _PasswordField(

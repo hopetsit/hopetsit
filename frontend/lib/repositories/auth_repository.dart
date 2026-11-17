@@ -73,10 +73,17 @@ class AuthRepository {
   Future<Map<String, dynamic>> signup({
     required String role,
     required Map<String, dynamic> user,
+    // 1711 (NEO) — preuve « e-mail d'abord » (POST /auth/email-first/check) :
+    // le compte naît vérifié, aucun code n'est envoyé après.
+    String? emailProof,
   }) async {
     final response = await _apiClient.post(
       ApiEndpoints.authSignup,
-      body: {'role': role, 'user': user},
+      body: {
+        'role': role,
+        'user': user,
+        if (emailProof != null && emailProof.isNotEmpty) 'emailProof': emailProof,
+      },
     );
 
     if (response is Map<String, dynamic>) {
@@ -88,6 +95,35 @@ class AuthRepository {
     }
 
     throw ApiException('Unexpected signup response.', details: response);
+  }
+
+  /// 1711 (NEO) — « e-mail d'abord » : demande l'envoi du code à 6 chiffres.
+  /// Réponses 200 : `{ ok, sent, retryAfter }`, `{ suggestion }` (domaine mal
+  /// tapé, rien envoyé) ou `{ exists: true }` (compte vérifié déjà existant).
+  /// 404 = serveur pas encore à jour (l'appelant retombe sur l'ancien parcours).
+  Future<Map<String, dynamic>> emailFirstSend({
+    required String email,
+    required String lang,
+  }) async {
+    final response = await _apiClient.post(
+      ApiEndpoints.authEmailFirstSend,
+      body: {'email': email, 'lang': lang},
+    );
+    if (response is Map) return Map<String, dynamic>.from(response);
+    throw ApiException('Unexpected email-first send response.', details: response);
+  }
+
+  /// 1711 (NEO) — vérifie le code ; succès : `{ emailProof, expiresIn }`.
+  Future<Map<String, dynamic>> emailFirstCheck({
+    required String email,
+    required String code,
+  }) async {
+    final response = await _apiClient.post(
+      ApiEndpoints.authEmailFirstCheck,
+      body: {'email': email, 'code': code},
+    );
+    if (response is Map) return Map<String, dynamic>.from(response);
+    throw ApiException('Unexpected email-first check response.', details: response);
   }
 
   /// Verifies the OTP code for email verification.

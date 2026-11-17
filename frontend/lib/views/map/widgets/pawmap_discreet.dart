@@ -19,6 +19,7 @@
 //   · [pawMap586LaunchCount]  — compteur des ouvertures (libellés montrés aux
 //     3 premières seulement).
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1337,7 +1338,14 @@ PawTabBarPalette pawMenuPaletteFor(String role) {
 /// Petite flèche en verre teinté posée au bord INTÉRIEUR d'une barre (rail
 /// gauche : bord droit ; capsule droite : bord gauche). Barre rangée : la
 /// même pastille devient la LANGUETTE collée au bord de l'écran, flèche
-/// inversée. Cible tactile 40 × 48 (la pastille visible est plus fine).
+/// inversée.
+///
+/// 643 (Daniel, 17/11 : « la flèche de la barre de droite doit s'ouvrir plus
+/// facilement ») — la cible tactile passe de 30 × 48 à 48 × 56 au moins
+/// ([hitWidth] × [hitHeight]), SANS déplacer la pastille : la cellule s'élargit
+/// vers la carte (jamais vers la barre), la pastille reste dans sa case de
+/// 30 × 48 collée à la barre. Un petit glissé horizontal sur la flèche bascule
+/// aussi la barre (un doigt qui dérape n'est plus un appui perdu).
 class PawBarCollapseTab extends StatelessWidget {
   const PawBarCollapseTab({
     super.key,
@@ -1356,6 +1364,17 @@ class PawBarCollapseTab extends StatelessWidget {
 
   /// 607 — rôle actif : la languette prend la couleur de SON menu.
   final String role;
+
+  /// Case VISIBLE de la pastille (inchangée depuis la v587) : 30 × 48.
+  static double get slotWidth => 30.w;
+  static double get slotHeight => 48.h;
+
+  /// 643 — cible tactile : 48 × 56 au moins, quel que soit l'écran.
+  static double get hitWidth => math.max(48.0, 48.w);
+  static double get hitHeight => math.max(56.0, 56.h);
+
+  /// 643 — ce que la cible dépasse de la case visible, côté carte.
+  static double get hitSlop => hitWidth - slotWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -1381,9 +1400,22 @@ class PawBarCollapseTab extends StatelessWidget {
           HapticFeedback.selectionClick();
           onTap();
         },
+        // 643 — un doigt qui glisse un peu sur la flèche annulait l'appui :
+        // un glissé horizontal bascule la barre lui aussi (une seule fois).
+        onHorizontalDragEnd: (_) {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
         child: SizedBox(
-          width: 30.w,
-          height: 48.h,
+          // 643 — cellule tactile 48 × 56 ; la case visible (30 × 48) reste
+          // collée à la barre et centrée en hauteur : rien ne bouge à l'œil.
+          width: hitWidth,
+          height: hitHeight,
+          child: Align(
+           alignment: left ? Alignment.centerLeft : Alignment.centerRight,
+           child: SizedBox(
+          width: slotWidth,
+          height: slotHeight,
           child: Align(
             alignment: collapsed
                 ? (left ? Alignment.centerLeft : Alignment.centerRight)
@@ -1416,6 +1448,8 @@ class PawBarCollapseTab extends StatelessWidget {
                 color: Colors.white,
               ),
             ),
+          ),
+          ),
           ),
         ),
       ),
@@ -1458,6 +1492,19 @@ class PawCollapsibleBar extends StatefulWidget {
 
   static const Duration duration = Duration(milliseconds: 200);
 
+  /// 643 — la boîte de ce widget contient désormais la marge du bord
+  /// ([edgeGap], côté écran) et le dépassement tactile de la flèche (côté
+  /// carte). Rend le rectangle VISIBLE (barre + case de la flèche), celui que
+  /// mesuraient les versions précédentes (obstacle des bulles, rond Balade).
+  static Rect visualRect(Rect box, {required bool left, required double edgeGap}) {
+    if (box.width <= edgeGap + PawBarCollapseTab.hitSlop) return box;
+    return left
+        ? Rect.fromLTRB(box.left + edgeGap, box.top,
+            box.right - PawBarCollapseTab.hitSlop, box.bottom)
+        : Rect.fromLTRB(box.left + PawBarCollapseTab.hitSlop, box.top,
+            box.right - edgeGap, box.bottom);
+  }
+
   @override
   State<PawCollapsibleBar> createState() => _PawCollapsibleBarState();
 }
@@ -1488,7 +1535,21 @@ class _PawCollapsibleBarState extends State<PawCollapsibleBar> {
       role: widget.role,
     );
     final double shift = _barWidth + widget.edgeGap;
-    return TweenAnimationBuilder<double>(
+    // 643 — la flèche garde sa hauteur (centre à tabBottom + 24) : la cellule
+    // tactile, plus haute que la case visible, descend d'autant.
+    final double tabPad = math.max(
+        0.0,
+        widget.tabBottom -
+            (PawBarCollapseTab.hitHeight - PawBarCollapseTab.slotHeight) / 2);
+    // 643 — la marge du bord est DANS la boîte (hors translation) : rangée, la
+    // languette glisse jusqu'au bord de l'écran et y reste touchable. Avant,
+    // elle sortait de la boîte du parent (marge de 12) : seuls 18 px sur 30
+    // répondaient, la moitié visible de la languette donnait sur la carte.
+    return Padding(
+      padding: EdgeInsets.only(
+          left: widget.left ? widget.edgeGap : 0,
+          right: widget.left ? 0 : widget.edgeGap),
+      child: TweenAnimationBuilder<double>(
       tween: Tween<double>(end: widget.collapsed ? 1 : 0),
       duration: PawCollapsibleBar.duration,
       curve: Curves.easeOutCubic,
@@ -1505,10 +1566,10 @@ class _PawCollapsibleBarState extends State<PawCollapsibleBar> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: widget.left
-            ? [bar, Padding(padding: EdgeInsets.only(bottom: widget.tabBottom), child: tab)]
-            : [Padding(padding: EdgeInsets.only(bottom: widget.tabBottom), child: tab), bar],
+            ? [bar, Padding(padding: EdgeInsets.only(bottom: tabPad), child: tab)]
+            : [Padding(padding: EdgeInsets.only(bottom: tabPad), child: tab), bar],
       ),
-    );
+    ));
   }
 }
 

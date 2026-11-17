@@ -8546,8 +8546,10 @@ class _PawMapScreenState extends State<PawMapScreen>
               final sheetUp = !picking && _sheetUp.value;
               if (sheetUp) return const SizedBox.shrink();
               return Positioned(
-                left: 12.w,
-                right: 12.w,
+                // 643 — bord à bord : chaque barre porte sa marge de 12
+                // (`edgeGap`), sa languette rangée reste touchable au bord.
+                left: 0,
+                right: 0,
                 bottom: _railBottom(context, picking: picking),
                 child: _fading(Row(
                   // v561 — Daniel : colonne de gauche alignée sur le BAS de la
@@ -13004,8 +13006,12 @@ class _PawMapScreenState extends State<PawMapScreen>
       // 622 — les deux barres (rail gauche, capsule droite) couvrent la
       // carte : une bulle posée dessous était « coupée ». Mesurées ici,
       // elles deviennent des obstacles du placement des bulles.
-      final r = _globalRect622(_railKey622);
-      final c = _globalRect622(_capsuleKey622);
+      // 643 — la boîte d'une barre inclut sa marge et la cible tactile de sa
+      // flèche : on garde le rectangle VISIBLE, comme avant.
+      final r = PawCollapsibleBar.visualRect(_globalRect622(_railKey622),
+          left: true, edgeGap: 12.w);
+      final c = PawCollapsibleBar.visualRect(_globalRect622(_capsuleKey622),
+          left: false, edgeGap: 12.w);
       bool moved(Rect a, Rect b) =>
           (a.left - b.left).abs() > 2 || (a.top - b.top).abs() > 2 ||
           (a.width - b.width).abs() > 2 || (a.height - b.height).abs() > 2;

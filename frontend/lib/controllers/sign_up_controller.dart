@@ -10,6 +10,8 @@ import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart
 import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
+import 'package:hopetsit/controllers/email_first1711.dart';
+import 'package:hopetsit/views/auth/email_first1711.dart' show openLoginScreen1711;
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
@@ -162,6 +164,13 @@ class SignUpController extends GetxController {
   // valeur saisie à l'inscription corresponde à ce que montre le profil.
   final responseTimeController = TextEditingController();   // sitter+walker : temps de réponse (min)
   final RxInt currentStep = 0.obs;
+
+  /// 1711 (NEO, ordre de Daniel) — « e-mail d'abord » : la porte e-mail →
+  /// code posée devant l'assistant. Aucun compte n'est créé avant le bon code.
+  late final EmailFirst1711 emailFirst = EmailFirst1711(
+    repo: _authRepository,
+    emailController: emailController,
+  );
   final RxString passwordLive = ''.obs;                     // pour la checklist live
   final RxList<String> selectedServices = <String>[].obs;   // services proposés/recherchés
   final RxList<String> acceptedAnimals = <String>[].obs;    // animaux acceptés/promenés
@@ -207,6 +216,8 @@ class SignUpController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // 1711 — reprend une adresse en attente de code ou déjà confirmée.
+    emailFirst.restore();
     // Langue de l'app par défaut = langue du device si supportée (sinon on
     // garde 'Français'). Mappe le code locale vers le libellé affiché.
     final lang = Get.deviceLocale?.languageCode;
@@ -286,6 +297,7 @@ class SignUpController extends GetxController {
 
   @override
   void onClose() {
+    emailFirst.dispose(); // 1711 — arrête le compte à rebours
     // Don't dispose controllers here - they should persist during auth flow
     // Since SignUpController is permanent with tags, controllers will persist across navigation
     // They will be cleaned up when the auth flow is complete or user logs out
@@ -1030,6 +1042,20 @@ class SignUpController extends GetxController {
   }
 
   Future<void> handleWizardSignUp({required String email}) async {
+    // 1711 — « e-mail d'abord » : l'adresse confirmée par le code est celle du
+    // compte, et sa preuve part avec l'inscription. Preuve expirée (plus de
+    // 60 min dans l'assistant) : on redemande un code AVANT d'appeler le
+    // serveur, la saisie des autres étapes est conservée.
+    final useProof = emailFirst.phase.value == EmailGatePhase.done;
+    if (useProof) {
+      if (!emailFirst.hasValidProof) {
+        emailFirst.invalidateProof();
+        currentStep.value = 0;
+        return;
+      }
+      emailController.text = emailFirst.confirmedEmail;
+      email = emailFirst.confirmedEmail;
+    }
     final err = validateStep1();
     if (err != null) {
       CustomSnackbar.showError(
@@ -1048,7 +1074,11 @@ class SignUpController extends GetxController {
     }
     isLoading.value = true;
     try {
-      await _authRepository.signup(role: _apiRole, user: _buildUserPayload());
+      await _authRepository.signup(
+        role: _apiRole,
+        user: _buildUserPayload(),
+        emailProof: useProof ? emailFirst.proof : null,
+      );
       // 620 — grille de tarifs du gardien, retentée dès l'entrée dans l'app.
       if (userType == 'pet_sitter' && pendingRateGrid620 != null) {
         await savePendingRateGrid620(pendingRateGrid620!);
@@ -1064,7 +1094,10 @@ class SignUpController extends GetxController {
       } catch (_) {/* non-fatal */}
       CustomSnackbar.showSuccess(
         title: 'signup_account_created_title'.tr,
-        message: 'signup_account_created_message'.tr,
+        // 1711 — avec la preuve, plus de « vérifie ton e-mail » : c'est fait.
+        message: useProof
+            ? 'ef_created_message'.tr
+            : 'signup_account_created_message'.tr,
       );
       // v419 — Daniel : "après Créer mon compte sitter, une page owner
       // garderie/add-animal réapparaît et me bascule en propriétaire". CAUSE :
@@ -1120,7 +1153,14 @@ class SignUpController extends GetxController {
           }
         }
       } catch (_) {/* repli OTP ci-dessous */}
-      if (!entered) {
+      // 1711 — le compte existe : l'adresse en attente et la preuve ne
+      // servent plus.
+      if (useProof) emailFirst.clear();
+      if (!entered && useProof) {
+        // 1711 — compte créé DÉJÀ vérifié mais la connexion automatique a
+        // échoué (réseau) : aucun code à taper, on envoie vers la connexion.
+        openLoginScreen1711(); // 643 — jamais deux écrans de connexion montés
+      } else if (!entered) {
         Get.off(
           () => OtpVerificationScreen(
             email: email,
@@ -1133,6 +1173,14 @@ class SignUpController extends GetxController {
       // v565 — ville obligatoire côté serveur (400 CITY_REQUIRED) : on
       // ramène à l'étape ville (owner = étape 3, prestataire = étape 2).
       final code = error.details is Map ? (error.details as Map)['code'] : null;
+      // 1711 — preuve refusée (expirée) ou exigée par le serveur : retour à
+      // l'étape e-mail pour un nouveau code, le reste de la saisie est gardé.
+      if (error.statusCode == 400 &&
+          (code == 'EMAIL_PROOF_INVALID' || code == 'EMAIL_PROOF_REQUIRED')) {
+        emailFirst.invalidateProof();
+        currentStep.value = 0;
+        return;
+      }
       // 607 (NEO) — CITY_INVALID : ville = e-mail, lien ou numéro → même étape.
       if (error.statusCode == 400 && (code == 'CITY_REQUIRED' || code == 'CITY_INVALID')) {
         currentStep.value = 1; // v583 — étape ville, pour les 3 rôles

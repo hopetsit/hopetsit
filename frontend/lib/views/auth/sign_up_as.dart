@@ -3,7 +3,7 @@ import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
-import 'package:hopetsit/views/auth/login_screen.dart';
+import 'package:hopetsit/views/auth/email_first1711.dart' show openLoginScreen1711;
 import 'package:hopetsit/views/auth/signup_wizard_screen.dart';
 import 'package:hopetsit/views/auth/social_city_screen.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -162,7 +162,9 @@ class SignUpAsScreen extends StatelessWidget {
                         // la pile de navigation est VIDE → Get.back() ne faisait
                         // rien (bouton mort). On ouvre explicitement l'écran de
                         // connexion.
-                        onTap: () => Get.offAll(() => const LoginScreen()),
+                        // 643 (contrôle ZOE) — même ouverture que le reste du tunnel : jamais deux
+                        // écrans de connexion montés (champ mot de passe mort sinon).
+                        onTap: openLoginScreen1711,
                         behavior: HitTestBehavior.opaque,
                         child: PoppinsText(
                           text: 'title_login'.tr,
