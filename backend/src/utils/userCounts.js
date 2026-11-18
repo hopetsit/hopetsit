@@ -96,7 +96,25 @@ function summarizeMembers({ accounts = [], deletions = [], now = new Date() } = 
     // Un compte créé puis supprimé dans la période a aussi été « inscrit ».
     return { joined, left, net: joined - left };
   };
+  // 18/11/2026 (BOB, demande de Daniel) — identités vérifiées (pièce d'identité), à côté des e-mails vérifiés.
+  // « offerte » = vérification gratuite du 17/11 (kycPaymentIntentId « free_… ») ; « payée » = 3 € encaissés
+  // (kycPaidAt) ; le reste a été validé à la main par l'admin. Un même compte n'est compté qu'une fois.
+  const idOk = real.filter((a) => a.kycStatus === 'verified');
+  const idFree = idOk.filter((a) => a.kycFree === true);
+  const idPaid = idOk.filter((a) => a.kycFree !== true && a.kycPaid === true);
+  const identity = {
+    verified: idOk.length,
+    free: idFree.length,
+    paid: idPaid.length,
+    other: idOk.length - idFree.length - idPaid.length,
+    byRole: { owners: byRole(idOk, 'owner'), sitters: byRole(idOk, 'sitter'), walkers: byRole(idOk, 'walker') },
+    inProgress: real.filter((a) => a.kycStatus === 'pending_verification').length,
+    stoppedAtPayment: real.filter((a) => a.kycStatus === 'pending_payment').length,
+    d1: idOk.filter((a) => since(a.kycVerifiedAt, 1)).length,
+    d7: idOk.filter((a) => since(a.kycVerifiedAt, 7)).length,
+  };
   return {
+    identity,
     current: real.length,
     everRegistered: real.length + gone.length,
     deleted: gone.length,
@@ -118,9 +136,11 @@ function summarizeMembers({ accounts = [], deletions = [], now = new Date() } = 
 /** Lit les 3 rôles (e-mails déchiffrés) + le journal des désinscriptions et renvoie le résumé. */
 async function countUsers({ Owner, Sitter, Walker, decrypt, DeletedAccount = null, now = new Date() }) {
   const plain = (v) => { try { return decrypt(v || '') || ''; } catch (_) { return ''; } };
-  const read = async (Model, role) => (await Model.find({}).select('email createdAt verified status adLeadAt lastSeenAt').lean())
+  const read = async (Model, role) => (await Model.find({}).select('email createdAt verified status adLeadAt lastSeenAt kycStatus kycPaidAt kycPaymentIntentId kycVerifiedAt').lean())
     .map((u) => ({ role, email: plain(u.email), createdAt: u.createdAt, verified: u.verified === true,
-      status: u.status || 'active', adLead: Boolean(u.adLeadAt), lastSeenAt: u.lastSeenAt || null }));
+      status: u.status || 'active', adLead: Boolean(u.adLeadAt), lastSeenAt: u.lastSeenAt || null,
+      kycStatus: u.kycStatus || 'none', kycFree: /^free_/.test(String(u.kycPaymentIntentId || '')),
+      kycPaid: Boolean(u.kycPaidAt), kycVerifiedAt: u.kycVerifiedAt || null }));
   const [o, s, w] = await Promise.all([read(Owner, 'owner'), read(Sitter, 'sitter'), read(Walker, 'walker')]);
   const out = summarizeUsers({ owners: o.map((a) => a.email), sitters: s.map((a) => a.email), walkers: w.map((a) => a.email) });
   // Best-effort : sans journal lisible, les compteurs de base restent servis.
