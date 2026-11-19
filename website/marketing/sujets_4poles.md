@@ -35,6 +35,7 @@ uniques et locaux, reliés à la page pilier de la ville et à « Publier ma dem
 - [ ] 명절(추석·설날)에 반려동물 맡기기: 서울에서 미리 준비할 것
 - [x] 서울 아파트에서 고양이 돌봄: 방문 돌봄과 위탁 비교 (04/11/2026, GUS — /blog/seoul-cat-sitter-guide)
 - [x] 서울 강아지 맡기는 곳 : 애견호텔·위탁·방문 펫시터 비교 (11/11/2026, GUS — demande Search Console « 강아지 맡기는 곳 » — /blog/seoul-dog-boarding-guide)
+- [x] 강아지 맡기는 비용, 무엇으로 정해질까 : 서울에서 견적 비교하는 법 (18/11/2026, GUS — demande Search Console « 강아지 맡기는 비용 » — /blog/seoul-dog-boarding-cost)
 - [ ] 한강공원 반려견 산책 에티켓
 - [ ] 겨울철 서울 반려견 산책: 추위와 제설제
 - [ ] 반려동물 등록 방법과 펫시터에게 전달할 정보
@@ -42,7 +43,7 @@ uniques et locaux, reliés à la page pilier de la ville et à « Publier ma dem
 ## Tokyo (ja) — page pilier `/pet-sitting-japan/tokyo#districts`
 - [x] 東京でペットシッターを頼むときのポイント (31/10/2026, GUS)
 - [x] 年末年始に犬・猫を預けるには：東京での準備 (04/11/2026, GUS — /blog/tokyo-new-year-pet-care)
-- [ ] 東京のマンションで猫を飼う：訪問シッターと預かりの比較
+- [x] 東京のマンションで猫を飼う：訪問シッターと預かりの比較 (18/11/2026, GUS — demande Search Console « ペットシッター 家に来てもらう » — /blog/tokyo-cat-home-visit-sitter)
 - [x] 東京で犬の散歩代行を頼むには：ドッグシッターの選び方 (11/11/2026, GUS — demande Search Console « ドッグシッター », « ペット 散歩 代行 » — /blog/tokyo-dog-walking-guide)
 - [ ] 東京のドッグラン：利用マナーと選び方
 - [ ] 夏の東京で犬の散歩：熱中症とアスファルトの温度

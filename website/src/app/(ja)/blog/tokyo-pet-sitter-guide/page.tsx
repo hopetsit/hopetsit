@@ -214,7 +214,11 @@ export default function ArticleTokyoPetSitterGuide() {
         <Link href="/blog/tokyo-dog-walking-guide" className="font-semibold text-owner underline">
           東京で犬の散歩代行を頼むには
         </Link>
-        も参考にしてください。
+        も参考にしてください。猫の留守番については{" "}
+        <Link href="/blog/tokyo-cat-home-visit-sitter" className="font-semibold text-owner underline">
+          ペットシッターに家に来てもらう : 東京のマンションで猫の留守番
+        </Link>
+        にまとめました。
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">シッターに渡すものチェックリスト</h2>

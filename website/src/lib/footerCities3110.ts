@@ -16,8 +16,8 @@ export const FOOTER_CITIES = [
 export const FOOTER_POSTS = [
   { href: "/blog/jardins-parisiens-ouverts-aux-chiens", label: "Paris : les jardins ouverts aux chiens" },
   { href: "/blog/nyc-winter-dog-walks", label: "New York: walking your dog in winter" },
-  { href: "/blog/seoul-dog-boarding-guide", label: "서울 강아지 맡기는 곳 : 애견호텔·위탁·방문 펫시터" },
-  { href: "/blog/tokyo-dog-walking-guide", label: "東京で犬の散歩代行を頼むには" },
+  { href: "/blog/seoul-dog-boarding-cost", label: "강아지 맡기는 비용, 무엇으로 정해질까" },
+  { href: "/blog/tokyo-cat-home-visit-sitter", label: "ペットシッターに家に来てもらう : 猫の留守番" },
   { href: "/blog/cat-sitting-amsterdam-holidays", label: "Amsterdam: cat sitting over the holidays" },
 ];
 

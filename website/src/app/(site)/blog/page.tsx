@@ -84,6 +84,19 @@ const POSTS = [
     title: "Pet Sitting in New York over Thanksgiving & the Holidays",
     excerpt: "When to book, overnights vs drop-ins, rock salt, fireworks and what to leave your sitter in NYC.",
   },
+  // 18/11 (GUS, mercredi) — articles ko + ja de la semaine, sujets choisis par la Search Console.
+  {
+    slug: "seoul-dog-boarding-cost",
+    lang: "🇰🇷",
+    title: "강아지 맡기는 비용, 무엇으로 정해질까 : 서울에서 견적 비교하는 법",
+    excerpt: "비용을 정하는 네 가지, 기본 요금에 포함되지 않을 수 있는 것, 견적을 같은 조건으로 비교하는 법.",
+  },
+  {
+    slug: "tokyo-cat-home-visit-sitter",
+    lang: "🇯🇵",
+    title: "ペットシッターに家に来てもらう : 東京のマンションで猫の留守番",
+    excerpt: "訪問と預かりの比較、訪問でしてもらえること、鍵とオートロックの受け渡し、出発前の準備。",
+  },
   // 11/11 (GUS, mercredi) — articles ko + ja de la semaine, sujets choisis par la Search Console.
   {
     slug: "seoul-dog-boarding-guide",

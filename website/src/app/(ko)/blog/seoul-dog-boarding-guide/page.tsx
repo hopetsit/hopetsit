@@ -201,7 +201,11 @@ export default function ArticleSeoulDogBoardingGuide() {
         <Link href="/blog/seoul-cat-sitter-guide" className="font-semibold text-owner underline">
           서울 아파트 고양이 돌봄 가이드
         </Link>
-        에 정리해 두었습니다.
+        에 정리해 두었습니다. 비용이 궁금하다면{" "}
+        <Link href="/blog/seoul-dog-boarding-cost" className="font-semibold text-owner underline">
+          강아지 맡기는 비용, 무엇으로 정해질까
+        </Link>
+        에서 견적을 비교하는 법을 확인해 보세요.
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
