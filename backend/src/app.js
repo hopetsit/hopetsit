@@ -487,6 +487,14 @@ app.use(
 // fall back to a generic 500 so clients never see a stack trace.
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  // 20/11/2026 (BOB) — photo trop lourde / fichier refusé : réponse claire, pas une alerte.
+  const uploadRefus = require('./utils/uploadError2011').uploadErrorResponse(err, req.headers['accept-language']);
+  if (uploadRefus) {
+    logger.warn({ code: err.code, path: req.path, userId: req.user?.id }, 'Upload refusé');
+    if (res.headersSent) return;
+    res.status(uploadRefus.status).json(uploadRefus.body);
+    return;
+  }
   logger.error({ err }, 'Unhandled Express error');
   sentry.captureException(err, {
     path: req.path,
