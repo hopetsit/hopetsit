@@ -93,6 +93,30 @@ const applicationSchema = new mongoose.Schema(
       netPayout: { type: Number, default: null },
       commissionRate: { type: Number, default: 0.2 },
       currency: { type: String, default: 'EUR' },
+      // 2211 (« Proposer mon prix ») — total NÉGOCIÉ : proposé par le propriétaire et ACCEPTÉ par le
+      // prestataire (services/priceOffer2211.js). Les garde-fous de prix le respectent tant que la
+      // demande n'a pas changé ; le taux de commission n'est jamais modifié.
+      negotiated2211: { type: Boolean },
+    },
+    // 2211 — propositions de prix du propriétaire (2 au plus, 1 en attente à la fois) et bloc
+    // `pricing` d'avant la 1re acceptation (pour revenir au prix du moteur). Ni e-mail ni téléphone.
+    priceOffer2211: {
+      offers: {
+        default: undefined, // pas de bloc vide sur les candidatures sans proposition
+        type: [{
+          _id: false,
+          amount: { type: Number, required: true },
+          currency: { type: String, default: 'EUR' },
+          status: { type: String, enum: ['pending', 'accepted', 'declined', 'expired', 'cancelled'], default: 'pending' },
+          originalTotal: { type: Number, default: null },
+          requestKey: { type: String, default: '' },
+          createdAt: { type: Date, default: Date.now },
+          expiresAt: { type: Date, default: null },
+          respondedAt: { type: Date, default: null },
+          reason: { type: String, default: '' },
+        }],
+      },
+      previousPricing: { type: mongoose.Schema.Types.Mixed, default: undefined },
     },
     status: {
       type: String,

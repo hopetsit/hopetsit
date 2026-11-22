@@ -23,6 +23,14 @@
 // tout message) ; le propriétaire voit « Question envoyée · la réponse arrive par e-mail » + « Voir la
 // conversation ». Aucune page à part, aucun mot de passe (session ouverte par le lien de l'e-mail).
 // Repères : cand_question_ouvrir, cand_question_envoyer, cand_question_ok, cand_question_echec, cand_question_conv.
+// 22/11/2026 — « Proposer mon prix » (mesure : 55 propriétaires voient leurs candidats en 30 j, 2 cliquent « Choisir et
+// payer », 0 paie ; deux étaient d'accord avec le gardien sur un prix plus bas, que rien ne permettait d'enregistrer).
+// Sous chaque candidat en attente dont le total est connu, un lien discret « Proposer mon prix » → un champ montant
+// (total payé, frais compris, devise de la candidature) + « Envoyer ma proposition » (POST /applications/:id/price-offer).
+// Le gardien accepte ou refuse par e-mail ; accepté, le serveur renvoie le nouveau `pricing` : le total et le bouton
+// « Choisir <prénom> et payer » prennent le nouveau prix sans rien calculer ici. Le lien n'apparaît que si le serveur
+// l'autorise (`priceOffer2211View.canOffer` ; PRICE_OFFER_2211=off le masque).
+// Repères : cand_prix_ouvrir, cand_prix_envoyer, cand_prix_ok, cand_prix_echec.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -53,6 +61,7 @@ import {
   getMyPosts,
   getStoredUser,
   postId as postIdOf,
+  proposeApplicationPrice,
   respondToApplication,
   sendMessage as sendChatMessage,
   startProviderConversation,
@@ -149,6 +158,11 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
   // 06/11 (LEO, mesure de FLO) — pas de session (adresse tapée, favori, jeton périmé) : au lieu de renvoyer
   // vers le mot de passe, on montre ICI l'encart « Pas de mot de passe ? Reçois ton lien par e-mail ».
   const [needLink, setNeedLink] = useState("");
+  // 22/11 — « Proposer mon prix » : carte dont le champ est ouvert, montant saisi, envoi en cours.
+  const [offerId, setOfferId] = useState<string | null>(null);
+  const [offerText, setOfferText] = useState("");
+  const [offerBusy, setOfferBusy] = useState(false);
+  const offerRef = useRef<HTMLInputElement | null>(null);
   const askRef = useRef<HTMLTextAreaElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const datesRef = useRef<HTMLDivElement | null>(null);
@@ -371,6 +385,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
   /** 05/11 — ouvre la zone de question sous la carte (une seule à la fois) et place le curseur. */
   function askOpen(a: ApplicationItem) {
     const id = applicationId(a);
+    setOfferId(null);
     setAskId(id);
     setAskText("");
     setErrors((er) => ({ ...er, [id]: "" }));
@@ -404,6 +419,57 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
       setErrors((er) => ({ ...er, [id]: c3110(lang, "ask_error") }));
     } finally {
       setAskBusy(false);
+    }
+  }
+
+  /** 22/11 — ouvre le champ « Proposer mon prix » sous la carte (une seule zone ouverte à la fois). */
+  function offerOpen(a: ApplicationItem) {
+    const id = applicationId(a);
+    setAskId(null);
+    setOfferId(id);
+    setOfferText("");
+    setErrors((er) => ({ ...er, [id]: "" }));
+    trackSiteEvent("cta_click", { label: "cand_prix_ouvrir" });
+    window.setTimeout(() => { try { offerRef.current?.focus({ preventScroll: true }); } catch { /* sans focus */ } }, 60);
+  }
+
+  /** 22/11 — envoie la proposition : le serveur vérifie les bornes, écrit au gardien (conversation + e-mail avec
+   *  lien de réponse) et renvoie l'état à afficher. Le prix de la carte ne change qu'après l'accord du gardien. */
+  async function offerSend(a: ApplicationItem) {
+    const id = applicationId(a);
+    if (offerBusy) return;
+    const amount = Number(offerText.replace(",", ".").replace(/[^0-9.]/g, ""));
+    const currency = (a.pricing?.currency || post?.budgetCurrency || post?.currency || "EUR").toUpperCase();
+    const min = a.priceOffer2211View?.minAmount ?? null;
+    const max = a.priceOffer2211View?.currentTotal ?? totalOf3110(a);
+    const lowMsg = min != null ? c3110(lang, "offer_err_low", { min: money(min, currency, lang) }) : c3110(lang, "offer_err");
+    const highMsg = max != null ? c3110(lang, "offer_err_high", { max: money(max, currency, lang) }) : c3110(lang, "offer_err");
+    if (!Number.isFinite(amount) || !(amount > 0)) { setErrors((er) => ({ ...er, [id]: lowMsg })); return; }
+    if (max != null && amount >= max) { setErrors((er) => ({ ...er, [id]: highMsg })); return; }
+    if (min != null && amount < min) { setErrors((er) => ({ ...er, [id]: lowMsg })); return; }
+    setOfferBusy(true);
+    setErrors((er) => ({ ...er, [id]: "" }));
+    trackSiteEvent("cta_click", { label: "cand_prix_envoyer" });
+    try {
+      const res = await proposeApplicationPrice(id, Math.round(amount * 100) / 100);
+      const view = res.priceOffer2211View || { status: "pending" as const, amount, currency, canOffer: false };
+      setItems((prev) => prev.map((x) => (applicationId(x) === id ? { ...x, priceOffer2211View: view } : x)));
+      setOfferId(null);
+      setOfferText("");
+      trackSiteEvent("cta_click", { label: "cand_prix_ok" });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) { router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`); return; }
+      const code = apiErrorCode(e);
+      trackSiteEvent("cta_click", { label: "cand_prix_echec" });
+      const msg = code === "OFFER_TOO_LOW" ? lowMsg : code === "OFFER_NOT_LOWER" ? highMsg : code === "OFFER_LIMIT" ? c3110(lang, "offer_err_limit") : c3110(lang, "offer_err");
+      setErrors((er) => ({ ...er, [id]: msg }));
+      // Limite atteinte ou fonction coupée côté serveur : le lien disparaît de cette carte.
+      if (code === "OFFER_LIMIT" || code === "OFFER_DISABLED") {
+        setItems((prev) => prev.map((x) => (applicationId(x) === id ? { ...x, priceOffer2211View: { ...(x.priceOffer2211View || {}), canOffer: false } } : x)));
+        setOfferId(null);
+      }
+    } finally {
+      setOfferBusy(false);
     }
   }
 
@@ -688,6 +754,17 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
                 <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full text-lg font-bold text-white" style={{ background: tone.dark }}>{firstName.slice(0, 1).toUpperCase()}</span>
               );
               const canPay = !stale && (tbd || total != null) && !(bk?.paid) && !chosenHere;
+              // 22/11 — « Proposer mon prix » : seulement sur une candidature en attente au total connu, si le serveur l'autorise.
+              const offer = a.priceOffer2211View || null;
+              const offerPrice = offer?.amount != null && offer.amount > 0 ? money(offer.amount, (offer.currency || currency).toUpperCase(), lang) : "";
+              const canOffer = offer?.canOffer === true && a.status === "pending" && !tbd && total != null && !stale && !(bk?.paid || chosenHere);
+              const offerNote = !offer?.status || accepted || bk?.paid || chosenHere ? ""
+                : offer.status === "pending" ? (offerPrice ? c3110(lang, "offer_pending", { name: firstName, price: offerPrice }) : c3110(lang, "offer_sent", { name: firstName }))
+                : offer.status === "accepted" ? c3110(lang, "offer_accepted", { name: firstName, price: offerPrice })
+                : offer.status === "declined" ? c3110(lang, "offer_declined", { name: firstName })
+                : offer.status === "expired" ? c3110(lang, "offer_expired", { price: offerPrice })
+                : offer.status === "cancelled" ? c3110(lang, "offer_cancelled") : "";
+              const offerGood = offer?.status === "pending" || offer?.status === "accepted";
               return (
                 <li key={id} id={`application-${id}`} className="flex min-w-0 flex-col rounded-2xl bg-white p-3" data-candidate-3110={role} data-candidate-km={km ?? ""} data-candidate-total={total ?? ""}
                     style={{ boxShadow: isFocus || isPick ? "0 0 0 2px #C92A12, 0 6px 16px -10px rgba(35,23,21,.35)" : "0 6px 16px -10px rgba(35,23,21,.35)" }}>
@@ -800,8 +877,37 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
                         <SignatureButton tone={role} kind="secondary" icon="chat" label={c3110(lang, "ask_btn", { name: firstName })} disabled={askBusy} onClick={() => askOpen(a)} />
                       </div>
                     ))}
-                    <div className="mt-2 flex items-center justify-center gap-4 text-[12px] font-bold" style={{ color: tone.dark }}>
+                    {/* 22/11 — état de la proposition de prix (en attente / acceptée / refusée / sans réponse). */}
+                    {offerNote && (
+                      <p className="mt-2 flex items-start gap-1.5 rounded-xl px-3 py-2 text-[12px] font-bold leading-snug" style={offerGood ? { background: "#DCEFE3", color: "#15803D" } : { background: "#FBE9E5", color: "#9E1F0B" }} data-offer-2211={offer?.status || ""}>
+                        {offerGood && <AppIcon name="check" size={14} color="#15803D" />}<span>{offerNote}</span>
+                      </p>
+                    )}
+                    {canOffer && offerId === id && (
+                      <div className="mt-2 rounded-xl p-3" style={{ background: tone.pale }} data-offer-2211="open">
+                        <p className="text-[13px] font-extrabold leading-snug" style={{ color: tone.dark }}>{c3110(lang, "offer_title", { name: firstName })}</p>
+                        <p className="mt-0.5 text-[11px] font-semibold leading-snug" style={{ color: "#6E4F48" }}>
+                          {c3110(lang, "offer_hint", { name: firstName, min: money(offer?.minAmount ?? 0, currency, lang), max: money(offer?.currentTotal ?? total ?? 0, currency, lang) })}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2 rounded-xl bg-white px-3" style={{ boxShadow: `inset 0 0 0 1px ${tone.dark}` }}>
+                          <input ref={offerRef} value={offerText} onChange={(e) => setOfferText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void offerSend(a); } }}
+                            type="text" inputMode="decimal" autoComplete="off" maxLength={9} placeholder={c3110(lang, "offer_label")} aria-label={c3110(lang, "offer_label")}
+                            className="min-h-[44px] w-full min-w-0 flex-1 bg-transparent text-[16px] font-bold outline-none placeholder:font-semibold placeholder:text-[#8A6B64]" style={{ color: "#231715" }} data-offer-2211-input="" />
+                          <span className="shrink-0 text-[13px] font-extrabold" style={{ color: tone.dark }}>{currency}</span>
+                        </div>
+                        <div className="mt-2 flex items-center gap-3">
+                          <div className="min-w-0 flex-1">
+                            <SignatureButton tone={role} icon="wallet" label={offerBusy ? c3110(lang, "offer_sending") : c3110(lang, "offer_send")} loading={offerBusy} disabled={!offerText.trim() || offerBusy} onClick={() => void offerSend(a)} />
+                          </div>
+                          <button type="button" className="min-h-[36px] shrink-0 text-[12px] font-bold underline-offset-2 hover:underline" style={{ color: "#6E4F48" }} onClick={() => { setOfferId(null); setOfferText(""); setErrors((er) => ({ ...er, [id]: "" })); }}>{c3110(lang, "ask_close")}</button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-0 text-[12px] font-bold" style={{ color: tone.dark }}>
                       {pid && <a href={`/p/${role}/${pid}`} target="_blank" rel="noopener" className="min-h-[36px] leading-[36px] underline-offset-2 hover:underline" onClick={() => trackSiteEvent("cta_click", { label: "cand_profil" })}>{c3110(lang, "profile")}</a>}
+                      {canOffer && offerId !== id && (
+                        <button type="button" className="min-h-[36px] underline underline-offset-2" disabled={offerBusy || busyId !== null} onClick={() => offerOpen(a)} data-offer-2211="btn">{c3110(lang, "offer_btn")}</button>
+                      )}
                     </div>
                     {err && <p className="mt-2 rounded-xl px-3 py-2 text-[12px] font-bold" style={{ background: "#FBE9E5", color: "#9E1F0B" }} role="alert">{err}</p>}
                   </div>

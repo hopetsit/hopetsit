@@ -6,6 +6,7 @@ const {
   respondToApplication,
   cancelApplication,
   cancelSitterSentApplicationRequest,
+  proposePrice2211,
 } = require('../controllers/applicationController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { attachOwnerFromToken, attachUserFromToken } = require('../middleware/ownerContext');
@@ -240,6 +241,11 @@ router.get('/my', requireAuth, attachUserFromToken, listApplications);
  *         description: Application not found
  */
 router.post('/:id/respond', requireAuth, requireRole('owner'), respondToApplication);
+
+// 2211 — « Proposer mon prix » : le propriétaire propose un total plus bas pour une candidature en
+// attente ; le prestataire accepte ou refuse par lien signé (services/priceOffer2211.js).
+// Corps { amount } (total payé, commission comprise). PRICE_OFFER_2211=off → 404 OFFER_DISABLED.
+router.post('/:id/price-offer', requireAuth, requireRole('owner'), proposePrice2211);
 
 /**
  * @swagger

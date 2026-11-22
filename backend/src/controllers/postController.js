@@ -2318,6 +2318,14 @@ const updatePost = async (req, res) => {
     // propriétaire est prévenu (application_pricing_updated). Jamais bloquant.
     let repriced620 = null;
     let serviceChanged620b = null;
+    // 2211 — « Proposer mon prix » : si les dates, le service ou les visites ont changé, toute
+    // proposition en attente et tout prix négocié de cette demande sont annulés (le prix redevient
+    // celui du moteur). Une modification qui ne touche ni dates ni service ne change rien. Jamais bloquant.
+    try {
+      await require('../services/priceOffer2211').onRequestChanged(post);
+    } catch (e) {
+      logger.warn(`[updatePost] proposition de prix 2211 : ${e && e.message ? e.message : e}`);
+    }
     try {
       const engine620 = require('../utils/pricingEngine620');
       const svc = require('../services/applicationRepricing620');

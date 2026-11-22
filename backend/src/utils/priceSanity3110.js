@@ -78,6 +78,12 @@ function checkApplication(app, post, provider, providerRole) {
   if (total == null || !post || effectiveDateMode(post) === 'tbd') return { toVerify: false, reason: null };
   const days = dayCount(post);
   if (!(days >= 2 && total < MIN_TOTAL)) return { toVerify: false, reason: null };
+  // 2211 — un petit total NÉGOCIÉ (proposé par le propriétaire, accepté par le prestataire) et toujours
+  // valable pour cette demande n'est pas un prix périmé : il est payable. Un marqueur sans proposition
+  // acceptée, un total modifié ou une demande changée ne passent pas (priceOffer2211.negotiatedState).
+  try {
+    if (require('../services/priceOffer2211').isNegotiatedValid(app, post)) return { toVerify: false, reason: null };
+  } catch (e) { /* contrôle habituel */ }
   let recalculated = null;
   if (provider) {
     try {

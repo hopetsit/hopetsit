@@ -870,6 +870,15 @@ const listApplications = async (req, res) => {
       } catch (e) {
         logger.warn(`[listApplications] garde-fou prix 3110 : ${e?.message || e}`);
       }
+      // 2211 — « Proposer mon prix » : pour chaque candidature, le site sait s'il peut proposer et où
+      // en est la dernière proposition (lecture pure, aucune requête). PRICE_OFFER_2211=off → canOffer faux.
+      try {
+        const offer2211 = require('../services/priceOffer2211');
+        const now2211 = Date.now();
+        out = out.map((a) => (a ? { ...a, priceOffer2211View: offer2211.ownerView(a, now2211) } : a));
+      } catch (e) {
+        logger.warn(`[listApplications] proposition de prix 2211 : ${e?.message || e}`);
+      }
     }
     res.json({ applications: out });
   } catch (error) {
@@ -980,7 +989,14 @@ const respondToApplication = async (req, res) => {
           const engine620 = require('../utils/pricingEngine620');
           const rp = require('../services/applicationRepricing620');
           const p620 = await require('../models/Post').findById(application.postId).lean();
-          if (p620 && engine620.effectiveDateMode(p620) !== 'tbd') {
+          // 2211 — un prix NÉGOCIÉ (proposé par le propriétaire, accepté par le prestataire) et toujours
+          // valable pour cette demande (mêmes dates, même service, total = montant accepté) n'est PAS
+          // remplacé par le prix du moteur. S'il n'est plus valable (la demande a changé), il est annulé
+          // ici et le filet ci-dessous recalcule comme pour toute candidature.
+          const neg2211 = p620 ? require('../services/priceOffer2211').guardNegotiated(application, p620) : 'none';
+          if (neg2211 === 'keep') {
+            logger.info(`[respondToApplication] prix négocié 2211 respecté (candidature ${id}) : ${application.pricing && application.pricing.totalPrice}`);
+          } else if (p620 && engine620.effectiveDateMode(p620) !== 'tbd') {
             const PM = isWalkerApp ? require('../models/Walker') : Sitter;
             const prov = await PM.findById(providerRefId)
               .select('hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker').lean();
@@ -1317,7 +1333,27 @@ const respondToApplication = async (req, res) => {
   }
 };
 
+/**
+ * 2211 — « Proposer mon prix » : POST /applications/:id/price-offer { amount }.
+ * Toute la règle est dans services/priceOffer2211.createOffer (appartenance, état, bornes, limites).
+ */
+const proposePrice2211 = async (req, res) => {
+  try {
+    const out = await require('../services/priceOffer2211').createOffer({
+      applicationId: req.params.id,
+      ownerId: req.user?.id,
+      amount: req.body ? req.body.amount : undefined,
+    });
+    return res.status(out.status).json(out.body);
+  } catch (error) {
+    logger.error('Price offer error', error);
+    if (error.name === 'CastError') return res.status(400).json({ error: 'Invalid application id.' });
+    return res.status(500).json({ error: 'Unable to send the offer. Please try again later.' });
+  }
+};
+
 module.exports = {
+  proposePrice2211,
   createApplication,
   listApplications,
   respondToApplication,

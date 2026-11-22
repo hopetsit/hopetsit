@@ -1477,8 +1477,36 @@ export type ApplicationItem = {
     priceToConfirm?: boolean;
     priceCheckReason?: string;
     priceToConfirmLabel?: string;
+    /** 22/11 (2211) — total négocié : proposé par le propriétaire et accepté par le prestataire. */
+    negotiated2211?: boolean;
   } | null;
+  /** 22/11 (2211) — « Proposer mon prix » : ce que le serveur autorise et l'état de la dernière proposition. */
+  priceOffer2211View?: PriceOfferView2211 | null;
 };
+
+/** 22/11 (2211) — état d'une proposition de prix, calculé par le serveur (GET /applications/my, POST …/price-offer). */
+export type PriceOfferView2211 = {
+  enabled?: boolean;
+  /** Le lien « Proposer mon prix » n'est montré que si le serveur le dit (PRICE_OFFER_2211=off → false). */
+  canOffer?: boolean;
+  count?: number;
+  max?: number;
+  status?: "pending" | "accepted" | "declined" | "expired" | "cancelled" | null;
+  amount?: number | null;
+  currency?: string;
+  expiresAt?: string | null;
+  currentTotal?: number | null;
+  minAmount?: number | null;
+  negotiated?: boolean;
+};
+
+/** 22/11 (2211) — le propriétaire propose un total (commission comprise) pour une candidature en attente. */
+export async function proposeApplicationPrice(id: string, amount: number): Promise<{ priceOffer2211View?: PriceOfferView2211 | null }> {
+  return await request<{ priceOffer2211View?: PriceOfferView2211 | null }>(`/applications/${encodeURIComponent(id)}/price-offer`, {
+    method: "POST",
+    body: JSON.stringify({ amount }),
+  });
+}
 
 export function applicationId(a: ApplicationItem): string {
   return String(a.id || a._id || "");

@@ -148,6 +148,9 @@ async function repriceApplicationsForPost(post, opts = {}) {
       const provider = await Model.findById(providerRole === 'walker' ? app.walkerId : app.sitterId)
         .select('hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker').lean();
       if (!provider) { out.skipped.push(String(app._id)); continue; }
+      // 2211 — prix négocié encore valable pour cette demande : jamais recalculé. Plus valable (la
+      // demande a changé) : annulé ici, puis recalculé ci-dessous comme les autres.
+      if (negotiatedGuard2211(app, post) === 'keep') { out.skipped.push(String(app._id)); continue; }
       const pricing = priceApplication({ application: app, post, provider, providerRole });
       if (!pricing) {
         // 2610 (ZOE, relevé de LEO) — le candidat n'a AUCUN tarif pour le service de la demande
@@ -299,12 +302,24 @@ function isAligned(app, post, hasRate = false, pricingKey = null) {
 const near = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) <= 0.011;
 
 /**
+ * 2211 (« Proposer mon prix ») — garde-fou commun des recalculs : 'keep' = prix négocié (proposé par
+ * le propriétaire, accepté par le prestataire) toujours valable pour cette demande → ne pas y toucher ;
+ * 'dropped' = il ne l'est plus (dates / service / visites changés) → annulé sur le document, le
+ * recalcul habituel continue ; 'none' = candidature ordinaire. Jamais d'exception.
+ */
+function negotiatedGuard2211(app, post) {
+  try { return require('./priceOffer2211').guardNegotiated(app, post); } catch (_) { return 'none'; }
+}
+
+/**
  * 2610 (ZOE) — le bloc `pricing` stocké correspond-il au prix que calcule le moteur unique
  * aujourd'hui ? (tarif unitaire, quantité, unité, total). Une candidature « tarif à venir »
  * sans tarif connu est conforme ; avec un tarif désormais connu, elle ne l'est plus.
  */
 function matchesExpected(app, post, provider, providerRole, r) {
   const p = app.pricing || {};
+  // 2211 — un prix négocié valable EST le prix attendu (lecture seule : rien n'est modifié ici).
+  try { if (require('./priceOffer2211').isNegotiatedValid(app, post)) return true; } catch (_) { /* contrôle habituel */ }
   if (!r) return p.stale === true;
   if (p.stale === true) return false;
   const isTbd = engine.effectiveDateMode(post) === 'tbd';
@@ -369,6 +384,9 @@ async function repriceAfterServiceChange(post, opts = {}) {
       const provider = await Model.findById(providerRole === 'walker' ? app.walkerId : app.sitterId)
         .select('hourlyRate dailyRate weeklyRate monthlyRate visitRate visitDurationMinutes walkRates currency isTopSitter isTopWalker appLocale language').lean();
       if (!provider) { out.skipped.push(String(app._id)); continue; }
+      // 2211 — prix négocié valable : « aligné », même avec `force` (il n'est pas le prix du moteur, et
+      // c'est voulu). Plus valable : annulé sur le document, puis recalculé ci-dessous.
+      if (negotiatedGuard2211(app, post) === 'keep') { out.aligned.push(String(app._id)); continue; }
       const { r, pricingKey } = rateForApplication(provider, key, { durationMinutes: Number(post.walkDurationMinutes || app.duration) || undefined });
       // 2610 — « aligné » = le prix STOCKÉ est celui que donne le moteur aujourd'hui (tarif,
       // quantité, total). Avant, seuls le service et l'unité étaient comparés : 2,70 € pour un
@@ -509,6 +527,8 @@ async function repriceAfterRateChange({ providerId, providerRole } = {}, opts = 
       // eslint-disable-next-line no-await-in-loop
       const post = await Post.findById(app.postId).lean();
       if (!post || post.status === 'closed') { out.skipped.push(String(app._id)); continue; }
+      // 2211 — le tarif du PROFIL change, la demande non : un prix négocié valable reste.
+      if (negotiatedGuard2211(app, post) === 'keep') { out.kept.push(String(app._id)); continue; }
       const key = engine.mainService(post);
       const { r } = rateForApplication(provider, key, { durationMinutes: Number(post.walkDurationMinutes || app.duration) || undefined });
       if (!r) { out.kept.push(String(app._id)); continue; } // toujours pas de tarif pour ce service

@@ -139,8 +139,10 @@ for (const publicSiteOrigin of ['https://hopetsit.com', 'https://www.hopetsit.co
 // gardien était perdue. Le droit d'agir vient du jeton signé dans l'adresse (aucun cookie, aucune session) : sur ce
 // chemin seulement, une origine « null » est traitée comme une requête sans origine.
 const SITTER_FREE_PATH = /^(?:\/api\/v1)?\/sitter-free\//;
+// 2211 — même règle, même raison, pour la page de réponse « Proposer mon prix » (routes/priceOffer2211).
+const PRICE_OFFER_PATH = /^(?:\/api\/v1)?\/price-offer\//;
 app.use((req, res, next) => {
-  if (req.headers.origin === 'null' && SITTER_FREE_PATH.test(req.path)) delete req.headers.origin;
+  if (req.headers.origin === 'null' && (SITTER_FREE_PATH.test(req.path) || PRICE_OFFER_PATH.test(req.path))) delete req.headers.origin;
   next();
 });
 
@@ -403,6 +405,9 @@ const versionedRoutes = [
   { path: '/admin/candidates-reminder-2810', mw: [], router: require('./routes/adminCandidatesReminder2810') },
   { path: '/sitter-free', mw: [sensitiveLimiter], router: require('./routes/sitterFree1011') },
   { path: '/admin/sitter-free-1011', mw: [], router: require('./routes/adminSitterFree1011') },
+  // 2211 — « Proposer mon prix » : page de réponse du prestataire (lien signé) + lecture seule admin.
+  { path: '/price-offer', mw: [sensitiveLimiter], router: require('./routes/priceOffer2211') },
+  { path: '/admin/price-offers-2211', mw: [], router: require('./routes/adminPriceOffers2211') },
   { path: '/admin/dates-reminder-3110', mw: [], router: require('./routes/adminDatesReminder3110') }, // 3110 (ADA) — relance « posez vos dates » (simulation)
   // 1610 (SAM, 16/10) — « Partagez votre fiche » : registre + passage à la main (testOnly par défaut). requireAdmin dans le routeur.
   { path: '/admin/sitter-invite-1610', mw: [], router: require('./routes/adminSitterInvite1610') },

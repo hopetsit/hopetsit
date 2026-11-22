@@ -741,8 +741,13 @@ const prepareNotification = async ({ userId, role, type, rawData = {}, emailExtr
   // Coupe-circuit : SITTER_FREE_EMAIL_UNVERIFIED=off.
   const stillFreeBypass = String(type) === 'still_free_1011' && role !== 'owner'
     && process.env.SITTER_FREE_EMAIL_UNVERIFIED !== 'off';
+  // 2211 — « Proposer mon prix » : même exception, même raison (le gardien / promeneur a LUI-MÊME
+  // candidaté ; sans cet e-mail il ne peut ni accepter ni refuser le prix proposé). Jamais côté
+  // propriétaire. Coupe-circuit : PRICE_OFFER_EMAIL_UNVERIFIED=off.
+  const priceOfferBypass = String(type) === 'price_offer_2211' && role !== 'owner'
+    && process.env.PRICE_OFFER_EMAIL_UNVERIFIED !== 'off';
   const requestAlertBypass = (UNVERIFIED_BYPASS_TYPES.has(type)
-    && process.env.REQUEST_ALERT_EMAIL_UNVERIFIED !== 'off') || ownerCandidatesBypass || stillFreeBypass;
+    && process.env.REQUEST_ALERT_EMAIL_UNVERIFIED !== 'off') || ownerCandidatesBypass || stillFreeBypass || priceOfferBypass;
   if (email && !requestAlertBypass && await unverifiedEmailBlocked(user, role)) {
     emailBlocked = 'unverified';
     logger.info(`[notif.email.skip] compte jamais vérifié → aucun e-mail type=${type} role=${role} userId=${userId}`);
