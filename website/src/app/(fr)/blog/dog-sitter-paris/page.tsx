@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "@/components/SiteLink";
 import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
@@ -11,9 +12,16 @@ import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 const URL = "https://www.hopetsit.com/blog/dog-sitter-paris";
 // 08/11/2026 (GUS) — retitré sur « dogsitter » (en un mot) : 66 affichages en 9e place, 2 clics,
 // et « dog sitter » 46 affichages en 9e-10e place (28 j, France) ; le titre ne contenait pas le mot.
+// 22/11/2026 (GUS) — Search Console 28 j France : 527 affichages, 2 clics, 14e place
+// (« dogsitter » 214 aff. en 11e, « dog sitter paris » 108 en 16e, « dog sitter » 82 en 13e,
+// « dogsitting paris » 34 en 31e). Page enrichie pour monter en première page : rencontre
+// avant la garde, check-list, dog sitter ou pension, mot « dog sitting », liens vers les
+// arrondissements, image propre 1200×630. Aucun chiffre ni tarif nouveau.
+const COVER = "https://www.hopetsit.com/blog/dog-sitter-paris.jpg";
+const COVER_ALT = "Chien noir en promenade dans un bois, couverture du guide « Dogsitter à Paris »";
 const TITLE = "Dogsitter à Paris : trouver un dog sitter de confiance";
 const DESCRIPTION =
-  "Dogsitter (ou dog sitter) à Paris : garde chez lui ou chez vous, visites, promenades. Les 4 formules et comment trouver un dogsitter de confiance près de chez vous.";
+  "Dogsitter (ou dog sitter) à Paris : garde chez lui ou chez vous, visites, promenades. Les 4 formules de dog sitting, la rencontre avant la garde et la check-list.";
 const HEADLINE = "Dogsitter à Paris : ce que fait un dog sitter, les 4 formules et comment en trouver un";
 
 export const metadata: Metadata = {
@@ -27,7 +35,7 @@ export const metadata: Metadata = {
     type: "article",
     locale: "fr_FR",
     siteName: "HoPetSit",
-    images: [{ url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630, alt: "HoPetSit" }],
+    images: [{ url: COVER, width: 1200, height: 630, alt: COVER_ALT }],
   },
 };
 
@@ -49,9 +57,45 @@ const FAQ = [
     a: "Pendant la prestation, le suivi GPS PawFollow montre la promenade en direct sur la carte, et le chat de l'app permet d'échanger des photos avec le dog sitter.",
   },
   {
+    q: "Dog sitting, dogsitting, garde de chien : est-ce la même chose ?",
+    a: "Oui. « Dog sitting » (ou « dogsitting ») est le mot anglais pour la garde de chien par un particulier, chez lui ou chez vous. On dit aussi « garde de chien à domicile » quand le dog sitter vient chez vous.",
+  },
+  {
+    q: "Faut-il rencontrer le dog sitter avant la garde ?",
+    a: "Oui, toujours. Une courte rencontre avec votre chien, quelques jours avant, permet de voir le logement, d'expliquer ses habitudes et de vérifier que le chien est à l'aise. Proposez-la dans le chat de l'app avant de choisir.",
+  },
+  {
     q: "Que faire si je dois annuler ?",
     a: "Prévenez le dog sitter le plus tôt possible par le chat de l'app. HoPetSit prévoit une annulation possible jusqu'à 72 heures avant le début de la garde.",
   },
+];
+
+const RENCONTRE = [
+  "Faites-la dans la rue ou au parc, puis là où le chien sera gardé : vous voyez le logement, et le chien découvre les lieux avec vous.",
+  "Regardez comment le dog sitter aborde votre chien : il le laisse venir, il ne le force pas, il vous pose des questions sur ses habitudes.",
+  "Dites tout ce qui compte : peur des autres chiens, fugues, tire en laisse, reste-t-il seul sans aboyer, traitement en cours.",
+  "Demandez combien de sorties par jour, où, et s'il garde d'autres animaux aux mêmes dates.",
+  "Si quelque chose vous gêne, ne réservez pas : une autre réponse à votre demande conviendra mieux.",
+];
+
+const CHECKLIST = [
+  "Ses croquettes habituelles pour toute la durée, avec un peu de marge, et les quantités écrites.",
+  "Laisse, harnais ou collier avec une médaille à votre numéro, et des sacs à déjections.",
+  "Son panier ou une couverture qui porte son odeur, et un jouet qu'il connaît.",
+  "Le carnet de santé, le numéro de puce ou de tatouage, le nom et le téléphone de votre vétérinaire.",
+  "Le traitement s'il y en a un, avec les heures et les doses notées noir sur blanc.",
+  "Une personne à joindre si vous êtes injoignable (avion, réunion), et votre heure de retour.",
+];
+
+const ARRONDISSEMENTS = [
+  { href: "/garde-animaux/paris-11", t: "Paris 11e" },
+  { href: "/garde-animaux/paris-12", t: "Paris 12e" },
+  { href: "/garde-animaux/paris-15", t: "Paris 15e" },
+  { href: "/garde-animaux/paris-16", t: "Paris 16e" },
+  { href: "/garde-animaux/paris-17", t: "Paris 17e" },
+  { href: "/garde-animaux/paris-18", t: "Paris 18e" },
+  { href: "/garde-animaux/paris-19", t: "Paris 19e" },
+  { href: "/garde-animaux/paris-20", t: "Paris 20e" },
 ];
 
 const FORMULES = [
@@ -84,7 +128,8 @@ export default function ArticleDogSitterParis() {
         inLanguage: "fr-FR",
         mainEntityOfPage: URL,
         datePublished: "2026-10-28",
-        image: { "@type": "ImageObject", url: "https://www.hopetsit.com/og-image.png", width: 1200, height: 630 },
+        image: { "@type": "ImageObject", url: COVER, width: 1200, height: 630 },
+        dateModified: "2026-11-22",
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: {
           "@type": "Organization",
@@ -111,6 +156,15 @@ export default function ArticleDogSitterParis() {
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
         {HEADLINE}
       </h1>
+      <Image
+        src="/blog/dog-sitter-paris.jpg"
+        alt={COVER_ALT}
+        width={1200}
+        height={630}
+        priority
+        sizes="(max-width: 768px) 100vw, 768px"
+        className="mt-6 h-auto w-full rounded-2xl"
+      />
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         À Paris, on dit souvent « dog sitter » (ou « dogsitter », en un mot) plutôt que « gardien de chien ». Derrière ce mot se
         cachent pourtant des services assez différents : garder votre chien plusieurs jours, venir
@@ -133,6 +187,12 @@ export default function ArticleDogSitterParis() {
         fraîche, les sorties, le jeu, un traitement s'il y en a un, et il vous donne des nouvelles.
         Il s'engage aussi à vous prévenir tout de suite en cas de souci et à contacter votre
         vétérinaire si besoin.
+      </p>
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        On parle aussi de « dog sitting » (ou « dogsitting ») pour désigner le service lui-même :
+        faire du dog sitting, c'est garder le chien de quelqu'un d'autre, pour quelques heures ou
+        pour plusieurs jours. Le mot vient de « baby-sitting », et l'idée est la même : une personne
+        de confiance, pas une structure.
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
@@ -159,6 +219,28 @@ export default function ArticleDogSitterParis() {
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
+        Dog sitter ou pension canine : que choisir ?
+      </h2>
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        Une pension canine accueille plusieurs chiens dans un lieu prévu pour cela, avec des boxes
+        ou des parcs et des horaires fixes pour déposer et reprendre l'animal. Autour de Paris,
+        elles sont le plus souvent en banlieue ou à la campagne : il faut compter le trajet. Un dog
+        sitter, lui, garde votre chien chez lui ou chez vous, dans la vie de tous les jours.
+      </p>
+      <ul className="mt-4 space-y-2">
+        {[
+          "Le dog sitter convient bien à un chien habitué à l'appartement, proche de son maître, âgé ou stressé par le bruit et les autres chiens.",
+          "La pension peut convenir à un chien très sociable, qui aime vivre en groupe et a besoin de grands espaces.",
+          "Dans les deux cas, visitez avant de réserver et demandez comment se passe une journée type.",
+        ].map((t) => (
+          <li key={t} className="flex gap-2 leading-relaxed text-ink-muted">
+            <span aria-hidden="true" className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-owner" />
+            <span>{t}</span>
+          </li>
+        ))}
+      </ul>
+
+      <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
         Ce qui compte vraiment à Paris
       </h2>
       <ul className="mt-4 space-y-2">
@@ -171,6 +253,35 @@ export default function ArticleDogSitterParis() {
         ].map((t) => (
           <li key={t} className="flex gap-2 leading-relaxed text-ink-muted">
             <span aria-hidden="true" className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-owner" />
+            <span>{t}</span>
+          </li>
+        ))}
+      </ul>
+
+      <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
+        La rencontre avant la garde
+      </h2>
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        Ne confiez jamais votre chien à un dog sitter que vous n'avez pas rencontré. Un quart
+        d'heure ensemble, quelques jours avant, suffit à savoir si le courant passe, pour vous
+        comme pour le chien.
+      </p>
+      <ul className="mt-4 space-y-2">
+        {RENCONTRE.map((t) => (
+          <li key={t} className="flex gap-2 leading-relaxed text-ink-muted">
+            <span aria-hidden="true" className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-owner" />
+            <span>{t}</span>
+          </li>
+        ))}
+      </ul>
+
+      <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
+        La check-list à remettre au dog sitter
+      </h2>
+      <ul className="mt-4 space-y-2">
+        {CHECKLIST.map((t) => (
+          <li key={t} className="flex gap-2 leading-relaxed text-ink-muted">
+            <span aria-hidden="true" className="mt-1 shrink-0 font-bold text-owner">✓</span>
             <span>{t}</span>
           </li>
         ))}
@@ -219,6 +330,32 @@ export default function ArticleDogSitterParis() {
         </Link>{" "}
         liste les questions à poser à la rencontre.
       </p>
+
+      <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">
+        Un dog sitter dans votre arrondissement
+      </h2>
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        Le plus simple est de chercher près de chez vous : le trajet est court et votre chien reste
+        dans son quartier. Chaque page d'arrondissement liste les vétérinaires, les espaces canins
+        et les jardins du secteur.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {ARRONDISSEMENTS.map((a) => (
+          <Link
+            key={a.href}
+            href={a.href}
+            className="rounded-full bg-owner-light px-4 py-2 text-sm font-semibold text-owner-dark"
+          >
+            Dog sitter {a.t}
+          </Link>
+        ))}
+        <Link
+          href="/garde-animaux/paris"
+          className="rounded-full border border-owner px-4 py-2 text-sm font-semibold text-owner"
+        >
+          Les 20 arrondissements
+        </Link>
+      </div>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">Questions fréquentes</h2>
       <div className="mt-6 space-y-4">
