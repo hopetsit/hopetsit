@@ -65,6 +65,7 @@ import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dar
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/my_posts_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
+import 'package:hopetsit/views/pet_owner/posts/widgets/cand644.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_sheet.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/dates620_candidates.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
@@ -409,12 +410,22 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
             : 'band_provider_fallback'.tr;
         final isWalker = (b.serviceType ?? '').toLowerCase().contains('walking');
         final extraCount = acceptedToPay.length - 1;
-        final title = extraCount > 0
-            ? 'band_owner_pay_title_extra'.trParams({
-                'name': providerName,
-                'count': extraCount.toString(),
-              })
-            : 'band_owner_pay_title'.trParams({'name': providerName});
+        // 644 (ZOE) — réservation « payer plus tard » en cours : « Réservé
+        // jusqu'au … » (le prénom passe dans le sous-titre), pas « a accepté ! ».
+        final String? held644 = extraCount > 0
+            ? null
+            : heldBannerTitle644(
+                b.id,
+                Get.isRegistered<ApplicationsController>()
+                    ? Get.find<ApplicationsController>().applications
+                    : const <ApplicationModel>[]);
+        final title = held644 ??
+            (extraCount > 0
+                ? 'band_owner_pay_title_extra'.trParams({
+                    'name': providerName,
+                    'count': extraCount.toString(),
+                  })
+                : 'band_owner_pay_title'.trParams({'name': providerName}));
         // Total agrégé si plusieurs bookings.
         double totalToPay = 0;
         String? aggCurrency;
@@ -442,7 +453,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           tone: ActionTone.pay,
           icon: Icons.celebration_rounded,
           title: title,
-          subtitle: '${_serviceLabel(b.serviceType)} ${b.petName} — '
+          subtitle: '${held644 != null ? '$providerName · ' : ''}${_serviceLabel(b.serviceType)} ${b.petName} — '
               '${_dateLabel(b)}',
           ctaLabel: ctaLabel,
           booking: b,

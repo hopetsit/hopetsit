@@ -5,6 +5,7 @@
 // Règles serveur inchangées : 403 `OWN_POST` sur sa propre annonce, doublon
 // d'une candidature en attente → `duplicatePrevented`.
 import 'package:get/get.dart';
+import 'package:hopetsit/views/shared/photo_nudge644.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/owner_active_request.dart';
@@ -73,6 +74,8 @@ Future<OwnerRequestApplyState> proposeMyServices(OwnerActiveRequest r, {required
     CustomSnackbar.showError(title: 'common_error'.tr, message: 'pawmap_request_no_pets'.tr);
     return OwnerRequestApplyState.idle;
   }
+  // 644 — « Ajoute ta photo » : une fois par demande, jamais bloquant.
+  await PhotoNudge644.maybeShow(r.id);
   try {
     final repo = Get.find<SitterRepository>();
     final basePrice = await myBasePrice(repo, role);

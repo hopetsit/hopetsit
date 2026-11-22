@@ -13,6 +13,7 @@ import 'package:hopetsit/widgets/vehicle_badge1011.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/service_location587.dart';
+import 'package:hopetsit/views/pet_owner/posts/widgets/cand644.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/dates620_candidates.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_dates_sheet2610.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
@@ -48,7 +49,9 @@ class PostCandidatesSheet {
     bool chooseNow = false,
   }) async {
     markCandidatesViewed2610(postId, source);
-    await showModalBottomSheet<void>(
+    // 644 — la feuille renvoie l'id de réservation quand le propriétaire appuie
+    // sur « Payer maintenant » (réservation « payer plus tard »).
+    final String? payNow = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -63,11 +66,16 @@ class PostCandidatesSheet {
     // demande est choisi (réservation créée), le paiement s'ouvre TOUT DE
     // SUITE, quel que soit le chemin d'entrée (bandeau, notification, lien
     // ?choose=1, chat). Avant, seul le lien le faisait.
-    final String? bookingId = chosenBookingId628(
-        Get.isRegistered<ApplicationsController>()
-            ? Get.find<ApplicationsController>().applications
-            : const <ApplicationModel>[],
-        postId);
+    // 644 — une réservation « payer plus tard » en cours n'ouvre PAS le
+    // paiement toute seule (c'est le choix du propriétaire) : seulement par
+    // « Payer maintenant ». Sans cette option, même règle qu'au build 628.
+    final String? bookingId = (payNow != null && payNow.isNotEmpty)
+        ? payNow
+        : chosenBookingId644(
+            Get.isRegistered<ApplicationsController>()
+                ? Get.find<ApplicationsController>().applications
+                : const <ApplicationModel>[],
+            postId);
     if (bookingId != null) await openBookingPayment628(bookingId);
   }
 }
@@ -378,11 +386,31 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
 
   /// Candidats en attente : celui de la notification d'abord, puis les
   /// PawBoost, puis l'ordre du serveur (628 — plus de retri par date).
-  List<ApplicationModel> _candidates() => orderCandidates628(
-      _controller.applications.where((a) =>
-          a.postId == widget.postId &&
-          a.status.toLowerCase().trim() == 'pending'),
-      widget.highlightId);
+  /// 644 — s'y ajoutent les réservations « payer plus tard » en cours, et
+  /// l'ordre devient celui du site (photo, identité vérifiée, distance, prix ;
+  /// promenade / visite : plus de 10 km en bas), PawBoost gardé devant.
+  List<ApplicationModel> _candidates() {
+    final mine = _controller.applications.where((a) =>
+        a.postId == widget.postId &&
+        (a.status.toLowerCase().trim() == 'pending' ||
+            (Flags644.payLater && isHeld644(a))));
+    if (!Flags644.order) return orderCandidates628(mine, widget.highlightId);
+    return sortCandidates644(mine,
+        kmOf: _kmOf, highlightId: widget.highlightId, postServices: _post?.serviceTypes);
+  }
+
+  int? _kmOf(ApplicationModel a) {
+    final p = _post?.location;
+    return candidateKm2610(p?.lat, p?.lng, a.sitter.lat, a.sitter.lng);
+  }
+
+  /// 644 — « chien » / « chat » / autre, pour le message prêt « un chien comme le mien ».
+  String _animalKind() {
+    final p = _post;
+    if (p == null) return '';
+    if (p.animalTypes.isNotEmpty) return p.animalTypes.first;
+    return p.pets.isNotEmpty ? p.pets.first.category : '';
+  }
 
   bool _postIsTbd(List<ApplicationModel> list) {
     final p = _post;
@@ -420,7 +448,37 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
     await _openDates();
   }
 
-  Future<void> _write(ApplicationModel app) async {
+  /// 644 — « Lui parler avant de réserver » : les 4 messages prêts, puis la
+  /// conversation (mécanisme d'avant, [_write]) avec le texte choisi dans le
+  /// champ, modifiable. Réservation en cours ou option coupée : la
+  /// conversation directement.
+  Future<void> _talk(ApplicationModel app, bool tbd) async {
+    if (!Flags644.talkBefore || isHeld644(app)) return _write(app);
+    if (_writing.value.isNotEmpty) return;
+    final bool isWalker = app.providerRole == 'walker';
+    final String name = app.sitter.name.isNotEmpty ? app.sitter.name : 'provider_unknown'.tr;
+    final String? draft = await showTalkSheet644(
+      context,
+      firstName: name.split(' ').first,
+      questions: questions644(isWalker: isWalker, animalKind: _animalKind(), tbd: tbd),
+      roleColor: isWalker ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+    );
+    if (draft == null || !mounted) return;
+    await _write(app, draft: draft);
+  }
+
+  /// 644 — « Payer maintenant » d'une réservation « payer plus tard » : la
+  /// feuille se ferme et l'appelant ouvre le paiement existant de la réservation.
+  void _payNow(ApplicationModel app) {
+    final String b = app.bookingId ?? '';
+    if (!RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(b)) {
+      CustomSnackbar.showError(title: 'common_error'.tr, message: 'cand644_later_err'.tr);
+      return;
+    }
+    Navigator.of(context).pop(b);
+  }
+
+  Future<void> _write(ApplicationModel app, {String draft = ''}) async {
     if (_writing.value.isNotEmpty) return;
     _writing.value = app.id;
     final isWalker = app.providerRole == 'walker';
@@ -439,6 +497,7 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
             conversationId: id,
             contactName: app.sitter.name,
             contactImage: app.sitter.avatar.url,
+            initialDraft: draft,
           ));
     } on ApiException catch (e) {
       if (mounted && ChatAccessUpsellHelper.maybeShowChatUpsell(context, e)) return;
@@ -543,7 +602,9 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
         12.h,
         16.w,
         // v569 — `padding.bottom` = 0 sur le Samsung de Daniel.
-        20.h + appBottomInset(context),
+        // 644 — clavier ouvert (champ « Proposer mon prix ») : la feuille
+        // remonte au-dessus du clavier ; clavier fermé, rien ne change.
+        20.h + (mq.viewInsets.bottom > 0 ? mq.viewInsets.bottom : appBottomInset(context)),
       ),
       child: Obx(() {
         // Touching .applications/.isLoading inside Obx so reactive.
@@ -615,6 +676,13 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
               child: Builder(builder: (context) {
                 if (loading && list.isEmpty) return const _CandidatesSkeleton();
                 if (list.isEmpty) return _empty(context);
+                // 644 — intertitre « Plus loin de chez toi » avant le 1er candidat à plus de 10 km.
+                final String farId = Flags644.order
+                    ? firstFarId644(list,
+                        kmOf: _kmOf,
+                        highlightId: widget.highlightId,
+                        postServices: _post?.serviceTypes)
+                    : '';
                 return ListView.separated(
                   shrinkWrap: true,
                   padding: EdgeInsets.zero,
@@ -623,17 +691,29 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
                   itemBuilder: (_, i) {
                     if (i < header.length) return header[i];
                     final app = list[i - header.length];
-                    final p = _post?.location;
-                    return _CandidateCard(
+                    final card = _CandidateCard(
                       app: app,
                       busy: _busy,
                       writing: _writing,
                       tbd: tbd,
                       highlighted: app.id == widget.highlightId,
-                      km: candidateKm2610(p?.lat, p?.lng, app.sitter.lat, app.sitter.lng),
-                      onWrite: () => _write(app),
+                      km: _kmOf(app),
+                      held: Flags644.payLater && isHeld644(app),
+                      onWrite: () => _talk(app, tbd),
                       onAccept: () => _accept(app),
                       onReject: () => _reject(app),
+                      onPayNow: () => _payNow(app),
+                      onReserveLater: () => _controller.reserveLater644(app.id),
+                      onProposePrice: (amount) => _controller.proposePrice644(
+                          applicationId: app.id,
+                          amount: amount,
+                          currency: candidateCurrency644(app)),
+                    );
+                    if (app.id != farId) return card;
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [const FarHeader644(), SizedBox(height: 10.h), card],
                     );
                   },
                 );
@@ -1021,6 +1101,10 @@ class _CandidateCard extends StatelessWidget {
     required this.onWrite,
     required this.onAccept,
     required this.onReject,
+    required this.held,
+    required this.onPayNow,
+    required this.onReserveLater,
+    required this.onProposePrice,
   });
 
   final ApplicationModel app;
@@ -1032,6 +1116,12 @@ class _CandidateCard extends StatelessWidget {
   final VoidCallback onWrite;
   final VoidCallback onAccept;
   final VoidCallback onReject;
+
+  /// 644 — réservé « payer plus tard », à payer avant l'échéance.
+  final bool held;
+  final VoidCallback onPayNow;
+  final Future<Result644> Function() onReserveLater;
+  final Future<Result644> Function(double amount) onProposePrice;
 
   bool get _indicative => applicationIsIndicative620(app);
   bool get _stale => applicationIsStale620(app);
@@ -1241,11 +1331,43 @@ class _CandidateCard extends StatelessWidget {
             ),
           ],
           SizedBox(height: 12.h),
+          // 644 — réservé « payer plus tard » : échéance, « Payer maintenant »
+          // (paiement existant de la réservation) et « Lui écrire ».
+          if (held) ...[
+            HeldBox644(app: app, firstName: first),
+            SizedBox(height: 8.h),
+            ActionPillButton(
+              key: Key('cand644_pay_${app.id}'),
+              label: total.isNotEmpty
+                  ? '${'cand644_later_pay'.tr} · $total'
+                  : 'cand644_later_pay'.tr,
+              icon: Icons.account_balance_wallet_rounded,
+              tone: owner,
+              expand: true,
+              haptic: true,
+              onPressed: onPayNow,
+            ),
+            SizedBox(height: 8.h),
+            Obx(() => ActionPillButton(
+                  key: Key('cand2610_write_${app.id}'),
+                  label: 'cand644_later_write'.tr,
+                  icon: Icons.chat_bubble_rounded,
+                  tone: role,
+                  kind: ActionPillKind.outlined,
+                  expand: true,
+                  busy: writing.value == app.id,
+                  onPressed: onWrite,
+                )),
+          ] else ...[
           // Boutons : Écrire (principal, couleur du rôle) · Choisir (contour
           // orange) · Refuser (lien). Paiement inchangé (après Choisir).
+          // 644 — « Écrire à … » devient « Lui parler avant de réserver »
+          // (mêmes clé, couleur et conversation ; 4 messages prêts avant).
           Obx(() => ActionPillButton(
                 key: Key('cand2610_write_${app.id}'),
-                label: 'cand2610_write'.tr.replaceAll('{name}', first),
+                label: Flags644.talkBefore
+                    ? 'cand644_ask_btn'.tr.replaceAll('{name}', first)
+                    : 'cand2610_write'.tr.replaceAll('{name}', first),
                 icon: Icons.chat_bubble_rounded,
                 tone: role,
                 expand: true,
@@ -1286,6 +1408,18 @@ class _CandidateCard extends StatelessWidget {
               ),
             ),
           ],
+          // 644 — « Réserver <prénom>, payer plus tard », état et champ de
+          // « Proposer mon prix ». Rien si le serveur n'envoie pas ces vues.
+          CandExtras644(
+            key: ValueKey<String>('cand644_x_${app.id}'),
+            app: app,
+            firstName: first,
+            tbd: tbd,
+            roleColor: role,
+            busy: busy,
+            onReserveLater: onReserveLater,
+            onProposePrice: onProposePrice,
+          ),
           SizedBox(height: 4.h),
           // « Refuser » en lien texte (rouge, sans aplat — kit).
           Center(
@@ -1298,6 +1432,7 @@ class _CandidateCard extends StatelessWidget {
               onPressed: onReject,
             ),
           ),
+          ],
         ],
       ),
     );

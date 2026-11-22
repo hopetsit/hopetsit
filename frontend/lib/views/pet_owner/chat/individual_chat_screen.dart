@@ -39,11 +39,16 @@ class IndividualChatScreen extends StatefulWidget {
   final String contactName;
   final String contactImage;
 
+  /// 644 — texte posé dans le champ à l'ouverture (message prêt de la page
+  /// des candidats) ; rien n'est envoyé, l'utilisateur le modifie ou l'envoie.
+  final String initialDraft;
+
   const IndividualChatScreen({
     super.key,
     required this.conversationId,
     required this.contactName,
     required this.contactImage,
+    this.initialDraft = '',
   });
 
   @override
@@ -86,6 +91,14 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     } catch (e) {
       // Controller might be disposed, use empty string
       initialText = '';
+    }
+
+    // 644 — message prêt : il remplace un éventuel reste de brouillon.
+    if (widget.initialDraft.trim().isNotEmpty) {
+      initialText = widget.initialDraft;
+      try {
+        chatController.messageController.text = initialText;
+      } catch (_) {/* contrôleur partagé déjà libéré : le champ local suffit */}
     }
 
     _localMessageController = TextEditingController(text: initialText);

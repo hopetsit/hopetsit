@@ -745,7 +745,15 @@ class DeepLinkService {
     Map<String, dynamic>? data, {
     String? role,
   }) {
-    final t = type.toLowerCase();
+    // 644 — gabarits « payer plus tard » du serveur (22/11) : ils voyagent sous
+    // un type existant (`templateType`) ; s'ils arrivaient un jour comme type,
+    // ils ouvrent la même destination que ce type (jamais la simple liste).
+    const later2211 = <String, String>{
+      'pay_later_reminder_2211': 'booking_accepted',
+      'pay_later_released_owner_2211': 'application_new',
+      'pay_later_released_provider_2211': 'booking_cancelled_by_owner',
+    };
+    final t = later2211[type.toLowerCase()] ?? type.toLowerCase();
     final d = data ?? const <String, dynamic>{};
     final r = (role ?? (d['recipientRole'] ?? '').toString()).toLowerCase();
     final isOwner = r == 'owner';

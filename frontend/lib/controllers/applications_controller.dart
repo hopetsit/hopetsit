@@ -34,6 +34,29 @@ String? alreadyPaidMessage1011(ApiException error) {
   return isAlreadyPaid ? 'c1011_already_paid'.tr : null;
 }
 
+/// 644 — code métier d'un refus du serveur (`OFFER_TOO_LOW`, `PAY_LATER_TOO_LATE`…),
+/// '' si absent. Lu dans le corps de la réponse, jamais deviné.
+String apiErrorCode644(ApiException error) {
+  final d = error.details;
+  if (d is Map && d['code'] != null) return d['code'].toString().trim();
+  final m = RegExp(r'\b(OFFER_[A-Z_]+|PAY_LATER_[A-Z_]+)\b').firstMatch(error.message);
+  return m?.group(1) ?? '';
+}
+
+/// 644 — résultat d'un appel « proposer mon prix » / « réserver, payer plus
+/// tard » : `ok`, sinon le code du serveur ('' = panne sans code) et, pour un
+/// refus déjà connu de l'app (tarif à venir, déjà payé, dates), sa phrase.
+class Result644 {
+  const Result644.ok()
+      : ok = true,
+        code = '',
+        message = null;
+  const Result644.fail(this.code, {this.message}) : ok = false;
+  final bool ok;
+  final String code;
+  final String? message;
+}
+
 class ApplicationsController extends GetxController {
   ApplicationsController({OwnerRepository? ownerRepository})
     : _ownerRepository = ownerRepository ?? Get.find<OwnerRepository>();
@@ -92,6 +115,74 @@ class ApplicationsController extends GetxController {
       applications.clear();
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// 644 — met à jour UNE candidature en place (état renvoyé par le serveur).
+  void patch644(String applicationId, ApplicationModel Function(ApplicationModel a) change) {
+    final i = applications.indexWhere((a) => a.id == applicationId);
+    if (i >= 0) applications[i] = change(applications[i]);
+  }
+
+  /// 644 — « Proposer mon prix » : le serveur vérifie les bornes, prévient le
+  /// gardien et renvoie l'état à afficher. Le prix de la carte ne change
+  /// qu'après l'accord du gardien (nouveau `pricing` au rechargement).
+  Future<Result644> proposePrice644({
+    required String applicationId,
+    required double amount,
+    required String currency,
+  }) async {
+    try {
+      final res = await _ownerRepository.proposeApplicationPrice(
+        applicationId: applicationId,
+        amount: amount,
+      );
+      final view = PriceOffer2211View.tryParse(res['priceOffer2211View']) ??
+          PriceOffer2211View(status: 'pending', amount: amount, currency: currency);
+      patch644(applicationId, (a) => a.copyWith644(priceOffer: view));
+      return const Result644.ok();
+    } on ApiException catch (error) {
+      final code = apiErrorCode644(error);
+      // Limite atteinte ou fonction coupée côté serveur : le lien disparaît.
+      if (code == 'OFFER_LIMIT' || code == 'OFFER_DISABLED') {
+        patch644(applicationId,
+            (a) => a.copyWith644(priceOffer: (a.priceOffer ?? const PriceOffer2211View()).closed()));
+      }
+      return Result644.fail(code);
+    } catch (error) {
+      AppLogger.logError('proposePrice644', error: error);
+      return const Result644.fail('');
+    }
+  }
+
+  /// 644 — « Réserver (prénom), payer plus tard » : acceptation SANS intention
+  /// de paiement (`payLater: true`). La liste est rechargée : la candidature
+  /// revient « acceptée » avec son échéance (`payLater2211View`).
+  Future<Result644> reserveLater644(String applicationId) async {
+    try {
+      await _ownerRepository.respondToApplication(
+        applicationId: applicationId,
+        action: 'accept',
+        payLater: true,
+      );
+      await loadApplications();
+      return const Result644.ok();
+    } on ApiException catch (error) {
+      final code = apiErrorCode644(error);
+      if (code.startsWith('PAY_LATER_')) {
+        // Refusé (éteint, service trop proche, déjà libérée une fois) : il ne
+        // reste que « Choisir et payer ».
+        patch644(applicationId,
+            (a) => a.copyWith644(payLater: (a.payLater ?? const PayLater2211View()).closed()));
+        return Result644.fail(code);
+      }
+      final String? known = ratePendingMessage627(error) ??
+          alreadyPaidMessage1011(error) ??
+          (code == 'DATES_REQUIRED' ? 'dates620_dates_required_error'.tr : null);
+      return Result644.fail(code, message: known);
+    } catch (error) {
+      AppLogger.logError('reserveLater644', error: error);
+      return const Result644.fail('');
     }
   }
 

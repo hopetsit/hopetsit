@@ -35,6 +35,14 @@ class ApplicationModel {
   /// at_owner | at_sitter | both | pickup | meeting_point ('' = inconnu).
   final String serviceLocation;
   final String meetingPoint;
+  /// 644 — service de la candidature (`dog_walking`, `home_visit`…), '' si le
+  /// serveur ne l'envoie pas. Sert au rangement « Plus loin de chez toi ».
+  final String serviceType;
+  /// 644 — « Proposer mon prix » (`priceOffer2211View` du serveur 22/11) ;
+  /// null avec un ancien serveur : rien n'est affiché.
+  final PriceOffer2211View? priceOffer;
+  /// 644 — « Réserver, payer plus tard » (`payLater2211View`) ; null = rien.
+  final PayLater2211View? payLater;
 
   ApplicationModel({
     required this.id,
@@ -55,7 +63,37 @@ class ApplicationModel {
     this.providerRole = 'sitter',
     this.serviceLocation = '',
     this.meetingPoint = '',
+    this.serviceType = '',
+    this.priceOffer,
+    this.payLater,
   });
+
+  /// 644 — copie avec un autre état « prix proposé » / « payer plus tard »
+  /// (mise à jour locale après la réponse du serveur, sans recharger la liste).
+  ApplicationModel copyWith644({PriceOffer2211View? priceOffer, PayLater2211View? payLater}) =>
+      ApplicationModel(
+        id: id,
+        postBody: postBody,
+        petName: petName,
+        description: description,
+        serviceDate: serviceDate,
+        startDate: startDate,
+        timeSlot: timeSlot,
+        status: status,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        owner: owner,
+        sitter: sitter,
+        pricing: pricing,
+        bookingId: bookingId,
+        postId: postId,
+        providerRole: providerRole,
+        serviceLocation: serviceLocation,
+        meetingPoint: meetingPoint,
+        serviceType: serviceType,
+        priceOffer: priceOffer ?? this.priceOffer,
+        payLater: payLater ?? this.payLater,
+      );
 
   factory ApplicationModel.fromJson(Map<String, dynamic> json) {
     final pricingJson = json['pricing'];
@@ -98,8 +136,97 @@ class ApplicationModel {
       serviceLocation: (json['serviceLocation'] ?? '').toString(),
       meetingPoint: (json['meetingPoint'] ?? '').toString(),
       providerRole: providerRole,
+      serviceType: (json['serviceType'] ?? '').toString(),
+      priceOffer: PriceOffer2211View.tryParse(json['priceOffer2211View']),
+      payLater: PayLater2211View.tryParse(json['payLater2211View']),
     );
   }
+}
+
+double? _num644(dynamic v) {
+  if (v is num) return v.isFinite ? v.toDouble() : null;
+  if (v is String) return double.tryParse(v.trim());
+  return null;
+}
+
+/// 644 — ce que le serveur autorise pour « Proposer mon prix » et où en est la
+/// dernière proposition (`priceOffer2211.ownerView`). Lecture seule.
+class PriceOffer2211View {
+  /// Le lien « Proposer mon prix » peut être montré.
+  final bool canOffer;
+  /// pending | accepted | declined | expired | cancelled | '' (aucune).
+  final String status;
+  final double? amount;
+  final String currency;
+  final double? currentTotal;
+  final double? minAmount;
+  final bool negotiated;
+
+  const PriceOffer2211View({
+    this.canOffer = false,
+    this.status = '',
+    this.amount,
+    this.currency = '',
+    this.currentTotal,
+    this.minAmount,
+    this.negotiated = false,
+  });
+
+  static PriceOffer2211View? tryParse(dynamic json) {
+    if (json is! Map) return null;
+    return PriceOffer2211View(
+      canOffer: json['canOffer'] == true,
+      status: (json['status'] ?? '').toString().toLowerCase().trim(),
+      amount: _num644(json['amount']),
+      currency: (json['currency'] ?? '').toString().toUpperCase().trim(),
+      currentTotal: _num644(json['currentTotal']),
+      minAmount: _num644(json['minAmount']),
+      negotiated: json['negotiated'] == true,
+    );
+  }
+
+  PriceOffer2211View closed() => PriceOffer2211View(
+        canOffer: false,
+        status: status,
+        amount: amount,
+        currency: currency,
+        currentTotal: currentTotal,
+        minAmount: minAmount,
+        negotiated: negotiated,
+      );
+}
+
+/// 644 — ce que le serveur autorise pour « Réserver, payer plus tard » et où
+/// en est la réservation (`payLater2211.ownerView`). Lecture seule.
+class PayLater2211View {
+  /// Le bouton « Réserver (prénom), payer plus tard » peut être montré.
+  final bool canReserve;
+  /// waiting | paid | released | '' (rien).
+  final String status;
+  /// Échéance de paiement (instant UTC), null si absente ou illisible.
+  final DateTime? deadline;
+  final int? holdHours;
+
+  const PayLater2211View({
+    this.canReserve = false,
+    this.status = '',
+    this.deadline,
+    this.holdHours,
+  });
+
+  static PayLater2211View? tryParse(dynamic json) {
+    if (json is! Map) return null;
+    final h = _num644(json['holdHours']);
+    return PayLater2211View(
+      canReserve: json['canReserve'] == true,
+      status: (json['status'] ?? '').toString().toLowerCase().trim(),
+      deadline: DateTime.tryParse((json['deadline'] ?? '').toString()),
+      holdHours: h?.round(),
+    );
+  }
+
+  PayLater2211View closed() =>
+      PayLater2211View(canReserve: false, status: status, deadline: deadline, holdHours: holdHours);
 }
 
 class ApplicationUser {
@@ -280,9 +407,12 @@ class ApplicationSitter {
       hasVehicle: parseTriBool1011(json['hasVehicle']),
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
-      avatar: ApplicationAvatar.fromJson(
-        json['avatar'] as Map<String, dynamic>? ?? {},
-      ),
+      // 644 — le site lit `avatar` comme un texte : on accepte les deux formes.
+      avatar: json['avatar'] is String
+          ? ApplicationAvatar(url: (json['avatar'] as String).trim(), publicId: '')
+          : ApplicationAvatar.fromJson(
+              json['avatar'] is Map ? Map<String, dynamic>.from(json['avatar'] as Map) : {},
+            ),
     );
   }
 

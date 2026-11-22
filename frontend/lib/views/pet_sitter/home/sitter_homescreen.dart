@@ -5,6 +5,7 @@ import 'package:hopetsit/models/pet_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/views/shared/photo_nudge644.dart';
 import 'package:hopetsit/utils/commission_rate.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:geolocator/geolocator.dart';
@@ -1495,6 +1496,10 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     });
 
     try {
+      // 644 — « Ajoute ta photo » : une fois par demande, jamais bloquant
+      // (bouton déjà « en cours » : pas de second appui pendant la feuille).
+      await PhotoNudge644.maybeShow(
+          (postId ?? '').isNotEmpty ? postId! : requestKey, context: context);
       final sitterRepository = Get.find<SitterRepository>();
       final basePrice = await _resolveProviderBasePrice(sitterRepository);
       if (basePrice <= 0) {

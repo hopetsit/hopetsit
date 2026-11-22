@@ -187,8 +187,8 @@ void main() {
         _app('a2', 'Tom Petit', _dated, role: 'walker'),
       ], highlight: 'a2');
       expect(find.text('Tes candidats (2)'), findsOneWidget);
-      expect(find.text('Écrire à Léa'), findsOneWidget);
-      expect(find.text('Écrire à Tom'), findsOneWidget);
+      // 644 — « Écrire à (prénom) » s'appelle désormais « Lui parler avant de réserver » (site du 22/11).
+      expect(find.text('Lui parler avant de réserver'), findsNWidgets(2));
       expect(find.textContaining('72,00'), findsWidgets);
       expect(find.text('tarif semaine appliqué'), findsWidgets);
       // Le candidat de la notification (Tom) est posé en premier.
@@ -205,6 +205,9 @@ void main() {
       expect(tester.getBottomLeft(find.byKey(const Key('dates620_choose_a2'))).dy, lessThan(h));
       // Écrire → POST /conversations/start avec le PROMENEUR.
       await tester.tap(find.byKey(const Key('cand2610_write_a2')));
+      await lotdSettle(tester, frames: 8);
+      // 644 — les messages prêts d'abord ; « Voir la conversation » ouvre la conversation.
+      await tester.tap(find.byKey(const Key('cand644_talk_open')));
       await lotdSettle(tester, frames: 8);
       final start = lotdRequests.where((r) => r.path.contains('/conversations')).toList();
       expect(start, isNotEmpty);

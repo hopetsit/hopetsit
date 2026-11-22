@@ -1029,10 +1029,13 @@ class OwnerRepository {
   Future<Map<String, dynamic>> respondToApplication({
     required String applicationId,
     required String action, // 'accept' or 'reject'
+    // 644 — « Réserver, payer plus tard » (serveur 22/11) : accepte sans
+    // intention de paiement. Absent du corps quand il est faux (corps inchangé).
+    bool payLater = false,
   }) async {
     final response = await _apiClient.post(
       '${ApiEndpoints.applications}/$applicationId/respond',
-      body: {'action': action},
+      body: {'action': action, if (payLater) 'payLater': true},
       requiresAuth: true,
     );
 
@@ -1048,6 +1051,23 @@ class OwnerRepository {
       'Unexpected respond to application response.',
       details: response,
     );
+  }
+
+  /// 644 — « Proposer mon prix » : `POST /applications/:id/price-offer`
+  /// `{ amount }` (total payé, frais compris). Renvoie la réponse du serveur
+  /// (`priceOffer2211View`).
+  Future<Map<String, dynamic>> proposeApplicationPrice({
+    required String applicationId,
+    required double amount,
+  }) async {
+    final response = await _apiClient.post(
+      '${ApiEndpoints.applications}/$applicationId/price-offer',
+      body: {'amount': amount},
+      requiresAuth: true,
+    );
+    if (response is Map<String, dynamic>) return response;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    return <String, dynamic>{};
   }
 
   // ── Session v18.2 — Owner "Mes paiements" ────────────────────────────

@@ -14,6 +14,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/views/shared/photo_nudge644.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/utils/service_location587.dart';
@@ -8155,6 +8156,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           title: 'common_error'.tr, message: 'pawmap_request_no_pets'.tr);
       return PawProposeState.idle;
     }
+    // 644 — « Ajoute ta photo » : une fois par demande, jamais bloquant.
+    await PhotoNudge644.maybeShow(r.id);
     try {
       final repo = Get.find<SitterRepository>();
       final basePrice = await _myBasePrice(repo);
