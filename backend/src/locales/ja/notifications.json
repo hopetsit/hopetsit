@@ -524,5 +524,29 @@
     "body": "{{subjectLine}}",
     "emailSubject": "{{subjectLine}}",
     "emailBody": "<p style=\"font-size:18px;font-weight:700;line-height:1.4;margin:0 0 14px;color:#231715\">{{subjectLine}}</p>{{candidatesHtml2610}}<p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:14px 28px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-weight:700;font-family:sans-serif;\">{{ctaLabel}}</a></p>"
+  },
+  "application_accepted_paylater_2211": {
+    "title": "応募が承認されました",
+    "body": "飼い主があなたを選びました。予約はお支払い待ちです（{{hours}}時間以内）。支払いが完了するとすぐに確定します。",
+    "emailSubject": "応募が承認されました — HoPetSit",
+    "emailBody": "<p>飼い主があなたを選びました。予約はお支払い待ちで、飼い主は{{hours}}時間以内に支払う必要があります。支払いが完了するとすぐに確定し、期限内に支払いがない場合は予約が解除されます。今すぐメッセージを送れます。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">アプリで開く</a></p>"
+  },
+  "pay_later_reminder_2211": {
+    "title": "予約がお支払いを待っています",
+    "body": "予約の支払いと確定まで、あと{{hoursLeft}}時間です。お支払いがない場合、予約は解除されます。",
+    "emailSubject": "予約の確定まであと{{hoursLeft}}時間 — HoPetSit",
+    "emailBody": "<p>シッターは確保されていますが、まだ何も支払われていません。支払いと確定まで、あと{{hoursLeft}}時間です。お支払いがない場合、予約は解除されます。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">今すぐ支払う</a></p>"
+  },
+  "pay_later_released_owner_2211": {
+    "title": "予約が解除されました",
+    "body": "{{providerName}}さんとの予約は期限内に支払われなかったため、解除されました。引き続きシッターを選べます。",
+    "emailSubject": "予約が解除されました — HoPetSit",
+    "emailBody": "<p>{{providerName}}さんとの予約は期限内に支払われなかったため、解除されました。請求は発生していません。引き続きシッターを選べます。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">候補者を見る</a></p>"
+  },
+  "pay_later_released_provider_2211": {
+    "title": "予約が解除されました",
+    "body": "飼い主が期限内に支払わなかったため、予約は解除されました。応募は保留のままなので、再び選ばれる可能性があります。",
+    "emailSubject": "予約が解除されました — HoPetSit",
+    "emailBody": "<p>飼い主が期限内に支払わなかったため、予約は解除されました。応募は保留のままなので、再び選ばれる可能性があります。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">アプリで開く</a></p>"
   }
 }

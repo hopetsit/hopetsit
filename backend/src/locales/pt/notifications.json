@@ -524,5 +524,29 @@
     "body": "{{subjectLine}}",
     "emailSubject": "{{subjectLine}}",
     "emailBody": "<p style=\"font-size:18px;font-weight:700;line-height:1.4;margin:0 0 14px;color:#231715\">{{subjectLine}}</p>{{candidatesHtml2610}}<p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:14px 28px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-weight:700;font-family:sans-serif;\">{{ctaLabel}}</a></p>"
+  },
+  "application_accepted_paylater_2211": {
+    "title": "Candidatura aceite",
+    "body": "O dono escolheu-te. Reserva a aguardar pagamento (em {{hours}} h): fica confirmada assim que ele pagar.",
+    "emailSubject": "A tua candidatura foi aceite — HoPetSit",
+    "emailBody": "<p>O dono escolheu-te. A reserva aguarda pagamento: ele tem {{hours}} h para pagar. Fica confirmada assim que for paga; sem pagamento nesse prazo, é libertada. Já lhe podes escrever.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir na app</a></p>"
+  },
+  "pay_later_reminder_2211": {
+    "title": "A tua reserva aguarda pagamento",
+    "body": "Restam-te {{hoursLeft}} h para pagar e confirmar a tua reserva. Sem pagamento, é libertada.",
+    "emailSubject": "Restam {{hoursLeft}} h para confirmares a tua reserva — HoPetSit",
+    "emailBody": "<p>O teu pet sitter está reservado, mas ainda nada foi pago. Restam-te {{hoursLeft}} h para pagar e confirmar; sem pagamento, a reserva é libertada.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Pagar agora</a></p>"
+  },
+  "pay_later_released_owner_2211": {
+    "title": "Reserva libertada",
+    "body": "A tua reserva com {{providerName}} não foi paga a tempo: foi libertada. Ainda podes escolher um pet sitter.",
+    "emailSubject": "A tua reserva foi libertada — HoPetSit",
+    "emailBody": "<p>A tua reserva com {{providerName}} não foi paga a tempo: foi libertada. Nada foi cobrado. Ainda podes escolher um pet sitter.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver os meus candidatos</a></p>"
+  },
+  "pay_later_released_provider_2211": {
+    "title": "Reserva libertada",
+    "body": "O dono não pagou dentro do prazo: a reserva foi libertada. A tua candidatura continua pendente, ele ainda te pode escolher.",
+    "emailSubject": "Reserva libertada — HoPetSit",
+    "emailBody": "<p>O dono não pagou dentro do prazo: a reserva foi libertada. A tua candidatura continua pendente, ele ainda te pode escolher.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir na app</a></p>"
   }
 }

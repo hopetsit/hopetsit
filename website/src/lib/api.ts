@@ -1482,6 +1482,21 @@ export type ApplicationItem = {
   } | null;
   /** 22/11 (2211) — « Proposer mon prix » : ce que le serveur autorise et l'état de la dernière proposition. */
   priceOffer2211View?: PriceOfferView2211 | null;
+  /** 22/11 (2211) — « Réserver, payer plus tard » : ce que le serveur autorise et où en est la réservation. */
+  payLater2211View?: PayLaterView2211 | null;
+};
+
+/** 22/11 (2211) — « Réserver <prénom>, payer plus tard », calculé par le serveur (GET /applications/my). */
+export type PayLaterView2211 = {
+  enabled?: boolean;
+  /** Le bouton n'est montré que si le serveur le dit (PAY_LATER_2211=off, service dans moins de 6 h, déjà libérée → false). */
+  canReserve?: boolean;
+  /** waiting = réservé, à payer avant `deadline` ; released = libérée faute de paiement. */
+  status?: "waiting" | "paid" | "released" | null;
+  deadline?: string | null;
+  at?: string | null;
+  /** Délai annoncé avant de confirmer (48 h, ou moins si le service commence bientôt). */
+  holdHours?: number | null;
 };
 
 /** 22/11 (2211) — état d'une proposition de prix, calculé par le serveur (GET /applications/my, POST …/price-offer). */
@@ -1528,16 +1543,20 @@ export type RespondToApplicationResult = {
   application: ApplicationItem;
   booking?: Booking | null;
   payment?: { clientSecret?: string; paymentIntentId?: string; currency?: string; amount?: number; error?: string } | null;
+  /** 22/11 (2211) — présent seulement pour un « payer plus tard » : rien n'est débité, à payer avant `deadline`. */
+  payLater2211?: { at?: string; deadline?: string; holdHours?: number } | null;
 };
 
 /** Propriétaire : accepter (→ réservation créée, à payer) ou refuser un candidat. */
 export async function respondToApplication(
   id: string,
   action: "accept" | "reject",
+  opts?: { payLater?: boolean },
 ): Promise<RespondToApplicationResult> {
+  // 22/11 (2211) — `payLater` : réserver sans carte (aucune intention de paiement), à payer avant l'échéance.
   return await request<RespondToApplicationResult>(`/applications/${encodeURIComponent(id)}/respond`, {
     method: "POST",
-    body: JSON.stringify({ action }),
+    body: JSON.stringify(opts?.payLater ? { action, payLater: true } : { action }),
   });
 }
 

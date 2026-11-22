@@ -524,5 +524,29 @@
     "body": "{{subjectLine}}",
     "emailSubject": "{{subjectLine}}",
     "emailBody": "<p style=\"font-size:18px;font-weight:700;line-height:1.4;margin:0 0 14px;color:#231715\">{{subjectLine}}</p>{{candidatesHtml2610}}<p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:14px 28px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-weight:700;font-family:sans-serif;\">{{ctaLabel}}</a></p>"
+  },
+  "application_accepted_paylater_2211": {
+    "title": "Candidature acceptée",
+    "body": "Le propriétaire t'a choisi. Réservation en attente de paiement (sous {{hours}} h) : elle est confirmée dès qu'il a payé.",
+    "emailSubject": "Ta candidature a été acceptée — HoPetSit",
+    "emailBody": "<p>Le propriétaire t'a choisi. La réservation est en attente de paiement : il a {{hours}} h pour payer. Elle est confirmée dès que c'est payé ; sans paiement dans ce délai, elle est libérée. Tu peux lui écrire dès maintenant.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir dans l'app</a></p>"
+  },
+  "pay_later_reminder_2211": {
+    "title": "Ta réservation attend ton paiement",
+    "body": "Il te reste {{hoursLeft}} h pour payer et confirmer ta réservation. Sans paiement, elle est libérée.",
+    "emailSubject": "Il te reste {{hoursLeft}} h pour confirmer ta réservation — HoPetSit",
+    "emailBody": "<p>Ton gardien est réservé, mais rien n'est encore payé. Il te reste {{hoursLeft}} h pour payer et confirmer ; sans paiement, la réservation est libérée.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Payer maintenant</a></p>"
+  },
+  "pay_later_released_owner_2211": {
+    "title": "Réservation libérée",
+    "body": "Ta réservation avec {{providerName}} n'a pas été payée à temps : elle est libérée. Tu peux encore choisir un gardien.",
+    "emailSubject": "Ta réservation a été libérée — HoPetSit",
+    "emailBody": "<p>Ta réservation avec {{providerName}} n'a pas été payée à temps : elle est libérée. Rien n'a été débité. Tu peux encore choisir un gardien.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir mes candidats</a></p>"
+  },
+  "pay_later_released_provider_2211": {
+    "title": "Réservation libérée",
+    "body": "Le propriétaire n'a pas payé dans le délai : la réservation est libérée. Ta candidature reste en attente, il peut encore te choisir.",
+    "emailSubject": "Réservation libérée — HoPetSit",
+    "emailBody": "<p>Le propriétaire n'a pas payé dans le délai : la réservation est libérée. Ta candidature reste en attente, il peut encore te choisir.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir dans l'app</a></p>"
   }
 }

@@ -879,6 +879,16 @@ const listApplications = async (req, res) => {
       } catch (e) {
         logger.warn(`[listApplications] proposition de prix 2211 : ${e?.message || e}`);
       }
+      // 2211 — « Réserver, payer plus tard » : le site sait s'il peut montrer le bouton (PAY_LATER_2211=off,
+      // service dans moins de 6 h, déjà libérée une fois → non) et où en est la réservation (à payer avant
+      // l'échéance, payée, libérée). Une requête pour toute la liste.
+      try {
+        const later2211 = require('../services/payLater2211');
+        const ctx2211 = { now: new Date(), releasedIds: await later2211.releasedApplicationIds(out.filter(Boolean).map((a) => a.id)) };
+        out = out.map((a) => (a ? { ...a, payLater2211View: later2211.ownerView(a, ctx2211) } : a));
+      } catch (e) {
+        logger.warn(`[listApplications] payer plus tard 2211 : ${e?.message || e}`);
+      }
     }
     res.json({ applications: out });
   } catch (error) {
@@ -892,6 +902,8 @@ const respondToApplication = async (req, res) => {
     const ownerId = req.user?.id;
     const { id } = req.params;
     const { action } = req.body || {};
+    // 2211 — « Réserver, payer plus tard » : option de l'acceptation. Absente (apps installées) = rien ne change.
+    const wantsPayLater = !!req.body && (req.body.payLater === true || req.body.payLater === 'true');
 
     if (!ownerId) {
       return res.status(403).json({ error: 'Owner context missing.' });
@@ -1068,6 +1080,17 @@ const respondToApplication = async (req, res) => {
           logger.warn(`[respondToApplication] contrôle « déjà payé » 1011 : ${e?.message || e}`);
         }
       }
+      // 2211 — « payer plus tard » : contrôlé ici, après tous les contrôles de l'acceptation et AVANT toute
+      // écriture (interrupteur, début du service dans moins de 6 h, déjà libérée une fois). Refus = rien n'est écrit.
+      let payLater2211 = null;
+      if (wantsPayLater) {
+        const chk2211 = await require('../services/payLater2211').checkAccept(application, new Date());
+        if (!chk2211.ok) {
+          logger.info(`[respondToApplication] payer plus tard refusé (${chk2211.code}) candidature ${id}`);
+          return res.status(chk2211.status).json({ error: chk2211.error, code: chk2211.code });
+        }
+        payLater2211 = chk2211;
+      }
       application.status = 'accepted';
 
       // Move accepted application into booking flow so owner can pay.
@@ -1135,7 +1158,12 @@ const respondToApplication = async (req, res) => {
           },
           status: 'agreed',
           agreedAt: new Date(),
+          // 2211 — choisi sans carte : à payer avant l'échéance, sinon libérée (services/payLater2211).
+          ...(payLater2211 ? { payLater2211: require('../services/payLater2211').block(payLater2211, application) } : {}),
         });
+      } else if (payLater2211 && !(booking.payLater2211 && booking.payLater2211.at)) {
+        booking.payLater2211 = require('../services/payLater2211').block(payLater2211, application);
+        await booking.save();
       }
 
       application.bookingId = booking._id;
@@ -1188,8 +1216,11 @@ const respondToApplication = async (req, res) => {
           applicationId: application._id.toString(),
           bookingId: booking._id.toString(),
           providerRole,
+          // 2211 — « en attente de paiement (sous N h) » : même type, autre gabarit (les apps installées l'ouvrent pareil).
+          ...(payLater2211 ? { hours: require('../services/payLater2211').holdHours(payLater2211.holdMs), payLater2211: true } : {}),
         },
         actor: { role: 'owner', id: ownerId },
+        ...(payLater2211 ? { templateType: require('../services/payLater2211').TEMPLATES.providerChosen } : {}),
       }).catch(() => {});
 
       // v23.1 — B5 : auto-reject all other pending applications targeting the
@@ -1290,11 +1321,15 @@ const respondToApplication = async (req, res) => {
       // any other error), we swallow it and return payment:{error} — the UI
       // will still navigate to the PaymentPage and surface a retry.
       let payment = null;
-      try {
-        payment = await _prepareOwnerPaymentForAgreedBooking(booking, ownerId, {});
-      } catch (payErr) {
-        logger.warn('[respondToApplication] auto PaymentIntent creation failed, owner will need to retry later', payErr?.message || payErr);
-        payment = { error: payErr?.message || 'payment_unavailable' };
+      // 2211 — « payer plus tard » : AUCUNE intention de paiement maintenant ; elle est créée quand le
+      // propriétaire appuie sur « Payer maintenant » (POST /bookings/:id/create-payment-intent).
+      if (!payLater2211) {
+        try {
+          payment = await _prepareOwnerPaymentForAgreedBooking(booking, ownerId, {});
+        } catch (payErr) {
+          logger.warn('[respondToApplication] auto PaymentIntent creation failed, owner will need to retry later', payErr?.message || payErr);
+          payment = { error: payErr?.message || 'payment_unavailable' };
+        }
       }
 
       res.json({
@@ -1302,6 +1337,7 @@ const respondToApplication = async (req, res) => {
         booking: sanitizeBooking(booking),
         conversation: conversation ? sanitizeConversation(conversation) : null,
         payment, // { clientSecret, paymentIntentId, ... } | { error } | null
+        ...(payLater2211 ? { payLater2211: { at: payLater2211.at.toISOString(), deadline: payLater2211.deadline.toISOString(), holdHours: require('../services/payLater2211').holdHours(payLater2211.holdMs) } } : {}),
       });
     } else {
       application.status = 'rejected';

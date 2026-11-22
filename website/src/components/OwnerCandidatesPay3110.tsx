@@ -31,8 +31,22 @@
 // « Choisir <prénom> et payer » prennent le nouveau prix sans rien calculer ici. Le lien n'apparaît que si le serveur
 // l'autorise (`priceOffer2211View.canOffer` ; PRICE_OFFER_2211=off le masque).
 // Repères : cand_prix_ouvrir, cand_prix_envoyer, cand_prix_ok, cand_prix_echec.
+// 22/11/2026 (lot A, même mesure : 13 ouvrent un profil, 6 posent une question, 0 paie) — site seul :
+//   · « Lui parler avant de réserver » : nouveau libellé du bouton de question ; un message prêt de plus, en tête
+//     (« Pouvons-nous nous parler 10 minutes avant que je réserve ? ») ; un toucher remplit le champ, modifiable
+//     avant l'envoi. Repère : cand_parler_pret ;
+//   · ordre « confiance d'abord » : photo, puis identité vérifiée, puis du plus proche au plus loin (lib/cand3110) ;
+//   · promenade / visite à domicile : les candidats à plus de 10 km passent après les autres, sous l'intertitre
+//     « Plus loin de chez toi ». Aucun candidat n'est masqué.
+// 22/11/2026 (lot B) — « Réserver <prénom>, payer plus tard » : sous le bouton principal (inchangé), un bouton plus
+// discret → texte de confirmation sur place (« <prénom> sera prévenu(e). Tu as 48 h pour payer… Rien n'est débité
+// maintenant. ») + « Confirmer la réservation » → POST /applications/:id/respond { action:'accept', payLater:true }
+// (aucune intention de paiement). La carte passe à « Réservé jusqu'au <date heure> · Payer maintenant » (même
+// parcours de paiement qu'une candidature déjà acceptée, via `linkedBooking`) + « Lui écrire ». Le bouton n'apparaît
+// que si le serveur l'autorise (`payLater2211View.canReserve` ; PAY_LATER_2211=off le masque).
+// Repères : cand_reserver_plus_tard, cand_reserver_ok, cand_reserver_echec.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "@/components/SiteLink";
 import { useT } from "@/lib/i18n/LanguageProvider";
@@ -46,7 +60,7 @@ import { markCandidatesViewed } from "@/lib/candidatesView2610";
 import { MagicLinkBox0611 } from "@/components/MagicLinkBox0611";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
 import { k1011 } from "@/lib/i18n/conclure1011";
-import { countryForCurrency3110, kmOf3110, pickPostId3110, point3110, sortCandidates3110, totalOf3110 } from "@/lib/cand3110";
+import { FAR_KM_2211, countryForCurrency3110, isFar2211, kmOf3110, pickPostId3110, point3110, sortCandidates3110, totalOf3110 } from "@/lib/cand3110";
 import {
   ApiError,
   type ApplicationItem,
@@ -162,6 +176,9 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
   const [offerId, setOfferId] = useState<string | null>(null);
   const [offerText, setOfferText] = useState("");
   const [offerBusy, setOfferBusy] = useState(false);
+  // 22/11 (lot B) — « Réserver, payer plus tard » : carte dont la confirmation est ouverte, envoi en cours.
+  const [laterId, setLaterId] = useState<string | null>(null);
+  const [laterBusy, setLaterBusy] = useState(false);
   const offerRef = useRef<HTMLInputElement | null>(null);
   const askRef = useRef<HTMLTextAreaElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -329,7 +346,12 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     const d1 = new Date(d0); if (multi) d1.setDate(d1.getDate() + 2);
     return { ...post, startDate: d0.toISOString().slice(0, 10), endDate: d1.toISOString().slice(0, 10) };
   })() : post;
-  const visible = sortCandidates3110(items.filter((a) => a.status === "pending" || a.status === "accepted"), postPoint, focusId);
+  const visible = sortCandidates3110(items.filter((a) => a.status === "pending" || a.status === "accepted"), postPoint, focusId, post?.serviceTypes);
+  // 22/11 — promenade / visite : 1er candidat « plus loin » (hors candidat du lien, traité à part) → intertitre avant lui.
+  const firstFarId = (() => {
+    const f = visible.find((a) => !(focusId && applicationId(a) === focusId) && isFar2211(a, postPoint, post?.serviceTypes));
+    return f && visible.some((a) => !isFar2211(a, postPoint, post?.serviceTypes)) ? applicationId(f) : "";
+  })();
   const pendingCount = visible.filter((a) => a.status === "pending").length;
   const startMs = post?.startDate ? new Date(post.startDate).getTime() : NaN;
   const freeCancel = !tbd && Number.isFinite(startMs) && startMs - Date.now() > 72 * 3600 * 1000;
@@ -369,13 +391,15 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     );
   }
 
-  /** 05/11 — les 3 questions prêtes : expérience avec mon animal (garde / promenade), le rencontrer avant, les dates. */
+  /** 05/11 — les questions prêtes : expérience avec mon animal (garde / promenade), le rencontrer avant, les dates.
+   *  22/11 — en tête, « se parler 10 minutes avant que je réserve » (c'est ce que les propriétaires demandent). */
   function questionsFor(a: ApplicationItem): string[] {
     const { role } = applicationProvider(a);
     const kind = String(post?.animalTypes?.[0] || post?.pets?.[0]?.category || "").toLowerCase();
     const animalKey = kind.startsWith("dog") || kind === "chien" ? "animal_dog" : kind.startsWith("cat") || kind === "chat" ? "animal_cat" : "animal_other";
     const animal = c3110(lang, animalKey);
     return [
+      c3110(lang, "q_call"),
       c3110(lang, role === "walker" ? "q_exp_walk" : "q_exp", { animal }),
       c3110(lang, "q_meet"),
       c3110(lang, tbd ? "q_dates_tbd" : "q_dates"),
@@ -386,6 +410,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
   function askOpen(a: ApplicationItem) {
     const id = applicationId(a);
     setOfferId(null);
+    setLaterId(null);
     setAskId(id);
     setAskText("");
     setErrors((er) => ({ ...er, [id]: "" }));
@@ -426,6 +451,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
   function offerOpen(a: ApplicationItem) {
     const id = applicationId(a);
     setAskId(null);
+    setLaterId(null);
     setOfferId(id);
     setOfferText("");
     setErrors((er) => ({ ...er, [id]: "" }));
@@ -484,6 +510,68 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     } catch { /* la page se rechargera avec les totaux */ }
   }
 
+  /** Refus du serveur à l'acceptation → message dans la langue du propriétaire (null : session perdue, on part se reconnecter). */
+  function acceptErrorMsg(e: unknown, currency: string): string | null {
+    const code = apiErrorCode(e);
+    const d = e instanceof ApiError && e.details && typeof e.details === "object" ? (e.details as Record<string, unknown>) : {};
+    if (code === "CURRENCY_MISMATCH") return t("c1610_currency").replace("{a}", String(d.providerCurrency || "?")).replace("{b}", String(d.ownerCurrency || currency));
+    if (code === "DATES_REQUIRED") { setEditingDates(true); return d620(lang, "cand_choose_blocked"); }
+    if (code === "TOO_FAR") return t("c1610_too_far").replace("{km}", String(d.limitKm || 200));
+    if (e instanceof ApiError && e.status === 409 && !code.startsWith("PAY_LATER_")) return t("c1610_already");
+    if (e instanceof ApiError && e.status === 401) { router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`); return null; }
+    return e instanceof Error && e.message ? e.message : c3110(lang, "error");
+  }
+
+  /** 22/11 (lot B) — ouvre la confirmation « payer plus tard » sous le bouton (une seule zone ouverte à la fois). */
+  function laterOpen(a: ApplicationItem) {
+    const id = applicationId(a);
+    setAskId(null);
+    setOfferId(null);
+    setLaterId(id);
+    setErrors((er) => ({ ...er, [id]: "" }));
+    trackSiteEvent("cta_click", { label: "cand_reserver_plus_tard" });
+  }
+
+  /** 22/11 (lot B) — réserve sans carte : le serveur accepte la candidature, pose l'échéance et prévient le gardien.
+   *  Aucune intention de paiement n'est créée ; « Payer maintenant » reprend ensuite le parcours de paiement habituel. */
+  async function laterConfirm(a: ApplicationItem) {
+    const id = applicationId(a);
+    if (laterBusy || busyId !== null) return;
+    const currency = (a.pricing?.currency || post?.budgetCurrency || post?.currency || "EUR").toUpperCase();
+    setLaterBusy(true);
+    setErrors((er) => ({ ...er, [id]: "" }));
+    try {
+      const res = await respondToApplication(id, "accept", { payLater: true });
+      const view = { enabled: true, canReserve: false, status: "waiting" as const, deadline: res.payLater2211?.deadline ?? null, at: res.payLater2211?.at ?? null, holdHours: res.payLater2211?.holdHours ?? null };
+      setItems((prev) => prev.map((x) => {
+        const xid = applicationId(x);
+        if (xid === id) return { ...x, ...res.application, booking: res.booking || x.booking || null, payLater2211View: view };
+        // Comme pour « Choisir et payer » : seul un ancien choix non payé est libéré par le serveur.
+        if (x.status === "accepted" && !linkedBooking(x)?.paid) return { ...x, status: "rejected" };
+        return x;
+      }));
+      setLaterId(null);
+      trackSiteEvent("cta_click", { label: "cand_reserver_ok" });
+    } catch (e) {
+      const code = apiErrorCode(e);
+      trackSiteEvent("cta_click", { label: "cand_reserver_echec" });
+      let msg: string | null;
+      if (code.startsWith("PAY_LATER_")) {
+        // Refusé par le serveur (éteint, service trop proche, déjà libérée une fois) : il ne reste que « Choisir et payer ».
+        msg = c3110(lang, code === "PAY_LATER_TOO_LATE" ? "later_err_late" : "later_err");
+        setItems((prev) => prev.map((x) => (applicationId(x) === id ? { ...x, payLater2211View: { ...(x.payLater2211View || {}), canReserve: false } } : x)));
+        setLaterId(null);
+      } else {
+        msg = acceptErrorMsg(e, currency);
+        if (msg == null) return;
+        if (!(e instanceof ApiError)) msg = c3110(lang, "later_err");
+      }
+      setErrors((er) => ({ ...er, [id]: msg || c3110(lang, "later_err") }));
+    } finally {
+      setLaterBusy(false);
+    }
+  }
+
   /** Choisir et payer : accepte (les autres candidats restent jusqu'au paiement, 1011), prend l'intention, monte l'encart carte. */
   async function chooseAndPay(a: ApplicationItem) {
     const id = applicationId(a);
@@ -500,6 +588,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
     trackSiteEvent("cta_click", { label: "cand_encart" });
     trackSiteEvent("cta_click", { label: "cand_choisir_payer" });
     setBusyId(id);
+    setLaterId(null);
     setErrors((e) => ({ ...e, [id]: "" }));
     setPayError("");
     setFallbackReady(false);
@@ -545,13 +634,8 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
       setStep("card");
     } catch (e) {
       const code = apiErrorCode(e);
-      const d = e instanceof ApiError && e.details && typeof e.details === "object" ? (e.details as Record<string, unknown>) : {};
-      let msg = e instanceof Error && e.message ? e.message : c3110(lang, "error");
-      if (code === "CURRENCY_MISMATCH") msg = t("c1610_currency").replace("{a}", String(d.providerCurrency || "?")).replace("{b}", String(d.ownerCurrency || currency));
-      else if (code === "DATES_REQUIRED") { msg = d620(lang, "cand_choose_blocked"); setEditingDates(true); }
-      else if (code === "TOO_FAR") msg = t("c1610_too_far").replace("{km}", String(d.limitKm || 200));
-      else if (e instanceof ApiError && e.status === 409) msg = t("c1610_already");
-      else if (e instanceof ApiError && e.status === 401) { router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`); return; }
+      const msg = acceptErrorMsg(e, currency);
+      if (msg == null) return;
       trackSiteEvent("cta_click", { label: `cand_erreur_${String(code || (e instanceof ApiError ? e.status : "x")).toLowerCase()}` });
       setErrors((er) => ({ ...er, [id]: msg }));
       setPayError(msg);
@@ -765,8 +849,20 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
                 : offer.status === "expired" ? c3110(lang, "offer_expired", { price: offerPrice })
                 : offer.status === "cancelled" ? c3110(lang, "offer_cancelled") : "";
               const offerGood = offer?.status === "pending" || offer?.status === "accepted";
+              // 22/11 (lot B) — « payer plus tard » : bouton si le serveur l'autorise ; état « réservé jusqu'au … » ensuite.
+              const later = a.payLater2211View || null;
+              const held = accepted && later?.status === "waiting" && !!later.deadline && !(bk?.paid || chosenHere);
+              const heldDate = held && later?.deadline ? new Date(later.deadline).toLocaleString(dtLocale, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+              const canLater = later?.canReserve === true && a.status === "pending" && !tbd && total != null && !stale && !(bk?.paid || chosenHere);
+              const payBusy = step === "card" || step === "accepting" || step === "intent";
               return (
-                <li key={id} id={`application-${id}`} className="flex min-w-0 flex-col rounded-2xl bg-white p-3" data-candidate-3110={role} data-candidate-km={km ?? ""} data-candidate-total={total ?? ""}
+                <Fragment key={id}>
+                {firstFarId === id && (
+                  <li className="col-span-full mt-1 flex items-center gap-1.5 text-[13px] font-extrabold" style={{ color: "#6E4F48" }} data-cand3110-far="">
+                    <AppIcon name="pin" size={15} color="#6E4F48" />{c3110(lang, "far_title", { km: FAR_KM_2211 })}
+                  </li>
+                )}
+                <li id={`application-${id}`} className="flex min-w-0 flex-col rounded-2xl bg-white p-3" data-candidate-3110={role} data-candidate-km={km ?? ""} data-candidate-total={total ?? ""}
                     style={{ boxShadow: isFocus || isPick ? "0 0 0 2px #C92A12, 0 6px 16px -10px rgba(35,23,21,.35)" : "0 6px 16px -10px rgba(35,23,21,.35)" }}>
                   <div className="flex items-start gap-3">
                     {pid ? <a href={`/p/${role}/${pid}`} target="_blank" rel="noopener" aria-label={firstName} className="shrink-0 rounded-full" onClick={() => trackSiteEvent("cta_click", { label: "cand_profil" })}>{avatar}</a> : avatar}
@@ -825,19 +921,47 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
                       </p>
                     ) : (
                       <>
-                        {accepted && <p className="mb-1.5 text-[12px] font-bold" style={{ color: "#9E1F0B" }}>{c3110(lang, "chosen")}</p>}
+                        {accepted && !held && <p className="mb-1.5 text-[12px] font-bold" style={{ color: "#9E1F0B" }}>{c3110(lang, "chosen")}</p>}
+                        {held && (
+                          <div className="mb-2 rounded-xl px-3 py-2" style={{ background: "#DCEFE3" }} data-later-2211="held">
+                            <p className="flex items-start gap-1.5 text-[13px] font-extrabold leading-snug" style={{ color: "#15803D" }}>
+                              <AppIcon name="check" size={15} color="#15803D" /><span>{c3110(lang, "later_held", { date: heldDate })}</span>
+                            </p>
+                            <p className="mt-0.5 text-[11px] font-semibold leading-snug" style={{ color: "#6E4F48" }}>{c3110(lang, "later_held_sub", { name: firstName })}</p>
+                          </div>
+                        )}
                         <SignatureButton
                           tone="owner"
                           icon="wallet"
-                          label={accepted ? c3110(lang, "pay") : tbd ? c3110(lang, "dates_first") : c3110(lang, "choose_pay", { name: firstName })}
+                          label={held ? c3110(lang, "later_pay") : accepted ? c3110(lang, "pay") : tbd ? c3110(lang, "dates_first") : c3110(lang, "choose_pay", { name: firstName })}
                           price={priceLabel || undefined}
                           loading={busyId === id}
-                          disabled={!canPay || (busyId !== null && busyId !== id) || step === "card" || step === "accepting" || step === "intent"}
+                          disabled={!canPay || (busyId !== null && busyId !== id) || payBusy || laterBusy}
                           disabledReason={stale ? d620(lang, "cand_stale_hint") : undefined}
                           earns={!tbd}
                           onClick={() => void chooseAndPay(a)}
-                          ariaLabel={`${c3110(lang, "choose_pay", { name: firstName })}${priceLabel ? ` · ${priceLabel}` : ""}`}
+                          ariaLabel={`${held ? c3110(lang, "later_pay") : c3110(lang, "choose_pay", { name: firstName })}${priceLabel ? ` · ${priceLabel}` : ""}`}
                         />
+                        {/* 22/11 (lot B) — second bouton, plus discret : réserver sans carte, payer dans le délai annoncé. */}
+                        {canLater && laterId !== id && (
+                          <div className="mt-2" data-later-2211="btn">
+                            <SignatureButton tone="owner" kind="secondary" icon="calendar" label={c3110(lang, "later_btn", { name: firstName })} disabled={busyId !== null || payBusy || laterBusy} onClick={() => laterOpen(a)} />
+                          </div>
+                        )}
+                        {canLater && laterId === id && (
+                          <div className="mt-2 rounded-xl p-3" style={{ background: "#FBE9E5" }} data-later-2211="confirm">
+                            <p className="text-[13px] font-bold leading-snug" style={{ color: "#231715" }}>{c3110(lang, "later_text", { name: firstName, hours: later?.holdHours ?? 48 })}</p>
+                            <div className="mt-2 flex items-center gap-3">
+                              <div className="min-w-0 flex-1">
+                                <SignatureButton tone="owner" icon="check" label={laterBusy ? c3110(lang, "later_busy") : c3110(lang, "later_confirm")} loading={laterBusy} disabled={laterBusy || busyId !== null || payBusy} onClick={() => void laterConfirm(a)} />
+                              </div>
+                              <button type="button" className="min-h-[36px] shrink-0 text-[12px] font-bold underline-offset-2 hover:underline" style={{ color: "#6E4F48" }} disabled={laterBusy} onClick={() => setLaterId(null)}>{c3110(lang, "ask_close")}</button>
+                            </div>
+                          </div>
+                        )}
+                        {later?.status === "released" && a.status === "pending" && (
+                          <p className="mt-2 rounded-xl px-3 py-2 text-[12px] font-bold leading-snug" style={{ background: "#FBE9E5", color: "#9E1F0B" }} data-later-2211="released">{c3110(lang, "later_released")}</p>
+                        )}
                       </>
                     )}
                     {/* 05/11 — « Poser une question à <prénom> » AVANT de payer : bouton → zone sous la carte (3 questions prêtes +
@@ -848,7 +972,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
                         <p className="mt-0.5 text-[11px] font-semibold leading-snug" style={{ color: "#6E4F48" }}>{c3110(lang, "ask_hint", { name: firstName })}</p>
                         <div className="mt-2 flex flex-wrap gap-1.5" data-ask-3110-questions="">
                           {questionsFor(a).map((q) => (
-                            <button key={q} type="button" className="rounded-full bg-white px-2.5 py-1 text-left text-[12px] font-bold leading-snug" style={{ color: tone.dark, boxShadow: askText === q ? `0 0 0 2px ${tone.dark}` : `inset 0 0 0 1px ${tone.dark}` }} onClick={() => { setAskText(q); try { askRef.current?.focus({ preventScroll: true }); } catch { /* sans focus */ } }}>
+                            <button key={q} type="button" className="min-h-[36px] max-w-full rounded-2xl bg-white px-3 py-1.5 text-left text-[12px] font-bold leading-snug" style={{ color: tone.dark, boxShadow: askText === q ? `0 0 0 2px ${tone.dark}` : `inset 0 0 0 1px ${tone.dark}` }} onClick={() => { setAskText(q); trackSiteEvent("cta_click", { label: "cand_parler_pret" }); try { askRef.current?.focus({ preventScroll: true }); } catch { /* sans focus */ } }}>
                               {q}
                             </button>
                           ))}
@@ -872,6 +996,13 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
                           <button type="button" className="min-h-[32px] underline-offset-2 hover:underline" onClick={() => askOpen(a)}>{c3110(lang, "ask_again")}</button>
                         </p>
                       </div>
+                    ) : held ? (
+                      // ZOE 22/11 — déjà réservé : « Lui parler avant de réserver » n'a plus de sens ; un seul bouton « Lui écrire ».
+                      pid ? (
+                        <div className="mt-2" data-later-2211="write">
+                          <SignatureButton tone={role} kind="secondary" icon="chat" label={c3110(lang, "later_write")} loading={writingId === id} disabled={writingId !== null} onClick={() => void write(a)} />
+                        </div>
+                      ) : null
                     ) : (
                       <div className="mt-2" data-ask-3110="btn">
                         <SignatureButton tone={role} kind="secondary" icon="chat" label={c3110(lang, "ask_btn", { name: firstName })} disabled={askBusy} onClick={() => askOpen(a)} />
@@ -912,6 +1043,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
                     {err && <p className="mt-2 rounded-xl px-3 py-2 text-[12px] font-bold" style={{ background: "#FBE9E5", color: "#9E1F0B" }} role="alert">{err}</p>}
                   </div>
                 </li>
+                </Fragment>
               );
             })}
           </ul>

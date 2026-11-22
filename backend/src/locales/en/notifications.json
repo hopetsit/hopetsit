@@ -524,5 +524,29 @@
     "body": "{{subjectLine}}",
     "emailSubject": "{{subjectLine}}",
     "emailBody": "<p style=\"font-size:18px;font-weight:700;line-height:1.4;margin:0 0 14px;color:#231715\">{{subjectLine}}</p>{{candidatesHtml2610}}<p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:14px 28px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-weight:700;font-family:sans-serif;\">{{ctaLabel}}</a></p>"
+  },
+  "application_accepted_paylater_2211": {
+    "title": "Application accepted",
+    "body": "The owner chose you. Booking awaiting payment (within {{hours}} h): it is confirmed as soon as they pay.",
+    "emailSubject": "Your application was accepted — HoPetSit",
+    "emailBody": "<p>The owner chose you. The booking is awaiting payment: they have {{hours}} h to pay. It is confirmed as soon as it is paid; without payment in that time, it is released. You can message them right away.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
+  },
+  "pay_later_reminder_2211": {
+    "title": "Your booking is waiting for payment",
+    "body": "You have {{hoursLeft}} h left to pay and confirm your booking. Without payment, it is released.",
+    "emailSubject": "{{hoursLeft}} h left to confirm your booking — HoPetSit",
+    "emailBody": "<p>Your sitter is held for you, but nothing is paid yet. You have {{hoursLeft}} h left to pay and confirm; without payment, the booking is released.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Pay now</a></p>"
+  },
+  "pay_later_released_owner_2211": {
+    "title": "Booking released",
+    "body": "Your booking with {{providerName}} was not paid in time: it has been released. You can still choose a sitter.",
+    "emailSubject": "Your booking was released — HoPetSit",
+    "emailBody": "<p>Your booking with {{providerName}} was not paid in time: it has been released. Nothing was charged. You can still choose a sitter.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">See my candidates</a></p>"
+  },
+  "pay_later_released_provider_2211": {
+    "title": "Booking released",
+    "body": "The owner did not pay in time: the booking has been released. Your application is still pending, they can still choose you.",
+    "emailSubject": "Booking released — HoPetSit",
+    "emailBody": "<p>The owner did not pay in time: the booking has been released. Your application is still pending, they can still choose you.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
   }
 }

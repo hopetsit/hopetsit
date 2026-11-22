@@ -1930,6 +1930,47 @@ const getBookingDetail = async (req, res) => {
   }
 };
 
+/**
+ * 2211 — annulation d'une réservation NON PAYÉE : `cancelled` + paiement `cancelled`, et la demande n'est plus
+ * « réservée ». C'est le corps de cancelBooking (annulation par le propriétaire), sorti tel quel pour servir aussi
+ * à la libération d'un « payer plus tard » arrivé à échéance (services/payLater2211). Garde-fou : une réservation
+ * payée n'est jamais touchée (renvoie false). Aucun remboursement, aucun versement : il n'y a pas eu de paiement.
+ */
+const releaseUnpaidBooking = async (booking) => {
+  if (!booking) return false;
+  if (booking.status === 'paid' || booking.paymentStatus === 'paid' || booking.paidAt) return false;
+  booking.status = 'cancelled';
+  booking.paymentStatus = 'cancelled'; // Update payment status
+  await booking.save();
+
+  // Session v17.1 — release the reservation on any Post flagged as
+  // reserved-by this booking. Best-effort so a missing Post (soft-deleted
+  // or pre-v17.1) never blocks the cancellation itself.
+  try {
+    const Post = require('../models/Post');
+    await Post.updateMany(
+      { 'reservedBy.bookingId': booking._id },
+      {
+        $set: {
+          reservedBy: {
+            bookingId: null,
+            providerRole: null,
+            providerId: null,
+            providerName: '',
+            reservedAt: null,
+          },
+        },
+      },
+    );
+  } catch (releaseErr) {
+    logger.warn(
+      '[cancelBooking] failed to release Post reservation',
+      releaseErr?.message || releaseErr,
+    );
+  }
+  return true;
+};
+
 const cancelBooking = async (req, res) => {
   try {
     const ownerId = req.user?.id;
@@ -1989,38 +2030,10 @@ const cancelBooking = async (req, res) => {
       });
     }
 
-    booking.status = 'cancelled';
-    booking.paymentStatus = 'cancelled'; // Update payment status
-    await booking.save();
+    await releaseUnpaidBooking(booking);
     await booking.populate('ownerId');
     await booking.populate('sitterId');
     await booking.populate('walkerId');
-
-    // Session v17.1 — release the reservation on any Post flagged as
-    // reserved-by this booking. Best-effort so a missing Post (soft-deleted
-    // or pre-v17.1) never blocks the cancellation itself.
-    try {
-      const Post = require('../models/Post');
-      await Post.updateMany(
-        { 'reservedBy.bookingId': booking._id },
-        {
-          $set: {
-            reservedBy: {
-              bookingId: null,
-              providerRole: null,
-              providerId: null,
-              providerName: '',
-              reservedAt: null,
-            },
-          },
-        },
-      );
-    } catch (releaseErr) {
-      logger.warn(
-        '[cancelBooking] failed to release Post reservation',
-        releaseErr?.message || releaseErr,
-      );
-    }
 
     res.json({ booking: sanitizeBooking(booking), message: 'Booking cancelled.' });
   } catch (error) {
@@ -6841,6 +6854,7 @@ const resolveDispute = async (req, res) => {
 };
 
 module.exports = {
+  releaseUnpaidBooking, // 2211 — annulation d'une réservation non payée (cancelBooking + payLater2211)
   contactsAllowedForBooking,
   resolveDispute,
   createBooking,

@@ -77,6 +77,15 @@ const bookingSchema = new mongoose.Schema(
     acceptedAt: { type: Date, default: null },
     // 2910 (BOB) — relance de paiement « choisi mais non payé » : créneaux déjà envoyés (r1 +1 h, r2 +24 h).
     paymentReminder2910: { sent: [{ at: { type: Date }, slot: { type: String } }] },
+    // 2211 — « Réserver, payer plus tard » : choisi sans carte le `at`, à payer avant `deadline`, sinon la
+    // réservation est libérée (`releasedAt`) par services/payLater2211. Absent = réservation ordinaire.
+    payLater2211: {
+      at: { type: Date },
+      deadline: { type: Date },
+      applicationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Application' },
+      releasedAt: { type: Date },
+      claimAt: { type: Date },
+    },
     rejectedAt: { type: Date, default: null },
     agreedAt: { type: Date, default: null },
     paidAt: { type: Date, default: null },

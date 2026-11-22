@@ -12,6 +12,8 @@
  *   · contenu = la notification existante `booking_accepted` (« Réservation acceptée · procède au
  *     paiement », bouton Payer → /bookings/<id>), dans la langue du compte, par les 3 canaux du
  *     notificationSender (e-mail, cloche, téléphone si l'app est installée).
+ * 2211 — réservation « payer plus tard » (`payLater2211`) : mêmes 2 relances au maximum, mais à la moitié du délai
+ * puis à 44/48 du délai (24 h et 44 h pour 48 h), avec le gabarit qui dit le temps restant. Les autres : inchangé.
  * Registre sur la réservation : `paymentReminder2910.sent[]`. PAYMENT_REMINDER_2910=off pour couper.
  * Simulation : GET /admin/payment-reminder-2910 (routes/adminPaymentReminder2910.js).
  */
@@ -62,17 +64,26 @@ async function runPaymentReminders(opts = {}) {
   const Booking = require('../models/Booking');
   const Owner = require('../models/Owner');
   const skip = (why) => { report.skipped[why] = (report.skipped[why] || 0) + 1; };
+  // ZOE 22/11 — « payer plus tard » : un essai de paiement raté ou un formulaire de carte refermé (paiement
+  // `failed` / `cancelled`, réservation toujours ouverte) ne coupe pas les relances annoncées avant l'échéance.
+  // Réservations ordinaires : inchangé (paiement `pending` seulement).
   const bookings = await Booking.find({
     status: { $in: ['agreed', 'accepted'] },
-    paymentStatus: 'pending',
-  }).select('ownerId sitterId walkerId status paymentStatus startDate serviceDate createdAt acceptedAt agreedAt pricing paymentReminder2910').lean();
+    $or: [
+      { paymentStatus: 'pending' },
+      { 'payLater2211.at': { $ne: null }, paymentStatus: { $in: ['failed', 'cancelled'] } },
+    ],
+  }).select('ownerId sitterId walkerId status paymentStatus startDate serviceDate createdAt acceptedAt agreedAt pricing paymentReminder2910 payLater2211').lean();
   for (const b of bookings) {
     report.examined += 1;
     try {
       if (serviceStarted(b, now)) { skip('service_started'); continue; }
       const chosenAt = b.agreedAt || b.acceptedAt || b.createdAt;
       if (!chosenAt) { skip('no_date'); continue; }
-      const slot = dueSlot(chosenAt, (b.paymentReminder2910 && b.paymentReminder2910.sent) || [], now);
+      const sentSoFar = (b.paymentReminder2910 && b.paymentReminder2910.sent) || [];
+      // 2211 — « payer plus tard » : relances calées sur l'échéance (24 h / 44 h), pas sur 1 h / 24 h.
+      const later = b.payLater2211 && b.payLater2211.at ? b.payLater2211 : null;
+      const slot = later ? require('./payLater2211').dueReminderSlot(later, sentSoFar, now) : dueSlot(chosenAt, sentSoFar, now);
       if (!slot) { skip('not_due'); continue; }
       const owner = await Owner.findById(b.ownerId).select('email isStaff').lean();
       if (!owner) { skip('no_owner'); continue; }
@@ -83,11 +94,13 @@ async function runPaymentReminders(opts = {}) {
       const line = { bookingId: String(b._id), slot, amount: b.pricing && b.pricing.totalPrice, currency };
       if (dryRun) { report.wouldSend.push(line); continue; }
       const ns = require('./notificationSender');
+      const extra = later ? require('./payLater2211').reminderExtras(later, now) : null;
       const r = await ns.sendNotification({
         userId: String(b.ownerId),
         role: 'owner',
         type: 'booking_accepted',
-        data: { bookingId: String(b._id), amount: line.amount, currency, reminder: slot },
+        data: { bookingId: String(b._id), amount: line.amount, currency, reminder: slot, ...(extra ? extra.data : {}) },
+        ...(extra ? { templateType: extra.templateType } : {}),
       });
       await Booking.updateOne({ _id: b._id }, { $push: { 'paymentReminder2910.sent': { at: now, slot } } });
       report.sent.push({ ...line, result: r && (r.ok !== undefined ? r.ok : true) });

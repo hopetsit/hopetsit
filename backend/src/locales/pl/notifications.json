@@ -524,5 +524,29 @@
     "body": "{{subjectLine}}",
     "emailSubject": "{{subjectLine}}",
     "emailBody": "<p style=\"font-size:18px;font-weight:700;line-height:1.4;margin:0 0 14px;color:#231715\">{{subjectLine}}</p>{{candidatesHtml2610}}<p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:14px 28px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-weight:700;font-family:sans-serif;\">{{ctaLabel}}</a></p>"
+  },
+  "application_accepted_paylater_2211": {
+    "title": "Zgłoszenie przyjęte",
+    "body": "Właściciel wybrał Ciebie. Rezerwacja czeka na płatność (w ciągu {{hours}} godz.): zostanie potwierdzona, gdy tylko zapłaci.",
+    "emailSubject": "Twoje zgłoszenie zostało przyjęte — HoPetSit",
+    "emailBody": "<p>Właściciel wybrał Ciebie. Rezerwacja czeka na płatność: ma {{hours}} godz. na zapłatę. Zostanie potwierdzona zaraz po opłaceniu; bez płatności w tym czasie zostanie zwolniona. Możesz już do niego napisać.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Otwórz w aplikacji</a></p>"
+  },
+  "pay_later_reminder_2211": {
+    "title": "Twoja rezerwacja czeka na płatność",
+    "body": "Zostało Ci {{hoursLeft}} godz., aby zapłacić i potwierdzić rezerwację. Bez płatności zostanie zwolniona.",
+    "emailSubject": "Zostało {{hoursLeft}} godz. na potwierdzenie rezerwacji — HoPetSit",
+    "emailBody": "<p>Twój opiekun jest zarezerwowany, ale nic nie zostało jeszcze opłacone. Zostało Ci {{hoursLeft}} godz., aby zapłacić i potwierdzić; bez płatności rezerwacja zostanie zwolniona.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zapłać teraz</a></p>"
+  },
+  "pay_later_released_owner_2211": {
+    "title": "Rezerwacja zwolniona",
+    "body": "Twoja rezerwacja ({{providerName}}) nie została opłacona na czas: została zwolniona. Nadal możesz wybrać opiekuna.",
+    "emailSubject": "Twoja rezerwacja została zwolniona — HoPetSit",
+    "emailBody": "<p>Twoja rezerwacja ({{providerName}}) nie została opłacona na czas: została zwolniona. Nic nie zostało pobrane. Nadal możesz wybrać opiekuna.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Zobacz moich kandydatów</a></p>"
+  },
+  "pay_later_released_provider_2211": {
+    "title": "Rezerwacja zwolniona",
+    "body": "Właściciel nie zapłacił w terminie: rezerwacja została zwolniona. Twoje zgłoszenie nadal czeka, wciąż może Cię wybrać.",
+    "emailSubject": "Rezerwacja zwolniona — HoPetSit",
+    "emailBody": "<p>Właściciel nie zapłacił w terminie: rezerwacja została zwolniona. Twoje zgłoszenie nadal czeka, wciąż może Cię wybrać.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Otwórz w aplikacji</a></p>"
   }
 }

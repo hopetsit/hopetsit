@@ -408,6 +408,7 @@ const versionedRoutes = [
   // 2211 — « Proposer mon prix » : page de réponse du prestataire (lien signé) + lecture seule admin.
   { path: '/price-offer', mw: [sensitiveLimiter], router: require('./routes/priceOffer2211') },
   { path: '/admin/price-offers-2211', mw: [], router: require('./routes/adminPriceOffers2211') },
+  { path: '/admin/pay-later-2211', mw: [], router: require('./routes/adminPayLater2211') }, // 2211 — lecture seule
   { path: '/admin/dates-reminder-3110', mw: [], router: require('./routes/adminDatesReminder3110') }, // 3110 (ADA) — relance « posez vos dates » (simulation)
   // 1610 (SAM, 16/10) — « Partagez votre fiche » : registre + passage à la main (testOnly par défaut). requireAdmin dans le routeur.
   { path: '/admin/sitter-invite-1610', mw: [], router: require('./routes/adminSitterInvite1610') },

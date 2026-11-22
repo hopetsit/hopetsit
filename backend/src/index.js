@@ -180,6 +180,8 @@ async function startServer() {
     require('./services/paymentReminder2910').startPaymentReminderScheduler();
     // 1011 (BOB, constat ZOE) — les autres candidats restent en attente jusqu'au paiement, puis sont prévenus. SIBLINGS_KEEP_1011=off pour revenir à l'ancien comportement.
     require('./services/siblings1011').startSiblingsScheduler();
+    // 2211 — « Réserver, payer plus tard » : réservation choisie sans carte, libérée si elle n'est pas payée à l'échéance (48 h). PAY_LATER_2211=off refuse l'option ; le balayage continue pour celles déjà faites.
+    require('./services/payLater2211').startPayLaterScheduler();
     // 3110 (ADA, ordre de Daniel 31/10) — contacts pub en brouillon : UN rappel « confirme ta demande » à +24 h.
     require('./services/adLeadConfirmReminder3110').startAdLeadConfirmReminderScheduler();
   } catch (error) {

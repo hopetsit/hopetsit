@@ -1,5 +1,5 @@
 // 31/10/2026 (LEO) — logique PURE de la page unique « mes candidats → payer » (/application/<id>),
-// testée par scripts/test-cand3110.mjs : tri « le plus proche de chez toi, puis le moins cher »,
+// testée par scripts/test-cand3110.mjs : tri « photo, identité vérifiée, puis le plus proche de chez toi et le moins cher »,
 // pays du paiement déduit de la devise, choix de la demande à afficher.
 import { type ApplicationItem, applicationId, applicationProvider } from "@/lib/api";
 
@@ -45,20 +45,49 @@ export function verified1711(a: ApplicationItem): boolean {
   return a.walker?.identityVerified === true || a.sitter?.identityVerified === true;
 }
 
+/** 22/11 — le candidat a-t-il une photo de profil ? (seul champ lu : `avatar` du gardien / promeneur de la carte). */
+export function hasPhoto2211(a: ApplicationItem): boolean {
+  const { who } = applicationProvider(a);
+  return typeof who?.avatar === "string" && who.avatar.trim().length > 0;
+}
+
+/** 22/11 — au-delà de cette distance, un candidat à une promenade ou à une visite passe « Plus loin de chez toi ». */
+export const FAR_KM_2211 = 10;
+const NEAR_SERVICES_2211 = new Set(["dog_walking", "home_visit"]);
+
 /**
- * Ordre de la page : 1) le candidat de l'e-mail (focus) ; 2) les profils « Identité vérifiée » ;
- * 3) le plus proche de chez toi (distance inconnue en dernier) ; 4) à distance égale, le moins cher
- * (total inconnu en dernier) ; 5) ordre du serveur (stable).
+ * 22/11 — « Plus loin de chez toi » : seulement pour une promenade ou une visite à domicile (service de la
+ * candidature, sinon ceux de la demande : tous doivent être de ce type), à PLUS de 10 km. Distance inconnue =
+ * traité comme proche. Personne n'est masqué : ces candidats sont seulement rangés après les autres.
  */
-export function sortCandidates3110(items: ApplicationItem[], postPoint: LatLng | null, focusId?: string): ApplicationItem[] {
+export function isFar2211(a: ApplicationItem, postPoint: LatLng | null, postServices?: string[] | null): boolean {
+  const services = a.serviceType ? [String(a.serviceType)] : (postServices || []).map(String);
+  if (!services.length || !services.every((x) => NEAR_SERVICES_2211.has(x))) return false;
+  const km = kmOf3110(a, postPoint);
+  return km != null && km > FAR_KM_2211;
+}
+
+/**
+ * Ordre de la page (22/11, « confiance d'abord ») : 1) le candidat de l'e-mail (focus) ; 2) promenade / visite :
+ * les candidats à plus de 10 km après tous les autres ; 3) les profils AVEC PHOTO ; 4) les profils « Identité
+ * vérifiée » ; 5) le plus proche de chez toi (distance inconnue en dernier) ; 6) à distance égale, le moins cher
+ * (total inconnu en dernier) ; 7) ordre du serveur (stable).
+ */
+export function sortCandidates3110(items: ApplicationItem[], postPoint: LatLng | null, focusId?: string, postServices?: string[] | null): ApplicationItem[] {
   const idx = new Map(items.map((x, i) => [applicationId(x), i]));
   return [...items].sort((x, y) => {
     const fx = focusId && applicationId(x) === focusId ? 0 : 1;
     const fy = focusId && applicationId(y) === focusId ? 0 : 1;
     if (fx !== fy) return fx - fy;
-    // 17/11 (BOB, « oui » de Daniel) — les profils « Identité vérifiée » passent avant les autres : c'est le seul
-    // signe de confiance tant qu'il n'y a ni avis ni garde terminée. Entre vérifiés (ou entre non vérifiés),
-    // l'ordre d'avant ne change pas.
+    // 22/11 — promenade / visite : au-delà de 10 km, après tous les autres (jamais masqué).
+    const dx = isFar2211(x, postPoint, postServices) ? 1 : 0;
+    const dy = isFar2211(y, postPoint, postServices) ? 1 : 0;
+    if (dx !== dy) return dx - dy;
+    // 22/11 (mesure : 42 % des gardiens ont une photo, 5 % une identité vérifiée) — la photo d'abord, puis
+    // l'identité vérifiée (17/11) ; entre profils de même niveau, l'ordre d'avant ne change pas.
+    const px = hasPhoto2211(x) ? 0 : 1;
+    const py = hasPhoto2211(y) ? 0 : 1;
+    if (px !== py) return px - py;
     const vx = verified1711(x) ? 0 : 1;
     const vy = verified1711(y) ? 0 : 1;
     if (vx !== vy) return vx - vy;

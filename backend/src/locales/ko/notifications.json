@@ -524,5 +524,29 @@
     "body": "{{subjectLine}}",
     "emailSubject": "{{subjectLine}}",
     "emailBody": "<p style=\"font-size:18px;font-weight:700;line-height:1.4;margin:0 0 14px;color:#231715\">{{subjectLine}}</p>{{candidatesHtml2610}}<p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:14px 28px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-weight:700;font-family:sans-serif;\">{{ctaLabel}}</a></p>"
+  },
+  "application_accepted_paylater_2211": {
+    "title": "지원이 수락되었어요",
+    "body": "보호자가 회원님을 선택했어요. 예약은 결제 대기 중이에요({{hours}}시간 이내). 결제가 완료되면 바로 확정돼요.",
+    "emailSubject": "지원이 수락되었어요 — HoPetSit",
+    "emailBody": "<p>보호자가 회원님을 선택했어요. 예약은 결제 대기 중이며, 보호자는 {{hours}}시간 안에 결제해야 해요. 결제되면 바로 확정되고, 기한 내에 결제되지 않으면 예약이 해제돼요. 지금 바로 메시지를 보낼 수 있어요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">앱에서 열기</a></p>"
+  },
+  "pay_later_reminder_2211": {
+    "title": "예약이 결제를 기다리고 있어요",
+    "body": "예약을 결제하고 확정할 시간이 {{hoursLeft}}시간 남았어요. 결제하지 않으면 예약이 해제돼요.",
+    "emailSubject": "예약 확정까지 {{hoursLeft}}시간 남았어요 — HoPetSit",
+    "emailBody": "<p>펫시터가 예약되어 있지만 아직 결제되지 않았어요. 결제하고 확정할 시간이 {{hoursLeft}}시간 남았어요. 결제하지 않으면 예약이 해제돼요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">지금 결제하기</a></p>"
+  },
+  "pay_later_released_owner_2211": {
+    "title": "예약이 해제되었어요",
+    "body": "{{providerName}}님과의 예약이 기한 내에 결제되지 않아 해제되었어요. 아직 펫시터를 선택할 수 있어요.",
+    "emailSubject": "예약이 해제되었어요 — HoPetSit",
+    "emailBody": "<p>{{providerName}}님과의 예약이 기한 내에 결제되지 않아 해제되었어요. 결제된 금액은 없어요. 아직 펫시터를 선택할 수 있어요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">내 후보 보기</a></p>"
+  },
+  "pay_later_released_provider_2211": {
+    "title": "예약이 해제되었어요",
+    "body": "보호자가 기한 내에 결제하지 않아 예약이 해제되었어요. 지원은 대기 상태로 남아 있어 다시 선택될 수 있어요.",
+    "emailSubject": "예약이 해제되었어요 — HoPetSit",
+    "emailBody": "<p>보호자가 기한 내에 결제하지 않아 예약이 해제되었어요. 지원은 대기 상태로 남아 있어 다시 선택될 수 있어요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">앱에서 열기</a></p>"
   }
 }

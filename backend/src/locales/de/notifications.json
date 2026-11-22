@@ -524,5 +524,29 @@
     "body": "{{subjectLine}}",
     "emailSubject": "{{subjectLine}}",
     "emailBody": "<p style=\"font-size:18px;font-weight:700;line-height:1.4;margin:0 0 14px;color:#231715\">{{subjectLine}}</p>{{candidatesHtml2610}}<p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:14px 28px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-weight:700;font-family:sans-serif;\">{{ctaLabel}}</a></p>"
+  },
+  "application_accepted_paylater_2211": {
+    "title": "Bewerbung angenommen",
+    "body": "Der Besitzer hat dich gewählt. Buchung wartet auf Zahlung (innerhalb von {{hours}} Std.): Sie ist bestätigt, sobald bezahlt ist.",
+    "emailSubject": "Deine Bewerbung wurde angenommen — HoPetSit",
+    "emailBody": "<p>Der Besitzer hat dich gewählt. Die Buchung wartet auf die Zahlung: Er hat {{hours}} Std. Zeit. Sie ist bestätigt, sobald bezahlt ist; ohne Zahlung in dieser Frist wird sie freigegeben. Du kannst ihm schon jetzt schreiben.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">In der App öffnen</a></p>"
+  },
+  "pay_later_reminder_2211": {
+    "title": "Deine Buchung wartet auf die Zahlung",
+    "body": "Du hast noch {{hoursLeft}} Std., um zu bezahlen und deine Buchung zu bestätigen. Ohne Zahlung wird sie freigegeben.",
+    "emailSubject": "Noch {{hoursLeft}} Std., um deine Buchung zu bestätigen — HoPetSit",
+    "emailBody": "<p>Dein Betreuer ist für dich reserviert, aber es ist noch nichts bezahlt. Du hast noch {{hoursLeft}} Std., um zu bezahlen und zu bestätigen; ohne Zahlung wird die Buchung freigegeben.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Jetzt bezahlen</a></p>"
+  },
+  "pay_later_released_owner_2211": {
+    "title": "Buchung freigegeben",
+    "body": "Deine Buchung mit {{providerName}} wurde nicht rechtzeitig bezahlt: Sie wurde freigegeben. Du kannst weiterhin einen Betreuer wählen.",
+    "emailSubject": "Deine Buchung wurde freigegeben — HoPetSit",
+    "emailBody": "<p>Deine Buchung mit {{providerName}} wurde nicht rechtzeitig bezahlt: Sie wurde freigegeben. Es wurde nichts abgebucht. Du kannst weiterhin einen Betreuer wählen.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Meine Bewerber ansehen</a></p>"
+  },
+  "pay_later_released_provider_2211": {
+    "title": "Buchung freigegeben",
+    "body": "Der Besitzer hat nicht fristgerecht bezahlt: Die Buchung wurde freigegeben. Deine Bewerbung bleibt offen, er kann dich weiterhin wählen.",
+    "emailSubject": "Buchung freigegeben — HoPetSit",
+    "emailBody": "<p>Der Besitzer hat nicht fristgerecht bezahlt: Die Buchung wurde freigegeben. Deine Bewerbung bleibt offen, er kann dich weiterhin wählen.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">In der App öffnen</a></p>"
   }
 }

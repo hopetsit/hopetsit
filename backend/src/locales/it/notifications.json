@@ -524,5 +524,29 @@
     "body": "{{subjectLine}}",
     "emailSubject": "{{subjectLine}}",
     "emailBody": "<p style=\"font-size:18px;font-weight:700;line-height:1.4;margin:0 0 14px;color:#231715\">{{subjectLine}}</p>{{candidatesHtml2610}}<p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:14px 28px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-weight:700;font-family:sans-serif;\">{{ctaLabel}}</a></p>"
+  },
+  "application_accepted_paylater_2211": {
+    "title": "Candidatura accettata",
+    "body": "Il proprietario ti ha scelto. Prenotazione in attesa di pagamento (entro {{hours}} h): è confermata appena paga.",
+    "emailSubject": "La tua candidatura è stata accettata — HoPetSit",
+    "emailBody": "<p>Il proprietario ti ha scelto. La prenotazione è in attesa di pagamento: ha {{hours}} h per pagare. È confermata appena viene pagata; senza pagamento entro questo termine, viene liberata. Puoi scrivergli fin da ora.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Apri nell'app</a></p>"
+  },
+  "pay_later_reminder_2211": {
+    "title": "La tua prenotazione attende il pagamento",
+    "body": "Ti restano {{hoursLeft}} h per pagare e confermare la prenotazione. Senza pagamento, viene liberata.",
+    "emailSubject": "Ti restano {{hoursLeft}} h per confermare la prenotazione — HoPetSit",
+    "emailBody": "<p>Il tuo pet sitter è prenotato, ma non è ancora stato pagato nulla. Ti restano {{hoursLeft}} h per pagare e confermare; senza pagamento, la prenotazione viene liberata.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Paga ora</a></p>"
+  },
+  "pay_later_released_owner_2211": {
+    "title": "Prenotazione liberata",
+    "body": "La tua prenotazione con {{providerName}} non è stata pagata in tempo: è stata liberata. Puoi ancora scegliere un pet sitter.",
+    "emailSubject": "La tua prenotazione è stata liberata — HoPetSit",
+    "emailBody": "<p>La tua prenotazione con {{providerName}} non è stata pagata in tempo: è stata liberata. Non è stato addebitato nulla. Puoi ancora scegliere un pet sitter.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi i miei candidati</a></p>"
+  },
+  "pay_later_released_provider_2211": {
+    "title": "Prenotazione liberata",
+    "body": "Il proprietario non ha pagato entro il termine: la prenotazione è stata liberata. La tua candidatura resta in attesa, può ancora sceglierti.",
+    "emailSubject": "Prenotazione liberata — HoPetSit",
+    "emailBody": "<p>Il proprietario non ha pagato entro il termine: la prenotazione è stata liberata. La tua candidatura resta in attesa, può ancora sceglierti.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Apri nell'app</a></p>"
   }
 }
