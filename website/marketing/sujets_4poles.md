@@ -19,7 +19,7 @@ uniques et locaux, reliés à la page pilier de la ville et à « Publier ma dem
 - [x] Premier chiot à Paris : apprendre la propreté en appartement et les premières sorties (2026-W44)
 - [x] Chat d'appartement à Paris : visites à domicile ou garde chez le gardien ? (2026-W45 — /blog/chat-dappartement-paris)
 - [x] Les jardins parisiens ouverts aux chiens : règles et bonnes pratiques (2026-W46 — /blog/jardins-parisiens-ouverts-aux-chiens)
-- [ ] Partir au ski avec ou sans son chien : organiser la garde depuis Paris
+- [x] Partir au ski avec ou sans son chien : organiser la garde depuis Paris (2026-W47 — /blog/partir-au-ski-avec-ou-sans-son-chien)
 - [ ] Chien et transports à Paris : métro, bus, taxi — ce qu'il faut savoir
 
 ## New York (en) — page pilier `/pet-sitting/new-york#districts`
@@ -27,7 +27,7 @@ uniques et locaux, reliés à la page pilier de la ville et à « Publier ma dem
 - [x] Dog runs in NYC: etiquette and how to pick one in your borough (2026-W44)
 - [x] Cat sitting in a New York apartment: drop-ins, keys and doormen (2026-W45 — /blog/cat-sitting-nyc-apartment)
 - [x] Walking your dog in a NYC winter: salt, cold and short walks (2026-W46 — /blog/nyc-winter-dog-walks)
-- [ ] Summer in NYC with a dog: heat, hot pavement and midday walks
+- [x] Summer in NYC with a dog: heat, hot pavement and midday walks (2026-W47 — /blog/summer-in-nyc-with-a-dog — published ahead of the season on purpose, to let it rank before summer)
 - [ ] Getting a dog license in New York City: what owners should know
 
 ## Séoul (ko) — page pilier `/pet-sitting-korea/seoul#districts`

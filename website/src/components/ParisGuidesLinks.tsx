@@ -8,6 +8,8 @@ import Link from "@/components/SiteLink";
 // pas vers eux. Ce bloc relie les 7 guides entre eux depuis chaque article.
 // Ne pas y ajouter de nouvelle page : uniquement des articles déjà en ligne.
 const GUIDES = [
+  // 2026-W47 (marketing hebdo) — partir au ski avec ou sans son chien.
+  { href: "/blog/partir-au-ski-avec-ou-sans-son-chien", t: "Partir au ski avec ou sans son chien : organiser la garde depuis Paris" },
   // 2026-W46 (marketing hebdo) — jardins parisiens ouverts aux chiens.
   { href: "/blog/jardins-parisiens-ouverts-aux-chiens", t: "Les jardins parisiens ouverts aux chiens : règles et bonnes pratiques" },
   // 2026-W45 (marketing hebdo) — chat d'appartement à Paris (visite ou garde ailleurs).

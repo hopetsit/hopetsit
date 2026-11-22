@@ -15,6 +15,22 @@ export const metadata: Metadata = {
 };
 
 const POSTS = [
+  // 2026-W47 (marketing hebdo, dimanche) — rotation des 4 pôles (sujets_4poles.md) :
+  // Paris (ski) + New York (été, publié en avance pour être indexé avant la saison).
+  {
+    slug: "partir-au-ski-avec-ou-sans-son-chien",
+    lang: "🇫🇷",
+    title: "Partir au ski avec ou sans son chien : organiser la garde depuis Paris",
+    excerpt:
+      "Chien au chalet ou garde à Paris pendant les vacances de ski : les critères pour décider, les prix réels et comment réserver à temps avant les vacances scolaires.",
+  },
+  {
+    slug: "summer-in-nyc-with-a-dog",
+    lang: "🇺🇸",
+    title: "Summer in NYC with a Dog: Heat, Hot Pavement and Midday Walks",
+    excerpt:
+      "Why NYC sidewalks get hotter than the air temperature, how to tell a walk is too hot, and why midday is the wrong time for a city dog walk in summer.",
+  },
   // 2026-W46 (marketing hebdo, dimanche) — rotation des 4 pôles (sujets_4poles.md) :
   // Paris (jardins) + New York (hiver).
   {

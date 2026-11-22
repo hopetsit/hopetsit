@@ -14,8 +14,8 @@ export const FOOTER_CITIES = [
 
 /** Derniers articles des 4 villes (titre dans la langue de l'article). À mettre à jour avec la rotation hebdo. */
 export const FOOTER_POSTS = [
-  { href: "/blog/jardins-parisiens-ouverts-aux-chiens", label: "Paris : les jardins ouverts aux chiens" },
-  { href: "/blog/nyc-winter-dog-walks", label: "New York: walking your dog in winter" },
+  { href: "/blog/partir-au-ski-avec-ou-sans-son-chien", label: "Paris : partir au ski avec ou sans son chien" },
+  { href: "/blog/summer-in-nyc-with-a-dog", label: "New York: summer with a dog" },
   { href: "/blog/seoul-dog-boarding-cost", label: "강아지 맡기는 비용, 무엇으로 정해질까" },
   { href: "/blog/tokyo-cat-home-visit-sitter", label: "ペットシッターに家に来てもらう : 猫の留守番" },
   { href: "/blog/cat-sitting-amsterdam-holidays", label: "Amsterdam: cat sitting over the holidays" },
