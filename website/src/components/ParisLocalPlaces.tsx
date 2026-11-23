@@ -49,6 +49,41 @@ function stats(e: ParisEntry, mode: Mode): string {
 }
 export const parisEntry = (slug: string): ParisEntry | undefined => DATA[slug];
 
+// 23/11 (bob) — maillage manquant trouvé en lisant le code : les articles
+// « Devenir pet sitter dans le 2e/11e/15e/18e arrondissement » (créés en
+// semaines 43-45 PRÉCISÉMENT pour donner un lien entrant à ces 4
+// arrondissements) pointent chacun vers sa page `/devenir-petsitter/paris-N`,
+// mais AUCUNE des 40 pages Paris (ce composant, posé sur les 20 owner + 20
+// recruit) ne renvoie vers un seul article de blog. Le lien ne circulait que
+// dans un sens. On ne crée aucune page : on relie des articles déjà en ligne.
+const ARR_GUIDE: Record<number, { href: string; t: string }> = {
+  2: { href: "/blog/devenir-pet-sitter-paris-2e", t: "Devenir pet sitter dans le 2e arrondissement : le guide" },
+  11: { href: "/blog/devenir-pet-sitter-paris-11e", t: "Devenir pet sitter dans le 11e arrondissement : le guide" },
+  15: { href: "/blog/devenir-pet-sitter-paris-15e", t: "Devenir pet sitter dans le 15e arrondissement : le guide" },
+  18: { href: "/blog/devenir-pet-sitter-paris-18e", t: "Devenir pet sitter dans le 18e arrondissement : le guide" },
+};
+const OWNER_GUIDES = [
+  { href: "/blog/choisir-un-pet-sitter-de-confiance-a-paris", t: "Comment choisir un pet sitter de confiance à Paris" },
+  { href: "/blog/combien-coute-un-pet-sitter", t: "Combien coûte un pet sitter ? Tarifs garde chien et chat" },
+  { href: "/blog/faire-garder-son-chat-a-paris", t: "Faire garder son chat à Paris : visites à domicile ou pension ?" },
+  { href: "/blog/promener-son-chien-a-paris", t: "Promener son chien à Paris : parcs, bois et bons plans" },
+];
+const RECRUIT_GUIDES = [
+  { href: "/blog/devenir-pet-sitter-combien-ca-rapporte", t: "Devenir pet sitter : combien ça rapporte vraiment ?" },
+  { href: "/blog/dog-sitter-paris", t: "Dog sitter à Paris : ce qu'il fait et comment en trouver un" },
+];
+
+/** 2-3 liens vers des articles déjà en ligne : l'article dédié à l'arrondissement
+ *  s'il existe, + 2 guides généraux choisis selon le numéro (pour varier le bloc
+ *  d'une page à l'autre plutôt que répéter le même texte sur les 20 pages). */
+function guideLinks(e: ParisEntry, mode: Mode): { href: string; t: string }[] {
+  const pool = mode === "owner" ? OWNER_GUIDES : RECRUIT_GUIDES;
+  const rotated = pool.length ? [pool[e.n % pool.length], pool[(e.n + 1) % pool.length]] : [];
+  const picks = [ARR_GUIDE[e.n], ...rotated].filter(Boolean) as { href: string; t: string }[];
+  const seen = new Set<string>();
+  return picks.filter((g) => (seen.has(g.href) ? false : (seen.add(g.href), true))).slice(0, 3);
+}
+
 const ord = (n: number) => (n === 1 ? "1er" : `${n}e`);
 const nb = (k: number, one: string, many: string) => `${k} ${k > 1 ? many : one}`;
 const DAYS: Record<string, string> = { Mo: "lun.", Tu: "mar.", We: "mer.", Th: "jeu.", Fr: "ven.", Sa: "sam.", Su: "dim.", PH: "jours fériés" };
@@ -222,6 +257,26 @@ export default function ParisLocalPlaces({ slug, mode }: { slug: string; mode: M
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {guideLinks(e, mode).length > 0 && (
+        <section className="mt-10">
+          <h2 className="font-display text-xl font-extrabold text-ink">
+            {mode === "owner" ? `À lire avant de faire garder vos animaux, Paris ${a}` : `À lire pour devenir pet sitter, Paris ${a}`}
+          </h2>
+          <ul className="mt-4 grid gap-3 md:grid-cols-2">
+            {guideLinks(e, mode).map((g) => (
+              <li key={g.href}>
+                <Link
+                  href={g.href}
+                  className="flex min-h-[44px] items-center rounded-2xl border border-ink/5 bg-white px-4 py-3 text-sm font-semibold leading-snug text-ink shadow-card transition hover:text-owner-dark"
+                >
+                  {g.t}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
