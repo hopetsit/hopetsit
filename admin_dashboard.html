@@ -1617,6 +1617,65 @@ input[type="file"] { font-size: 13px; color: var(--ink-2); }
   .a11-prof { grid-template-columns: 1fr; }
   .a11-fold > summary { font-size: 15px; padding: 11px 13px; }
 }
+
+/* 23/11/2026 (BOB, demande de Daniel : « tableau de bord et demandes publiées plus clairs, plus jolis ») — HABILLAGE SEUL :
+   mêmes données, mêmes boutons, mêmes ids. Tableau de bord : en-tête sur une ligne, « Aujourd'hui » en 5 cases,
+   détail des identités replié. Demandes publiées : compteurs du jour en un seul bandeau, étapes alignées et reliées,
+   lignes de la liste plus aérées, actions sur une ligne. */
+#page-dashboard > .d23-head { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 2px !important; margin: 0 0 14px !important; }
+#page-dashboard > .d23-head [data-i18n="dash_click_hint"] { display: none; }
+#page-dashboard > .d23-head .section-title { font-size: 24px !important; }
+#page-dashboard .ada-today { display: grid; grid-template-columns: auto repeat(5, minmax(0, 1fr)); align-items: stretch; gap: 10px; background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 12px 14px; box-shadow: var(--shadow-soft); margin: 0 0 16px; }
+#page-dashboard .ada-today .ada-today-sep { display: none; }
+#page-dashboard .ada-today .ada-today-k { align-self: center; padding: 0 8px 0 4px; font-size: 16px; }
+#page-dashboard .ada-today .ada-today-i { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; background: var(--cream-2); border-radius: 14px; padding: 10px 12px; font-size: 12.5px; font-weight: 700; color: var(--ink-2); min-width: 0; }
+#page-dashboard .ada-today .ada-today-i b { font-size: 26px; }
+#page-dashboard .ada-today .ada-today-i:not(.zero):not(.na) { background: #E6F6EC; color: #0B5C36; }
+#page-dashboard .ada-today .ada-today-i:not(.zero):not(.na) b { color: #0E7A4A; }
+#page-dashboard .ada-today .ada-today-note { grid-column: 1 / -1; margin: 0; width: auto; }
+#page-dashboard .a11-kpi-s { min-height: 0; }
+.mb-more { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.mb-more > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; color: var(--ink-2); border-radius: 9px; padding: 5px 8px; margin-left: -8px; }
+.mb-more > summary::-webkit-details-marker { display: none; }
+.mb-more > summary::before { content: "▸"; color: var(--o); }
+.mb-more[open] > summary::before { content: "▾"; }
+.mb-more > summary:hover { background: var(--cream-2); color: var(--ink); }
+.mb-more .mb-sub { margin-top: 10px !important; }
+#page-requests1610 .rq-banner { gap: 0; background: #fff; border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow-soft); padding: 8px 4px; margin: 4px 0 14px; }
+#page-requests1610 .rq-banner:empty { display: none; }
+#page-requests1610 .rq-tile { background: none; border: 0; border-left: 1px solid var(--line); border-radius: 0; box-shadow: none; padding: 6px 16px; }
+#page-requests1610 .rq-tile:first-child { border-left: 0; }
+#page-requests1610 .rq-tile b { font-size: 30px; }
+#page-requests1610 .rq-tile .rq-delta.down { background: var(--cream-2); color: var(--ink-2); }
+#page-requests1610 .vt-steps { gap: 16px; margin-top: 14px; }
+#page-requests1610 .vt-step { padding: 16px 14px 12px; border-radius: 18px; }
+#page-requests1610 .vt-flag { position: absolute; top: -10px; left: 12px; margin: 0; box-shadow: 0 3px 8px -2px rgba(201,42,18,.55); }
+#page-requests1610 .vt-step:has(.vt-flag) { background: #FFF3DC; border-color: #E9A23B; }
+#page-requests1610 .vt-step:not(:last-child)::after { content: "›"; position: absolute; right: -14px; top: 50%; transform: translateY(-50%); font-size: 22px; font-weight: 900; line-height: 1; color: var(--ink-3); pointer-events: none; }
+#page-requests1610 .vt-row { padding: 12px 14px; border-radius: 18px; }
+#page-requests1610 .a11-rq { padding: 12px 16px; border-radius: 18px; gap: 8px 14px; }
+#page-requests1610 .a11-rq-why { background: #FBF7F3; border-left: 3px solid var(--apricot-2); border-radius: 8px; font-weight: 600; padding: 7px 12px; }
+#page-requests1610 .a11-mute { color: var(--ink-3); font-weight: 700; }
+@media (min-width: 1101px) {
+  #page-requests1610 .a11-rqh, #page-requests1610 .a11-rq { grid-template-columns: 118px minmax(0, 1.15fr) minmax(0, 1.75fr) minmax(0, .5fr) 82px 86px 236px; }
+  #page-requests1610 .a11-rqh { padding: 0 16px 0 22px; }
+  #page-requests1610 .a11-rqh span:nth-child(5), #page-requests1610 .a11-c-n { text-align: center; }
+  #page-requests1610 .a11-c-act { flex-wrap: nowrap; }
+  #page-requests1610 .a11-c-act .rq-btn { white-space: nowrap; }
+}
+@media (max-width: 1100px) {
+  #page-dashboard .ada-today { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #page-dashboard .ada-today .ada-today-k { grid-column: 1 / -1; padding: 0 2px; }
+  #page-requests1610 .vt-step:not(:last-child)::after { display: none; }
+  #page-requests1610 .vt-steps { gap: 12px 10px; }
+}
+@media (max-width: 640px) {
+  #page-dashboard .ada-today { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px; }
+  #page-dashboard > .d23-head .section-title { font-size: 20px !important; }
+  #page-requests1610 .rq-tile { padding: 6px 10px; }
+}
+@media (max-width: 900px) { #page-requests1610 .rq-tile:nth-child(3n+1) { border-left: 0; } }
+@media (max-width: 480px) { #page-requests1610 .rq-tile:nth-child(3n+1) { border-left: 1px solid var(--line); } #page-requests1610 .rq-tile:nth-child(2n+1) { border-left: 0; } }
 </style>
 </head>
 <body>
@@ -1738,7 +1797,7 @@ input[type="file"] { font-size: 13px; color: var(--ink-2); }
              c'était invisible. On ajoute un bouton "Actualiser" + un
              indicateur "dernière mise à jour" pour qu'on VOIE que la
              page est live. -->
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+        <div class="d23-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px">
           <div>
             <div class="section-title" style="margin:0">📊 <span data-i18n="dash_overview">Vue d'ensemble</span></div>
             <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px" data-i18n="dash_click_hint">Chiffres en direct (auto toutes les 60 s) · clique sur une carte pour ouvrir la liste correspondante.</div>
@@ -1752,16 +1811,17 @@ input[type="file"] { font-size: 13px; color: var(--ink-2); }
         <!-- 10/11 (ADA, ordre de Daniel via BOB) — les 4 chiffres à lire en 5 secondes (routes existantes :
              /admin/stats, /admin/dashboard607, /admin/requests613/live) puis UNE zone « À faire aujourd'hui ». -->
         <div class="a11-hero" id="a11-hero"></div>
+        <!-- 23/11/2026 (BOB, demande de Daniel : « plus clair ») — ordre de lecture : les 4 chiffres, aujourd'hui, à faire, la pub, puis le détail des membres. Mêmes blocs, mêmes ids. -->
+        <div class="ada-today" id="ada-today"><span class="ada-today-k">🌅 <span>Aujourd'hui :</span></span><span class="ada-today-i na"><b>…</b></span></div>
         <!-- 15/11/2026 (BOB, demande de Daniel) — le VRAI nombre de gens dans l'app : inscrits depuis le début − désinscrits
              = présents aujourd'hui (GET /admin/stats → users.members, comptes de test exclus). Lecture seule, rendu par mbMembers(). -->
-        <div class="mb" id="mb-members"></div>
         <div class="a11-todo" id="a11-todo"></div>
         <!-- 24/10 soir (ADA, ordre de Daniel via BOB) — synthèse du jour, LECTURE SEULE : compteurs « aujourd'hui »
              de GET /admin/requests613/board (les mêmes que la page Demandes publiées). « Contacts pub » : aucun
              compteur en lecture n'existe côté serveur (routes ad-leads = POST seulement) → « — ». -->
-        <div class="ada-today" id="ada-today"><span class="ada-today-k">🌅 <span>Aujourd'hui :</span></span><span class="ada-today-i na"><b>…</b></span></div>
         <!-- 09/11 (ADA, ordre de Daniel via BOB) — demandes pub : où ça bloque avant le paiement (GET /admin/ad-leads-1011/list). Lecture seule, rendu par adlRender(). -->
         <div class="adl adl-home" id="adl-home"></div>
+        <div class="mb" id="mb-members"></div>
         <!-- 02/10/2026 (ADA) — tuiles modernes (GET /admin/dashboard607, comptes de test exclus),
              bloc « À traiter » et dernières inscriptions. Les compteurs d'origine suivent, inchangés. -->
         <div class="section-title a11-sec" style="font-size:16px">📅 <span>Cette semaine</span></div>
@@ -13336,15 +13396,15 @@ function mbMembers() {
     + (m.blocked ? '<span>🚫 <b data-no-i18n>' + a11Num(m.blocked) + '</b> <span>suspendus ou bannis (comptés dans le total)</span></span>' : '')
     + '</div>'
     + '<div class="mb-roles">' + role('👤', 'propriétaires', u.owners, vr.owners, 'owners') + role('🏠', 'gardiens', u.sitters, vr.sitters, 'sitters') + role('🚶', 'promeneurs', u.walkers, vr.walkers, 'walkers') + '</div>'
-    + mbIdentity(m.identity)
     + '</div><div>'
     + '<div class="mb-sub"><span>Arrivées et départs</span></div>'
     + '<table class="mb-mv"><thead><tr><th></th><th><span>Inscrits</span></th><th><span>Désinscrits</span></th><th><span>Solde</span></th></tr></thead><tbody>'
     + line('Depuis 24 heures', m.d1) + line('Depuis 7 jours', m.d7) + line('Depuis 30 jours', m.d30)
     + '</tbody></table>'
     + '</div></div>'
+    + '<details class="mb-more"><summary><span>Détail : identités vérifiées et précisions</span></summary>' + mbIdentity(m.identity)
     + '<div class="mb-foot">' + (since ? '<span>Les désinscriptions sont enregistrées depuis le</span> ' + a11D(since) + '. ' : '')
-    + '<span>Un compte désinscrit est effacé : il n\'est plus compté dans « Dans l\'app aujourd\'hui ». Un compte restauré est recompté.</span></div>';
+    + '<span>Un compte désinscrit est effacé : il n\'est plus compté dans « Dans l\'app aujourd\'hui ». Un compte restauré est recompté.</span></div></details>';
 }
 function a11Hero() {
   var el = document.getElementById('a11-hero'); if (!el) return;
@@ -13608,7 +13668,7 @@ function a11RqRow(it) {
     + '<div class="a11-c a11-c-main"><b>' + rjServiceLabel(it) + '</b><span data-no-i18n>' + rjPlace(it) + '</span>'
     + '<span data-no-i18n>👤 ' + escapeHtml((it.owner && it.owner.name) || '?') + '</span></div>'
     + '<div class="a11-c"><span class="a11-l">Dates</span>' + rjDatesLine(it) + '</div>'
-    + '<div class="a11-c"><span class="a11-l">Budget</span>' + rjPriceLine(it) + '</div>'
+    + '<div class="a11-c a11-c-bud"><span class="a11-l">Budget</span>' + (rjPriceLine(it).indexOf('<span>Tarif</span>') >= 0 ? '<span class="a11-mute" data-no-i18n>—</span>' : rjPriceLine(it)) + '</div>'
     + '<div class="a11-c a11-c-n"><span class="a11-l">Candidats</span><b class="' + (n > 0 ? 'yes' : 'no') + '" data-no-i18n>' + n + '</b></div>'
     + '<div class="a11-c a11-c-age"><span class="a11-l">Publiée</span>' + a11D(_ago(st.published.at)) + '</div>'
     + '<div class="a11-c a11-c-act"><button type="button" class="rq-btn" onclick="rjDetail(\'' + id + '\')">🔎 <span>Voir le parcours</span></button>'
