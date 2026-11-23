@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "@/components/SiteLink";
 import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 
@@ -9,12 +10,11 @@ import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 // publiées (15-30 €/jour, 25-45 €/nuit, 12-20 € la promenade — cf.
 // /blog/voyager-avec-son-animal-ou-le-faire-garder) et aucune affirmation
 // juridique ou fiscale.
-// ⚠️ Pas d'image de couverture dédiée cette semaine : outil de génération
-// d'image indisponible dans cet environnement (PIL cassé, pas d'accès à une
-// banque de photos). Le layout racine fournit l'image Open Graph par défaut
-// du site (/og-image.png) tant qu'aucun `openGraph.images` n'est déclaré ici.
+// 23/11/2026 (GUS) — image propre 1200×630 ajoutée (og:image, JSON-LD, haut de page).
 const URL = "https://www.hopetsit.com/blog/partir-au-ski-avec-ou-sans-son-chien";
 const TITLE = "Partir au ski avec ou sans son chien : organiser la garde depuis Paris";
+const COVER = "https://www.hopetsit.com/blog/partir-au-ski-avec-ou-sans-son-chien.jpg";
+const COVER_ALT = "Un chien noir tenu en laisse en forêt, image du guide pour partir au ski avec ou sans son chien";
 const DESCRIPTION =
   "Chien au chalet ou garde à Paris pendant les vacances de ski : les critères pour décider, les prix réels et comment réserver à temps avant les vacances scolaires.";
 
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     type: "article",
     locale: "fr_FR",
     siteName: "HoPetSit",
-    images: [{ url: "https://hopetsit.com/og-image.png", width: 1200, height: 630, alt: "HoPetSit — garde et promenade d'animaux" }],
+    images: [{ url: COVER, width: 1200, height: 630, alt: COVER_ALT }],
   },
 };
 
@@ -67,6 +67,7 @@ export default function ArticlePartirAuSki() {
         inLanguage: "fr",
         mainEntityOfPage: URL,
         datePublished: "2026-11-22",
+        image: { "@type": "ImageObject", url: COVER, width: 1200, height: 630 },
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com" },
       },
@@ -88,6 +89,15 @@ export default function ArticlePartirAuSki() {
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
         {TITLE}
       </h1>
+      <Image
+        src="/blog/partir-au-ski-avec-ou-sans-son-chien.jpg"
+        alt={COVER_ALT}
+        width={1200}
+        height={630}
+        priority
+        sizes="(max-width: 768px) 100vw, 768px"
+        className="mt-6 h-auto w-full rounded-2xl"
+      />
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         Entre le chalet qui n&apos;accepte pas les animaux, le trajet en
         voiture de plusieurs heures et le froid en altitude, partir au ski

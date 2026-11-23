@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "@/components/SiteLink";
 
 // 2026-W47 (weekly marketing routine, Sunday) — next unchecked topic from
@@ -10,6 +11,8 @@ import Link from "@/components/SiteLink";
 // — only the widely known hand-on-pavement test, and no legal claims.
 const URL = "https://www.hopetsit.com/blog/summer-in-nyc-with-a-dog";
 const TITLE = "Summer in NYC with a Dog: Heat, Hot Pavement and Midday Walks";
+const COVER = "https://www.hopetsit.com/blog/summer-in-nyc-with-a-dog.jpg";
+const COVER_ALT = "A small curly-haired dog on a leash outdoors, cover of the guide to summer in NYC with a dog";
 const DESCRIPTION =
   "Why NYC sidewalks get hotter than the air temperature, how to tell a walk is too hot, and why midday is the wrong time for a city dog walk in summer.";
 const HEADLINE = "Summer in NYC with a dog: heat, hot pavement and midday walks";
@@ -25,7 +28,7 @@ export const metadata: Metadata = {
     type: "article",
     locale: "en_US",
     siteName: "HoPetSit",
-    images: [{ url: "https://hopetsit.com/og-image.png", width: 1200, height: 630, alt: "HoPetSit — pet sitting & dog walking" }],
+    images: [{ url: COVER, width: 1200, height: 630, alt: COVER_ALT }],
   },
 };
 
@@ -63,6 +66,7 @@ export default function ArticleSummerInNycWithADog() {
         inLanguage: "en-US",
         mainEntityOfPage: URL,
         datePublished: "2026-11-22",
+        image: { "@type": "ImageObject", url: COVER, width: 1200, height: 630 },
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com" },
       },
@@ -77,6 +81,15 @@ export default function ArticleSummerInNycWithADog() {
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
         {HEADLINE}
       </h1>
+      <Image
+        src="/blog/summer-in-nyc-with-a-dog.jpg"
+        alt={COVER_ALT}
+        width={1200}
+        height={630}
+        priority
+        sizes="(max-width: 768px) 100vw, 768px"
+        className="mt-6 h-auto w-full rounded-2xl"
+      />
       <p className="mt-4 text-lg leading-relaxed text-ink-muted">
         A New York summer is hard on a city dog in ways that have nothing to
         do with the air temperature on your phone. The sidewalk itself, the

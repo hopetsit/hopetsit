@@ -9,6 +9,9 @@ import ParisGuidesLinks from "@/components/ParisGuidesLinks";
 // (« cat sitter », « garde chat paris »). La description promettait une check-list
 // absente de la page : ajoutée (+ visite type, + lien guide chat d'appartement),
 // image propre 1200×630 au lieu de l'og-image générique. Aucun chiffre nouveau.
+// 23/11/2026 (GUS) — Search Console 28 j France : 654 affichages, 0 clic ; « cat sitter »
+// 115 affichages en 11e place. La page parlait de cat sitter sans jamais dire ce que
+// c'est : définition ajoutée en tête (+ 2 questions de FAQ). Aucun chiffre nouveau.
 const URL = "https://www.hopetsit.com/blog/faire-garder-son-chat-a-paris";
 const COVER = "https://www.hopetsit.com/blog/faire-garder-son-chat-a-paris.jpg";
 const COVER_ALT = "Chat gris dans un salon parisien, couverture du guide « Garde de chat à Paris »";
@@ -43,6 +46,14 @@ const CHECKLIST = [
 
 const FAQ = [
   {
+    q: "Qu'est-ce qu'un cat sitter ?",
+    a: "Un cat sitter est une personne qui s'occupe de votre chat pendant votre absence, le plus souvent chez vous : repas, eau fraîche, litière, jeu et un message avec photo après chaque passage. On dit aussi garde de chat à domicile ou visite à domicile pour chat.",
+  },
+  {
+    q: "Quelle différence entre un cat sitter et une pension pour chat ?",
+    a: "Avec un cat sitter, le chat reste dans son appartement et garde ses repères : c'est la personne qui se déplace. En pension, c'est le chat qui change de lieu et côtoie d'autres animaux. La pension se justifie surtout pour un chat qui demande une surveillance médicale continue : parlez-en à votre vétérinaire.",
+  },
+  {
     q: "Combien coûte une visite pour chat à Paris ?",
     a: "Comptez 8 à 15 € la visite (repas, litière, jeu et câlins). Deux visites par jour se négocient souvent en formule. Une garde complète chez un cat sitter coûte 15 à 25 € par jour.",
   },
@@ -71,6 +82,7 @@ export default function ArticleGarderChatParis() {
         url: URL,
         mainEntityOfPage: URL,
         image: { "@type": "ImageObject", url: COVER, width: 1200, height: 630 },
+        dateModified: "2026-11-23",
         inLanguage: "fr",
         author: { "@type": "Organization", name: "HoPetSit" },
         publisher: { "@type": "Organization", name: "HoPetSit", url: "https://www.hopetsit.com" },
@@ -107,6 +119,38 @@ export default function ArticleGarderChatParis() {
         nouvelle : à Paris, la meilleure solution de garde est aussi la plus
         simple — quelqu'un vient chez vous. Voici comment ça marche et combien
         ça coûte.
+      </p>
+
+      <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">Cat sitter : qu&apos;est-ce que c&apos;est ?</h2>
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        Un <strong>cat sitter</strong> est une personne qui s&apos;occupe de votre
+        chat pendant que vous êtes absent. Le mot vient de l&apos;anglais, comme
+        baby-sitter : en français, on parle aussi de garde de chat à domicile.
+        Dans la plupart des cas, le cat sitter se déplace chez vous une ou deux
+        fois par jour ; votre chat, lui, ne bouge pas de son appartement.
+      </p>
+      <ul className="mt-4 space-y-2">
+        {[
+          "Ce qu'il fait : repas, eau fraîche, litière, jeu, et un message avec photo après chaque passage.",
+          "Ce qu'il surveille : l'appétit, la litière et le comportement, pour vous prévenir si quelque chose change.",
+          "Ce qu'il n'est pas : une pension. Le chat garde son territoire, ses odeurs et ses cachettes.",
+        ].map((t) => (
+          <li key={t} className="flex gap-2 leading-relaxed text-ink-muted">
+            <span aria-hidden="true" className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-owner" />
+            <span>{t}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 leading-relaxed text-ink-muted">
+        Un cat sitter peut être un voisin, un étudiant ou un passionné qui garde
+        des chats toute l&apos;année. Ce qui compte, c&apos;est de pouvoir
+        vérifier qui il est avant de lui confier vos clés : identité contrôlée,
+        avis laissés après de vraies gardes, et une rencontre chez vous avant le
+        départ. Notre guide pour{" "}
+        <Link href="/blog/choisir-un-pet-sitter-de-confiance-a-paris" className="font-semibold text-owner underline">
+          choisir un pet sitter de confiance à Paris
+        </Link>{" "}
+        détaille les points à contrôler.
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">Les deux vraies options</h2>
