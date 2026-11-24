@@ -22,7 +22,11 @@ const { haversineKm } = require('./searchRadius');
 // Décision de Daniel du 16/10/2026 (chat) : 200 km. Hartford (≈ 190 km de New
 // York) passe, Busan (≈ 11 000 km) est refusée. Modifiable sans redéploiement
 // par APPLY_MAX_KM ; 0 coupe le refus.
-const DEFAULT_MAX_KM = 200;
+// 24/11/2026 — Daniel : « mets 100 km ». Mesure du jour : une garde chez le propriétaire à Paris recevait des
+// candidates à 30 et 48 km qui proposaient de garder chez elles, et la propriétaire répondait « vous êtes trop loin ».
+// 100 km = le rayon d'alerte : on ne refuse donc toujours personne qu'on a prévenu. L'app affiche encore « 200 km »
+// (constante kApplyMaxKm617) jusqu'à sa prochaine version : entre 100 et 200 km, le serveur répond TOO_FAR avec le bon chiffre.
+const DEFAULT_MAX_KM = 100;
 
 const LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl'];
 

@@ -92,12 +92,12 @@ describe('utilitaire', () => {
     expect(dist.localeOf({ language: 'Français' })).toBe('fr');
     expect(dist.localeOf({})).toBe('en');
   });
-  test('APPLY_MAX_KM : défaut 200 (décision Daniel 16/10), 0 = coupé, valeur folle = défaut', async () => {
-    expect(dist.maxKm()).toBe(200);
+  test('APPLY_MAX_KM : défaut 100 (décision Daniel 24/11 ; 200 du 16/10 au 24/11), 0 = coupé, valeur folle = défaut', async () => {
+    expect(dist.maxKm()).toBe(100);
     process.env.APPLY_MAX_KM = '0';
     expect((await dist.checkApplicantDistance({ post: { location: NYC }, provider: { location: { coordinates: BUSAN } } })).reason).toBe('disabled');
     process.env.APPLY_MAX_KM = 'abc';
-    expect(dist.maxKm()).toBe(200);
+    expect(dist.maxKm()).toBe(100);
   });
   test('sans position d’un côté : on laisse passer (vieux comptes)', async () => {
     expect((await dist.checkApplicantDistance({ post: { location: NYC }, provider: {} })).reason).toBe('no_provider_position');
@@ -118,14 +118,19 @@ describe('route POST /applications', () => {
     expect(r.status).toBe(403);
     expect(r.body.code).toBe('TOO_FAR');
     expect(r.body.km).toBeGreaterThan(10000);
-    expect(r.body.limitKm).toBe(200);
-    expect(r.body.error).toBe(dist.tooFarMessage('ko', r.body.km, 200));
+    expect(r.body.limitKm).toBe(100);
+    expect(r.body.error).toBe(dist.tooFarMessage('ko', r.body.km, 100));
     expect(await Application.countDocuments({ postId: pid })).toBe(0);
   });
-  test('gardienne de Hartford (≈ 160-190 km) : acceptée, sous les 200 km décidés par Daniel', async () => {
+  test('gardienne de Hartford (≈ 160 km) : refusée depuis le 24/11 (limite 100 km, décision de Daniel) ; acceptée si APPLY_MAX_KM=200', async () => {
     const s = await mkSitter('Anahi', HARTFORD);
-    const r = await applyTo(await mkPost({ city: 'New York', ...NYC }), s);
-    expect(r.status).toBe(201);
+    const post = await mkPost({ city: 'New York', ...NYC });
+    const r = await applyTo(post, s);
+    expect(r.status).toBe(403);
+    expect(r.body.code).toBe('TOO_FAR');
+    expect(r.body.limitKm).toBe(100);
+    process.env.APPLY_MAX_KM = '200';
+    try { expect((await applyTo(post, s)).status).toBe(201); } finally { delete process.env.APPLY_MAX_KM; }
   });
   test('à 250 km (hors limite) : refusée, message en anglais (pas de langue sur le profil)', async () => {
     const s = await mkSitter('Loin', [-71.0589, 42.3601]); // Boston ≈ 306 km
