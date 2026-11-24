@@ -548,5 +548,6 @@
     "body": "飼い主が期限内に支払わなかったため、予約は解除されました。応募は保留のままなので、再び選ばれる可能性があります。",
     "emailSubject": "予約が解除されました — HoPetSit",
     "emailBody": "<p>飼い主が期限内に支払わなかったため、予約は解除されました。応募は保留のままなので、再び選ばれる可能性があります。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">アプリで開く</a></p>"
-  }
+  },
+  "owner_viewed_2411": {"title": "👀 {{ownerName}}さんがあなたの応募を見ました", "body": "今すぐメッセージを送りましょう。2行で自己紹介し、なぜ適任かを伝えてください。メッセージを送る人ほど選ばれます。", "emailSubject": "{{ownerName}}さんがあなたの応募を見ました：今すぐメッセージを", "emailBody": "<p><strong>{{ownerName}}</strong>さんがあなたの応募を見ましたが{{whereWhen}}、まだ誰も選んでいません。</p><p>今が連絡のチャンスです。住んでいる場所とお世話の経験を2行で紹介し、質問に答えると伝えましょう。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">メッセージを送る</a></p>"}
 }

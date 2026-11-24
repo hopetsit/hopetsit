@@ -548,5 +548,6 @@
     "body": "Le propriétaire n'a pas payé dans le délai : la réservation est libérée. Ta candidature reste en attente, il peut encore te choisir.",
     "emailSubject": "Réservation libérée — HoPetSit",
     "emailBody": "<p>Le propriétaire n'a pas payé dans le délai : la réservation est libérée. Ta candidature reste en attente, il peut encore te choisir.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir dans l'app</a></p>"
-  }
+  },
+  "owner_viewed_2411": {"title": "👀 {{ownerName}} a regardé ta proposition", "body": "Écris-lui maintenant : présente-toi en deux lignes et dis pourquoi tu es la bonne personne. Ceux qui écrivent sont choisis plus souvent.", "emailSubject": "{{ownerName}} a regardé ta proposition : écris-lui maintenant", "emailBody": "<p><strong>{{ownerName}}</strong> vient de regarder ta proposition{{whereWhen}}, mais n'a encore choisi personne.</p><p>C'est le bon moment pour lui écrire : présente-toi en deux lignes (où tu habites, ton expérience avec son animal) et propose de répondre à ses questions.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Lui écrire</a></p>"}
 }

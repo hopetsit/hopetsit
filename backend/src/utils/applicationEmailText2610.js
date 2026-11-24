@@ -46,6 +46,7 @@ const petKey = (post) => {
 const T = {
   fr: {
     choose: (n) => `Choisir ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    cheapest: 'Le moins cher', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Écrire à ${n} avant de réserver`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'garder', visit: 'rendre visite à', walk: 'promener' },
     pet: { dog: 'votre chien', dogs: 'vos chiens', cat: 'votre chat', cats: 'vos chats', pet: 'votre animal', pets: 'vos animaux' },
@@ -66,6 +67,7 @@ const T = {
   },
   en: {
     choose: (n) => `Choose ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    cheapest: 'Lowest price', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Talk to ${n} before you book`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'look after', visit: 'visit', walk: 'walk' },
     pet: { dog: 'your dog', dogs: 'your dogs', cat: 'your cat', cats: 'your cats', pet: 'your pet', pets: 'your pets' },
@@ -84,6 +86,7 @@ const T = {
   },
   es: {
     choose: (n) => `Elegir a ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    cheapest: 'El más económico', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Hablar con ${n} antes de reservar`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'cuidar a', visit: 'visitar a', walk: 'pasear a' },
     pet: { dog: 'su perro', dogs: 'sus perros', cat: 'su gato', cats: 'sus gatos', pet: 'su mascota', pets: 'sus mascotas' },
@@ -99,6 +102,7 @@ const T = {
   },
   de: {
     choose: (n) => `${n} auswählen`, // 2710 (SAM) — bouton direct de chaque carte
+    cheapest: 'Günstigster Preis', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Vor der Buchung mit ${n} sprechen`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'betreuen', visit: 'besuchen', walk: 'ausführen' },
     pet: { dog: 'Ihren Hund', dogs: 'Ihre Hunde', cat: 'Ihre Katze', cats: 'Ihre Katzen', pet: 'Ihr Haustier', pets: 'Ihre Haustiere' },
@@ -114,6 +118,7 @@ const T = {
   },
   it: {
     choose: (n) => `Scegli ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    cheapest: 'Il meno caro', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Parla con ${n} prima di prenotare`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'accudire', visit: 'fare visita a', walk: 'portare a spasso' },
     pet: { dog: 'il suo cane', dogs: 'i suoi cani', cat: 'il suo gatto', cats: 'i suoi gatti', pet: 'il suo animale', pets: 'i suoi animali' },
@@ -129,6 +134,7 @@ const T = {
   },
   pt: {
     choose: (n) => `Escolher ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    cheapest: 'O mais barato', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Falar com ${n} antes de reservar`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'ficar com', visit: 'visitar', walk: 'passear' },
     pet: { dog: 'o seu cão', dogs: 'os seus cães', cat: 'o seu gato', cats: 'os seus gatos', pet: 'o seu animal', pets: 'os seus animais' },
@@ -144,6 +150,7 @@ const T = {
   },
   ko: {
     choose: (n) => `${n}님 선택`, // 2710 (SAM) — bouton direct de chaque carte
+    cheapest: '최저가', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `예약 전에 ${n}님에게 문의하기`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     svc: { sit: '펫시팅', visit: '방문 돌봄', walk: '산책' },
     one: (n, s, c) => `${n}님이 지원했습니다 · ${s}${c ? ` · ${c}` : ''}`,
@@ -158,6 +165,7 @@ const T = {
   },
   ja: {
     choose: (n) => `${n}さんを選ぶ`, // 2710 (SAM) — bouton direct de chaque carte
+    cheapest: 'いちばん安い', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `予約前に${n}さんと話す`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     svc: { sit: 'ペットシッター', visit: '訪問ケア', walk: '散歩' },
     one: (n, s, c) => `${n}さんが応募しました · ${s}${c ? ` · ${c}` : ''}`,
@@ -172,6 +180,7 @@ const T = {
   },
   pl: {
     choose: (n) => `Wybierz: ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    cheapest: 'Najtaniej', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Porozmawiaj z: ${n}, zanim zarezerwujesz`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     svc: { sit: 'opieka nad zwierzęciem', visit: 'wizyty domowe', walk: 'spacer z psem' },
     one: (n, s, c) => `${n} zgłasza się: ${s}${c ? ` · ${c}` : ''}`,
@@ -269,7 +278,7 @@ function cardsHtml(lang, cards) {
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:0 0 10px;background:#FFF6F2;border-radius:14px"><tr>`
       + `<td width="68" style="padding:12px 0 12px 12px;vertical-align:middle">${avatar}</td>`
       + `<td style="padding:12px;vertical-align:middle"><div style="font-size:17px;font-weight:700;color:#231715">${name}</div><div style="font-size:13px;color:#6E4F48;line-height:1.4">${meta}</div>${badges}</td>`
-      + (price ? `<td style="padding:12px 14px 12px 0;vertical-align:middle;text-align:right;white-space:nowrap;font-size:16px;font-weight:800;color:#9E1F0B">${esc(price)}${priceDetail(lang, c.pricing) ? `<div style="margin-top:2px;font-size:12px;font-weight:700;color:#6E4F48">${esc(priceDetail(lang, c.pricing))}</div>` : ''}${c.pricing && c.pricing.weeklyApplied === true ? `<div style="font-size:11px;font-weight:700;color:#15803D">${esc(L.weekly)}</div>` : ''}</td>` : '')
+      + (price ? `<td style="padding:12px 14px 12px 0;vertical-align:middle;text-align:right;white-space:nowrap;font-size:16px;font-weight:800;color:#9E1F0B">${esc(price)}${c.cheapest === true && L.cheapest ? `<div style="margin:3px 0 0;font-size:11px;font-weight:800;color:#7A4B00"><span style="display:inline-block;padding:2px 7px;border-radius:999px;background:#FFF4D6">💶 ${esc(L.cheapest)}</span></div>` : ''}${priceDetail(lang, c.pricing) ? `<div style="margin-top:2px;font-size:12px;font-weight:700;color:#6E4F48">${esc(priceDetail(lang, c.pricing))}</div>` : ''}${c.pricing && c.pricing.weeklyApplied === true ? `<div style="font-size:11px;font-weight:700;color:#15803D">${esc(L.weekly)}</div>` : ''}</td>` : '')
       + '</tr>'
       // 2710 (SAM, ordre de Daniel « que les propriétaires valident et paient ») — bouton DIRECT
       // « Choisir <prénom> » : ouvre la page de ce candidat (session sans mot de passe pour les

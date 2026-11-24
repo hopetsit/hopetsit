@@ -548,5 +548,6 @@
     "body": "O dono não pagou dentro do prazo: a reserva foi libertada. A tua candidatura continua pendente, ele ainda te pode escolher.",
     "emailSubject": "Reserva libertada — HoPetSit",
     "emailBody": "<p>O dono não pagou dentro do prazo: a reserva foi libertada. A tua candidatura continua pendente, ele ainda te pode escolher.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir na app</a></p>"
-  }
+  },
+  "owner_viewed_2411": {"title": "👀 {{ownerName}} viu a sua proposta", "body": "Escreva agora: apresente-se em duas linhas e diga porque é a pessoa certa. Quem escreve é escolhido mais vezes.", "emailSubject": "{{ownerName}} viu a sua proposta: escreva agora", "emailBody": "<p><strong>{{ownerName}}</strong> acabou de ver a sua proposta{{whereWhen}}, mas ainda não escolheu ninguém.</p><p>É o momento certo para escrever: apresente-se em duas linhas (onde vive, a sua experiência com o animal) e ofereça-se para responder às perguntas.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Escrever mensagem</a></p>"}
 }

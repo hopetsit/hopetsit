@@ -548,5 +548,6 @@
     "body": "Właściciel nie zapłacił w terminie: rezerwacja została zwolniona. Twoje zgłoszenie nadal czeka, wciąż może Cię wybrać.",
     "emailSubject": "Rezerwacja zwolniona — HoPetSit",
     "emailBody": "<p>Właściciel nie zapłacił w terminie: rezerwacja została zwolniona. Twoje zgłoszenie nadal czeka, wciąż może Cię wybrać.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Otwórz w aplikacji</a></p>"
-  }
+  },
+  "owner_viewed_2411": {"title": "👀 {{ownerName}} obejrzał(a) Twoją ofertę", "body": "Napisz teraz: przedstaw się w dwóch zdaniach i powiedz, dlaczego jesteś właściwą osobą. Ci, którzy piszą, są wybierani częściej.", "emailSubject": "{{ownerName}} obejrzał(a) Twoją ofertę: napisz teraz", "emailBody": "<p><strong>{{ownerName}}</strong> właśnie obejrzał(a) Twoją ofertę{{whereWhen}}, ale jeszcze nikogo nie wybrał(a).</p><p>To dobry moment, żeby napisać: przedstaw się w dwóch zdaniach (gdzie mieszkasz, Twoje doświadczenie ze zwierzęciem) i zaproponuj odpowiedź na pytania.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Napisz wiadomość</a></p>"}
 }

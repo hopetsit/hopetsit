@@ -548,5 +548,6 @@
     "body": "The owner did not pay in time: the booking has been released. Your application is still pending, they can still choose you.",
     "emailSubject": "Booking released — HoPetSit",
     "emailBody": "<p>The owner did not pay in time: the booking has been released. Your application is still pending, they can still choose you.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open in the app</a></p>"
-  }
+  },
+  "owner_viewed_2411": {"title": "👀 {{ownerName}} looked at your offer", "body": "Message them now: introduce yourself in two lines and say why you're the right person. Sitters who write get chosen more often.", "emailSubject": "{{ownerName}} looked at your offer: message them now", "emailBody": "<p><strong>{{ownerName}}</strong> just looked at your offer{{whereWhen}} but hasn't chosen anyone yet.</p><p>This is the right moment to write: introduce yourself in two lines (where you live, your experience with their pet) and offer to answer their questions.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Send a message</a></p>"}
 }

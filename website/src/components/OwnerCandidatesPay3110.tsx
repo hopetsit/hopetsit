@@ -181,6 +181,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
   const [laterBusy, setLaterBusy] = useState(false);
   const offerRef = useRef<HTMLInputElement | null>(null);
   const askRef = useRef<HTMLTextAreaElement | null>(null);
+  const badges2411 = useRef<{ km: number | null; total: number | null }>({ km: null, total: null });
   const panelRef = useRef<HTMLDivElement | null>(null);
   const datesRef = useRef<HTMLDivElement | null>(null);
   const seenRef = useRef("");
@@ -826,6 +827,20 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
             {pendingCount > 0 && pendingCount !== visible.length && <span className="font-semibold" style={{ color: "#6E4F48" }}>· {pendingCount}</span>}
           </p>
           <ul className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2" data-cand3110-list={visible.length}>
+            {(() => {
+              // 24/11 (BOB, ordre de Daniel « fais le tri à sa place ») — repères « Le plus proche » et « Le moins cher »
+              // parmi les candidats EN ATTENTE, seulement s'il y en a au moins deux et que le premier est seul en tête.
+              const pend = visible.filter((x) => x.status === "pending" && x.pricing?.stale !== true);
+              const kms = pend.map((x) => kmOf3110(x, postPoint)).filter((v): v is number => typeof v === "number");
+              const tots = pend.map((x) => totalOf3110(x)).filter((v): v is number => typeof v === "number" && v > 0);
+              const minKm = kms.length >= 2 ? Math.min(...kms) : null;
+              const minTot = tots.length >= 2 ? Math.min(...tots) : null;
+              badges2411.current = {
+                km: minKm != null && kms.filter((v) => v === minKm).length === 1 ? minKm : null,
+                total: minTot != null && tots.filter((v) => v === minTot).length === 1 ? minTot : null,
+              };
+              return null;
+            })()}
             {visible.map((a) => {
               const id = applicationId(a);
               const { role, who } = applicationProvider(a);
@@ -910,6 +925,12 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
                         )}
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                        {a.status === "pending" && km != null && badges2411.current.km === km && (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold" style={{ background: "#EAF6EE", color: "#15803D" }} data-badge-2411="closest">📍 {c3110(lang, "badge_closest")}</span>
+                        )}
+                        {a.status === "pending" && total != null && badges2411.current.total === total && (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold" style={{ background: "#FFF4D6", color: "#7A4B00" }} data-badge-2411="cheapest">💶 {c3110(lang, "badge_cheapest")}</span>
+                        )}
                         <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: tone.pale, color: tone.dark }}>
                           <AppIcon name={role === "walker" ? "walker" : "home"} size={11} color={tone.dark} />{t(role === "walker" ? "role_walker" : "role_sitter")}
                         </span>

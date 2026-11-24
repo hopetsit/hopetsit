@@ -34,4 +34,20 @@ router.get('/', requireAdmin, async (req, res) => {
   }
 });
 
+// 2411 (BOB) — « le propriétaire a regardé ta proposition » : SIMULATION (rien n'est envoyé) + compteurs du registre.
+router.get('/owner-viewed', requireAdmin, async (req, res) => {
+  try {
+    const Nudge = require('../models/OwnerViewedNudge2411');
+    const svc = require('../services/ownerViewedNudge2411');
+    const [sim, byStatus] = await Promise.all([
+      svc.runOnce({ dryRun: true }),
+      Nudge.aggregate([{ $group: { _id: '$status', n: { $sum: 1 } } }]),
+    ]);
+    return res.json({ enabled: svc.enabled(), simulation: sim, counts: Object.fromEntries(byStatus.map((x) => [x._id, x.n])) });
+  } catch (e) {
+    logger.error('[adminOwnerViewed2411]', e);
+    return res.status(500).json({ error: 'Unable to simulate.' });
+  }
+});
+
 module.exports = router;

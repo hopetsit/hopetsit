@@ -548,5 +548,6 @@
     "body": "보호자가 기한 내에 결제하지 않아 예약이 해제되었어요. 지원은 대기 상태로 남아 있어 다시 선택될 수 있어요.",
     "emailSubject": "예약이 해제되었어요 — HoPetSit",
     "emailBody": "<p>보호자가 기한 내에 결제하지 않아 예약이 해제되었어요. 지원은 대기 상태로 남아 있어 다시 선택될 수 있어요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">앱에서 열기</a></p>"
-  }
+  },
+  "owner_viewed_2411": {"title": "👀 {{ownerName}}님이 내 지원서를 확인했어요", "body": "지금 메시지를 보내 보세요. 두 줄로 자기소개를 하고 왜 적임자인지 알려 주세요. 먼저 연락한 분이 더 자주 선택됩니다.", "emailSubject": "{{ownerName}}님이 내 지원서를 확인했어요: 지금 메시지를 보내세요", "emailBody": "<p><strong>{{ownerName}}</strong>님이 방금 내 지원서를 확인했지만{{whereWhen}} 아직 아무도 선택하지 않았습니다.</p><p>지금이 연락하기 가장 좋은 때입니다. 사는 곳과 돌봄 경험을 두 줄로 소개하고, 궁금한 점에 답하겠다고 알려 주세요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">메시지 보내기</a></p>"}
 }

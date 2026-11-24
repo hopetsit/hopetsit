@@ -98,6 +98,16 @@ async function sendFor({ post, ownerId, apps, send, j10Days }) {
   const boostOf = (c) => { const a = pool.find((x) => String(x._id) === String(c.applicationId)); return a && boostedIds.has(String(idOf(a.walkerId || a.sitterId))) ? 1 : 0; };
   cards = cards.map((c, i) => ({ c, i, b: boostOf(c) })).sort((x, y) => (y.b - x.b) || (Number(!!y.c.identityVerified) - Number(!!x.c.identityVerified)) || (x.i - y.i)).map((x) => x.c).slice(0, MAX_CARDS);
   if (!cards.length) return { sent: false, reason: 'no_provider' };
+  // 2411 (BOB, ordre de Daniel « une raison de revenir ») — repère « Le moins cher » sur la carte d'un candidat dont le
+  // total est le plus bas de TOUTES les candidatures en attente de la demande (au moins deux, et seul à ce prix).
+  try {
+    const all = await Application.find({ postId: post._id, status: 'pending' }).select('pricing.totalPrice pricing.indicative pricing.stale').lean();
+    const tots = all.filter((a) => a.pricing && a.pricing.indicative !== true && a.pricing.stale !== true).map((a) => Number(a.pricing.totalPrice)).filter((v) => v > 0);
+    const min = tots.length >= 2 ? Math.min(...tots) : null;
+    if (min != null && tots.filter((v) => v === min).length === 1) {
+      for (const c of cards) if (c.pricing && Number(c.pricing.totalPrice) === min) c.cheapest = true;
+    }
+  } catch (_) { /* sans repère */ }
   // 2710 (SAM) — lien direct de chaque carte : /application/<id>?from=email&choose=1, passé par
   // la page qui ouvre la session sans mot de passe pour un propriétaire venu de la pub (même
   // règle que le bouton principal : leadOwnerEmailLink). En cas d'erreur : pas de bouton.

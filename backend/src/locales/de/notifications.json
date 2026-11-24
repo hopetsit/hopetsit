@@ -548,5 +548,6 @@
     "body": "Der Besitzer hat nicht fristgerecht bezahlt: Die Buchung wurde freigegeben. Deine Bewerbung bleibt offen, er kann dich weiterhin wählen.",
     "emailSubject": "Buchung freigegeben — HoPetSit",
     "emailBody": "<p>Der Besitzer hat nicht fristgerecht bezahlt: Die Buchung wurde freigegeben. Deine Bewerbung bleibt offen, er kann dich weiterhin wählen.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">In der App öffnen</a></p>"
-  }
+  },
+  "owner_viewed_2411": {"title": "👀 {{ownerName}} hat dein Angebot angesehen", "body": "Schreib jetzt: Stell dich in zwei Zeilen vor und sag, warum du die richtige Person bist. Wer schreibt, wird öfter gewählt.", "emailSubject": "{{ownerName}} hat dein Angebot angesehen: schreib jetzt", "emailBody": "<p><strong>{{ownerName}}</strong> hat gerade dein Angebot angesehen{{whereWhen}}, aber noch niemanden gewählt.</p><p>Jetzt ist der richtige Moment: Stell dich in zwei Zeilen vor (wo du wohnst, deine Erfahrung mit dem Tier) und biete an, Fragen zu beantworten.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Nachricht schreiben</a></p>"}
 }

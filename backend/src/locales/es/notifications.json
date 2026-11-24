@@ -548,5 +548,6 @@
     "body": "El dueño no pagó dentro del plazo: la reserva ha quedado liberada. Tu candidatura sigue pendiente, aún puede elegirte.",
     "emailSubject": "Reserva liberada — HoPetSit",
     "emailBody": "<p>El dueño no pagó dentro del plazo: la reserva ha quedado liberada. Tu candidatura sigue pendiente, aún puede elegirte.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#D83C28;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir en la app</a></p>"
-  }
+  },
+  "owner_viewed_2411": {"title": "👀 {{ownerName}} ha mirado tu propuesta", "body": "Escríbele ahora: preséntate en dos líneas y di por qué eres la persona adecuada. Quien escribe es elegido más a menudo.", "emailSubject": "{{ownerName}} ha mirado tu propuesta: escríbele ahora", "emailBody": "<p><strong>{{ownerName}}</strong> acaba de mirar tu propuesta{{whereWhen}}, pero aún no ha elegido a nadie.</p><p>Es el momento de escribirle: preséntate en dos líneas (dónde vives, tu experiencia con su mascota) y ofrécete a responder sus preguntas.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Escribirle</a></p>"}
 }
