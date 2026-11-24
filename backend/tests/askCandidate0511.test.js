@@ -168,7 +168,9 @@ describe('B1 — « Poser une question à <prénom> » avant de payer (routes ex
     expect(r.sent).toBe(1);
     const m = mailsTo('leo0511+hanene@example.test');
     expect(m).toHaveLength(1);
-    expect(m[0].subject).toBe('Nouveau message sur HoPetSit');
+    expect(m[0].subject).toMatch(/^Karine\b.* t'a écrit sur HoPetSit$/); // 2411 — l'objet dit QUI écrit
+    expect(m[0].html).toContain('Ne réponds pas à cet e-mail');
+    expect(m[0].html).not.toContain("Ouvre l'application pour répondre");
     expect(m[0].html).toContain('Karine');
     expect(m[0].html).toContain(QUESTION.replace(/'/g, '&#39;').split(' ')[0]); // « Avez-vous »
     expect(m[0].text).toContain(`https://www.hopetsit.com/chat/${convId}`);
@@ -190,7 +192,7 @@ describe('B1 — « Poser une question à <prénom> » avant de payer (routes ex
     expect((await sched.runOnce({ now: t0 + 16 * MIN })).sent).toBe(1);
     const m = mailsTo('leo0511+owner@example.test');
     expect(m).toHaveLength(1);
-    expect(m[0].subject).toBe('Nouveau message sur HoPetSit');
+    expect(m[0].subject).toMatch(/^Hanene\b.* t'a écrit sur HoPetSit$/); // 2411
     expect(m[0].html).toContain('Hanene');
     expect(m[0].html).toContain('deux labradors');
     expect(m[0].text).toContain(`https://www.hopetsit.com/chat/${S.conv1}`);

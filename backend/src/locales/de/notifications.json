@@ -56,8 +56,8 @@
   "NEW_MESSAGE": {
     "title": "Neue Nachricht von {{senderName}}",
     "body": "{{preview}}",
-    "emailSubject": "Neue Nachricht auf HoPetSit",
-    "emailBody": "<p><strong>{{senderName}}</strong> hat dir eine neue Nachricht gesendet:</p><blockquote>{{preview}}</blockquote><p style=\"color:#666;margin-bottom:8px\">Öffne die App, um zu antworten.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Chat öffnen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link in deinen Browser: {{emailLink}}</p>"
+    "emailSubject": "{{senderName}} hat dir auf HoPetSit geschrieben",
+    "emailBody": "<p><strong>{{senderName}}</strong> hat dir eine neue Nachricht gesendet:</p><blockquote>{{preview}}</blockquote><p style=\"color:#666;margin-bottom:8px\">Antworte mit einem Klick über die Schaltfläche unten, auf der Website oder in der App. Bitte antworte nicht auf diese E-Mail: {{senderName}} würde sie nicht erhalten.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Chat öffnen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link in deinen Browser: {{emailLink}}</p>"
   },
   "NEW_REVIEW": {
     "title": "Du hast eine neue Bewertung erhalten",

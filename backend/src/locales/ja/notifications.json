@@ -56,8 +56,8 @@
   "NEW_MESSAGE": {
     "title": "{{senderName}}さんから新着メッセージ",
     "body": "{{preview}}",
-    "emailSubject": "HoPetSitに新着メッセージがあります",
-    "emailBody": "<p><strong>{{senderName}}</strong>さんから新しいメッセージが届きました:</p><blockquote>{{preview}}</blockquote><p style=\"color:#666;margin-bottom:8px\">アプリを開いて返信してください。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">会話を開く</a></p><p style=\"color:#666;font-size:12px;\">ボタンが動作しない場合は、このリンクをブラウザに貼り付けてください: {{emailLink}}</p>"
+    "emailSubject": "{{senderName}}さんからHoPetSitでメッセージが届きました",
+    "emailBody": "<p><strong>{{senderName}}</strong>さんから新しいメッセージが届きました:</p><blockquote>{{preview}}</blockquote><p style=\"color:#666;margin-bottom:8px\">下のボタンから、サイトまたはアプリですぐに返信できます。このメールには返信しないでください。{{senderName}}さんには届きません。</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">会話を開く</a></p><p style=\"color:#666;font-size:12px;\">ボタンが動作しない場合は、このリンクをブラウザに貼り付けてください: {{emailLink}}</p>"
   },
   "NEW_REVIEW": {
     "title": "新しいレビューが届きました",

@@ -56,8 +56,8 @@
   "NEW_MESSAGE": {
     "title": "{{senderName}}님의 새 메시지",
     "body": "{{preview}}",
-    "emailSubject": "HoPetSit에 새 메시지가 도착했습니다",
-    "emailBody": "<p><strong>{{senderName}}</strong>님이 새 메시지를 보냈습니다:</p><blockquote>{{preview}}</blockquote><p style=\"color:#666;margin-bottom:8px\">앱에서 답장해 주세요.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">대화 열기</a></p><p style=\"color:#666;font-size:12px;\">버튼이 작동하지 않으면 이 링크를 브라우저에 붙여넣어 주세요: {{emailLink}}</p>"
+    "emailSubject": "{{senderName}}님이 HoPetSit에서 메시지를 보냈습니다",
+    "emailBody": "<p><strong>{{senderName}}</strong>님이 새 메시지를 보냈습니다:</p><blockquote>{{preview}}</blockquote><p style=\"color:#666;margin-bottom:8px\">아래 버튼을 눌러 웹사이트나 앱에서 바로 답장하세요. 이 이메일에 회신하지 마세요. {{senderName}}님에게 전달되지 않습니다.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">대화 열기</a></p><p style=\"color:#666;font-size:12px;\">버튼이 작동하지 않으면 이 링크를 브라우저에 붙여넣어 주세요: {{emailLink}}</p>"
   },
   "NEW_REVIEW": {
     "title": "새 후기가 도착했어요",
