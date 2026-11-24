@@ -57,7 +57,7 @@
     "title": "Nouveau message de {{senderName}}",
     "body": "{{preview}}",
     "emailSubject": "{{senderName}} t'a écrit sur HoPetSit",
-    "emailBody": "<p><strong>{{senderName}}</strong> t'a envoyé un nouveau message :</p><blockquote>{{preview}}</blockquote><p style=\"color:#666;margin-bottom:8px\">Réponds en un clic avec le bouton ci-dessous, sur le site ou dans l'application. Ne réponds pas à cet e-mail : {{senderName}} ne le recevrait pas.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir la conversation</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copie-colle ce lien dans ton navigateur : {{emailLink}}</p>"
+    "emailBody": "<p><strong>{{senderName}}</strong> t'a envoyé un nouveau message :</p><blockquote>{{preview}}</blockquote><p data-rh2411=\"1\" style=\"color:#666;margin-bottom:8px\">Réponds en un clic avec le bouton ci-dessous, sur le site ou dans l'application. Ne réponds pas à cet e-mail : {{senderName}} ne le recevrait pas.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir la conversation</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copie-colle ce lien dans ton navigateur : {{emailLink}}</p>"
   },
   "NEW_REVIEW": {
     "title": "Tu as reçu un nouvel avis",

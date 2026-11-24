@@ -57,7 +57,7 @@
     "title": "New message from {{senderName}}",
     "body": "{{preview}}",
     "emailSubject": "{{senderName}} sent you a message on HoPetSit",
-    "emailBody": "<p><strong>{{senderName}}</strong> sent you a new message:</p><blockquote>{{preview}}</blockquote><p style=\"color:#666;margin-bottom:8px\">Reply in one click with the button below, on the website or in the app. Please don't reply to this email: {{senderName}} would not receive it.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open conversation</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link into your browser: {{emailLink}}</p>"
+    "emailBody": "<p><strong>{{senderName}}</strong> sent you a new message:</p><blockquote>{{preview}}</blockquote><p data-rh2411=\"1\" style=\"color:#666;margin-bottom:8px\">Reply in one click with the button below, on the website or in the app. Please don't reply to this email: {{senderName}} would not receive it.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open conversation</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link into your browser: {{emailLink}}</p>"
   },
   "NEW_REVIEW": {
     "title": "You received a new review",

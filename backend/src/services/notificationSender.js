@@ -1143,9 +1143,29 @@ const sendDeferredChatEmail = async ({ userId, role, type = 'NEW_MESSAGE', data 
   if (!to || to.length < 4) return { skipped: true, reason: 'no_email' };
   const { isTestEmail } = require('./chatUnreadEmailScheduler599');
   if (isTestEmail(to)) return { skipped: true, reason: 'test_account' };
-  await sendEmail(to, prepared.emailSubject || prepared.title, prepared.emailText, prepared.emailBody);
-  logger.info(`[notif.channel] email ok for ${type} (différé 15 min) role=${role} userId=${userId}`);
-  return { sent: true };
+  // 2411 (BOB, décision de Daniel) — RÉPONSE PAR E-MAIL : si la boîte est relevée (services/inboundReply2411),
+  // l'e-mail porte une adresse de réponse propre à ce fil et à cette personne, et la phrase « ne réponds pas à cet
+  // e-mail » devient « réponds simplement à cet e-mail ». Sinon (boîte illisible, interrupteur coupé, fil inconnu) :
+  // e-mail strictement comme avant. Jamais bloquant.
+  let html = prepared.emailBody;
+  let text = prepared.emailText;
+  let replyTo = '';
+  try {
+    const cid = data && data.conversationId ? String(data.conversationId) : '';
+    if (cid && (type || 'NEW_MESSAGE') === 'NEW_MESSAGE') {
+      replyTo = require('./inboundReply2411').replyToFor({ conversationId: cid, role, userId });
+      if (replyTo) {
+        const hint = require('../utils/replyHint2411').applyReplyHint({ html, locale: prepared.locale, senderName: data.senderName });
+        if (hint.found) { html = hint.html; text = `${text}\n\n${hint.line}`; } else replyTo = '';
+      }
+    }
+  } catch (e) {
+    replyTo = ''; html = prepared.emailBody; text = prepared.emailText;
+    logger.warn(`[notif.email.reply2411] adresse de réponse non posée : ${e?.message || e}`);
+  }
+  await sendEmail(to, prepared.emailSubject || prepared.title, text, html, replyTo ? { replyTo } : undefined);
+  logger.info(`[notif.channel] email ok for ${type} (différé 15 min${replyTo ? ', réponse par e-mail' : ''}) role=${role} userId=${userId}`);
+  return replyTo ? { sent: true, replyByEmail: true } : { sent: true };
 };
 
 /**

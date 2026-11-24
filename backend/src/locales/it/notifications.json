@@ -57,7 +57,7 @@
     "title": "Nuovo messaggio da {{senderName}}",
     "body": "{{preview}}",
     "emailSubject": "{{senderName}} ti ha scritto su HoPetSit",
-    "emailBody": "<p><strong>{{senderName}}</strong> ti ha inviato un nuovo messaggio:</p><blockquote>{{preview}}</blockquote><p style=\"color:#666;margin-bottom:8px\">Rispondi con un clic dal pulsante qui sotto, sul sito o nell'app. Non rispondere a questa e-mail: {{senderName}} non la riceverebbe.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Apri conversazione</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link nel tuo browser: {{emailLink}}</p>"
+    "emailBody": "<p><strong>{{senderName}}</strong> ti ha inviato un nuovo messaggio:</p><blockquote>{{preview}}</blockquote><p data-rh2411=\"1\" style=\"color:#666;margin-bottom:8px\">Rispondi con un clic dal pulsante qui sotto, sul sito o nell'app. Non rispondere a questa e-mail: {{senderName}} non la riceverebbe.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Apri conversazione</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link nel tuo browser: {{emailLink}}</p>"
   },
   "NEW_REVIEW": {
     "title": "Hai ricevuto una nuova recensione",

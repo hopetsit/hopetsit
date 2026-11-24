@@ -57,7 +57,7 @@
     "title": "Nova mensagem de {{senderName}}",
     "body": "{{preview}}",
     "emailSubject": "{{senderName}} escreveu-lhe no HoPetSit",
-    "emailBody": "<p><strong>{{senderName}}</strong> enviou-lhe uma nova mensagem:</p><blockquote>{{preview}}</blockquote><p>Responda com um clique no botão abaixo, no site ou na aplicação. Não responda a este e-mail: {{senderName}} não o receberia.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir conversa</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link no teu navegador: {{emailLink}}</p>"
+    "emailBody": "<p><strong>{{senderName}}</strong> enviou-lhe uma nova mensagem:</p><blockquote>{{preview}}</blockquote><p data-rh2411=\"1\">Responda com um clique no botão abaixo, no site ou na aplicação. Não responda a este e-mail: {{senderName}} não o receberia.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir conversa</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link no teu navegador: {{emailLink}}</p>"
   },
   "NEW_REVIEW": {
     "title": "Recebeu uma nova avaliação",

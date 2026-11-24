@@ -159,6 +159,8 @@ async function startServer() {
     require('./services/lifecycleEmailScheduler').startLifecycleEmailScheduler();
     // v599 (ZOE, 29/09 08 h) — e-mail « message non lu » différé 15 min, balayage 1/min.
     require('./services/chatUnreadEmailScheduler599').startChatUnreadEmailScheduler();
+    // 2411 (BOB) — réponses par e-mail → message dans le fil (inactif si la boîte n'est pas lisible).
+    try { require('./services/inboundReply2411').start(); } catch (e) { console.error('[inbound2411] start', e && e.message); }
     // 615 (ZOE, 07/10) — rappel au propriétaire qui a des candidats sans choisir (push + cloche, jamais d'e-mail).
     require('./services/applicationReminder615').startApplicationReminderScheduler();
     // 617 (ADA, 16/10) — rappels des deux côtés : gardien sans réponse après 24 h, propriétaire 48 h avant l'expiration. Push + cloche, jamais d'e-mail.
