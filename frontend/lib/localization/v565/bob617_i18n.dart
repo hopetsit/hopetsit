@@ -1,4 +1,4 @@
-// 617 (BOB, 16/10/2026) — textes du build 617 : candidatures à 200 km au plus,
+// 617 (BOB, 16/10/2026) — textes du build 617 : candidatures à 100 km au plus,
 // codes serveur TOO_FAR / CURRENCY_MISMATCH / DUPLICATE_REQUEST, badge
 // « Nouveau · vérifié » des fiches sans avis, message « N prévenus » après la
 // publication. Même clé dans les 9 langues ; placeholders `{x}` remplacés par
@@ -7,7 +7,7 @@ const Map<String, Map<String, String>> bob617I18n =
     <String, Map<String, String>>{
   'en': <String, String>{
     'bob617_err_too_far':
-        'This request is too far from you: applications are limited to providers within 200 km.',
+        'This request is too far from you: applications are limited to providers within 100 km.',
     'bob617_err_currency':
         'Your rates are not in the currency of this request. Set your rates in the owner’s currency to apply.',
     'bob617_err_duplicate':
@@ -31,7 +31,7 @@ const Map<String, Map<String, String>> bob617I18n =
   },
   'fr': <String, String>{
     'bob617_err_too_far':
-        'Cette demande est trop loin de chez toi : les candidatures sont réservées aux prestataires à moins de 200 km.',
+        'Cette demande est trop loin de chez toi : les candidatures sont réservées aux prestataires à moins de 100 km.',
     'bob617_err_currency':
         'Tes tarifs ne sont pas dans la devise de cette demande. Mets-les dans la devise du propriétaire pour candidater.',
     'bob617_err_duplicate':
@@ -55,7 +55,7 @@ const Map<String, Map<String, String>> bob617I18n =
   },
   'es': <String, String>{
     'bob617_err_too_far':
-        'Esta solicitud está demasiado lejos de ti: las candidaturas se reservan a cuidadores a menos de 200 km.',
+        'Esta solicitud está demasiado lejos de ti: las candidaturas se reservan a cuidadores a menos de 100 km.',
     'bob617_err_currency':
         'Tus tarifas no están en la moneda de esta solicitud. Ponlas en la moneda del propietario para candidatarte.',
     'bob617_err_duplicate':
@@ -79,7 +79,7 @@ const Map<String, Map<String, String>> bob617I18n =
   },
   'de': <String, String>{
     'bob617_err_too_far':
-        'Diese Anfrage ist zu weit von dir entfernt: Bewerbungen sind Anbietern im Umkreis von 200 km vorbehalten.',
+        'Diese Anfrage ist zu weit von dir entfernt: Bewerbungen sind Anbietern im Umkreis von 100 km vorbehalten.',
     'bob617_err_currency':
         'Deine Preise sind nicht in der Währung dieser Anfrage. Stelle sie in der Währung des Besitzers ein, um dich zu bewerben.',
     'bob617_err_duplicate':
@@ -103,7 +103,7 @@ const Map<String, Map<String, String>> bob617I18n =
   },
   'it': <String, String>{
     'bob617_err_too_far':
-        'Questa richiesta è troppo lontana da te: le candidature sono riservate ai prestatori entro 200 km.',
+        'Questa richiesta è troppo lontana da te: le candidature sono riservate ai prestatori entro 100 km.',
     'bob617_err_currency':
         'Le tue tariffe non sono nella valuta di questa richiesta. Impostale nella valuta del proprietario per candidarti.',
     'bob617_err_duplicate':
@@ -127,7 +127,7 @@ const Map<String, Map<String, String>> bob617I18n =
   },
   'pt': <String, String>{
     'bob617_err_too_far':
-        'Este pedido está demasiado longe de ti: as candidaturas são reservadas a prestadores a menos de 200 km.',
+        'Este pedido está demasiado longe de ti: as candidaturas são reservadas a prestadores a menos de 100 km.',
     'bob617_err_currency':
         'As tuas tarifas não estão na moeda deste pedido. Define-as na moeda do dono para te candidatares.',
     'bob617_err_duplicate':
@@ -150,7 +150,7 @@ const Map<String, Map<String, String>> bob617I18n =
     'bob617_later': 'Mais tarde',
   },
   'ko': <String, String>{
-    'bob617_err_too_far': '이 요청은 회원님과 너무 멀리 있습니다. 지원은 200 km 이내의 제공자만 할 수 있습니다.',
+    'bob617_err_too_far': '이 요청은 회원님과 너무 멀리 있습니다. 지원은 100 km 이내의 제공자만 할 수 있습니다.',
     'bob617_err_currency': '회원님의 요금이 이 요청의 통화와 다릅니다. 지원하려면 보호자의 통화로 요금을 설정하세요.',
     'bob617_err_duplicate': '이미 같은 요청을 게시했습니다. 요청은 온라인 상태이며 제공자들이 볼 수 있습니다.',
     'bob617_nothing_within_max': '현재 {max} km 이내에 요청이 없습니다.',
@@ -167,7 +167,7 @@ const Map<String, Map<String, String>> bob617I18n =
     'bob617_later': '나중에',
   },
   'ja': <String, String>{
-    'bob617_err_too_far': 'この依頼はあなたから遠すぎます。応募は200 km以内のプロバイダーに限られます。',
+    'bob617_err_too_far': 'この依頼はあなたから遠すぎます。応募は100 km以内のプロバイダーに限られます。',
     'bob617_err_currency': 'あなたの料金はこの依頼の通貨と異なります。応募するには飼い主の通貨で料金を設定してください。',
     'bob617_err_duplicate': 'この依頼はすでに投稿済みです。公開中で、プロバイダーに表示されています。',
     'bob617_nothing_within_max': '現在、{max} km以内に依頼はありません。',
@@ -185,7 +185,7 @@ const Map<String, Map<String, String>> bob617I18n =
   },
   'pl': <String, String>{
     'bob617_err_too_far':
-        'To zgłoszenie jest za daleko od Ciebie: zgłaszać się mogą tylko opiekunowie w promieniu 200 km.',
+        'To zgłoszenie jest za daleko od Ciebie: zgłaszać się mogą tylko opiekunowie w promieniu 100 km.',
     'bob617_err_currency':
         'Twoje stawki nie są w walucie tego zgłoszenia. Ustaw je w walucie właściciela, aby się zgłosić.',
     'bob617_err_duplicate':

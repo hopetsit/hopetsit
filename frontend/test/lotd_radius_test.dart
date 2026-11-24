@@ -208,11 +208,23 @@ void main() {
     });
 
     testWidgets('un nouvel accueil repart avec le rayon retenu', (tester) async {
+      // 645 (ZOE, 24/11) — 90 au lieu de 120 : le plafond est passé à 100 km.
+      HomeRadiusPrefs.write('sitter', 90);
+      lotdPhone(tester);
+      await tester.pumpWidget(lotdApp(const SitterHomescreen()));
+      await lotdSettle(tester, frames: 8);
+      expect(_shownRadius(tester), '90 km');
+      expect(_results(2), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('645 — un rayon retenu AVANT le 24/11 (120 km) est ramené à 100 km',
+        (tester) async {
       HomeRadiusPrefs.write('sitter', 120);
       lotdPhone(tester);
       await tester.pumpWidget(lotdApp(const SitterHomescreen()));
       await lotdSettle(tester, frames: 8);
-      expect(_shownRadius(tester), '120 km');
+      expect(_shownRadius(tester), '100 km');
       expect(_results(2), findsOneWidget);
       expect(tester.takeException(), isNull);
     });

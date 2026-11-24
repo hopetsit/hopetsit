@@ -24,7 +24,7 @@ const bool kOwnerHomeCards640 = true;
 
 /// Lot 2 — accueils GARDIEN et PROMENEUR : filigranes de l'en-tête, bouton
 /// « Partager » en dégradé, carte d'annonce (liseré, panneau de l'animal,
-/// pastille contour), carte « rien à moins de 200 km ».
+/// pastille contour), carte « rien à moins de 100 km ».
 /// `false` → rendu du 31/10.
 const bool kProviderHome640 = true;
 

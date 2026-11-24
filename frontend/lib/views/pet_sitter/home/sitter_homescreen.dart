@@ -1072,7 +1072,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       // n'y sont pas, c'est un autre filtre : on ne les remonte pas ici).
       if (km <= _radiusKm) continue;
       // 617 (BOB) — jamais au-delà de la distance de candidature du serveur
-      // (200 km) : avant, cette section montrait les demandes du monde entier
+      // (100 km) : avant, cette section montrait les demandes du monde entier
       // et un gardien de Busan candidatait à New York (refus « trop loin »).
       if (km > kApplyMaxKm617) {
         anyTooFar617 = true;
@@ -2095,7 +2095,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   // pas de 10) : un gardien en ville veut aussi les annonces à moins de 50 km.
   static const double _kMinRadiusKm = 10.0;
   // 617 (BOB, 16/10) — plafond = distance maximale d'une candidature côté
-  // serveur (200 km, décision de Daniel) : au-delà, le serveur refuse, donc
+  // serveur (100 km, décision de Daniel) : au-delà, le serveur refuse, donc
   // l'app ne propose plus (cas réel : candidatures de Busan sur New York).
   static const double _kMaxRadiusKm = kApplyMaxKm617;
   static const double _kDefaultRadiusKm = 50.0;

@@ -14,6 +14,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/service_location587.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/cand644.dart';
+import 'package:hopetsit/views/pet_owner/posts/widgets/cand645.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/dates620_candidates.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_dates_sheet2610.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
@@ -683,6 +684,8 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
                         highlightId: widget.highlightId,
                         postServices: _post?.serviceTypes)
                     : '';
+                // 645 — repères « Le plus proche » / « Le moins cher » (règle du site).
+                final CandBadges645 badges = badges645(list, kmOf: _kmOf);
                 return ListView.separated(
                   shrinkWrap: true,
                   padding: EdgeInsets.zero,
@@ -698,6 +701,9 @@ class _CandidatesSheetBodyState extends State<_CandidatesSheetBody> {
                       tbd: tbd,
                       highlighted: app.id == widget.highlightId,
                       km: _kmOf(app),
+                      closest: badges.closest(app, _kmOf(app)),
+                      cheapest: badges.cheapest(app),
+                      postServices: _post?.serviceTypes,
                       held: Flags644.payLater && isHeld644(app),
                       onWrite: () => _talk(app, tbd),
                       onAccept: () => _accept(app),
@@ -1098,6 +1104,9 @@ class _CandidateCard extends StatelessWidget {
     required this.tbd,
     required this.highlighted,
     required this.km,
+    this.closest = false,
+    this.cheapest = false,
+    this.postServices,
     required this.onWrite,
     required this.onAccept,
     required this.onReject,
@@ -1113,6 +1122,11 @@ class _CandidateCard extends StatelessWidget {
   final bool tbd;
   final bool highlighted;
   final int? km;
+
+  /// 645 — pastilles « Le plus proche » / « Le moins cher » (site du 24/11).
+  final bool closest;
+  final bool cheapest;
+  final List<String>? postServices;
   final VoidCallback onWrite;
   final VoidCallback onAccept;
   final VoidCallback onReject;
@@ -1149,6 +1163,10 @@ class _CandidateCard extends StatelessWidget {
     final String first = name.split(' ').first;
     final String total = candidateTotal2610(app);
     final String rate = _indicative ? _rateLabel() : '';
+    // 645 — « 11 jours × 16,80 € » sous le total (site : `detailLabel`).
+    final String detail = kOwnerCandidates645 && total.isNotEmpty
+        ? candidateDetail645(app, postServices: postServices)
+        : '';
     final String meta = [
       app.sitter.rating > 0
           ? '★ ${app.sitter.rating.toStringAsFixed(1)}'
@@ -1232,6 +1250,10 @@ class _CandidateCard extends StatelessWidget {
                       spacing: 5.w,
                       runSpacing: 4.h,
                       children: [
+                        if (closest)
+                          CandBadge645.closest(key: Key('cand645_closest_${app.id}')),
+                        if (cheapest)
+                          CandBadge645.cheapest(key: Key('cand645_cheapest_${app.id}')),
                         _chip(context, roleLabelKey(isWalker ? 'walker' : 'sitter').tr,
                             isWalker ? Icons.directions_walk_rounded : Icons.home_rounded,
                             role.withValues(alpha: 0.12), roleOn),
@@ -1290,23 +1312,42 @@ class _CandidateCard extends StatelessWidget {
                       ),
                     ],
                   )
-                : Row(
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      InterText(
-                        text: (total.isNotEmpty ? 'cand2610_total' : 'cand2610_rate').tr.toUpperCase(),
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textSecondary(context),
-                      ),
-                      SizedBox(width: 8.w),
-                      Expanded(
-                        child: PoppinsText(
-                          text: total.isNotEmpty ? total : (rate.isNotEmpty ? rate : '—'),
-                          fontSize: 17.sp,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.accentOn(context, owner),
-                          maxLines: 1,
-                        ),
+                // 645 (ZOE) — Wrap : sur téléphone rien ne change (total à gauche,
+                // « tarif semaine appliqué » à droite) ; si la place manque, la mention
+                // passe à la ligne au lieu de déborder (768 px : 138 px dehors avant).
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8.w,
+                    runSpacing: 2.h,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InterText(
+                            text: (total.isNotEmpty ? 'cand2610_total' : 'cand2610_rate').tr.toUpperCase(),
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textSecondary(context),
+                          ),
+                          SizedBox(width: 8.w),
+                          Flexible(
+                            child: PoppinsText(
+                              text: total.isNotEmpty ? total : (rate.isNotEmpty ? rate : '—'),
+                              fontSize: 17.sp,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.accentOn(context, owner),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                       if (total.isNotEmpty && app.pricing?.weeklyApplied == true)
                         InterText(
@@ -1315,7 +1356,24 @@ class _CandidateCard extends StatelessWidget {
                           fontSize: 11.sp,
                           fontWeight: FontWeight.w700,
                           color: AppColors.accentOn(context, const Color(0xFF15803D)),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
+                    ],
+                  ),
+                ),
+                      if (detail.isNotEmpty) ...[
+                        SizedBox(height: 2.h),
+                        InterText(
+                          key: Key('cand645_detail_${app.id}'),
+                          text: detail,
+                          fontSize: 11.5.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textSecondary(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ],
                   ),
           ),

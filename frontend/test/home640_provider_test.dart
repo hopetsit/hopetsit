@@ -9,7 +9,7 @@
 //   2. « Ramène tes clients » : « Partager » plein en dégradé du rôle ;
 //   3. carte d'annonce boostée / non boostée : ruban, pastille contour,
 //      panneau de l'animal, bouton d'offre toujours présent ;
-//   4. états vides : « aucune demande à moins de 200 km » + « c'est calme » ;
+//   4. états vides : « aucune demande à moins de 100 km » + « c'est calme » ;
 //   5. 320 dp : aucune exception de mise en page ;
 //   6. images de preuve (si `HOME640_SHOTS` est posé).
 import 'dart:io';
@@ -256,7 +256,7 @@ void main() {
         await tester.pump(const Duration(seconds: 1));
       });
 
-      testWidgets('états vides : « aucune demande à moins de 200 km » + « c\'est calme »', (tester) async {
+      testWidgets('états vides : « aucune demande à moins de 100 km » + « c\'est calme »', (tester) async {
         _serve(<Map<String, dynamic>>[
           _post('loin', 450, service: service),
           _post('busan', 11254, service: service),
@@ -267,7 +267,7 @@ void main() {
         expect(_k('home617_too_far'), findsOneWidget);
         expect(_k('home640_too_far_tile'), findsOneWidget);
         expect(find.byIcon(Icons.near_me_disabled_rounded), findsOneWidget);
-        expect(find.textContaining('200 km'), findsWidgets);
+        expect(find.textContaining('100 km'), findsWidgets);
         expect(find.text('bob617_nothing_within_max_sub'.tr), findsOneWidget);
         expect(_k('provider_quiet_card'), findsOneWidget);
         expect(_k('home_empty_refresh'), findsOneWidget);

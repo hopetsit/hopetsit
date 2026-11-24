@@ -27,7 +27,7 @@ const Map<String, String> _kByCode = <String, String>{
   'OWN_POST': 'fixes576_err_forbidden',
   'ROLE_REQUIRED': 'fixes576_err_invalid',
   'MANUAL_KYC_DEPRECATED': 'fixes576_err_forbidden',
-  // 617 (BOB) — refus serveur du 16/10 (ADA) : candidature à plus de 200 km,
+  // 617 (BOB) — refus serveur du 16/10 (ADA) : candidature à plus de 100 km (200 avant le 24/11),
   // devise différente ; doublon de publication (LEO). Avant : « pas la
   // permission » générique à la place du vrai motif.
   'TOO_FAR': 'bob617_err_too_far',

@@ -697,6 +697,9 @@ class BookingPricing {
   final bool indicative;
   /// 620 — quantité facturée (jours, nuits, visites, balades) si connue.
   final int? quantity;
+  /// 645 — la quantité du serveur est-elle un nombre ENTIER ? (« 11 jours ×
+  /// 16,80 € » ne s'écrit que pour une quantité entière, comme sur le site.)
+  final bool quantityWhole;
   /// 620 — unité du tarif renvoyée par le serveur (`day` | `night` | `visit`
   /// | `walk` | `hour` | `week` | `month`), sinon vide.
   final String unit;
@@ -723,6 +726,7 @@ class BookingPricing {
     this.totalDays,
     this.indicative = false,
     this.quantity,
+    this.quantityWhole = true,
     this.unit = '',
     this.stale = false,
     this.ownerUnitRate,
@@ -785,6 +789,8 @@ class BookingPricing {
       indicative: json['indicative'] == true ||
           (json['pricingTier'] ?? json['pricing_tier']) == 'indicative',
       quantity: (json['quantity'] as num?)?.toInt(),
+      quantityWhole: json['quantity'] is! num ||
+          (json['quantity'] as num) == (json['quantity'] as num).roundToDouble(),
       unit: (json['unit'] ?? json['priceUnit'] ?? json['rateUnit'] ?? '').toString(),
       stale: json['stale'] == true,
       ownerUnitRate: (json['ownerUnitRate'] as num?)?.toDouble(),

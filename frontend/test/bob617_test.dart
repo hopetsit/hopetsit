@@ -1,7 +1,7 @@
 // 617 (BOB, 16/10/2026) — ce que ces tests verrouillent :
 //   1. Les codes serveur du 16/10 (TOO_FAR, CURRENCY_MISMATCH, DUPLICATE_REQUEST)
 //      donnent un vrai motif, plus jamais « pas la permission ».
-//   2. Plafond 200 km : une demande au-delà n'est plus proposée (même constante
+//   2. Plafond 100 km (200 jusqu'au 24/11/2026) : une demande au-delà n'est plus proposée (même constante
 //      que le serveur, applicationDistance1610.DEFAULT_MAX_KM).
 //   3. Message après publication : N et le rayon viennent de la réponse du
 //      serveur ; « 0 prévenu » n'est reconnu que si le serveur l'a DIT.
@@ -28,18 +28,25 @@ void main() {
     test('DUPLICATE_REQUEST → doublon de publication', () {
       expect(serverErrorKey(code: 'DUPLICATE_REQUEST', statusCode: 409), 'bob617_err_duplicate');
     });
-    test('le texte français cite la même limite que le serveur (200 km)', () {
+    test('le texte français cite la même limite que le serveur (100 km)', () {
       expect(bob617I18n['fr']!['bob617_err_too_far'], contains('${kApplyMaxKm617.round()} km'));
       expect(bob617I18n['en']!['bob617_err_too_far'], contains('${kApplyMaxKm617.round()} km'));
+      // 645 — les 9 langues citent 100 km, plus aucune « 200 km ».
+      for (final e in bob617I18n.entries) {
+        expect(e.value['bob617_err_too_far'], contains('100 km'), reason: e.key);
+        for (final v in e.value.values) {
+          expect(v.contains('200'), isFalse, reason: '${e.key} : $v');
+        }
+      }
     });
   });
 
-  group('plafond de candidature 200 km', () {
-    test('même valeur que le serveur', () => expect(kApplyMaxKm617, 200.0));
-    test('199,9 km gardée, 200 gardée, 200,1 et 11 254 km (Busan) écartées', () {
+  group('plafond de candidature 100 km', () {
+    test('même valeur que le serveur', () => expect(kApplyMaxKm617, 100.0));
+    test('99,9 km gardée, 100 gardée, 100,1, 162 et 11 254 km (Busan) écartées', () {
       final kept = withinApplyRange617<double>(
-          <double>[199.9, 200.0, 200.1, 11254.0, 162.0], (k) => k);
-      expect(kept, <double>[199.9, 200.0, 162.0]);
+          <double>[99.9, 100.0, 100.1, 11254.0, 162.0, 62.0], (k) => k);
+      expect(kept, <double>[99.9, 100.0, 62.0]);
     });
     test('sans distance connue → écartée de la liste « plus proches »', () {
       expect(withinApplyRange617<double?>(<double?>[null, 5.0], (k) => k), <double?>[5.0]);

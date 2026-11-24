@@ -460,7 +460,7 @@ class HomeDistancePill extends StatelessWidget {
 }
 
 
-/// 617 (BOB, 16/10/2026) — « Aucune demande à moins de 200 km » : des
+/// 617 (BOB, 16/10/2026) — « Aucune demande à moins de 100 km » : des
 /// demandes existent, mais toutes au-delà de la distance de candidature du
 /// serveur. On l'explique au lieu de proposer des annonces impossibles à
 /// honorer (cas réel : gardien de Busan candidat à New York).

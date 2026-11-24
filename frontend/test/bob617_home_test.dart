@@ -77,17 +77,17 @@ Slider _slider(WidgetTester tester) =>
     tester.widget<Slider>(find.byKey(const ValueKey<String>('around_me_radius_slider')));
 
 void main() {
-  group('accueil gardien — plafond de candidature 200 km', () {
+  group('accueil gardien — plafond de candidature 100 km', () {
     setUp(() async {
       await lotdSetUp(role: 'sitter');
       await _profileAtCenter('sitter');
     });
 
-    testWidgets('150 km proposée dans « les plus proches », 11 254 km jamais', (tester) async {
+    testWidgets('80 km proposée dans « les plus proches », 150 km et 11 254 km jamais', (tester) async {
       lotdResponder = (req) {
         if (req.url.path.endsWith('/posts/requests')) {
           return <String, dynamic>{
-            'posts': <Map<String, dynamic>>[_post('p150', 150), _post('busan', 11254)],
+            'posts': <Map<String, dynamic>>[_post('p80', 80), _post('p150', 150), _post('busan', 11254)],
           };
         }
         return <String, dynamic>{};
@@ -98,20 +98,21 @@ void main() {
       expect(tester.takeException(), isNull);
       // Rien dans les 50 km → carte « Élargir » + la seule annonce honorable.
       expect(find.byType(HomeRadiusHintCard), findsOneWidget);
-      expect(find.byType(HomeDistancePill), findsOneWidget); // 150 km seulement
-      expect(find.textContaining('Annonce p150'), findsWidgets);
+      expect(find.byType(HomeDistancePill), findsOneWidget); // 80 km seulement
+      expect(find.textContaining('Annonce p80'), findsWidgets);
+      expect(find.textContaining('Annonce p150'), findsNothing); // 645 : plus de 100 km
       expect(find.textContaining('Annonce busan'), findsNothing);
       expect(find.byKey(const ValueKey<String>('home617_too_far')), findsNothing);
-      // Le curseur ne dépasse plus 200 km (même valeur que le serveur).
+      // Le curseur ne dépasse plus 100 km (même valeur que le serveur).
       expect(_slider(tester).max, kApplyMaxKm617);
     });
 
-    testWidgets('toutes les demandes à plus de 200 km → carte « aucune demande à moins de 200 km »',
+    testWidgets('toutes les demandes à plus de 100 km → carte « aucune demande à moins de 100 km »',
         (tester) async {
       lotdResponder = (req) {
         if (req.url.path.endsWith('/posts/requests')) {
           return <String, dynamic>{
-            'posts': <Map<String, dynamic>>[_post('busan', 11254), _post('loin', 450)],
+            'posts': <Map<String, dynamic>>[_post('busan', 11254), _post('loin', 150)],
           };
         }
         return <String, dynamic>{};
@@ -121,7 +122,7 @@ void main() {
       await lotdSettle(tester, frames: 8);
       expect(tester.takeException(), isNull);
       expect(find.byKey(const ValueKey<String>('home617_too_far')), findsOneWidget);
-      expect(find.text('bob617_nothing_within_max'.tr.replaceAll('{max}', '200')), findsOneWidget);
+      expect(find.text('bob617_nothing_within_max'.tr.replaceAll('{max}', '100')), findsOneWidget);
       expect(find.byType(HomeRadiusHintCard), findsNothing);
       expect(find.byType(HomeDistancePill), findsNothing);
       expect(find.textContaining('Annonce busan'), findsNothing);

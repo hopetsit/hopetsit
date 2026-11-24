@@ -752,6 +752,11 @@ class DeepLinkService {
       'pay_later_reminder_2211': 'booking_accepted',
       'pay_later_released_owner_2211': 'application_new',
       'pay_later_released_provider_2211': 'booking_cancelled_by_owner',
+      // 645 — « … a regardé ta proposition » (serveur du 24/11) : envoyé au
+      // PRESTATAIRE sous le type `application_new` avec postId → la demande
+      // (où se trouve le bouton de contact). Même destination si le gabarit
+      // arrivait un jour comme type.
+      'owner_viewed_2411': 'application_new',
     };
     final t = later2211[type.toLowerCase()] ?? type.toLowerCase();
     final d = data ?? const <String, dynamic>{};
