@@ -24,7 +24,13 @@ export default function LoginPage() {
   // ou /posts n'a souvent PAS de mot de passe (compte créé par la pub) : l'encart « Reçois ton lien par
   // e-mail » passe EN PREMIER, le formulaire mot de passe reste dessous, replié (« J'ai un mot de passe »
   // ou ?pwd=1 l'ouvre). Lu côté navigateur (pas de useSearchParams : Suspense au build).
-  const [magicNext, setMagicNext] = useState("");
+  // 24/11 (BOB, Daniel : « les clients qui passent que par le web ne reviennent pas ») — mesuré le 24/11 :
+  // 54 demandes sur 59 viennent de propriétaires SANS l'app, donc sans mot de passe (compte créé par la pub
+  // ou le formulaire du site). Revenus « en direct » sur le site, ils tombaient ici sur un formulaire mot de
+  // passe seul. L'encart « Reçois ton lien par e-mail » s'affiche donc TOUJOURS, en premier ; par défaut il
+  // ramène à /posts (le serveur vise alors la candidature en attente la plus récente). Le formulaire mot de
+  // passe reste visible dessous dans le cas général (gardiens, promeneurs, comptes de l'app).
+  const [magicNext, setMagicNext] = useState("/posts");
   const [showPwd, setShowPwd]     = useState(true);
   useEffect(() => {
     try {
@@ -76,7 +82,7 @@ export default function LoginPage() {
       <p className="mt-3 text-center text-sm text-ink-muted">{t("login_sub")}</p>
 
       {magicNext && (
-        <div className="mt-8" data-login-magic0611="">
+        <div className="mt-8" data-login-magic0611="" data-login-magic2411={magicNext === "/posts" ? "toujours" : "retour"}>
           <MagicLinkBox0611 next={magicNext} lang={lang as Lang} onHasPassword={showPwd ? undefined : () => setShowPwd(true)} />
         </div>
       )}
