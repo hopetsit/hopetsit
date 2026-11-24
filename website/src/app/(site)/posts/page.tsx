@@ -227,7 +227,20 @@ function PostCard({
     setContactMsg(null);
     setLocked(false);
     try {
-      const { conversationId } = await contactOwnerAboutPost(ownerId, t("posts_contact_default"));
+      // 24/11 (BOB) — premier message UTILE : prénom, ville, service et dates de la demande. Mesure du 24/11 sur
+      // 30 jours : 112 fils ouverts par un prestataire, 11 réponses de propriétaires, 89 messages jamais ouverts ; le
+      // message tout fait (« Je suis disponible pour ton animal ») ne disait ni qui écrit ni d'où. Repli sur l'ancien
+      // texte si le prénom ou la ville manquent.
+      const me = getStoredUser() as { name?: string; firstName?: string; city?: string; location?: { city?: string } } | null;
+      const myName = String(me?.firstName || me?.name || "").trim().split(/\s+/)[0] || "";
+      const myCity = String(me?.city || me?.location?.city || "").trim();
+      const svc = (Array.isArray(post.serviceTypes) ? post.serviceTypes : []).map((x) => svcLabel(String(x))).filter(Boolean).join(" · ");
+      const dts = [post620.startDate, post620.endDate].filter(Boolean).map((d) => new Date(d as string).toLocaleDateString(lang === "en" ? "en-US" : lang, { day: "numeric", month: "long", timeZone: "UTC" }));
+      const what = [svc, dts.length === 2 && dts[0] !== dts[1] ? `${dts[0]} → ${dts[1]}` : dts[0] || ""].filter(Boolean).join(", ");
+      const intro = myName && myCity && what
+        ? t("posts_contact_intro").replace("{name}", myName).replace("{city}", myCity).replace("{what}", what)
+        : t("posts_contact_default");
+      const { conversationId } = await contactOwnerAboutPost(ownerId, intro);
       if (conversationId) {
         router.push(`/chat?c=${conversationId}`);
       } else {

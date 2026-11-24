@@ -26,7 +26,9 @@ const PROFANITY = [
   'connard', 'connasse', 'salope', 'salaud', 'enculé', 'enculer', 'pute',
   'putain', 'merde', 'merdeux', 'batard', 'bâtard', 'pédé', 'tapette', 'fdp',
   'ntm', 'nique', 'niquer', 'foutre', 'bouffon', 'abruti', 'crétin', 'débile',
-  'pétasse', 'trouduc', 'couille', 'bite', 'chatte', 'pue', 'sale arabe',
+  // 2411 (BOB) — « chatte » et « bite » retirés : sur une app de garde d'animaux ce sont des mots normaux
+  // (« ma chatte de 11 ans », « does he bite? »). Une propriétaire a vu sa chatte remplacée par ****** le 24/11.
+  'pétasse', 'trouduc', 'couille', 'pue', 'sale arabe',
   // EN
   'fuck', 'fucker', 'fucking', 'motherfucker', 'shit', 'bullshit', 'asshole',
   'bitch', 'bastard', 'cunt', 'dick', 'pussy', 'slut', 'whore', 'faggot',
