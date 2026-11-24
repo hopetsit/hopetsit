@@ -46,6 +46,7 @@ const petKey = (post) => {
 const T = {
   fr: {
     choose: (n) => `Choisir ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    ask: (n) => `Écrire à ${n} avant de réserver`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'garder', visit: 'rendre visite à', walk: 'promener' },
     pet: { dog: 'votre chien', dogs: 'vos chiens', cat: 'votre chat', cats: 'vos chats', pet: 'votre animal', pets: 'vos animaux' },
     one: (n, v, p, c) => `${n} peut ${v} ${p}${c ? ` à ${c}` : ''}`,
@@ -60,9 +61,12 @@ const T = {
     // 0511 (BOB, ordre de Daniel) — pas à pas en langage simple (cas Jeanne V. : « je ne sais pas faire »)
     badges: { identity: 'Identité vérifiée', iban: 'IBAN vérifié' }, // 0511 (BOB) — confiance réelle sur la carte
     how: ['Comment faire, pas à pas :', 'Appuyez sur « Choisir » sous la personne qui vous plaît (vous pouvez d\'abord regarder son profil et ses avis).', 'Une page s\'ouvre avec les dates et le prix.', 'Entrez votre carte bancaire sur cette page et validez : pas de mot de passe, pas d\'application à installer.', 'C\'est réservé : la personne est prévenue et vous pouvez vous écrire pour organiser la garde.', 'Si quelque chose vous bloque, répondez à cet e-mail en disant ce que vous voyez à l\'écran : on vous aide.'],
+    // 2411 (BOB) — une propriétaire a répondu à l'e-mail pour interroger la gardienne : c'est HoPetSit qui reçoit.
+    who: 'Une question pour la personne qui garde (santé de votre animal, expérience, horaires) ? Utilisez le bouton « Écrire à… » sous son nom : elle vous répond directement. Si vous répondez à cet e-mail, c\'est l\'équipe HoPetSit qui vous lit, pas elle.',
   },
   en: {
     choose: (n) => `Choose ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    ask: (n) => `Talk to ${n} before you book`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'look after', visit: 'visit', walk: 'walk' },
     pet: { dog: 'your dog', dogs: 'your dogs', cat: 'your cat', cats: 'your cats', pet: 'your pet', pets: 'your pets' },
     one: (n, v, p, c) => `${n} can ${v} ${p}${c ? ` in ${c}` : ''}`,
@@ -76,9 +80,11 @@ const T = {
     guar: ['Free cancellation up to 72 h before, full refund', 'Your money is only released once the service is done'],
     badges: { identity: 'ID verified', iban: 'Bank account verified' },
     how: ['How it works, step by step:', 'Tap "Choose" under the person you like (you can look at their profile and reviews first).', 'A page opens with the dates and the price.', 'Enter your bank card on that page and confirm: no password, no app to install.', 'Booked: the person is notified and you can message each other to organise the stay.', 'If something blocks you, reply to this email and tell us what you see on your screen: we\'ll help.'],
+    who: 'A question for the sitter (your pet\'s health, experience, schedule)? Use the "Talk to…" button under their name: they answer you directly. If you reply to this email, the HoPetSit team reads it, not the sitter.',
   },
   es: {
     choose: (n) => `Elegir a ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    ask: (n) => `Hablar con ${n} antes de reservar`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'cuidar a', visit: 'visitar a', walk: 'pasear a' },
     pet: { dog: 'su perro', dogs: 'sus perros', cat: 'su gato', cats: 'sus gatos', pet: 'su mascota', pets: 'sus mascotas' },
     one: (n, v, p, c) => `${n} puede ${v} ${p}${c ? ` en ${c}` : ''}`,
@@ -93,6 +99,7 @@ const T = {
   },
   de: {
     choose: (n) => `${n} auswählen`, // 2710 (SAM) — bouton direct de chaque carte
+    ask: (n) => `Vor der Buchung mit ${n} sprechen`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'betreuen', visit: 'besuchen', walk: 'ausführen' },
     pet: { dog: 'Ihren Hund', dogs: 'Ihre Hunde', cat: 'Ihre Katze', cats: 'Ihre Katzen', pet: 'Ihr Haustier', pets: 'Ihre Haustiere' },
     one: (n, v, p, c) => `${n} kann ${p}${c ? ` in ${c}` : ''} ${v}`,
@@ -107,6 +114,7 @@ const T = {
   },
   it: {
     choose: (n) => `Scegli ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    ask: (n) => `Parla con ${n} prima di prenotare`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'accudire', visit: 'fare visita a', walk: 'portare a spasso' },
     pet: { dog: 'il suo cane', dogs: 'i suoi cani', cat: 'il suo gatto', cats: 'i suoi gatti', pet: 'il suo animale', pets: 'i suoi animali' },
     one: (n, v, p, c) => `${n} può ${v} ${p}${c ? ` a ${c}` : ''}`,
@@ -121,6 +129,7 @@ const T = {
   },
   pt: {
     choose: (n) => `Escolher ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    ask: (n) => `Falar com ${n} antes de reservar`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'ficar com', visit: 'visitar', walk: 'passear' },
     pet: { dog: 'o seu cão', dogs: 'os seus cães', cat: 'o seu gato', cats: 'os seus gatos', pet: 'o seu animal', pets: 'os seus animais' },
     one: (n, v, p, c) => `${n} pode ${v} ${p}${c ? ` em ${c}` : ''}`,
@@ -135,6 +144,7 @@ const T = {
   },
   ko: {
     choose: (n) => `${n}님 선택`, // 2710 (SAM) — bouton direct de chaque carte
+    ask: (n) => `예약 전에 ${n}님에게 문의하기`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     svc: { sit: '펫시팅', visit: '방문 돌봄', walk: '산책' },
     one: (n, s, c) => `${n}님이 지원했습니다 · ${s}${c ? ` · ${c}` : ''}`,
     many: (k, s, c) => `새 지원자 ${k}명 · ${s}${c ? ` · ${c}` : ''}`,
@@ -148,6 +158,7 @@ const T = {
   },
   ja: {
     choose: (n) => `${n}さんを選ぶ`, // 2710 (SAM) — bouton direct de chaque carte
+    ask: (n) => `予約前に${n}さんと話す`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     svc: { sit: 'ペットシッター', visit: '訪問ケア', walk: '散歩' },
     one: (n, s, c) => `${n}さんが応募しました · ${s}${c ? ` · ${c}` : ''}`,
     many: (k, s, c) => `新しい応募者${k}名 · ${s}${c ? ` · ${c}` : ''}`,
@@ -161,6 +172,7 @@ const T = {
   },
   pl: {
     choose: (n) => `Wybierz: ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    ask: (n) => `Porozmawiaj z: ${n}, zanim zarezerwujesz`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     svc: { sit: 'opieka nad zwierzęciem', visit: 'wizyty domowe', walk: 'spacer z psem' },
     one: (n, s, c) => `${n} zgłasza się: ${s}${c ? ` · ${c}` : ''}`,
     many: (k, s, c) => `Nowi kandydaci (${k}): ${s}${c ? ` · ${c}` : ''}`,
@@ -263,6 +275,8 @@ function cardsHtml(lang, cards) {
       // « Choisir <prénom> » : ouvre la page de ce candidat (session sans mot de passe pour les
       // contacts de la pub), où un seul geste confirme le choix et mène au paiement.
       + (/^https:\/\//.test(String(c.link || '')) ? `<tr><td colspan="${price ? 3 : 2}" style="padding:0 12px 12px"><a href="${esc(c.link)}" style="display:block;padding:12px 10px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-size:16px;font-weight:800;text-align:center;font-family:sans-serif">${esc(L.choose(String(c.name || 'HoPetSit')))}</a></td></tr>` : '')
+      // 2411 (BOB) — bouton secondaire « Écrire à <prénom> avant de réserver » : ouvre sa page, zone de question ouverte.
+      + (L.ask && /^https:\/\//.test(String(c.askLink || '')) ? `<tr><td colspan="${price ? 3 : 2}" style="padding:0 12px 12px"><a href="${esc(c.askLink)}" style="display:block;padding:10px;background:#FFFFFF;color:#9E1F0B;text-decoration:none;border:2px solid #C92A12;border-radius:12px;font-size:15px;font-weight:800;text-align:center;font-family:sans-serif">💬 ${esc(L.ask(String(c.name || 'HoPetSit')))}</a></td></tr>` : '')
       + '</table>';
   }).join('');
 }
@@ -322,6 +336,8 @@ function buildEmailData({ lang, post, cards, newCount, totalPending, j10Days }) 
       // 0511 (BOB, ordre de Daniel « fais tout ce qui est possible ») — pas à pas en langage simple
       // (fr/en ; les autres langues gardent l'e-mail tel quel), après le cas de Jeanne V. le 05/11.
       + (!tbd && Array.isArray(L.how) && L.how.length > 1 ? `<p style="margin:14px 0 4px;font-size:14px;font-weight:700;color:#231715">${esc(L.how[0])}</p><ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.5;color:#231715">${L.how.slice(1, -1).map((s) => `<li style="margin:3px 0">${esc(s)}</li>`).join('')}</ol><p style="margin:8px 0 0;font-size:13px;color:#6E4F48">${esc(L.how[L.how.length - 1])}</p>` : '')
+      // 2411 (BOB) — qui lit la réponse à cet e-mail (fr/en), seulement si au moins une carte a son bouton « Écrire à… ».
+      + (L.who && cards.some((c) => /^https:\/\//.test(String(c.askLink || ''))) ? `<p style="margin:10px 0 0;padding:10px 12px;background:#FFF4D6;border-radius:10px;font-size:13px;font-weight:600;line-height:1.5;color:#7A4B00">💬 ${esc(L.who)}</p>` : '')
       // 3110 (ADA, ordre de Daniel via BOB) — dates qui touchent le 15/12 → 06/01 : « Les gardiens se
       // réservent tôt pour les fêtes » (9 langues, utils/datesReminderText3110 ; require tardif : dépendance circulaire).
       + require('./datesReminderText3110').holidayHtml(l, post),

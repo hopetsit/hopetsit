@@ -109,6 +109,10 @@ async function sendFor({ post, ownerId, apps, send, j10Days }) {
       const direct = `${BASE_URL}/application/${c.applicationId}?from=email&choose=1`;
       // eslint-disable-next-line no-await-in-loop
       c.link = typeof ns.leadOwnerEmailLink === 'function' ? await ns.leadOwnerEmailLink('owner', String(ownerId), direct, BASE_URL) : direct;
+      // 2411 (BOB) — même lien signé, mais qui ouvre la zone « Écrire à <prénom> » au lieu du paiement.
+      const ask = `${BASE_URL}/application/${c.applicationId}?from=email&ask=1`;
+      // eslint-disable-next-line no-await-in-loop
+      c.askLink = typeof ns.leadOwnerEmailLink === 'function' ? await ns.leadOwnerEmailLink('owner', String(ownerId), ask, BASE_URL) : ask;
     }
   } catch (_) { /* cartes sans bouton direct */ }
   let lang = 'fr';

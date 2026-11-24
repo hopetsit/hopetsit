@@ -315,6 +315,24 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
   // (pré-rempli) s'ouvre d'office quand l'adresse porte `dates=1`, ou quand on arrive d'un e-mail (`from=email`, posé
   // par emailLinkBuilder sur tout lien /application/<id> d'un propriétaire) ; on fait défiler jusqu'à lui et on
   // place le curseur dans le 1er champ. Une seule fois par visite (« Annuler » le referme pour de bon).
+  // 24/11 (BOB) — lien « Écrire à <prénom> avant de réserver » de l'e-mail (?ask=1) : la zone de question du candidat
+  // visé s'ouvre toute seule, une seule fois par visite. Une propriétaire avait répondu à l'e-mail en croyant écrire à la gardienne.
+  const autoAskRef = useRef<"pending" | "done">("pending");
+  useEffect(() => {
+    if (autoAskRef.current === "done" || loading || !focusId || !items.length) return;
+    autoAskRef.current = "done";
+    let q: URLSearchParams | null = null;
+    try { q = new URLSearchParams(window.location.search); } catch { q = null; }
+    if (!q || q.get("ask") !== "1") return;
+    const a = items.find((x) => applicationId(x) === focusId && x.status === "pending");
+    if (!a) return;
+    setAskId(focusId);
+    setAskText("");
+    trackSiteEvent("cta_click", { label: "cand_question_auto" });
+    window.setTimeout(() => {
+      try { document.getElementById(`application-${focusId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); askRef.current?.focus({ preventScroll: true }); } catch { /* sans focus */ }
+    }, 300);
+  }, [loading, focusId, items]);
   const autoDatesRef = useRef<"pending" | "done">("pending");
   useEffect(() => {
     if (autoDatesRef.current === "done" || !post || step === "paid") return;
