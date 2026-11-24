@@ -11,7 +11,7 @@
  * Toute valeur venue d'un utilisateur (prénom, ville, URL de photo) est ÉCHAPPÉE ici :
  * `candidatesHtml2610` est le seul champ HTML brut accepté par le notificationSender.
  */
-const { enrichPrice620, priceData620 } = require('./applicationNewText617');
+const { enrichPrice620, priceData620, fmtAmount, UNIT_WORDS } = require('./applicationNewText617');
 
 const LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ko', 'ja', 'pl'];
 const lang2 = (l) => {
@@ -199,6 +199,38 @@ function priceLabel(lang, pricing) {
   return String(d.priceText || '').replace(/^\s*·\s*/, '');
 }
 
+// 2411 (BOB, question de Michel C. : « 184,80 € correspond à quoi ? ») — le total EXPLIQUÉ sous le prix :
+// « 11 × 16,80 €/jour » (tarif frais compris × quantité du moteur unique). Rien quand la demande est
+// sans dates, pour une seule unité, avec des options en plus (le tarif par unité serait faux) ou sans unité connue.
+// Aucun mot à accorder : valable dans les 9 langues. « ≈ » quand la division ne tombe pas juste (tarif semaine).
+function priceDetail(lang, pricing) {
+  const p = pricing || {};
+  if (p.stale === true || p.indicative === true) return '';
+  const total = Number(p.totalPrice);
+  const q = Number(p.quantity);
+  if (!(total > 0) || !Number.isInteger(q) || q < 2 || Number(p.addOnsTotal) > 0) return '';
+  const l = lang2(lang);
+  const word = (UNIT_WORDS[l] || UNIT_WORDS.en)[String(p.unit || '')];
+  if (!word || String(p.unit) === 'total') return '';
+  const unit = Math.round((total / q) * 100) / 100;
+  const exact = Math.abs(unit * q - total) < 0.005;
+  return `${exact ? '' : '≈ '}${q} × ${fmtAmount(unit, p.currency || 'EUR', l)}/${word}`;
+}
+
+// 2411 — rappel des dates de la demande en tête des cartes : « 📅 5–15 juillet 2027 » (dates du jour civil, UTC,
+// comme les autres e-mails). '' pour une demande sans dates.
+const INTL_2411 = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', de: 'de-DE', it: 'it-IT', pt: 'pt-PT', ko: 'ko-KR', ja: 'ja-JP', pl: 'pl-PL' };
+function datesLine(lang, post) {
+  const s = post && post.startDate ? new Date(post.startDate) : null;
+  const e = post && post.endDate ? new Date(post.endDate) : null;
+  if (!s || Number.isNaN(s.getTime())) return '';
+  try {
+    const f = new Intl.DateTimeFormat(INTL_2411[lang2(lang)], { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const txt = e && !Number.isNaN(e.getTime()) && e.getTime() > s.getTime() ? f.formatRange(s, e) : f.format(s);
+    return String(txt).replace(/[\u00A0\u202F\u2009]/g, ' ');
+  } catch (_) { return ''; }
+}
+
 const initialColor = (role) => (role === 'walker' ? '#15803D' : '#1E4FB0');
 
 /**
@@ -225,7 +257,7 @@ function cardsHtml(lang, cards) {
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:0 0 10px;background:#FFF6F2;border-radius:14px"><tr>`
       + `<td width="68" style="padding:12px 0 12px 12px;vertical-align:middle">${avatar}</td>`
       + `<td style="padding:12px;vertical-align:middle"><div style="font-size:17px;font-weight:700;color:#231715">${name}</div><div style="font-size:13px;color:#6E4F48;line-height:1.4">${meta}</div>${badges}</td>`
-      + (price ? `<td style="padding:12px 14px 12px 0;vertical-align:middle;text-align:right;white-space:nowrap;font-size:16px;font-weight:800;color:#9E1F0B">${esc(price)}${c.pricing && c.pricing.weeklyApplied === true ? `<div style="font-size:11px;font-weight:700;color:#15803D">${esc(L.weekly)}</div>` : ''}</td>` : '')
+      + (price ? `<td style="padding:12px 14px 12px 0;vertical-align:middle;text-align:right;white-space:nowrap;font-size:16px;font-weight:800;color:#9E1F0B">${esc(price)}${priceDetail(lang, c.pricing) ? `<div style="margin-top:2px;font-size:12px;font-weight:700;color:#6E4F48">${esc(priceDetail(lang, c.pricing))}</div>` : ''}${c.pricing && c.pricing.weeklyApplied === true ? `<div style="font-size:11px;font-weight:700;color:#15803D">${esc(L.weekly)}</div>` : ''}</td>` : '')
       + '</tr>'
       // 2710 (SAM, ordre de Daniel « que les propriétaires valident et paient ») — bouton DIRECT
       // « Choisir <prénom> » : ouvre la page de ce candidat (session sans mot de passe pour les
@@ -279,6 +311,8 @@ function buildEmailData({ lang, post, cards, newCount, totalPending, j10Days }) 
   return {
     subjectLine,
     candidatesHtml2610: (j10 ? `<p style="margin:0 0 12px;padding:10px 12px;background:#FFF4D6;border-radius:10px;font-size:14px;font-weight:700;line-height:1.5;color:#7A4B00">${esc(j10.line)}</p>` : '')
+      // 2411 — rappel des dates (demande datée) : le propriétaire sait d'un coup d'œil à quoi correspond le total.
+      + (!tbd && datesLine(l, post) ? `<p style="margin:0 0 10px;font-size:14px;font-weight:700;color:#231715">📅 ${esc(datesLine(l, post))}</p>` : '')
       + cardsHtml(l, cards)
       + (others > 0 ? `<p style="margin:4px 0 0;font-size:14px;color:#6E4F48">${esc(L.others(others))}</p>` : '')
       + (tbd ? `<p style="margin:12px 0 0;padding:10px 12px;background:#FBE9E5;border-radius:10px;font-size:14px;font-weight:600;color:#9E1F0B">${esc(L.dates)}</p>` : '')
@@ -295,4 +329,4 @@ function buildEmailData({ lang, post, cards, newCount, totalPending, j10Days }) 
   };
 }
 
-module.exports = { LANGS, T, lang2, esc, serviceFamily, petKey, onePhrase, manyPhrase, priceLabel, cardsHtml, buildEmailData, cityOfPost, J10 };
+module.exports = { LANGS, T, lang2, esc, serviceFamily, petKey, onePhrase, manyPhrase, priceLabel, priceDetail, datesLine, cardsHtml, buildEmailData, cityOfPost, J10 };

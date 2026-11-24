@@ -110,4 +110,4 @@ const enrichPrice620 = (data, locale) => {
   return d;
 };
 
-module.exports = { TEMPLATE, applicationNewData617, firstNameOf, priceData620, enrichPrice620, fmtAmount, ownerUnitRate };
+module.exports = { TEMPLATE, applicationNewData617, firstNameOf, priceData620, enrichPrice620, fmtAmount, ownerUnitRate, UNIT_WORDS };

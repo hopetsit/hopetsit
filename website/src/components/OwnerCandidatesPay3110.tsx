@@ -53,7 +53,7 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { AppIcon } from "@/components/AppIcon";
 import { SignatureButton } from "@/components/SignatureButton";
 import { PostDatesEditor620 } from "@/components/PostDatesEditor620";
-import { d620, unitShort620 } from "@/lib/i18n/dates620";
+import { d620, qtyLabel620, unitShort620 } from "@/lib/i18n/dates620";
 import { dateModeOf620 } from "@/lib/services620";
 import { c3110 } from "@/lib/i18n/cand3110";
 import { markCandidatesViewed } from "@/lib/candidatesView2610";
@@ -824,6 +824,13 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
               const unitRate = stale ? null : (ownerUnit ?? a.pricing?.appliedRate ?? a.pricing?.basePrice ?? null);
               const rateLabel = indicative && unitRate != null && unitRate > 0 ? `${moneyCompact(unitRate, currency, lang)}/${unitShort620(lang, unitOf(a))}` : "";
               const priceLabel = total != null ? money(total, currency, lang) : "";
+              // 24/11 (BOB, question d'un propriétaire : « 184,80 € correspond à quoi ? ») — le total expliqué :
+              // « 11 jours × 16,80 € » (tarif frais compris). Rien sans dates, pour une seule unité, ou si le tarif est à venir.
+              const qty = Number(a.pricing?.quantity);
+              const perUnit = total != null && !indicative && !stale && Number.isInteger(qty) && qty > 1 ? Math.round((total / qty) * 100) / 100 : null;
+              const detailLabel = perUnit != null && perUnit > 0
+                ? `${Math.abs(perUnit * qty - (total as number)) < 0.005 ? "" : "≈ "}${qtyLabel620(lang, qty, unitOf(a))} × ${money(perUnit, currency, lang)}`
+                : "";
               const accepted = a.status === "accepted";
               const bk = accepted ? linkedBooking(a) : null;
               const isFocus = !!focusId && focusId === id;
@@ -873,6 +880,7 @@ export function OwnerCandidatesPay3110({ focusId }: { focusId?: string }) {
                           <span className="shrink-0 text-right">
                             <span className="block text-[18px] font-extrabold leading-tight" style={{ color: "#9E1F0B" }} data-total-3110="">{priceLabel}</span>
                             <span className="block text-[10px] font-bold uppercase tracking-wide" style={{ color: "#8A6B64" }}>{c3110(lang, "total")}</span>
+                            {detailLabel && <span className="block text-[11px] font-bold" style={{ color: "#6E4F48" }} data-detail-2411="">{detailLabel}</span>}
                           </span>
                         ) : rateLabel ? (
                           <span className="shrink-0 text-right">

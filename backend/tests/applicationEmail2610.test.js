@@ -257,3 +257,27 @@ describe('4. Demande directe (sans annonce) et coupe-circuit : e-mail par candid
     } finally { delete process.env.APPLICATION_EMAIL_2610; }
   }, 60000);
 });
+
+// 2411 (BOB) — le total expliqué sous le prix + rappel des dates (question d'un propriétaire : « 184,80 € correspond à quoi ? »).
+describe('2411 — total expliqué', () => {
+  const t = require('../src/utils/applicationEmailText2610');
+  const pricing = { totalPrice: 184.8, quantity: 11, unit: 'day', currency: 'EUR', appliedRate: 14, commissionRate: 0.2 };
+  const post = { startDate: '2027-07-05T00:00:00.000Z', endDate: '2027-07-15T00:00:00.000Z', dateMode: 'exact', serviceTypes: ['house_sitting'], animalTypes: ['cat'], city: 'Zone test' };
+  test('« 11 × 16,80 €/jour » sous le total, dates en tête, objet inchangé', () => {
+    expect(t.priceDetail('fr', pricing)).toBe('11 × 16,80 €/jour');
+    expect(t.priceDetail('en', pricing)).toBe('11 × €16.80/day');
+    const d = t.buildEmailData({ lang: 'fr', post, cards: [{ name: 'Marie', role: 'sitter', pricing }], newCount: 1, totalPending: 1 });
+    expect(d.subjectLine).toBe('Marie peut garder votre chat à Zone test · 184,80 € au total');
+    expect(d.candidatesHtml2610).toContain('11 × 16,80 €/jour');
+    expect(d.candidatesHtml2610).toContain('5–15 juillet 2027');
+  });
+  test('rien quand ce serait faux ou inutile : sans dates, une seule unité, options en plus ; « ≈ » si la division ne tombe pas juste', () => {
+    expect(t.priceDetail('fr', { indicative: true, appliedRate: 18, unit: 'day' })).toBe('');
+    expect(t.priceDetail('fr', { totalPrice: 50, quantity: 1, unit: 'day' })).toBe('');
+    expect(t.priceDetail('fr', { totalPrice: 50, quantity: 2, unit: 'day', addOnsTotal: 5 })).toBe('');
+    expect(t.priceDetail('fr', { totalPrice: 204, quantity: 11, unit: 'day', currency: 'EUR' })).toBe('≈ 11 × 18,55 €/jour');
+    expect(t.datesLine('fr', { dateMode: 'tbd' })).toBe('');
+    const tbd = t.buildEmailData({ lang: 'fr', post: { dateMode: 'tbd', serviceTypes: ['house_sitting'], animalTypes: ['cat'] }, cards: [{ name: 'Marie', role: 'sitter', pricing: { indicative: true, appliedRate: 18, unit: 'day', currency: 'EUR' } }], newCount: 1, totalPending: 1 });
+    expect(tbd.candidatesHtml2610).not.toContain('📅');
+  });
+});
