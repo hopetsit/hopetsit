@@ -328,7 +328,21 @@ const J10 = {
   pl: { subject: (n) => (n > 1 ? `Twoja opieka zaczyna się za ${n} dni` : 'Twoja opieka zaczyna się jutro'), line: 'Opiekunowie szybko się rezerwują: wybierz swojego teraz, aby mieć pewność.' },
 };
 
-function buildEmailData({ lang, post, cards, newCount, totalPending, j10Days }) {
+// 2511c (BOB, ordre de Daniel « la communication, ce n'est pas à nous : entre eux ») — quand la réponse à cet e-mail est
+// branchée sur la conversation avec le candidat (applicationEmail2610 pose alors un Reply-To signé), on le dit en clair.
+const WHO_REPLY = {
+  fr: (n) => `Une question pour ${n} (santé de votre animal, expérience, se rencontrer avant) ? Répondez simplement à cet e-mail : votre message arrive directement à ${n}, pas à l'équipe HoPetSit.`,
+  en: (n) => `A question for ${n} (your pet's health, experience, meeting first)? Just reply to this email: your message goes straight to ${n}, not to the HoPetSit team.`,
+  es: (n) => `¿Una pregunta para ${n} (salud de tu mascota, experiencia, conoceros antes)? Responde a este correo: tu mensaje llega directamente a ${n}, no al equipo de HoPetSit.`,
+  de: (n) => `Eine Frage an ${n} (Gesundheit deines Tieres, Erfahrung, vorher kennenlernen)? Antworte einfach auf diese E-Mail: Deine Nachricht geht direkt an ${n}, nicht an das HoPetSit-Team.`,
+  it: (n) => `Una domanda per ${n} (salute del tuo animale, esperienza, incontrarsi prima)? Rispondi a questa e-mail: il tuo messaggio arriva direttamente a ${n}, non al team HoPetSit.`,
+  pt: (n) => `Uma pergunta para ${n} (saúde do teu animal, experiência, conhecerem-se antes)? Responde a este e-mail: a tua mensagem chega diretamente a ${n}, não à equipa HoPetSit.`,
+  pl: (n) => `Pytanie do: ${n} (zdrowie zwierzaka, doświadczenie, spotkanie przed)? Po prostu odpowiedz na tego e-maila: wiadomość trafi bezpośrednio do: ${n}, nie do zespołu HoPetSit.`,
+  ko: (n) => `${n} 님에게 질문이 있나요(반려동물 건강, 경험, 사전 만남)? 이 이메일에 답장하세요. 메시지는 HoPetSit 팀이 아니라 ${n} 님에게 바로 전달됩니다.`,
+  ja: (n) => `${n}さんに質問がありますか（ペットの健康、経験、事前の顔合わせ）？このメールに返信するだけで、メッセージはHoPetSitチームではなく${n}さんに直接届きます。`,
+};
+
+function buildEmailData({ lang, post, cards, newCount, totalPending, j10Days, replyName }) {
   const l = lang2(lang);
   const L = T[l];
   const service = (Array.isArray(post && post.serviceTypes) ? post.serviceTypes[0] : post && post.serviceTypes) || '';
@@ -362,7 +376,8 @@ function buildEmailData({ lang, post, cards, newCount, totalPending, j10Days }) 
       // (fr/en ; les autres langues gardent l'e-mail tel quel), après le cas de Jeanne V. le 05/11.
       + (!tbd && !allStale && Array.isArray(L.how) && L.how.length > 1 ? `<p style="margin:14px 0 4px;font-size:14px;font-weight:700;color:#231715">${esc(L.how[0])}</p><ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.5;color:#231715">${L.how.slice(1, -1).map((s) => `<li style="margin:3px 0">${esc(s)}</li>`).join('')}</ol><p style="margin:8px 0 0;font-size:13px;color:#6E4F48">${esc(L.how[L.how.length - 1])}</p>` : '')
       // 2411 (BOB) — qui lit la réponse à cet e-mail (fr/en), seulement si au moins une carte a son bouton « Écrire à… ».
-      + (L.who && cards.some((c) => /^https:\/\//.test(String(c.askLink || ''))) ? `<p style="margin:10px 0 0;padding:10px 12px;background:#FFF4D6;border-radius:10px;font-size:13px;font-weight:600;line-height:1.5;color:#7A4B00">💬 ${esc(L.who)}</p>` : '')
+      + (replyName ? `<p data-reply-2511="1" style="margin:10px 0 0;padding:10px 12px;background:#FFF4D6;border-radius:10px;font-size:13px;font-weight:600;line-height:1.5;color:#7A4B00">💬 ${esc((WHO_REPLY[l] || WHO_REPLY.en)(String(replyName)))}</p>`
+        : (L.who && cards.some((c) => /^https:\/\//.test(String(c.askLink || ''))) ? `<p style="margin:10px 0 0;padding:10px 12px;background:#FFF4D6;border-radius:10px;font-size:13px;font-weight:600;line-height:1.5;color:#7A4B00">💬 ${esc(L.who)}</p>` : ''))
       // 3110 (ADA, ordre de Daniel via BOB) — dates qui touchent le 15/12 → 06/01 : « Les gardiens se
       // réservent tôt pour les fêtes » (9 langues, utils/datesReminderText3110 ; require tardif : dépendance circulaire).
       + require('./datesReminderText3110').holidayHtml(l, post),
@@ -370,4 +385,4 @@ function buildEmailData({ lang, post, cards, newCount, totalPending, j10Days }) 
   };
 }
 
-module.exports = { LANGS, T, lang2, esc, serviceFamily, petKey, onePhrase, manyPhrase, priceLabel, priceDetail, datesLine, cardsHtml, buildEmailData, cityOfPost, J10 };
+module.exports = { WHO_REPLY, LANGS, T, lang2, esc, serviceFamily, petKey, onePhrase, manyPhrase, priceLabel, priceDetail, datesLine, cardsHtml, buildEmailData, cityOfPost, J10 };

@@ -49,6 +49,7 @@ async function cardsFor(apps, post) {
     try { km = DIST.distanceKm(post, p); } catch (_) { km = null; }
     out.push({
       applicationId: String(a._id || ''),
+      providerId: String(p._id || ''),
       name: firstNameOf(p) || 'HoPetSit',
       role,
       avatar: p.avatar && p.avatar.url ? p.avatar.url : '',
@@ -61,6 +62,24 @@ async function cardsFor(apps, post) {
     });
   }
   return out;
+}
+
+/** 2511c — fil propriétaire ↔ prestataire : retrouvé (même règle que POST /conversations/start), sinon créé vide. */
+async function conversationFor2511(ownerId, role, providerId) {
+  const Conversation = require('../models/Conversation');
+  const identity599 = require('../utils/conversationIdentity599');
+  const field = role === 'walker' ? 'walkerId' : 'sitterId';
+  const found = await Conversation.findOne({ ownerId, [field]: providerId }).select('_id').lean();
+  let conv = found ? await identity599.resolveConversation(found._id, { select: '_id friendChat ownerId', lean: true }) : null;
+  if (!conv) {
+    conv = await identity599.findConversationBetweenPersons(
+      await identity599.identityIds(ownerId), await identity599.identityIds(providerId),
+    );
+  }
+  // Un fil « amis », ou porté par un autre profil de la personne, ne convient pas à l'adresse signée (rôle owner de CE compte).
+  if (conv && (conv.friendChat === true || String((conv.ownerId && conv.ownerId._id) || conv.ownerId || '') !== String(ownerId))) return '';
+  if (!conv) conv = await Conversation.create({ ownerId, [field]: providerId, ownerUnreadCount: 0, sitterUnreadCount: 0 });
+  return String(conv._id);
 }
 
 /**
@@ -136,14 +155,32 @@ async function sendFor({ post, ownerId, apps, send, j10Days }) {
     const ns = require('./notificationSender');
     if (typeof ns.resolveRecipientLocale === 'function') lang = await ns.resolveRecipientLocale('owner', ownerId) || lang;
   } catch (_) { /* repli */ }
+  // 2511c (BOB, ordre de Daniel du 25/11 « c'est entre eux, pas à nous ») — RÉPONDRE À CET E-MAIL = ÉCRIRE AU CANDIDAT.
+  // Trois propriétaires ont répondu à cet e-mail en croyant écrire à la gardienne ; leur message arrivait chez nous.
+  // On ouvre (ou retrouve) le fil propriétaire ↔ 1er candidat de l'e-mail et on pose le Reply-To signé de la V1
+  // (utils/replyAddress2411) : la réponse est relevée par services/inboundReply2411 et postée dans ce fil, au nom du
+  // propriétaire. Boîte de réponses pas prête, erreur, ou CANDIDATE_REPLY_2511=off → e-mail exactement comme avant.
+  let replyTo = '';
+  let replyName = '';
+  try {
+    if (String(process.env.CANDIDATE_REPLY_2511 || '').toLowerCase() !== 'off') {
+      const inbound = require('./inboundReply2411');
+      const c0 = cards[0];
+      if (inbound.isReady() && c0 && /^[a-f0-9]{24}$/i.test(String(c0.providerId || ''))) {
+        const convId = await conversationFor2511(String(ownerId), c0.role, c0.providerId);
+        if (convId) replyTo = inbound.replyToFor({ conversationId: convId, role: 'owner', userId: String(ownerId) }) || '';
+        if (replyTo) replyName = c0.name;
+      }
+    }
+  } catch (e) { replyTo = ''; replyName = ''; logger.warn(`[appEmail2610] réponse par e-mail indisponible : ${e && e.message ? e.message : e}`); }
   const data = {
     applicationId: String(newest[0]._id),
     postId: String(post._id),
     candidates: String(Math.max(1, totalPending)),
-    ...text.buildEmailData({ lang, post, cards, newCount: pending.length, totalPending, j10Days }),
+    ...text.buildEmailData({ lang, post, cards, newCount: pending.length, totalPending, j10Days, replyName }),
   };
   const sender = typeof send === 'function' ? send : require('./notificationSender').sendEmailOnly;
-  const r = await sender({ userId: String(ownerId), role: 'owner', type: 'application_new', templateType: TEMPLATE, data });
+  const r = await sender({ userId: String(ownerId), role: 'owner', type: 'application_new', templateType: TEMPLATE, data, ...(replyTo ? { replyTo } : {}) });
   return r && r.sent ? { sent: true } : { sent: false, reason: (r && r.reason) || 'not_sent' };
 }
 
@@ -248,6 +285,6 @@ const startApplicationEmailScheduler = (opts = {}) => {
 const stopApplicationEmailScheduler = () => { if (timer) { clearInterval(timer); timer = null; } };
 
 module.exports = {
-  TEMPLATE, DAY_MS, MAX_CARDS, enabled, onApplicationCreated, runDigest, sendFor, cardsFor,
+  conversationFor2511, TEMPLATE, DAY_MS, MAX_CARDS, enabled, onApplicationCreated, runDigest, sendFor, cardsFor,
   startApplicationEmailScheduler, stopApplicationEmailScheduler,
 };

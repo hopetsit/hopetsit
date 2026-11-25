@@ -1102,7 +1102,7 @@ const resolveRecipientLocale = async (role, userId) => {
   return resolveLocale(appLocale || user.language);
 };
 
-const sendEmailOnly = async ({ userId, role, type, templateType = null, data = {} } = {}) => {
+const sendEmailOnly = async ({ userId, role, type, templateType = null, data = {}, replyTo: replyToOverride = '' } = {}) => {
   if (!userId || !role || !type) return { sent: false, reason: 'bad_args' };
   const prepared = await prepareNotification({ userId, role, type, rawData: data || {}, templateType });
   if (!prepared) return { sent: false, reason: 'unresolved' };
@@ -1116,7 +1116,8 @@ const sendEmailOnly = async ({ userId, role, type, templateType = null, data = {
   // l'expéditeur affiché est « Daniel de HoPetSit ». Réglables sur Render sans republier :
   // CANDIDATES_REPLY_TO / CANDIDATES_FROM_NAME ('off' = ancien comportement).
   const envOr = (k, d) => { const v = process.env[k]; if (v === undefined) return d; return /^(off|none|)$/i.test(v.trim()) ? '' : v.trim(); };
-  const replyTo = envOr('CANDIDATES_REPLY_TO', 'contact@hopetsit.com');
+  // 2511c — Reply-To signé (réponse → conversation avec le candidat) fourni par applicationEmail2610 : il prime.
+  const replyTo = (replyToOverride && /^[^\s@]+@[^\s@]+$/.test(String(replyToOverride))) ? String(replyToOverride) : envOr('CANDIDATES_REPLY_TO', 'contact@hopetsit.com');
   const fromName = envOr('CANDIDATES_FROM_NAME', 'Daniel de HoPetSit');
   await sendEmail(to, prepared.emailSubject || prepared.title, prepared.emailText, prepared.emailBody, {
     ...(replyTo ? { replyTo } : {}),
