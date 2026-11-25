@@ -701,7 +701,8 @@ class SendRequestController extends GetxController {
       if (basePrice <= 0) {
         CustomSnackbar.showError(
           title: 'common_error'.tr,
-          message: 'request_sitter_pricing_error'.tr,
+          // 646 — ici c'est le PROPRIÉTAIRE qui lit : ce n'est pas son tarif.
+          message: 'pam646_owner_no_rate'.tr,
         );
         return;
       }

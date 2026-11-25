@@ -56,6 +56,15 @@ class PetPostCard extends StatelessWidget {
   /// displayed right above the action buttons.
   final PostPriceEstimate? priceEstimate;
 
+  /// 646 (PAM, 25/11/2026) — quand il n'y a PAS de gain à afficher parce que
+  /// le prestataire n'a pas le tarif qu'il faut : une phrase simple à la place
+  /// (« Ajoute ton prix par jour pour voir ton gain. »), plus jamais un gain
+  /// inventé. [priceHintTitle] : « 💶 Ton gain », ou « Tarif à venir » une
+  /// fois la candidature envoyée. Un appui ouvre Mes tarifs ([onPriceHintTap]).
+  final String? priceHint;
+  final String? priceHintTitle;
+  final VoidCallback? onPriceHintTap;
+
   /// v16.3h — role of the viewer ('walker' | 'sitter' | null). Controls the
   /// accent color of the price block (green for walker, blue for sitter).
   final String? viewerRole;
@@ -165,6 +174,9 @@ class PetPostCard extends StatelessWidget {
     this.onBlockUser,
     this.onReportPost,
     this.priceEstimate,
+    this.priceHint,
+    this.priceHintTitle,
+    this.onPriceHintTap,
     this.viewerRole,
     this.isReserved = false,
     this.ownerViewOfOwnPost = false,
@@ -649,6 +661,11 @@ class PetPostCard extends StatelessWidget {
                   if (priceEstimate != null && !priceEstimate!.isZero) ...[
                     SizedBox(height: 10.h),
                     _buildPriceBlock(context, priceEstimate!),
+                  ] else if ((priceHint ?? '').trim().isNotEmpty) ...[
+                    // 646 — pas de tarif pour ce service : la phrase qui dit
+                    // quoi faire, à la place du gain.
+                    SizedBox(height: 10.h),
+                    _buildPriceHint646(context),
                   ],
                   // v569 — « Voir les animaux » devient un secondaire pleine
                   // largeur ; LE bouton principal du prestataire vit
@@ -2063,6 +2080,86 @@ class PetPostCard extends StatelessWidget {
             maxLines: 3,
           ),
         ],
+      ),
+    );
+  }
+
+  /// 646 — « 💶 Ton gain — Ajoute ton prix par jour pour voir ton gain. »
+  /// + « Ajouter mon tarif › ». Tout le bloc est un bouton (≥ 48 px).
+  Widget _buildPriceHint646(BuildContext context) {
+    final accent = _accent;
+    final title = (priceHintTitle ?? '').trim().isNotEmpty
+        ? priceHintTitle!.trim()
+        : 'pam646_gain_title'.tr;
+    final block = Container(
+      key: const Key('rate646_price_hint'),
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 48),
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            accent.withValues(alpha: 0.10),
+            accent.withValues(alpha: 0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: accent.withValues(alpha: 0.25), width: 1.w),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InterText(
+            text: title,
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w800,
+            color: accent,
+            maxLines: 2,
+          ),
+          SizedBox(height: 6.h),
+          InterText(
+            text: priceHint!.trim(),
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary(context),
+            height: 1.35,
+            maxLines: 5,
+          ),
+          if (onPriceHintTap != null) ...[
+            SizedBox(height: 8.h),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: InterText(
+                    text: 'pam646_gain_cta'.tr,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w800,
+                    color: accent,
+                    maxLines: 2,
+                  ),
+                ),
+                SizedBox(width: 2.w),
+                Icon(Icons.chevron_right_rounded, size: 18.sp, color: accent),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+    if (onPriceHintTap == null) return block;
+    return Semantics(
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const Key('rate646_price_hint_tap'),
+          borderRadius: BorderRadius.circular(14.r),
+          onTap: onPriceHintTap,
+          child: block,
+        ),
       ),
     );
   }

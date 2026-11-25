@@ -57,6 +57,8 @@ PostPriceEstimate? estimatePostPrice({
   // l'utilise tel quel pour les balades de 30 min (et 60min idem).
   double? walkRate30,
   double? walkRate60,
+  // 646 (PAM, 25/11/2026) — tarif PAR VISITE du gardien (visite à domicile).
+  double visitRate = 0,
 }) {
   // v20.0.19 — soften the date requirement so the price block appears on
   // publications that don't carry a full end date. Most owners publish a
@@ -73,15 +75,60 @@ PostPriceEstimate? estimatePostPrice({
   if (end != null && end.isBefore(start)) {
     end = null; // bad data → fall back to 1-day default
   }
+  // 646 (ZOE) — fin RÉELLE de la demande (null = une seule date) : c'est elle
+  // qui compte les jours, comme le serveur (une seule date = 1 jour). La fin
+  // « par défaut » ci-dessous (+ 24 h) aurait compté 2 jours.
+  final DateTime? realEnd = end;
   end ??= start.add(const Duration(hours: 24));
 
   final role = userRole.toLowerCase();
   final services = post.serviceTypes.map((s) => s.toLowerCase()).toSet();
   final isWalkingPost = services.contains('dog_walking');
+  // 646 (PAM, 25/11/2026 — ordre de Daniel « plus jamais heure × 8 ») : le
+  // service PRINCIPAL de la demande est le premier de la liste, comme sur le
+  // serveur (`pricingEngine620.mainService`).
+  final main = mainService646(post);
 
   // ----- WALKER ---------------------------------------------------------
   if (role == 'walker' || (role != 'sitter' && isWalkingPost)) {
+    // 646 — un promeneur sur une GARDE : aucun gain affiché. Avant, la carte
+    // multipliait son tarif horaire par toutes les heures de la période
+    // (12 €/h × 48 h = « Vous recevez 576 € », mesuré par ZOE le 25/11).
+    if (main.isNotEmpty && main != 'dog_walking') return null;
     final duration = end.difference(start);
+    // 646 — balades sur PLUSIEURS jours : une balade par jour, comme le
+    // serveur (`quantityFor` : unité 'walk', quantité = jours). Avant : tarif
+    // horaire × toutes les heures entre le premier et le dernier jour.
+    final walkDays = calendarDays628(start, realEnd);
+    // 646 (ZOE, contrôle du 25/11) — EXACTEMENT la règle du serveur
+    // (`priceApplication` : durée = celle de la demande ; tarif = celui de
+    // cette durée ; quantité = une balade par jour). L'app ne connaît que les
+    // tarifs 30 et 60 min : pour une autre durée, ou sans tarif pour la durée
+    // demandée, le serveur prend un autre palier que l'app ne peut pas
+    // deviner → AUCUN gain affiché plutôt qu'un chiffre faux (avant : tarif
+    // horaire au prorata, ex. 24 € affichés pour 12 € versés).
+    final int askedMinutes = post.walkDurationMinutes ?? 0;
+    if (walkDays > 1 || askedMinutes > 0) {
+      double perWalk = 0;
+      if (askedMinutes == 30 && walkRate30 != null && walkRate30 > 0) {
+        perWalk = _round2(walkRate30);
+      } else if (askedMinutes == 60 && walkRate60 != null && walkRate60 > 0) {
+        perWalk = _round2(walkRate60);
+      }
+      if (perWalk <= 0) return null;
+      final double brut = _round2(perWalk * walkDays);
+      final double commission = _round2(brut * commissionRate);
+      return PostPriceEstimate(
+        brut: _round2(brut + commission),
+        net: brut,
+        commission: commission,
+        currency: currency,
+        breakdown: walkDays == 1
+            ? '$askedMinutes min × ${_money(perWalk, currency)}'
+            : '${'price_days_n'.tr.replaceAll('{n}', '$walkDays')} × ${_money(perWalk, currency)}',
+        unit: 'walk',
+      );
+    }
     // v23.1 part 114 — pour les balades EXACTEMENT 30 ou 60 min, on
     // privilégie le tarif explicite du walker (walkRate30 / walkRate60)
     // au lieu de multiplier hourlyRate × hours. Ça matche le comportement
@@ -141,194 +188,84 @@ PostPriceEstimate? estimatePostPrice({
   // `dayCount`) : jours CALENDAIRES couverts, fin − début + 1 en UTC, ≥ 1.
   // Avant : ceil(minutes / 1440) → une garde du 12/11 9 h au 14/11 9 h
   // comptait 2 jours alors que le serveur en facture 3.
-  final totalMinutes = end.difference(start).inMinutes;
-  final int days = calendarDays628(start, end);
+  final int days = calendarDays628(start, realEnd);
 
-  // v20.0.19 — CRITICAL : pour la GARDERIE (day_care), la règle métier est
-  // "1 jour = 1 × dailyRate" quelle que soit la plage horaire. Avant ce
-  // fix, une garderie 10h05 → 20h06 (10h) tombait dans le tier "hourly"
-  // (puisque days < 7) → facturée 10h × (daily/8) = 12.52€ au lieu de
-  // 10€ (1 × dailyRate). Daniel a vu ça sur sa publication.
-  final isDayCare = services.contains('day_care') || services.contains('garderie');
-  if (isDayCare) {
-    // v20.0.19 — cast explicite en double (sinon Dart infère num à cause du
-    // fallback `0` int et le build échoue avec "num can't be assigned to double").
-    final double effectiveDailyForCare = dailyRate > 0
-        ? dailyRate
-        : (hourlyRate > 0
-            ? hourlyRate * 8
-            : (weeklyRate > 0
-                ? weeklyRate / 7
-                : (monthlyRate > 0 ? monthlyRate / 30 : 0.0)));
-    if (effectiveDailyForCare > 0) {
-      // v22.1 — Bug 13b : sanity floor. Si le tarif effectif est < 5€/jour
-      // c'est forcément une mauvaise config sitter (genre hourlyRate = 0.18€
-      // dérivé en daily 1.44€). On retourne null → affichage "À confirmer"
-      // côté UI, plutôt qu'un prix bidon comme €2.25 pour 3 jours de garderie.
-      if (effectiveDailyForCare < 5.0) {
-        return null;
-      }
-      final double brut = effectiveDailyForCare * days;
-      final double commission = brut * commissionRate;
-      return PostPriceEstimate(
-        brut: brut + commission, // owner pays brut + 20%
-        net: brut,               // sitter keeps full dailyRate × days
-        commission: commission,
-        currency: currency,
-        breakdown: days == 1
-            ? '${'price_days_one'.tr} × ${_money(effectiveDailyForCare, currency)}'
-            : '${'price_days_n'.tr.replaceAll('{n}', '$days')} × ${_money(effectiveDailyForCare, currency)}',
-        unit: 'day',
-      );
-    }
-  }
-
-  // Session v17.1 — derive missing rate tiers from whichever one the
-  // sitter has configured. Mirrors the backend logic in createBooking.js
-  // (L.364-372): most sitters only fill ONE rate via the edit UI, but the
-  // estimator used to require the specific tier matching the booking
-  // duration, so multi-day bookings returned null → no blue block.
-  //
-  // Derivation rules (identical to the backend):
-  //   hourlyRate × 8   → dailyRate fallback
-  //   dailyRate × 7    → weeklyRate fallback
-  //   weeklyRate × 4   → monthlyRate fallback
-  //   monthlyRate / 30 → dailyRate fallback (cross-direction)
-  //   monthlyRate / 4  → weeklyRate fallback
-  double effectiveHourly = hourlyRate;
-  double effectiveDaily = dailyRate;
-  double effectiveWeekly = weeklyRate;
-  double effectiveMonthly = monthlyRate;
-
-  if (effectiveDaily <= 0) {
-    if (effectiveHourly > 0) {
-      effectiveDaily = effectiveHourly * 8;
-    } else if (effectiveWeekly > 0) {
-      effectiveDaily = effectiveWeekly / 7;
-    } else if (effectiveMonthly > 0) {
-      effectiveDaily = effectiveMonthly / 30;
-    }
-  }
-  if (effectiveWeekly <= 0) {
-    if (effectiveDaily > 0) {
-      effectiveWeekly = effectiveDaily * 7;
-    } else if (effectiveMonthly > 0) {
-      effectiveWeekly = effectiveMonthly / 4;
-    }
-  }
-  if (effectiveMonthly <= 0) {
-    if (effectiveWeekly > 0) {
-      effectiveMonthly = effectiveWeekly * 4;
-    } else if (effectiveDaily > 0) {
-      effectiveMonthly = effectiveDaily * 30;
-    }
-  }
-  // v18.3 — also derive hourly (backend expects hourly for < 7 day bookings).
-  // Convention: 1 day = 8 billable hours.
-  if (effectiveHourly <= 0 && effectiveDaily > 0) {
-    effectiveHourly = effectiveDaily / 8;
-  }
-
-  // Session v18.3 — align with backend tierPricing.calculateTierBasePrice:
-  //   - ≥ 30 days AND monthlyRate > 0 → monthly (with partial days pro-rated)
-  //   - ≥  7 days AND weeklyRate  > 0 → weekly  (with partial days pro-rated)
-  //   - else                          → HOURLY × total hours (not days × daily)
-  //
-  // Why the change: a "Day Care" booking of 1h40 used to show "1 jour × €7.14"
-  // on the sitter side (estimator rule) while the owner got charged 1.67h ×
-  // €0.90 = €1.49 by the backend (hourly rule). Now both sides use the same
-  // hourly math for sub-week durations.
-  if (days >= 30 && effectiveMonthly > 0) {
-    final fullMonths = (days ~/ 30);
-    final remDays = days % 30;
-    final dailyFromMonth = effectiveMonthly / 30;
-    final brut = fullMonths * effectiveMonthly + remDays * dailyFromMonth;
-    final commission = brut * commissionRate;
-    final label = fullMonths + (remDays > 0 ? 1 : 0) == 1
-        ? 'price_month_one'.tr
-        : 'price_days_n'.tr.replaceAll('{n}', '$days');
-    // v20.0.11 — commission ADDED on top for owner. Provider receives full rate.
+  // 646 — VISITE À DOMICILE : visites × tarif par visite, comme le serveur
+  // (jours × visites par jour). Sans tarif par visite : aucun gain (la carte
+  // invite à l'ajouter). Avant : calcul à la journée, donc un gain faux.
+  if (main == 'home_visit') {
+    if (visitRate <= 0) return null;
+    final int perDay = const <int>[1, 2].contains(post.visitsPerDay) // 1 ou 2, comme le serveur
+        ? post.visitsPerDay!
+        : 1;
+    final int visits = days * perDay;
+    final double brut = _round2(_round2(visitRate) * visits);
+    final double commission = _round2(brut * commissionRate);
     return PostPriceEstimate(
-      brut: brut + commission,
+      brut: _round2(brut + commission),
       net: brut,
       commission: commission,
       currency: currency,
-      breakdown: '$label × ${_money(effectiveMonthly, currency)}',
-      unit: 'month',
+      breakdown: '$visits × ${_money(visitRate, currency)}',
+      unit: 'visit',
     );
   }
-  if (days >= 7 && effectiveWeekly > 0) {
-    final fullWeeks = (days ~/ 7);
-    final remDays = days % 7;
-    final dailyFromWeek = effectiveWeekly / 7;
-    final brut = fullWeeks * effectiveWeekly + remDays * dailyFromWeek;
-    final commission = brut * commissionRate;
-    final label = fullWeeks + (remDays > 0 ? 1 : 0) == 1
-        ? 'price_week_one'.tr
-        : 'price_days_n'.tr.replaceAll('{n}', '$days');
-    // v20.0.11 — same fix : provider = brut, owner = brut + commission.
-    return PostPriceEstimate(
-      brut: brut + commission,
-      net: brut,
-      commission: commission,
-      currency: currency,
-      breakdown: '$label × ${_money(effectiveWeekly, currency)}',
-      unit: 'week',
-    );
-  }
-  // 628 (ZOE, 29/10/2026) — < 7 jours : JOURS × tarif jour (nuits = jours − 1
-  // chez le gardien), comme le serveur depuis 620 (pricingEngine620 : unité
-  // 'day' / 'night' pour house_sitting, pet_sitting, day_care). Mesuré au
-  // simulateur : une garde de 3 jours (tarif 20 €/j, 10 €/h) affichait au
-  // gardien « Vous recevez 480 € » (48 h × 10 €) alors que le serveur lui
-  // verse 60 € et facture 72 € au propriétaire.
-  if (effectiveDaily > 0) {
-    final sittersHome = (services.contains('house_sitting') ||
-            services.contains('pet_sitting')) &&
+
+  // 646 (ZOE, contrôle du 25/11/2026 — ordre de Daniel : « le gain affiché
+  // doit être EXACTEMENT celui du serveur ») — MÊME règle que le serveur
+  // (`pricingEngine620` : `rateFor` + `quantityFor` + `dailyTotalWithWeekly`),
+  // pour TOUTES les prestations à la journée (garde, garderie, séjour) :
+  //   · tarif d'une unité = tarif jour, sinon semaine ÷ 7, sinon mois ÷ 30,
+  //     arrondi au centime ;
+  //   · unités = jours calendaires (nuits = jours − 1 chez le gardien) ;
+  //   · total = unités × tarif ; à partir de 7 unités, si le gardien a un
+  //     tarif semaine d'au moins 3 × son tarif jour ET que c'est moins cher :
+  //     semaines entières × tarif semaine + unités restantes × tarif jour.
+  // Le tarif au MOIS ne sert jamais de palier (le serveur ne l'applique pas).
+  // Avant : paliers « mois » et « semaine » propres à l'app → 30 jours à
+  // 20 €/j, 120 €/sem, 400 €/mois affichaient 400 € quand le serveur verse
+  // 520 € ; 7 jours à 50 €/j et 100 €/sem affichaient 100 € au lieu de 350 €.
+  // Un gardien sur une demande dont le service principal est une BALADE :
+  // aucun gain (le serveur n'a pas de tarif à lui appliquer).
+  if (main == 'dog_walking') return null;
+  final double unitRate = _round2(dailyRate > 0
+      ? dailyRate
+      : (weeklyRate > 0
+          ? weeklyRate / 7
+          : (monthlyRate > 0 ? monthlyRate / 30 : 0.0)));
+  if (unitRate > 0) {
+    final bool sittersHome = (main == 'house_sitting' || main == 'pet_sitting') &&
         (post.houseSittingVenue == 'sitters_home' ||
             post.serviceLocation == 'at_sitter');
     final int units = sittersHome ? math.max(1, days - 1) : days;
-    final double brut = effectiveDaily * units;
-    final double commission = brut * commissionRate;
+    double brut = _round2(unitRate * units);
+    String breakdown = units == 1
+        ? '${'price_days_one'.tr} × ${_money(unitRate, currency)}'
+        : '${'price_days_n'.tr.replaceAll('{n}', '$units')} × ${_money(unitRate, currency)}';
+    if (units >= 7 && weeklyRate > 0 && weeklyRate >= 3 * unitRate) {
+      final int weeks = units ~/ 7;
+      final int rest = units - weeks * 7;
+      final double alt = _round2(weeks * weeklyRate + rest * unitRate);
+      if (alt + 0.001 < brut) {
+        brut = alt;
+        breakdown =
+            '${'price_days_n'.tr.replaceAll('{n}', '$units')} · ${_money(_round2(weeklyRate), currency)} / ${'price_week_one'.tr}';
+      }
+    }
+    final double commission = _round2(brut * commissionRate);
     return PostPriceEstimate(
-      brut: brut + commission,
+      brut: _round2(brut + commission),
       net: brut,
       commission: commission,
       currency: currency,
-      breakdown: units == 1
-          ? '${'price_days_one'.tr} × ${_money(effectiveDaily, currency)}'
-          : '${'price_days_n'.tr.replaceAll('{n}', '$units')} × ${_money(effectiveDaily, currency)}',
+      breakdown: breakdown,
       unit: sittersHome ? 'night' : 'day',
     );
   }
-  // Aucun tarif jour dérivable (cas théorique : tout à 0 sauf l'horaire < 1 €).
-  if (effectiveHourly > 0) {
-    // v20.0.16 — sanity check : si le tarif horaire dérivé est absurde
-    // (< 1€/h) c'est que le sitter n'a pas configuré ses tarifs proprement.
-    // On retourne null pour afficher "À confirmer" plutôt qu'un chiffre
-    // bidon (ex. "1,08€ pour 5h" comme vu dans le bug report day_care).
-    if (effectiveHourly < 1.0) {
-      return null;
-    }
-    final hoursRaw = math.max(totalMinutes / 60.0, 1.0);
-    final hours = (hoursRaw * 100).round() / 100;
-    final brut = effectiveHourly * hours;
-    final commission = brut * commissionRate;
-    final hoursLabel = hours == hours.roundToDouble()
-        ? '${hours.toInt()}h'
-        : '${hours.toStringAsFixed(2)}h';
-    // v20.0.11 — provider net = brut, owner pays brut + 20% commission.
-    return PostPriceEstimate(
-      brut: brut + commission,
-      net: brut,
-      commission: commission,
-      currency: currency,
-      breakdown: '$hoursLabel × ${_money(effectiveHourly, currency)}',
-      unit: 'hour',
-    );
-  }
-
-  // No usable rate at all — sitter has configured nothing. Hide the block.
+  // 646 — aucun tarif à la journée (ni semaine, ni mois) : PAS de gain. Le
+  // tarif à l'heure seul ne sert plus à inventer une journée (ni « × 8 », ni
+  // « × toutes les heures de la période »). La carte affiche à la place une
+  // invitation à ajouter son prix par jour (`gainHintKey646`).
   return null;
 }
 
@@ -345,4 +282,58 @@ int calendarDays628(DateTime start, DateTime? end) {
   final ed = DateTime.utc(e.year, e.month, e.day);
   if (ed.isBefore(sd)) return 1;
   return ed.difference(sd).inDays + 1;
+}
+
+/// Arrondi au centime, comme `round2` du serveur.
+double _round2(double v) => (v * 100).round() / 100;
+
+/// 646 — service PRINCIPAL d'une demande = le premier de la liste (règle du
+/// serveur). Normalisé : minuscules, `_`. '' quand la demande n'en a pas.
+String mainService646(PostModel post) {
+  for (final raw in post.serviceTypes) {
+    final v = raw.trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
+    if (v.isEmpty) continue;
+    if (v == 'homevisit') return 'home_visit';
+    if (v == 'walking' || v == 'promenade') return 'dog_walking';
+    if (v == 'garderie' || v == 'daycare') return 'day_care';
+    return v;
+  }
+  return '';
+}
+
+/// 646 — tarif qui MANQUE au prestataire pour chiffrer cette demande :
+/// 'day' (prix par jour), 'visit' (prix par visite), 'walk' (prix de balade),
+/// ou null quand il a ce qu'il faut (ou que la demande n'est pas pour lui).
+/// Pure : sert à la carte (phrase à la place du gain) et aux tests.
+String? missingRate646({
+  required PostModel post,
+  required String userRole,
+  double dailyRate = 0,
+  double weeklyRate = 0,
+  double monthlyRate = 0,
+  double visitRate = 0,
+  bool hasWalkRate = false,
+}) {
+  final role = userRole.toLowerCase();
+  final main = mainService646(post);
+  if (role == 'walker') {
+    if (main.isNotEmpty && main != 'dog_walking') return null;
+    return hasWalkRate ? null : 'walk';
+  }
+  if (role != 'sitter') return null;
+  if (main == 'dog_walking') return null;
+  if (main == 'home_visit') return visitRate > 0 ? null : 'visit';
+  return (dailyRate > 0 || weeklyRate > 0 || monthlyRate > 0) ? null : 'day';
+}
+
+/// 646 — clé i18n de la phrase affichée À LA PLACE du gain.
+String gainHintKey646(String missing) {
+  switch (missing) {
+    case 'visit':
+      return 'pam646_gain_add_visit';
+    case 'walk':
+      return 'pam646_gain_add_walk';
+    default:
+      return 'pam646_gain_add_day';
+  }
 }

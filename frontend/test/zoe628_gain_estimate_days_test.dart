@@ -54,15 +54,19 @@ void main() {
     expect(est.unit, 'day');
   });
 
-  test('sans tarif jour : dérivé de l horaire × 8 (règle serveur), 3 j → 240 €', () {
-    final est = _est(_post(services: ['house_sitting'], start: DateTime.utc(2026, 11, 12), end: DateTime.utc(2026, 11, 14)), hourly: 10, daily: 0)!;
-    expect(est.net, 240);
-    expect(est.unit, 'day');
+  // 646 (PAM, 25/11/2026) — le serveur ne calcule plus jamais « heure × 8 »
+  // (candidature en « tarif à venir ») : l'estimateur ne doit plus afficher
+  // 240 €. Ce test affirmait l'ancienne règle ; il affirme la nouvelle.
+  test('sans tarif jour : plus de « horaire × 8 » → aucun gain (avant : 240 €)', () {
+    final est = _est(_post(services: ['house_sitting'], start: DateTime.utc(2026, 11, 12), end: DateTime.utc(2026, 11, 14)), hourly: 10, daily: 0);
+    expect(est, isNull);
   });
 
-  test('≥ 7 jours : palier semaine inchangé', () {
-    final est = _est(_post(services: ['house_sitting'], start: DateTime.utc(2026, 11, 1), end: DateTime.utc(2026, 11, 7)), weekly: 120)!;
-    expect(est.unit, 'week');
-    expect(est.net, 120);
+  // 646 (ZOE, 25/11/2026) — paliers alignés sur le serveur (pricingEngine620.dailyTotalWithWeekly).
+  test('7 jours, tarif semaine seul 120 € : tarif jour = 120 ÷ 7 = 17,14 € ; semaine (120) < 7 × 17,14 (119,98) non → 119,98 €', () {
+    final est = _est(_post(services: ['house_sitting'], start: DateTime.utc(2026, 11, 1), end: DateTime.utc(2026, 11, 7)), daily: 0, weekly: 120)!;
+    expect(est.unit, 'day');
+    expect(est.net, 119.98);
+    expect(est.brut, 143.98);
   });
 }

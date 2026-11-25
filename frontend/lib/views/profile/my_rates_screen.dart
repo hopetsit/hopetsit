@@ -15,6 +15,7 @@ import 'package:hopetsit/controllers/edit_sitter_profile_controller.dart';
 import 'package:hopetsit/controllers/edit_walker_profile_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/rate646.dart';
 import 'package:hopetsit/views/profile/widgets/edit_profile_widgets.dart';
 import 'package:hopetsit/views/profile/widgets/profile_ui_kit.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
@@ -23,7 +24,12 @@ import 'package:hopetsit/widgets/app_text.dart';
 class MyRatesScreen extends StatelessWidget {
   final String role; // 'sitter' | 'walker'
 
-  const MyRatesScreen({super.key, required this.role});
+  /// 646 — rubrique à montrer en arrivant : 'day' (Garde — par jour ou par
+  /// nuit), 'visit', 'walk', 'auto' (celle qui est vide ; en venant d'une
+  /// notification) ou '' (ouverture normale depuis le profil : rien ne bouge).
+  final String focus;
+
+  const MyRatesScreen({super.key, required this.role, this.focus = ''});
 
   Color get _accent => role == 'walker'
       ? const Color(0xFF16A34A)
@@ -32,9 +38,9 @@ class MyRatesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (role == 'walker') {
-      return _WalkerRates(accent: _accent);
+      return _WalkerRates(accent: _accent, focus: focus);
     }
-    return _SitterRates(accent: _accent);
+    return _SitterRates(accent: _accent, focus: focus);
   }
 }
 
@@ -103,9 +109,11 @@ class _RatesShell extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w,
                   12.h + appBottomInsetInsideSafeArea(context)),
               child: Obx(() => ProfileSaveBar(
+                    // 646 — « Enregistrer mes tarifs » (avant : « Mettre à
+                    // jour le profil », qui ne disait pas ce qu'on enregistre).
                     label: isLoading.value
-                        ? 'edit_profile_button_updating'.tr
-                        : 'edit_profile_button'.tr,
+                        ? 'pam646_rates_saving'.tr
+                        : 'pam646_rates_save'.tr,
                     accent: accent,
                     loading: isLoading.value,
                     icon: Icons.check_rounded,
@@ -119,13 +127,38 @@ class _RatesShell extends StatelessWidget {
   }
 }
 
-class _WalkerRates extends StatelessWidget {
+class _WalkerRates extends StatefulWidget {
   final Color accent;
-  const _WalkerRates({required this.accent});
+  final String focus;
+  const _WalkerRates({required this.accent, this.focus = ''});
+
+  @override
+  State<_WalkerRates> createState() => _WalkerRatesState();
+}
+
+class _WalkerRatesState extends State<_WalkerRates> with _RatesFocus646<_WalkerRates> {
+  late final EditWalkerProfileController controller;
+  Color get accent => widget.accent;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(EditWalkerProfileController());
+    startFocus646(
+      wanted: widget.focus,
+      isFetching: controller.isFetching,
+      loadError: controller.loadError,
+      resolveAuto: () => autoFocus646(
+        role: 'walker',
+        hasWalkRate: _amount646(controller.halfHourRateController.text) > 0 ||
+            _amount646(controller.hourlyRateController.text) > 0 ||
+            _amount646(controller.twoHourRateController.text) > 0,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(EditWalkerProfileController());
     return _RatesShell(
       accent: accent,
       isFetching: controller.isFetching,
@@ -160,10 +193,12 @@ class _WalkerRates extends StatelessWidget {
           icon: Icons.directions_walk_rounded,
           accent: accent,
           children: [
+            if (focus646 == 'walk') _FocusBox646(key: focusCardKey646, accent: accent, focus: 'walk'),
             Obx(() => _RateField(
                   label: 'walker_rate_30min_label'.tr,
                   hint: 'walker_rate_hint_8'.tr,
                   controller: controller.halfHourRateController,
+                  focusNode: focus646 == 'walk' ? focusNode646 : null,
                   accent: accent,
                   suffix: CurrencyHelper.symbol(controller.selectedCurrency.value),
                   errorText: 'walker_rate_invalid'.tr,
@@ -211,13 +246,39 @@ class _WalkerRates extends StatelessWidget {
   }
 }
 
-class _SitterRates extends StatelessWidget {
+class _SitterRates extends StatefulWidget {
   final Color accent;
-  const _SitterRates({required this.accent});
+  final String focus;
+  const _SitterRates({required this.accent, this.focus = ''});
+
+  @override
+  State<_SitterRates> createState() => _SitterRatesState();
+}
+
+class _SitterRatesState extends State<_SitterRates> with _RatesFocus646<_SitterRates> {
+  late final EditSitterProfileController controller;
+  Color get accent => widget.accent;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(EditSitterProfileController());
+    startFocus646(
+      wanted: widget.focus,
+      isFetching: controller.isFetching,
+      loadError: controller.loadError,
+      resolveAuto: () => autoFocus646(
+        role: 'sitter',
+        dailyRate: _amount646(controller.dailyRateController.text),
+        weeklyRate: _amount646(controller.weeklyRateController.text),
+        monthlyRate: _amount646(controller.monthlyRateController.text),
+        visitRate: _amount646(controller.visitRateController.text),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(EditSitterProfileController());
     return _RatesShell(
       accent: accent,
       isFetching: controller.isFetching,
@@ -252,10 +313,12 @@ class _SitterRates extends StatelessWidget {
           icon: Icons.meeting_room_rounded,
           accent: accent,
           children: [
+            if (focus646 == 'visit') _FocusBox646(key: focusCardKey646, accent: accent, focus: 'visit'),
             Obx(() => _RateField(
                   label: 'dates620_rates_visit_label'.tr,
                   hint: '0.00',
                   controller: controller.visitRateController,
+                  focusNode: focus646 == 'visit' ? focusNode646 : null,
                   accent: accent,
                   suffix: CurrencyHelper.symbol(controller.selectedCurrency.value),
                   errorText: 'walker_rate_invalid'.tr,
@@ -273,19 +336,26 @@ class _SitterRates extends StatelessWidget {
           ],
         ),
         ProfileFormCard(
+          key: const Key('rate646_sitting_card'),
           title: 'dates620_rates_sitting_title'.tr,
           icon: Icons.home_rounded,
           accent: accent,
           children: [
-            ProfileInfoBanner(
-              icon: Icons.info_outline_rounded,
-              text: 'dates620_rates_sitting_hint'.tr,
-              accent: accent,
-            ),
+            // 646 — en venant de la notification « il manque ton tarif » :
+            // UN encadré fixe qui dit quoi faire, à la place des explications.
+            if (focus646 == 'day')
+              _FocusBox646(key: focusCardKey646, accent: accent, focus: 'day')
+            else
+              ProfileInfoBanner(
+                icon: Icons.info_outline_rounded,
+                text: 'dates620_rates_sitting_hint'.tr,
+                accent: accent,
+              ),
             Obx(() => _RateField(
                   label: 'sitter_detail_daily_rate_label'.tr,
                   hint: '0.00',
                   controller: controller.dailyRateController,
+                  focusNode: focus646 == 'day' ? focusNode646 : null,
                   accent: accent,
                   suffix: CurrencyHelper.symbol(controller.selectedCurrency.value),
                   errorText: 'walker_rate_invalid'.tr,
@@ -334,6 +404,101 @@ class _SitterRates extends StatelessWidget {
 }
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
+
+/// 646 — montant saisi dans un champ de tarif (« 25,50 » → 25.5 ; vide → 0).
+double _amount646(String text) =>
+    double.tryParse(text.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
+
+/// 646 (PAM, 25/11/2026) — arrivée depuis la notification « il manque ton
+/// tarif » (ou depuis la feuille après l'envoi) : une fois les tarifs chargés,
+/// l'écran DESCEND sur la bonne rubrique et pose le curseur dans le champ.
+/// ZOE, 25/11 : l'écran s'ouvrait sur « Visite à domicile », la rubrique
+/// « Garde — par jour ou par nuit » était plus bas → risque d'écrire dans la
+/// mauvaise case.
+mixin _RatesFocus646<T extends StatefulWidget> on State<T> {
+  final GlobalKey focusCardKey646 = GlobalKey(debugLabel: 'rate646_focus_card');
+  final FocusNode focusNode646 = FocusNode(debugLabel: 'rate646_focus_field');
+
+  /// Rubrique réellement pointée : '' | 'day' | 'visit' | 'walk'.
+  String focus646 = '';
+  Worker? _worker646;
+  bool _done646 = false;
+
+  void startFocus646({
+    required String wanted,
+    required RxBool isFetching,
+    required RxString loadError,
+    required String Function() resolveAuto,
+  }) {
+    if (wanted.isEmpty) return;
+    void tryApply() {
+      if (_done646 || !mounted) return;
+      if (isFetching.value || loadError.value.isNotEmpty) return;
+      _done646 = true;
+      final String target = wanted == 'auto' ? resolveAuto() : wanted;
+      if (target.isEmpty) return;
+      setState(() => focus646 = target);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final BuildContext? card = focusCardKey646.currentContext;
+        if (card != null) {
+          try {
+            await Scrollable.ensureVisible(
+              card,
+              alignment: 0.14, // le titre de la rubrique reste visible au-dessus
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOutCubic,
+            );
+          } catch (_) {/* pas de zone défilante : rien à faire */}
+        }
+        if (mounted) focusNode646.requestFocus();
+      });
+    }
+
+    _worker646 = ever<bool>(isFetching, (_) => tryApply());
+    // Le chargement démarre dans le `onInit` du contrôleur : on regarde une
+    // première fois après la première image (contrôleur déjà chargé).
+    WidgetsBinding.instance.addPostFrameCallback((_) => tryApply());
+  }
+
+  @override
+  void dispose() {
+    _worker646?.dispose();
+    focusNode646.dispose();
+    super.dispose();
+  }
+}
+
+/// 646 — encadré FIXE (pas un bandeau de 2 secondes) : « Écris ici ton prix
+/// pour une journée, puis enregistre. »
+class _FocusBox646 extends StatelessWidget {
+  final Color accent;
+  final String focus;
+  const _FocusBox646({super.key, required this.accent, required this.focus});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('rate646_box'),
+      width: double.infinity,
+      margin: EdgeInsets.only(bottom: 4.h),
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: accent, width: 1.6),
+      ),
+      child: InterText(
+        text: ratesBoxKey646(focus).tr,
+        fontSize: 14.sp,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary(context),
+        height: 1.35,
+        maxLines: 4,
+      ),
+    );
+  }
+}
 
 /// Carte « Devise » : liste centrale (won ₩ et yen ¥ inclus).
 class _CurrencyCard extends StatelessWidget {
@@ -396,6 +561,7 @@ class _RateField extends StatelessWidget {
   final Color accent;
   final String errorText;
   final String suffix;
+  final FocusNode? focusNode; // 646 — curseur posé en venant de la notification
 
   const _RateField({
     required this.label,
@@ -404,6 +570,7 @@ class _RateField extends StatelessWidget {
     required this.accent,
     required this.errorText,
     required this.suffix,
+    this.focusNode,
   });
 
   @override
@@ -412,6 +579,7 @@ class _RateField extends StatelessWidget {
       label: label,
       hint: hint,
       controller: controller,
+      focusNode: focusNode,
       accent: accent,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [

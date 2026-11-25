@@ -422,7 +422,7 @@ class _NotificationCardState extends State<NotificationCard> {
                               fontWeight:
                                   unread ? FontWeight.w700 : FontWeight.w600,
                               color: AppColors.textPrimary(context),
-                              maxLines: 2,
+                              maxLines: 3, // 646 — titre long lisible en entier
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -442,7 +442,9 @@ class _NotificationCardState extends State<NotificationCard> {
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w400,
                         color: AppColors.textSecondary(context),
-                        maxLines: 2,
+                        // 646 — 3 lignes : « …écris ton prix par jour » était
+                        // coupé à 2 lignes (ZOE, 25/11).
+                        maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
                       // v23.1.183 — Boutons Accepter/Refuser inline pour

@@ -33,12 +33,22 @@ const Map<String, String> _kByCode = <String, String>{
   'TOO_FAR': 'bob617_err_too_far',
   'CURRENCY_MISMATCH': 'bob617_err_currency',
   'DUPLICATE_REQUEST': 'bob617_err_duplicate',
+  // 646 (PAM, 25/11/2026) — refus « il manque ton tarif » : avant, la phrase
+  // anglaise du serveur s'affichait telle quelle. Chaque clé dit quoi faire et
+  // où (Profil › Mes tarifs).
+  'RATE_REQUIRED': 'pam646_need_any',
+  'VISIT_RATE_REQUIRED': 'pam646_need_visit',
 };
 
 /// Fragments de messages serveur → clé i18n. Comparés sur une forme
 /// normalisée (minuscules, ponctuation retirée), donc insensibles au point
 /// final et à la casse.
 const List<List<String>> _kByKeyword = <List<String>>[
+  // 646 — tarifs manquants (messages serveur sans `code`).
+  ['at least one walk rate', 'pam646_need_walk'],
+  ['set your price per home visit', 'pam646_need_visit'],
+  ['set your price for this service', 'pam646_need_any'],
+  ['at least one rate', 'pam646_need_any'],
   ['email must be a non empty string', 'fixes576_err_email_required'],
   ['email is required', 'fixes576_err_email_required'],
   ['already associated with another account', 'fixes576_err_email_taken'],

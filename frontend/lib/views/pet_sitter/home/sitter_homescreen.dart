@@ -25,6 +25,9 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/bottom_inset.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/post_price_estimator.dart';
+import 'package:hopetsit/utils/rate646.dart';
+import 'package:hopetsit/services/propose_services_service.dart' show myVisitRate646;
+import 'package:hopetsit/views/shared/rate_sheet646.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/booking/widgets/booking_ui_kit.dart';
 import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
@@ -117,6 +120,13 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   String _providerCurrency = 'EUR';
   // 613 §9 (ZOE) — taux réel du prestataire connecté (15 % Top, 20 % sinon).
   double? _providerCommissionRate613;
+  // 646 (PAM, 25/11/2026) — tarif par visite, « tarifs chargés » (pour ne pas
+  // afficher « Ajoute ton prix » avant de savoir), et demandes où ma
+  // candidature est en « tarif à venir » (réponse du serveur).
+  double _providerVisitRate = 0.0;
+  bool _providerHasWalkRate = false;
+  bool _providerRatesLoaded = false;
+  final Set<String> _rateToComePostIds = <String>{};
 
   Worker? _ratesVersionWorker;
 
@@ -181,6 +191,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
           if (r.durationMinutes == 30 && halfHour == 0.0)
             halfHour = r.basePrice;
         }
+        final anyWalkRate = rates.any((r) => r.enabled && r.basePrice > 0);
         // Prefer hourly; if only half-hour exists, extrapolate x2 so the
         // estimator still has a value for jobs of 1h+.
         final derivedHourly = hourly > 0 ? hourly : halfHour * 2;
@@ -192,6 +203,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
           // (au lieu de proratiser depuis hourly).
           _providerWalkRate30 = halfHour;
           _providerWalkRate60 = hourly;
+          _providerHasWalkRate = anyWalkRate; // 646
+          _providerRatesLoaded = true; // 646
         });
       } else if (role == 'sitter') {
         final storage = GetStorage();
@@ -219,12 +232,17 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         double n(dynamic v) => v is num
             ? v.toDouble()
             : double.tryParse(v?.toString() ?? '') ?? 0.0;
+        // 646 (ZOE) — le profil public ne porte pas le tarif par visite.
+        final double visit646 = await myVisitRate646(sitterRepo,
+            fromProfile: n(sitterPayload['visitRate']));
         if (!mounted) return;
         setState(() {
           _providerHourlyRate = n(sitterPayload['hourlyRate']);
           _providerDailyRate = n(sitterPayload['dailyRate']);
           _providerWeeklyRate = n(sitterPayload['weeklyRate']);
           _providerMonthlyRate = n(sitterPayload['monthlyRate']);
+          _providerVisitRate = visit646; // 646
+          _providerRatesLoaded = true; // 646
           final cur =
               sitterPayload['currency']?.toString() ??
               sitterPayload['hourlyRateCurrency']?.toString();
@@ -613,12 +631,10 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
           : '';
       if (role != 'sitter' && role != 'walker') return null;
       // If rates haven't loaded yet, we simply skip — the block stays hidden.
-      final hasAnyRate =
-          _providerHourlyRate > 0 ||
-          _providerDailyRate > 0 ||
-          _providerWeeklyRate > 0 ||
-          _providerMonthlyRate > 0;
-      if (!hasAnyRate) return null;
+      // 646 — l'estimateur décide seul (il connaît aussi le tarif par visite) ;
+      // sans le bon tarif il rend null et la carte affiche la phrase
+      // « Ajoute ton prix par jour pour voir ton gain. » (_missingRateFor).
+      if (!_providerRatesLoaded) return null;
 
       return estimatePostPrice(
         post: post,
@@ -631,12 +647,28 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         // v23.1 part 114 — passe les tarifs exacts pour 30/60 min.
         walkRate30: _providerWalkRate30 > 0 ? _providerWalkRate30 : null,
         walkRate60: _providerWalkRate60 > 0 ? _providerWalkRate60 : null,
+        visitRate: _providerVisitRate, // 646 — visite à domicile
         commissionRate: _providerCommissionRate613 ?? 0.20,
       );
     } catch (e) {
       AppLogger.logDebug('estimateForPost failed: $e');
       return null;
     }
+  }
+
+  /// 646 — tarif qui me MANQUE pour chiffrer [post] : 'day' | 'visit' |
+  /// 'walk', ou null (j'ai ce qu'il faut, ou mes tarifs ne sont pas chargés).
+  String? _missingRateFor(PostModel post) {
+    if (!_providerRatesLoaded) return null;
+    return missingRate646(
+      post: post,
+      userRole: _isWalkerViewer ? 'walker' : 'sitter',
+      dailyRate: _providerDailyRate,
+      weeklyRate: _providerWeeklyRate,
+      monthlyRate: _providerMonthlyRate,
+      visitRate: _providerVisitRate,
+      hasWalkRate: _providerHasWalkRate,
+    );
   }
 
   List<PostModel> _sortFeedPosts(List<PostModel> posts) {
@@ -946,6 +978,10 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                         'pet_sitting',
                         'house_sitting',
                         'day_care',
+                        // 646 — les demandes « visite à domicile » aussi : le
+                        // gardien ne les voyait pas sur son accueil (ZOE,
+                        // 25/11), alors qu'il reçoit leur notification.
+                        'home_visit',
                       };
                       rolePrefiltered = uniquePosts.where((p) {
                         final types = p.serviceTypes
@@ -1211,6 +1247,12 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     final isCancelMode = pendingApplicationId != null;
 
     final priceEstimate = _estimateForPost(post);
+    // 646 — pas de gain inventé : sans le tarif qu'il faut, une phrase simple
+    // (et « Tarif à venir » une fois ma candidature partie sans prix).
+    final String? missingRate = priceEstimate == null ? _missingRateFor(post) : null;
+    final bool rateToCome = missingRate != null &&
+        isCancelMode &&
+        _rateToComePostIds.contains(post.id);
     final Widget card = Padding(
       padding: EdgeInsets.only(bottom: 16.h),
       child: PetPostCard(
@@ -1242,6 +1284,16 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         isNetworkImage: imageUrls.isNotEmpty,
         likeCount: post.likesCount,
         priceEstimate: priceEstimate,
+        priceHint: missingRate == null
+            ? null
+            : (rateToCome
+                ? 'pam646_stale_card'.tr
+                : gainHintKey646(missingRate).tr),
+        priceHintTitle: rateToCome ? 'dates620_stale_label'.tr : null,
+        onPriceHintTap: missingRate == null
+            ? null
+            : () => RateSheet646.openRates(
+                _isWalkerViewer ? 'walker' : 'sitter', missingRate),
         viewerRole: currentRole,
         // #107 — en-tête annonce cliquable côté
         // prestataire → profil propriétaire (lecture
@@ -1501,14 +1553,17 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       await PhotoNudge644.maybeShow(
           (postId ?? '').isNotEmpty ? postId! : requestKey, context: context);
       final sitterRepository = Get.find<SitterRepository>();
-      final basePrice = await _resolveProviderBasePrice(sitterRepository);
-      if (basePrice <= 0) {
-        CustomSnackbar.showError(
-          title: 'common_error'.tr,
-          message: 'request_sitter_pricing_error'.tr,
-        );
-        return;
-      }
+      // 646 (PAM, 25/11/2026 — ordre de Daniel) : l'app ne BLOQUE plus un
+      // prestataire sans tarif. Le serveur décide : garde à la journée sans
+      // prix par jour → candidature créée en « tarif à venir » ; sinon un
+      // refus clair (RATE_REQUIRED, VISIT_RATE_REQUIRED…) traduit plus bas.
+      // Avant : « Veuillez d'abord définir votre tarif horaire dans le
+      // profil. », et le nouveau parcours n'était jamais atteint (ZOE, 25/11).
+      // `basePrice` n'est qu'un champ historique : le serveur ne le lit pas
+      // (il prend les tarifs du profil) ; 1.0 quand je n'en ai aucun.
+      final resolvedBasePrice =
+          await _resolveProviderBasePrice(sitterRepository);
+      final basePrice = resolvedBasePrice > 0 ? resolvedBasePrice : 1.0;
       final normalizedService = serviceType
           .trim()
           .toLowerCase()
@@ -1548,8 +1603,16 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         endDate: endDate,
         timeSlot: timeSlot,
       );
+      // 646 — le serveur dit « tarif à venir » : candidature partie, sans prix.
+      final bool rateToCome = isRateToCome646(response);
       if (applicationId.isNotEmpty && mounted) {
         setState(() {
+          if (rateToCome) {
+            _rateToComePostIds.add(requestKey);
+            if (postId != null && postId.isNotEmpty) {
+              _rateToComePostIds.add(postId);
+            }
+          }
           _pendingApplicationIds[requestKey] = applicationId;
           _pendingApplicationIdsByFingerprint[fingerprint] = applicationId;
           // v17.1 — record the stable (postId → appId) mapping so reloads
@@ -1560,12 +1623,26 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         });
       }
 
-      CustomSnackbar.showSuccess(
-        title: 'common_success'.tr,
-        message: duplicatePrevented
-            ? (response['message']?.toString() ?? 'request_send_success'.tr)
-            : 'request_send_success'.tr,
-      );
+      if (rateToCome) {
+        // 646 — « Candidature envoyée 💶 — Il manque ton prix par jour… »
+        // + « Ajouter mon tarif » (ouvre Mes tarifs sur la bonne rubrique).
+        if (mounted) {
+          // Le bouton de la carte quitte « en cours » AVANT la feuille (sinon
+          // il affiche « Annulation… » derrière elle).
+          setState(() => _loadingStates[requestKey] = false);
+          await RateSheet646.showSent(
+            context: context,
+            role: _isWalkerViewer ? 'walker' : 'sitter',
+          );
+        }
+      } else {
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: duplicatePrevented
+              ? (response['message']?.toString() ?? 'request_send_success'.tr)
+              : 'request_send_success'.tr,
+        );
+      }
     } on ApiException catch (error) {
       // v575 — audit P2-3 : toutes les erreurs étaient remplacées par
       // « Échec de l'envoi de la demande », y compris celles qui disent
@@ -1576,6 +1653,18 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       final details = error.details;
       final code = details is Map ? (details['code'] ?? '').toString() : '';
       final serverMessage = error.message.trim();
+      // 646 — refus « il manque ton tarif » : une feuille qui dit quoi faire
+      // et où, avec le bouton « Ouvrir Mes tarifs » (plus la phrase anglaise
+      // du serveur dans un bandeau rouge).
+      if (code != 'OWN_POST' &&
+          await RateSheet646.handleApplyError(
+            error,
+            context: mounted ? context : null,
+            role: _isWalkerViewer ? 'walker' : 'sitter',
+            service: serviceType,
+          )) {
+        return;
+      }
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: code == 'OWN_POST'
@@ -1624,6 +1713,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       if (mounted) {
         setState(() {
           _pendingApplicationIds.remove(requestKey);
+          _rateToComePostIds.remove(requestKey); // 646
           _pendingApplicationIdsByFingerprint.removeWhere(
             (_, id) => id == applicationId,
           );
@@ -1669,6 +1759,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       setState(() {
         _pendingApplicationIdsByFingerprint.clear();
         _pendingApplicationIdsByPostId.clear();
+        _rateToComePostIds.clear(); // 646
         for (final app in applications) {
           final status = (app['status']?.toString() ?? '').toLowerCase();
           if (status != 'pending') continue;
@@ -1685,6 +1776,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               postIdValue.isNotEmpty &&
               postIdValue != 'null') {
             _pendingApplicationIdsByPostId[postIdValue] = appId;
+            // 646 — candidature en « tarif à venir » (réponse du serveur).
+            if (isRateToCome646(app)) _rateToComePostIds.add(postIdValue);
           }
 
           final owner = app['owner'];
@@ -1797,6 +1890,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       final fromMonthly = (data['monthlyRate'] as num?)?.toDouble();
       if (fromMonthly != null && fromMonthly > 0) {
         return fromMonthly;
+      }
+      // 646 — le tarif PAR VISITE est un tarif (gardien « visites seulement »).
+      final fromVisit = (data['visitRate'] as num?)?.toDouble();
+      if (fromVisit != null && fromVisit > 0) {
+        return fromVisit;
       }
       final fromRateString = double.tryParse(data['rate']?.toString() ?? '');
       if (fromRateString != null && fromRateString > 0) {

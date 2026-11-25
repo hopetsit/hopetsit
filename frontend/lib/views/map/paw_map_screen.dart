@@ -14,6 +14,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/utils/rate646.dart';
+import 'package:hopetsit/views/shared/rate_sheet646.dart';
 import 'package:hopetsit/views/shared/photo_nudge644.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -8160,13 +8162,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     await PhotoNudge644.maybeShow(r.id);
     try {
       final repo = Get.find<SitterRepository>();
-      final basePrice = await _myBasePrice(repo);
-      if (basePrice <= 0) {
-        CustomSnackbar.showError(
-            title: 'common_error'.tr,
-            message: 'pawmap_request_pricing_missing'.tr);
-        return PawProposeState.idle;
-      }
+      // 646 (PAM, 25/11/2026 — ordre de Daniel) : plus de blocage dans l'app
+      // faute de tarif, le serveur décide (« tarif à venir » ou refus clair).
+      // `basePrice` est un champ historique que le serveur ne lit pas.
+      final resolvedBasePrice = await _myBasePrice(repo);
+      final basePrice = resolvedBasePrice > 0 ? resolvedBasePrice : 1.0;
       final serviceType = r.serviceTypes.isNotEmpty
           ? r.serviceTypes.first
           : (_role == 'walker' ? 'dog_walking' : 'pet_sitting');
@@ -8194,12 +8194,21 @@ class _PawMapScreenState extends State<PawMapScreen>
         postId: r.id,
       );
       final dup = res['duplicatePrevented'] == true;
+      if (!dup && isRateToCome646(res)) {
+        // 646 — « Candidature envoyée 💶 — Il manque ton prix par jour… ».
+        await RateSheet646.showSent(role: _role);
+        return PawProposeState.sent;
+      }
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
         message: dup ? 'pawmap_request_already'.tr : 'request_send_success'.tr,
       );
       return dup ? PawProposeState.already : PawProposeState.sent;
     } catch (e) {
+      // 646 — refus « il manque ton tarif » : la feuille qui dit quoi faire.
+      if (await RateSheet646.handleApplyError(e, role: _role, service: r.serviceTypes.isNotEmpty ? r.serviceTypes.first : '')) {
+        return PawProposeState.idle;
+      }
       final msg = e.toString();
       CustomSnackbar.showError(
         title: 'common_error'.tr,
@@ -8242,7 +8251,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       final data = (p['sitter'] as Map<String, dynamic>?) ??
           (p['profile'] as Map<String, dynamic>?) ??
           p;
-      for (final k in const ['hourlyRate', 'dailyRate', 'weeklyRate', 'monthlyRate']) {
+      for (final k in const ['hourlyRate', 'dailyRate', 'weeklyRate', 'monthlyRate', 'visitRate']) {
         final v = (data[k] as num?)?.toDouble();
         if (v != null && v > 0) return v;
       }

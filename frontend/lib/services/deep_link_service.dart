@@ -509,13 +509,12 @@ class DeepLinkService {
         role = (Get.find<AuthController>().userRole.value ?? '').toLowerCase();
       } catch (_) {}
       if (role == 'sitter' || role == 'walker') {
-        Get.to(() => MyRatesScreen(role: role));
-        try {
-          CustomSnackbar.showInfo(
-            title: 'dates620_stale_label'.tr,
-            message: 'dates620_rates_from_notif'.tr,
-          );
-        } catch (_) {}
+        // 646 (PAM, 25/11) — l'écran descend sur la rubrique qui manque
+        // (le prix par jour d'abord), curseur dans le champ, avec un encadré
+        // FIXE « Écris ici ton prix pour une journée, puis enregistre. ».
+        // Avant : un bandeau de 2 secondes, et l'écran restait en haut sur
+        // « Visite à domicile ».
+        Get.to(() => MyRatesScreen(role: role, focus: 'auto'));
       } else {
         _openProfileScreen();
       }
@@ -757,6 +756,10 @@ class DeepLinkService {
       // (où se trouve le bouton de contact). Même destination si le gabarit
       // arrivait un jour comme type.
       'owner_viewed_2411': 'application_new',
+      // 646 — « 💶 Ta candidature est partie… il manque juste ton tarif ! »
+      // (serveur du 25/11) : envoyé sous le type `application_service_changed`
+      // → Mes tarifs. Même destination si le gabarit arrivait comme type.
+      'rate_to_confirm_2511': 'application_service_changed',
     };
     final t = later2211[type.toLowerCase()] ?? type.toLowerCase();
     final d = data ?? const <String, dynamic>{};

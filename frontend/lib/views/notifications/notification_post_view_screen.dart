@@ -17,6 +17,11 @@ import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/post_date_label.dart';
 import 'package:hopetsit/utils/post_price_estimator.dart';
+import 'package:hopetsit/utils/rate646.dart';
+import 'package:hopetsit/models/owner_active_request.dart';
+import 'package:hopetsit/services/propose_services_service.dart';
+import 'package:hopetsit/views/profile/widgets/contact_info_gate.dart';
+import 'package:hopetsit/views/shared/rate_sheet646.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_detail_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
@@ -59,10 +64,19 @@ class _NotificationPostViewScreenState
   String _providerCurrency = 'EUR';
   // 613 §9 (ZOE) — taux réel du prestataire connecté (15 % Top, 20 % sinon).
   double? _providerCommissionRate613;
+  // 646 (PAM, 25/11/2026) — tarif par visite, « tarifs chargés », et MA
+  // candidature sur cette demande (bouton « Proposer mes services »).
+  double _providerVisitRate = 0.0;
+  bool _providerHasWalkRate = false;
+  bool _providerRatesLoaded = false;
+  String? _myApplicationId646;
+  bool _myApplicationRateToCome646 = false;
+  bool _applyBusy646 = false;
 
   @override
   void initState() {
     super.initState();
+    _loadMyApplication646();
     if (widget.openCommentsOnOpen) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -117,6 +131,9 @@ class _NotificationPostViewScreenState
           _providerHourlyRate = derivedHourly;
           _providerWalkRate30 = halfHour;
           _providerWalkRate60 = hourly;
+          _providerHasWalkRate =
+              rates.any((r) => r.enabled && r.basePrice > 0); // 646
+          _providerRatesLoaded = true; // 646
         });
       } else if (role == 'sitter') {
         final userProfile =
@@ -133,12 +150,17 @@ class _NotificationPostViewScreenState
             : profile;
         double n(dynamic v) =>
             v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0.0;
+        // 646 (ZOE) — le profil public ne porte pas le tarif par visite.
+        final double visit646 = await myVisitRate646(sitterRepo,
+            fromProfile: n(sitterPayload['visitRate']));
         if (!mounted) return;
         setState(() {
           _providerHourlyRate = n(sitterPayload['hourlyRate']);
           _providerDailyRate = n(sitterPayload['dailyRate']);
           _providerWeeklyRate = n(sitterPayload['weeklyRate']);
           _providerMonthlyRate = n(sitterPayload['monthlyRate']);
+          _providerVisitRate = visit646; // 646
+          _providerRatesLoaded = true; // 646
           final cur = sitterPayload['currency']?.toString() ??
               sitterPayload['hourlyRateCurrency']?.toString();
           if (cur != null && cur.isNotEmpty) {
@@ -157,11 +179,9 @@ class _NotificationPostViewScreenState
     try {
       final role = _viewerRole;
       if (role != 'sitter' && role != 'walker') return null;
-      final hasAnyRate = _providerHourlyRate > 0 ||
-          _providerDailyRate > 0 ||
-          _providerWeeklyRate > 0 ||
-          _providerMonthlyRate > 0;
-      if (!hasAnyRate) return null;
+      // 646 — l'estimateur décide seul (visite à domicile comprise) : sans
+      // le bon tarif il rend null et la carte affiche une phrase à la place.
+      if (!_providerRatesLoaded) return null;
       return estimatePostPrice(
         post: post,
         userRole: role,
@@ -172,11 +192,134 @@ class _NotificationPostViewScreenState
         currency: _providerCurrency,
         walkRate30: _providerWalkRate30 > 0 ? _providerWalkRate30 : null,
         walkRate60: _providerWalkRate60 > 0 ? _providerWalkRate60 : null,
+        visitRate: _providerVisitRate, // 646 — visite à domicile
         commissionRate: _providerCommissionRate613 ?? 0.20,
       );
     } catch (e) {
       AppLogger.logDebug('notif estimateForPost failed: $e');
       return null;
+    }
+  }
+
+  /// 646 — tarif qui me MANQUE pour chiffrer cette demande (ou null).
+  String? _missingRateFor(PostModel post) {
+    final role = _viewerRole;
+    if (!_providerRatesLoaded || (role != 'sitter' && role != 'walker')) {
+      return null;
+    }
+    return missingRate646(
+      post: post,
+      userRole: role,
+      dailyRate: _providerDailyRate,
+      weeklyRate: _providerWeeklyRate,
+      monthlyRate: _providerMonthlyRate,
+      visitRate: _providerVisitRate,
+      hasWalkRate: _providerHasWalkRate,
+    );
+  }
+
+  /// 646 — ai-je déjà une candidature en attente sur cette demande ?
+  Future<void> _loadMyApplication646() async {
+    final role = _viewerRole;
+    if (role != 'sitter' && role != 'walker') return;
+    try {
+      if (!Get.isRegistered<SitterRepository>()) return;
+      final apps = await Get.find<SitterRepository>().getMyApplicationsRaw();
+      String? id;
+      bool toCome = false;
+      for (final app in apps) {
+        if ((app['status']?.toString() ?? '').toLowerCase() != 'pending') continue;
+        if ((app['postId']?.toString() ?? '') != widget.post.id) continue;
+        final appId = app['id']?.toString() ?? '';
+        if (appId.isEmpty) continue;
+        id = appId;
+        toCome = isRateToCome646(app);
+        break;
+      }
+      if (!mounted) return;
+      setState(() {
+        _myApplicationId646 = id;
+        _myApplicationRateToCome646 = toCome;
+      });
+    } catch (e) {
+      AppLogger.logDebug('notif loadMyApplication failed: $e');
+    }
+  }
+
+  static String? _petIdOf646(PostModel post) {
+    if (post.pets.isNotEmpty && post.pets.first.id.trim().isNotEmpty) {
+      return post.pets.first.id.trim();
+    }
+    if (post.petIds.isNotEmpty && post.petIds.first.trim().isNotEmpty) {
+      return post.petIds.first.trim();
+    }
+    final single = post.petId?.trim() ?? '';
+    return single.isNotEmpty ? single : null;
+  }
+
+  /// 646 (ZOE, 25/11 : « l'écran ouvert par la notification "Ouvre l'app pour
+  /// postuler" n'a pas de bouton pour postuler ») — « Proposer mes services »
+  /// ici aussi, même envoi que depuis le profil d'un propriétaire
+  /// (`proposeMyServices`) ; « Annuler la demande » une fois envoyée.
+  Future<void> _onSendOrCancel646(PostModel post) async {
+    if (_applyBusy646) return;
+    final role = _viewerRole;
+    if (!await ensureContactInfo(context, role: role)) return;
+    if (!mounted) return;
+    final petId = _petIdOf646(post);
+    if (post.owner.id.isEmpty || petId == null || post.serviceTypes.isEmpty) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'post_incomplete_for_request'.tr,
+      );
+      return;
+    }
+    setState(() => _applyBusy646 = true);
+    try {
+      final existing = _myApplicationId646;
+      if (existing != null && existing.isNotEmpty) {
+        await Get.find<SitterRepository>()
+            .cancelApplicationRequest(applicationId: existing);
+        if (!mounted) return;
+        setState(() {
+          _myApplicationId646 = null;
+          _myApplicationRateToCome646 = false;
+        });
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: 'request_cancel_success'.tr,
+        );
+        return;
+      }
+      final state = await proposeMyServices(
+        OwnerActiveRequest(
+          id: post.id,
+          ownerId: post.owner.id,
+          serviceTypes: post.serviceTypes,
+          startDate: post.startDate,
+          endDate: post.endDate,
+          petIds: <String>[petId],
+        ),
+        role: role,
+      );
+      if (state == OwnerRequestApplyState.sent ||
+          state == OwnerRequestApplyState.already) {
+        await _loadMyApplication646();
+      }
+    } on ApiException catch (error) {
+      AppLogger.logError('notif apply/cancel failed', error: error.message);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'request_cancel_error'.tr,
+      );
+    } catch (error) {
+      AppLogger.logError('notif apply/cancel failed', error: error);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'request_send_failed'.tr,
+      );
+    } finally {
+      if (mounted) setState(() => _applyBusy646 = false);
     }
   }
 
@@ -430,6 +573,15 @@ class _NotificationPostViewScreenState
 
             final viewerRole = _viewerRole;
             final isProvider = viewerRole == 'walker' || viewerRole == 'sitter';
+            // 646 — gain réel, sinon la phrase « Ajoute ton prix… » ; jamais
+            // de gain inventé. « Tarif à venir » si ma candidature est partie
+            // sans prix.
+            final estimate646 = isProvider ? _estimateForPost(post) : null;
+            final missing646 =
+                (isProvider && estimate646 == null) ? _missingRateFor(post) : null;
+            final applied646 = (_myApplicationId646 ?? '').isNotEmpty;
+            final toCome646 =
+                missing646 != null && applied646 && _myApplicationRateToCome646;
             // 621 — « à partir de » (propriétaire, demande ouverte).
             return FromRate620Builder(
               future: isProvider
@@ -477,7 +629,25 @@ class _NotificationPostViewScreenState
                   : null,
               // DEEP WORK — bande animaux cliquable → fiche de l'animal tapé.
               onPetTap: (id) => _openPetDetails(id),
-              priceEstimate: isProvider ? _estimateForPost(post) : null,
+              priceEstimate: estimate646,
+              priceHint: missing646 == null
+                  ? null
+                  : (toCome646
+                      ? 'pam646_stale_card'.tr
+                      : gainHintKey646(missing646).tr),
+              priceHintTitle: toCome646 ? 'dates620_stale_label'.tr : null,
+              onPriceHintTap: missing646 == null
+                  ? null
+                  : () => RateSheet646.openRates(viewerRole, missing646),
+              // 646 — LE bouton du prestataire : « Proposer mes services »
+              // (ou « Annuler la demande » une fois envoyée).
+              onSendRequest:
+                  isProvider ? () => _onSendOrCancel646(post) : null,
+              requestButtonText: applied646
+                  ? 'request_cancel_button'.tr
+                  : 'home628_offer_services'.tr,
+              isCancelRequest: applied646,
+              isRequestLoading: _applyBusy646,
               publishedLabel:
                   isProvider ? _publishedLabel(post.createdAt) : null,
               walkDurationMinutes:

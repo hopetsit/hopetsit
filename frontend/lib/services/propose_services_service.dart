@@ -12,6 +12,8 @@ import 'package:hopetsit/models/owner_active_request.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/rate646.dart';
+import 'package:hopetsit/views/shared/rate_sheet646.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -55,7 +57,8 @@ Future<double> myBasePrice(SitterRepository repo, String role) async {
     }
     final p = await repo.getSitterProfile(myId);
     final data = (p['sitter'] as Map<String, dynamic>?) ?? (p['profile'] as Map<String, dynamic>?) ?? p;
-    for (final k in const ['hourlyRate', 'dailyRate', 'weeklyRate', 'monthlyRate']) {
+    // 646 — le tarif par visite compte aussi (gardien « visites seulement »).
+    for (final k in const ['hourlyRate', 'dailyRate', 'weeklyRate', 'monthlyRate', 'visitRate']) {
       final v = (data[k] as num?)?.toDouble();
       if (v != null && v > 0) return v;
     }
@@ -78,11 +81,11 @@ Future<OwnerRequestApplyState> proposeMyServices(OwnerActiveRequest r, {required
   await PhotoNudge644.maybeShow(r.id);
   try {
     final repo = Get.find<SitterRepository>();
-    final basePrice = await myBasePrice(repo, role);
-    if (basePrice <= 0) {
-      CustomSnackbar.showError(title: 'common_error'.tr, message: 'pawmap_request_pricing_missing'.tr);
-      return OwnerRequestApplyState.idle;
-    }
+    // 646 (PAM, 25/11/2026 — ordre de Daniel) : plus de blocage dans l'app
+    // faute de tarif, le serveur décide (« tarif à venir » ou refus clair).
+    // `basePrice` est un champ historique que le serveur ne lit pas.
+    final resolved = await myBasePrice(repo, role);
+    final basePrice = resolved > 0 ? resolved : 1.0;
     final serviceType = r.serviceTypes.isNotEmpty
         ? r.serviceTypes.first
         : (role == 'walker' ? 'dog_walking' : 'pet_sitting');
@@ -107,12 +110,21 @@ Future<OwnerRequestApplyState> proposeMyServices(OwnerActiveRequest r, {required
       postId: r.id,
     );
     final dup = res['duplicatePrevented'] == true;
+    if (!dup && isRateToCome646(res)) {
+      // 646 — « Candidature envoyée 💶 — Il manque ton prix par jour… ».
+      await RateSheet646.showSent(role: role);
+      return OwnerRequestApplyState.sent;
+    }
     CustomSnackbar.showSuccess(
       title: 'common_success'.tr,
       message: dup ? 'pawmap_request_already'.tr : 'request_send_success'.tr,
     );
     return dup ? OwnerRequestApplyState.already : OwnerRequestApplyState.sent;
   } on ApiException catch (e) {
+    // 646 — refus « il manque ton tarif » : la feuille qui dit quoi faire.
+    if (await RateSheet646.handleApplyError(e, role: role, service: r.serviceTypes.isNotEmpty ? r.serviceTypes.first : '')) {
+      return OwnerRequestApplyState.idle;
+    }
     final String msg = e.message;
     final bool dup = msg.contains('ALREADY') || msg.toLowerCase().contains('already') || msg.contains('duplicate');
     CustomSnackbar.showError(
@@ -125,4 +137,24 @@ Future<OwnerRequestApplyState> proposeMyServices(OwnerActiveRequest r, {required
     CustomSnackbar.showError(title: 'common_error'.tr, message: 'request_send_failed'.tr);
     return OwnerRequestApplyState.idle;
   }
+}
+
+/// 646 (ZOE, contrôle du 25/11/2026 — vu au simulateur) — tarif PAR VISITE du
+/// gardien connecté. `GET /sitters/:id` (profil public) ne renvoie PAS
+/// `visitRate` : l'accueil croyait donc qu'aucun gardien n'avait de tarif par
+/// visite (« Ajoute ton prix par visite pour voir ton gain. » affiché à un
+/// gardien qui l'avait, et jamais de gain sur une visite). On le lit dans
+/// `GET /sitters/me/rates` ; [fromProfile] sert de repli si l'appel échoue.
+Future<double> myVisitRate646(SitterRepository repo, {double fromProfile = 0}) async {
+  try {
+    final Map<String, dynamic> r = await repo.getMyRates();
+    final Object? src = r['rates'] is Map ? r['rates'] : r;
+    final Object? v = src is Map ? src['visitRate'] : null;
+    if (v is num) return v.toDouble();
+    final double? parsed = double.tryParse(v?.toString() ?? '');
+    if (parsed != null) return parsed;
+  } catch (e) {
+    AppLogger.logDebug('myVisitRate646 failed: $e');
+  }
+  return fromProfile;
 }
