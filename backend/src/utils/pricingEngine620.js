@@ -203,7 +203,7 @@ const estimate = ({ serviceType, unit, rate, post, commissionRate = 0.2, currenc
  * ou null quand il ne propose pas ce service à ce tarif.
  *   · visite   → visitRate (gardien)                       unit 'visit'
  *   · balade   → walkRates (promeneur) : durée demandée, sinon la moins chère   unit 'walk'
- *   · jour     → dailyRate, sinon weeklyRate/7, sinon monthlyRate/30, sinon hourlyRate × 8   unit 'day'
+ *   · jour     → dailyRate, sinon weeklyRate/7, sinon monthlyRate/30 (plus de repli « heure × 8 » depuis le 25/11)   unit 'day'
  *   · nuit     → même tarif que le jour                    unit 'night'
  */
 const rateFor = (provider, serviceType, { durationMinutes, unit } = {}) => {
@@ -227,7 +227,10 @@ const rateFor = (provider, serviceType, { durationMinutes, unit } = {}) => {
   if (num(d.dailyRate) > 0) return { rate: round2(d.dailyRate), unit: outUnit, durationMinutes: null, source: 'dailyRate' };
   if (num(d.weeklyRate) > 0) return { rate: round2(num(d.weeklyRate) / 7), unit: outUnit, durationMinutes: null, source: 'weeklyRate' };
   if (num(d.monthlyRate) > 0) return { rate: round2(num(d.monthlyRate) / 30), unit: outUnit, durationMinutes: null, source: 'monthlyRate' };
-  if (num(d.hourlyRate) > 0) return { rate: round2(num(d.hourlyRate) * 8), unit: outUnit, durationMinutes: null, source: 'hourlyRate' };
+  // 2511 (BOB, décision de Daniel du 25/11/2026) — plus de repli « tarif d'une heure × 8 » : une gardienne qui ne fait que
+  // des balades (30 €/h) partait à 240 € la nuit et 1 440 € les 5 nuits sans le savoir (4 propriétaires en deux jours).
+  // Mesure du 25/11 : 3 gardiens sur 286 n'ont qu'un tarif à l'heure, tous donnaient 200 à 240 €/jour (médiane des vrais
+  // tarifs à la journée : 20 €). Sans tarif jour / semaine / mois : pas de prix → candidature « tarif à venir ».
   return null;
 };
 

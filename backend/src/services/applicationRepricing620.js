@@ -516,6 +516,10 @@ async function repriceAfterRateChange({ providerId, providerRole } = {}, opts = 
   // 2810b — + les candidatures de visites facturées au tarif JOUR faute de tarif par visite :
   // dès que le gardien pose son tarif par visite, elles passent à son vrai prix visite.
   const filter = { status: 'pending', $or: [{ 'pricing.stale': true }, { serviceType: 'home_visit', 'pricing.unit': 'day' }] };
+  // 2511 (BOB) — + les candidatures restées au prix « tarif d'une heure × 8 » (repli supprimé le 25/11) : dès que le
+  // gardien pose son vrai tarif à la journée, elles passent à ce tarif, comme promis dans la notification.
+  const fallback2511 = Number(provider.hourlyRate) > 0 ? Math.round(Number(provider.hourlyRate) * 8 * 100) / 100 : 0;
+  if (fallback2511 > 0) filter.$or.push({ 'pricing.unit': { $in: ['day', 'night'] }, 'pricing.appliedRate': fallback2511 });
   filter[role === 'walker' ? 'walkerId' : 'sitterId'] = provider._id;
   const stale = await Application.find(filter);
   if (!stale.length) return out;
@@ -540,6 +544,8 @@ async function repriceAfterRateChange({ providerId, providerRole } = {}, opts = 
         ? indicativePricing({ post, provider, providerRole: role, serviceType: key, duration: post.walkDurationMinutes, addOns })
         : priceApplication({ application: app, post, provider, providerRole: role });
       if (!pricing) { out.skipped.push(String(app._id)); continue; }
+      // 2511 — candidature déjà au bon prix (tarif à la journée égal à 8 heures) : rien ne change, rien n'est envoyé.
+      if (!(app.pricing && app.pricing.stale === true) && !isTbd && Number(app.pricing && app.pricing.totalPrice) === Number(pricing.totalPrice)) { out.kept.push(String(app._id)); continue; }
       pricing.stale = false;
       app.serviceType = key;
       app.pricing = pricing;
@@ -614,7 +620,70 @@ async function repriceAfterRateChangeSafe(body, who) {
   }
 }
 
+/**
+ * 2511 (BOB, ordre de Daniel du 25/11/2026 « résous le problème, corrige tout proprement ») — les candidatures EN ATTENTE
+ * restées au prix « tarif d'une heure × 8 » (repli supprimé) d'un gardien qui n'a toujours pas de tarif à la journée passent
+ * en « tarif à venir » : le propriétaire ne voit plus 240 €/jour, rien n'est payable à ce prix, et le gardien reçoit UNE fois
+ * la marche à suivre (gabarit rate_to_confirm_2511). Dès qu'il pose son tarif, repriceAfterRateChange les recalcule.
+ * Jamais une candidature acceptée, payée, ou au prix négocié. Renvoie les anciennes valeurs (pour un retour arrière).
+ * @param {{dryRun?:boolean, notify?:boolean, send?:Function}} [opts]
+ */
+async function markHourlyFallbackStale2511(opts = {}) {
+  const out = { examined: 0, changed: [], notified: 0, skipped: 0 };
+  const Application = require('../models/Application');
+  const Sitter = require('../models/Sitter');
+  const Post = require('../models/Post');
+  const apps = await Application.find({
+    status: 'pending', sitterId: { $ne: null }, 'pricing.unit': { $in: ['day', 'night'] }, 'pricing.stale': { $ne: true }, 'pricing.appliedRate': { $gt: 0 },
+  });
+  const sitters = new Map();
+  const toNotify = new Map();
+  for (const app of apps) {
+    out.examined += 1;
+    try {
+      const sid = String(app.sitterId);
+      if (!sitters.has(sid)) {
+        // eslint-disable-next-line no-await-in-loop
+        sitters.set(sid, await Sitter.findById(sid).select('hourlyRate dailyRate weeklyRate monthlyRate email').lean());
+      }
+      const s = sitters.get(sid);
+      const n = (v) => (Number(v) > 0 ? Number(v) : 0);
+      if (!s || n(s.dailyRate) || n(s.weeklyRate) || n(s.monthlyRate) || !n(s.hourlyRate)) continue; // il a un vrai tarif à la journée
+      const fb = Math.round(n(s.hourlyRate) * 8 * 100) / 100;
+      if (Math.abs(Number(app.pricing.appliedRate) - fb) > 0.011) continue; // pas le prix « heure × 8 »
+      // eslint-disable-next-line no-await-in-loop
+      const post = await Post.findById(app.postId).lean();
+      if (!post) { out.skipped += 1; continue; }
+      if (negotiatedGuard2211(app, post) === 'keep') { out.skipped += 1; continue; }
+      const before = { id: String(app._id), sitterId: sid, appliedRate: app.pricing.appliedRate, totalPrice: app.pricing.totalPrice, basePrice: app.pricing.basePrice, commission: app.pricing.commission, netPayout: app.pricing.netPayout, quantity: app.pricing.quantity };
+      if (!opts.dryRun) {
+        app.pricing.appliedRate = 0; app.pricing.indicative = true; app.pricing.stale = true;
+        app.pricing.totalPrice = null; app.pricing.basePrice = null; app.pricing.commission = null; app.pricing.netPayout = null; app.pricing.quantity = null;
+        app.markModified('pricing');
+        // eslint-disable-next-line no-await-in-loop
+        await app.save();
+      }
+      out.changed.push(before);
+      if (!toNotify.has(sid)) toNotify.set(sid, { applicationId: String(app._id), postId: String(app.postId), email: s.email });
+    } catch (e) {
+      out.skipped += 1;
+      logger.warn(`[reprice2511] candidature ${app._id} : ${e && e.message ? e.message : e}`);
+    }
+  }
+  if (opts.dryRun || opts.notify === false) return out;
+  const send = typeof opts.send === 'function' ? opts.send : require('./notificationSender').sendNotification;
+  for (const [sid, d] of toNotify) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await send({ userId: sid, role: 'sitter', type: 'application_service_changed', templateType: 'rate_to_confirm_2511', data: { applicationId: d.applicationId, postId: d.postId } });
+      out.notified += 1;
+    } catch (e) { logger.warn(`[reprice2511] notification ${sid} : ${e && e.message ? e.message : e}`); }
+  }
+  return out;
+}
+
 module.exports = {
+  markHourlyFallbackStale2511,
   rateForApplication,
   TYPE_PRICING_UPDATED,
   TYPE_SERVICE_CHANGED,

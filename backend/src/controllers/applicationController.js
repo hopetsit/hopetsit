@@ -212,6 +212,7 @@ const createApplication = async (req, res) => {
     // non-zero rate. Walkers have their own `walkRates` array.
     const providerRole = req.user?.role;
     let provider = null;
+    let noRate2511 = false; // 2511 — gardien sans aucun tarif (refus décidé une fois la demande connue)
     if (providerRole === 'walker') {
       const Walker = require('../models/Walker');
       provider = await Walker.findById(sitterId);
@@ -245,12 +246,9 @@ const createApplication = async (req, res) => {
         (provider.weeklyRate && provider.weeklyRate > 0) ||
         (provider.monthlyRate && provider.monthlyRate > 0) ||
         (provider.visitRate && provider.visitRate > 0); // 620 — tarif par visite
-      if (!hasAnyRate) {
-        return res.status(400).json({
-          error: 'You must set at least one rate (hourly, daily, weekly or monthly) before sending requests to owners.',
-          details: 'Update your profile with a non-zero rate and try again.',
-        });
-      }
+      // 2511 (BOB) — sans AUCUN tarif : le refus est décidé plus bas, quand la demande est connue. Sur une garde à la
+      // journée, la candidature part en « tarif à venir » avec la marche à suivre au lieu d'un refus sans explication.
+      noRate2511 = !hasAnyRate;
       // v18.9.5 — idem bookingController : on ne dérive PLUS hourlyRate
       // depuis dailyRate. tierPricing gère le tier 'daily' directement.
       if ((!provider.hourlyRate || provider.hourlyRate <= 0) &&
@@ -281,6 +279,19 @@ const createApplication = async (req, res) => {
     }
     const tbd620 = !!post620 && engine620.effectiveDateMode(post620) === 'tbd';
     const visit620 = !!post620 && providerRole !== 'walker' && engine620.mainService(post620) === 'home_visit';
+    // 2511 — « tarif à venir » possible : gardien (pas promeneur), demande de garde à la journée ou à la nuit, interrupteur ouvert.
+    const confirmOn2511 = !/^(off|0|false|no)$/i.test(String(process.env.RATE_CONFIRM_2511 || 'on').trim());
+    let dayService2511 = false;
+    try {
+      dayService2511 = !!post620 && providerRole !== 'walker' && !visit620
+        && ['day', 'night'].includes(engine620.quantityFor(post620, engine620.mainService(post620)).unit);
+    } catch (_) { dayService2511 = false; }
+    if (noRate2511 && !(dayService2511 && confirmOn2511)) {
+      return res.status(400).json({
+        error: 'You must set at least one rate (hourly, daily, weekly or monthly) before sending requests to owners.',
+        details: 'Update your profile with a non-zero rate and try again.',
+      });
+    }
     if (visit620 && !(Number(provider.visitRate) > 0)) {
       return res.status(400).json({
         error: 'Set your price per home visit before applying to a home-visit request.',
@@ -475,6 +486,11 @@ const createApplication = async (req, res) => {
         }),
         currency: bookingCurrency,
       };
+      // 2511 — demande sans dates et gardien sans tarif à la journée : « tarif à venir » aussi (plus de « heure × 8 »).
+      if (!(Number(pricing620.appliedRate) > 0) && dayService2511 && confirmOn2511) pricing620.stale = true;
+      else if (!(Number(pricing620.appliedRate) > 0) && noRate2511) {
+        return res.status(400).json({ error: 'Set your price for this service before applying to this request.', code: 'RATE_REQUIRED' });
+      }
       tierPricing = { basePrice: null, pricingTier: 'indicative', appliedRate: pricing620.appliedRate, totalHours: 0, totalDays: 0 };
       pricingBreakdown = { basePrice: null, addOns: pricing620.addOns, addOnsTotal: pricing620.addOnsTotal, totalPrice: null, commission: null, netPayout: null, commissionRate: pricing620.commissionRate, currency: bookingCurrency };
     } else if (post620 && !visit620) {
@@ -494,15 +510,28 @@ const createApplication = async (req, res) => {
         provider,
         providerRole,
       });
-      if (!priced) {
+      // 2511 (BOB, décision de Daniel : « ils doivent recevoir tarif à confirmer et savoir comment faire ») — un gardien
+      // sans tarif à la journée (tarif à l'heure seul, ou aucun tarif) n'est plus refusé ni tarifé « heure × 8 » : sa candidature part en « tarif à venir »
+      // (même état que lors d'un changement de service : le propriétaire voit « Tarif à venir », rien n'est payable) et
+      // il reçoit une notification en 3 gestes. Dès qu'il pose son tarif à la journée, repriceAfterRateChange la recalcule
+      // et prévient les deux. RATE_CONFIRM_2511=off rétablit le refus.
+      const rateToConfirm2511 = !priced && dayService2511 && confirmOn2511;
+      if (!priced && !rateToConfirm2511) {
         return res.status(400).json({
           error: 'Set your price for this service before applying to this request.',
           code: 'RATE_REQUIRED',
         });
       }
-      pricingBreakdown = { basePrice: priced.basePrice, addOns: priced.addOns, addOnsTotal: priced.addOnsTotal, totalPrice: priced.totalPrice, commission: priced.commission, netPayout: priced.netPayout, commissionRate: priced.commissionRate, currency: priced.currency };
-      tierPricing = { basePrice: priced.basePrice, pricingTier: priced.pricingTier, appliedRate: priced.appliedRate, totalHours: 0, totalDays: priced.totalDays };
-      pricing620 = { quantity: priced.quantity, unit: priced.unit, indicative: false, weeklyApplied: priced.weeklyApplied === true, weeklyRate: priced.weeklyRate, weeks: priced.weeks };
+      if (rateToConfirm2511) {
+        const unit2511 = engine620.quantityFor(post620, engine620.mainService(post620)).unit;
+        pricingBreakdown = { basePrice: null, addOns: normalizedAddOns, addOnsTotal: 0, totalPrice: null, commission: null, netPayout: null, commissionRate: commissionRateForProvider(isTopProvider), currency: bookingCurrency };
+        tierPricing = { basePrice: null, pricingTier: 'indicative', appliedRate: 0, totalHours: 0, totalDays: 0 };
+        pricing620 = { quantity: null, unit: unit2511, indicative: true, stale: true };
+      } else {
+        pricingBreakdown = { basePrice: priced.basePrice, addOns: priced.addOns, addOnsTotal: priced.addOnsTotal, totalPrice: priced.totalPrice, commission: priced.commission, netPayout: priced.netPayout, commissionRate: priced.commissionRate, currency: priced.currency };
+        tierPricing = { basePrice: priced.basePrice, pricingTier: priced.pricingTier, appliedRate: priced.appliedRate, totalHours: 0, totalDays: priced.totalDays };
+        pricing620 = { quantity: priced.quantity, unit: priced.unit, indicative: false, weeklyApplied: priced.weeklyApplied === true, weeklyRate: priced.weeklyRate, weeks: priced.weeks };
+      }
     } else if (visit620) {
       const r = engine620.rateFor(provider, 'home_visit');
       const est = engine620.estimate({ serviceType: 'home_visit', rate: r.rate, post: post620, commissionRate: commissionRateForProvider(isTopProvider), currency: bookingCurrency });
@@ -690,6 +719,7 @@ const createApplication = async (req, res) => {
         commissionRate: pricingBreakdown.commissionRate,
         currency: pricingBreakdown.currency,
         ...(pricing620 ? { quantity: pricing620.quantity, unit: pricing620.unit, indicative: pricing620.indicative === true } : {}),
+        ...(pricing620 && pricing620.stale === true ? { stale: true } : {}), // 2511 — « tarif à venir » (gardien sans tarif à la journée)
         ...(pricing620 && pricing620.weeklyApplied ? { weeklyApplied: true, weeklyRate: pricing620.weeklyRate, weeks: pricing620.weeks } : {}),
       },
     });
@@ -742,6 +772,13 @@ const createApplication = async (req, res) => {
       },
     }).catch(() => {});
     if (grouped2610) appEmail2610.onApplicationCreated(application).catch(() => {});
+    // 2511 — le gardien dont la candidature part en « tarif à venir » reçoit tout de suite la marche à suivre (9 langues).
+    if (pricing620 && pricing620.stale === true) {
+      sendNotification({
+        userId: sitterId.toString(), role: providerRole === 'walker' ? 'walker' : 'sitter', type: 'application_service_changed', templateType: 'rate_to_confirm_2511', // ce type ouvre « Mes tarifs » dans l'app déjà installée
+        data: { applicationId: application._id.toString(), ...(application.postId ? { postId: String(application.postId._id || application.postId) } : {}) },
+      }).catch(() => {});
+    }
 
     // v23.1 — push real-time event so the owner's "applications" list and
     // the multi-candidates banner refresh immediately (instead of waiting for

@@ -56,6 +56,20 @@ async function startServer() {
     } catch (e) {
       logger.error('[boot] migration v555 failed (non-fatal)', e);
     }
+    // 2511 (BOB, ordre de Daniel) — UNE FOIS : les candidatures en attente restées au prix « tarif d'une heure × 8 » passent en
+    // « tarif à venir » et leurs gardiens reçoivent la marche à suivre. Anciennes valeurs gardées dans le marqueur (retour arrière).
+    try {
+      const KEY2511 = 'v2511_hourly_fallback_stale';
+      const mig2511 = mongoose.connection.db.collection('migrations');
+      const claimed = await mig2511.updateOne({ _id: KEY2511 }, { $setOnInsert: { _id: KEY2511, startedAt: new Date() } }, { upsert: true });
+      if (claimed.upsertedCount) {
+        const r2511 = await require('./services/applicationRepricing620').markHourlyFallbackStale2511();
+        await mig2511.updateOne({ _id: KEY2511 }, { $set: { doneAt: new Date(), examined: r2511.examined, notified: r2511.notified, skipped: r2511.skipped, before: r2511.changed } });
+        logger.info(`[boot] migration ${KEY2511}: ${r2511.changed.length} candidature(s) en « tarif à venir », ${r2511.notified} gardien(s) prévenu(s)`);
+      }
+    } catch (e) {
+      logger.error('[boot] migration v2511 failed (non-fatal)', e);
+    }
     // 24/10 (BOB, mail Firebase « 73 plantages, NetworkImage HTTP request failed ») — migration UNE FOIS :
     // les références vers l'ancien cloud Cloudinary ddllooujo (401 depuis le 18/10) sont effacées
     // (utils/purgeDeadCloudinary620.js) : silhouette par défaut au lieu d'un plantage. Non bloquante.

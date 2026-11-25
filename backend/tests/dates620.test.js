@@ -88,7 +88,7 @@ beforeAll(async () => {
   S.owner = await Owner.create({ name: 'Camille Durand', email: 'zoe620+owner@example.test', password: PASS, city: 'Zone test', country: 'FR', currency: 'EUR', verified: true, location: ZONE, acceptedTerms: true, appLocale: 'fr' });
   S.pet = await Pet.create({ ownerId: S.owner._id, petName: 'Rex', petType: 'dog' });
   S.sitter = await Sitter.create({ name: 'Inès Petit', email: 'zoe620+sitter@example.test', password: PASS, city: 'Zone test', country: 'FR', currency: 'EUR', dailyRate: 18, visitRate: 12, visitDurationMinutes: 30, verified: true, location: ZONE, service: ['house_sitting', 'home_visit'] });
-  S.sitterNoVisit = await Sitter.create({ name: 'Léa Noir', email: 'zoe620+sitter2@example.test', password: PASS, city: 'Zone test', country: 'FR', currency: 'EUR', hourlyRate: 10, verified: true, location: ZONE });
+  S.sitterNoVisit = await Sitter.create({ name: 'Léa Noir', email: 'zoe620+sitter2@example.test', password: PASS, city: 'Zone test', country: 'FR', currency: 'EUR', hourlyRate: 10, dailyRate: 80 /* 2511 : plus de repli « heure × 8 » */, verified: true, location: ZONE });
   S.walker = await Walker.create({ name: 'Paul Promeneur', email: 'zoe620+walker@example.test', password: PASS, city: 'Zone test', country: 'FR', currency: 'EUR', verified: true, location: ZONE, walkRates: [{ durationMinutes: 30, basePrice: 10, currency: 'EUR', enabled: true }] });
 
   app = express();

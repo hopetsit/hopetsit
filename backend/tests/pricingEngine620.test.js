@@ -101,7 +101,7 @@ describe('estimation', () => {
     expect(engine.rateFor(sitter, 'home_visit')).toMatchObject({ rate: 12, unit: 'visit', durationMinutes: 60 });
     expect(engine.rateFor(sitter, 'house_sitting')).toMatchObject({ rate: 18, unit: 'day' });
     expect(engine.rateFor({ weeklyRate: 70 }, 'house_sitting')).toMatchObject({ rate: 10, unit: 'day', source: 'weeklyRate' });
-    expect(engine.rateFor({ hourlyRate: 5 }, 'day_care')).toMatchObject({ rate: 40, source: 'hourlyRate' });
+    expect(engine.rateFor({ hourlyRate: 5 }, 'day_care')).toBeNull(); // 2511 — plus de repli « heure × 8 » (30 €/h donnait 240 €/nuit)
     expect(engine.rateFor({ visitRate: 0 }, 'home_visit')).toBeNull();
     const walker = { walkRates: [{ durationMinutes: 60, basePrice: 15 }, { durationMinutes: 30, basePrice: 10 }] };
     expect(engine.rateFor(walker, 'dog_walking')).toMatchObject({ rate: 10, unit: 'walk', durationMinutes: 30 });

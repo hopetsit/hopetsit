@@ -108,8 +108,8 @@ beforeAll(async () => {
   await Promise.all([Owner.init(), Sitter.init(), Booking.init(), WalletTransaction.init(), Pet.init(), Post.init(), Application.init(), Notification.init(), AdLead.init()]);
 
   // Gardiens (vérifiés, tarif horaire 10, position dans la zone fictive)
-  FR.sitter = await Sitter.create({ name: 'Inès Petit', email: 'flo2310+sitterfr@example.test', password: PASS, city: 'Zone test', country: 'FR', currency: 'EUR', hourlyRate: 10, verified: true, location: ZONE, walletBalance: 0 });
-  US.sitter = await Sitter.create({ name: 'Emma Johnson', email: 'flo2310+sitterus@example.test', password: PASS, city: 'Zone test', country: 'US', currency: 'USD', hourlyRate: 10, verified: true, location: ZONE, walletBalance: 0 });
+  FR.sitter = await Sitter.create({ name: 'Inès Petit', email: 'flo2310+sitterfr@example.test', password: PASS, city: 'Zone test', country: 'FR', currency: 'EUR', hourlyRate: 10, dailyRate: 80 /* 2511 : plus de repli « heure × 8 », même tarif posé à la journée */, verified: true, location: ZONE, walletBalance: 0 });
+  US.sitter = await Sitter.create({ name: 'Emma Johnson', email: 'flo2310+sitterus@example.test', password: PASS, city: 'Zone test', country: 'US', currency: 'USD', hourlyRate: 10, dailyRate: 80, verified: true, location: ZONE, walletBalance: 0 });
   // Propriétaire américain ordinaire (New York → USD), avec animal
   US.owner = await Owner.create({ name: 'Camille Durand', email: 'flo2310+ownerus@example.test', password: PASS, city: 'Zone test', country: 'US', currency: 'USD', verified: true, location: ZONE, acceptedTerms: true });
   US.pet = await Pet.create({ ownerId: US.owner._id, petName: 'Rex', petType: 'dog' });
