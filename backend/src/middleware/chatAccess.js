@@ -24,6 +24,12 @@ const evaluateChatAccess = async ({ ownerId, sitterId, walkerId }) => {
   });
   if (paidExists) return { blocked: false };
 
+  // 25/11 — une candidature lie ces deux personnes → elles peuvent s'écrire avant de payer.
+  try {
+    const { hasCandidateLink2511 } = require('../services/chatAccessService');
+    if (await hasCandidateLink2511({ ownerId, providerId })) return { blocked: false, candidate: true };
+  } catch (_) { /* doute → règles habituelles */ }
+
   const latest = await Booking.findOne({
     ownerId,
     $or: [{ walkerId: providerId }, { sitterId: providerId }],

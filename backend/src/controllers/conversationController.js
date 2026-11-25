@@ -19,7 +19,7 @@ const {
   markConversationRead: markConversationReadService,
   hasValidPaidBooking,
 } = require('../services/conversationService');
-const { getChatAccess } = require('../services/chatAccessService');
+const { getChatAccess, hasCandidateLink2511 } = require('../services/chatAccessService');
 const { uploadMedia } = require('../services/cloudinary');
 const { HttpError } = require('../utils/errors');
 const { emitToConversation, emitChatMessage } = require('../sockets/emitter');
@@ -1143,7 +1143,8 @@ const startConversation = async (req, res) => {
       : await hasValidPaidBooking(ownerId, sitterId);
     if (!hasPaidBooking) {
       const access = await getChatAccess(ownerId, 'Owner');
-      if (!access.hasAny) {
+      // 25/11 — candidature entre les deux → chat libre (hasCandidateLink2511).
+      if (!access.hasAny && !(await hasCandidateLink2511({ ownerId, sitterId: targetWalker ? null : sitterId, walkerId: targetWalker ? walkerIdParam : null }))) {
         return res.status(402).json({
           error:
             'Chat requires an active Premium plan or the Chat add-on. Please subscribe to start messaging.',
@@ -1335,7 +1336,7 @@ const startConversationBySitter = async (req, res) => {
     const hasPaidBooking = await hasValidPaidBooking(ownerId, sitterId);
     if (!hasPaidBooking) {
       const access = await getChatAccess(sitterId, 'Sitter');
-      if (!access.hasAny) {
+      if (!access.hasAny && !(await hasCandidateLink2511({ ownerId, sitterId }))) {
         return res.status(402).json({
           error:
             'Chat requires an active Premium plan or the Chat add-on. Please subscribe to start messaging.',
@@ -1473,7 +1474,7 @@ const startConversationByWalker = async (req, res) => {
     const hasPaidBooking = await hasValidPaidBooking(ownerId, null, walkerId);
     if (!hasPaidBooking) {
       const access = await getChatAccess(walkerId, 'Walker');
-      if (!access.hasAny) {
+      if (!access.hasAny && !(await hasCandidateLink2511({ ownerId, walkerId }))) {
         return res.status(402).json({
           error:
             'Chat requires an active Premium plan or the Chat add-on. Please subscribe to start messaging.',

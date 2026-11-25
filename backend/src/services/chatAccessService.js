@@ -262,7 +262,33 @@ async function evaluateContactsAccess({ userId, otherUserId }) {
   return { locked: true, reason: 'locked', threshold };
 }
 
+// ─── 25/11/2026 (BOB, accord de Daniel) — chat libre entre un propriétaire et SES candidats ──
+// Constat : 747 comptes, +347 profils en 30 jours → le seuil CHAT_FREE_UNTIL_USERS (1 000)
+// tombait dans ~3 semaines, et plus aucun propriétaire sans abonnement n'aurait pu poser une
+// question à un gardien AVANT de payer : un mur juste avant la première vente.
+// Règle : dès qu'une candidature existe entre ce propriétaire et ce prestataire (quel que soit
+// son statut), les deux peuvent s'écrire, sans abonnement ni réservation payée.
+// Coupe-circuit sans republier : CHAT_CANDIDATES_FREE_2511=off sur Render.
+async function hasCandidateLink2511({ ownerId, sitterId, walkerId, providerId } = {}) {
+  try {
+    if (String(process.env.CHAT_CANDIDATES_FREE_2511 || '').toLowerCase() === 'off') return false;
+    const idOf = (v) => (v ? String(v._id || v) : '');
+    const owner = idOf(ownerId);
+    const providers = [idOf(providerId), idOf(sitterId), idOf(walkerId)].filter(Boolean);
+    if (!owner || !providers.length) return false;
+    const Application = require('../models/Application');
+    const found = await Application.exists({
+      ownerId: owner,
+      $or: [{ sitterId: { $in: providers } }, { walkerId: { $in: providers } }],
+    });
+    return !!found;
+  } catch (_) {
+    return false; // doute → règles habituelles
+  }
+}
+
 module.exports = {
+  hasCandidateLink2511,
   getChatAccess,
   canChatFreely,
   isLaunchPhase,

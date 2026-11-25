@@ -303,6 +303,14 @@ export function PostCandidates1610({
     trackSiteEvent("cta_click", { label: "cand_ecrire" });
     setWritingId(id);
     setErrors((er) => ({ ...er, [id]: "" }));
+    // 25/11 (BOB) — MESURÉ : une propriétaire a cliqué « Écrire à … » ici, est arrivée sur une conversation
+    // VIDE (« Aucun message pour l'instant ») et n'a rien envoyé. On l'emmène désormais sur la page unique des
+    // candidats, zone de question ouverte, avec les phrases toutes prêtes (« Pouvez-vous passer le voir avant ? »).
+    if (/^[a-f0-9]{24}$/i.test(id)) {
+      trackSiteEvent("cta_click", { label: "cand_ecrire_vers_question" });
+      router.push(`/application/${id}?ask=1`);
+      return;
+    }
     try {
       const conv = await startProviderConversation(role, providerId);
       router.push(conv ? `/chat?c=${encodeURIComponent(conv)}` : "/chat");

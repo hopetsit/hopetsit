@@ -333,8 +333,8 @@ async function sendConfirmEmail(lead, variant = 'new') {
   // devient une liste numérotée ; la ligne qui porte le lien devient le bouton.
   const hello = fr ? (p ? `Bonjour ${p},` : 'Bonjour,') : (p ? `Hi ${p},` : 'Hi,');
   const steps = fr
-    ? `Ensuite, tout se fait tout seul :\n1. Ta demande est publiée.\n2. Les gardiens proches de chez toi sont prévenus.\n3. Ceux qui sont intéressés te proposent leur prix, et tu les reçois par e-mail.\n4. Tu choisis celui ou celle qui te plaît. Rien n'est payé avant que tu aies choisi.`
-    : `Then everything happens by itself:\n1. Your request is published.\n2. Sitters near you are notified.\n3. The ones who are interested send you their price, and you get them by email.\n4. You pick the one you like. Nothing is paid before you choose.`;
+    ? `Ensuite, tout se fait tout seul :\n1. Ta demande est publiée.\n2. Les gardiens proches de chez toi sont prévenus.\n3. Ceux qui sont intéressés te proposent leur prix, et tu les reçois par e-mail.\n4. Tu vois leur profil, tu leur écris, et tu peux les rencontrer avant de décider : personne ne garde ton animal sans que tu l'aies choisi.\n5. Tu choisis celui ou celle qui te plaît. Rien n'est payé avant que tu aies choisi.`
+    : `Then everything happens by itself:\n1. Your request is published.\n2. Sitters near you are notified.\n3. The ones who are interested send you their price, and you get them by email.\n4. You see their profile, you message them, and you can meet them before deciding: nobody looks after your pet unless you chose them.\n5. You pick the one you like. Nothing is paid before you choose.`;
   const free = fr ? 'Rien à installer, rien à payer pour publier ta demande.' : 'Nothing to install, nothing to pay to publish your request.';
   const help = fr
     ? 'Si le bouton ne fait rien ou si quelque chose te bloque, réponds simplement à cet e-mail en me disant ce que tu vois à l\'écran : je t\'aide pas à pas.'

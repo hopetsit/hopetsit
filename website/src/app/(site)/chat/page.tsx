@@ -5,6 +5,8 @@
 // active à droite), stack vertical sur mobile (clic ouvre la conversation).
 // Temps réel via socket.io : nouveaux messages arrivent live.
 
+import { trackSiteEvent } from "@/components/SiteAnalytics";
+import { c3110 } from "@/lib/i18n/cand3110";
 import Link from "@/components/SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -951,8 +953,23 @@ export default function ChatPage() {
                 {loadingMessages ? (
                   <div className="text-center text-sm text-ink-muted">{t("common_loading")}</div>
                 ) : messages.length === 0 ? (
-                  <div className="text-center text-sm text-ink-muted">
+                  <div className="text-center text-sm text-ink-muted" data-chat-vide-2511="">
                     {t("chat_no_messages")}
+                    {/* 25/11 (BOB) — conversation vide côté propriétaire : jamais de page blanche. Trois phrases toutes
+                        prêtes (les mêmes que sur la page des candidats) ; un appui remplit le champ, il reste à envoyer. */}
+                    {user?.role === "owner" && (() => {
+                      const c = conversations.find((x) => x.id === activeId);
+                      if (!c || (c as { friendChat?: boolean }).friendChat) return null;
+                      return (
+                        <div className="mx-auto mt-3 flex max-w-md flex-col items-stretch gap-2">
+                          {[c3110(lang, "q_meet"), c3110(lang, "q_call"), c3110(lang, "q_dates")].map((q) => (
+                            <button key={q} type="button" className="min-h-[40px] rounded-2xl bg-owner-light px-3 py-2 text-left text-[13px] font-bold leading-snug text-owner-dark" onClick={() => { setDraft(q); trackSiteEvent("cta_click", { label: "chat_vide_phrase" }); }}>
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   messages.map((m) => {

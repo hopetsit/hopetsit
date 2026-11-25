@@ -11,7 +11,7 @@ const { maskPhonesInText, maskEmailsInText } = require('../utils/phoneMask');
 const { decrypt } = require('../utils/encryption');
 const { createNotificationSafe } = require('./notificationService');
 const { sendNotification } = require('./notificationSender');
-const { getChatAccess } = require('./chatAccessService');
+const { getChatAccess, hasCandidateLink2511 } = require('./chatAccessService');
 // v599 (ZOE) — une conversation par paire de PERSONNES : accès, côté (owner /
 // prestataire / participant) et fil canonique calculés sur les 3 profils.
 const {
@@ -273,7 +273,8 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
         ? 'Walker'
         : 'Sitter';
     const access = await getChatAccess(senderId, senderUserModel);
-    if (!access.hasAny) {
+    // 25/11 — candidature entre les deux → chat libre (hasCandidateLink2511).
+    if (!access.hasAny && !(await hasCandidateLink2511({ ownerId, sitterId, walkerId }))) {
       const err = new HttpError(402, 'Chat access required');
       err.code = 'CHAT_ACCESS_REQUIRED';
       err.details = {
