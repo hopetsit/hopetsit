@@ -3726,13 +3726,16 @@ export async function proposeMyServices(r: OwnerActiveRequest, role: "sitter" | 
     const h12 = l.getHours() % 12 === 0 ? 12 : l.getHours() % 12;
     timeSlot = `${h12}:${String(l.getMinutes()).padStart(2, "0")} ${l.getHours() < 12 ? "AM" : "PM"}`;
   }
-  const venue = r.serviceLocation === "owners_home" || r.serviceLocation === "sitters_home" ? r.serviceLocation : undefined;
+  // 646 (ZOE, contrôle du 25/11/2026 — vu à l'écran) : une demande porte « at_owner » / « at_sitter » / « both », jamais
+  // « owners_home » → le lieu n'était JAMAIS envoyé et le serveur refusait toute candidature à une « Garde à domicile »
+  // (400 « houseSittingVenue is required… », affiché en anglais). Même règle que l'app : chez le propriétaire par défaut.
+  const venue = r.serviceLocation === "at_sitter" || r.serviceLocation === "sitters_home" ? "sitters_home" : "owners_home";
   const raw = await request<{ duplicatePrevented?: boolean; application?: { pricing?: { stale?: boolean } } }>(`/applications?ownerId=${encodeURIComponent(r.ownerId)}`, {
     method: "POST",
     body: JSON.stringify({
       petIds: r.petIds.slice(0, 1),
       serviceType,
-      ...(serviceType === "house_sitting" && venue ? { houseSittingVenue: venue } : {}),
+      ...(serviceType === "house_sitting" ? { houseSittingVenue: venue } : {}),
       serviceDate,
       ...(r.startDate ? { startDate: r.startDate } : {}),
       ...(r.endDate ? { endDate: r.endDate } : {}),

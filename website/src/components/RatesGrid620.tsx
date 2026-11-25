@@ -138,8 +138,19 @@ export function RatesGrid620({ role, lang }: { role: "sitter" | "walker"; lang: 
     }
   }
 
+  // 646 (ZOE, contrôle du 25/11/2026 — vu à l'écran) : le lien « ajoute-le ici » (/dashboard#rates-620) et la notification
+  // « Ajoute ton prix par jour » arrivaient EN HAUT du tableau de bord, la grille étant 1 200 px plus bas (elle se dessine
+  // après le chargement, le navigateur a déjà abandonné l'ancre). On descend dessus une fois les tarifs chargés.
+  useEffect(() => {
+    if (!loaded || typeof window === "undefined" || window.location.hash !== "#rates-620") return;
+    const el = document.getElementById("rates-620");
+    if (!el) return;
+    const t = window.setTimeout(() => el.scrollIntoView({ block: "start" }), 150);
+    return () => window.clearTimeout(t);
+  }, [loaded]);
+
   return (
-    <form onSubmit={save} id="rates-620" data-testid="rates-grid-620" className="mt-10 rounded-[24px] p-5" style={{ background: "#FAF1EC" }}>
+    <form onSubmit={save} id="rates-620" data-testid="rates-grid-620" className="mt-10 scroll-mt-20 rounded-[24px] p-5" style={{ background: "#FAF1EC" }}>
       <h2 className="flex items-center gap-2 font-display text-2xl font-bold tracking-[-0.02em]" style={{ color: INK }}>
         <AppIcon name="wallet" size={24} color={tone.mid} />
         {d620(lang, "rates_title")}
