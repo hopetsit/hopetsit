@@ -162,7 +162,11 @@ export default function ArticleTokyoNewYearPetCare() {
         <Link href="/blog/tokyo-pet-sitter-guide" className="font-semibold text-owner underline">
           東京でペットシッターを頼むときのポイント
         </Link>
-        にまとめています。
+        にまとめています。海外旅行や長期の出張で一週間以上家を空ける場合は、
+        <Link href="/blog/tokyo-long-trip-pet-care" className="font-semibold text-owner underline">
+          海外旅行や長期出張でペットを預けるには
+        </Link>
+        も参考にしてください。
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">

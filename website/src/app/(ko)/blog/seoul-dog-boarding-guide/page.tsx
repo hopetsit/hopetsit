@@ -205,7 +205,11 @@ export default function ArticleSeoulDogBoardingGuide() {
         <Link href="/blog/seoul-dog-boarding-cost" className="font-semibold text-owner underline">
           강아지 맡기는 비용, 무엇으로 정해질까
         </Link>
-        에서 견적을 비교하는 법을 확인해 보세요.
+        에서 견적을 비교하는 법을 확인해 보세요. 애견호텔로 마음을 정했다면{" "}
+        <Link href="/blog/seoul-dog-hotel-checklist" className="font-semibold text-owner underline">
+          애견호텔 고르는 법 : 예약 전 체크리스트
+        </Link>
+        도 함께 읽어 보세요.
       </p>
 
       <h2 className="mt-12 font-display text-2xl font-extrabold text-ink">

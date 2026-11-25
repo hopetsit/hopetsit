@@ -16,8 +16,8 @@ export const FOOTER_CITIES = [
 export const FOOTER_POSTS = [
   { href: "/blog/partir-au-ski-avec-ou-sans-son-chien", label: "Paris : partir au ski avec ou sans son chien" },
   { href: "/blog/summer-in-nyc-with-a-dog", label: "New York: summer with a dog" },
-  { href: "/blog/seoul-dog-boarding-cost", label: "강아지 맡기는 비용, 무엇으로 정해질까" },
-  { href: "/blog/tokyo-cat-home-visit-sitter", label: "ペットシッターに家に来てもらう : 猫の留守番" },
+  { href: "/blog/seoul-dog-hotel-checklist", label: "애견호텔 고르는 법 : 예약 전 체크리스트" },
+  { href: "/blog/tokyo-long-trip-pet-care", label: "海外旅行・長期出張でペットを預けるには" },
   { href: "/blog/cat-sitting-amsterdam-holidays", label: "Amsterdam: cat sitting over the holidays" },
 ];
 

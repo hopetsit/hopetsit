@@ -36,6 +36,7 @@ uniques et locaux, reliés à la page pilier de la ville et à « Publier ma dem
 - [x] 서울 아파트에서 고양이 돌봄: 방문 돌봄과 위탁 비교 (04/11/2026, GUS — /blog/seoul-cat-sitter-guide)
 - [x] 서울 강아지 맡기는 곳 : 애견호텔·위탁·방문 펫시터 비교 (11/11/2026, GUS — demande Search Console « 강아지 맡기는 곳 » — /blog/seoul-dog-boarding-guide)
 - [x] 강아지 맡기는 비용, 무엇으로 정해질까 : 서울에서 견적 비교하는 법 (18/11/2026, GUS — demande Search Console « 강아지 맡기는 비용 » — /blog/seoul-dog-boarding-cost)
+- [x] 애견호텔 고르는 법 : 서울에서 예약 전 확인할 체크리스트 (25/11/2026, GUS — demande Search Console « 애견호텔 », « 애견 호텔 서울 » — /blog/seoul-dog-hotel-checklist)
 - [ ] 한강공원 반려견 산책 에티켓
 - [ ] 겨울철 서울 반려견 산책: 추위와 제설제
 - [ ] 반려동물 등록 방법과 펫시터에게 전달할 정보
@@ -45,6 +46,7 @@ uniques et locaux, reliés à la page pilier de la ville et à « Publier ma dem
 - [x] 年末年始に犬・猫を預けるには：東京での準備 (04/11/2026, GUS — /blog/tokyo-new-year-pet-care)
 - [x] 東京のマンションで猫を飼う：訪問シッターと預かりの比較 (18/11/2026, GUS — demande Search Console « ペットシッター 家に来てもらう » — /blog/tokyo-cat-home-visit-sitter)
 - [x] 東京で犬の散歩代行を頼むには：ドッグシッターの選び方 (11/11/2026, GUS — demande Search Console « ドッグシッター », « ペット 散歩 代行 » — /blog/tokyo-dog-walking-guide)
+- [x] 海外旅行や長期出張でペットを預けるには : 東京での長期預かりの選び方 (25/11/2026, GUS — demande Search Console « 海外旅行中にペットを預けるなら », « 老猫 長期預かり » — /blog/tokyo-long-trip-pet-care)
 - [ ] 東京のドッグラン：利用マナーと選び方
 - [ ] 夏の東京で犬の散歩：熱中症とアスファルトの温度
 - [ ] 犬の登録と狂犬病予防注射：シッターに伝えること

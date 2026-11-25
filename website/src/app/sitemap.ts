@@ -53,6 +53,9 @@ const PUBLIC_PATHS = [
   // 04/11 (GUS) — articles ko + ja de la semaine.
   "/blog/seoul-cat-sitter-guide",
   "/blog/tokyo-new-year-pet-care",
+  // 25/11 (GUS) — articles ko + ja de la semaine.
+  "/blog/seoul-dog-hotel-checklist",
+  "/blog/tokyo-long-trip-pet-care",
   // 18/11 (GUS) — articles ko + ja de la semaine.
   "/blog/seoul-dog-boarding-cost",
   "/blog/tokyo-cat-home-visit-sitter",
