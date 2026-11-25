@@ -211,6 +211,7 @@ const createApplication = async (req, res) => {
     // monthly instead of hourly (v15-6 flexible rates), so we accept ANY
     // non-zero rate. Walkers have their own `walkRates` array.
     const providerRole = req.user?.role;
+    const refusal2511 = require('../utils/rateRefusalText2511'); // 2511b — refus « il manque un tarif » dans la langue du prestataire
     let provider = null;
     let noRate2511 = false; // 2511 — gardien sans aucun tarif (refus décidé une fois la demande connue)
     if (providerRole === 'walker') {
@@ -228,7 +229,7 @@ const createApplication = async (req, res) => {
       const derivedHourly = walkPricing ? walkPricing.hourlyRate : null;
       if (!derivedHourly || derivedHourly <= 0) {
         return res.status(400).json({
-          error: 'You must set at least one walk rate before sending requests to owners.',
+          error: refusal2511.refusalText(provider, 'walkRate'), // 2511b — langue du promeneur (avant : anglais)
           details: 'Open your profile and set a price for 30 min or 60 min walks.',
         });
       }
@@ -286,15 +287,20 @@ const createApplication = async (req, res) => {
       dayService2511 = !!post620 && providerRole !== 'walker' && !visit620
         && ['day', 'night'].includes(engine620.quantityFor(post620, engine620.mainService(post620)).unit);
     } catch (_) { dayService2511 = false; }
+    // 2511b — unité du service principal (day | night | visit | walk) : choisit le texte du refus RATE_REQUIRED
+    // (un promeneur sur une garde n'a aucun tarif à ajouter : on ne l'envoie pas dans « Mes tarifs »).
+    let unit2511b = '';
+    try { unit2511b = post620 ? String(engine620.quantityFor(post620, engine620.mainService(post620)).unit || '') : ''; } catch (_) { unit2511b = ''; }
+    const rateRequiredText2511 = () => refusal2511.refusalText(provider, refusal2511.rateRequiredKey({ providerRole, unit: unit2511b }));
     if (noRate2511 && !(dayService2511 && confirmOn2511)) {
       return res.status(400).json({
-        error: 'You must set at least one rate (hourly, daily, weekly or monthly) before sending requests to owners.',
+        error: refusal2511.refusalText(provider, 'noRate'), // 2511b — langue du gardien (avant : anglais)
         details: 'Update your profile with a non-zero rate and try again.',
       });
     }
     if (visit620 && !(Number(provider.visitRate) > 0)) {
       return res.status(400).json({
-        error: 'Set your price per home visit before applying to a home-visit request.',
+        error: refusal2511.refusalText(provider, 'visitRate'), // 2511b — langue du gardien (avant : anglais)
         code: 'VISIT_RATE_REQUIRED',
       });
     }
@@ -489,7 +495,7 @@ const createApplication = async (req, res) => {
       // 2511 — demande sans dates et gardien sans tarif à la journée : « tarif à venir » aussi (plus de « heure × 8 »).
       if (!(Number(pricing620.appliedRate) > 0) && dayService2511 && confirmOn2511) pricing620.stale = true;
       else if (!(Number(pricing620.appliedRate) > 0) && noRate2511) {
-        return res.status(400).json({ error: 'Set your price for this service before applying to this request.', code: 'RATE_REQUIRED' });
+        return res.status(400).json({ error: rateRequiredText2511(), code: 'RATE_REQUIRED' });
       }
       tierPricing = { basePrice: null, pricingTier: 'indicative', appliedRate: pricing620.appliedRate, totalHours: 0, totalDays: 0 };
       pricingBreakdown = { basePrice: null, addOns: pricing620.addOns, addOnsTotal: pricing620.addOnsTotal, totalPrice: null, commission: null, netPayout: null, commissionRate: pricing620.commissionRate, currency: bookingCurrency };
@@ -518,7 +524,7 @@ const createApplication = async (req, res) => {
       const rateToConfirm2511 = !priced && dayService2511 && confirmOn2511;
       if (!priced && !rateToConfirm2511) {
         return res.status(400).json({
-          error: 'Set your price for this service before applying to this request.',
+          error: rateRequiredText2511(),
           code: 'RATE_REQUIRED',
         });
       }
@@ -750,11 +756,15 @@ const createApplication = async (req, res) => {
     // (1re candidature tout de suite, les suivantes regroupées 1 fois par jour au plus).
     const appEmail2610 = require('../services/applicationEmail2610');
     const grouped2610 = !!application.postId && appEmail2610.enabled();
+    const stale2511b = !!(pricing620 && pricing620.stale === true);
     sendNotification({
       userId: ownerId,
       role: 'owner',
       type: 'application_new',
+      // 2511b — candidature en « tarif à venir » : le propriétaire ne peut pas encore choisir → gabarit qui le dit
+      // (« Son tarif arrive… ») au lieu de « choisis et paie en 2 minutes ». Une candidature avec un prix : inchangé.
       templateType: text617.TEMPLATE,
+      ...(stale2511b ? { templateType: text617.TEMPLATE_STALE } : {}),
       ...(grouped2610 ? { channels: { email: false } } : {}),
       data: {
         applicationId: application._id.toString(),
@@ -765,6 +775,7 @@ const createApplication = async (req, res) => {
         ...text617.applicationNewData617({ provider: providerDoc617, pendingCount: pendingCount617 }),
         // 620 — « 12 €/visite » (indicatif) ou « 72 € au total » (demande datée).
         ...text617.priceData620(application.pricing),
+        ...(stale2511b ? { rateStale2511: '1' } : {}),
       },
       actor: {
         role: providerRole === 'walker' ? 'walker' : 'sitter',

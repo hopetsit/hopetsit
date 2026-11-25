@@ -1238,6 +1238,9 @@ const renderNotificationContent = (type, data = {}, userLanguage) => {
     } else if (safeData.reminder617 === 'x48') {
       // 617 (ADA) — rappel « ta demande expire dans 2 jours » (type application_new).
       tmplKey = 'request_expiry_617';
+    } else if (safeData.appNew617 && safeData.rateStale2511) {
+      // 2511b (BOB) — candidature reçue en « tarif à venir » : « Son tarif arrive… » (type application_new).
+      tmplKey = require('../utils/applicationNewText617').TEMPLATE_STALE;
     } else if (safeData.appNew617) {
       // 617 (ADA, §D.3) — « <Prénom> a répondu · N candidat(s) » (type application_new).
       tmplKey = require('../utils/applicationNewText617').TEMPLATE;

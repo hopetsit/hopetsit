@@ -8,14 +8,19 @@
 // alors « Message »).
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { getOwnerActiveRequests, getStoredUser, myBasePrice, proposeMyServices, type OwnerActiveRequest } from "@/lib/api";
+import { ApiError, getOwnerActiveRequests, getStoredUser, myBasePrice, proposeMyServices, type OwnerActiveRequest } from "@/lib/api";
 import { AppIcon } from "@/components/AppIcon";
 import { d620 } from "@/lib/i18n/dates620";
 import { dateModeOf620 } from "@/lib/services620";
 
 const GRAD = { sitter: "linear-gradient(90deg,#2F6FD6,#1E4FB0)", walker: "linear-gradient(90deg,#2FAE4E,#15803D)" } as const;
 const DARK = { sitter: "#1E4FB0", walker: "#15803D" } as const;
-type St = "idle" | "busy" | "sent" | "already" | "accepted" | "rejected" | "error" | "noprice";
+type St = "idle" | "busy" | "sent" | "sent_rate" | "already" | "accepted" | "rejected" | "error" | "noprice";
+// 2511b — page des tarifs du site (grille « Mes tarifs » du tableau de bord).
+const RATES_HREF = "/dashboard#rates-620";
+// 2511b — garde à la journée ou à la nuit (ni visite à domicile, ni balade) : le serveur accepte un gardien sans
+// prix par jour et crée sa candidature en « tarif à venir ».
+const isDaySitting = (p: OwnerActiveRequest) => { const s = p.serviceTypes[0] || "house_sitting"; return s !== "home_visit" && s !== "dog_walking"; };
 
 function stateFrom(s?: string | null): St {
   return s === "pending" ? "already" : s === "accepted" ? "accepted" : s === "rejected" ? "rejected" : "idle";
@@ -26,6 +31,7 @@ export function OwnerRequestsCard({ ownerId, from, onLoaded }: { ownerId: string
   const [role, setRole] = useState<"sitter" | "walker" | null>(null);
   const [posts, setPosts] = useState<OwnerActiveRequest[] | null>(null);
   const [st, setSt] = useState<Record<string, St>>({});
+  const [why, setWhy] = useState<Record<string, string>>({}); // 2511b — phrase du serveur (déjà dans la langue du compte) quand il refuse
 
   useEffect(() => {
     const u = getStoredUser();
@@ -54,12 +60,17 @@ export function OwnerRequestsCard({ ownerId, from, onLoaded }: { ownerId: string
     if (!u || !role) return;
     setSt((m) => ({ ...m, [p.id]: "busy" }));
     const base = await myBasePrice(role, u.id);
-    if (base <= 0) { setSt((m) => ({ ...m, [p.id]: "noprice" })); return; }
+    // 2511b (BOB, constat de ZOE) — un gardien sans tarif n'est plus arrêté ici sur une garde à la journée ou à la
+    // nuit : le serveur décide (candidature en « tarif à venir »). Visites, balades, promeneurs : inchangé.
+    if (base <= 0 && !(role === "sitter" && isDaySitting(p))) { setSt((m) => ({ ...m, [p.id]: "noprice" })); return; }
     try {
-      const r = await proposeMyServices(p, role, base);
+      const r = await proposeMyServices(p, role, Math.max(0, base));
       setSt((m) => ({ ...m, [p.id]: r }));
     } catch (e) {
       const msg = e instanceof Error ? e.message.toLowerCase() : "";
+      // Refus « il manque un tarif » (400) : le serveur l'explique dans la langue du compte → on l'affiche tel quel.
+      const told = e instanceof ApiError && e.status === 400 && e.message && !/^request failed/i.test(e.message) ? e.message : "";
+      setWhy((m) => ({ ...m, [p.id]: told }));
       setSt((m) => ({ ...m, [p.id]: msg.includes("already") || msg.includes("duplicate") ? "already" : "error" }));
     }
   }
@@ -78,7 +89,7 @@ export function OwnerRequestsCard({ ownerId, from, onLoaded }: { ownerId: string
           const range = [day(p.startDate), day(p.endDate)].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(" → ");
           const dates = mode === "tbd" ? d620(lang, "card_tbd") : mode === "approx" && range ? `${d620(lang, "card_approx")} · ${range}` : range;
           const where = p.distanceKm ? t("m586_km").replace("{km}", String(p.distanceKm)) : p.city || "";
-          const done = s === "sent" || s === "already" || s === "accepted";
+          const done = s === "sent" || s === "sent_rate" || s === "already" || s === "accepted";
           return (
             <li key={p.id} className="rounded-xl bg-white p-2.5">
               <p className="text-[13px] font-bold text-[#231715]">{p.serviceTypes.map(svc).join(" · ") || svc(role === "walker" ? "dog_walking" : "house_sitting")}</p>
@@ -89,7 +100,7 @@ export function OwnerRequestsCard({ ownerId, from, onLoaded }: { ownerId: string
               {done || s === "rejected" ? (
                 <p className="mt-2 flex min-h-[40px] items-center justify-center gap-1.5 rounded-[14px] px-3 text-center text-[13px] font-bold" style={s === "rejected" ? { background: "#FBE9E5", color: "#9E1F0B" } : { background: role === "walker" ? "#E8F8EE" : "#EAF1FE", color: DARK[role] }}>
                   {s !== "rejected" && <AppIcon name="check" size={15} color={DARK[role]} />}
-                  {t(s === "sent" ? "m586_req_sent" : s === "already" ? "m586_req_already" : s === "accepted" ? "m586_req_accepted" : "m586_req_rejected")}
+                  {t(s === "sent" || s === "sent_rate" ? "m586_req_sent" : s === "already" ? "m586_req_already" : s === "accepted" ? "m586_req_accepted" : "m586_req_rejected")}
                 </p>
               ) : (
                 <button
@@ -104,8 +115,14 @@ export function OwnerRequestsCard({ ownerId, from, onLoaded }: { ownerId: string
                   <span className="relative">{s === "busy" ? "…" : t("m586_req_offer")}</span>
                 </button>
               )}
+              {s === "sent_rate" && (
+                <p className="mt-1.5 text-[12px] font-bold leading-snug" style={{ color: DARK[role] }} data-testid="req-sent-rate-2511">
+                  {t("m586_req_sent_rate")}{" "}
+                  <a href={RATES_HREF} className="underline underline-offset-2">{t("m586_req_sent_rate_link")}</a>
+                </p>
+              )}
               {s === "noprice" && <p className="mt-1.5 text-[12px] font-bold text-[#9A3412]">{t("m586_req_no_price")}</p>}
-              {s === "error" && <p className="mt-1.5 text-[12px] font-bold text-[#B42318]" role="alert">{t("m586_req_error")}</p>}
+              {s === "error" && <p className="mt-1.5 text-[12px] font-bold text-[#B42318]" role="alert">{why[p.id] || t("m586_req_error")}</p>}
             </li>
           );
         })}

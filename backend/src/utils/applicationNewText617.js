@@ -13,6 +13,10 @@
 const { deriveNameParts } = require('../utils/personName');
 
 const TEMPLATE = 'application_new_617';
+// 2511b (BOB) — candidature reçue en « tarif à venir » (gardien sans tarif à la journée) : le propriétaire ne peut pas
+// encore choisir. Gabarit dédié (« Son tarif arrive : tu pourras choisir dès qu'il sera ajouté. »), marqueur
+// `data.rateStale2511` pour que la cloche re-rende le même texte.
+const TEMPLATE_STALE = 'application_new_stale_2511';
 
 const firstNameOf = (doc) => {
   const { firstName } = deriveNameParts(doc || {});
@@ -110,4 +114,4 @@ const enrichPrice620 = (data, locale) => {
   return d;
 };
 
-module.exports = { TEMPLATE, applicationNewData617, firstNameOf, priceData620, enrichPrice620, fmtAmount, ownerUnitRate, UNIT_WORDS };
+module.exports = { TEMPLATE, TEMPLATE_STALE, applicationNewData617, firstNameOf, priceData620, enrichPrice620, fmtAmount, ownerUnitRate, UNIT_WORDS };

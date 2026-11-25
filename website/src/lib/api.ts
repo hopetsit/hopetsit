@@ -3714,7 +3714,8 @@ export async function myBasePrice(role: "sitter" | "walker", myId: string): Prom
   }
 }
 /** « Proposer mes services » : même contrat que l'app (POST /applications?ownerId=). */
-export async function proposeMyServices(r: OwnerActiveRequest, role: "sitter" | "walker", basePrice: number): Promise<"sent" | "already"> {
+// 2511b — "sent_rate" : candidature créée en « tarif à venir » (pricing.stale : le gardien n'a pas de prix par jour).
+export async function proposeMyServices(r: OwnerActiveRequest, role: "sitter" | "walker", basePrice: number): Promise<"sent" | "already" | "sent_rate"> {
   const serviceType = r.serviceTypes[0] || (role === "walker" ? "dog_walking" : "pet_sitting");
   const start = r.startDate || r.endDate || new Date().toISOString();
   const d0 = new Date(start);
@@ -3726,7 +3727,7 @@ export async function proposeMyServices(r: OwnerActiveRequest, role: "sitter" | 
     timeSlot = `${h12}:${String(l.getMinutes()).padStart(2, "0")} ${l.getHours() < 12 ? "AM" : "PM"}`;
   }
   const venue = r.serviceLocation === "owners_home" || r.serviceLocation === "sitters_home" ? r.serviceLocation : undefined;
-  const raw = await request<{ duplicatePrevented?: boolean }>(`/applications?ownerId=${encodeURIComponent(r.ownerId)}`, {
+  const raw = await request<{ duplicatePrevented?: boolean; application?: { pricing?: { stale?: boolean } } }>(`/applications?ownerId=${encodeURIComponent(r.ownerId)}`, {
     method: "POST",
     body: JSON.stringify({
       petIds: r.petIds.slice(0, 1),
@@ -3740,7 +3741,8 @@ export async function proposeMyServices(r: OwnerActiveRequest, role: "sitter" | 
       postId: r.id,
     }),
   });
-  return raw?.duplicatePrevented ? "already" : "sent";
+  if (raw?.duplicatePrevented) return "already";
+  return raw?.application?.pricing?.stale === true ? "sent_rate" : "sent";
 }
 /** Gardien / promeneur → propriétaire (routes existantes start-by-sitter / start-by-walker). */
 export async function startConversationWithOwner(role: "sitter" | "walker", ownerId: string): Promise<string> {

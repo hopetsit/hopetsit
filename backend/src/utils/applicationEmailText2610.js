@@ -46,6 +46,7 @@ const petKey = (post) => {
 const T = {
   fr: {
     choose: (n) => `Choisir ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    rateSoon: 'Tarif à venir', rateNote: (n) => `${n} n'a pas encore indiqué son tarif. Vous pourrez choisir dès qu'il sera ajouté : nous vous prévenons.`, // 2511b (BOB) — candidat en « tarif à venir » : pas de bouton « Choisir », on dit pourquoi
     cheapest: 'Le moins cher', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Écrire à ${n} avant de réserver`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'garder', visit: 'rendre visite à', walk: 'promener' },
@@ -67,6 +68,7 @@ const T = {
   },
   en: {
     choose: (n) => `Choose ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    rateSoon: 'Rate coming soon', rateNote: (n) => `${n} hasn't added a rate yet. You can choose as soon as it's added: we'll let you know.`, // 2511b (BOB) — candidat en « tarif à venir » : pas de bouton « Choisir », on dit pourquoi
     cheapest: 'Lowest price', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Talk to ${n} before you book`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'look after', visit: 'visit', walk: 'walk' },
@@ -86,6 +88,7 @@ const T = {
   },
   es: {
     choose: (n) => `Elegir a ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    rateSoon: 'Tarifa pendiente', rateNote: (n) => `${n} aún no ha indicado su tarifa. Podrá elegir en cuanto la añada: le avisaremos.`, // 2511b (BOB) — candidat en « tarif à venir » : pas de bouton « Choisir », on dit pourquoi
     cheapest: 'El más económico', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Hablar con ${n} antes de reservar`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'cuidar a', visit: 'visitar a', walk: 'pasear a' },
@@ -102,6 +105,7 @@ const T = {
   },
   de: {
     choose: (n) => `${n} auswählen`, // 2710 (SAM) — bouton direct de chaque carte
+    rateSoon: 'Preis folgt', rateNote: (n) => `${n} hat noch keinen Preis angegeben. Sie können auswählen, sobald er eingetragen ist: Wir informieren Sie.`, // 2511b (BOB) — candidat en « tarif à venir » : pas de bouton « Choisir », on dit pourquoi
     cheapest: 'Günstigster Preis', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Vor der Buchung mit ${n} sprechen`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'betreuen', visit: 'besuchen', walk: 'ausführen' },
@@ -118,6 +122,7 @@ const T = {
   },
   it: {
     choose: (n) => `Scegli ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    rateSoon: 'Tariffa in arrivo', rateNote: (n) => `${n} non ha ancora indicato la tariffa. Potrà scegliere appena sarà aggiunta: la avviseremo.`, // 2511b (BOB) — candidat en « tarif à venir » : pas de bouton « Choisir », on dit pourquoi
     cheapest: 'Il meno caro', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Parla con ${n} prima di prenotare`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'accudire', visit: 'fare visita a', walk: 'portare a spasso' },
@@ -134,6 +139,7 @@ const T = {
   },
   pt: {
     choose: (n) => `Escolher ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    rateSoon: 'Tarifa a caminho', rateNote: (n) => `${n} ainda não indicou a tarifa. Poderá escolher assim que for adicionada: nós avisamos.`, // 2511b (BOB) — candidat en « tarif à venir » : pas de bouton « Choisir », on dit pourquoi
     cheapest: 'O mais barato', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Falar com ${n} antes de reservar`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     verb: { sit: 'ficar com', visit: 'visitar', walk: 'passear' },
@@ -150,6 +156,7 @@ const T = {
   },
   ko: {
     choose: (n) => `${n}님 선택`, // 2710 (SAM) — bouton direct de chaque carte
+    rateSoon: '요금 준비 중', rateNote: (n) => `${n}님이 아직 요금을 등록하지 않았습니다. 등록되면 바로 선택할 수 있으며, 알려 드리겠습니다.`, // 2511b (BOB) — candidat en « tarif à venir » : pas de bouton « Choisir », on dit pourquoi
     cheapest: '최저가', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `예약 전에 ${n}님에게 문의하기`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     svc: { sit: '펫시팅', visit: '방문 돌봄', walk: '산책' },
@@ -165,6 +172,7 @@ const T = {
   },
   ja: {
     choose: (n) => `${n}さんを選ぶ`, // 2710 (SAM) — bouton direct de chaque carte
+    rateSoon: '料金準備中', rateNote: (n) => `${n}さんはまだ料金を登録していません。登録されしだい選べます。お知らせします。`, // 2511b (BOB) — candidat en « tarif à venir » : pas de bouton « Choisir », on dit pourquoi
     cheapest: 'いちばん安い', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `予約前に${n}さんと話す`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     svc: { sit: 'ペットシッター', visit: '訪問ケア', walk: '散歩' },
@@ -180,6 +188,7 @@ const T = {
   },
   pl: {
     choose: (n) => `Wybierz: ${n}`, // 2710 (SAM) — bouton direct de chaque carte
+    rateSoon: 'Stawka wkrótce', rateNote: (n) => `${n} nie podał(a) jeszcze stawki. Wybór będzie możliwy, gdy ją doda: damy znać.`, // 2511b (BOB) — candidat en « tarif à venir » : pas de bouton « Choisir », on dit pourquoi
     cheapest: 'Najtaniej', // 2411 (BOB) — repère sur la carte quand ce candidat est le moins cher de tous ceux en attente
     ask: (n) => `Porozmawiaj z: ${n}, zanim zarezerwujesz`, // 2411 (BOB) — écrire au gardien depuis l'e-mail (une propriétaire a répondu à l'e-mail en croyant lui écrire)
     svc: { sit: 'opieka nad zwierzęciem', visit: 'wizyty domowe', walk: 'spacer z psem' },
@@ -274,7 +283,11 @@ function cardsHtml(lang, cards) {
     // vérifiée (KYC / validation admin) et IBAN vérifié. Rien n'est affiché quand ce n'est pas le cas.
     const badges = L.badges ? [c.identityVerified ? L.badges.identity : '', c.ibanVerified ? L.badges.iban : ''].filter(Boolean)
       .map((b) => `<span style="display:inline-block;margin:6px 6px 0 0;padding:2px 8px;border-radius:999px;background:#EAF6EE;color:#15803D;font-size:12px;font-weight:700">✓ ${esc(b)}</span>`).join('') : '';
-    const price = priceLabel(lang, c.pricing);
+    // 2511b (BOB, constat de ZOE) — candidat en « tarif à venir » (gardien sans tarif à la journée) : le propriétaire ne
+    // peut pas encore le choisir. La carte le dit (« Tarif à venir » à la place du prix, une phrase à la place du bouton
+    // « Choisir ») ; le bouton « Écrire à… » reste. Un candidat avec un prix : carte inchangée.
+    const stale = !!(c.pricing && c.pricing.stale === true);
+    const price = stale ? L.rateSoon : priceLabel(lang, c.pricing);
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:0 0 10px;background:#FFF6F2;border-radius:14px"><tr>`
       + `<td width="68" style="padding:12px 0 12px 12px;vertical-align:middle">${avatar}</td>`
       + `<td style="padding:12px;vertical-align:middle"><div style="font-size:17px;font-weight:700;color:#231715">${name}</div><div style="font-size:13px;color:#6E4F48;line-height:1.4">${meta}</div>${badges}</td>`
@@ -283,7 +296,8 @@ function cardsHtml(lang, cards) {
       // 2710 (SAM, ordre de Daniel « que les propriétaires valident et paient ») — bouton DIRECT
       // « Choisir <prénom> » : ouvre la page de ce candidat (session sans mot de passe pour les
       // contacts de la pub), où un seul geste confirme le choix et mène au paiement.
-      + (/^https:\/\//.test(String(c.link || '')) ? `<tr><td colspan="${price ? 3 : 2}" style="padding:0 12px 12px"><a href="${esc(c.link)}" style="display:block;padding:12px 10px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-size:16px;font-weight:800;text-align:center;font-family:sans-serif">${esc(L.choose(String(c.name || 'HoPetSit')))}</a></td></tr>` : '')
+      + (stale ? `<tr><td colspan="${price ? 3 : 2}" style="padding:0 12px 12px"><div style="padding:10px 12px;background:#FFF4D6;border-radius:12px;font-size:14px;font-weight:700;line-height:1.5;color:#7A4B00">⏳ ${esc(L.rateNote(String(c.name || 'HoPetSit')))}</div></td></tr>` : '')
+      + (!stale && /^https:\/\//.test(String(c.link || '')) ? `<tr><td colspan="${price ? 3 : 2}" style="padding:0 12px 12px"><a href="${esc(c.link)}" style="display:block;padding:12px 10px;background:#C92A12;color:#FFFFFF;text-decoration:none;border-radius:12px;font-size:16px;font-weight:800;text-align:center;font-family:sans-serif">${esc(L.choose(String(c.name || 'HoPetSit')))}</a></td></tr>` : '')
       // 2411 (BOB) — bouton secondaire « Écrire à <prénom> avant de réserver » : ouvre sa page, zone de question ouverte.
       + (L.ask && /^https:\/\//.test(String(c.askLink || '')) ? `<tr><td colspan="${price ? 3 : 2}" style="padding:0 12px 12px"><a href="${esc(c.askLink)}" style="display:block;padding:10px;background:#FFFFFF;color:#9E1F0B;text-decoration:none;border:2px solid #C92A12;border-radius:12px;font-size:15px;font-weight:800;text-align:center;font-family:sans-serif">💬 ${esc(L.ask(String(c.name || 'HoPetSit')))}</a></td></tr>` : '')
       + '</table>';
@@ -321,7 +335,7 @@ function buildEmailData({ lang, post, cards, newCount, totalPending, j10Days }) 
   const first = cards[0] || {};
   let subjectLine;
   if (newCount <= 1) {
-    const price = priceLabel(l, first.pricing);
+    const price = first.pricing && first.pricing.stale === true ? L.rateSoon : priceLabel(l, first.pricing); // 2511b — « · Tarif à venir »
     subjectLine = `${onePhrase(l, { name: first.name || 'HoPetSit', service, post })}${price ? ` · ${price}` : ''}`;
   } else {
     subjectLine = manyPhrase(l, { count: newCount, service, post });
@@ -329,6 +343,8 @@ function buildEmailData({ lang, post, cards, newCount, totalPending, j10Days }) 
   const j10 = Number.isFinite(Number(j10Days)) && Number(j10Days) > 0 ? J10[l] : null;
   if (j10) subjectLine = `${j10.subject(Number(j10Days))} · ${subjectLine}`;
   const others = Math.max(0, Number(totalPending || 0) - cards.length);
+  // 2511b — toutes les cartes en « tarif à venir » : pas de pas-à-pas « Choisir → payer » (rien n'est encore payable).
+  const allStale = cards.length > 0 && cards.every((c) => c && c.pricing && c.pricing.stale === true);
   const tbd = String((post && post.dateMode) || '').toLowerCase() === 'tbd'
     || (!(post && post.startDate) && !(post && post.endDate) && !(post && post.dateMode));
   return {
@@ -344,7 +360,7 @@ function buildEmailData({ lang, post, cards, newCount, totalPending, j10Days }) 
       + (!tbd && L.guar ? `<p style="margin:12px 0 0;padding:10px 12px;background:#EAF6EE;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;color:#15803D">${freeCancel72(post) ? `✓ ${esc(L.guar[0])}<br>` : ''}✓ ${esc(L.guar[1])}</p>` : '')
       // 0511 (BOB, ordre de Daniel « fais tout ce qui est possible ») — pas à pas en langage simple
       // (fr/en ; les autres langues gardent l'e-mail tel quel), après le cas de Jeanne V. le 05/11.
-      + (!tbd && Array.isArray(L.how) && L.how.length > 1 ? `<p style="margin:14px 0 4px;font-size:14px;font-weight:700;color:#231715">${esc(L.how[0])}</p><ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.5;color:#231715">${L.how.slice(1, -1).map((s) => `<li style="margin:3px 0">${esc(s)}</li>`).join('')}</ol><p style="margin:8px 0 0;font-size:13px;color:#6E4F48">${esc(L.how[L.how.length - 1])}</p>` : '')
+      + (!tbd && !allStale && Array.isArray(L.how) && L.how.length > 1 ? `<p style="margin:14px 0 4px;font-size:14px;font-weight:700;color:#231715">${esc(L.how[0])}</p><ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.5;color:#231715">${L.how.slice(1, -1).map((s) => `<li style="margin:3px 0">${esc(s)}</li>`).join('')}</ol><p style="margin:8px 0 0;font-size:13px;color:#6E4F48">${esc(L.how[L.how.length - 1])}</p>` : '')
       // 2411 (BOB) — qui lit la réponse à cet e-mail (fr/en), seulement si au moins une carte a son bouton « Écrire à… ».
       + (L.who && cards.some((c) => /^https:\/\//.test(String(c.askLink || ''))) ? `<p style="margin:10px 0 0;padding:10px 12px;background:#FFF4D6;border-radius:10px;font-size:13px;font-weight:600;line-height:1.5;color:#7A4B00">💬 ${esc(L.who)}</p>` : '')
       // 3110 (ADA, ordre de Daniel via BOB) — dates qui touchent le 15/12 → 06/01 : « Les gardiens se
