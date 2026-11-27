@@ -149,8 +149,10 @@ async function purgeFinishedPosts() {
 /**
  * 27/11/2026 (BOB, ordre de Daniel : « efface celles sans date de début, ça sert à rien ») — demandes SANS AUCUNE
  * date (« dates à prévoir »), jamais réservées, publiées depuis plus de `olderThanDays` jours : une ligne d'historique
- * (reason 'sans_date') puis effacement de la demande et de ses candidatures. Jamais automatique : appelée seulement par
- * POST /admin/posts-history-1111/purge-nodate. `dryRun` (défaut) ne touche à rien et rend la liste.
+ * (reason 'sans_date') puis effacement de la demande et de ses candidatures. `dryRun` (défaut) ne touche à rien et rend la liste.
+ * Appelée par POST /admin/posts-history-1111/purge-nodate, et — accord écrit de Daniel du 27/11 « Oui, 14 jours » — par le
+ * passage horaire : une demande publiée sans date et restée sans date ni gardien choisi pendant 14 jours est retirée.
+ * Coupe-circuit sans redéploiement de code : NODATE_PURGE_2711=off. Délai réglable : NODATE_PURGE_DAYS_2711 (7 à 90, défaut 14).
  */
 async function purgeNoDatePosts({ olderThanDays = 14, dryRun = true } = {}) {
   const days = Math.min(365, Math.max(1, Number(olderThanDays) || 14));
@@ -180,11 +182,23 @@ async function purgeNoDatePosts({ olderThanDays = 14, dryRun = true } = {}) {
   return { dryRun: false, olderThanDays: days, found: stale.length, applications, deleted: result.deletedCount || 0, applicationsDeleted, items };
 }
 
+const noDateAutoEnabled = () => String(process.env.NODATE_PURGE_2711 || '').trim().toLowerCase() !== 'off';
+const noDateAutoDays = () => {
+  const n = Number(process.env.NODATE_PURGE_DAYS_2711);
+  return Number.isFinite(n) && n >= 7 && n <= 90 ? Math.floor(n) : 14;
+};
+
 async function tick() {
   try {
     await purgeFinishedPosts();
   } catch (error) {
     logger.error('[postCleanup] sweep failed', error);
+  }
+  // 27/11 — séparé : un échec ici ne doit jamais empêcher le nettoyage ci-dessus, ni l'inverse.
+  try {
+    if (noDateAutoEnabled()) await purgeNoDatePosts({ olderThanDays: noDateAutoDays(), dryRun: false });
+  } catch (error) {
+    logger.error('[postCleanup] demandes sans date : passage en échec', error);
   }
 }
 
@@ -223,5 +237,6 @@ module.exports = {
   // exported for tests / manual runs
   purgeFinishedPosts,
   purgeNoDatePosts,
+  tick, // exporté pour les tests
   archivePosts,
 };

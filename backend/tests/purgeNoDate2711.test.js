@@ -90,3 +90,34 @@ test('la liste de l\'historique montre la raison « sans_date »', async () => {
   expect(r.status).toBe(200);
   expect(r.body.items.filter((i) => i.reason === 'sans_date')).toHaveLength(2);
 });
+
+describe('passage horaire (accord de Daniel du 27/11 : retrait automatique à 14 jours)', () => {
+  const S = require('../src/services/postCleanupScheduler');
+  const D2 = 24 * 3600000;
+  const mk2 = async (body, days, extra = {}) => (await Post.collection.insertOne({ ownerId: oid(), postType: 'request', body, location: { city: 'Zone fictive', lat: -35, lng: -30 }, reservedBy: { bookingId: null }, createdAt: new Date(Date.now() - days * D2), ...extra })).insertedId;
+  afterEach(() => { delete process.env.NODATE_PURGE_2711; delete process.env.NODATE_PURGE_DAYS_2711; });
+
+  test('13 jours : gardée ; 15 jours : retirée avec sa ligne d\'historique ; datée : jamais', async () => {
+    const jeune = await mk2('auto13', 13); const vieille = await mk2('auto15', 15);
+    const datee = await mk2('autoDatee', 40, { startDate: new Date(Date.now() + 9 * D2), endDate: new Date(Date.now() + 12 * D2) });
+    await S.tick();
+    expect(await Post.countDocuments({ _id: jeune })).toBe(1);
+    expect(await Post.countDocuments({ _id: vieille })).toBe(0);
+    expect(await Post.countDocuments({ _id: datee })).toBe(1);
+    expect((await Archive.findOne({ postId: vieille }).lean()).reason).toBe('sans_date');
+  });
+
+  test('coupe-circuit NODATE_PURGE_2711=off : rien ne part', async () => {
+    const vieille = await mk2('autoCoupe', 30);
+    process.env.NODATE_PURGE_2711 = 'off';
+    await S.tick();
+    expect(await Post.countDocuments({ _id: vieille })).toBe(1);
+    delete process.env.NODATE_PURGE_2711;
+    process.env.NODATE_PURGE_DAYS_2711 = '60';
+    await S.tick();
+    expect(await Post.countDocuments({ _id: vieille })).toBe(1); // 30 jours < 60
+    process.env.NODATE_PURGE_DAYS_2711 = '3'; // hors bornes → 14
+    await S.tick();
+    expect(await Post.countDocuments({ _id: vieille })).toBe(0);
+  });
+});
