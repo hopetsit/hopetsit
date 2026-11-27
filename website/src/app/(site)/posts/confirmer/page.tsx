@@ -224,18 +224,20 @@ export default function ConfirmLeadPage() {
           <div className="text-5xl" aria-hidden>🐾</div>
           <h1 className="mt-2 font-display text-3xl font-extrabold text-ink">{done ? t.done : t.already}</h1>
           <p className="mt-3 text-[#6E4F48]">{done ? t.doneSub(done.notified) : t.alreadySub}</p>
-          {postId && (
-            <button type="button" onClick={() => onSeePost(postId)} disabled={busy} className={`${bigBtn} mt-6`}>
-              {busy ? t.busy : t.see}
-            </button>
-          )}
           {err && <p role="alert" className="mt-3 text-sm font-semibold text-owner-dark">{err}</p>}
           {datesWarn && <p role="alert" data-testid="dates-warn-0611" className="mt-3 rounded-xl bg-owner-light px-3 py-2 text-sm font-semibold text-owner-dark">{datesWarn}</p>}
-          {/* 23/10 (BOB, demande de Daniel) — l'app mise en avant : c'est là que l'on répond, suit et paie. */}
-          <Link href="/download?utm_source=email&utm_medium=lead&utm_campaign=app" className="mt-3 flex min-h-[48px] w-full items-center justify-center rounded-full border-2 border-owner bg-white px-6 text-base font-bold text-owner-dark transition hover:bg-owner-light">
+          {/* 27/11 (BOB, ordre de Daniel : « il faut les attirer sur l'app, pas le web, c'est là qu'on concrétisera ») —
+              l'app devient le bouton PRINCIPAL de l'écran « demande publiée » (avant : second bouton, contour seul) ;
+              « Voir ma demande » reste juste dessous, en second. Mesure : repère conf_app_clic. */}
+          <Link href="/download?utm_source=email&utm_medium=lead&utm_campaign=app" data-testid="conf-app-2711" onClick={() => trackSiteEvent("cta_click", { label: "conf_app_clic" })} className={`${bigBtn} mt-6`}>
             📲 {t.app}
           </Link>
           <p className="mt-2 text-xs text-[#6E4F48]">{t.appSub}</p>
+          {postId && (
+            <button type="button" onClick={() => onSeePost(postId)} disabled={busy} className="mt-3 flex min-h-[48px] w-full items-center justify-center rounded-full border-2 border-owner bg-white px-6 text-base font-bold text-owner-dark transition hover:bg-owner-light disabled:opacity-60">
+              {busy ? t.busy : t.see}
+            </button>
+          )}
           <p className="mt-4 text-xs text-[#6E4F48]">{t.pwd}</p>
         </div>
       </main>
