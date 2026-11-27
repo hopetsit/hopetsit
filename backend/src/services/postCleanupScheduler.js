@@ -37,7 +37,7 @@ const isTestOwner = (o, post) => /\+test|@example\.|@invalid\.example|\.test$/i.
  * Écrit une ligne d'historique par demande (jamais deux fois la même : clé postId).
  * @returns {Promise<Set<string>>} ids des demandes dont l'historique est bien écrit.
  */
-async function archivePosts(posts) {
+async function archivePosts(posts, opts = {}) {
   const PostArchive = require('../models/PostArchive1111');
   const Application = require('../models/Application');
   const Owner = require('../models/Owner');
@@ -69,7 +69,7 @@ async function archivePosts(posts) {
             bookingId: (p.reservedBy && p.reservedBy.bookingId) || null,
             applicationsCount,
             postCreatedAt: p.createdAt || null,
-            reason: p.closedAt ? 'service_termine' : 'date_passee',
+            reason: opts.reason || (p.closedAt ? 'service_termine' : 'date_passee'),
             isTest: !!isTestOwner(o, p),
             archivedAt: new Date(),
           },
@@ -146,6 +146,40 @@ async function purgeFinishedPosts() {
   return result.deletedCount || 0;
 }
 
+/**
+ * 27/11/2026 (BOB, ordre de Daniel : « efface celles sans date de début, ça sert à rien ») — demandes SANS AUCUNE
+ * date (« dates à prévoir »), jamais réservées, publiées depuis plus de `olderThanDays` jours : une ligne d'historique
+ * (reason 'sans_date') puis effacement de la demande et de ses candidatures. Jamais automatique : appelée seulement par
+ * POST /admin/posts-history-1111/purge-nodate. `dryRun` (défaut) ne touche à rien et rend la liste.
+ */
+async function purgeNoDatePosts({ olderThanDays = 14, dryRun = true } = {}) {
+  const days = Math.min(365, Math.max(1, Number(olderThanDays) || 14));
+  const cutoff = new Date(Date.now() - days * 24 * ONE_HOUR_MS);
+  const Application = require('../models/Application');
+  const found = await Post.find({
+    postType: 'request', 'reservedBy.bookingId': { $in: [null] },
+    startDate: { $in: [null] }, endDate: { $in: [null] }, closedAt: { $in: [null] },
+    createdAt: { $lt: cutoff },
+  }).select('_id ownerId postType body serviceTypes dateMode startDate endDate status closedAt reservedBy location city createdAt').lean();
+  // 27/11 (ZOE, contrôle du lot) — `reservedBy` est posé « au mieux » au choix du gardien (applicationController) : une
+  // demande dont une candidature est acceptée ou liée à une réservation n'est JAMAIS effacée, même sans ce drapeau.
+  const linked = found.length
+    ? new Set((await Application.distinct('postId', { postId: { $in: found.map((p) => p._id) }, $or: [{ status: 'accepted' }, { bookingId: { $ne: null } }] })).map(String))
+    : new Set();
+  const stale = found.filter((p) => !linked.has(String(p._id)));
+  const applications = stale.length ? await Application.countDocuments({ postId: { $in: stale.map((p) => p._id) } }) : 0;
+  const items = stale.map((p) => ({ postId: String(p._id), city: String((p.location && p.location.city) || p.city || ''), createdAt: p.createdAt }));
+  if (dryRun || !stale.length) return { dryRun: true, olderThanDays: days, found: stale.length, applications, deleted: 0, items };
+  const archived = await archivePosts(stale, { reason: 'sans_date' });
+  const ids = stale.filter((p) => archived.has(String(p._id))).map((p) => p._id);
+  if (!ids.length) return { dryRun: false, olderThanDays: days, found: stale.length, applications, deleted: 0, items };
+  const result = await Post.deleteMany({ _id: { $in: ids }, startDate: { $in: [null] }, endDate: { $in: [null] }, 'reservedBy.bookingId': { $in: [null] } });
+  let applicationsDeleted = 0;
+  try { applicationsDeleted = (await Application.deleteMany({ postId: { $in: ids } })).deletedCount || 0; } catch (e) { logger.warn(`[postCleanup] candidatures sans date non effacées : ${e.message}`); }
+  logger.info(`🧹 [postCleanup] ${result.deletedCount} demande(s) sans date effacée(s) (ordre admin), ${applicationsDeleted} candidature(s)`);
+  return { dryRun: false, olderThanDays: days, found: stale.length, applications, deleted: result.deletedCount || 0, applicationsDeleted, items };
+}
+
 async function tick() {
   try {
     await purgeFinishedPosts();
@@ -188,5 +222,6 @@ module.exports = {
   stopPostCleanupScheduler,
   // exported for tests / manual runs
   purgeFinishedPosts,
+  purgeNoDatePosts,
   archivePosts,
 };

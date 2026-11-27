@@ -401,6 +401,10 @@ function visibilityOf(p, { svcEnd, decision, bs, now }) {
   const reserved = !!(p.reservedBy && p.reservedBy.bookingId) || decision.state === 'accepted' || (bs && bs.payment && bs.payment.state === 'paid');
   if (reserved) return { state: 'reserved', since: (p.reservedBy && p.reservedBy.reservedAt) || decision.at || null, deleteAt: deleteAt(endAt) };
   if (endAt && endAt < now) return { state: 'expired', since: endAt, deleteAt: deleteAt(endAt) };
+  // 27/11 (BOB, ordre de Daniel « seulement les annonces valides en cours ») — même règle que la PawMap et le feed
+  // (utils/openRequest1111) : jour de début passé = plus proposée aux prestataires. Avant, l'admin la disait « en ligne »
+  // jusqu'à sa date de fin. Une demande sans aucune date reste « online » (règle inchangée côté prestataires).
+  if (!require('../utils/openRequest1111').isDateOpen(p, now)) return { state: 'started', since: p.startDate || null, until: endAt, deleteAt: deleteAt(endAt) };
   return { state: 'online', since: p.createdAt || null, until: endAt, deleteAt: deleteAt(endAt) };
 }
 

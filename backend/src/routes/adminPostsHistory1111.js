@@ -76,4 +76,20 @@ router.get('/list', requireAdmin, async (req, res) => {
   }
 });
 
+// 27/11/2026 (BOB, ordre de Daniel : « efface celles sans date de début ») — demandes sans aucune date, jamais
+// réservées, publiées depuis plus de `olderThanDays` jours (défaut 14) : historique (reason 'sans_date') puis effacement.
+// Sans `confirm: "EFFACER"` : simulation, rien n'est touché.
+router.post('/purge-nodate', requireAdmin, async (req, res) => {
+  try {
+    const go = String((req.body && req.body.confirm) || '') === 'EFFACER';
+    const r = await require('../services/postCleanupScheduler').purgeNoDatePosts({
+      olderThanDays: req.body && req.body.olderThanDays, dryRun: !go,
+    });
+    res.json(r);
+  } catch (e) {
+    logger.error('[admin/posts-history-1111/purge-nodate]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

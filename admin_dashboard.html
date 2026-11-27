@@ -709,7 +709,7 @@ tr.ada-late td { background: #FFF1EE; }
 .rq-date.today { color: #16A34A; }
 .rq-pill { margin-left: auto; font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 999px; color: #fff; white-space: nowrap; }
 .rq-pill.online { background: #2563EB; } .rq-pill.applied { background: #1F9D55; } .rq-pill.accepted { background: #7C3AED; }
-.rq-pill.paid { background: #0E7A4A; } .rq-pill.expired { background: #E08A0A; } .rq-pill.removed { background: #C92A12; } .rq-pill.done { background: #146C3A; }
+.rq-pill.paid { background: #0E7A4A; } .rq-pill.expired { background: #E08A0A; } .rq-pill.started { background: #6B7280; } .rq-pill.removed { background: #C92A12; } .rq-pill.done { background: #146C3A; }
 .rq-line { font-size: 13px; color: var(--rq-ink); display: flex; gap: 6px; flex-wrap: wrap; align-items: baseline; }
 .rq-line .rq-k { font-weight: 800; color: #7A4A2A; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
 .rq-who { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -6482,7 +6482,7 @@ function rjVisibility(it) {
   let txt;
   if (v.state === 'online') txt = '<span class="rj-read yes">● <span>en ligne pour les prestataires</span></span>' + (v.until ? ' <span>jusqu\'au</span> ' + rjWhen(v.until) : '') + del;
   else {
-    const why = v.state === 'expired' ? 'prestation terminée sans validation' : v.state === 'reserved' ? 'demande réservée' : v.state === 'closed' ? 'service terminé' : 'masquée par l\'admin';
+    const why = v.state === 'started' ? 'date de début passée' : v.state === 'expired' ? 'prestation terminée sans validation' : v.state === 'reserved' ? 'demande réservée' : v.state === 'closed' ? 'service terminé' : 'masquée par l\'admin';
     txt = '<span class="rj-read no">○ <span>retirée des prestataires</span></span>' + (v.since ? ' <span>le</span> ' + rjWhen(v.since) : '') + ' (<span>' + why + '</span>)' + del;
   }
   return '<div class="rj-note" style="margin-top:8px">👁 <span>Visibilité :</span> ' + txt + '</div>';
@@ -6665,7 +6665,7 @@ async function rjDetail(postId) {
 }
 
 // ── 16/10 (ADA, demande de Daniel) — page « Demandes publiées » : /admin/requests613/board. Lecture seule. ──
-const RQ = { items: [], counters: null, generatedAt: null, geo: 'all', state: 'all', sort: 'desc', focus: null, fromTile: false };
+const RQ = { items: [], counters: null, generatedAt: null, geo: 'all', state: 'open', sort: 'desc', focus: null, fromTile: false };
 const RQ_SERVICE = { pet_sitting: 'Garde', dog_walking: 'Promenade', house_sitting: 'Garde à domicile', day_care: 'Garderie', home_visit: 'Visite à domicile', overnight_stay: 'Nuit', long_stay: 'Long séjour' };
 // ── 620 (ADA, 24/10, ordre de Daniel « dates à prévoir + prix par visite ») — champs serveur `dateMode`
 // ('exact' | 'approx' | 'tbd') et `visitsPerDay` (1 | 2, service home_visit), lot serveur ZOE 620. Tolérant :
@@ -6782,11 +6782,12 @@ function rqState(it) {
   if (it.status === 'paid') return 'paid';
   if (it.status === 'accepted') return 'accepted';
   if (it.status === 'expired') return 'expired';
+  if (v.state === 'started') return 'started'; // 27/11 (BOB) — jour de début passé : plus proposée aux prestataires
   if (it.stages.decision && it.stages.decision.state === 'refused') return 'refused';
   if (it.stages.applications.count > 0) return 'applied';
   return 'online';
 }
-const RQ_STATE_LBL = { online: 'En ligne', applied: 'Candidats', refused: 'Refusée', accepted: 'Validée', paid: 'Payée', expired: 'Expirée', removed: 'Retirée', done: 'Terminée' };
+const RQ_STATE_LBL = { online: 'En ligne', applied: 'Candidats', refused: 'Refusée', accepted: 'Validée', paid: 'Payée', expired: 'Expirée', started: 'Commencée', removed: 'Retirée', done: 'Terminée' };
 function rqDelta(now, before) {
   const d = (now || 0) - (before || 0);
   const cls = d > 0 ? 'up' : d < 0 ? 'down' : '';
@@ -6817,8 +6818,11 @@ function rqFiltered() {
   if (RQ.geo === 'newyork') list = list.filter(function (it) { return rqCity(it, 'new york'); });
   if (RQ.geo === 'usa') list = list.filter(rqIsUSA);
   if (RQ.geo === 'france') list = list.filter(rqIsFrance);
-  if (RQ.state === 'open') list = list.filter(function (it) { return ['online', 'applied', 'accepted'].indexOf(rqState(it)) >= 0; });
+  // 27/11 (ZOE, contrôle du lot) — « payée, pas encore terminée » reste dans « En cours » : sinon elle n'était ni ici ni dans l'historique.
+  if (RQ.state === 'open') list = list.filter(function (it) { return ['online', 'applied', 'accepted', 'paid'].indexOf(rqState(it)) >= 0; });
   if (RQ.state === 'expired') list = list.filter(function (it) { return rqState(it) === 'expired'; });
+  // 27/11 (BOB, ordre de Daniel) — « Historique » : tout ce qui n'est plus une annonce valide en cours.
+  if (RQ.state === 'history') list = list.filter(function (it) { return ['started', 'expired', 'removed', 'done', 'refused'].indexOf(rqState(it)) >= 0; });
   if (RQ.state === 'paid') list = list.filter(function (it) { return ['paid', 'done'].indexOf(rqState(it)) >= 0; });
   // 31/10 (ADA) — « Revenus récemment » : dernière connexion réelle depuis la publication, les jamais-revenus à la fin.
   const backAt = function (it) {
@@ -7901,7 +7905,7 @@ function ph11Render(d) {
       var dates = (i.startDate || i.endDate) ? ph11Date(i.startDate) + ' → ' + ph11Date(i.endDate) : 'Sans date';
       var suite = i.booked
         ? '<span style="color:var(--green);font-weight:700">Réservée</span>'
-        : (i.reason === 'service_termine' ? 'Service terminé' : '<span style="color:var(--text-muted)">Date passée, sans réservation</span>');
+        : (i.reason === 'service_termine' ? 'Service terminé' : i.reason === 'sans_date' ? '<span style="color:var(--text-muted)">Sans date de début, retirée</span>' : '<span style="color:var(--text-muted)">Date passée, sans réservation</span>');
       return '<tr>'
         + '<td style="' + td + ';white-space:nowrap">' + escapeHtml(ph11Date(i.archivedAt)) + '</td>'
         + '<td style="' + td + '">' + escapeHtml(i.firstName || '—') + (i.isTest ? ' <span style="font-size:10px;color:var(--text-muted)">(test)</span>' : '') + '</td>'
@@ -13449,7 +13453,14 @@ function ngCard() {
     + '<div class="vt-under">' + (real.length ? '<button type="button" class="vt-link" onclick="ngShow(\'with\')"><span>Voir ces demandes dans la liste</span></button>' : '')
     + (other > 0 ? '<span>' + a11D(a11Num(other)) + ' <span>propositions de comptes de test, non comptées</span></span>' : '') + '</div></div>';
 }
-function vtSet(k) { RQ.vt = (RQ.vt === k ? 'all' : k); A11.rqMax = 40; rqRender(); try { if (RQ.vt !== 'all') document.getElementById('rq-toolbar').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {} }
+function vtSet(k) {
+  RQ.vt = (RQ.vt === k ? 'all' : k); A11.rqMax = 40;
+  // 27/11 (ZOE) — les tuiles comptent TOUTES les demandes : le filtre d'état par défaut (« En cours ») rendait la liste
+  // vide ou plus courte que le chiffre de la tuile (« Trop tard » = toujours 0). Tuile active → état « tous », puis retour.
+  if (RQ.vt !== 'all') { if (RQ.state !== 'all') { RQ.vtPrev = RQ.state; RQ.state = 'all'; } }
+  else if (RQ.vtPrev) { RQ.state = RQ.vtPrev; RQ.vtPrev = null; }
+  try { rqToolbar(); } catch (_) {}
+  rqRender(); try { if (RQ.vt !== 'all') document.getElementById('rq-toolbar').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {} }
 function vtRender() {
   var el = document.getElementById('vt-sales'); if (!el) return;
   if (!RQ.items.length || RQ.focus) { el.innerHTML = ''; return; }
@@ -13779,7 +13790,7 @@ function rqToolbar() {
     + a11Select('cand', RQ.cand, [['all', 'Candidats : tous'], ['with', 'Avec candidat'], ['without', 'Sans candidat']], 'a11RqSet', 'Filtrer par candidats')
     + a11Select('pay', RQ.pay, [['all', 'Paiement : tous'], ['paid', 'Payées'], ['unpaid', 'Pas payées']], 'a11RqSet', 'Filtrer par paiement')
     + (A11.pub ? a11Select('src', RQ.src, [['all', 'Provenance : toutes'], ['pub', 'Venues de la pub'], ['other', 'Hors pub']], 'a11RqSet', 'Filtrer par provenance') : '')
-    + a11Select('state', RQ.state === 'paid' ? 'all' : RQ.state, [['all', 'État : tous'], ['open', 'En cours'], ['expired', 'Expirées']], 'a11RqSet', 'Filtrer par état')
+    + a11Select('state', RQ.state === 'paid' ? 'all' : RQ.state, [['open', 'En cours (valides)'], ['history', 'Historique (commencées, terminées, retirées)'], ['expired', 'Expirées'], ['all', 'État : tous']], 'a11RqSet', 'Filtrer par état')
     + a11Select('neg', RQ.neg || 'all', [['all', 'Négociation : toutes'], ['with', 'Avec négociation de prix'], ['pending', 'Prix en attente de réponse']], 'a11RqSet', 'Filtrer par négociation')
     + a11Select('sort', RQ.sort, [['desc', 'Tri : plus récentes'], ['asc', 'Plus anciennes'], ['back', 'Revenus récemment']], 'a11RqSet', 'Trier les demandes')
     + '<span class="a11-count" id="a11-rq-count"></span>'
@@ -13791,6 +13802,9 @@ function a11RqSet(group, sel) {
   RQ[group] = sel.value;
   sel.classList.toggle('set', sel.selectedIndex > 0);
   A11.rqMax = 40;
+  // 27/11 (ZOE) — « Payées » inclut les terminées (historique) : on lève le filtre d'état, sinon elles restaient cachées.
+  if (group === 'pay' && sel.value === 'paid' && RQ.state !== 'all') { RQ.state = 'all'; try { rqToolbar(); } catch (_) {} }
+  if (group === 'state') RQ.vtPrev = null;
   rqRender();
 }
 function a11RqSearch(v) { RQ.q = String(v || ''); A11.rqMax = 40; rqRender(); }

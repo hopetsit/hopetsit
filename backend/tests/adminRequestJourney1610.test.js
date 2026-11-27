@@ -82,8 +82,10 @@ describe('la garde de New York (en cours, 3 candidatures)', () => {
     expect(it.hasPosition).toBe(true);
     expect(it.walkDurationMinutes).toBeNull();
   });
-  test('visibilité : en ligne pour les prestataires, suppression 48 h après la fin', () => {
-    expect(it.visibility.state).toBe('online');
+  // 27/11 (BOB, ordre de Daniel) — une garde COMMENCÉE n'est plus proposée aux prestataires (même règle que la
+  // PawMap, utils/openRequest1111) : l'admin la dit « started », plus « online ».
+  test('visibilité : commencée = plus proposée aux prestataires, suppression 48 h après la fin', () => {
+    expect(it.visibility.state).toBe('started');
     expect(new Date(it.visibility.until).getTime()).toBe(new Date(it.serviceEnd).getTime());
     expect(new Date(it.visibility.deleteAt).getTime()).toBe(new Date(it.serviceEnd).getTime() + 48 * H);
   });
