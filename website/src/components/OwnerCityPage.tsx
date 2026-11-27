@@ -26,6 +26,33 @@ import { cityMedian } from "@/lib/recruit-cities";
 // bonne langue pour Google), donc les textes vivent dans COPY comme le reste.
 const PROOF_ICONS = ["🔒", "✓", "🗓"];
 
+// 27/11/2026 (GUS) — Search Console 28 j USA : les recherches qui nomment l'État sortent bien plus
+// bas que les mêmes sans État (« pet sitter dallas tx » 58e place contre 35e pour « pet sitter
+// dallas », « dog sitting dallas tx » 52e, « pet sitting boston ma » 47e, « in home pet sitting
+// boise id » 75e) : ni le titre ni le H1 ne disaient l'État. On l'ajoute (« Dallas, TX ») dans le
+// titre, la description et le H1 des villes américaines. Aucune page nouvelle, aucun chiffre.
+// Villes dont le nom porte déjà l'État (« Naples, FL », « Washington, DC ») : inchangées.
+const US_STATE_2711: Record<string, string> = {
+  "new-york": "NY", "los-angeles": "CA", dallas: "TX", houston: "TX", miami: "FL", chicago: "IL", austin: "TX",
+  "san-francisco": "CA", seattle: "WA", boston: "MA", denver: "CO", atlanta: "GA", phoenix: "AZ", "san-diego": "CA",
+  philadelphia: "PA", "las-vegas": "NV", orlando: "FL", tampa: "FL", nashville: "TN", charlotte: "NC", portland: "OR",
+  minneapolis: "MN", "san-antonio": "TX", "san-jose": "CA", sacramento: "CA", detroit: "MI", columbus: "OH",
+  indianapolis: "IN", "kansas-city": "MO", "salt-lake-city": "UT", raleigh: "NC", pittsburgh: "PA", baltimore: "MD",
+  "st-louis": "MO", cleveland: "OH", cincinnati: "OH", milwaukee: "WI", "new-orleans": "LA", honolulu: "HI",
+  "oklahoma-city": "OK", tucson: "AZ", "fort-worth": "TX", plano: "TX", frisco: "TX", "arlington-tx": "TX", irving: "TX",
+  mckinney: "TX", denton: "TX", garland: "TX", richardson: "TX", grapevine: "TX", "el-paso": "TX",
+  "fort-lauderdale": "FL", "west-palm-beach": "FL", "st-petersburg": "FL", sarasota: "FL", "fort-myers": "FL",
+  jacksonville: "FL", memphis: "TN", louisville: "KY", "richmond-va": "VA", "virginia-beach": "VA", savannah: "GA",
+  "charleston-sc": "SC", "birmingham-al": "AL", scottsdale: "AZ", albuquerque: "NM", tulsa: "OK", boise: "ID",
+  omaha: "NE", "madison-wi": "WI", "ann-arbor": "MI", buffalo: "NY", providence: "RI", hartford: "CT",
+  "jersey-city": "NJ", "long-beach": "CA", oakland: "CA", fresno: "CA", "colorado-springs": "CO", spokane: "WA",
+};
+/** « Dallas, TX » pour une ville américaine, le nom seul partout ailleurs. */
+function usPlace2711(c: RecruitCity): string {
+  const st = c.lang === "en" && c.region.endsWith("USA") && !c.name.includes(",") ? US_STATE_2711[c.slug] : undefined;
+  return st ? `${c.name}, ${st}` : c.name;
+}
+
 type Copy = {
   kicker: (c: RecruitCity) => string;
   h1: (c: RecruitCity) => string;
@@ -115,7 +142,8 @@ const COPY: Record<RecruitLang, Copy> = {
   },
   en: {
     kicker: (c) => c.region,
-    h1: (c) => `Pet sitters in ${c.name}: dog boarding, cat visits and dog walks`,
+    // 27/11 (GUS) — État dans le H1, sauf New York (page d'arrivée de la pub, premier écran réglé à 375 px).
+    h1: (c) => `Pet sitters in ${c.slug === "new-york" ? c.name : usPlace2711(c)}: dog boarding, cat visits and dog walks`,
     heroLead: (c) => `Pet sitters and dog walkers near you in ${c.name}. Post your request, pick your sitter, pay only when you book.`,
     proofs: ["Secure payment", "Chat before you book", "72 h free cancellation"],
     heroCta: "Post my request",
@@ -157,9 +185,9 @@ const COPY: Record<RecruitLang, Copy> = {
     // affiché sur la page ; description qui finit sa phrase.
     // 11/10 (GUS) — villes US avec guide local : « cat sitting / cat sitter <ville> » en 11e-20e
     // place sans clic ; le titre nomme aussi les chats (pet sitting + dog sitter gardés).
-    metaTitle: (c) => (usGuide(c.slug, "en") ? `Dog & Cat Sitters in ${c.name}: Pet Sitting Near You` : `Dog Sitting & Pet Sitters in ${c.name}: Book a Local Sitter`),
+    metaTitle: (c) => (usGuide(c.slug, "en") ? `Dog & Cat Sitters in ${usPlace2711(c)}: Pet Sitting Near You` : `Dog Sitting & Pet Sitters in ${usPlace2711(c)}: Book a Local Sitter`),
     metaDescription: (c) =>
-      `Dog sitters and cat sitters near you in ${c.name}. Each sitter sets their own price. Post your request free and pay only when you book.`,
+      `Dog sitters and cat sitters near you in ${usPlace2711(c)}. Each sitter sets their own price. Post your request free and pay only when you book.`,
   },
   es: {
     kicker: (c) => c.region,
