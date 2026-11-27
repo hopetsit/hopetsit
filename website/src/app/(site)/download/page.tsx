@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import StoreBadges from "@/components/StoreBadges";
 import { trackSiteEvent } from "@/components/SiteAnalytics";
-import Link from "@/components/SiteLink";
 import { CitySupplyProof } from "@/components/CitySupplyProof";
 import OwnerPageEngagement from "@/components/OwnerPageEngagement";
 import { currentCampaign } from "@/components/SiteAnalytics";
@@ -32,6 +31,9 @@ import { screensPreviewFor, PhoneFrame } from "@/lib/screens";
 // « lecture_3s / lecture_15s / lecture_moitie » des pages propriétaires sont
 // posés ici, pour les visiteurs de ces 2 campagnes seulement (admin › Trafic
 // du site › par publicité : stay3s / stay15s). Rien ne change à l'affichage.
+// 27/11 — mêmes adresses que components/StoreBadges.tsx.
+const PLAY_URL_2711 = "https://play.google.com/store/apps/details?id=com.cardellihermanos.hopetsit";
+const APP_STORE_URL_2711 = "https://apps.apple.com/app/hopetsit/id6763645719";
 type Promesse = { city: string; lang: string; title: string; sub: string };
 const PROMESSES: Record<string, Promesse> = {
   nyc_app: {
@@ -53,6 +55,23 @@ export default function DownloadPage() {
   const [promesse, setPromesse] = useState<Promesse | null>(null);
   useEffect(() => {
     setPromesse(PROMESSES[currentCampaign()] ?? null);
+    // 27/11/2026 (BOB, ordre de Daniel : « je veux que les propriétaires passent par l'app ») — le propriétaire qui vient de
+    // publier sa demande (bouton « Télécharger l'app » de /posts/confirmer, utm_campaign=app) est envoyé DROIT sur son store :
+    // un tap de moins. Une seule fois par session (le retour arrière depuis le store réaffiche la page, sans boucle).
+    // Ordinateur, tablette inconnue ou autre campagne : page inchangée.
+    try {
+      // (ZOE, contrôle du lot) — lu dans l'ADRESSE, pas par currentCampaign() : celle-ci garde la campagne de la PREMIÈRE page
+      // de l'onglet (ici /posts/confirmer, d'où l'on arrive sans rechargement) et ne vaudrait donc jamais « app ».
+      if (new URLSearchParams(window.location.search).get("utm_campaign") !== "app") return;
+      if (window.sessionStorage.getItem("dl_auto_store_2711")) return;
+      const ua = window.navigator.userAgent || "";
+      const store = /iPhone|iPod/i.test(ua) ? APP_STORE_URL_2711 : /Android/i.test(ua) ? PLAY_URL_2711 : "";
+      if (!store) return;
+      window.sessionStorage.setItem("dl_auto_store_2711", "1");
+      // store renseigné : sans lui le serveur range le clic sous « other » (le label n'est gardé que pour cta_click).
+      trackSiteEvent("store_click", { store: store === APP_STORE_URL_2711 ? "ios" : "android", label: "dl_auto_store" });
+      window.location.href = store;
+    } catch { /* stockage ou navigation refusés : la page s'affiche comme avant */ }
   }, []);
 
   return (
@@ -69,16 +88,8 @@ export default function DownloadPage() {
         <div className="mt-10 flex justify-center">
           <StoreBadges center />
         </div>
-        {/* 31/10 (LEO, étape 3 — plan validé par BOB) : la page garde son rôle (38 % de clics vers les stores) ;
-            une seule ligne pour le propriétaire qui ne veut pas d'app : le formulaire 1 étape de l'accueil (fr/en). */}
-        {(lang === "fr" || lang === "en") && (
-          <p className="mx-auto mt-5 max-w-xl text-[14px] font-semibold text-[#231715]" data-dl-owner-3110="">
-            {lang === "fr" ? "Tu es propriétaire ? " : "Pet owner? "}
-            <Link href="/#publier" className="underline underline-offset-2" style={{ color: "#9E1F0B" }} onClick={() => trackSiteEvent("cta_click", { label: "dl_publier_sans_app" })}>
-              {lang === "fr" ? "Publie ta demande ici, sans app →" : "Post your request here, no app needed →"}
-            </Link>
-          </p>
-        )}
+        {/* 27/11 (BOB, ordre de Daniel) — la ligne « Tu es propriétaire ? Publie ta demande ici, sans app » (31/10) est retirée :
+            sur cette page, on envoie vers l'app, plus vers le site. */}
         {promesse ? (
           <div className="mx-auto mt-8 max-w-xl text-left">
             <CitySupplyProof city={promesse.city} lang={promesse.lang} />
