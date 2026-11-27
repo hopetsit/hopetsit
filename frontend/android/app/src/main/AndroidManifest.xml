@@ -189,6 +189,13 @@
                      appareils Android de la personne sont en 603 ou plus. -->
                 <data android:pathPrefix="/request" />
                 <data android:pathPrefix="/application" />
+                <!-- 647 (PAM, 27/11) — e-mail « ta demande est en ligne » :
+                     /app/demande?l=<contact pub> ouvre l'app connectée sur les
+                     demandes du propriétaire. Chemin EXACT (déjà couvert par le
+                     préfixe historique « /app » du v449, écrit ici pour qu'il
+                     survive si ce préfixe est un jour resserré). Jamais de
+                     préfixe « /post » ni « /posts/confirmer » (voir 627). -->
+                <data android:path="/app/demande" />
                 <data android:pathPrefix="/identity" />
                 <data android:pathPrefix="/reviews" />
                 <data android:pathPrefix="/member" />

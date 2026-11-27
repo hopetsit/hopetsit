@@ -16,6 +16,7 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 // v575 — audit P1-3 : libellé traduit du profil destinataire.
 import 'package:hopetsit/localization/v565/fixes575_i18n.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
@@ -274,20 +275,8 @@ class DeepLinkService {
         '/auth/application-link',
         body: <String, dynamic>{'token': token, 'applicationId': t.id},
       );
-      if (response is! Map) {
-        AppLogger.logWarning('DeepLink k= : réponse inattendue → connexion.');
-        return;
-      }
-      final ok = await Get.find<AuthController>()
-          .applyExchangedSession(Map<String, dynamic>.from(response));
-      if (!ok) {
-        AppLogger.logWarning('DeepLink k= : session non appliquée → connexion.');
-        return;
-      }
+      if (!await _applyLinkSession636(response, 'k=')) return;
       AppLogger.logInfo('DeepLink k= : session ouverte par lien signé, candidature ${t.id}.');
-      // Déjà déclenché par l'enregistrement du profil ; sans effet si la route
-      // a été consommée (la clé est retirée au premier passage).
-      unawaited(replayPendingRoute());
     } on ApiException catch (e) {
       AppLogger.logWarning(
         'DeepLink k= refusé (${e.statusCode}) → écran de connexion, route mémorisée.',
@@ -295,6 +284,26 @@ class DeepLinkService {
     } catch (e) {
       AppLogger.logWarning('DeepLink k= : échec $e → écran de connexion, route mémorisée.');
     }
+  }
+
+  /// 636 / 647 — pose la session rendue par le serveur pour un lien d'e-mail
+  /// (jeton `k=` d'une candidature, contact pub `l=`), puis rejoue la route
+  /// mémorisée. `false` → rien n'est posé, l'écran de connexion reste affiché.
+  Future<bool> _applyLinkSession636(dynamic response, String tag) async {
+    if (response is! Map) {
+      AppLogger.logWarning('DeepLink $tag : réponse inattendue → connexion.');
+      return false;
+    }
+    final ok = await Get.find<AuthController>()
+        .applyExchangedSession(Map<String, dynamic>.from(response));
+    if (!ok) {
+      AppLogger.logWarning('DeepLink $tag : session non appliquée → connexion.');
+      return false;
+    }
+    // Déjà déclenché par l'enregistrement du profil ; sans effet si la route
+    // a été consommée (la clé est retirée au premier passage).
+    unawaited(replayPendingRoute());
+    return true;
   }
 
   /// 627 (PAM) — lien de session sans mot de passe des comptes venus de la
@@ -310,6 +319,256 @@ class DeepLinkService {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
       AppLogger.logWarning('DeepLink /posts/confirmer → navigateur impossible: $e');
+    }
+  }
+
+  // ───── 647 (PAM, 27/11) — e-mail « ta demande est en ligne » → app connectée ─────
+  //
+  // `https://www.hopetsit.com/app/demande?l=<contact pub>[&next=<chemin>]`
+  // (aussi `hopetsit://app/demande?l=…`). Mesure du 27/11 : les propriétaires
+  // venus de la pub publient sur le site, puis devaient trouver « Pas de mot de
+  // passe ? », retaper leur e-mail, ouvrir leur boîte et cliquer (4 gestes).
+  // Un seul lien ouvre désormais l'app DÉJÀ connectée sur leurs demandes.
+
+  static final RegExp _leadIdRegex647 = RegExp(r'^[a-f0-9]{32}$');
+
+  /// 647 — identifiant du contact pub d'un lien `/app/demande?l=…` : 32
+  /// caractères hexadécimaux MINUSCULES, chemin exact. `null` sinon. Pure.
+  static String? adLeadId647(Uri uri) {
+    try {
+      final segs = uri.pathSegments.where((x) => x.isNotEmpty).toList();
+      bool ok = false;
+      if (uri.scheme == 'hopetsit') {
+        ok = uri.host == 'app' && segs.length == 1 && segs[0] == 'demande';
+      } else if (uri.scheme == 'https' && _allowedHttpsHosts.contains(uri.host)) {
+        ok = segs.length == 2 && segs[0] == 'app' && segs[1] == 'demande';
+      }
+      if (!ok) return null;
+      final l = uri.queryParameters['l'] ?? '';
+      return _leadIdRegex647.hasMatch(l) ? l : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 647 — `next` du lien, seulement s'il est un chemin INTERNE connu :
+  /// `/application/<24 hex>`, `/posts…` (sauf `/posts/confirmer`, qui
+  /// appartient au site), `/chat…`, `/bookings…`. Tout le reste (absent,
+  /// `//…`, `http…`, chemin inconnu) → `null`. Jamais d'URL externe. Pure.
+  static String? safeNext647(Uri uri) {
+    String n;
+    try {
+      n = (uri.queryParameters['next'] ?? '').trim();
+    } catch (_) {
+      return null;
+    }
+    if (n.isEmpty || n.length > 600) return null;
+    if (!n.startsWith('/') || n.startsWith('//') || n.contains('\\')) return null;
+    if (n.runes.any((c) => c < 0x20)) return null;
+    final p = Uri.tryParse(n);
+    if (p == null || p.hasScheme || p.hasAuthority) return null;
+    final segs = p.pathSegments.where((x) => x.isNotEmpty).toList();
+    if (segs.isEmpty) return null;
+    switch (segs.first) {
+      case 'application':
+        return segs.length == 2 && _objectIdRegex.hasMatch(segs[1]) ? n : null;
+      case 'posts':
+        return segs.length > 1 && segs[1] == 'confirmer' ? null : n;
+      case 'chat':
+      case 'bookings':
+        return n;
+    }
+    return null;
+  }
+
+  /// 647 — route ouverte dans l'app une fois la session posée : le `next`
+  /// valide (sans son jeton `k`, devenu inutile), sinon `/posts`. Pure.
+  static String targetRoute647(Uri uri) {
+    final n = safeNext647(uri);
+    if (n == null) return '/posts';
+    try {
+      final p = Uri.parse(n);
+      if (!p.queryParameters.containsKey('k')) return n;
+      // (`withoutLinkToken636` garde `k` quand c'est le SEUL paramètre :
+      // `replace(queryParameters: null)` ne retire rien. Fait ici à la main.)
+      final q = Map<String, String>.from(p.queryParameters)..remove('k');
+      return q.isEmpty ? p.path : Uri(path: p.path, queryParameters: q).toString();
+    } catch (_) {
+      return '/posts';
+    }
+  }
+
+  /// 647 — page du site qui publie / confirme la demande (jamais un lien
+  /// universel, cf. 627) : le `next` valide est gardé, ré-encodé. Pure.
+  static Uri confirmBrowserUri647(String id, Uri source) {
+    final n = safeNext647(source);
+    return Uri.https('www.hopetsit.com', '/posts/confirmer', <String, String>{
+      'l': id,
+      if (n != null) 'next': n,
+    });
+  }
+
+  /// Tests seulement : remplace l'ouverture du navigateur externe.
+  @visibleForTesting
+  static Future<void> Function(Uri uri)? browserOverride647;
+
+  /// Tests / journal : dernière décision prise pour un lien `/app/demande`
+  /// (`session:<route>`, `same:<route>`, `other:/posts`, `kept:/posts`,
+  /// `login:<route>`, `browser:<url>`).
+  @visibleForTesting
+  static String? lastOutcome647;
+
+  Future<void> _openConfirmInBrowser647(String id, Uri source, String why) async {
+    final url = confirmBrowserUri647(id, source);
+    lastOutcome647 = 'browser:$url';
+    AppLogger.logInfo('DeepLink l= : $why → page du site dans le navigateur.');
+    final override = browserOverride647;
+    if (override != null) {
+      await override(url);
+      return;
+    }
+    await _openInBrowser627(url);
+  }
+
+  /// Indicateur discret pendant l'appel (jamais un écran, jamais bloquant :
+  /// posé sur l'overlay, il survit au changement d'écran de la connexion).
+  OverlayEntry? _showLinkLoader647() {
+    try {
+      final overlay = Get.key.currentState?.overlay;
+      if (overlay == null) return null;
+      final entry = OverlayEntry(
+        builder: (_) => IgnorePointer(
+          child: SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Container(
+                key: const Key('applink647_loader'),
+                margin: const EdgeInsets.only(top: 12),
+                width: 44,
+                height: 44,
+                padding: const EdgeInsets.all(11),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(color: Color(0x40C92A12), blurRadius: 14, offset: Offset(0, 4)),
+                  ],
+                ),
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2.6,
+                  color: Color(0xFFC92A12),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      overlay.insert(entry);
+      return entry;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 647 — la session en cours est-elle celle du compte rendu par le serveur ?
+  /// (même e-mail = même personne, règle des 3 profils ; repli sur l'id).
+  bool _sameAccount647(dynamic response) {
+    try {
+      if (response is! Map) return false;
+      final u = response['user'];
+      final p = GetStorage().read(StorageKeys.userProfile);
+      if (u is! Map || p is! Map) return false;
+      String email(Map m) => (m['email'] ?? '').toString().trim().toLowerCase();
+      String id(Map m) => (m['id'] ?? m['_id'] ?? '').toString().trim().toLowerCase();
+      return (email(u).isNotEmpty && email(u) == email(p)) ||
+          (id(u).isNotEmpty && id(u) == id(p));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 647 — les 5 cas du lien `/app/demande?l=<id>` :
+  ///  a. `GET /ad-leads/<id>` (public) ;
+  ///  b. confirmé, pas de session → `POST /ad-leads/<id>/confirm` (idempotent)
+  ///     → session posée comme pour le lien `k=` (636) → route visée ;
+  ///  c. une session existe : jamais remplacée. Même compte → route visée ;
+  ///     autre compte → `/posts` pour lui, journalisé ;
+  ///  d. non confirmé / 404 / erreur → la page du site, navigateur externe ;
+  ///  e. échec après (b) → écran de connexion habituel, route mémorisée.
+  Future<void> _openFromLeadLink647(Uri uri, String id) async {
+    final target = targetRoute647(uri);
+    final hadSession = _hasSession();
+    OverlayEntry? loader = _showLinkLoader647();
+    void done() {
+      try {
+        loader?.remove();
+      } catch (_) {/* overlay déjà démonté */}
+      loader = null;
+    }
+
+    try {
+      if (!Get.isRegistered<ApiClient>()) {
+        done();
+        await _openConfirmInBrowser647(id, uri, 'client API absent');
+        return;
+      }
+      final api = Get.find<ApiClient>();
+      dynamic lead;
+      try {
+        lead = await api.get('/ad-leads/$id');
+      } on ApiException catch (e) {
+        done();
+        await _openConfirmInBrowser647(id, uri, 'contact illisible (${e.statusCode})');
+        return;
+      } catch (e) {
+        done();
+        await _openConfirmInBrowser647(id, uri, 'contact illisible ($e)');
+        return;
+      }
+      if (lead is! Map || lead['confirmed'] != true) {
+        done();
+        await _openConfirmInBrowser647(id, uri, 'demande pas encore publiée');
+        return;
+      }
+
+      dynamic res;
+      Object? failure;
+      try {
+        res = await api.post('/ad-leads/$id/confirm', body: <String, dynamic>{});
+      } catch (e) {
+        failure = e;
+      }
+
+      if (hadSession) {
+        done();
+        if (failure == null && _sameAccount647(res)) {
+          lastOutcome647 = 'same:$target';
+          AppLogger.logInfo('DeepLink l= : même compte déjà connecté → $target.');
+          await openRoute(target);
+        } else {
+          lastOutcome647 = failure == null ? 'other:/posts' : 'kept:/posts';
+          AppLogger.logWarning(
+            'DeepLink l= : une autre session est ouverte (ou compte non vérifiable) '
+            '→ session conservée, /posts.',
+          );
+          await openRoute('/posts');
+        }
+        return;
+      }
+
+      // Pas de session : la route est mémorisée D'ABORD (comme le lien k=) —
+      // rejouée après la session, ou après la connexion si le serveur refuse.
+      _rememberPendingRoute(Uri.parse('https://www.hopetsit.com$target'));
+      if (failure != null || !Get.isRegistered<AuthController>()) {
+        lastOutcome647 = 'login:$target';
+        AppLogger.logWarning('DeepLink l= : session impossible ($failure) → connexion, route mémorisée.');
+        return;
+      }
+      final ok = await _applyLinkSession636(res, 'l=');
+      lastOutcome647 = ok ? 'session:$target' : 'login:$target';
+      if (ok) AppLogger.logInfo('DeepLink l= : session ouverte par le lien de la demande → $target.');
+    } finally {
+      done();
     }
   }
 
@@ -406,6 +665,15 @@ class DeepLinkService {
     // par le préfixe « /post » et ouvrait l'accueil, la preuve était perdue).
     if (isLeadConfirmLink627(uri)) {
       await _openInBrowser627(uri);
+      return;
+    }
+
+    // 647 (PAM, 27/11) — `/app/demande?l=<contact pub>` (e-mail « ta demande est
+    // en ligne ») : ouvre l'app connectée sur les demandes du propriétaire.
+    // Avant le test « lien public /app » plus bas, qui n'ouvrait que l'app.
+    final l647 = adLeadId647(uri);
+    if (l647 != null) {
+      await _openFromLeadLink647(uri, l647);
       return;
     }
 
