@@ -66,6 +66,9 @@ const buildAppRoute = (notifType, data = {}) => {
   if (t === 'walk_started' || t === 'walk_finished') {
     return bookingId ? `/walk/${bookingId}` : bookingPath;
   }
+  // 2711 (BOB) — « publie ta demande » (propriétaire qui a l'app, sans demande en ligne) : accueil propriétaire,
+  // onglet « Mes annonces » (route /posts comprise par l'app depuis la 561). Type inconnu de l'app → elle suit cette route.
+  if (t === 'owner_publish_nudge_2711') return '/posts';
   // Annonces
   if (t === 'new_request_nearby' || t === 'new_request_for_you' || t === 'post_new' ||
       t === 'post_application_eligible' ||

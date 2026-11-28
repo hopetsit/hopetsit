@@ -6506,4 +6506,33 @@ router.get('/account-deletions', requireAdmin, async (req, res) => {
   }
 });
 
+// 2711 (BOB, accord de Daniel « oui fais les 5 points ») — notification DANS L'APP « publie ta demande » aux propriétaires
+// vérifiés qui ont l'app et aucune demande en ligne (services/ownerPublishNudge2711). Jamais d'e-mail, une fois par personne.
+// GET  /admin/owner-publish-nudge-2711/preview — qui la recevrait (aucun envoi, ne dépend pas de l'interrupteur).
+// POST /admin/owner-publish-nudge-2711/send    — corps { confirm: true, limit, countries, minBuild, ownerProfileOnly } (minBuild absent = 648, jamais moins) ; refusé tant que OWNER_PUBLISH_NUDGE_2711 n'est pas « on ».
+router.get('/owner-publish-nudge-2711/preview', requireAdmin, async (req, res) => {
+  try {
+    res.json(await require('../services/ownerPublishNudge2711').preview());
+  } catch (e) {
+    logger.error('[admin/owner-publish-nudge-2711/preview]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+router.post('/owner-publish-nudge-2711/send', requireAdmin, async (req, res) => {
+  try {
+    const svc = require('../services/ownerPublishNudge2711');
+    if (!req.body || req.body.confirm !== true) return res.status(400).json({ error: 'confirm:true requis', code: 'CONFIRM_REQUIRED' });
+    if (!svc.enabled()) return res.status(409).json({ error: 'Interrupteur OWNER_PUBLISH_NUDGE_2711 éteint : rien envoyé.', code: 'NUDGE_OFF', sent: 0 });
+    const lim = req.body.limit;
+    if (lim !== undefined && lim !== null && svc.strictInt(lim) === null) return res.status(400).json({ error: 'limit doit être un entier ≥ 1 (ou absent) : rien envoyé.', code: 'BAD_LIMIT', sent: 0 });
+    const out = await svc.sendAll({ limit: lim, countries: req.body.countries, minBuild: req.body.minBuild, ownerProfileOnly: req.body.ownerProfileOnly });
+    if (out.reason === 'bad_filter') return res.status(400).json({ error: `ownerProfileOnly (true / false), countries (liste de codes pays à 2 lettres) ou minBuild (entier ≥ ${svc.MIN_BUILD_FLOOR}) illisible ou trop bas : rien envoyé`, code: 'BAD_FILTER' });
+    logger.info(`[admin/owner-publish-nudge-2711/send] ${JSON.stringify(out)}`);
+    res.json(out);
+  } catch (e) {
+    logger.error('[admin/owner-publish-nudge-2711/send]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

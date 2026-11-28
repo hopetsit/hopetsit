@@ -112,6 +112,8 @@ const ownerSchema = new mongoose.Schema(
     // `verified:false` et à ne PAS envoyer la relance « vérifie ton e-mail » (décision de Daniel).
     adLeadAt: { type: Date, default: null },
     isStaff: { type: Boolean, default: false, index: true },
+    // 2711 (BOB) — notification « publie ta demande » déjà envoyée à cette personne (une seule fois, services/ownerPublishNudge2711).
+    publishNudge2711At: { type: Date, default: null },
     // v560 — opt-out des e-mails de cycle de vie (lien de désabonnement).
     marketingOptOut: { type: Boolean, default: false },
     // External authentication information
