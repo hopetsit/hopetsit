@@ -35,6 +35,8 @@ import 'package:hopetsit/views/notifications/notifications_screen.dart';
 // v561 — routeur unifié mail / push / cloche → écran précis.
 import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
+import 'package:hopetsit/controllers/publish_reservation_request_controller.dart';
+import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/repositories/chat_repository.dart';
@@ -757,6 +759,10 @@ class DeepLinkService {
       } else {
         _openBookingsScreen();
       }
+    } else if (first == 'posts' && second == kPublishSegment648) {
+      // 648 — notification « Besoin de faire garder ton animal ? Publie ta
+      // demande… » (push et cloche) : le formulaire de publication.
+      await _openPublishRequest648();
     } else if (first == 'posts' &&
         applicationTarget627(uri) != null &&
         _currentRole() == 'owner') {
@@ -929,6 +935,65 @@ class DeepLinkService {
     }
   }
 
+  /// 648 — type de la notification « publie ta demande » (serveur du 27/11).
+  static const String kOwnerPublishNudge2711 = 'owner_publish_nudge_2711';
+
+  /// 648 — route interne du formulaire de publication. N'est émise que par
+  /// l'app (jamais par un e-mail ni par le site).
+  static const String kPublishSegment648 = 'new';
+  static const String kPublishRoute648 = '/posts/$kPublishSegment648';
+
+  /// 648 — ouverture du formulaire, remplaçable en test (le vrai écran est
+  /// aussi monté dans `test/nudge648_test.dart`).
+  @visibleForTesting
+  static Future<dynamic>? Function()? publishOpenerOverride648;
+
+  /// 648 — ce que le dernier appui « publie ta demande » a ouvert :
+  /// `form` (formulaire sur l'accueil), `home` (accueil seul : profil gardien
+  /// ou promeneur, qui ne publie pas), `home-fallback` (formulaire en échec),
+  /// `form-already` (formulaire déjà ouvert, laissé tel quel).
+  @visibleForTesting
+  static String? lastOutcome648;
+
+  /// 648 — `/posts/new` : l'accueil (1er onglet, « Mes annonces ») PUIS, pour
+  /// un propriétaire, le formulaire de publication posé dessus — le retour
+  /// arrière ramène sur l'accueil, jamais sur un écran vide. Même ouverture
+  /// que le bouton « Publier » de l'accueil. Un gardien / promeneur ne publie
+  /// pas : il reste sur son accueil. Toute erreur laisse sur l'accueil.
+  Future<void> _openPublishRequest648() async {
+    // Formulaire déjà à l'écran (demande en cours de saisie) : on n'y touche
+    // pas — revenir à l'accueil effacerait ce qui est écrit.
+    if (Get.currentRoute == '/PublishReservationRequestScreen') {
+      lastOutcome648 = 'form-already';
+      return;
+    }
+    _goToTab(0);
+    if (_currentRole() != 'owner') {
+      lastOutcome648 = 'home';
+      return;
+    }
+    try {
+      final opener = publishOpenerOverride648 ??
+          () => Get.to<dynamic>(() => const PublishReservationRequestScreen());
+      final pending = opener();
+      lastOutcome648 = 'form';
+      // Au retour d'une demande publiée : « Mes annonces » se recharge (comme
+      // depuis le bouton de l'accueil). Jamais attendu : l'appelant n'est pas
+      // bloqué tant que le formulaire est ouvert.
+      unawaited(pending?.then((dynamic r) {
+        try {
+          if (r == PublishReservationRequestController.kPublishedResult600 &&
+              Get.isRegistered<PostsController>()) {
+            Get.find<PostsController>().refreshPosts();
+          }
+        } catch (_) {/* best-effort */}
+      }).catchError((Object _) {}));
+    } catch (e) {
+      lastOutcome648 = 'home-fallback';
+      AppLogger.logError('DeepLink /posts/new : formulaire non ouvert, accueil gardé', error: e);
+    }
+  }
+
   /// v584 — ville d'un lien partagé → géocodage puis PawMap centrée ; ville
   /// introuvable → la carte s'ouvre quand même (autour de l'utilisateur).
   Future<void> _openPawMapOnCity(String city, {double zoom = 12}) async {
@@ -1078,6 +1143,12 @@ class DeepLinkService {
     if (t == 'application_pricing_updated') {
       return postId.isNotEmpty ? postPath : '/bookings';
     }
+    // 648 (PAM, 28/11) — « Besoin de faire garder ton animal ? Publie ta
+    // demande… » (serveur du 27/11, envoyé au profil propriétaire, sans
+    // donnée) : le formulaire de publication, posé sur l'accueil. Avant, le
+    // type était inconnu → `/notifications` : dans la cloche, l'appui rouvrait
+    // la liste où l'on était déjà (refus de ZOE du 27/11).
+    if (t == kOwnerPublishNudge2711) return kPublishRoute648;
     // 621 (serveur 620b) — « la demande est passée en Visite à domicile :
     // ajoute ton tarif par visite pour rester candidat » → l'écran Tarifs du
     // gardien / promeneur, directement (sa candidature est recalculée par le
