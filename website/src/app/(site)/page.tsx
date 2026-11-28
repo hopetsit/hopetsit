@@ -384,7 +384,7 @@ export default function HomePage() {
             {appShots.map((shot, i) => (
               <div key={shot.src} className={`rounded-[18px] bg-[#231715] p-[3px] shadow-[0_24px_44px_-26px_rgba(35,23,21,0.55)] md:rounded-[30px] md:p-[5px] ${i === 1 ? "" : "translate-y-3 md:translate-y-5"}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={shot.src} alt={shot.alt} width={shot.w || 1080} height={shot.h || 2348} loading="lazy" decoding="async" className="block h-auto w-full rounded-[15px] bg-[#231715] md:rounded-[25px]" />
+                <img src={shot.src} alt={shot.alt} width={shot.w || 1080} height={shot.h || 2348} loading="lazy" decoding="async" className="block h-auto w-full rounded-[15px] bg-[#FBF3EE] md:rounded-[25px]" />
               </div>
             ))}
           </div>

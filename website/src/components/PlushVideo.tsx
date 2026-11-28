@@ -63,7 +63,7 @@ export function PlushVideo({ className = "" }: { className?: string }) {
       <div ref={boxRef} className="relative w-full max-w-[260px] rounded-[36px] bg-[#231715] p-[6px] shadow-[0_30px_60px_-28px_rgba(35,23,21,0.45)]">
         {still ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={poster} alt={t("plv609_alt")} width={720} height={1564} loading="lazy" className="block h-auto w-full rounded-[30px] bg-[#231715]" data-plush-poster="" />
+          <img src={poster} alt={t("plv609_alt")} width={720} height={1564} loading="lazy" className="block h-auto w-full rounded-[30px] bg-[#FBF3EE]" data-plush-poster="" />
         ) : (
           <video
             ref={videoRef}
@@ -76,7 +76,7 @@ export function PlushVideo({ className = "" }: { className?: string }) {
             width={720}
             height={1564}
             aria-label={t("plv609_alt")}
-            className="block h-auto w-full rounded-[30px] bg-[#231715]"
+            className="block h-auto w-full rounded-[30px] bg-[#FBF3EE]"
           >
             {/* MP4 (H.264) d'abord : lu partout, Safari iOS compris, et plus léger ici ; WebM en secours. */}
             {load && <source src={`/video/peluche_${v}.mp4`} type="video/mp4" />}

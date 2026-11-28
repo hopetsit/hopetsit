@@ -67,6 +67,8 @@ export function PhoneFrame({
   w?: number;
   h?: number;
 }) {
+  // 28/11/2026 (BOB, ordre de Daniel) — fond crème pendant le chargement : sur une connexion lente, l'écran du
+  // téléphone restait NOIR une à deux secondes (fond `bg-black` sous une image chargée à la demande).
   return (
     <div className={`rounded-[36px] bg-[#231715] p-[6px] shadow-[0_30px_60px_-28px_rgba(35,23,21,0.45)] ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -78,7 +80,7 @@ export function PhoneFrame({
         loading={priority ? "eager" : "lazy"}
         decoding="async"
         {...(priority ? { fetchPriority: "high" as const } : {})}
-        className="block h-auto w-full rounded-[30px] bg-black"
+        className="block h-auto w-full rounded-[30px] bg-[#FBF3EE]"
       />
     </div>
   );
