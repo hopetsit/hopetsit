@@ -136,9 +136,19 @@ const COPY: Record<RecruitLang, Copy> = {
     // 03/10 (GUS) — pages FR en 4e-6e place sur « garde de chien <ville> » (Lille, Avignon…) avec
     // 0 clic : la description était l'intro coupée à 155 caractères, au milieu d'une phrase.
     // Titre qui reprend la requête + le tarif déjà affiché sur la page ; description complète.
-    metaTitle: (c) => `Garde de chien et chat à ${c.name} : pet sitters près de chez toi`,
+    // 28/11 (GUS) — Search Console 28 j (France), pages villes hors Paris : « garde animaux » +
+    // « garde d'animaux » = 2 778 affichages, 0 clic, 23e-29e place (la plus grosse famille après
+    // « pet sitter »), et ces mots n'étaient NULLE PART sur la page : ni titre, ni texte (seulement
+    // dans l'adresse). Titre et description les disent ; « pet sitter » et « garde de chien » restent.
+    // Arrondissements de Paris inchangés (leurs requêtes sont « pet sitter », 28e place).
+    metaTitle: (c) =>
+      parisEntry(c.slug)
+        ? `Garde de chien et chat à ${c.name} : pet sitters près de chez toi`
+        : `Garde d'animaux à ${c.name} : pet sitter, garde de chien et de chat`,
     metaDescription: (c) =>
-      `Pet sitters à ${c.name} : garde de chien à domicile, visites de chat, promenades. Chaque gardien fixe son prix. Demande gratuite, tu paies à la réservation.`,
+      parisEntry(c.slug)
+        ? `Pet sitters à ${c.name} : garde de chien à domicile, visites de chat, promenades. Chaque gardien fixe son prix. Demande gratuite, tu paies à la réservation.`
+        : `Garde d'animaux à ${c.name} : pet sitters et dog sitters pour la garde de chien à domicile, les visites de chat et les promenades. Demande gratuite, tu paies à la réservation.`,
   },
   en: {
     kicker: (c) => c.region,

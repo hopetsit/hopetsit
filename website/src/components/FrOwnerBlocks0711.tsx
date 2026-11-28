@@ -25,7 +25,26 @@ export default function FrOwnerBlocks0711({ city }: { city: RecruitCity }) {
   );
   return (
     <section className="mt-10" data-fr-blocks-0711>
-      <div aria-labelledby="fr-garde-chat">
+      {/* 28/11 (GUS) — « garde animaux » / « garde d'animaux » : 2 778 affichages France en 28 j sur
+          ces pages, 0 clic, 23e-29e place, et « home sitter / home sitting <ville> » (17e-23e place à
+          Rouen, La Rochelle, Marseille, Versailles, Brest…) : ces mots n'étaient pas sur la page.
+          Texte vrai, aucun chiffre ; le home sitting est décrit comme ce qu'il est ici : une garde
+          des animaux à domicile, pas une surveillance de maison vide. */}
+      <div aria-labelledby="fr-garde-animaux" data-fr-garde-animaux-2811>
+        <h2 id="fr-garde-animaux" className="font-display text-2xl font-extrabold text-ink">{`Garde d'animaux à ${name} : chez toi, par un gardien du coin`}</h2>
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+          {`La garde d'animaux à ${name}, sur HoPetSit, se fait avec des gardiens indépendants : tu publies ta demande, des gardiens qui habitent près de chez toi répondent avec leur prix, et tu choisis. Pas de chenil ni de pension : ton chien ou ton chat reste à la maison, dans ses habitudes.`}
+        </p>
+        <ul className="mt-3 space-y-2">
+          <Puce t={`Garde à domicile (on dit aussi « home sitting ») : le gardien, ou home sitter, s'installe chez toi à ${name} le temps de ton absence et s'occupe de tes animaux, nuits comprises.`} />
+          <Puce t="Visites à domicile : une ou deux fois par jour pour les repas, la litière, le jeu et les soins, avec une photo ou un petit mot après chaque passage." />
+          <Puce t="Promenades de chien : en semaine ou pendant tes vacances, suivies en direct sur la carte du départ au retour." />
+        </ul>
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+          {`Pet sitter, dog sitter, cat sitter, gardien d'animaux : ce sont les mêmes personnes, des habitants de ${name} qui aiment les animaux. Tu lis leurs avis, tu discutes par chat, et tu ne paies qu'à la réservation.`}
+        </p>
+      </div>
+      <div className="mt-8" aria-labelledby="fr-garde-chat">
         <h2 id="fr-garde-chat" className="font-display text-2xl font-extrabold text-ink">{`Garde de chat à ${name} : visites à domicile`}</h2>
         <p className="mt-3 text-sm leading-relaxed text-ink-muted">
           {`La plupart des chats sont plus heureux chez eux qu'en pension. Un gardien de chat à ${name} passe chez toi une ou deux fois par jour : croquettes et eau fraîche, litière propre, jeu ou simple compagnie, médicaments si ton chat en a besoin, et une photo ou un petit mot après chaque visite dans l'app.`}
