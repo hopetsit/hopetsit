@@ -67,7 +67,11 @@ async function fixIndexesOnce() {
 const REWARD_POINTS = 20;              // chaque peluche (2 par jour depuis le 611)
 // 611 (Daniel, vocal de Cam 04/10) — 2 captures par personne et par jour.
 const DAILY_MAX = 2;
-const GOLDEN_POINTS = 200;             // peluche dorée (1 par ville et par semaine)
+const GOLDEN_POINTS = 200;             // peluche dorée (2 par ville et par semaine depuis le 28/11, voir GOLDEN_PER_WEEK)
+// Mémoire du lieu de la dernière dorée (voir ensureDraw). ZOE 28/11 : 13 et non 10 — deux dorées qui se suivent
+// peuvent être séparées de 11 jours (mardi → samedi de la semaine d'après, 0,5 % des cas mesurés) ; à 10 jours la
+// précédente était déjà effacée et son lieu pouvait resservir.
+const GOLDEN_KEEP_DAYS = 13;
 const GOLDEN_BOOST_HOURS = 24;         // + 24 h de PawBoost offert
 const COLLECTOR_POINTS = 500;          // les 5 types réunis, une seule fois + badge
 const STREAK_DAYS = 7;                 // 7 jours de suite avec une capture…
@@ -203,10 +207,22 @@ function goldenWeekday(cityKey, day) {
   return hashString(`gold|${cityKey}|${weekOf(day)}`) % 7;
 }
 
+/**
+ * 28/11/2026 (BOB, ordre de Daniel « rajoute des peluches dorées ») — DEUX dorées par ville et par semaine.
+ * Jours de la semaine (0 = lundi … 6) : le premier est celui d'avant (inchangé pour la semaine en cours), le second
+ * est un AUTRE jour de la même semaine, tiré lui aussi de la ville et de la semaine.
+ */
+const GOLDEN_PER_WEEK = 2;
+function goldenWeekdays(cityKey, day) {
+  const first = goldenWeekday(cityKey, day);
+  const second = (first + 1 + (hashString(`gold2|${cityKey}|${weekOf(day)}`) % 6)) % 7;
+  return [first, second].slice(0, GOLDEN_PER_WEEK);
+}
+
 /** Ce jour est-il celui de la peluche dorée de la ville ? */
 function isGoldenDay(cityKey, day) {
   const d = new Date(`${day}T00:00:00Z`);
-  return ((d.getUTCDay() + 6) % 7) === goldenWeekday(cityKey, day);
+  return goldenWeekdays(cityKey, day).includes((d.getUTCDay() + 6) % 7);
 }
 
 /** Jour précédent (AAAA-MM-JJ). */
@@ -503,7 +519,10 @@ async function ensureDraw(city, { now = Date.now() } = {}) {
         golden: golden && p.slot === goldenSlot,
         poiId: p.park._id,
         location: { type: 'Point', coordinates: [p.park.lng, p.park.lat] },
-        expireAt,
+        // 28/11 — une dorée jamais attrapée reste 13 jours en base (les autres 3) : sans elle, le tirage suivant ne
+        // savait plus où était la dernière dorée (lastGoldenDay vide dans l'admin) et pouvait la reposer au même endroit.
+        // Elle ne s'attrape toujours que son jour (410 EXPIRED ensuite).
+        expireAt: golden && p.slot === goldenSlot ? new Date(now + GOLDEN_KEEP_DAYS * 86400000) : expireAt,
       });
       created += 1;
     } catch (e) {
@@ -1069,7 +1088,7 @@ async function hasCollectorBadge(userId) {
 const PLUSH_RULES = Object.freeze({
   perPlush: REWARD_POINTS,
   perDay: DAILY_MAX,
-  golden: { points: GOLDEN_POINTS, boostHours: GOLDEN_BOOST_HOURS, perCityPerWeek: 1 },
+  golden: { points: GOLDEN_POINTS, boostHours: GOLDEN_BOOST_HOURS, perCityPerWeek: GOLDEN_PER_WEEK },
   collector: { points: COLLECTOR_POINTS, badge: 'collector', types: PLUSH_TYPES.length },
   streak: { days: STREAK_DAYS, points: STREAK_POINTS },
   // 618 — collection du mois (contrat PROCHAIN_BUILD_618.md §C).
@@ -1100,6 +1119,8 @@ module.exports = {
   STREAK_POINTS,
   weekOf,
   isGoldenDay,
+  goldenWeekdays,
+  GOLDEN_PER_WEEK,
   streakEndingAt,
   hasCollectorBadge,
   REWARD_POINTS,

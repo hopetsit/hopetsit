@@ -377,14 +377,17 @@ describe('API réelle', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  test('dorée : exactement 1 jour par semaine et par ville', () => {
+  // 28/11/2026 (ordre de Daniel « rajoute des peluches dorées ») : 2 jours par semaine et par ville (avant : 1).
+  test('dorée : exactement 2 jours par semaine et par ville', () => {
     for (const city of ['paris', 'dallas', 'lyon']) {
       let n = 0;
       for (let i = 0; i < 7; i += 1) {
         const day = new Date(Date.parse('2026-10-05T00:00:00Z') + i * 86400000).toISOString().slice(0, 10);
         if (plush.isGoldenDay(city, day)) n += 1;
       }
-      expect(n).toBe(1);
+      expect(n).toBe(2);
+      expect(plush.goldenWeekdays(city, '2026-10-05')).toHaveLength(2);
+      expect(new Set(plush.goldenWeekdays(city, '2026-10-05')).size).toBe(2);
     }
   });
 

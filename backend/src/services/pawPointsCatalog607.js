@@ -53,10 +53,10 @@ const EARN_RULES = Object.freeze([
     de: 'Ein Plüschtier bei einem Spaziergang fangen (2 pro Tag)', it: 'Prendere un peluche durante una Passeggiata (2 al giorno)', pt: 'Apanhar um peluche durante um Passeio (2 por dia)',
     ko: '산책 중 인형 잡기 (하루 2개)', ja: 'お散歩中にぬいぐるみをつかまえる（1日2回）', pl: 'Złap pluszaka podczas Spaceru (2 dziennie)' } },
   { key: 'plushGolden', points: 200, icon: '🌟', limit: 'each', since: 607, t: {
-    fr: 'Peluche dorée (une par ville et par semaine) : +24 h de PawBoost en plus', en: 'Golden plush (one per city each week): plus 24 h of PawBoost',
-    es: 'Peluche dorado (uno por ciudad y semana): +24 h de PawBoost', de: 'Goldenes Plüschtier (eins pro Stadt und Woche): dazu 24 Std. PawBoost',
-    it: 'Peluche dorato (uno per città a settimana): +24 h di PawBoost', pt: 'Peluche dourado (um por cidade por semana): +24 h de PawBoost',
-    ko: '황금 인형 (도시별 주 1개): PawBoost 24시간 추가', ja: '金のぬいぐるみ（各都市で週1つ）：PawBoost 24時間つき', pl: 'Złoty pluszak (jeden na miasto w tygodniu): +24 h PawBoost' } },
+    fr: 'Peluche dorée (deux par ville et par semaine) : +24 h de PawBoost en plus', en: 'Golden plush (two per city each week): plus 24 h of PawBoost',
+    es: 'Peluche dorado (dos por ciudad y semana): +24 h de PawBoost', de: 'Goldenes Plüschtier (zwei pro Stadt und Woche): dazu 24 Std. PawBoost',
+    it: 'Peluche dorato (due per città a settimana): +24 h di PawBoost', pt: 'Peluche dourado (dois por cidade por semana): +24 h de PawBoost',
+    ko: '황금 인형 (도시별 주 2개): PawBoost 24시간 추가', ja: '金のぬいぐるみ（各都市で週2つ）：PawBoost 24時間つき', pl: 'Złoty pluszak (dwa na miasto w tygodniu): +24 h PawBoost' } },
   { key: 'plushCollector', points: 500, icon: '🏅', limit: 'once', since: 607, t: {
     fr: 'Collection complète des 5 peluches : badge « Collectionneur »', en: 'Full collection of the 5 plush toys: “Collector” badge',
     es: 'Colección completa de los 5 peluches: insignia «Coleccionista»', de: 'Alle 5 Plüschtiere gesammelt: Abzeichen „Sammler“',
